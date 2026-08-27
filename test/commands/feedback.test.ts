@@ -206,7 +206,7 @@ describe('FeedbackCommand', () => {
       );
     });
 
-    it('should include --body flag when body is provided', async () => {
+    it('should preserve message and body whitespace in the issue body', async () => {
       const issueUrl = 'https://github.com/Fission-AI/OpenSpec/issues/124';
 
       mockExecSync.mockImplementation((cmd: string, options?: any) => {
@@ -221,17 +221,97 @@ describe('FeedbackCommand', () => {
 
       mockExecFileSync.mockReturnValue(`${issueUrl}\n`);
 
-      await feedbackCommand.execute('Title here', { body: 'Detailed description' });
+      const message = '  Title here  ';
+      const details = '    const x = 1;  ';
+      await feedbackCommand.execute(message, { body: details });
 
-      // Verify body is included in the arguments
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        'gh',
-        expect.arrayContaining([
-          '--body',
-          expect.stringContaining('Detailed description'),
-        ]),
-        expect.any(Object)
+      const args = mockExecFileSync.mock.calls[0][1] as string[];
+      const body = args[args.indexOf('--body') + 1];
+      expect(body).toContain(
+        `## Summary\n\n${message}\n\n## Details\n\n${details}\n\n---`
       );
+    });
+
+    it('should preserve the full message in the body and shorten a long title', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd === 'which gh' || cmd === 'where gh') {
+          return Buffer.from('/usr/local/bin/gh');
+        }
+        if (cmd === 'gh auth status') {
+          return Buffer.from('Logged in');
+        }
+        return '';
+      });
+
+      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/125\n');
+
+      const message =
+        'Generated workflows declare too few allowed tools,\nso headless runs cannot write files and silently fail.';
+      await feedbackCommand.execute(message);
+
+      const args = mockExecFileSync.mock.calls[0][1] as string[];
+      const title = args[args.indexOf('--title') + 1];
+      const body = args[args.indexOf('--body') + 1];
+
+      expect(title).toBe(
+        'Feedback: Generated workflows declare too few allowed tools, so…'
+      );
+      expect(title.length).toBeLessThanOrEqual(72);
+      expect(title).not.toMatch(/[\r\n]/);
+      expect(body).toContain(`## Summary\n\n${message}`);
+    });
+
+    it('should not split Unicode grapheme clusters when shortening a title', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd === 'which gh' || cmd === 'where gh') {
+          return Buffer.from('/usr/local/bin/gh');
+        }
+        if (cmd === 'gh auth status') {
+          return Buffer.from('Logged in');
+        }
+        return '';
+      });
+
+      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/125\n');
+
+      const family = '👨‍👩‍👧‍👦';
+      const message = family.repeat(20);
+      await feedbackCommand.execute(message);
+
+      const args = mockExecFileSync.mock.calls[0][1] as string[];
+      const title = args[args.indexOf('--title') + 1];
+      const summary = title.slice('Feedback: '.length, -1);
+
+      expect(Array.from(title).length).toBeLessThanOrEqual(72);
+      expect(title.endsWith('…')).toBe(true);
+      expect(summary).toMatch(/^(?:👨‍👩‍👧‍👦)+$/u);
+    });
+
+    it('should enforce the title limit at the exact boundary', async () => {
+      mockExecSync.mockImplementation((cmd: string) => {
+        if (cmd === 'which gh' || cmd === 'where gh') {
+          return Buffer.from('/usr/local/bin/gh');
+        }
+        if (cmd === 'gh auth status') {
+          return Buffer.from('Logged in');
+        }
+        return '';
+      });
+
+      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/125\n');
+
+      await feedbackCommand.execute('x'.repeat(62));
+      await feedbackCommand.execute('x'.repeat(63));
+
+      const exactArgs = mockExecFileSync.mock.calls[0][1] as string[];
+      const shortenedArgs = mockExecFileSync.mock.calls[1][1] as string[];
+      const exactTitle = exactArgs[exactArgs.indexOf('--title') + 1];
+      const shortenedTitle = shortenedArgs[shortenedArgs.indexOf('--title') + 1];
+
+      expect(exactTitle).toBe(`Feedback: ${'x'.repeat(62)}`);
+      expect(Array.from(exactTitle)).toHaveLength(72);
+      expect(shortenedTitle).toBe(`Feedback: ${'x'.repeat(61)}…`);
+      expect(Array.from(shortenedTitle)).toHaveLength(72);
     });
 
     it('should format title with "Feedback:" prefix', async () => {
@@ -525,8 +605,11 @@ describe('FeedbackCommand', () => {
         }
       });
 
+      const message =
+        'Generated workflows declare too few allowed tools,\nso headless runs cannot write files and silently fail.';
+
       try {
-        await feedbackCommand.execute('Test message', { body: 'Test body' });
+        await feedbackCommand.execute(message, { body: 'Test body' });
       } catch (error: any) {
         // Expected to exit
       }
@@ -536,13 +619,21 @@ describe('FeedbackCommand', () => {
         expect.stringContaining('--- FORMATTED FEEDBACK ---')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Title: Feedback: Test message')
+        expect.stringContaining(
+          'Title: Feedback: Generated workflows declare too few allowed tools, so…'
+        )
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Labels: feedback')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('--- END FEEDBACK ---')
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`## Summary\n\n${message}`)
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('## Details\n\nTest body')
       );
     });
 

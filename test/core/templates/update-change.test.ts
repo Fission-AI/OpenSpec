@@ -80,7 +80,7 @@ describe('update-change templates', () => {
   it('explains the optional continue workflow before suggesting it', () => {
     for (const [label, body] of bodies) {
       const availabilityGuidance = body.indexOf(
-        '`/opsx:continue` is an expanded-profile workflow and may not be installed'
+        '`/opsx:continue` is an optional workflow and may not be installed'
       );
       const firstSuggestion = body.indexOf(
         '`/opsx:continue`',
@@ -110,7 +110,7 @@ describe('update-change templates', () => {
       expect(body, label).not.toContain('openspec new change "<name>"');
 
       const newAvailabilityCheck = body.indexOf(
-        'first verify whether the expanded-profile `/opsx:new` workflow is available'
+        'first verify whether the optional `/opsx:new` workflow is available'
       );
       const newRecommendation = body.indexOf('recommend starting fresh with `/opsx:new`');
       expect(newAvailabilityCheck, label).toBeGreaterThanOrEqual(0);

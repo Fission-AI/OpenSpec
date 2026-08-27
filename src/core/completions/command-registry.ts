@@ -14,6 +14,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       {
+        name: 'language',
+        description: 'Write new OpenSpec artifacts in this language',
+        takesValue: true,
+      },
+      {
         name: 'force',
         description: 'Auto-cleanup legacy files without prompting',
       },
@@ -98,6 +103,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'specs',
         description: 'Validate all specs',
       },
+      {
+        name: 'archived',
+        description: 'Validate that archived changes have all tasks completed (for pre-commit linting)',
+      },
       COMMON_FLAGS.type,
       COMMON_FLAGS.strict,
       COMMON_FLAGS.jsonValidation,
@@ -127,6 +136,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       {
         name: 'requirements-only',
         description: 'Alias for --deltas-only (deprecated, change-specific)',
+      },
+      {
+        name: 'diff',
+        description: 'Show per-requirement diffs for delta specs (change-specific)',
       },
       {
         name: 'requirements',
@@ -182,6 +195,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
       },
       {
+        name: 'all',
+        description: 'Show status for all active changes',
+      },
+      {
         name: 'schema',
         description: 'Schema override',
         takesValue: true,
@@ -227,6 +244,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     description: 'List available workflow schemas with descriptions',
     flags: [
       COMMON_FLAGS.json,
+      COMMON_FLAGS.store,
     ],
   },
   {
@@ -277,6 +295,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'path',
             description: 'Directory to use for the store',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'init-git',
@@ -369,6 +388,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'code-workspace',
         description: 'Also write a VS Code workspace file for the set',
         takesValue: true,
+        completionType: 'path',
       },
       {
         name: 'force',
@@ -400,6 +420,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             description:
               'Member folder as <path> or <name>=<path>; repeatable, first is the primary',
             takesValue: true,
+            completionType: 'path',
           },
           {
             name: 'tool',
@@ -481,6 +502,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
           {
             name: 'requirements-only',
             description: 'Alias for --deltas-only (deprecated)',
+          },
+          {
+            name: 'diff',
+            description: 'Show per-requirement diffs for delta specs',
           },
           COMMON_FLAGS.noInteractive,
         ],

@@ -229,6 +229,20 @@ describe('store root selection for normal commands', () => {
         store_id: 'team-context',
       });
 
+      // The batch sweep must select the same root and carry the same store
+      // context per change as the single-change path above.
+      const batch = await runCLI(['status', '--all', '--store', 'team-context', '--json'], {
+        cwd: appRepo,
+        env,
+      });
+      expect(batch.exitCode).toBe(0);
+      const batchJson = parseJson(batch);
+      expect(batchJson.root).toEqual(statusJson.root);
+      expect(batchJson.changes.map((change: { changeName: string }) => change.changeName)).toEqual([
+        'store-change',
+      ]);
+      expect(batchJson.changes[0]).toEqual({ ...statusJson, root: undefined });
+
       const instructions = await runCLI(
         ['instructions', 'design', '--change', 'store-change', '--store', 'team-context', '--json'],
         { cwd: appRepo, env }
@@ -373,6 +387,35 @@ operations:
       expect(result.exitCode).toBe(0);
       expect(result.stdout.startsWith('## Why')).toBe(true);
       expect(result.stderr).toContain(`Using OpenSpec root: team-context (${storeRoot})`);
+    });
+
+    it('diffs a delta against the selected store\'s main specs', async () => {
+      // A same-named capability sits in the cwd repo with different text. If
+      // --diff resolved main specs against the cwd instead of the store root,
+      // the diff below would be computed from this decoy.
+      fs.mkdirSync(path.join(appRepo, 'openspec', 'specs', 'billing'), { recursive: true });
+      fs.writeFileSync(
+        path.join(appRepo, 'openspec', 'specs', 'billing', 'spec.md'),
+        '# billing Specification\n\n## Purpose\nDecoy.\n\n## Requirements\n### Requirement: Billing SHALL work\nThe system SHALL create decoy bills.\n\n#### Scenario: Creates bills\n- **WHEN** a billing period ends\n- **THEN** a decoy bill is created\n'
+      );
+      fs.mkdirSync(path.join(storeRoot, 'openspec', 'specs', 'billing'), { recursive: true });
+      fs.writeFileSync(
+        path.join(storeRoot, 'openspec', 'specs', 'billing', 'spec.md'),
+        '# billing Specification\n\n## Purpose\nBilling.\n\n## Requirements\n### Requirement: Billing SHALL work\nThe system SHALL create bills.\n\n#### Scenario: Creates bills\n- **WHEN** a billing period ends\n- **THEN** a bill is created\n'
+      );
+      createChange(storeRoot, 'store-change', {
+        deltaSpec: '## MODIFIED Requirements\n\n### Requirement: Billing SHALL work\nThe system SHALL create bills monthly.\n\n#### Scenario: Creates bills\n- **WHEN** a billing period ends\n- **THEN** a bill is created\n',
+      });
+
+      const result = await runCLI(
+        ['show', 'store-change', '--store', 'team-context', '--diff'],
+        { cwd: appRepo, env }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('MODIFIED: Billing SHALL work');
+      expect(result.stdout).toContain('-The system SHALL create bills.');
+      expect(result.stdout).toContain('+The system SHALL create bills monthly.');
+      expect(result.stdout).not.toContain('decoy');
     });
 
     it('keeps instructions stdout as the artifact payload', async () => {
@@ -559,6 +602,123 @@ operations:
       const json = parseJson(result);
       expect(json.changes).toEqual([]);
       expect(json.root.source).toBe('implicit');
+    });
+
+    it('keeps list working for a legacy project.md root when no stores are registered', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+      fs.mkdirSync(path.join(appRepo, 'openspec'), { recursive: true });
+      fs.writeFileSync(path.join(appRepo, 'openspec', 'project.md'), '# Project\n');
+
+      const result = await runCLI(['list', '--json'], { cwd: appRepo, env: isolatedEnv });
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const json = parseJson(result);
+      expect(json.changes).toEqual([]);
+      expect({
+        ...json.root,
+        path: fs.realpathSync.native(json.root.path),
+      }).toEqual({ path: fs.realpathSync.native(appRepo), source: 'implicit' });
+    });
+
+    it('rejects implicit roots for bulk validation and listing', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      for (const args of [
+        ['validate', '--all'],
+        ['validate', '--changes'],
+        ['validate', '--specs'],
+        ['list'],
+        ['list', '--specs'],
+      ]) {
+        const result = await runCLI(args, { cwd: appRepo, env: isolatedEnv });
+        expect(result.exitCode).toBe(1);
+        expect(result.stdout).toBe('');
+        expect(result.stderr).toContain(
+          'Error: No OpenSpec root found from the current directory.'
+        );
+        expect(result.stderr).not.toContain('No items found to validate.');
+        expect(result.stderr).not.toContain('No active changes found.');
+        expect(result.stderr).not.toContain('No specs found.');
+      }
+    });
+
+    it('reports missing roots as JSON instead of fabricating an implicit root', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      for (const args of [
+        ['validate', '--all', '--json'],
+        ['validate', '--changes', '--json'],
+        ['validate', '--specs', '--json'],
+        ['list', '--json'],
+        ['list', '--specs', '--json'],
+      ]) {
+        const result = await runCLI(args, { cwd: appRepo, env: isolatedEnv });
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr).toBe('');
+
+        const json = parseJson(result);
+        if (args[0] === 'validate') {
+          expect(json).not.toHaveProperty('root');
+        } else {
+          expect(json.root).toBeNull();
+          expect(json[args.includes('--specs') ? 'specs' : 'changes']).toEqual([]);
+        }
+        expect(json.status[0]).toEqual(
+          expect.objectContaining({
+            severity: 'error',
+            code: 'no_openspec_root',
+            message: 'No OpenSpec root found from the current directory.',
+          })
+        );
+      }
+    });
+
+    it('still accepts an existing root with no items', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+      createOpenSpecRoot(appRepo);
+
+      const result = await runCLI(['validate', '--all', '--json'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
+
+      const json = parseJson(result);
+      expect(json.items).toEqual([]);
+      expect(json.summary.totals).toEqual({ items: 0, passed: 0, failed: 0 });
+      expect({
+        ...json.root,
+        path: fs.realpathSync.native(json.root.path),
+      }).toEqual({ path: fs.realpathSync.native(appRepo), source: 'nearest' });
+    });
+
+    it('preserves direct validation behavior without a root', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      const result = await runCLI(['validate', 'missing'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain("Unknown item 'missing'.");
+      expect(result.stderr).not.toContain('No OpenSpec root found');
     });
   });
 

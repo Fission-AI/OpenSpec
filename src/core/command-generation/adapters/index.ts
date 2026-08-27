@@ -10,6 +10,7 @@ export { auggieAdapter } from './auggie.js';
 export { bobAdapter } from './bob.js';
 export { claudeAdapter } from './claude.js';
 export { clineAdapter } from './cline.js';
+export { commandCodeAdapter } from './command-code.js';
 export { codebuddyAdapter } from './codebuddy.js';
 export { continueAdapter } from './continue.js';
 export { costrictAdapter } from './costrict.js';

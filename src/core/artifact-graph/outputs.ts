@@ -10,6 +10,14 @@ export function isGlobPattern(pattern: string): boolean {
   return pattern.includes('*') || pattern.includes('?') || pattern.includes('[');
 }
 
+/**
+ * Returns whether an artifact generates files under the change's specs/ tree.
+ */
+export function isSpecsArtifactPath(generates: string): boolean {
+  const normalized = path.posix.normalize(FileSystemUtils.toPosixPath(generates));
+  return normalized.startsWith('specs/');
+}
+
 export function resolveArtifactOutputPath(changeDir: string, generates: string): string {
   const outputPath = path.join(changeDir, generates);
   FileSystemUtils.assertPathWithin(changeDir, outputPath);
