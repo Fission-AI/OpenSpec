@@ -18,6 +18,7 @@ import {
   storePointerProblem,
 } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
+import { ANCHORED_OPENSPEC_DIRS, ensureDirectoryAnchor } from './openspec-root.js';
 import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
@@ -889,13 +890,8 @@ export class InitCommand {
   }
 
   private async writeGitkeepFiles(openspecPath: string): Promise<void> {
-    const emptyDirs = [
-      path.join(openspecPath, 'specs'),
-      path.join(openspecPath, 'changes'),
-      path.join(openspecPath, 'changes', 'archive'),
-    ];
-    for (const dir of emptyDirs) {
-      await FileSystemUtils.writeFile(path.join(dir, '.gitkeep'), '');
+    for (const relativeDir of ANCHORED_OPENSPEC_DIRS) {
+      await ensureDirectoryAnchor(path.dirname(openspecPath), relativeDir);
     }
   }
 
