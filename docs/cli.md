@@ -485,7 +485,7 @@ Changes:
 
 Display a dashboard of specs and changes.
 
-```
+```bash
 openspec view
 ```
 

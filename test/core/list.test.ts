@@ -113,7 +113,7 @@ describe('ListCommand', () => {
 
     it.each(['EACCES', 'EIO'])('does not silently hide an unreadable archive (%s)', async (code) => {
       const error = Object.assign(new Error('Cannot read archive'), { code });
-      vi.spyOn(fs, 'readdir').mockRejectedValueOnce(error);
+      vi.spyOn(fs, 'readdir').mockResolvedValueOnce([]).mockRejectedValueOnce(error);
 
       await expect(new ListCommand().execute(tempDir, 'changes', { archived: true })).rejects.toBe(error);
       expect(logOutput).toEqual([]);

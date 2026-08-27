@@ -1,5 +1,5 @@
 import { afterAll, describe, it, expect } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { runCLI, cliProjectRoot } from '../helpers/run-cli.js';
@@ -112,7 +112,7 @@ describe('openspec CLI e2e basics', () => {
     expect(output.changes.map((change: { name: string }) => change.name)).toEqual(
       output.changes.map((change: { name: string }) => change.name).sort((a: string, b: string) => a.localeCompare(b))
     );
-    expect(await fs.realpath(output.root.path)).toBe(await fs.realpath(projectDir));
+    expect(realpathSync.native(output.root.path)).toBe(realpathSync.native(projectDir));
   });
 
   it.each(['--archived', '--all'])('rejects --specs with %s as a JSON error', async (flag) => {
@@ -130,11 +130,11 @@ describe('openspec CLI e2e basics', () => {
     })]);
   });
 
-  it('reports a malformed archive as an error instead of an empty JSON list', async () => {
+  it.each(['archive', ''])('reports malformed changes/%s as an error instead of an empty JSON list', async (entry) => {
     const projectDir = await prepareFixture('tmp-init');
-    const archiveDir = path.join(projectDir, 'openspec', 'changes', 'archive');
-    await fs.rm(archiveDir, { recursive: true, force: true });
-    await fs.writeFile(archiveDir, 'not a directory\n');
+    const malformedPath = path.join(projectDir, 'openspec', 'changes', entry);
+    await fs.rm(malformedPath, { recursive: true, force: true });
+    await fs.writeFile(malformedPath, 'not a directory\n');
 
     const result = await runCLI(['list', '--archived', '--json'], { cwd: projectDir });
 

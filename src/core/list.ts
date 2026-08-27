@@ -110,11 +110,12 @@ export class ListCommand {
       const archiveDir = path.join(changesDir, 'archive');
       const includeArchived = archived || all;
 
-      // Get all directories in changes (excluding archive)
-      const entries = !archived || all ? await readChangeDirectoryEntries(changesDir) : [];
-      const activeDirs = entries
+      // Read the parent even for --archived: Windows can report ENOENT for
+      // changes/archive when changes is a file, hiding a malformed root.
+      const entries = await readChangeDirectoryEntries(changesDir);
+      const activeDirs = !archived || all ? entries
         .filter(entry => entry.isDirectory() && entry.name !== 'archive')
-        .map(entry => ({ name: entry.name, parent: changesDir, archived: false }));
+        .map(entry => ({ name: entry.name, parent: changesDir, archived: false })) : [];
       const archiveEntries = includeArchived ? await readChangeDirectoryEntries(archiveDir) : [];
       const archivedDirs = archiveEntries
         .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
