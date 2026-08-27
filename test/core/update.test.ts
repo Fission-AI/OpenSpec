@@ -2570,7 +2570,13 @@ ${OPENSPEC_MARKERS.end}
       expect(menuLines).toHaveLength(1);
       expect(menuLines[0]).toContain('/opsx-propose');
       expect(logCalls.some((entry) => entry.includes('/opsx:propose'))).toBe(false);
-      expect(logCalls.some((entry) => entry.includes('Restart your IDE'))).toBe(true);
+      // The hint names what was generated, the same sentence init prints, rather
+      // than update's older generic "changes".
+      expect(
+        logCalls.some((entry) =>
+          entry.includes('Restart your IDE for the new commands to take effect.')
+        )
+      ).toBe(true);
     });
 
     it('should preserve legacy Codex prompts when a configured Codex tool lacks the replacement workflow', async () => {
