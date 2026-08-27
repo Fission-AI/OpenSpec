@@ -4,6 +4,8 @@ import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { formatLocalDate } from './date.js';
 import { readProjectConfig } from '../core/project-config.js';
 import { isKebabId } from '../core/id.js';
+import { resolveSchema } from '../core/artifact-graph/resolver.js';
+import { isSpecsArtifactPath } from '../core/artifact-graph/outputs.js';
 import type { ChangeMetadata } from '../core/change-metadata/index.js';
 
 const DEFAULT_SCHEMA = 'spec-driven';
@@ -65,6 +67,13 @@ export interface ValidationResult {
 export function validateChangeName(name: string): ValidationResult {
   if (!name) {
     return { valid: false, error: 'Change name cannot be empty' };
+  }
+
+  // Filesystem directory components cap at 255 bytes and archive prepends a
+  // date prefix; bounding here turns the failure into a validation message
+  // instead of a raw ENAMETOOLONG from mkdir.
+  if (name.length > 200) {
+    return { valid: false, error: 'Change name is too long (200 characters max)' };
   }
 
   if (!isKebabId(name)) {
@@ -158,6 +167,11 @@ export async function createChange(
     throw new Error(`Change '${name}' already exists at ${changeDir}`);
   }
 
+  const schema = resolveSchema(schemaName, projectRoot);
+  const skipsSpecs = !schema.artifacts.some(artifact =>
+    isSpecsArtifactPath(artifact.generates)
+  );
+
   // Creating a change may scaffold or complete the root itself (an
   // implicit root, or a config-only/incomplete clone). Never leave a
   // half-root behind that doctor immediately calls unhealthy: ensure
@@ -183,6 +197,7 @@ export async function createChange(
   writeChangeMetadata(changeDir, {
     schema: schemaName,
     created: formatLocalDate(),
+    ...(skipsSpecs ? { skip_specs: true } : {}),
     ...options.metadata,
   }, projectRoot);
 

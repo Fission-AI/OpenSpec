@@ -28,7 +28,7 @@
       overlays.default = final: _prev: {
         openspec = final.stdenv.mkDerivation (finalAttrs: {
           pname = "openspec";
-          inherit ((builtins.fromJSON (builtins.readFile ./package.json))) version;
+          version = (builtins.fromJSON (builtins.readFile ./package.json)).version;
 
           src = final.lib.fileset.toSource {
             root = ./.;
@@ -40,6 +40,7 @@
               ./test
               ./package.json
               ./pnpm-lock.yaml
+              ./pnpm-workspace.yaml
               ./tsconfig.json
               ./build.js
               ./vitest.config.ts
@@ -52,7 +53,7 @@
             inherit (finalAttrs) pname version src;
             pnpm = final.pnpm_9;
             fetcherVersion = 3;
-            hash = "sha256-82sVXXqj4mfe6n6BRagUiOQS0Gd+jbPOQiYzUhmrZGU=";
+            hash = "sha256-+qGFLSVLJ9faZOmfO6ZVBP525i5LRgwhsJat2vT7Aw8=";
           };
 
           nativeBuildInputs = with final; [
@@ -64,7 +65,9 @@
 
           buildPhase = ''
             runHook preBuild
+
             pnpm run build
+
             runHook postBuild
           '';
 

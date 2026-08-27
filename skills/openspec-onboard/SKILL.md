@@ -11,7 +11,7 @@ metadata:
 
 Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
 
-**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`). Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, `view`). Once selected, treat `--store <id>` as sticky for the rest of the workflow. Every unscoped example of those commands below is shorthand: before running it, append the flag. For example, run `openspec status --change "<name>" --json --store "<id>"`, not the unscoped form shown below. Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
 
 ---
 
@@ -210,6 +210,11 @@ I'll draft one based on our task.
 
 **DO:** Draft the proposal content (don't save yet):
 
+`<capability-path>` is the spec directory relative to `specs/` (for example,
+`user-auth` or `identity/user-auth`). Use the exact existing path for modified
+capabilities. For new capabilities, follow the project's established spec
+organization.
+
 ```
 Here's a draft proposal:
 
@@ -226,10 +231,11 @@ Here's a draft proposal:
 ## Capabilities
 
 ### New Capabilities
-- `<capability-name>`: [brief description]
+- `<capability-path>`: [brief description]
 
 ### Modified Capabilities
 <!-- If modifying existing behavior -->
+- `<existing-capability-path>`: [brief description]
 
 ## Impact
 
@@ -367,12 +373,12 @@ Here are the implementation tasks:
 
 ## 1. [Category or file]
 
-- [ ] 1.1 [Specific task]
-- [ ] 1.2 [Specific task]
+- [ ] 1.1 [Specific task] — verify: [test, command, observable behavior, or delivered artifact]
+- [ ] 1.2 [Specific task] — verify: [test, command, observable behavior, or delivered artifact]
 
-## 2. Verify
+## 2. Integration Verification
 
-- [ ] 2.1 [Verification step]
+- [ ] 2.1 Verify [broader integration or system behavior] with [end-to-end test or observable result]
 
 ---
 
@@ -430,9 +436,9 @@ When a change is complete, we archive it. The archive path is derived from `plan
 Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
 ```
 
-**DO:**
+**DO:** Archive the change (`--yes` answers the confirmation prompts, which you cannot answer from a tool call):
 ```bash
-openspec archive "<name>"
+openspec archive "<name>" --yes
 ```
 
 **SHOW:**

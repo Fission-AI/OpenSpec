@@ -17,6 +17,7 @@ import {
   formatDetectionSummary,
   formatProjectMdMigrationHint,
   getToolsFromLegacyArtifacts,
+  omitToolLegacyArtifacts,
   LEGACY_CONFIG_FILES,
   LEGACY_GLOBAL_SLASH_COMMAND_PATHS,
   LEGACY_SLASH_COMMAND_PATHS,
@@ -24,6 +25,7 @@ import {
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import { CommandAdapterRegistry } from '../../src/core/command-generation/registry.js';
 import { resolveCommandSurfaceCapability } from '../../src/core/command-surface.js';
+import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 
 describe('legacy-cleanup', () => {
   let testDir: string;
@@ -389,6 +391,44 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.files).toContain('.opencode/command/openspec-new.md');
     });
 
+    it('should detect legacy CoStrict command files without claiming their directory', async () => {
+      const dirPath = path.join(testDir, '.cospec', 'openspec', 'commands');
+      await fs.mkdir(dirPath, { recursive: true });
+      await fs.writeFile(path.join(dirPath, 'openspec-proposal.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'openspec-apply.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'openspec-archive.md'), 'content');
+
+      const result = await detectLegacySlashCommands(testDir);
+      expect(result.files).toContain('.cospec/openspec/commands/openspec-proposal.md');
+      expect(result.files).toContain('.cospec/openspec/commands/openspec-apply.md');
+      expect(result.files).toContain('.cospec/openspec/commands/openspec-archive.md');
+      expect(result.directories).not.toContain('.cospec/openspec/commands');
+    });
+
+    it('should not report any file a current command adapter writes as a legacy artifact', async () => {
+      // Codex is the only legacy tool id with no adapter, so it is the only
+      // entry with no current output for this invariant to compare against.
+      const withoutAdapter = Object.keys(LEGACY_SLASH_COMMAND_PATHS).filter(
+        (toolId) => !CommandAdapterRegistry.has(toolId)
+      );
+      expect(withoutAdapter).toEqual(['codex']);
+
+      const currentFiles = CommandAdapterRegistry.getAll().flatMap((adapter) =>
+        ALL_WORKFLOWS.map((workflowId) => adapter.getFilePath(workflowId))
+      );
+      expect(currentFiles.every((filePath) => !path.isAbsolute(filePath))).toBe(true);
+
+      for (const relativePath of currentFiles) {
+        const filePath = path.join(testDir, relativePath);
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.writeFile(filePath, 'current command output');
+      }
+
+      const result = await detectLegacySlashCommands(testDir);
+      expect(result.files).toEqual([]);
+      expect(result.directories).toEqual([]);
+    });
+
     it('should not include managed global Codex prompt files in repo-local slash command detection', async () => {
       const promptDir = getCodexPromptDir();
       await fs.mkdir(promptDir, { recursive: true });
@@ -596,6 +636,26 @@ ${OPENSPEC_MARKERS.end}`);
       await expect(fs.access(filePath)).rejects.toThrow();
     });
 
+    it('should delete legacy CoStrict command files without emptying their directory', async () => {
+      const dirPath = path.join(testDir, '.cospec', 'openspec', 'commands');
+      await fs.mkdir(dirPath, { recursive: true });
+      const legacyFile = path.join(dirPath, 'openspec-proposal.md');
+      const currentFile = path.join(dirPath, 'opsx-propose.md');
+      const userFile = path.join(dirPath, 'my-team-command.md');
+      await fs.writeFile(legacyFile, 'content');
+      await fs.writeFile(currentFile, 'content');
+      await fs.writeFile(userFile, 'content');
+
+      const detection = await detectLegacyArtifacts(testDir);
+      const result = await cleanupLegacyArtifacts(testDir, detection);
+
+      expect(result.deletedFiles).toContain('.cospec/openspec/commands/openspec-proposal.md');
+      expect(result.deletedDirs).not.toContain('.cospec/openspec/commands');
+      await expect(fs.access(legacyFile)).rejects.toThrow();
+      await expect(fs.access(currentFile)).resolves.not.toThrow();
+      await expect(fs.access(userFile)).resolves.not.toThrow();
+    });
+
     it('should delete openspec/AGENTS.md', async () => {
       const agentsPath = path.join(testDir, 'openspec', 'AGENTS.md');
       await fs.writeFile(agentsPath, 'content');
@@ -774,7 +834,7 @@ ${OPENSPEC_MARKERS.end}`);
       };
 
       const summary = formatCleanupSummary(result);
-      expect(summary).toContain('✓ Removed .claude/commands/openspec/ (replaced by /opsx:*)');
+      expect(summary).toContain('✓ Removed .claude/commands/openspec/ (replaced by OpenSpec skills and commands)');
     });
 
     it('should format modified files', () => {
@@ -1109,7 +1169,7 @@ ${OPENSPEC_MARKERS.end}`);
         pattern: '.cursor/commands/openspec-*.md',
       });
 
-      expect(LEGACY_SLASH_COMMAND_PATHS['windsurf']).toEqual({
+      expect(LEGACY_SLASH_COMMAND_PATHS['devin']).toEqual({
         type: 'files',
         pattern: '.windsurf/workflows/openspec-*.md',
       });
@@ -1124,6 +1184,8 @@ ${OPENSPEC_MARKERS.end}`);
 
       // Pi was never a pre-1.0 legacy tool
       expect(LEGACY_SLASH_COMMAND_PATHS).not.toHaveProperty('pi');
+      // Junie support landed after the opsx rename; it never had openspec-* files
+      expect(LEGACY_SLASH_COMMAND_PATHS).not.toHaveProperty('junie');
     });
 
     it('should use the repo-local compatibility glob pattern for Codex prompt detection', () => {
@@ -1220,7 +1282,7 @@ ${OPENSPEC_MARKERS.end}`);
       expect(tools).toContain('claude');
       expect(tools).toContain('qoder');
       expect(tools).toContain('cursor');
-      expect(tools).toContain('windsurf');
+      expect(tools).toContain('devin');
       expect(tools).toHaveLength(4);
     });
 
@@ -1416,6 +1478,57 @@ ${OPENSPEC_MARKERS.end}`);
 
       const tools = getToolsFromLegacyArtifacts(detection);
       expect(tools).toHaveLength(0);
+    });
+  });
+
+  describe('omitToolLegacyArtifacts', () => {
+    const baseDetection = () => ({
+      configFiles: [],
+      configFilesToUpdate: [],
+      slashCommandDirs: ['.claude/commands/openspec'],
+      slashCommandFiles: ['.codex/prompts/openspec-explore.md', '.cursor/commands/openspec-apply.md'],
+      globalSlashCommandFiles: [],
+      hasOpenspecAgents: false,
+      hasProjectMd: false,
+      hasRootAgentsWithMarkers: false,
+      hasLegacyArtifacts: true,
+    });
+
+    it('removes only the named tool\'s repo-local artifacts', () => {
+      const result = omitToolLegacyArtifacts(baseDetection(), ['codex']);
+      expect(result.slashCommandFiles).toEqual(['.cursor/commands/openspec-apply.md']);
+      // Other tools' files and directories are untouched.
+      expect(result.slashCommandDirs).toEqual(['.claude/commands/openspec']);
+      expect(result.hasLegacyArtifacts).toBe(true);
+    });
+
+    it('recomputes hasLegacyArtifacts to false when nothing is left', () => {
+      const detection = {
+        ...baseDetection(),
+        slashCommandDirs: [],
+        slashCommandFiles: ['.codex/prompts/openspec-explore.md'],
+      };
+      const result = omitToolLegacyArtifacts(detection, ['codex']);
+      expect(result.slashCommandFiles).toEqual([]);
+      expect(result.hasLegacyArtifacts).toBe(false);
+    });
+
+    it('returns the detection unchanged when no tools are skipped', () => {
+      const detection = baseDetection();
+      expect(omitToolLegacyArtifacts(detection, [])).toBe(detection);
+    });
+
+    it('omits backslash-delimited paths for the skipped tool (Windows)', () => {
+      // Defensive: `legacyToolIdForFile` normalizes separators, so a
+      // Windows-style path must map to `codex` and be filtered too.
+      const detection = {
+        ...baseDetection(),
+        slashCommandDirs: [],
+        slashCommandFiles: ['.codex\\prompts\\openspec-explore.md'],
+      };
+      const result = omitToolLegacyArtifacts(detection, ['codex']);
+      expect(result.slashCommandFiles).toEqual([]);
+      expect(result.hasLegacyArtifacts).toBe(false);
     });
   });
 });

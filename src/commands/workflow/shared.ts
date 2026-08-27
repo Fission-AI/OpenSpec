@@ -46,6 +46,18 @@ export interface ApplyInstructions {
   instruction: string;
   /** Referenced-store index (read-only upstream context; omitted when none declared) */
   references?: ReferenceIndexEntry[];
+  /** Current project background from the selected root. */
+  context?: string;
+  /** Current advisory guidance for apply. */
+  operationGuidance?: string[];
+}
+
+export interface ArchiveInstructions {
+  changeName: string;
+  /** Current project background from the selected root. */
+  context?: string;
+  /** Current advisory guidance for archive. */
+  operationGuidance?: string[];
 }
 
 // -----------------------------------------------------------------------------

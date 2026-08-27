@@ -1,14 +1,26 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import chalk from 'chalk';
 import { JsonConverter } from '../core/converters/json-converter.js';
 import { Validator } from '../core/validation/validator.js';
 import { VALIDATION_MESSAGES } from '../core/validation/constants.js';
 import { ChangeParser } from '../core/parsers/change-parser.js';
-import { Change } from '../core/schemas/index.js';
+import { Change, Delta } from '../core/schemas/index.js';
 import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getActiveChangeIds } from '../utils/item-discovery.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
+import { FileSystemUtils } from '../utils/file-system.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import {
+  foldRequirementName,
+  parseDeltaSpec,
+} from '../core/parsers/requirement-blocks.js';
+import {
+  extractRequirementBlock,
+  diffRequirementBlock,
+  buildRenameMap,
+} from '../utils/requirement-diff.js';
 
 /**
  * True only when `target` is definitively absent. An EACCES or I/O failure
@@ -31,6 +43,20 @@ function isChangeDirectoryName(changesPath: string, changeDir: string): boolean 
   return path.dirname(path.resolve(changeDir)) === path.resolve(changesPath);
 }
 
+/** One requirement of one delta spec, paired with its main-spec counterpart. */
+interface RequirementDiff {
+  capability: string;
+  operation: 'ADDED' | 'REMOVED' | 'RENAMED' | 'MODIFIED';
+  requirementName: string;
+  raw: string;
+  diff?: string;
+  rename?: { from: string; to: string };
+  warning?: string;
+}
+
+/** A JSON delta carrying the extra fields `--diff` adds to MODIFIED entries. */
+type DeltaWithDiff = Delta & { diff?: string; warning?: string };
+
 export class ChangeCommand {
   private converter: JsonConverter;
   private rootPath?: string;
@@ -46,13 +72,21 @@ export class ChangeCommand {
     return path.join(this.rootPath ?? process.cwd(), 'openspec', 'changes');
   }
 
+  // Main specs resolve against the same root as changes, so `--diff` reads the
+  // selected store's specs rather than whatever sits under the cwd.
+  private getSpecsPath(): string {
+    return path.join(this.rootPath ?? process.cwd(), 'openspec', 'specs');
+  }
+
   /**
    * Show a change proposal.
    * - Text mode: raw markdown passthrough (no filters)
    * - JSON mode: minimal object with deltas; --deltas-only returns same object with filtered deltas
    *   Note: --requirements-only is deprecated alias for --deltas-only
+   * - --diff: per-requirement diffs of the delta specs against the main specs,
+   *   appended in text mode and attached to MODIFIED deltas in JSON mode
    */
-  async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean; rootOutput?: RootOutput }): Promise<void> {
+  async show(changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; diff?: boolean; noInteractive?: boolean; rootOutput?: RootOutput }): Promise<void> {
     const changesPath = this.getChangesPath();
 
     if (!changeName) {
@@ -106,8 +140,10 @@ export class ChangeCommand {
       }
       throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
     }
+    FileSystemUtils.assertPathWithin(path.dirname(proposalPath), proposalPath);
 
     if (options?.json) {
+      FileSystemUtils.assertPathWithin(changeDir, proposalPath);
       const jsonOutput = await this.converter.convertChangeToJson(proposalPath);
 
       if (options.requirementsOnly) {
@@ -115,10 +151,15 @@ export class ChangeCommand {
       }
 
       const parsed: Change = JSON.parse(jsonOutput);
+      FileSystemUtils.assertPathWithin(changeDir, proposalPath);
       const contentForTitle = await fs.readFile(proposalPath, 'utf-8');
       const title = this.extractTitle(contentForTitle, changeName);
       const id = parsed.name;
       const deltas = parsed.deltas || [];
+
+      if (options.diff) {
+        await this.enrichDeltasWithDiffs(deltas, changeName, changesPath);
+      }
 
       const output = {
         id,
@@ -129,8 +170,238 @@ export class ChangeCommand {
       };
       console.log(JSON.stringify(output, null, 2));
     } else {
+      FileSystemUtils.assertPathWithin(changeDir, proposalPath);
       const content = await fs.readFile(proposalPath, 'utf-8');
       console.log(content);
+
+      if (options?.diff) {
+        await this.showSpecDiffs(changeName, changesPath);
+      }
+    }
+  }
+
+  /**
+   * Read every delta spec under the change and pair each requirement with its
+   * counterpart in the main spec. Text mode and JSON mode both render from this
+   * one pass, so the two surfaces cannot drift apart.
+   */
+  private async collectSpecDiffs(
+    changeName: string,
+    changesPath: string
+  ): Promise<{ capabilities: string[]; results: RequirementDiff[] }> {
+    const specsDir = path.join(changesPath, changeName, 'specs');
+    const mainSpecsDir = this.getSpecsPath();
+
+    // Same discovery ChangeParser uses, so a nested capability (specs/<area>/<id>)
+    // is diffed rather than silently skipped, and the ids here match the `spec`
+    // field of the JSON deltas.
+    const discovered = await discoverSpecFiles(specsDir);
+
+    const capabilities = discovered.map(spec => spec.id);
+    const results: RequirementDiff[] = [];
+
+    for (const { id: capability, specFile: deltaSpecPath } of discovered) {
+      const deltaContent = await fs.readFile(deltaSpecPath, 'utf-8');
+
+      const mainSpecPath = path.join(mainSpecsDir, ...capability.split('/'), 'spec.md');
+      let mainContent: string | null = null;
+      try {
+        FileSystemUtils.assertPathWithin(mainSpecsDir, mainSpecPath);
+        mainContent = await fs.readFile(mainSpecPath, 'utf-8');
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') throw error;
+        // No main spec on disk. For ADDED requirements that is the ordinary new
+        // capability case; MODIFIED requirements are handled as a mismatch below.
+      }
+
+      const plan = parseDeltaSpec(deltaContent);
+      const renameMap = buildRenameMap(plan.renamed);
+
+      for (const block of plan.added) {
+        results.push({ capability, operation: 'ADDED', requirementName: block.name, raw: block.raw });
+      }
+
+      // Prefer the authored REMOVED block so its Reason/Migration text reaches
+      // the reader; the bullet-list form carries a name and nothing else.
+      const removedBlocks = new Map(
+        plan.removedBlocks.map(block => [foldRequirementName(block.name), block.raw])
+      );
+      for (const name of plan.removed) {
+        const raw = removedBlocks.get(foldRequirementName(name));
+        results.push({
+          capability,
+          operation: 'REMOVED',
+          requirementName: name,
+          raw: raw ?? `### Requirement: ${name}`,
+        });
+      }
+
+      for (const rename of plan.renamed) {
+        results.push({ capability, operation: 'RENAMED', requirementName: rename.to, raw: '', rename });
+      }
+
+      for (const block of plan.modified) {
+        const entry: RequirementDiff = {
+          capability,
+          operation: 'MODIFIED',
+          requirementName: block.name,
+          raw: block.raw,
+        };
+
+        // A requirement renamed and modified in the same delta still lives in
+        // the main spec under its old name, so look it up there.
+        const oldName = renameMap.get(foldRequirementName(block.name));
+        const lookupName = oldName ?? block.name;
+
+        const match = mainContent ? extractRequirementBlock(mainContent, lookupName) : null;
+        if (match) {
+          entry.diff = diffRequirementBlock(match.raw, block.raw, `${capability}/${block.name}`);
+          if (!match.exact) {
+            // Archive matches requirement names exactly, so a header that
+            // differs only in case or spacing will not merge. Show the diff the
+            // author meant, and name the mismatch while it is still cheap to fix.
+            entry.warning =
+              `Header differs from the main spec's "${match.name}" only in case or spacing; ` +
+              `archive matches names exactly, so reconcile them before archiving`;
+          }
+        } else if (mainContent) {
+          entry.warning = `No matching main requirement found for "${lookupName}" in ${capability}`;
+        } else {
+          // A MODIFIED requirement names a block that should already exist, so a
+          // missing main spec is an authoring error, not a new capability.
+          // Rendering it as all-additions would hide what archive will reject.
+          entry.warning =
+            `No main spec at openspec/specs/${capability}/spec.md, ` +
+            `so MODIFIED requirement "${block.name}" has nothing to diff against`;
+        }
+
+        results.push(entry);
+      }
+    }
+
+    return { capabilities, results };
+  }
+
+  /**
+   * Attach `diff` (or `warning`) to every MODIFIED delta in the JSON payload.
+   * Mutates the deltas array in place.
+   *
+   * The parsed Delta objects carry the requirement body in `description`, not
+   * the header name, so they are matched to parsed blocks by capability and
+   * source order: ChangeParser emits one Delta per MODIFIED block in that order.
+   */
+  private async enrichDeltasWithDiffs(deltas: Delta[], changeName: string, changesPath: string): Promise<void> {
+    const modifiedDeltasBySpec = new Map<string, Delta[]>();
+    for (const delta of deltas) {
+      if (!delta.spec || delta.operation !== 'MODIFIED') continue;
+      const list = modifiedDeltasBySpec.get(delta.spec) ?? [];
+      list.push(delta);
+      modifiedDeltasBySpec.set(delta.spec, list);
+    }
+    if (modifiedDeltasBySpec.size === 0) return;
+
+    const { results } = await this.collectSpecDiffs(changeName, changesPath);
+    const modifiedEntriesBySpec = new Map<string, RequirementDiff[]>();
+    for (const entry of results) {
+      if (entry.operation !== 'MODIFIED') continue;
+      const list = modifiedEntriesBySpec.get(entry.capability) ?? [];
+      list.push(entry);
+      modifiedEntriesBySpec.set(entry.capability, list);
+    }
+
+    for (const [capability, modifiedDeltas] of modifiedDeltasBySpec) {
+      const entries = modifiedEntriesBySpec.get(capability) ?? [];
+      for (let i = 0; i < modifiedDeltas.length && i < entries.length; i++) {
+        const entry = entries[i];
+        if (entry.diff !== undefined) {
+          (modifiedDeltas[i] as DeltaWithDiff).diff = entry.diff;
+        }
+        if (entry.warning !== undefined) {
+          (modifiedDeltas[i] as DeltaWithDiff).warning = entry.warning;
+        }
+      }
+    }
+  }
+
+  /**
+   * Text mode: per-requirement diffs of the delta specs against the main specs.
+   */
+  private async showSpecDiffs(changeName: string, changesPath: string): Promise<void> {
+    const { capabilities, results } = await this.collectSpecDiffs(changeName, changesPath);
+
+    console.log();
+    if (capabilities.length === 0 || results.length === 0) {
+      // Not an error: a change can be proposal-only. Saying so beats printing a
+      // heading with nothing under it.
+      console.log(`No delta specs to diff for change "${changeName}".`);
+      return;
+    }
+
+    console.log(chalk.bold('Specifications Changed (diffs)'));
+    console.log();
+    this.printDiffText(results);
+  }
+
+  private printDiffText(results: RequirementDiff[]): void {
+    let currentCap = '';
+
+    for (const r of results) {
+      if (r.capability !== currentCap) {
+        if (currentCap) console.log();
+        currentCap = r.capability;
+        console.log(chalk.bold.underline(currentCap));
+        console.log();
+      }
+
+      switch (r.operation) {
+        case 'ADDED':
+          console.log(chalk.green.bold(`  ADDED: ${r.requirementName}`));
+          for (const line of r.raw.split('\n')) {
+            console.log(chalk.green(`    ${line}`));
+          }
+          console.log();
+          break;
+
+        case 'REMOVED':
+          console.log(chalk.red.bold(`  REMOVED: ${r.requirementName}`));
+          for (const line of r.raw.split('\n')) {
+            console.log(chalk.red(`    ${line}`));
+          }
+          console.log();
+          break;
+
+        case 'RENAMED':
+          console.log(chalk.cyan.bold(`  RENAMED: ${r.rename?.from} → ${r.rename?.to}`));
+          console.log();
+          break;
+
+        case 'MODIFIED':
+          console.log(chalk.yellow.bold(`  MODIFIED: ${r.requirementName}`));
+          if (r.warning) {
+            console.log(chalk.yellow(`    ⚠ ${r.warning}`));
+          }
+          // A near-miss header carries both: the warning about the mismatch and
+          // the diff against the block it almost matched.
+          if (r.diff === undefined) {
+            for (const line of r.raw.split('\n')) {
+              console.log(`    ${line}`);
+            }
+          } else if (r.diff === '') {
+            console.log(chalk.dim('    (no textual changes)'));
+          } else {
+            for (const line of r.diff.split('\n')) {
+              if (line.startsWith('+')) {
+                console.log(chalk.green(`    ${line}`));
+              } else if (line.startsWith('-')) {
+                console.log(chalk.red(`    ${line}`));
+              } else {
+                console.log(`    ${line}`);
+              }
+            }
+          }
+          console.log();
+          break;
+      }
     }
   }
 
@@ -168,6 +439,7 @@ export class ChangeCommand {
           }
 
           try {
+            FileSystemUtils.assertPathWithin(changeDir, proposalPath);
             const content = await fs.readFile(proposalPath, 'utf-8');
             const parser = new ChangeParser(content, changeDir);
             const change = await parser.parseChangeWithDeltas(changeName);
@@ -209,6 +481,7 @@ export class ChangeCommand {
           continue;
         }
         try {
+          FileSystemUtils.assertPathWithin(changeDir, proposalPath);
           const content = await fs.readFile(proposalPath, 'utf-8');
           const title = this.extractTitle(content, changeName);
           const parser = new ChangeParser(content, changeDir);
@@ -248,7 +521,9 @@ export class ChangeCommand {
     }
     
     const changeDir = path.join(changesPath, changeName);
-    
+    if (!isChangeDirectoryName(changesPath, changeDir)) {
+      throw new Error(`Change "${changeName}" not found at ${changeDir}`);
+    }
     try {
       await fs.access(changeDir);
     } catch {
@@ -256,7 +531,12 @@ export class ChangeCommand {
     }
     
     const validator = new Validator(options?.strict || false);
-    const report = await validator.validateChangeDeltaSpecs(changeDir);
+    const report = await validator.validateChangeDeltaSpecs(changeDir, {
+      // Derived from changesPath so the main specs come from the same root the
+      // change itself was resolved against.
+      mainSpecsDir: path.join(path.dirname(changesPath), 'specs'),
+      projectRoot: path.dirname(path.dirname(changesPath)),
+    });
     
     if (options?.json) {
       console.log(JSON.stringify(report, null, 2));

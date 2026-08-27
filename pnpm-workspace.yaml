@@ -1,0 +1,19 @@
+packages:
+  - '.'
+
+allowBuilds:
+  esbuild@0.28.1: true
+
+overrides:
+  brace-expansion@<=5.0.8: '>=5.0.9 <6'
+  postcss@<8.5.23: '>=8.5.23 <9'
+  # GHSA-5p4m-2wfm-xmqj — js-yaml quadratic-CPU !!omap DoS. Dev-only (pulled by
+  # @changesets: read-yaml-file for 3.x, @changesets/parse for 4.x); never in the
+  # published CLI. Remove once changesets' transitive js-yaml is >=3.15.1 / >=4.3.1
+  # (check: pnpm why js-yaml).
+  js-yaml@>=3.0.0 <3.15.1: '>=3.15.1 <4'
+  js-yaml@>=4.0.0 <4.3.1: '>=4.3.1 <5'
+  # GHSA-2v37-7h3g-55p8 / CVE-2026-67213 — nanoid infinite loop on size=0. Dev-only
+  # (transitive via postcss). Remove once transitive nanoid is >=3.3.17
+  # (check: pnpm why nanoid).
+  nanoid@<3.3.17: '>=3.3.17 <4'

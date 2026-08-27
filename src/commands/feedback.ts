@@ -3,6 +3,8 @@ import { createRequire } from 'module';
 import os from 'os';
 
 const require = createRequire(import.meta.url);
+const MAX_TITLE_LENGTH = 72;
+const TITLE_PREFIX = 'Feedback: ';
 
 /**
  * Check if gh CLI is installed and available in PATH
@@ -75,21 +77,46 @@ Submitted via OpenSpec CLI
  * Format the feedback title
  */
 function formatTitle(message: string): string {
-  return `Feedback: ${message}`;
+  const normalizedMessage = message.replace(/\s+/g, ' ').trim();
+  const title = `${TITLE_PREFIX}${normalizedMessage}`;
+
+  if (Array.from(title).length <= MAX_TITLE_LENGTH) {
+    return title;
+  }
+
+  const availableLength = MAX_TITLE_LENGTH - TITLE_PREFIX.length - 1;
+  let candidate = '';
+  let candidateLength = 0;
+  const segments = new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(
+    normalizedMessage
+  );
+
+  for (const { segment } of segments) {
+    const segmentLength = Array.from(segment).length;
+    if (candidateLength + segmentLength > availableLength) {
+      break;
+    }
+    candidate += segment;
+    candidateLength += segmentLength;
+  }
+
+  candidate = candidate.trimEnd();
+  const lastSpace = candidate.lastIndexOf(' ');
+  const summary = lastSpace > 0 ? candidate.slice(0, lastSpace) : candidate;
+  return `${TITLE_PREFIX}${summary}…`;
 }
 
 /**
  * Format the full feedback body
  */
-function formatBody(bodyText?: string): string {
-  const parts: string[] = [];
+function formatBody(message: string, bodyText?: string): string {
+  const parts = ['## Summary', '', message];
 
   if (bodyText) {
-    parts.push(bodyText);
-    parts.push(''); // Empty line before metadata
+    parts.push('', '## Details', '', bodyText);
   }
 
-  parts.push(generateMetadata());
+  parts.push('', generateMetadata());
 
   return parts.join('\n');
 }
@@ -131,15 +158,25 @@ function isMissingLabelError(error: any): boolean {
 }
 
 /**
- * Report a gh CLI failure and exit, preserving gh's exit code
+ * Report a gh CLI failure and exit, preserving gh's exit code.
+ *
+ * gh failed after the user already typed their feedback (issues disabled,
+ * network, rate limit, ...), so show the same manual-submission path the
+ * missing-gh and unauthenticated flows get instead of discarding the text.
  */
-function reportGhFailure(error: any): void {
+function reportGhFailure(error: any, title: string, body: string): void {
   // Display the error output from gh CLI
   if (error.stderr) {
     console.error(error.stderr.toString());
   } else if (error.message) {
     console.error(error.message);
   }
+
+  displayFormattedFeedback(title, body);
+
+  const manualUrl = generateManualSubmissionUrl(title, body);
+  console.log('Please submit your feedback manually:');
+  console.log(manualUrl);
 
   // Exit with the same code as gh CLI
   process.exit(error.status ?? 1);
@@ -181,7 +218,7 @@ function submitViaGhCli(title: string, body: string): void {
     issueUrl = createIssue(title, body, ['feedback']);
   } catch (error: any) {
     if (!isMissingLabelError(error)) {
-      reportGhFailure(error);
+      reportGhFailure(error, title, body);
       return;
     }
 
@@ -191,7 +228,7 @@ function submitViaGhCli(title: string, body: string): void {
       issueUrl = createIssue(title, body, []);
       labelApplied = false;
     } catch (retryError: any) {
-      reportGhFailure(retryError);
+      reportGhFailure(retryError, title, body);
       return;
     }
   }
@@ -237,7 +274,7 @@ export class FeedbackCommand {
   async execute(message: string, options?: { body?: string }): Promise<void> {
     // Format title and body once for all code paths
     const title = formatTitle(message);
-    const body = formatBody(options?.body);
+    const body = formatBody(message, options?.body);
 
     // Check if gh CLI is installed
     if (!isGhInstalled()) {

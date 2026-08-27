@@ -27,6 +27,14 @@ The command SHALL support both interactive and direct change selection methods.
 - **THEN** use that change directly
 - **AND** validate it exists
 
+#### Scenario: No change name and no answer available
+
+- **WHEN** no change-name is provided and the selection prompt cannot be answered
+- **THEN** report that a change name is required
+- **AND** state that no answer could be read from stdin
+- **AND** suggest a rerun naming the change and passing `--yes`
+- **AND** exit with a non-zero status code rather than reporting success for a run that archived nothing
+
 ### Requirement: Task Completion Check
 
 The command SHALL verify task completion status before archiving to prevent premature archival.
@@ -53,9 +61,12 @@ The archive operation SHALL follow a structured process to safely move changes t
 - **THEN** execute these steps:
   1. Create archive/ directory if it doesn't exist
   2. Generate target name as `YYYY-MM-DD-[change-name]` using current date, keeping the name as-is when it already starts with a `YYYY-MM-DD-` prefix
-  3. Check if target directory already exists
-  4. Update main specs from the change's future state specs (see Spec Update Process below)
-  5. Move the entire change directory to the archive location
+  3. Claim the target and verify that it does not already exist
+  4. Prepare and validate spec updates from the active change's delta specs
+  5. Apply the spec updates as a rollback-capable transaction
+  6. Move the entire change directory to the archive location
+  7. If a spec mutation or final move fails before a complete archive is secured, restore the spec transaction and leave or return the change at its active path
+  8. If a verified fallback copy completes but staged-source cleanup fails, retain the complete archive and committed spec state for recovery instead of risking the only complete copy
 
 #### Scenario: Archive already exists
 
@@ -70,7 +81,7 @@ The archive operation SHALL follow a structured process to safely move changes t
 
 ### Requirement: Spec Update Process
 
-Before moving the change to archive, the command SHALL apply delta changes to main specs to reflect the deployed reality.
+After claiming the archive destination, the command SHALL apply delta changes to main specs to reflect the deployed reality, then move the change to its archive destination. It SHALL restore the spec transaction when a mutation or final move fails before a complete archive is secured. Once a verified fallback archive is complete, a staged-source cleanup failure SHALL retain that archive and committed spec state for recovery.
 
 #### Scenario: Applying delta changes
 
@@ -89,6 +100,12 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 - **WHEN** applying deltas would create duplicate requirement headers
 - **THEN** abort with error message showing the conflict
 - **AND** suggest manual resolution
+
+#### Scenario: Duplicate requirement already exists in the main spec
+
+- **WHEN** a main spec contains two canonical requirement headers with the same name
+- **THEN** reject the structurally ambiguous main spec before applying any delta
+- **AND** preserve the main spec and active change unchanged
 
 #### Scenario: New main spec inherits the delta's Purpose
 
@@ -121,6 +138,70 @@ Before moving the change to archive, the command SHALL apply delta changes to ma
 - **WHEN** a delta carries a `## Purpose` and the target main spec already exists
 - **THEN** leave the existing Purpose untouched
 - **AND** warn that the delta Purpose was ignored, naming the spec file to edit directly, but only when that spec has a Purpose of its own and it differs from the delta's
+
+### Requirement: Capability Retirement
+
+A delta whose REMOVED entries cover every requirement a capability has SHALL retire that capability instead of writing a main spec with no requirements, which can never pass validation.
+
+#### Scenario: Deciding that a rebuilt spec cannot be written
+
+- **WHEN** applying a delta leaves the rebuilt spec with no requirement blocks, and every other nonblank line in the whole file is accounted for as the title, Purpose, Requirements header, or a canonical requirement's statement, scenarios, or fenced examples
+- **THEN** put that rebuilt spec to the spec validator
+- **AND** treat it as retirable only when its sole validation error is that the spec has no requirements
+- **AND** otherwise write or reject it exactly as any other rebuilt spec, so a spec the validator still accepts, one broken in some further way, and one still holding a `###` heading are all left alone
+
+#### Scenario: Validation was skipped
+
+- **WHEN** the archive runs with validation disabled
+- **THEN** retire nothing, because no verdict was produced to justify a deletion
+- **AND** write the rebuilt spec exactly as an archive without this behavior would
+
+#### Scenario: Retirement is not declared
+
+- **WHEN** a rebuilt spec is retirable but the change does not declare `retire_capabilities: true` in its metadata, or declares it in metadata that cannot be honored
+- **THEN** write the spec as any other, so the archive aborts on it exactly as it did before this behavior existed
+- **AND** name the marker as the fix in that abort, and say when a marker that is present cannot be honored
+- **AND** say nothing about the marker when retiring would not have made the spec writable anyway
+
+#### Scenario: Delta removes the capability's last requirement
+
+- **WHEN** a retirable rebuilt spec belongs to a capability whose main spec exists
+- **AND** at least one requirement was actually removed by this run
+- **AND** the change declares `retire_capabilities: true`
+- **THEN** delete the capability's `spec.md` instead of writing it
+- **AND** refuse to delete when the target resolves outside the real specs root
+- **AND** delete any in-root directory the deletion leaves empty, and never the specs root itself
+- **AND** count every operation the delta applied in the archive totals
+- **AND** record the retirement in the archive warnings, naming what the deleted file held and giving a pasteable Git recovery command only when the spec lived in the caller's checkout
+
+#### Scenario: Retirement is deferred until every spec is written
+
+- **WHEN** an archive both retires one capability and updates another
+- **THEN** settle the archive destination before touching any spec, so a name collision cannot strand a retirement
+- **AND** perform the deletion only after every spec write has succeeded
+- **AND** report a destination claimed while the merge ran as the same collision, rather than as a raw filesystem error
+
+#### Scenario: Capability directory holds other files
+
+- **WHEN** retiring a capability whose directory still holds other files after `spec.md` is deleted
+- **THEN** leave that directory in place
+
+#### Scenario: Removal was already synced
+
+- **WHEN** a retirable rebuilt spec removed nothing this run and its main spec exists
+- **THEN** leave the file untouched
+- **AND** abort the archive with the validation error, as for any other unwritable spec, unless validation was skipped
+
+#### Scenario: Content the merge cannot account for
+
+- **WHEN** the spec holds any non-blank line the merge cannot name - anywhere in the file, including above the requirements section and inside a requirement block, where content the parser did not read as a new header rides along
+- **THEN** refuse the retirement, because deleting the file would take that content with it
+- **AND** say which lines stood in the way when the change declared the marker, rather than aborting on the bare validation error
+
+#### Scenario: Main spec is already gone
+
+- **WHEN** a REMOVED-only delta targets a capability that has no main spec, and the change declares `retire_capabilities: true`
+- **THEN** complete the archive without creating or retiring one
 
 ### Requirement: Confirmation Behavior
 
@@ -170,6 +251,21 @@ The command SHALL handle various error conditions gracefully.
   - Change not found
   - Archive target already exists
   - File system permissions issues
+  - A confirmation prompt that cannot be answered because no answer can be read from stdin
+
+#### Scenario: Confirmation cannot be answered
+
+- **WHEN** a confirmation prompt fails because no answer can be read from stdin
+- **THEN** report which decision needed an answer
+- **AND** suggest a rerun that adds `--yes` and reproduces the flags the caller already passed
+- **AND** make no filesystem change
+- **AND** exit with a non-zero status code
+
+#### Scenario: Cancellation is not treated as a missing answer
+
+- **WHEN** the user cancels a prompt with Ctrl-C
+- **THEN** treat it as a cancellation rather than an unanswerable prompt
+- **AND** preserve the existing cancellation behavior
 
 ### Requirement: Skip Specs Option
 
@@ -246,6 +342,6 @@ The archive command SHALL validate changes before applying them to ensure data i
 **Task checking**: Prevents accidental archiving of incomplete work
 **Date prefixing**: Maintains chronological order and prevents naming conflicts; a name that already carries a date prefix keeps it, so archived names never stack dates
 **No overwrite**: Preserves historical archives and prevents data loss
-**Spec updates before archiving**: Specs in the main directory represent current reality; when a change is deployed and archived, its future state specs become the new reality and must replace the main specs
+**Claim-first transaction**: The destination is claimed before main specs are mutated, spec changes are rollback-protected, and the active change is moved only after the spec transaction succeeds
 **Confirmation for spec updates**: Provides visibility into what will change, prevents accidental overwrites, and ensures users understand the impact before specs are modified
 **--yes flag for automation**: Allows CI/CD pipelines to archive without interactive prompts while maintaining safety by default for manual use
