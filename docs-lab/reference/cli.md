@@ -665,6 +665,14 @@ One line per item. Bulk runs end with totals:
 Totals: 2 passed, 0 failed (2 items)
 ```
 
+When a change's deltas are validated against the main specs, validate also runs the merge archive would run and reports anything that merge refuses — a `MODIFIED` naming a requirement the main spec does not have, a `RENAMED` whose source is gone, an `ADDED` whose name already exists. Without this the delta only fails at `openspec archive`, often weeks after the implementing PR shipped.
+
+These are reported as `INFO` and never change the exit code, including under `--strict`. The same shape has two causes: a mistyped header, and a change modifying a requirement a sibling change introduced but has not archived yet. The second becomes applicable the moment that sibling lands, so the report tells you the collision exists and leaves the verdict to you.
+
+```text
+ℹ [INFO] api/spec.md: Archive would refuse this delta: api MODIFIED failed for header "### Requirement: Rate limiting" - not found
+```
+
 A failing item lists each issue and the fix:
 
 ```
