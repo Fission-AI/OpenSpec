@@ -31,7 +31,7 @@ Your agent runs most of these during the workflow.
 | Command | What it does |
 |---|---|
 | [`openspec new`](#openspec-new) | Create a new change directory. |
-| [`openspec status`](#openspec-status) | Artifact completion status for a change. |
+| [`openspec status`](#openspec-status) | Artifact completion status for one or every active change. |
 | [`openspec instructions`](#openspec-instructions) | Instructions for creating an artifact, applying, or archiving. |
 | [`openspec templates`](#openspec-templates) | Resolved template paths for a schema's artifacts. |
 | [`openspec schemas`](#openspec-schemas) | List available workflow schemas. |
@@ -460,6 +460,7 @@ Prints a change or spec, as markdown or JSON.
 
 ```bash
 openspec show add-rate-limit              # change: prints proposal.md
+openspec show add-rate-limit --diff       # change: append requirement diffs
 openspec show api                         # spec: prints spec.md
 openspec show api --json --no-scenarios   # spec JSON without scenario text
 ```
@@ -481,6 +482,7 @@ With no name, show asks change or spec, then lists items to pick from. Outside a
 | `--no-interactive` | Never prompt: a missing name becomes an error. |
 | `--deltas-only` | JSON, change: restrict output to deltas. Change JSON is already delta-only, so output matches plain `--json`. |
 | `--requirements-only` | Deprecated alias for `--deltas-only`. Warns on stderr. |
+| `--diff` | Change: append per-requirement delta diffs. Ignored with a warning for specs. |
 | `--requirements` | JSON, spec: keep requirement text, empty the `scenarios` arrays. |
 | `--no-scenarios` | JSON, spec: same output as `--requirements`. |
 | `-r, --requirement <id>` | JSON, spec: output one requirement by 1-based position. Can't combine with `--requirements`. |
@@ -501,6 +503,10 @@ Unauthenticated clients can exhaust the API.
 ## What Changes
 - Add per-client rate limiting to the public API.
 ```
+
+For a change, `--diff` prints the proposal first, then a `Specifications Changed (diffs)` section. ADDED requirements include their full text. REMOVED requirements retain the authored Reason and Migration. RENAMED requirements show FROM and TO. MODIFIED requirements show a unified diff against the matching main requirement.
+
+If a MODIFIED header matches only after folding case or whitespace, the output includes both the diff and a warning that archive matching is exact. If the main spec or requirement is missing, the output warns and prints the full delta block. A MODIFIED block with no textual difference prints `(no textual changes)`.
 
 A change with `--json` is delta-shaped:
 
@@ -531,6 +537,8 @@ A change with `--json` is delta-shaped:
   }
 }
 ```
+
+`--json --diff` keeps this top-level shape. A MODIFIED delta gains a `diff` string, a `warning` string, or both. Other operations are unchanged. An empty `diff` string means the main and delta blocks are textually identical.
 
 A spec with `--json` lists its requirements with scenarios:
 
@@ -566,7 +574,7 @@ An unknown name suggests near matches: `Unknown item 'does-not-exist'. Did you m
 **Exit codes**
 
 - `0`: item printed.
-- `1`: unknown or ambiguous name, no name outside a terminal, an out-of-range `-r` index, or `--requirements` combined with `-r`.
+- `1`: unknown or ambiguous name, no name outside a terminal, an out-of-range `-r` index, `--requirements` combined with `-r`, or a delta or main spec cannot be read for `--diff`.
 
 ## openspec view
 
@@ -866,25 +874,30 @@ With `--json`:
 
 ## openspec status
 
-Reports artifact completion status for a change.
+Reports artifact completion status for one change or every active change.
 
 ```bash
 openspec status --change add-rate-limit          # checklist view
 openspec status --change add-rate-limit --json   # structured report
+openspec status --all                            # every active change
+openspec status --all --json                     # one batch report
 ```
 
-`--change` is required. Without it, status exits 1 and lists the available changes, even when only one exists:
+When active changes exist, use exactly one of `--change` or `--all`. Without either, status exits 1 and lists the available changes, even when only one exists:
 
-```
-✖ Error: Missing required option --change. Available changes:
+```text
+✖ Error: Missing required option --change (or --all for every active change). Available changes:
   add-rate-limit
 ```
+
+When the project has no active changes, status prints `No active changes. Create one with: openspec new change <name>` and exits 0 even without either flag. With `--all --json`, the same empty state is `{ "changes": [], "message": "No active changes.", "root": ... }`.
 
 **Options**
 
 | Flag | Effect |
 |---|---|
 | `--change <id>` | The change to report on, by folder name. |
+| `--all` | Report every active change, sorted by name. Can't be combined with `--change`. |
 | `--schema <name>` | Override the schema auto-detected from `openspec/config.yaml`. An unknown name is an error. |
 | `--json` | Print a structured report instead of text. |
 | `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
@@ -946,10 +959,30 @@ Progress: 2/4 artifacts complete
 }
 ```
 
+With `--all --json`, `changes` contains the same status object for each change, without a per-change `root`. The selected root appears once on the envelope. This example trims the per-change status fields shown above:
+
+```json
+{
+  "changes": [
+    {
+      "changeName": "add-rate-limit",
+      "schemaName": "spec-driven",
+      "artifacts": []
+    }
+  ],
+  "root": {
+    "path": "/Users/you/projects/my-app",
+    "source": "nearest"
+  }
+}
+```
+
+If one change can't load, the batch continues. Its entry contains `changeName` and a `status` diagnostic while the other entries remain available. The command exits 1, including in JSON mode, so CI doesn't accept an incomplete report as successful. JSON output remains one parseable document.
+
 **Exit codes**
 
-- `0`: status printed.
-- `1`: `--change` missing, the change doesn't exist, or the schema override is unknown.
+- `0`: every requested status printed; an empty `--all` report also exits 0.
+- `1`: a requested change failed to load, `--change` or `--all` is missing, the two flags were combined, the change doesn't exist, or the schema override is unknown.
 
 ## openspec instructions
 
@@ -1317,10 +1350,12 @@ With no `--description` and no `--artifacts` in an interactive terminal, init pr
 |---|---|
 | `--description <text>` | Schema description. Default: `Custom workflow schema for <name>`. |
 | `--artifacts <list>` | Comma-separated artifact IDs from `proposal`, `specs`, `design`, `tasks`. Default: all four. |
-| `--default` | Writes `defaultSchema` to `openspec/config.yaml`. Nothing reads that key. To make the schema the default, set `schema: <name>` there yourself. |
+| `--default` | Writes `schema: <name>` to the existing `openspec/config.yaml` or `openspec/config.yml`. Creates `openspec/config.yaml` if neither exists. New changes use this schema. |
 | `--no-default` | Skip the prompt about the default. |
 | `--force` | Overwrite an existing schema with the same name. |
 | `--json` | Print the result as JSON. |
+
+Schema creation and the `--default` config update are one operation. If OpenSpec cannot validate or write the config, it leaves both the config and any existing schema unchanged.
 
 **Output**
 

@@ -229,6 +229,20 @@ describe('store root selection for normal commands', () => {
         store_id: 'team-context',
       });
 
+      // The batch sweep must select the same root and carry the same store
+      // context per change as the single-change path above.
+      const batch = await runCLI(['status', '--all', '--store', 'team-context', '--json'], {
+        cwd: appRepo,
+        env,
+      });
+      expect(batch.exitCode).toBe(0);
+      const batchJson = parseJson(batch);
+      expect(batchJson.root).toEqual(statusJson.root);
+      expect(batchJson.changes.map((change: { changeName: string }) => change.changeName)).toEqual([
+        'store-change',
+      ]);
+      expect(batchJson.changes[0]).toEqual({ ...statusJson, root: undefined });
+
       const instructions = await runCLI(
         ['instructions', 'design', '--change', 'store-change', '--store', 'team-context', '--json'],
         { cwd: appRepo, env }
@@ -373,6 +387,35 @@ operations:
       expect(result.exitCode).toBe(0);
       expect(result.stdout.startsWith('## Why')).toBe(true);
       expect(result.stderr).toContain(`Using OpenSpec root: team-context (${storeRoot})`);
+    });
+
+    it('diffs a delta against the selected store\'s main specs', async () => {
+      // A same-named capability sits in the cwd repo with different text. If
+      // --diff resolved main specs against the cwd instead of the store root,
+      // the diff below would be computed from this decoy.
+      fs.mkdirSync(path.join(appRepo, 'openspec', 'specs', 'billing'), { recursive: true });
+      fs.writeFileSync(
+        path.join(appRepo, 'openspec', 'specs', 'billing', 'spec.md'),
+        '# billing Specification\n\n## Purpose\nDecoy.\n\n## Requirements\n### Requirement: Billing SHALL work\nThe system SHALL create decoy bills.\n\n#### Scenario: Creates bills\n- **WHEN** a billing period ends\n- **THEN** a decoy bill is created\n'
+      );
+      fs.mkdirSync(path.join(storeRoot, 'openspec', 'specs', 'billing'), { recursive: true });
+      fs.writeFileSync(
+        path.join(storeRoot, 'openspec', 'specs', 'billing', 'spec.md'),
+        '# billing Specification\n\n## Purpose\nBilling.\n\n## Requirements\n### Requirement: Billing SHALL work\nThe system SHALL create bills.\n\n#### Scenario: Creates bills\n- **WHEN** a billing period ends\n- **THEN** a bill is created\n'
+      );
+      createChange(storeRoot, 'store-change', {
+        deltaSpec: '## MODIFIED Requirements\n\n### Requirement: Billing SHALL work\nThe system SHALL create bills monthly.\n\n#### Scenario: Creates bills\n- **WHEN** a billing period ends\n- **THEN** a bill is created\n',
+      });
+
+      const result = await runCLI(
+        ['show', 'store-change', '--store', 'team-context', '--diff'],
+        { cwd: appRepo, env }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('MODIFIED: Billing SHALL work');
+      expect(result.stdout).toContain('-The system SHALL create bills.');
+      expect(result.stdout).toContain('+The system SHALL create bills monthly.');
+      expect(result.stdout).not.toContain('decoy');
     });
 
     it('keeps instructions stdout as the artifact payload', async () => {

@@ -33,6 +33,7 @@ import {
 } from '../../utils/change-metadata.js';
 import { resolveTaskFilesForChange } from '../../utils/task-progress.js';
 import { findTaskNumberingIssues } from './task-numbering.js';
+import { findPurposePlaceholderIssue } from './purpose-placeholder.js';
 import { getPackageSchemasDir, getSchemaDir } from '../artifact-graph/index.js';
 
 export class Validator {
@@ -649,7 +650,20 @@ export class Validator {
       });
     }
     
-    if (spec.overview.length < MIN_PURPOSE_LENGTH) {
+    // The placeholder is longer than MIN_PURPOSE_LENGTH, so the brevity check
+    // below cannot reach it; it is reported on its own terms instead. Checked
+    // first because a hand-written "TBD" is both a placeholder and too brief,
+    // and only one of those two tells the author what to do. (A "TODO" opening
+    // the Purpose reads the same way, so it is the same finding.)
+    const placeholder = findPurposePlaceholderIssue(spec.overview, content);
+    if (placeholder) {
+      issues.push({
+        level: 'WARNING',
+        path: 'overview',
+        line: placeholder.line,
+        message: VALIDATION_MESSAGES.PURPOSE_IS_PLACEHOLDER,
+      });
+    } else if (spec.overview.length < MIN_PURPOSE_LENGTH) {
       issues.push({
         level: 'WARNING',
         path: 'overview',
