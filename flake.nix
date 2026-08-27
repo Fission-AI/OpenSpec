@@ -71,14 +71,19 @@
               runHook postBuild
             '';
 
-            postInstall = lib.optionalString (pkgs.stdenvNoCC.buildPlatform.canExecute pkgs.stdenvNoCC.hostPlatform) ''
-              # disable telemetry so that the notice does not break the completion scripts
+            postInstall = lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
+              # Disable telemetry during build-time completion generation.
               export OPENSPEC_TELEMETRY=0
 
+              # Generate separately so a failure cannot be hidden by process substitution.
+              for shell in bash fish zsh; do
+                "$out/bin/openspec" completion generate "$shell" > "openspec.$shell"
+              done
+
               installShellCompletion --cmd openspec \
-                --bash <($out/bin/openspec completion generate bash) \
-                --fish <($out/bin/openspec completion generate fish) \
-                --zsh <($out/bin/openspec completion generate zsh)
+                --bash openspec.bash \
+                --fish openspec.fish \
+                --zsh openspec.zsh
             '';
 
             dontNpmPrune = true;

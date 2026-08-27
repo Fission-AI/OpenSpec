@@ -196,6 +196,20 @@ jobs:
           fi
           echo "✅ Build output verified"
 
+      - name: Verify packaged shell completions
+        env:
+          OPENSPEC_TELEMETRY: '0'
+        run: |
+          completion_dir="$(mktemp -d)"
+          trap 'rm -rf "$completion_dir"' EXIT
+          for shell in bash fish zsh; do
+            result/bin/openspec completion generate "$shell" > "$completion_dir/$shell"
+            test -s "$completion_dir/$shell"
+          done
+          cmp "$completion_dir/bash" result/share/bash-completion/completions/openspec.bash
+          cmp "$completion_dir/fish" result/share/fish/vendor_completions.d/openspec.fish
+          cmp "$completion_dir/zsh" result/share/zsh/site-functions/_openspec
+
       - name: Test binary execution
         run: |
           VERSION=$(nix run . -- --version)
