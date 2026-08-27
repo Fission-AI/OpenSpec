@@ -152,9 +152,10 @@ export class Validator {
    * - No duplicates within sections; no cross-section conflicts per spec
    *
    * When `options.mainSpecsDir` is given, MODIFIED blocks are also checked
-   * against the current main specs for the scenario loss archive refuses to
-   * apply (#1477). When `options.projectRoot` is given, the schema's tracked
-   * task files are checked for ambiguous numbering (#1520). Omitting either
+   * against the current main specs for scenario loss (#1477), and merge
+   * conflicts are reported as INFO without changing the verdict (#1112).
+   * When `options.projectRoot` is given, the schema's tracked task files are
+   * checked for ambiguous numbering (#1520). Omitting either
    * option keeps existing library and archive callers behaving as before.
    */
   async validateChangeDeltaSpecs(
@@ -397,12 +398,8 @@ export class Validator {
         }
       }
 
-      // Everything above checks the delta against itself. Archive additionally
-      // refuses a delta the main spec cannot supply a target for - a MODIFIED
-      // naming a requirement that is not there, a RENAMED whose source is
-      // gone, an ADDED whose name already exists - and validate has never
-      // looked at any of those, so they surface at archive time, typically
-      // weeks after the implementing PR shipped (#1112).
+      // Reuse archive's merge builder to report conflicts with the main specs.
+      // Keep structural errors and scenario loss in their existing diagnostics.
       if (options.mainSpecsDir) {
         issues.push(
           ...(await this.findArchiveBlockers(changeDir, options.mainSpecsDir, [
@@ -802,30 +799,11 @@ export class Validator {
   }
 
   /**
-   * What archive would refuse when it merges this change's deltas into the
-   * main specs, found by running that merge in memory and throwing the result
-   * away.
-   *
-   * The preconditions are not restated here on purpose. `buildUpdatedSpec` is
-   * the code that does the writing, and several of its rules deliberately read
-   * a missing target as already-synced rather than as a failure (a RENAMED
-   * whose source is gone but whose target is present, for one). A second model
-   * of those rules would be free to disagree with the one that decides, and a
-   * preflight that reports a change archive accepts is worse than no
-   * preflight. So this calls it: same function, same inputs archive gives it,
-   * `rebuilt` discarded. It writes nothing.
-   *
-   * Reported as INFO, so it never changes a verdict in any mode, because the
-   * same shape has two causes. A MODIFIED whose target is missing is a real
-   * blocker when the header is a typo, but it is also what a change looks like
-   * when it modifies a requirement a sibling change introduced and has not
-   * archived yet - and that one becomes applicable the moment the sibling
-   * lands. `validate` deliberately stays valid for that case today, and
-   * deciding which of the two a delta is needs the opt-in marker #1112 asks
-   * for, not a guess made here. What is missing until then is not a verdict,
-   * it is the information: the author cannot currently see the collision at
-   * all until archive refuses it weeks later. This says it, and leaves the
-   * verdict alone.
+   * Dry-run archive's merge builder without writing its result. Reusing the
+   * builder preserves its already-synced delta rules instead of duplicating them.
+   * INFO leaves the verdict unchanged: a missing target can be a typo or a
+   * requirement introduced by a sibling change that has not archived yet.
+   * This does not run archive's later merged-spec validation or retirement checks.
    */
   private async findArchiveBlockers(
     changeDir: string,

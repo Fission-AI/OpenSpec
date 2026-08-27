@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
@@ -8,9 +8,9 @@ import { buildUpdatedSpec, findSpecUpdates } from '../../src/core/specs-apply.js
 /**
  * validate reports the deltas archive would refuse to apply (#1112).
  *
- * Every test here asserts parity in both directions: a warning validate emits
- * must correspond to an error archive actually throws, and a change archive
- * accepts must produce no warning. Reporting a change that archives cleanly
+ * Compare findings against archive's merge builder, not its later validation
+ * and retirement checks. A delta the builder accepts must produce no finding.
+ * Reporting a change that merges cleanly
  * would send an author to rewrite working work, which is worse than the gap
  * this closes.
  */
@@ -41,11 +41,11 @@ describe('validate: deltas archive would refuse (#1112)', () => {
   const validate = (changeDir: string, strict = false) =>
     new Validator(strict).validateChangeDeltaSpecs(changeDir, { mainSpecsDir });
 
-  /** The preflight warning, so assertions cannot pass on an unrelated issue. */
+  /** The preflight finding, so assertions cannot pass on an unrelated issue. */
   const blocker = (report: { issues: Array<{ level: string; message: string }> }) =>
     report.issues.find((i) => i.message.startsWith('Archive would refuse this delta:'));
 
-  /** What archive does with the same change: null when it applies cleanly. */
+  /** What archive's merge builder does: null when the delta applies cleanly. */
   const archiveError = async (changeDir: string): Promise<string | null> => {
     for (const update of await findSpecUpdates(changeDir, mainSpecsDir)) {
       try {
@@ -66,7 +66,100 @@ describe('validate: deltas archive would refuse (#1112)', () => {
   });
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     await fs.rm(testDir, { recursive: true, force: true });
+  });
+
+  it.each(['EMFILE', 'EIO', 'EACCES'])(
+    'does not misreport a target read failure (%s) as a missing requirement',
+    async (code) => {
+      await writeMainSpec('widgets', REQUIREMENT);
+      const changeDir = await writeChange('c1', 'widgets', `## MODIFIED Requirements\n\n${REQUIREMENT}\n`);
+      const [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+      const readFile = fs.readFile;
+      const failure = Object.assign(new Error(`${code}: cannot read target`), { code });
+      const spy = vi.spyOn(fs, 'readFile').mockImplementation(async (file, ...rest) => {
+        if (path.resolve(String(file)) === update.target) throw failure;
+        return readFile(file, ...(rest as []));
+      });
+
+      const report = await validate(changeDir);
+      expect(spy.mock.calls.some(([file]) => path.resolve(String(file)) === update.target)).toBe(true);
+      expect(blocker(report)).toBeUndefined();
+      await expect(buildUpdatedSpec(update, 'c1', { silent: true })).rejects.toBe(failure);
+    }
+  );
+
+  it.each([
+    ['already-synced addition', `## ADDED Requirements\n\n${REQUIREMENT}\n`],
+    ['already-synced removal', '## REMOVED Requirements\n\n### Requirement: Gone\n'],
+  ])('stays silent on an %s', async (_name, delta) => {
+    await writeMainSpec('widgets', REQUIREMENT);
+    const changeDir = await writeChange('c1', 'widgets', delta);
+    expect(blocker(await validate(changeDir))).toBeUndefined();
+    expect(await archiveError(changeDir)).toBeNull();
+  });
+
+  it('reports a rename target collision', async () => {
+    await writeMainSpec('widgets', `${REQUIREMENT}\n\n${REQUIREMENT.replace('Widget state', 'Gadget state')}`);
+    const changeDir = await writeChange('c1', 'widgets', '## RENAMED Requirements\n\n- FROM: `### Requirement: Widget state`\n- TO: `### Requirement: Gadget state`\n');
+    const error = await archiveError(changeDir);
+    expect(error).toContain('already exists');
+    expect(blocker(await validate(changeDir))?.message).toBe(`Archive would refuse this delta: ${error}`);
+  });
+
+  it.each([
+    ['MODIFIED', `## MODIFIED Requirements\n\n${REQUIREMENT}\n`],
+    ['RENAMED', '## RENAMED Requirements\n\n- FROM: `### Requirement: Widget state`\n- TO: `### Requirement: Gadget state`\n'],
+  ])('reports %s against a capability that does not exist', async (_operation, delta) => {
+    const changeDir = await writeChange('c1', 'new-capability', delta);
+    const error = await archiveError(changeDir);
+    expect(error).toContain('target spec does not exist');
+    expect(blocker(await validate(changeDir))?.message).toBe(`Archive would refuse this delta: ${error}`);
+  });
+
+  it('keeps library validation unchanged when mainSpecsDir is omitted', async () => {
+    const changeDir = await writeChange('c1', 'widgets', `## MODIFIED Requirements\n\n${REQUIREMENT}\n`);
+    const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+    expect(report.valid).toBe(true);
+    expect(blocker(report)).toBeUndefined();
+  });
+
+  it('does not synthesize a new baseline for ADDED when the existing spec cannot be read', async () => {
+    await writeMainSpec('widgets', REQUIREMENT);
+    const changeDir = await writeChange('c1', 'widgets', `## ADDED Requirements\n\n${REQUIREMENT.replace('Widget state', 'Gadget state')}\n`);
+    const [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+    const readFile = fs.readFile;
+    const failure = Object.assign(new Error('EIO: cannot read target'), { code: 'EIO' });
+    vi.spyOn(fs, 'readFile').mockImplementation(async (file, ...rest) => {
+      if (path.resolve(String(file)) === update.target) throw failure;
+      return readFile(file, ...(rest as []));
+    });
+    await expect(buildUpdatedSpec(update, 'c1', { silent: true })).rejects.toBe(failure);
+  });
+
+  it('reports a nested capability without suppressing findings for other files', async () => {
+    await writeMainSpec('area/widgets', REQUIREMENT);
+    const changeDir = await writeChange('c1', 'area/widgets', `## MODIFIED Requirements\n\n${REQUIREMENT.replace('Widget state', 'Missing')}\n`);
+    await writeChange('c1', 'invalid', '## ADDED Requirements\n\nNo entries.\n');
+    const report = await validate(changeDir);
+    expect(report.issues.filter((issue) => issue.level === 'INFO')).toEqual([
+      expect.objectContaining({ path: 'area/widgets/spec.md', message: `Archive would refuse this delta: ${await archiveError(changeDir)}` }),
+    ]);
+  });
+
+  it('does not create or rewrite spec files or print merge warnings', async () => {
+    await writeMainSpec('widgets', REQUIREMENT);
+    const changeDir = await writeChange('c1', 'widgets', `## ADDED Requirements\n\n${REQUIREMENT}\n`);
+    await writeChange('c1', 'new-capability', `## ADDED Requirements\n\n${REQUIREMENT}\n`);
+    const mainFile = path.join(mainSpecsDir, 'widgets', 'spec.md');
+    const deltaFile = path.join(changeDir, 'specs', 'widgets', 'spec.md');
+    const before = await Promise.all([fs.readFile(mainFile, 'utf8'), fs.readFile(deltaFile, 'utf8')]);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+    await validate(changeDir);
+    expect(await Promise.all([fs.readFile(mainFile, 'utf8'), fs.readFile(deltaFile, 'utf8')])).toEqual(before);
+    await expect(fs.stat(path.join(mainSpecsDir, 'new-capability'))).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(log).not.toHaveBeenCalled();
   });
 
   it('reports a MODIFIED naming a requirement the main spec does not have', async () => {
