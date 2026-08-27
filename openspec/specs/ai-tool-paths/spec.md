@@ -54,7 +54,7 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 
 - **WHEN** looking up the `dsh` tool
 - **THEN** `skillsDir` SHALL be `.dsh`
-- **AND** `detectionPaths` SHALL include `.dsh/skills` and `.dsh`
+- **AND** auto-detection SHALL require `.dsh` to be a directory
 - **AND** OpenSpec SHALL write dsh skills under `<projectRoot>/.dsh/skills/` using platform-native path joining
 
 #### Scenario: Tools without skillsDir

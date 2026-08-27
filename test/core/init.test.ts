@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { parse as parseYaml } from 'yaml';
 import { InitCommand } from '../../src/core/init.js';
 import { saveGlobalConfig, getGlobalConfig } from '../../src/core/global-config.js';
 import { MAX_CONTEXT_SIZE, readProjectConfig } from '../../src/core/project-config.js';
@@ -801,13 +802,6 @@ describe('InitCommand', () => {
       const commandsDir = path.join(testDir, '.dsh', 'commands');
       expect(await directoryExists(commandsDir)).toBe(false);
 
-      // dsh is fail-closed about frontmatter shape: the first line must be
-      // exactly `---`, name must be kebab-case, and description non-empty.
-      const exploreBody = await fs.readFile(skillFile, 'utf-8');
-      expect(exploreBody.startsWith('---\n')).toBe(true);
-      expect(exploreBody).toMatch(/name: openspec-explore/);
-      expect(exploreBody).toMatch(/description: \S/);
-
       // dsh's user-facing `/name` gesture answers to `/openspec-*`, so no
       // generated skill may reference `/opsx:` commands that dsh never loads.
       const skillsRoot = path.join(testDir, '.dsh', 'skills');
@@ -815,6 +809,13 @@ describe('InitCommand', () => {
       expect(skillDirs.length).toBeGreaterThan(0);
       for (const dir of skillDirs) {
         const body = await fs.readFile(path.join(skillsRoot, dir, 'SKILL.md'), 'utf-8');
+        const frontmatterMatch = body.match(/^---\n([\s\S]*?)\n---\n/);
+        expect(frontmatterMatch, `${dir}/SKILL.md must begin with YAML frontmatter`).not.toBeNull();
+        const frontmatter = parseYaml(frontmatterMatch![1]);
+        expect(frontmatter.name).toBe(dir);
+        expect(frontmatter.name).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+        expect(typeof frontmatter.description).toBe('string');
+        expect(frontmatter.description.trim().length).toBeGreaterThan(0);
         expect(body, `${dir}/SKILL.md should not reference /opsx commands`).not.toMatch(/\/opsx[:-]/);
       }
       const applyBody = await fs.readFile(
@@ -836,6 +837,26 @@ describe('InitCommand', () => {
       expect(hintLine).toBeDefined();
       expect(hintLine).toContain('/openspec-propose');
       expect(hintLine).not.toContain('/opsx:');
+    });
+
+    it('should explain commands-only delivery for DeepSeek Harness without generating unusable artifacts', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'commands',
+      });
+
+      await new InitCommand({ tools: 'dsh', force: true }).execute(testDir);
+
+      expect(await directoryExists(path.join(testDir, '.dsh', 'skills'))).toBe(false);
+      expect(await directoryExists(path.join(testDir, '.dsh', 'commands'))).toBe(false);
+      expect(await directoryExists(path.join(testDir, '.agents'))).toBe(false);
+
+      const logCalls = vi.mocked(console.log).mock.calls.flat().map(String);
+      expect(logCalls.some((entry) => entry.includes('Start your first change'))).toBe(false);
+      const correction = logCalls.find((entry) => entry.includes('No skills or commands were generated'));
+      expect(correction).toContain('DeepSeek Harness');
+      expect(correction).toContain('openspec config set delivery both');
     });
 
     it('should support Hermes Agent as an adapterless skills-only tool with a setup note', async () => {

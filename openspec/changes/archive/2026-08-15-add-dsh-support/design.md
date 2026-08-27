@@ -1,10 +1,10 @@
 ## Context
 
-See proposal.md - Why.
+See [proposal.md](proposal.md#why).
 
 OpenSpec already routes every skill-capable tool through one pipeline: `AI_TOOLS` metadata in `src/core/config.ts` drives tool detection (`available-tools.ts`), selection and validation (`init.ts`), skill path resolution (`shared/skill-paths.ts`), generation, version drift, and update. Tools that expose no custom command files simply have no `ToolCommandAdapter`, which `command-surface.ts` classifies as capability `none`.
 
-DeepSeek Harness parses skills from fixed local roots (see `.ref/dsh-skills-解析逻辑.md`): `<project>/.dsh/skills` (rank 100), `<project>/.agents/skills` (rank 200), and user-level `~/.dsh/skills` (rank 400). It discovers only one level (`<root>/<name>/SKILL.md` or `<root>/<name>.md`), requires `name` (kebab-case) and non-empty `description` frontmatter, tolerates extra fields, and exposes skills to the model through `<available_skills>` plus a `skill` tool; users can also trigger them with the `/name` gesture. OpenSpec's generated `SKILL.md` files already satisfy every dsh constraint, so no template or frontmatter changes are needed.
+DeepSeek Harness parses skills from fixed local roots (see the [upstream filesystem provider](https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/skill/skill-filesystem)): `<project>/.dsh/skills` (rank 100), `<project>/.agents/skills` (rank 200), and user-level `~/.dsh/skills` (rank 400). It discovers only one level (`<root>/<name>/SKILL.md` or `<root>/<name>.md`), requires `name` (kebab-case) and non-empty `description` frontmatter, tolerates extra fields, and exposes skills to the model through `<available_skills>` plus a `skill` tool; users can also trigger them with the `/name` gesture. OpenSpec's generated `SKILL.md` files already satisfy every dsh constraint, so no template or frontmatter changes are needed.
 
 ## Goals / Non-Goals
 
@@ -34,7 +34,6 @@ Add to `src/core/config.ts`:
   available: true,
   successLabel: 'DeepSeek Harness',
   skillsDir: '.dsh',
-  detectionPaths: ['.dsh/skills', '.dsh'],
 },
 ```
 
@@ -42,11 +41,11 @@ Add to `src/core/config.ts`:
 
 Alternative considered: write to `~/.dsh/skills` via `globalSkillsDir`. Rejected because the project root outranks the user root, keeps artifacts repo-local and reviewable, and matches OpenSpec's project-scoped update/removal semantics (MiniMax Code's global-only design exists to work around a tool that only reads the user root, which is not dsh's case).
 
-### 2. Detect dsh from `.dsh/skills` and `.dsh`
+### 2. Detect dsh from its `.dsh` directory
 
-`detectionPaths: ['.dsh/skills', '.dsh']` mirrors Rovo Dev CLI's `['.rovodev/skills', '.rovodev']`. `.dsh/skills` is the actual dsh skill root; `.dsh` recognizes an existing dsh project config root even before any skill exists.
+Use the existing `skillsDir` detection, which requires a directory. This recognizes both a bare `.dsh` project root and a populated `.dsh/skills` tree, but rejects a regular file named `.dsh`.
 
-Alternative considered: `.dsh/skills` only. Rejected as needlessly strict — `.dsh` is tool-specific (unlike the generic `.agents`), so a bare root is a meaningful signal.
+Explicit `detectionPaths` are unnecessary: `.dsh/skills` already implies a `.dsh` directory, and overrides accept file signals for tools that need them. Auto-detection identifies a tool root; it does not guarantee every child path is writable. A regular file at `.dsh/skills` remains a filesystem conflict reported during generation, as for other directory-based tools.
 
 ### 3. No command adapter; inherit capability `none`
 
@@ -69,7 +68,7 @@ Alternative considered: add `dsh` to `NATURAL_LANGUAGE_SKILL_TOOLS` (like Rovo).
 
 ### 6. No frontmatter or template changes
 
-OpenSpec writes `---` first line, kebab-case `name`, non-empty `description`, one-level `<name>/SKILL.md`, and only kebab-case extra fields. This satisfies dsh's fail-closed validation rules from `.ref` §3. Tests assert the generated file shape so a future template change cannot silently break dsh discovery.
+OpenSpec writes `---` first line, kebab-case `name`, non-empty `description`, one-level `<name>/SKILL.md`, and extra fields such as `license`, `compatibility`, and `metadata`. The upstream parser accepts these extra fields. Tests parse every generated skill's YAML frontmatter and check required names and descriptions.
 
 ## Risks / Trade-offs
 
@@ -80,7 +79,7 @@ OpenSpec writes `---` first line, kebab-case `name`, non-empty `description`, on
 
 ## Migration Plan
 
-Additive metadata change: no data migration and no rollback beyond reverting the entry. Projects using the shared `.agents` target today keep working; selecting `dsh` on a later `openspec init` writes the dedicated higher-priority root without touching `.agents`.
+No data migration is required. Reverting the entry stops future dsh detection and generation but leaves existing `.dsh/skills` files in user projects. Remove the generated `openspec-*` folders separately if rollback is needed; preserve user-authored skills. Projects using the shared `.agents` target today keep working; selecting `dsh` on a later `openspec init` writes the dedicated higher-priority root without touching `.agents`.
 
 ## Open Questions
 

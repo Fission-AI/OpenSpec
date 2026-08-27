@@ -27,6 +27,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | CoStrict | `costrict` | `.cospec/skills/` | `/openspec-apply-change` | `.cospec/openspec/commands/` | `/opsx-apply` |
 | Crush | `crush` | `.crush/skills/` | `/openspec-apply-change` | `.crush/commands/opsx/` | `/opsx:apply` |
 | Cursor | `cursor` | `.cursor/skills/` | `/openspec-apply-change` | `.cursor/commands/` | `/opsx-apply` |
+| DeepSeek Harness | `dsh` | `.dsh/skills/` | `/openspec-apply-change` | none | none |
 | Devin Desktop (formerly Windsurf) | `devin` | `.devin/skills/` | `/openspec-apply-change` | `.devin/workflows/` | `/opsx-apply` |
 | Factory Droid | `factory` | `.factory/skills/` | `/openspec-apply-change` | `.factory/commands/` | `/opsx-apply` |
 | ForgeCode | `forgecode` | `.forge/skills/` | `/openspec-apply-change` | none | none |
@@ -90,6 +91,19 @@ Skills stay in `.cline/skills/`.
   Codex owns it.
 - **Legacy path**: skills installed under `.codex/skills/` by older versions are
   migrated on the next `openspec update`.
+
+### DeepSeek Harness
+
+- **Project root**: DSH uses the nearest `.git` ancestor, or the current directory
+  outside Git. Run `openspec init --tools dsh` there. For a nested OpenSpec project,
+  add the absolute path to its `.dsh/skills/` directory to DSH's `customSkillDirs`.
+  Git-root skills still win if names overlap
+  ([upstream discovery rules](https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/skill/skill-filesystem)).
+- **Priority**: `.dsh/skills/` takes precedence over same-named skills in
+  `.agents/skills/`.
+- **Delivery**: use `skills` or `both`. With `commands`, no DSH workflows are
+  installed. Change delivery with `openspec config profile`, then rerun
+  `openspec init --tools dsh`.
 
 ### Devin Desktop (formerly Windsurf)
 

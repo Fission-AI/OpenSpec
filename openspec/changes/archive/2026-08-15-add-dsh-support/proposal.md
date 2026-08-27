@@ -4,7 +4,7 @@ DeepSeek Harness discovers skills from fixed local roots, with `<project>/.dsh/s
 
 ## What Changes
 
-- Add DeepSeek Harness as a supported tool with id `dsh`, `skillsDir: '.dsh'`, and detection paths `.dsh/skills` and `.dsh`.
+- Add DeepSeek Harness as a supported tool with id `dsh`, `skillsDir: '.dsh'`, and directory-based auto-detection from `.dsh`.
 - Generate the OpenSpec workflow skills into `.dsh/skills/openspec-*/SKILL.md` for dsh via `openspec init --tools dsh` and `openspec update`.
 - Keep dsh skills-only: no command adapter and no `.dsh/commands/` files, because dsh has no file-based custom command surface.
 - Spell dsh skill references as `/openspec-*` (dsh supports the user `/name` gesture), matching the existing skills-only tool pattern.
@@ -19,7 +19,7 @@ _None._
 
 ### Modified Capabilities
 
-- `ai-tool-paths`: define the `.dsh` skills root and detection paths for DeepSeek Harness.
+- `ai-tool-paths`: define the `.dsh` skills root and directory-based detection for DeepSeek Harness.
 
 ## Impact
 

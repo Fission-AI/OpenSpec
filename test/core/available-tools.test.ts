@@ -542,7 +542,6 @@ describe('available-tools', () => {
       expect(dsh).toMatchObject({
         name: 'DeepSeek Harness',
         skillsDir: '.dsh',
-        detectionPaths: ['.dsh/skills', '.dsh'],
       });
     });
 
@@ -558,6 +557,12 @@ describe('available-tools', () => {
     it('should not detect DeepSeek Harness when no .dsh signal exists', () => {
       const tools = getAvailableTools(testDir);
       expect(tools.map((t) => t.value)).not.toContain('dsh');
+    });
+
+    it('should not detect DeepSeek Harness when .dsh is a regular file', async () => {
+      await fs.writeFile(path.join(testDir, '.dsh'), 'not a tool directory');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).not.toContain('dsh');
     });
   });
 });

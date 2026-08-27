@@ -1,11 +1,11 @@
 ## 1. Tool Metadata
 
-- [x] 1.1 Add the `DeepSeek Harness` entry to `AI_TOOLS` in `src/core/config.ts` with `value: 'dsh'`, `skillsDir: '.dsh'`, and `detectionPaths: ['.dsh/skills', '.dsh']`
+- [x] 1.1 Add the `DeepSeek Harness` entry to `AI_TOOLS` in `src/core/config.ts` with `value: 'dsh'` and `skillsDir: '.dsh'`, using the existing directory-based detection
 - [x] 1.2 Verify no other production code changes are required: init selection, `--tools` help, command surface capability, update drift, and shared-root handling must all derive from the new metadata
 
 ## 2. Detection and Path Tests
 
-- [x] 2.1 Add `test/core/available-tools.test.ts` cases: detect `dsh` from `.dsh/skills` and from a bare `.dsh` directory; do not detect when neither exists
+- [x] 2.1 Add `test/core/available-tools.test.ts` cases: detect `dsh` from `.dsh/skills` and from a bare `.dsh` directory; do not detect when neither exists or `.dsh` is a regular file
 - [x] 2.2 Add a `test/core/shared/skill-paths.test.ts` case resolving `dsh` to `path.join(root, '.dsh', 'skills')`
 - [x] 2.3 Add `test/core/shared/tool-detection.test.ts` cases: `getToolsWithSkillsDir()` includes `dsh`; skill status and configured-tool detection work for `.dsh/skills/openspec-*/SKILL.md`
 
