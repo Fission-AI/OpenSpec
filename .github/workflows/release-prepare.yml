@@ -5,9 +5,11 @@ on:
     branches: [main]
   workflow_dispatch: # manually cut a beta prerelease from main
 
+# Floor for both jobs. The prepare job widens this to pull-requests: write for
+# the Version Packages PR; the beta job only tags/releases + publishes via OIDC
+# and needs no PR access, so it inherits this narrower default.
 permissions:
   contents: write
-  pull-requests: write
   id-token: write # Required for npm OIDC trusted publishing
 
 concurrency:
@@ -18,25 +20,29 @@ jobs:
   prepare:
     if: github.repository == 'Fission-AI/OpenSpec' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write # changesets opens/updates the Version Packages PR
+      id-token: write # Required for npm OIDC trusted publishing
     steps:
       # Generate GitHub App token first - used for checkout and changesets
       # This allows git operations to trigger CI workflows on the version PR
       # (GITHUB_TOKEN cannot trigger workflows by design)
       - name: Generate GitHub App Token
         id: app-token
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3
         with:
           app-id: ${{ vars.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           token: ${{ steps.app-token.outputs.token }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24' # Node 24 includes npm 11.5.1+ required for OIDC
           cache: 'pnpm'
@@ -47,7 +53,7 @@ jobs:
       # Opens/updates the Version Packages PR; publishes when the Version PR merges
       - name: Create/Update Version PR
         id: changesets
-        uses: changesets/action@v1
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1
         with:
           title: 'chore(release): version packages'
           createGithubReleases: true
@@ -70,13 +76,13 @@ jobs:
     if: github.repository == 'Fission-AI/OpenSpec' && github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '24' # Node 24 includes npm 11.5.1+ required for OIDC
           cache: 'pnpm'

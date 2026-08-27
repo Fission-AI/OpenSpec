@@ -24,6 +24,7 @@ export interface RelationshipHealth {
     id: string;
     metadata: { present: boolean; valid: boolean; remote?: string };
     origin_url?: string;
+    drift?: { ahead: number; behind: number };
     status: StoreDiagnostic[];
   } | null;
   references: ReferenceIndexEntry[];
@@ -41,6 +42,7 @@ export interface InspectRelationshipsInput {
     metadataValid: boolean;
     canonicalRemote?: string;
     originUrl?: string;
+    drift?: { ahead: number; behind: number };
   };
   referenceEntries: ReferenceIndexEntry[];
   registryUnreadable: boolean;
@@ -117,6 +119,25 @@ export function inspectRelationships(input: InspectRelationshipsInput): Relation
         )
       );
     }
+    // Checkout behind its upstream tracking ref: a read-only staleness
+    // signal, not a version pin — OpenSpec never syncs stores, so this
+    // compares against the local upstream ref, not the live remote.
+    // Behind means teammates on newer commits may resolve different specs.
+    // Ahead-only is normal (OpenSpec never pushes stores), so it stays quiet.
+    const drift = input.storeFacts.drift;
+    if (drift && drift.behind > 0) {
+      const behindCommits = `${drift.behind} commit${drift.behind === 1 ? '' : 's'}`;
+      storeStatus.push(
+        makeStoreDiagnostic(
+          'info',
+          'store_checkout_drift',
+          drift.ahead > 0
+            ? `This store checkout has diverged from its upstream tracking branch (${drift.behind} behind, ${drift.ahead} ahead); teammates on newer commits may resolve different specs.`
+            : `This store checkout is ${behindCommits} behind its upstream tracking branch; teammates on newer commits may resolve different specs.`,
+          { target: 'store.git' }
+        )
+      );
+    }
     store = {
       id: input.storeFacts.id,
       metadata: {
@@ -127,6 +148,7 @@ export function inspectRelationships(input: InspectRelationshipsInput): Relation
           : {}),
       },
       ...(input.storeFacts.originUrl ? { origin_url: input.storeFacts.originUrl } : {}),
+      ...(drift ? { drift } : {}),
       status: storeStatus,
     };
   }

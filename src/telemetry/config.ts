@@ -9,16 +9,15 @@ import {
   GLOBAL_CONFIG_DIR_NAME,
   GLOBAL_CONFIG_FILE_NAME,
   getGlobalConfigDir,
+  type TelemetryConfig,
 } from '../core/global-config.js';
 
 // Constants
 export const CONFIG_DIR_NAME = GLOBAL_CONFIG_DIR_NAME;
 export const CONFIG_FILE_NAME = GLOBAL_CONFIG_FILE_NAME;
 
-export interface TelemetryConfig {
-  anonymousId?: string;
-  noticeSeen?: boolean;
-}
+/** Re-export shared telemetry section type (single source of truth in global-config). */
+export type { TelemetryConfig };
 
 export interface GlobalConfig {
   telemetry?: TelemetryConfig;

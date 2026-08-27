@@ -2,9 +2,9 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { readFileSync, type Dirent } from 'fs';
-import { join } from 'path';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import type { RootOutput } from './root-selection.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
 
 interface ChangeInfo {
   name: string;
@@ -177,9 +177,8 @@ export class ListCommand {
       return;
     }
 
-    const entries = await fs.readdir(specsDir, { withFileTypes: true });
-    const specDirs = entries.filter(e => e.isDirectory()).map(e => e.name);
-    if (specDirs.length === 0) {
+    const discovered = await discoverSpecFiles(specsDir);
+    if (discovered.length === 0) {
       if (json) {
         console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
       } else {
@@ -190,10 +189,9 @@ export class ListCommand {
 
     type SpecInfo = { id: string; requirementCount: number };
     const specs: SpecInfo[] = [];
-    for (const id of specDirs) {
-      const specPath = join(specsDir, id, 'spec.md');
+    for (const { id, specFile } of discovered) {
       try {
-        const content = readFileSync(specPath, 'utf-8');
+        const content = readFileSync(specFile, 'utf-8');
         const parser = new MarkdownParser(content);
         const spec = parser.parseSpec(id);
         specs.push({ id, requirementCount: spec.requirements.length });

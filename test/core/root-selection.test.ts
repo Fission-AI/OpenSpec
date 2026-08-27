@@ -12,11 +12,13 @@ import {
   writeStoreMetadataState,
   writeStoreRegistryState,
 } from '../../src/core/store/foundation.js';
+import { saveGlobalConfig } from '../../src/core/global-config.js';
 
 describe('resolveOpenSpecRoot', () => {
   let tempDir: string;
   let globalDataDir: string;
   let savedXdgDataHome: string | undefined;
+  let savedXdgConfigHome: string | undefined;
 
   beforeEach(() => {
     tempDir = fs.realpathSync.native(
@@ -29,6 +31,11 @@ describe('resolveOpenSpecRoot', () => {
     // a missed arg can never pollute the developer's home registry.
     savedXdgDataHome = process.env.XDG_DATA_HOME;
     process.env.XDG_DATA_HOME = path.join(tempDir, 'xdg');
+    // Root resolution now reads the global config for `defaultStore`. Pin
+    // XDG_CONFIG_HOME at an empty temp dir so tests never see the
+    // developer's real ~/.config/openspec/config.json.
+    savedXdgConfigHome = process.env.XDG_CONFIG_HOME;
+    process.env.XDG_CONFIG_HOME = path.join(tempDir, 'xdg-config');
   });
 
   afterEach(() => {
@@ -37,8 +44,17 @@ describe('resolveOpenSpecRoot', () => {
     } else {
       process.env.XDG_DATA_HOME = savedXdgDataHome;
     }
+    if (savedXdgConfigHome === undefined) {
+      delete process.env.XDG_CONFIG_HOME;
+    } else {
+      process.env.XDG_CONFIG_HOME = savedXdgConfigHome;
+    }
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
+
+  function setDefaultStore(id: string): void {
+    saveGlobalConfig({ defaultStore: id });
+  }
 
   function mkdir(relativePath: string): string {
     const dir = path.join(tempDir, relativePath);
@@ -502,6 +518,93 @@ describe('resolveOpenSpecRoot', () => {
       resolveOpenSpecRoot({ startPath: scratch, globalDataDir })
     ).rejects.toMatchObject({
       diagnostic: expect.objectContaining({ code: 'no_root_with_registered_stores' }),
+    });
+  });
+
+  describe('global defaultStore fallback (#1359)', () => {
+    it('resolves the global defaultStore when no local root or pointer exists', async () => {
+      const storeRoot = await registerStore('team-plans');
+      setDefaultStore('team-plans');
+      const scratch = mkdir('no-root-here');
+
+      const root = await resolveOpenSpecRoot({ startPath: scratch, globalDataDir });
+
+      expect(root.source).toBe('global_default');
+      expect(root.storeId).toBe('team-plans');
+      expect(root.path).toBe(storeRoot);
+    });
+
+    it('lets a nearest local root win over the global default', async () => {
+      await registerStore('team-plans');
+      setDefaultStore('team-plans');
+      const localRoot = mkdir('app');
+      createOpenSpecRoot(localRoot);
+      const nested = path.join(localRoot, 'src');
+      fs.mkdirSync(nested, { recursive: true });
+
+      const root = await resolveOpenSpecRoot({ startPath: nested, globalDataDir });
+
+      expect(root.source).toBe('nearest');
+      expect(root.path).toBe(localRoot);
+      expect(root.storeId).toBeUndefined();
+    });
+
+    it('lets a project-level store pointer win over the global default', async () => {
+      const pointed = await registerStore('team-plans');
+      await registerStore('other-plans');
+      setDefaultStore('other-plans');
+      const pointerDir = mkdir('app-repo');
+      fs.mkdirSync(path.join(pointerDir, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(pointerDir, 'openspec', 'config.yaml'),
+        'store: team-plans\n'
+      );
+
+      const root = await resolveOpenSpecRoot({ startPath: pointerDir, globalDataDir });
+
+      expect(root.source).toBe('declared');
+      expect(root.storeId).toBe('team-plans');
+      expect(root.path).toBe(pointed);
+    });
+
+    it('lets explicit --store win over the global default', async () => {
+      const chosen = await registerStore('team-plans');
+      await registerStore('other-plans');
+      setDefaultStore('other-plans');
+      const scratch = mkdir('no-root-here');
+
+      const root = await resolveOpenSpecRoot({
+        startPath: scratch,
+        store: 'team-plans',
+        globalDataDir,
+      });
+
+      expect(root.source).toBe('store');
+      expect(root.storeId).toBe('team-plans');
+      expect(root.path).toBe(chosen);
+    });
+
+    it('degrades a stale defaultStore to an error that names how to clear it', async () => {
+      await registerStore('team-plans');
+      setDefaultStore('ghost-plans');
+      const scratch = mkdir('no-root-here');
+
+      const error = await expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath: scratch, globalDataDir }),
+        'unknown_store'
+      );
+      expect(error.message).toContain("Global defaultStore 'ghost-plans'");
+      expect(error.diagnostic.fix).toContain('openspec config unset defaultStore');
+    });
+
+    it('falls through to the registered-store hint when no default is set', async () => {
+      await registerStore('team-plans');
+      const scratch = mkdir('no-root-here');
+
+      await expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath: scratch, globalDataDir }),
+        'no_root_with_registered_stores'
+      );
     });
   });
 

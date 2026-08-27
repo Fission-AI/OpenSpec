@@ -3,15 +3,6 @@ import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { execSync } from 'node:child_process';
-
-vi.mock('node:child_process', async () => {
-  const actual = await vi.importActual<typeof import('node:child_process')>('node:child_process');
-  return {
-    ...actual,
-    execSync: vi.fn(),
-  };
-});
 
 vi.mock('@inquirer/prompts', () => ({
   select: vi.fn(),
@@ -135,8 +126,7 @@ describe('config profile interactive flow', () => {
   beforeEach(() => {
     vi.resetModules();
 
-    tempDir = path.join(os.tmpdir(), `openspec-config-profile-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-config-profile-test-'));
 
     originalEnv = { ...process.env };
     originalCwd = process.cwd();
@@ -150,10 +140,10 @@ describe('config profile interactive flow', () => {
 
     consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.mocked(execSync).mockReset();
   });
 
   afterEach(() => {
+    vi.unstubAllEnvs();
     process.env = originalEnv;
     process.chdir(originalCwd);
     (process.stdout as NodeJS.WriteStream & { isTTY?: boolean }).isTTY = originalTTY;
@@ -298,6 +288,65 @@ describe('config profile interactive flow', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
   });
 
+  it('should preserve a custom profile when dependency expansion matches the core set', async () => {
+    const { saveGlobalConfig, getGlobalConfig, getGlobalConfigPath } = await import('../../src/core/global-config.js');
+    const { select, checkbox, confirm } = await getPromptMocks();
+
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'custom',
+      delivery: 'both',
+      workflows: ['propose', 'explore', 'apply', 'update', 'archive'],
+    });
+    const configPath = getGlobalConfigPath();
+    const beforeContent = fs.readFileSync(configPath, 'utf-8');
+
+    select.mockResolvedValueOnce('workflows');
+    checkbox.mockResolvedValueOnce(['propose', 'explore', 'apply', 'update', 'sync', 'archive']);
+
+    await runConfigCommand(['profile']);
+
+    expect(getGlobalConfig().profile).toBe('custom');
+    expect(fs.readFileSync(configPath, 'utf-8')).toBe(beforeContent);
+    expect(confirm).not.toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
+  });
+
+  it.each(['delivery', 'both'] as const)(
+    'should preserve raw custom workflows during a %s change',
+    async (action) => {
+      const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
+      const { select, checkbox } = await getPromptMocks();
+
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: ['propose', 'explore', 'apply', 'update', 'archive'],
+      });
+      select.mockResolvedValueOnce(action);
+      select.mockResolvedValueOnce('skills');
+      if (action === 'both') {
+        checkbox.mockResolvedValueOnce([
+          'propose',
+          'explore',
+          'apply',
+          'update',
+          'sync',
+          'archive',
+        ]);
+      }
+
+      await runConfigCommand(['profile']);
+
+      expect(getGlobalConfig()).toMatchObject({
+        profile: 'custom',
+        delivery: 'skills',
+        workflows: ['propose', 'explore', 'apply', 'update', 'archive'],
+      });
+    }
+  );
+
   it('keep action should warn when project files drift from global config', async () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
@@ -377,12 +426,15 @@ describe('config profile interactive flow', () => {
     });
   });
 
-  it('confirmed project apply should run openspec update in the project', async () => {
+  it('confirmed project apply should update in process without resolving openspec from PATH', async () => {
     const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
     const { select, confirm } = await getPromptMocks();
 
     saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    const emptyBinDir = path.join(tempDir, 'empty-bin');
+    fs.mkdirSync(emptyBinDir);
+    vi.stubEnv('PATH', emptyBinDir);
 
     select.mockResolvedValueOnce('delivery');
     select.mockResolvedValueOnce('skills');
@@ -391,10 +443,35 @@ describe('config profile interactive flow', () => {
     await runConfigCommand(['profile']);
 
     expect(getGlobalConfig().delivery).toBe('skills');
-    expect(execSync).toHaveBeenCalledWith('npx openspec update', {
-      stdio: 'inherit',
-      cwd: fs.realpathSync(tempDir),
-    });
+    expect(process.exitCode).toBeUndefined();
+    expect(consoleErrorSpy).not.toHaveBeenCalled();
+    expect(consoleLogSpy).toHaveBeenCalledWith('No configured tools found.');
+    expect(consoleLogSpy).toHaveBeenCalledWith('Run `openspec update` in your other projects to apply.');
+  });
+
+  it('confirmed project apply should report the update failure reason', async () => {
+    const { saveGlobalConfig } = await import('../../src/core/global-config.js');
+    const { UpdateCommand } = await import('../../src/core/update.js');
+    const { select, confirm } = await getPromptMocks();
+
+    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
+    fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
+    const executeSpy = vi.spyOn(UpdateCommand.prototype, 'execute')
+      .mockRejectedValueOnce(new Error('permission denied'));
+
+    select.mockResolvedValueOnce('delivery');
+    select.mockResolvedValueOnce('skills');
+    confirm.mockResolvedValueOnce(true);
+
+    try {
+      await runConfigCommand(['profile']);
+    } finally {
+      executeSpy.mockRestore();
+    }
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith('`openspec update` failed: permission denied');
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Please run it manually to apply the profile changes.');
+    expect(process.exitCode).toBe(1);
   });
 
   it('core preset should preserve delivery setting', async () => {
