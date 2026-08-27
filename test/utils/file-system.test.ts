@@ -1,16 +1,15 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import * as nodeFs from 'fs';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 
 describe('FileSystemUtils', () => {
   let testDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
   });
 
   afterEach(async () => {
@@ -92,6 +91,22 @@ describe('FileSystemUtils', () => {
     });
   });
 
+  describe('canonicalizeExistingPath', () => {
+    it('should prefer the native realpath resolver when available', async () => {
+      const filePath = path.join(testDir, 'canonical.txt');
+      await fs.writeFile(filePath, 'content');
+
+      const nativeSpy = vi.spyOn(nodeFs.realpathSync, 'native');
+
+      const resolved = FileSystemUtils.canonicalizeExistingPath(filePath);
+
+      expect(nativeSpy).toHaveBeenCalledWith(filePath);
+      expect(resolved).toBe(nodeFs.realpathSync.native(filePath));
+
+      nativeSpy.mockRestore();
+    });
+  });
+
   describe('writeFile', () => {
     it('should write content to file', async () => {
       const filePath = path.join(testDir, 'output.txt');
@@ -158,6 +173,115 @@ describe('FileSystemUtils', () => {
       const dirPath = path.join(testDir, 'a', 'b', 'c', 'd');
       const hasPermission = await FileSystemUtils.ensureWritePermissions(dirPath);
       expect(hasPermission).toBe(true);
+    });
+  });
+
+  describe('canWriteFile', () => {
+    it('should return true for existing writable file', async () => {
+      const filePath = path.join(testDir, 'writable.txt');
+      await fs.writeFile(filePath, 'content');
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
+    });
+
+    it('should return false for existing read-only file', async () => {
+      const filePath = path.join(testDir, 'readonly.txt');
+      await fs.writeFile(filePath, 'content');
+      await fs.chmod(filePath, 0o444); // Read-only
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(false);
+
+      // Cleanup: restore permissions so afterEach can delete
+      await fs.chmod(filePath, 0o644);
+    });
+
+    it('should return true for non-existent file in writable directory', async () => {
+      const filePath = path.join(testDir, 'new-file.txt');
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
+    });
+
+    it('should return true for non-existent file in non-existent nested directories', async () => {
+      const filePath = path.join(testDir, 'deep', 'nested', 'path', 'file.txt');
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
+    });
+
+    // Skip on Windows: fs.chmod() on directories doesn't restrict write access on Windows
+    // Windows uses ACLs which Node.js chmod doesn't control
+    it.skipIf(process.platform === 'win32')('should return false for non-existent file in read-only directory', async () => {
+      const readOnlyDir = path.join(testDir, 'readonly-dir');
+      await fs.mkdir(readOnlyDir);
+      await fs.chmod(readOnlyDir, 0o555); // Read-only + execute
+
+      const filePath = path.join(readOnlyDir, 'file.txt');
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(false);
+
+      // Cleanup
+      await fs.chmod(readOnlyDir, 0o755);
+    });
+
+    it('should return true when path points to existing directory', async () => {
+      const dirPath = path.join(testDir, 'some-dir');
+      await fs.mkdir(dirPath);
+
+      const canWrite = await FileSystemUtils.canWriteFile(dirPath);
+      expect(canWrite).toBe(true);
+    });
+
+    it.skipIf(process.platform === 'win32')('should return false for directory without search permission', async () => {
+      const dirPath = path.join(testDir, 'write-only-dir');
+      await fs.mkdir(dirPath);
+      await fs.chmod(dirPath, 0o222);
+
+      let canWrite = false;
+      try {
+        canWrite = await FileSystemUtils.canWriteFile(dirPath);
+      } finally {
+        await fs.chmod(dirPath, 0o755);
+      }
+
+      expect(canWrite).toBe(false);
+    });
+
+    it('should traverse multiple non-existent parent directories', async () => {
+      const filePath = path.join(testDir, 'a', 'b', 'c', 'd', 'e', 'file.txt');
+
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
+    });
+
+    it('should return false when intermediate path component is a file', async () => {
+      // Create a file where a directory should be
+      const fileInPath = path.join(testDir, 'blocking-file.txt');
+      await fs.writeFile(fileInPath, 'content');
+
+      // Try to check a path that goes "through" this file
+      const filePath = path.join(fileInPath, 'nested', 'file.txt');
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(false);
+    });
+
+    // Skip on Windows: creating symlinks requires elevated privileges or Developer Mode
+    it.skipIf(process.platform === 'win32')('should follow symbolic links to files', async () => {
+      const realFile = path.join(testDir, 'real-file.txt');
+      const linkFile = path.join(testDir, 'link-file.txt');
+      await fs.writeFile(realFile, 'content');
+      await fs.symlink(realFile, linkFile);
+
+      const canWrite = await FileSystemUtils.canWriteFile(linkFile);
+      expect(canWrite).toBe(true);
+    });
+
+    it('should handle platform-specific path separators', async () => {
+      const filePath = FileSystemUtils.joinPath(testDir, 'subdir', 'file.txt');
+      const canWrite = await FileSystemUtils.canWriteFile(filePath);
+      expect(canWrite).toBe(true);
     });
   });
 

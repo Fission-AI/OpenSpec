@@ -1,7 +1,30 @@
 import { CompletionGenerator } from './types.js';
 import { ZshGenerator } from './generators/zsh-generator.js';
-import { ZshInstaller, InstallationResult } from './installers/zsh-installer.js';
+import { BashGenerator } from './generators/bash-generator.js';
+import { FishGenerator } from './generators/fish-generator.js';
+import { PowerShellGenerator } from './generators/powershell-generator.js';
+import { ZshInstaller } from './installers/zsh-installer.js';
+import { BashInstaller } from './installers/bash-installer.js';
+import { FishInstaller } from './installers/fish-installer.js';
+import { PowerShellInstaller } from './installers/powershell-installer.js';
 import { SupportedShell } from '../../utils/shell-detection.js';
+
+/**
+ * Common installation result interface
+ */
+export interface InstallationResult {
+  success: boolean;
+  installedPath?: string;
+  backupPath?: string;
+  message: string;
+  instructions?: string[];
+  warnings?: string[];
+  // Shell-specific optional fields
+  isOhMyZsh?: boolean;
+  zshrcConfigured?: boolean;
+  bashrcConfigured?: boolean;
+  profileConfigured?: boolean;
+}
 
 /**
  * Interface for completion installers
@@ -9,17 +32,25 @@ import { SupportedShell } from '../../utils/shell-detection.js';
 export interface CompletionInstaller {
   install(script: string): Promise<InstallationResult>;
   uninstall(): Promise<{ success: boolean; message: string }>;
+  /**
+   * True when a completion script file is present at the install path.
+   *
+   * Deliberately just the script: bash and PowerShell also need a sourcing
+   * line in the user's profile, and `install()` adds that on a best-effort
+   * basis (it is skipped by OPENSPEC_NO_AUTO_CONFIG=1 or an unwritable
+   * profile, printing manual instructions instead). Someone in that state has
+   * already met the installer, so callers that use this to decide whether to
+   * *advertise* completions should not advertise again.
+   */
+  isInstalled(): Promise<boolean>;
 }
-
-// Re-export InstallationResult for convenience
-export type { InstallationResult };
 
 /**
  * Factory for creating completion generators and installers
  * This design makes it easy to add support for additional shells
  */
 export class CompletionFactory {
-  private static readonly SUPPORTED_SHELLS: SupportedShell[] = ['zsh'];
+  private static readonly SUPPORTED_SHELLS: SupportedShell[] = ['zsh', 'bash', 'fish', 'powershell'];
 
   /**
    * Create a completion generator for the specified shell
@@ -32,6 +63,12 @@ export class CompletionFactory {
     switch (shell) {
       case 'zsh':
         return new ZshGenerator();
+      case 'bash':
+        return new BashGenerator();
+      case 'fish':
+        return new FishGenerator();
+      case 'powershell':
+        return new PowerShellGenerator();
       default:
         throw new Error(`Unsupported shell: ${shell}`);
     }
@@ -48,6 +85,12 @@ export class CompletionFactory {
     switch (shell) {
       case 'zsh':
         return new ZshInstaller();
+      case 'bash':
+        return new BashInstaller();
+      case 'fish':
+        return new FishInstaller();
+      case 'powershell':
+        return new PowerShellInstaller();
       default:
         throw new Error(`Unsupported shell: ${shell}`);
     }

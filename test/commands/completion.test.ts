@@ -78,10 +78,10 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error for unsupported shell', async () => {
-      await command.generate({ shell: 'bash' });
+      await command.generate({ shell: 'tcsh' });
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Error: Shell 'bash' is not supported yet. Currently supported: zsh"
+        "Error: Shell 'tcsh' is not supported yet. Currently supported: zsh, bash, fish, powershell"
       );
       expect(process.exitCode).toBe(1);
     });
@@ -135,10 +135,10 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error for unsupported shell', async () => {
-      await command.install({ shell: 'fish' });
+      await command.install({ shell: 'tcsh' });
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Error: Shell 'fish' is not supported yet. Currently supported: zsh"
+        "Error: Shell 'tcsh' is not supported yet. Currently supported: zsh, bash, fish, powershell"
       );
       expect(process.exitCode).toBe(1);
     });
@@ -184,10 +184,10 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error for unsupported shell', async () => {
-      await command.uninstall({ shell: 'powershell', yes: true });
+      await command.uninstall({ shell: 'tcsh', yes: true });
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Error: Shell 'powershell' is not supported yet. Currently supported: zsh"
+        "Error: Shell 'tcsh' is not supported yet. Currently supported: zsh, bash, fish, powershell"
       );
       expect(process.exitCode).toBe(1);
     });
@@ -244,14 +244,23 @@ describe('CompletionCommand', () => {
     });
   });
 
+  describe('dynamic completion data', () => {
+    it('should output schema names for shell completion', async () => {
+      await command.complete({ type: 'schemas' });
+
+      expect(consoleLogSpy).toHaveBeenCalledWith('spec-driven\tschema');
+      expect(process.exitCode).toBe(0);
+    });
+  });
+
   describe('shell detection integration', () => {
     it('should show appropriate error when detected shell is unsupported', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: 'bash' });
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: 'tcsh' });
 
       await command.generate({});
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Error: Shell 'bash' is not supported yet. Currently supported: zsh"
+        "Error: Shell 'tcsh' is not supported yet. Currently supported: zsh, bash, fish, powershell"
       );
       expect(process.exitCode).toBe(1);
     });

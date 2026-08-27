@@ -1,125 +1,187 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, type Dirent } from 'fs';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import type { RootOutput } from './root-selection.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
 
 interface ChangeInfo {
   name: string;
   completedTasks: number;
   totalTasks: number;
-  archived?: boolean;
+  lastModified: Date;
+  archived: boolean;
 }
 
-export interface ListOptions {
+interface ListOptions {
+  sort?: 'recent' | 'name';
+  json?: boolean;
+  root?: RootOutput;
   archived?: boolean;
   all?: boolean;
 }
 
-export class ListCommand {
-  async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
-    if (mode === 'changes') {
-      const changesDir = path.join(targetPath, 'openspec', 'changes');
+function isMissingPathError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
 
-      // Check if changes directory exists
-      try {
-        await fs.access(changesDir);
-      } catch {
-        throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
-      }
+async function readChangeDirectoryEntries(changesDir: string): Promise<Dirent[]> {
+  try {
+    return await fs.readdir(changesDir, { withFileTypes: true });
+  } catch (error) {
+    if (isMissingPathError(error)) return [];
+    throw error;
+  }
+}
 
-      const showArchived = options.archived || options.all;
-      const showActive = !options.archived || options.all;
+/**
+ * Get the most recent modification time of any file in a directory (recursive).
+ * Falls back to the directory's own mtime if no files are found.
+ */
+async function getLastModified(dirPath: string): Promise<Date> {
+  let latest: Date | null = null;
 
-      // Get all directories in changes (excluding archive)
-      const entries = await fs.readdir(changesDir, { withFileTypes: true });
-      const changeDirs = showActive
-        ? entries
-            .filter(entry => entry.isDirectory() && entry.name !== 'archive')
-            .map(entry => entry.name)
-        : [];
-
-      // Get archived changes if requested
-      let archivedDirs: string[] = [];
-      if (showArchived) {
-        const archiveDir = path.join(changesDir, 'archive');
-        try {
-          await fs.access(archiveDir);
-          const archiveEntries = await fs.readdir(archiveDir, { withFileTypes: true });
-          archivedDirs = archiveEntries
-            .filter(entry => entry.isDirectory())
-            .map(entry => entry.name);
-        } catch {
-          // Archive directory doesn't exist, that's fine
+  async function walk(dir: string): Promise<void> {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(fullPath);
+      } else {
+        const stat = await fs.stat(fullPath);
+        if (latest === null || stat.mtime > latest) {
+          latest = stat.mtime;
         }
       }
+    }
+  }
 
-      if (changeDirs.length === 0 && archivedDirs.length === 0) {
-        if (options.archived) {
-          console.log('No archived changes found.');
-        } else if (options.all) {
-          console.log('No changes found.');
+  await walk(dirPath);
+
+  // If no files found, use the directory's own modification time
+  if (latest === null) {
+    const dirStat = await fs.stat(dirPath);
+    return dirStat.mtime;
+  }
+
+  return latest;
+}
+
+/**
+ * Format a date as relative time (e.g., "2 hours ago", "3 days ago")
+ */
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays > 30) {
+    return date.toLocaleDateString();
+  } else if (diffDays > 0) {
+    return `${diffDays}d ago`;
+  } else if (diffHours > 0) {
+    return `${diffHours}h ago`;
+  } else if (diffMins > 0) {
+    return `${diffMins}m ago`;
+  } else {
+    return 'just now';
+  }
+}
+
+export class ListCommand {
+  async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
+    const { sort = 'recent', json = false, root, archived = false, all = false } = options;
+
+    if (mode === 'specs' && (archived || all)) {
+      throw new Error('--archived and --all can only be used when listing changes.');
+    }
+
+    if (mode === 'changes') {
+      const changesDir = path.join(targetPath, 'openspec', 'changes');
+      const archiveDir = path.join(changesDir, 'archive');
+      const includeArchived = archived || all;
+
+      // Get all directories in changes (excluding archive)
+      const entries = !archived || all ? await readChangeDirectoryEntries(changesDir) : [];
+      const activeDirs = entries
+        .filter(entry => entry.isDirectory() && entry.name !== 'archive')
+        .map(entry => ({ name: entry.name, parent: changesDir, archived: false }));
+      const archiveEntries = includeArchived ? await readChangeDirectoryEntries(archiveDir) : [];
+      const archivedDirs = archiveEntries
+        .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+        .map(entry => ({ name: entry.name, parent: archiveDir, archived: true }));
+      const changeDirs = [...activeDirs, ...archivedDirs];
+
+      if (changeDirs.length === 0) {
+        if (json) {
+          console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
         } else {
-          console.log('No active changes found.');
+          console.log(all ? 'No changes found.' : archived ? 'No archived changes found.' : 'No active changes found.');
         }
         return;
       }
 
-      // Collect information about each active change
+      // Collect information about each change
       const changes: ChangeInfo[] = [];
 
       for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, changeDir);
+        const progress = await getTaskProgressForChange(changeDir.parent, changeDir.name, targetPath);
+        const changePath = path.join(changeDir.parent, changeDir.name);
+        const lastModified = await getLastModified(changePath);
         changes.push({
-          name: changeDir,
-          completedTasks: progress.completed,
-          totalTasks: progress.total
-        });
-      }
-
-      // Collect information about each archived change
-      const archivedChanges: ChangeInfo[] = [];
-      const archiveDir = path.join(changesDir, 'archive');
-
-      for (const changeDir of archivedDirs) {
-        const progress = await getTaskProgressForChange(archiveDir, changeDir);
-        archivedChanges.push({
-          name: changeDir,
+          name: changeDir.name,
           completedTasks: progress.completed,
           totalTasks: progress.total,
-          archived: true
+          lastModified,
+          archived: changeDir.archived
         });
       }
 
-      // Sort alphabetically by name
-      changes.sort((a, b) => a.name.localeCompare(b.name));
-      archivedChanges.sort((a, b) => a.name.localeCompare(b.name));
-
-      // Display active changes
-      if (changes.length > 0) {
-        console.log('Changes:');
-        const padding = '  ';
-        const nameWidth = Math.max(...changes.map(c => c.name.length));
-        for (const change of changes) {
-          const paddedName = change.name.padEnd(nameWidth);
-          const status = formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
-          console.log(`${padding}${paddedName}     ${status}`);
-        }
+      // Sort by preference (default: recent first)
+      if (sort === 'recent') {
+        changes.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
+      } else {
+        changes.sort((a, b) => a.name.localeCompare(b.name));
       }
 
-      // Display archived changes
-      if (archivedChanges.length > 0) {
-        if (changes.length > 0) {
-          console.log('');  // Add spacing between sections
-        }
-        console.log('Archived Changes:');
+      // JSON output for programmatic use
+      if (json) {
+        const jsonOutput = changes.map(c => ({
+          name: c.name,
+          completedTasks: c.completedTasks,
+          totalTasks: c.totalTasks,
+          lastModified: c.lastModified.toISOString(),
+          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress',
+          ...(includeArchived ? { archived: c.archived } : {})
+        }));
+        console.log(JSON.stringify({ changes: jsonOutput, ...(root ? { root } : {}) }, null, 2));
+        return;
+      }
+
+      // Display results
+      const groups = [
+        { heading: 'Changes:', changes: changes.filter(change => !change.archived) },
+        { heading: 'Archived Changes:', changes: changes.filter(change => change.archived) }
+      ].filter(group => group.changes.length > 0);
+      for (const [index, group] of groups.entries()) {
+        if (index > 0) console.log('');
+        console.log(group.heading);
         const padding = '  ';
-        const nameWidth = Math.max(...archivedChanges.map(c => c.name.length));
-        for (const change of archivedChanges) {
+        const nameWidth = Math.max(...group.changes.map(c => c.name.length));
+        for (const change of group.changes) {
           const paddedName = change.name.padEnd(nameWidth);
           const status = formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
-          console.log(`${padding}${paddedName}     ${status}`);
+          const timeAgo = formatRelativeTime(change.lastModified);
+          console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
         }
       }
       return;
@@ -130,23 +192,29 @@ export class ListCommand {
     try {
       await fs.access(specsDir);
     } catch {
-      console.log('No specs found.');
+      if (json) {
+        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+      } else {
+        console.log('No specs found.');
+      }
       return;
     }
 
-    const entries = await fs.readdir(specsDir, { withFileTypes: true });
-    const specDirs = entries.filter(e => e.isDirectory()).map(e => e.name);
-    if (specDirs.length === 0) {
-      console.log('No specs found.');
+    const discovered = await discoverSpecFiles(specsDir);
+    if (discovered.length === 0) {
+      if (json) {
+        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+      } else {
+        console.log('No specs found.');
+      }
       return;
     }
 
     type SpecInfo = { id: string; requirementCount: number };
     const specs: SpecInfo[] = [];
-    for (const id of specDirs) {
-      const specPath = join(specsDir, id, 'spec.md');
+    for (const { id, specFile } of discovered) {
       try {
-        const content = readFileSync(specPath, 'utf-8');
+        const content = readFileSync(specFile, 'utf-8');
         const parser = new MarkdownParser(content);
         const spec = parser.parseSpec(id);
         specs.push({ id, requirementCount: spec.requirements.length });
@@ -157,6 +225,12 @@ export class ListCommand {
     }
 
     specs.sort((a, b) => a.id.localeCompare(b.id));
+
+    if (json) {
+      console.log(JSON.stringify({ specs, ...(root ? { root } : {}) }, null, 2));
+      return;
+    }
+
     console.log('Specs:');
     const padding = '  ';
     const nameWidth = Math.max(...specs.map(s => s.id.length));

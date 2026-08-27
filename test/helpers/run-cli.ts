@@ -1,5 +1,6 @@
-import { spawn } from 'child_process';
-import { existsSync } from 'fs';
+import { type ChildProcess, spawn } from 'child_process';
+import { existsSync, promises as fs } from 'fs';
+import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
@@ -8,8 +9,10 @@ const __dirname = path.dirname(__filename);
 
 const projectRoot = path.resolve(__dirname, '..', '..');
 const cliEntry = path.join(projectRoot, 'dist', 'cli', 'index.js');
+const DEFAULT_CLI_TIMEOUT_MS = 30_000;
 
 let buildPromise: Promise<void> | undefined;
+const activeCliChildren = new Set<ChildProcess>();
 
 interface RunCommandOptions {
   cwd?: string;
@@ -53,6 +56,65 @@ function runCommand(command: string, args: string[], options: RunCommandOptions 
   });
 }
 
+function mergeEnv(
+  ...sources: Array<NodeJS.ProcessEnv | undefined>
+): NodeJS.ProcessEnv {
+  const merged: NodeJS.ProcessEnv = {};
+
+  for (const source of sources) {
+    if (!source) continue;
+    for (const [key, value] of Object.entries(source)) {
+      if (value === undefined) continue;
+
+      if (process.platform === 'win32') {
+        const existingKey = Object.keys(merged).find(
+          (candidate) => candidate.toLowerCase() === key.toLowerCase()
+        );
+        if (existingKey && existingKey !== key) {
+          delete merged[existingKey];
+        }
+      }
+
+      merged[key] = value;
+    }
+  }
+
+  return merged;
+}
+
+function terminateProcessTree(child: ChildProcess): void {
+  if (!child.pid || child.killed) {
+    return;
+  }
+
+  if (process.platform === 'win32') {
+    spawn('taskkill', ['/pid', String(child.pid), '/t', '/f'], {
+      stdio: 'ignore',
+      windowsHide: true,
+    }).on('error', () => {
+      child.kill('SIGKILL');
+    });
+    return;
+  }
+
+  try {
+    process.kill(-child.pid, 'SIGKILL');
+  } catch {
+    child.kill('SIGKILL');
+  }
+}
+
+function formatOutputTail(output: string): string {
+  const lines = output.trimEnd().split(/\r?\n/);
+  return lines.slice(-20).join('\n');
+}
+
+export function terminateActiveCliChildren(): void {
+  for (const child of activeCliChildren) {
+    terminateProcessTree(child);
+  }
+}
+
 export async function ensureCliBuilt() {
   if (existsSync(cliEntry)) {
     return;
@@ -77,29 +139,42 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
 
   const finalArgs = Array.isArray(args) ? args : [args];
   const invocation = [cliEntry, ...finalArgs].join(' ');
+  const explicitConfigHome = options.env?.XDG_CONFIG_HOME;
+  const isolatedConfigHome =
+    explicitConfigHome !== undefined
+      ? undefined
+      : await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-cli-config-'));
 
   return new Promise<RunCLIResult>((resolve, reject) => {
+    const timeoutMs = options.timeoutMs ?? DEFAULT_CLI_TIMEOUT_MS;
     const child = spawn(process.execPath, [cliEntry, ...finalArgs], {
       cwd: options.cwd ?? projectRoot,
-      env: {
-        ...process.env,
-        OPEN_SPEC_INTERACTIVE: '0',
-        ...options.env,
-      },
+      env: mergeEnv(
+        process.env,
+        {
+          OPENSPEC_TELEMETRY: '0',
+          OPEN_SPEC_INTERACTIVE: '0',
+          XDG_CONFIG_HOME: explicitConfigHome ?? isolatedConfigHome,
+        },
+        options.env
+      ),
       stdio: ['pipe', 'pipe', 'pipe'],
+      detached: process.platform !== 'win32',
       windowsHide: true,
     });
+
+    // Prevent child process from keeping the event loop alive
+    child.unref();
+    activeCliChildren.add(child);
 
     let stdout = '';
     let stderr = '';
     let timedOut = false;
 
-    const timeout = options.timeoutMs
-      ? setTimeout(() => {
-          timedOut = true;
-          child.kill('SIGKILL');
-        }, options.timeoutMs)
-      : undefined;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      terminateProcessTree(child);
+    }, timeoutMs);
 
     child.stdout?.setEncoding('utf-8');
     child.stdout?.on('data', (chunk) => {
@@ -112,12 +187,36 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
     });
 
     child.on('error', (error) => {
-      if (timeout) clearTimeout(timeout);
+      clearTimeout(timeout);
+      activeCliChildren.delete(child);
+      // Explicitly destroy streams to prevent hanging handles
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      child.stdin?.destroy();
       reject(error);
     });
 
     child.on('close', (code, signal) => {
-      if (timeout) clearTimeout(timeout);
+      clearTimeout(timeout);
+      activeCliChildren.delete(child);
+      // Explicitly destroy streams to prevent hanging handles
+      child.stdout?.destroy();
+      child.stderr?.destroy();
+      child.stdin?.destroy();
+      if (timedOut) {
+        reject(
+          new Error(
+            [
+              `CLI command timed out after ${timeoutMs}ms: node ${invocation}`,
+              stderr ? `stderr tail:\n${formatOutputTail(stderr)}` : '',
+              stdout ? `stdout tail:\n${formatOutputTail(stdout)}` : '',
+            ]
+              .filter(Boolean)
+              .join('\n\n')
+          )
+        );
+        return;
+      }
       resolve({
         exitCode: code,
         signal,
@@ -132,6 +231,11 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
       child.stdin.end(options.input);
     } else if (child.stdin) {
       child.stdin.end();
+    }
+  }).finally(async () => {
+    if (isolatedConfigHome) {
+      // Never let cleanup replace the CLI result or a genuine CLI failure.
+      await fs.rm(isolatedConfigHome, { recursive: true, force: true }).catch(() => {});
     }
   });
 }

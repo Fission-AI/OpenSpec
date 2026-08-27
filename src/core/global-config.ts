@@ -5,14 +5,45 @@ import * as os from 'node:os';
 // Constants
 export const GLOBAL_CONFIG_DIR_NAME = 'openspec';
 export const GLOBAL_CONFIG_FILE_NAME = 'config.json';
+export const GLOBAL_DATA_DIR_NAME = 'openspec';
+
+// TypeScript types
+export type Profile = 'core' | 'custom';
+export type Delivery = 'both' | 'skills' | 'commands';
+
+/** Telemetry section of global config (identity + opt-out). */
+export interface TelemetryConfig {
+  /** When false, telemetry is disabled. Unset means enabled (opt-out model). */
+  enabled?: boolean;
+  /** Anonymous random UUID; no relation to the user. */
+  anonymousId?: string;
+  /** Whether the first-run telemetry notice has been shown. */
+  noticeSeen?: boolean;
+}
 
 // TypeScript interfaces
 export interface GlobalConfig {
   featureFlags?: Record<string, boolean>;
+  profile?: Profile;
+  delivery?: Delivery;
+  workflows?: string[];
+  /**
+   * Machine-level fallback store id, consulted during root resolution only
+   * when no --store flag, local root, or project-level store: pointer resolves.
+   */
+  defaultStore?: string;
+  /** Workset opener rows (slice 7.1); hand-edited, validated on use. */
+  openers?: unknown;
+  /** Anonymous usage analytics settings and identity. */
+  telemetry?: TelemetryConfig;
+  /** Whether the first-run shell-completions tip has been shown. */
+  completionTipSeen?: boolean;
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {
-  featureFlags: {}
+  featureFlags: {},
+  profile: 'core',
+  delivery: 'both',
 };
 
 /**
@@ -46,6 +77,52 @@ export function getGlobalConfigDir(): string {
 }
 
 /**
+ * Gets the global data directory path following XDG Base Directory Specification.
+ * Used for user data like schema overrides.
+ *
+ * - All platforms: $XDG_DATA_HOME/openspec/ if XDG_DATA_HOME is set
+ * - Unix/macOS fallback: ~/.local/share/openspec/
+ * - Windows fallback: %LOCALAPPDATA%/openspec/
+ */
+export interface GlobalDataDirOptions {
+  env?: NodeJS.ProcessEnv;
+  platform?: NodeJS.Platform;
+  homedir?: string;
+}
+
+function joinGlobalDataPath(platform: NodeJS.Platform, ...segments: string[]): string {
+  return platform === 'win32'
+    ? path.win32.join(...segments)
+    : path.posix.join(...segments);
+}
+
+export function getGlobalDataDir(options: GlobalDataDirOptions = {}): string {
+  const env = options.env ?? process.env;
+  const platform = options.platform ?? os.platform();
+
+  // XDG_DATA_HOME takes precedence on all platforms when explicitly set
+  const xdgDataHome = env.XDG_DATA_HOME;
+  if (xdgDataHome) {
+    return joinGlobalDataPath(platform, xdgDataHome, GLOBAL_DATA_DIR_NAME);
+  }
+
+  const homedir = options.homedir ?? os.homedir();
+
+  if (platform === 'win32') {
+    // Windows: use %LOCALAPPDATA%
+    const localAppData = env.LOCALAPPDATA;
+    if (localAppData) {
+      return joinGlobalDataPath(platform, localAppData, GLOBAL_DATA_DIR_NAME);
+    }
+    // Fallback for Windows if LOCALAPPDATA is not set
+    return joinGlobalDataPath(platform, homedir, 'AppData', 'Local', GLOBAL_DATA_DIR_NAME);
+  }
+
+  // Unix/macOS fallback: ~/.local/share
+  return joinGlobalDataPath(platform, homedir, '.local', 'share', GLOBAL_DATA_DIR_NAME);
+}
+
+/**
  * Gets the path to the global config file.
  */
 export function getGlobalConfigPath(): string {
@@ -69,7 +146,7 @@ export function getGlobalConfig(): GlobalConfig {
     const parsed = JSON.parse(content);
 
     // Merge with defaults (loaded values take precedence)
-    return {
+    const merged: GlobalConfig = {
       ...DEFAULT_CONFIG,
       ...parsed,
       // Deep merge featureFlags
@@ -78,6 +155,16 @@ export function getGlobalConfig(): GlobalConfig {
         ...(parsed.featureFlags || {})
       }
     };
+
+    // Schema evolution: apply defaults for new fields if not present in loaded config
+    if (parsed.profile === undefined) {
+      merged.profile = DEFAULT_CONFIG.profile;
+    }
+    if (parsed.delivery === undefined) {
+      merged.delivery = DEFAULT_CONFIG.delivery;
+    }
+
+    return merged;
   } catch (error) {
     // Log warning for parse errors, but not for missing files
     if (error instanceof SyntaxError) {

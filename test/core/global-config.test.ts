@@ -6,11 +6,13 @@ import * as os from 'node:os';
 import {
   getGlobalConfigDir,
   getGlobalConfigPath,
+  getGlobalDataDir,
   getGlobalConfig,
   saveGlobalConfig,
   GLOBAL_CONFIG_DIR_NAME,
   GLOBAL_CONFIG_FILE_NAME
 } from '../../src/core/global-config.js';
+import type { Profile, Delivery } from '../../src/core/global-config.js';
 
 describe('global-config', () => {
   let tempDir: string;
@@ -19,8 +21,7 @@ describe('global-config', () => {
 
   beforeEach(() => {
     // Create temp directory for tests
-    tempDir = path.join(os.tmpdir(), `openspec-global-config-test-${Date.now()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-global-config-test-'));
 
     // Save original env
     originalEnv = { ...process.env };
@@ -94,13 +95,51 @@ describe('global-config', () => {
     });
   });
 
+  describe('getGlobalDataDir', () => {
+    it('should use POSIX separators for Unix-like platform overrides', () => {
+      expect(
+        getGlobalDataDir({
+          env: {},
+          platform: 'linux',
+          homedir: '/home/tabish',
+        })
+      ).toBe('/home/tabish/.local/share/openspec');
+
+      expect(
+        getGlobalDataDir({
+          env: { XDG_DATA_HOME: '/var/data' },
+          platform: 'darwin',
+          homedir: '/Users/tabish',
+        })
+      ).toBe('/var/data/openspec');
+    });
+
+    it('should use Windows separators for native Windows platform overrides', () => {
+      expect(
+        getGlobalDataDir({
+          env: {},
+          platform: 'win32',
+          homedir: 'C:\\Users\\Tabish',
+        })
+      ).toBe('C:\\Users\\Tabish\\AppData\\Local\\openspec');
+
+      expect(
+        getGlobalDataDir({
+          env: { LOCALAPPDATA: 'D:\\Users\\Tabish\\AppData\\Local' },
+          platform: 'win32',
+          homedir: 'C:\\Users\\Tabish',
+        })
+      ).toBe('D:\\Users\\Tabish\\AppData\\Local\\openspec');
+    });
+  });
+
   describe('getGlobalConfig', () => {
     it('should return defaults when config file does not exist', () => {
       process.env.XDG_CONFIG_HOME = tempDir;
 
       const config = getGlobalConfig();
 
-      expect(config).toEqual({ featureFlags: {} });
+      expect(config).toEqual({ featureFlags: {}, profile: 'core', delivery: 'both' });
     });
 
     it('should not create directory when reading non-existent config', () => {
@@ -137,7 +176,7 @@ describe('global-config', () => {
 
       const config = getGlobalConfig();
 
-      expect(config).toEqual({ featureFlags: {} });
+      expect(config).toEqual({ featureFlags: {}, profile: 'core', delivery: 'both' });
     });
 
     it('should log warning for invalid JSON', () => {
@@ -188,6 +227,81 @@ describe('global-config', () => {
 
       // Should have the custom flag
       expect(config.featureFlags?.customFlag).toBe(true);
+    });
+
+    describe('schema evolution', () => {
+      it('should add default profile and delivery when loading old config without them', () => {
+        process.env.XDG_CONFIG_HOME = tempDir;
+        const configDir = path.join(tempDir, 'openspec');
+        const configPath = path.join(configDir, 'config.json');
+
+        // Simulate a pre-existing config that only has featureFlags
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(configPath, JSON.stringify({
+          featureFlags: { existingFlag: true }
+        }));
+
+        const config = getGlobalConfig();
+
+        expect(config.profile).toBe('core');
+        expect(config.delivery).toBe('both');
+        expect(config.workflows).toBeUndefined();
+        expect(config.featureFlags?.existingFlag).toBe(true);
+      });
+
+      it('should preserve explicit profile and delivery values from config', () => {
+        process.env.XDG_CONFIG_HOME = tempDir;
+        const configDir = path.join(tempDir, 'openspec');
+        const configPath = path.join(configDir, 'config.json');
+
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(configPath, JSON.stringify({
+          featureFlags: {},
+          profile: 'custom',
+          delivery: 'skills',
+          workflows: ['propose', 'review']
+        }));
+
+        const config = getGlobalConfig();
+
+        expect(config.profile).toBe('custom');
+        expect(config.delivery).toBe('skills');
+        expect(config.workflows).toEqual(['propose', 'review']);
+      });
+
+      it('should round-trip new fields correctly', () => {
+        process.env.XDG_CONFIG_HOME = tempDir;
+        const originalConfig = {
+          featureFlags: { flag1: true },
+          profile: 'custom' as Profile,
+          delivery: 'commands' as Delivery,
+          workflows: ['propose']
+        };
+
+        saveGlobalConfig(originalConfig);
+        const loadedConfig = getGlobalConfig();
+
+        expect(loadedConfig.profile).toBe('custom');
+        expect(loadedConfig.delivery).toBe('commands');
+        expect(loadedConfig.workflows).toEqual(['propose']);
+      });
+
+      it('should default workflows to undefined when not in config', () => {
+        process.env.XDG_CONFIG_HOME = tempDir;
+        const configDir = path.join(tempDir, 'openspec');
+        const configPath = path.join(configDir, 'config.json');
+
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(configPath, JSON.stringify({
+          featureFlags: {},
+          profile: 'core',
+          delivery: 'both'
+        }));
+
+        const config = getGlobalConfig();
+
+        expect(config.workflows).toBeUndefined();
+      });
     });
   });
 
