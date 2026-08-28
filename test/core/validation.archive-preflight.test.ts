@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { Validator } from '../../src/core/validation/validator.js';
@@ -70,21 +70,87 @@ describe('validate: deltas archive would refuse (#1112)', () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
+  it('keeps strict validation valid when advisory discovery encounters a filesystem error', async () => {
+    const changeDir = await writeChange('c1', 'widgets', `## ADDED Requirements\n\n${REQUIREMENT}\n`);
+    const specsDir = realpathSync.native(path.join(changeDir, 'specs'));
+    const readdir = fs.readdir;
+    let discoveries = 0;
+    vi.spyOn(fs, 'readdir').mockImplementation(async (dir, ...rest) => {
+      if (realpathSync.native(String(dir)) === specsDir && ++discoveries === 2) {
+        throw Object.assign(new Error('EIO: cannot discover archive inputs'), { code: 'EIO' });
+      }
+      return readdir(dir, ...(rest as []));
+    });
+
+    const report = await validate(changeDir, true);
+    expect(report.valid).toBe(true);
+    expect(report.issues).toContainEqual({
+      level: 'INFO',
+      path: 'specs',
+      message: 'Could not check archive merge conflicts: EIO: cannot discover archive inputs',
+    });
+    expect(blocker(report)).toBeUndefined();
+  });
+
+  it.skipIf(process.platform === 'win32').each([
+    ['outside', true],
+    ['outside', false],
+    ['dangling', true],
+    ['dangling', false],
+  ] as const)('preserves the validation report for a %s target link (valid delta: %s)', async (link, validDelta) => {
+    const body = validDelta ? REQUIREMENT : '### Requirement: Widget state\nThe system SHALL report the widget state.';
+    const changeDir = await writeChange('c1', 'widgets', `## ADDED Requirements\n\n${body}\n`);
+    const target = path.join(mainSpecsDir, 'widgets', 'spec.md');
+    const outside = path.join(testDir, 'outside.md');
+    if (link === 'outside') await fs.writeFile(outside, mainSpec(REQUIREMENT));
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.symlink(outside, target);
+
+    // Advisory discovery must not weaken the merge path's security checks.
+    await expect(findSpecUpdates(changeDir, mainSpecsDir)).rejects.toThrow();
+    for (const strict of [false, true]) {
+      const report = await validate(changeDir, strict);
+      expect(report.valid).toBe(validDelta);
+      expect(report.issues).toContainEqual(expect.objectContaining({
+        level: 'INFO',
+        path: 'specs',
+        message: expect.stringContaining('Could not check archive merge conflicts:'),
+      }));
+      if (!validDelta) {
+        expect(report.issues).toContainEqual(expect.objectContaining({
+          level: 'ERROR', path: 'widgets/spec.md', message: expect.stringContaining('must include at least one scenario'),
+        }));
+      }
+    }
+    if (link === 'outside') expect(await fs.readFile(outside, 'utf8')).toBe(mainSpec(REQUIREMENT));
+    else await expect(fs.stat(outside)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it.skipIf(process.platform === 'win32')('still refuses an unsafe delta source before the advisory check', async () => {
+    const changeDir = await writeChange('c1', 'widgets', `## ADDED Requirements\n\n${REQUIREMENT}\n`);
+    const delta = path.join(changeDir, 'specs', 'widgets', 'spec.md');
+    const outside = path.join(testDir, 'outside-delta.md');
+    await fs.rename(delta, outside);
+    await fs.symlink(outside, delta);
+    await expect(validate(changeDir)).rejects.toThrow('Path is outside the allowed directory');
+  });
+
   it.each(['EMFILE', 'EIO', 'EACCES'])(
     'does not misreport a target read failure (%s) as a missing requirement',
     async (code) => {
       await writeMainSpec('widgets', REQUIREMENT);
       const changeDir = await writeChange('c1', 'widgets', `## MODIFIED Requirements\n\n${REQUIREMENT}\n`);
       const [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+      const target = realpathSync.native(update.target);
       const readFile = fs.readFile;
       const failure = Object.assign(new Error(`${code}: cannot read target`), { code });
       const spy = vi.spyOn(fs, 'readFile').mockImplementation(async (file, ...rest) => {
-        if (path.resolve(String(file)) === update.target) throw failure;
+        if (realpathSync.native(String(file)) === target) throw failure;
         return readFile(file, ...(rest as []));
       });
 
       const report = await validate(changeDir);
-      expect(spy.mock.calls.some(([file]) => path.resolve(String(file)) === update.target)).toBe(true);
+      expect(spy.mock.calls.some(([file]) => realpathSync.native(String(file)) === target)).toBe(true);
       expect(blocker(report)).toBeUndefined();
       await expect(buildUpdatedSpec(update, 'c1', { silent: true })).rejects.toBe(failure);
     }
@@ -125,17 +191,26 @@ describe('validate: deltas archive would refuse (#1112)', () => {
     expect(blocker(report)).toBeUndefined();
   });
 
-  it('does not synthesize a new baseline for ADDED when the existing spec cannot be read', async () => {
+  it('does not synthesize a new baseline for ADDED when the existing spec cannot be read through an alias or canonical path', async () => {
     await writeMainSpec('widgets', REQUIREMENT);
-    const changeDir = await writeChange('c1', 'widgets', `## ADDED Requirements\n\n${REQUIREMENT.replace('Widget state', 'Gadget state')}\n`);
+    await fs.symlink(
+      path.join(mainSpecsDir, 'widgets'),
+      path.join(mainSpecsDir, 'widgets-alias'),
+      process.platform === 'win32' ? 'junction' : 'dir'
+    );
+    const changeDir = await writeChange('c1', 'widgets-alias', `## ADDED Requirements\n\n${REQUIREMENT.replace('Widget state', 'Gadget state')}\n`);
     const [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+    const target = realpathSync.native(update.target);
+    // Keep distinct path spellings so this exercises both reads of the same file.
+    expect(update.target).not.toBe(target);
     const readFile = fs.readFile;
     const failure = Object.assign(new Error('EIO: cannot read target'), { code: 'EIO' });
     vi.spyOn(fs, 'readFile').mockImplementation(async (file, ...rest) => {
-      if (path.resolve(String(file)) === update.target) throw failure;
+      if (realpathSync.native(String(file)) === target) throw failure;
       return readFile(file, ...(rest as []));
     });
     await expect(buildUpdatedSpec(update, 'c1', { silent: true })).rejects.toBe(failure);
+    await expect(buildUpdatedSpec({ ...update, target }, 'c1', { silent: true })).rejects.toBe(failure);
   });
 
   it('reports a nested capability without suppressing findings for other files', async () => {
@@ -266,6 +341,15 @@ describe('validate: deltas archive would refuse (#1112)', () => {
 
     const report = await validate(changeDir);
     expect(report.issues.some((i) => i.message.startsWith('No delta sections found'))).toBe(true);
+    expect(blocker(report)).toBeUndefined();
+  });
+
+  it.skipIf(process.platform === 'win32')('uses the same display path when suppressing malformed deltas with a literal backslash', async () => {
+    const changeDir = await writeChange('c1', 'area\\widgets', '# Notes\n\nNo delta headers.\n');
+    const report = await validate(changeDir);
+    expect(report.issues).toContainEqual(expect.objectContaining({
+      level: 'ERROR', path: 'area/widgets/spec.md', message: expect.stringContaining('No delta sections found'),
+    }));
     expect(blocker(report)).toBeUndefined();
   });
 

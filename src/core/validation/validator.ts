@@ -816,10 +816,25 @@ export class Validator {
     const changeName = path.basename(changeDir);
     const issues: ValidationIssue[] = [];
 
-    for (const update of await findSpecUpdates(changeDir, mainSpecsDir)) {
+    let updates: Awaited<ReturnType<typeof findSpecUpdates>>;
+    try {
+      updates = await findSpecUpdates(changeDir, mainSpecsDir);
+    } catch (error) {
+      // An incomplete advisory check must not discard the validation report.
+      // Source discovery already ran above; archive retains its own path guards.
+      return [{
+        level: 'INFO',
+        path: 'specs',
+        message: `Could not check archive merge conflicts: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      }];
+    }
+
+    for (const update of updates) {
       // discoverSpecFiles builds both this id and the entryPath the checks
       // above report under, from the same walk.
-      const entryPath = `${update.id}/spec.md`;
+      const entryPath = FileSystemUtils.toPosixPath(`${update.id}/spec.md`);
       // A delta those checks already rejected would be reported twice, the
       // second time in archive's wording rather than the wording that names
       // the actual mistake.

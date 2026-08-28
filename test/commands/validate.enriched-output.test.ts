@@ -99,6 +99,46 @@ The system SHALL report the future state.
     }
   }
 
+  for (const args of [['validate', 'c-archive'], ['validate', '--changes']]) {
+    for (const json of [false, true]) {
+      it.skipIf(process.platform === 'win32')(
+        `reports an incomplete archive check without failing ${args.join(' ')}${json ? ' --json' : ''}`,
+        async () => {
+          await writeArchiveBlocker();
+          const deltaFile = path.join(changesDir, 'c-archive', 'specs', 'widgets', 'spec.md');
+          const delta = await fs.readFile(deltaFile, 'utf-8');
+          await fs.writeFile(deltaFile, delta.replace('## MODIFIED Requirements', '## ADDED Requirements'));
+          const mainFile = path.join(testDir, 'openspec', 'specs', 'widgets', 'spec.md');
+          const missingFile = path.join(testDir, 'missing-spec.md');
+          await fs.unlink(mainFile);
+          await fs.symlink(missingFile, mainFile);
+
+          const result = await runCLI(
+            [...args, '--strict', '--no-interactive', ...(json ? ['--json'] : [])],
+            { cwd: testDir }
+          );
+
+          if (json) {
+            const output = JSON.parse(result.stdout);
+            expect(output.items).toHaveLength(1);
+            expect(output.items[0].valid).toBe(true);
+            expect(output.items[0].issues).toContainEqual(expect.objectContaining({
+              level: 'INFO',
+              path: 'specs',
+              message: expect.stringContaining('Could not check archive merge conflicts:'),
+            }));
+            expect(output.summary.totals).toEqual({ items: 1, passed: 1, failed: 0 });
+          } else {
+            expect(result.stdout).toMatch(/is valid|0 failed/);
+            expect(result.stderr).toContain('ℹ [INFO] specs: Could not check archive merge conflicts:');
+            expect(result.stderr).not.toContain('Next steps:');
+          }
+          expect(result.exitCode).toBe(0);
+        }
+      );
+    }
+  }
+
   it('preserves INFO severity in the deprecated command when another delta is invalid', async () => {
     await writeArchiveBlocker();
     const invalidDir = path.join(changesDir, 'c-archive', 'specs', 'broken');

@@ -677,6 +677,8 @@ These findings appear even when validation passes, in both text and JSON output.
 
 This check does not run archive's later merged-spec validation or retirement checks. A clean report does not guarantee that archive will succeed.
 
+If the merge preflight cannot start, an `INFO` finding explains why. Existing validation findings and the exit code stay unchanged.
+
 A failing item lists each issue and the fix:
 
 ```
