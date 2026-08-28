@@ -49,11 +49,11 @@ describe('update-change templates', () => {
     }
   });
 
-  it('edits planning artifacts only, hands code off to /opsx:apply, never advances the frontier (3.3)', () => {
+  it('edits planning artifacts only, defers implementation, never advances the frontier (3.3)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('Never edit code');
       expect(body, label).toContain('NEVER edit implementation code');
-      expect(body, label).toContain('stop and point to `/opsx:apply`');
+      expect(body, label).toContain('stop and suggest a separate implementation step');
       expect(body, label).toContain('Do not advance the build frontier');
       expect(body, label).toContain('Do NOT create artifacts that don\'t exist yet');
     }
@@ -70,52 +70,39 @@ describe('update-change templates', () => {
   it('ends with next-step guidance and never acts on it (3.5)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('guidance only - NEVER act on it');
-      expect(body, label).toContain('suggest `/opsx:continue`');
-      expect(body, label).toContain('suggest `/opsx:apply`');
-      expect(body, label).toContain('suggest `/opsx:archive`');
+      expect(body, label).toContain('suggest completing them in a separate artifact-creation step');
+      expect(body, label).toContain('suggest implementing the revised plan in a separate implementation step');
+      expect(body, label).toContain('suggest archiving the change');
       expect(body, label).toContain('the code may no longer match the revised plan');
     }
   });
 
-  it('explains the optional continue workflow before suggesting it', () => {
+  it('puts CLI recovery at the missing-artifact handoffs without optional workflow references', () => {
     for (const [label, body] of bodies) {
-      const availabilityGuidance = body.indexOf(
-        '`/opsx:continue` is an optional workflow and may not be installed'
-      );
-      const firstSuggestion = body.indexOf(
-        '`/opsx:continue`',
-        availabilityGuidance + '`/opsx:continue`'.length
-      );
-
-      expect(availabilityGuidance, label).toBeGreaterThanOrEqual(0);
-      expect(body.indexOf('`/opsx:continue`'), label).toBe(availabilityGuidance);
-      expect(firstSuggestion, label).toBeGreaterThan(availabilityGuidance);
-      expect(body, label).toContain(
-        'If it is unavailable, `openspec status --change "<name>" --json` shows the next artifact'
-      );
-      expect(body, label).toContain(
-        '`openspec instructions "<artifact-id>" --change "<name>" --json` explains how to create it'
-      );
+      expect(body, label).not.toMatch(/\/opsx:(continue|new|apply|archive)\b/);
+      const reconcile = body.split('\n').find(line => line.includes('Do NOT create artifacts'))!;
+      const nextStep = body.split('\n').find(line => line.includes('Artifacts still missing ->'))!;
+      for (const handoff of [reconcile, nextStep]) {
+        expect(handoff, label).toContain('separate artifact-creation step');
+        expect(handoff, label).toContain('openspec instructions "<artifact-id>" --change "<name>" --json');
+      }
+      expect(nextStep, label).toContain('openspec status --change "<name>" --json');
+      expect(nextStep, label).toContain('next `ready` artifact (not `skipped` or `blocked`)');
+      expect(nextStep, label).toContain('Keep the selected `--store <id>` on both commands');
     }
   });
 
-  it('confirms every edit and redirects intent changes to /opsx:new', () => {
+  it('confirms every edit and redirects intent changes to a distinct new change via the CLI', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('Write only after the user confirms');
       expect(body, label).toContain('If the user rejects a revision, do not write it');
-      expect(body, label).toContain('recommend starting fresh with `/opsx:new`');
+      expect(body, label).toContain('recommend starting a separate change');
       expect(body, label).toContain('Update vs. Start Fresh');
-      expect(body, label).toContain('ask for a distinct unused change name');
+      expect(body, label).toContain('Ask for a distinct unused change name');
       expect(body, label).toContain('openspec new change "<new-change-name>"');
       expect(body, label).not.toContain('openspec new change "<name>"');
 
-      const newAvailabilityCheck = body.indexOf(
-        'first verify whether the optional `/opsx:new` workflow is available'
-      );
-      const newRecommendation = body.indexOf('recommend starting fresh with `/opsx:new`');
-      expect(newAvailabilityCheck, label).toBeGreaterThanOrEqual(0);
-      expect(body.slice(0, newAvailabilityCheck), label).not.toContain('`/opsx:new`');
-      expect(newRecommendation, label).toBeGreaterThan(newAvailabilityCheck);
+      expect(body, label).toContain('keep the current change unchanged');
     }
   });
 });

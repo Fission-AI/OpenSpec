@@ -58,7 +58,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Optional \`operationGuidance\`: current advisory guidance for apply
 
    **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\` (if it is not installed, run \`openspec status --change "<name>" --json\` to see the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` for how to create it)
+   - If \`state: "blocked"\` (missing artifacts): show the message and pause implementation. Suggest completing the missing artifacts: run \`openspec status --change "<name>" --json\`, select the next \`ready\` artifact (not \`skipped\` or \`blocked\`), and use \`openspec instructions "<artifact-id>" --change "<name>" --json\` for its rules and template. Keep the selected \`--store <id>\` on both commands.
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 

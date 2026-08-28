@@ -442,41 +442,14 @@ describe('InitCommand', () => {
         );
       }
 
-      const updateVariants: Array<[string, string]> = [
-        [
-          await fs.readFile(
-            path.join(
-              testDir,
-              '.claude',
-              'skills',
-              'openspec-update-change',
-              'SKILL.md'
-            ),
-            'utf-8'
-          ),
-          '`/opsx:continue`',
-        ],
-        [
-          await fs.readFile(
-            path.join(testDir, '.claude', 'commands', 'opsx', 'update.md'),
-            'utf-8'
-          ),
-          '`/opsx:continue`',
-        ],
+      const updateFiles = [
+        path.join(testDir, '.claude', 'skills', 'openspec-update-change', 'SKILL.md'),
+        path.join(testDir, '.claude', 'commands', 'opsx', 'update.md'),
       ];
 
-      for (const [content, continueReference] of updateVariants) {
-        const availabilityGuidance = content.indexOf(
-          `${continueReference} is an optional workflow and may not be installed`
-        );
-        const nextReference = content.indexOf(
-          continueReference,
-          availabilityGuidance + continueReference.length
-        );
-
-        expect(availabilityGuidance).toBeGreaterThanOrEqual(0);
-        expect(content.indexOf(continueReference)).toBe(availabilityGuidance);
-        expect(nextReference).toBeGreaterThan(availabilityGuidance);
+      for (const file of updateFiles) {
+        const content = await fs.readFile(file, 'utf-8');
+        expect(content).not.toMatch(/\/opsx:(continue|new)\b/);
         expect(content).toContain('openspec status --change "<name>" --json');
         expect(content).toContain(
           'openspec instructions "<artifact-id>" --change "<name>" --json'
