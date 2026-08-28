@@ -50,7 +50,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    The artifact ids and paths come from the active schema - do NOT assume them, and do NOT branch on hardcoded artifact names. Custom schemas must work unchanged.
 
-   The files to edit are \`artifactPaths.<id>.existingOutputPaths\` - the concrete files that exist on disk, already glob-expanded for glob artifacts (e.g. \`specs/**/*.md\`). Do NOT write to \`resolvedOutputPath\`: for a glob artifact it is still the glob pattern, not a real file.
+   Edit existing files through \`artifactPaths.<id>.existingOutputPaths\` - the concrete files already on disk, with glob artifacts expanded (e.g. \`specs/**/*.md\`). For a glob artifact, \`resolvedOutputPath\` is still a pattern, not a concrete file. The only new-file exception is the partially populated glob case in step 4.
 
 3. **Understand the request**
    - If the user asked for a specific revision ("the design now uses X"), that is the starting edit.
@@ -60,8 +60,11 @@ ${STORE_SELECTION_GUIDANCE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Apply the requested edit. Then check every other existing artifact against it - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Revise the files that already exist (\`existingOutputPaths\`). Do NOT create an artifact that has no files at all - it is still \`ready\` or \`blocked\`, so note it and point the user to \`/opsx:continue\`.
-   - A glob artifact (e.g. \`specs/**/*.md\`) counts as done as soon as ONE file matches it, so \`/opsx:continue\` - which only picks up \`ready\` artifacts - will never come back to it. If the reconciliation finds a file missing under a glob artifact that already has at least one file, create it here rather than deferring: choose the concrete path (never \`resolvedOutputPath\`, which is still the glob), fetch that artifact's rules and template with \`openspec instructions "<artifact-id>" --change "<name>" --json\`, and write it under step 5's confirmation rule like any other revision.
+   - Revise files that already exist (\`existingOutputPaths\`). Leave an artifact with no existing output files for \`/opsx:continue\`; it is still \`ready\` or \`blocked\`.
+   - A glob artifact (e.g. \`specs/**/*.md\`) is marked \`done\` after at least one file matches, and \`/opsx:continue\` only handles \`ready\` artifacts. When reconciliation identifies a missing file for a glob artifact whose \`existingOutputPaths\` is non-empty:
+     1. Run \`openspec instructions "<artifact-id>" --change "<name>" --json\` and use its \`instruction\`, \`rules\`, and \`template\`.
+     2. Choose a concrete path inside \`changeRoot\` that matches \`artifactPaths.<id>.outputPath\`. Never write to the glob \`resolvedOutputPath\`.
+     3. Include the new file in step 5's proposed revisions and create it only after the user confirms.
    - If the change is already coherent, say so and make no edits.
 
 5. **Confirm and apply, one artifact at a time**
@@ -89,7 +92,7 @@ After each invocation, show:
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to \`/opsx:apply\`.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
 - Write only concrete file paths; never write to a glob \`resolvedOutputPath\`.
-- Do not advance the build frontier: never create an artifact that has no files yet - that is \`/opsx:continue\`'s job. Filling a gap under a glob artifact that is already satisfied is in scope, because \`/opsx:continue\` cannot reach it.
+- Do not advance the build frontier: leave artifacts with empty \`existingOutputPaths\` for \`/opsx:continue\`. The only new-file scope is a confirmed concrete path under a glob artifact whose \`existingOutputPaths\` is non-empty.
 - Confirm every edit with the user before writing.
 - If the request changes the change's *intent* rather than refining it, first verify whether the optional \`/opsx:new\` workflow is available. If it is, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend \`openspec new change "<new-change-name>"\` instead.`,
     license: 'MIT',
@@ -143,7 +146,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    The artifact ids and paths come from the active schema - do NOT assume them, and do NOT branch on hardcoded artifact names. Custom schemas must work unchanged.
 
-   The files to edit are \`artifactPaths.<id>.existingOutputPaths\` - the concrete files that exist on disk, already glob-expanded for glob artifacts (e.g. \`specs/**/*.md\`). Do NOT write to \`resolvedOutputPath\`: for a glob artifact it is still the glob pattern, not a real file.
+   Edit existing files through \`artifactPaths.<id>.existingOutputPaths\` - the concrete files already on disk, with glob artifacts expanded (e.g. \`specs/**/*.md\`). For a glob artifact, \`resolvedOutputPath\` is still a pattern, not a concrete file. The only new-file exception is the partially populated glob case in step 4.
 
 3. **Understand the request**
    - If the user asked for a specific revision ("the design now uses X"), that is the starting edit.
@@ -153,8 +156,11 @@ ${STORE_SELECTION_GUIDANCE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Apply the requested edit. Then check every other existing artifact against it - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Revise the files that already exist (\`existingOutputPaths\`). Do NOT create an artifact that has no files at all - it is still \`ready\` or \`blocked\`, so note it and point the user to \`/opsx:continue\`.
-   - A glob artifact (e.g. \`specs/**/*.md\`) counts as done as soon as ONE file matches it, so \`/opsx:continue\` - which only picks up \`ready\` artifacts - will never come back to it. If the reconciliation finds a file missing under a glob artifact that already has at least one file, create it here rather than deferring: choose the concrete path (never \`resolvedOutputPath\`, which is still the glob), fetch that artifact's rules and template with \`openspec instructions "<artifact-id>" --change "<name>" --json\`, and write it under step 5's confirmation rule like any other revision.
+   - Revise files that already exist (\`existingOutputPaths\`). Leave an artifact with no existing output files for \`/opsx:continue\`; it is still \`ready\` or \`blocked\`.
+   - A glob artifact (e.g. \`specs/**/*.md\`) is marked \`done\` after at least one file matches, and \`/opsx:continue\` only handles \`ready\` artifacts. When reconciliation identifies a missing file for a glob artifact whose \`existingOutputPaths\` is non-empty:
+     1. Run \`openspec instructions "<artifact-id>" --change "<name>" --json\` and use its \`instruction\`, \`rules\`, and \`template\`.
+     2. Choose a concrete path inside \`changeRoot\` that matches \`artifactPaths.<id>.outputPath\`. Never write to the glob \`resolvedOutputPath\`.
+     3. Include the new file in step 5's proposed revisions and create it only after the user confirms.
    - If the change is already coherent, say so and make no edits.
 
 5. **Confirm and apply, one artifact at a time**
@@ -182,7 +188,7 @@ After each invocation, show:
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to \`/opsx:apply\`.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
 - Write only concrete file paths; never write to a glob \`resolvedOutputPath\`.
-- Do not advance the build frontier: never create an artifact that has no files yet - that is \`/opsx:continue\`'s job. Filling a gap under a glob artifact that is already satisfied is in scope, because \`/opsx:continue\` cannot reach it.
+- Do not advance the build frontier: leave artifacts with empty \`existingOutputPaths\` for \`/opsx:continue\`. The only new-file scope is a confirmed concrete path under a glob artifact whose \`existingOutputPaths\` is non-empty.
 - Confirm every edit with the user before writing.
 - If the request changes the change's *intent* rather than refining it, first verify whether the optional \`/opsx:new\` workflow is available. If it is, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend \`openspec new change "<new-change-name>"\` instead.`
   };
