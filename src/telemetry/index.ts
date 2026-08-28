@@ -177,7 +177,9 @@ export async function trackCommand(commandName: string, version: string): Promis
 /**
  * Show first-run telemetry notice if not already seen.
  */
-export async function maybeShowTelemetryNotice(): Promise<void> {
+export async function maybeShowTelemetryNotice(
+  options: { silent?: boolean } = {}
+): Promise<void> {
   if (!isTelemetryEnabled()) {
     return;
   }
@@ -188,8 +190,16 @@ export async function maybeShowTelemetryNotice(): Promise<void> {
       return;
     }
 
-    // Display notice
-    console.log(
+    // In --json mode the notice would pollute stdout and break parsers, so
+    // defer it: skip the notice AND leave noticeSeen unset so the disclosure
+    // still appears on the user's first later non-JSON run.
+    if (options.silent) {
+      return;
+    }
+
+    // Display notice on stderr, not stdout: stdout is reserved for command
+    // output (raw passthrough text, JSON, etc.) and must stay parser/pipe-safe.
+    console.error(
       'Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0 or openspec config set telemetry.enabled false'
     );
 

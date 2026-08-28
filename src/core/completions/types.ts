@@ -25,6 +25,11 @@ export interface FlagDefinition {
   takesValue?: boolean;
 
   /**
+   * Completion type for the flag value.
+   */
+  completionType?: PositionalType;
+
+  /**
    * Possible values for the flag (for completion suggestions)
    */
   values?: string[];
