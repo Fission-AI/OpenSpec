@@ -91,6 +91,9 @@ describe('update-change templates', () => {
   it('ends with next-step guidance and never acts on it (3.5)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('guidance only - NEVER act on it');
+      expect(body, label).toContain(
+        'Artifacts with empty `existingOutputPaths` still missing -> suggest `/opsx:continue`'
+      );
       expect(body, label).toContain('suggest `/opsx:continue`');
       expect(body, label).toContain('suggest `/opsx:apply`');
       expect(body, label).toContain('suggest `/opsx:archive`');
