@@ -76,7 +76,7 @@ ${STORE_SELECTION_GUIDANCE}
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts still missing -> suggest \`/opsx:continue\` to create them.
+   - Artifacts with empty \`existingOutputPaths\` still missing -> suggest \`/opsx:continue\` to create them.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest \`/opsx:apply\` to carry the delta into code.
    - Everything done and implemented -> suggest \`/opsx:archive\`.
 
@@ -172,7 +172,7 @@ ${STORE_SELECTION_GUIDANCE}
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts still missing -> suggest \`/opsx:continue\` to create them.
+   - Artifacts with empty \`existingOutputPaths\` still missing -> suggest \`/opsx:continue\` to create them.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest \`/opsx:apply\` to carry the delta into code.
    - Everything done and implemented -> suggest \`/opsx:archive\`.
 
