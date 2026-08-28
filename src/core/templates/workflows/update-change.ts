@@ -35,8 +35,8 @@ const CONTINUE_NEXT_STEP = optionalWorkflow(
 
 const CONTINUE_DEFERRED = optionalWorkflow(
   'continue',
-  'Anything deferred to `/opsx:continue` (not-yet-created artifacts or files)',
-  'Anything deferred because it does not exist yet (not-yet-created artifacts or files)'
+  'Anything deferred to `/opsx:continue` (artifacts with no files yet and status `ready` or `blocked`, never `skipped` artifacts)',
+  'Anything deferred because it does not exist yet (artifacts with no files and status `ready` or `blocked`, never `skipped` artifacts)'
 );
 
 const CONTINUE_FRONTIER = optionalWorkflow(
@@ -128,10 +128,10 @@ ${CONTINUE_SCOPE_NOTE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Draft the requested edit in the conversation, not in files. Work out exactly what it changes; step 5 owns every write. Then check every other existing artifact against the drafted edit - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Propose revisions to files that already exist (\`existingOutputPaths\`). If an artifact has no existing output files, note it and ${CONTINUE_CREATE_THEM}; it is still \`ready\` or \`blocked\`.
+   - Propose revisions to files that already exist (\`existingOutputPaths\`). If an artifact has no existing output files and status \`ready\` or \`blocked\`, note it and ${CONTINUE_CREATE_THEM}. Leave \`skipped\` artifacts untouched; do not treat them as missing or defer them to the continue workflow.
    - A glob artifact (e.g. \`specs/**/*.md\`) is marked \`done\` after at least one file matches, and the continue workflow only handles \`ready\` artifacts. When reconciliation identifies a missing file for a glob artifact whose \`existingOutputPaths\` is non-empty:
-     1. Run \`openspec instructions "<artifact-id>" --change "<name>" --json\` and use its \`instruction\`, \`rules\`, and \`template\`.
-     2. Choose a concrete path inside \`changeRoot\` that matches \`artifactPaths.<id>.outputPath\`. Never write to the glob \`resolvedOutputPath\`.
+     1. Run \`openspec instructions "<artifact-id>" --change "<name>" --json\` and use its \`instruction\` and \`template\`. Apply \`context\` and \`rules\` as constraints; do not copy them into the file. If instructions report \`skipped: true\`, do not create the file.
+     2. Choose a concrete path inside \`changeRoot\` that matches \`artifactPaths.<id>.outputPath\` and does not already exist. Verify it remains inside \`changeRoot\` after resolving any symlinked parent directories. Never write to the glob \`resolvedOutputPath\`.
      3. Include the new file in step 5's proposed revisions and create it only after the user confirms.
    - If the change is already coherent, say so and propose no revisions.
 
@@ -145,7 +145,7 @@ ${CONTINUE_SCOPE_NOTE}
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts with empty \`existingOutputPaths\` still missing -> ${CONTINUE_NEXT_STEP}.
+   - Artifacts with empty \`existingOutputPaths\` and status \`ready\` or \`blocked\` -> ${CONTINUE_NEXT_STEP}.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
    - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 
@@ -161,7 +161,7 @@ After each invocation, show:
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
 - Write only concrete file paths; never write to a glob \`resolvedOutputPath\`.
-- Do not advance the build frontier: if an artifact has empty \`existingOutputPaths\`, ${CONTINUE_FRONTIER}. The only new-file scope is a confirmed concrete path under a glob artifact whose \`existingOutputPaths\` is non-empty.
+- Do not advance the build frontier: if an artifact has empty \`existingOutputPaths\` and status \`ready\` or \`blocked\`, ${CONTINUE_FRONTIER}. Leave \`skipped\` artifacts untouched. The only new-file scope is a confirmed concrete path under a glob artifact whose \`existingOutputPaths\` is non-empty.
 - Confirm every edit with the user before writing.
 - If the request changes the change's *intent* rather than refining it, ${INTENT_CHANGE_GUARDRAIL}.`,
     license: 'MIT',
@@ -227,10 +227,10 @@ ${CONTINUE_SCOPE_NOTE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Draft the requested edit in the conversation, not in files. Work out exactly what it changes; step 5 owns every write. Then check every other existing artifact against the drafted edit - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Propose revisions to files that already exist (\`existingOutputPaths\`). If an artifact has no existing output files, note it and ${CONTINUE_CREATE_THEM}; it is still \`ready\` or \`blocked\`.
+   - Propose revisions to files that already exist (\`existingOutputPaths\`). If an artifact has no existing output files and status \`ready\` or \`blocked\`, note it and ${CONTINUE_CREATE_THEM}. Leave \`skipped\` artifacts untouched; do not treat them as missing or defer them to the continue workflow.
    - A glob artifact (e.g. \`specs/**/*.md\`) is marked \`done\` after at least one file matches, and the continue workflow only handles \`ready\` artifacts. When reconciliation identifies a missing file for a glob artifact whose \`existingOutputPaths\` is non-empty:
-     1. Run \`openspec instructions "<artifact-id>" --change "<name>" --json\` and use its \`instruction\`, \`rules\`, and \`template\`.
-     2. Choose a concrete path inside \`changeRoot\` that matches \`artifactPaths.<id>.outputPath\`. Never write to the glob \`resolvedOutputPath\`.
+     1. Run \`openspec instructions "<artifact-id>" --change "<name>" --json\` and use its \`instruction\` and \`template\`. Apply \`context\` and \`rules\` as constraints; do not copy them into the file. If instructions report \`skipped: true\`, do not create the file.
+     2. Choose a concrete path inside \`changeRoot\` that matches \`artifactPaths.<id>.outputPath\` and does not already exist. Verify it remains inside \`changeRoot\` after resolving any symlinked parent directories. Never write to the glob \`resolvedOutputPath\`.
      3. Include the new file in step 5's proposed revisions and create it only after the user confirms.
    - If the change is already coherent, say so and propose no revisions.
 
@@ -244,7 +244,7 @@ ${CONTINUE_SCOPE_NOTE}
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts with empty \`existingOutputPaths\` still missing -> ${CONTINUE_NEXT_STEP}.
+   - Artifacts with empty \`existingOutputPaths\` and status \`ready\` or \`blocked\` -> ${CONTINUE_NEXT_STEP}.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
    - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 
@@ -260,7 +260,7 @@ After each invocation, show:
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
 - Write only concrete file paths; never write to a glob \`resolvedOutputPath\`.
-- Do not advance the build frontier: if an artifact has empty \`existingOutputPaths\`, ${CONTINUE_FRONTIER}. The only new-file scope is a confirmed concrete path under a glob artifact whose \`existingOutputPaths\` is non-empty.
+- Do not advance the build frontier: if an artifact has empty \`existingOutputPaths\` and status \`ready\` or \`blocked\`, ${CONTINUE_FRONTIER}. Leave \`skipped\` artifacts untouched. The only new-file scope is a confirmed concrete path under a glob artifact whose \`existingOutputPaths\` is non-empty.
 - Confirm every edit with the user before writing.
 - If the request changes the change's *intent* rather than refining it, ${INTENT_CHANGE_GUARDRAIL}.`
   };
