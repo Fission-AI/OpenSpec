@@ -99,7 +99,7 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **WHEN** a delta targets a capability whose main spec does not exist yet
 - **AND** the delta has `## MODIFIED Requirements` or `## RENAMED Requirements`
 - **THEN** report that only ADDED requirements can create a new main spec
-- **AND** stop instead of prompting to sync
+- **AND** mark the capability as sync-blocked without writing a main spec
 
 #### Scenario: Explicitly retired capability whose main spec is missing
 
@@ -116,7 +116,17 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **AND** it is not a REMOVED-only delta with `retire_capabilities: true`
 - **THEN** report that no sync is possible
 - **AND** if the delta has only `## REMOVED Requirements`, warn that there is no main spec to remove them from and leave the main-spec tree unchanged
-- **AND** stop instead of prompting to sync, since the verification pass would re-read the same missing spec
+- **AND** mark the capability as sync-blocked, since the verification pass would re-read the same missing spec
+
+#### Scenario: Sync-blocked capability during archive assessment
+
+- **WHEN** any capability is sync-blocked during the initial assessment
+- **THEN** assess the remaining capabilities and summarize the blockers before prompting
+- **AND** offer only "Archive without syncing" and "Cancel"
+- **AND** archive without writing main specs only if the user explicitly chooses "Archive without syncing"
+- **AND** stop without archiving if the user cancels
+- **AND** do not start any sync while a capability is blocked, even if other capabilities could sync
+- **AND** a failed sync or post-sync verification still stops without archiving; do not silently fall back to skipping sync
 
 #### Scenario: No delta specs
 

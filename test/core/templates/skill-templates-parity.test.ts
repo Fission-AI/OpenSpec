@@ -50,11 +50,11 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxContinueCommandTemplate: 'e50e50266efa1b8e64ff9b6274ee8254f0a240d6adc1b862d126e2f1c9d3a559',
   getOpsxApplyCommandTemplate: 'e3579ac78f2e2c75fa3d3a7ac7dc3e49c395e96f7323398f0f041d94f8de9bb0',
   getOpsxFfCommandTemplate: 'e603bc0996604e6c17a3140943ea642a32d0fc65565e25424bf956e124c55772',
-  getArchiveChangeSkillTemplate: '6a41b0512281a2eb0166b3df2b471f1471347d9331124afd2c56428e77bf0162',
+  getArchiveChangeSkillTemplate: '80576b4b51a5cdd5ab2e7fb4e8616619e8a100b2aff17eef5a7c004865e07f6f',
   getBulkArchiveChangeSkillTemplate: '93875998cade5322d95b43299fba794bc1da754e917dd63a770406386a6d295d',
   getOpsxSyncCommandTemplate: 'b4b2bbcfa7e3709bc7cfdfefed7d4c5921878d03ba483e6c97bd33eb94cb583c',
   getVerifyChangeSkillTemplate: '223b7ffd99299a7d430e13092b9a0a3421b39f0d3217232f46c39d79b5f619ff',
-  getOpsxArchiveCommandTemplate: 'f4ca46ebde3e6185429537f98201ed01b28bc78cc85f26226a73dbdcac2ec02a',
+  getOpsxArchiveCommandTemplate: '320ab6015bc310b9d1974fd6dcb06cfae1b93bf7716b8a86a07beaab956db723',
   getOpsxOnboardCommandTemplate: 'ee99aa99252c602720fbb8c63fb3ac438a5bd4e952fd961ddf1ae956cbfc2c8f',
   getOpsxBulkArchiveCommandTemplate: '9fa8cdebe2f5667ebfc37bdc023396762c59d5b038c771dac2d8fd2c19e2627b',
   getOpsxVerifyCommandTemplate: '1efcf7eff0671f48e9d9420f50865c563dd3079ee60f8c380bb7a90dd0102696',
@@ -72,7 +72,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-apply-change': '81ea96d9fa6ec8536cd23c1fe561ed28e1cc1cad0a8ceb700588e08974cc0e49',
   'openspec-ff-change': '217c78da2b6e8358f609ac57dcd02266aaec3354ce26dc6ec2fc9c2174673ab4',
   'openspec-sync-specs': '0690c2290e74b3f7ce8f19d3204fb2d5630eb06290d1c6a79370026099758c98',
-  'openspec-archive-change': '36f3a5a06d5073583e97cc24cf0f4a2ce627243bdb6fc44420ec3ae21bf96b88',
+  'openspec-archive-change': '7a0a33ded7b47f941b12ff9e1847476b06548b580be2336c53599fa90f35b222',
   'openspec-bulk-archive-change': '2039b9ecf6e64339dffe0e16272507a386d9fe326f419ff758315aa736fdd96c',
   'openspec-verify-change': 'af9be013dcbe8c6d8f6d9ab10c893fbd03f4c62933c384d82f63894dd0ceb84f',
   'openspec-onboard': 'f6f59476acaf5e4d65dbb180da4cef62432612f3cecf207d471a951295e2003a',
@@ -512,7 +512,7 @@ describe('skill templates split parity', () => {
       expect(assessStep, variant).toContain('report that no sync is possible');
       expect(assessStep, variant).toContain('For a REMOVED-only delta');
       expect(assessStep, variant).toContain('leave the main-spec tree unchanged');
-      expect(assessStep, variant).toContain('stop instead of prompting to sync');
+      expect(assessStep, variant).toContain('mark that capability as sync-blocked');
       expect(assessStep, variant).toContain('Spec must have at least one requirement');
       expect(assessStep, variant).toContain('Otherwise, count the capability as needing sync');
       expect(assessStep, variant).toContain('If the delta also has REMOVED requirements');
@@ -561,6 +561,29 @@ describe('skill templates split parity', () => {
     }
   });
 
+  it('preserves explicit archive-without-sync when a missing target blocks sync', () => {
+    for (const content of [
+      getArchiveChangeSkillTemplate().instructions,
+      getOpsxArchiveCommandTemplate().content,
+    ]) {
+      const assessment = content.slice(
+        content.indexOf('**If delta specs exist:**'),
+        content.indexOf('Before a selected sync writes any main spec')
+      );
+      expect(assessment).not.toContain('stop instead of prompting to sync');
+      expect(assessment).toContain('mark that capability as sync-blocked');
+      expect(assessment).toContain('Continue assessing the remaining capabilities');
+      expect(assessment).toContain(
+        'If any capability is sync-blocked: explain why and offer only "Archive without syncing", "Cancel"'
+      );
+      expect(assessment).toContain('Do not start any sync while a capability is sync-blocked');
+      expect(assessment).toContain('"Archive without syncing" or "Archive now" — proceed to archive');
+      expect(assessment).toContain('"Cancel" — stop, do not archive');
+      expect(content).toContain('If the sync failed, or any capability does not match');
+      expect(content).toContain('stop — do not archive');
+    }
+  });
+
   it('recognizes explicitly retired missing specs without blocking archive verification', () => {
     for (const content of [
       getArchiveChangeSkillTemplate().instructions,
@@ -570,7 +593,7 @@ describe('skill templates split parity', () => {
         content.indexOf('**If delta specs exist:**'),
         content.indexOf('**Prompt options:**')
       );
-      const retirement = assessment.indexOf('If the delta has only REMOVED requirements');
+      const retirement = assessment.indexOf('Otherwise, if the delta has only REMOVED requirements');
       expect(retirement).toBeGreaterThan(-1);
       expect(retirement).toBeLessThan(assessment.indexOf('Otherwise, if the delta has no ADDED requirements'));
       expect(assessment).toContain('`retire_capabilities: true`');

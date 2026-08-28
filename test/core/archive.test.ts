@@ -2383,7 +2383,7 @@ The system will log all events.
       }
     });
 
-    it('should proceed with archive when user declines spec updates', async () => {
+    it.each(['legacy', 'MODIFIED', 'RENAMED', 'REMOVED'])('archives when the user declines %s sync', async (operation) => {
       const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
@@ -2392,8 +2392,21 @@ The system will log all events.
       const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
       await fs.mkdir(changeSpecDir, { recursive: true });
       
-      // Create valid spec in change
-      const specContent = `# Test Capability Spec
+      // These deltas cannot build a new main spec. Declining sync must still
+      // archive them without creating one, including the legacy no-operations case.
+      const specContent = operation === 'RENAMED'
+        ? '## RENAMED Requirements\n- FROM: `### Requirement: Old name`\n- TO: `### Requirement: New name`\n'
+        : operation !== 'legacy'
+          ? `## ${operation} Requirements
+
+### Requirement: Test capability
+The system SHALL provide test capability.
+
+#### Scenario: Basic test
+- **WHEN** an action occurs
+- **THEN** the expected result happens
+`
+          : `# Test Capability Spec
 
 ## Purpose
 This is a test capability specification.
@@ -2434,6 +2447,10 @@ Then expected result happens`;
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
       expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+      expect(process.exitCode).not.toBe(1);
+      await expect(
+        fs.readFile(path.join(archiveDir, archives[0], 'specs', 'test-capability', 'spec.md'), 'utf-8')
+      ).resolves.toBe(specContent);
     });
 
     it('warns about absorbed content before asking to apply the destructive spec update', async () => {
