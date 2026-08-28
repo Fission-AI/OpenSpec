@@ -117,7 +117,7 @@ openspec list --json
 
 This tells you:
 - If there are active changes
-- Their names, schemas, and status
+- Their names and task status
 - What the user might be working on
 
 That is the *change* list - work in flight. It does not include the project's durable capabilities, so list those too:

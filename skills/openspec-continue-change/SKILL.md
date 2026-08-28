@@ -26,9 +26,6 @@ Continue working on a change by creating the next artifact.
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:
    - Change name
-   - Schema (optional) - `openspec list --json` does not report it. Omit the line, or resolve
-     each candidate with `openspec status --change "<name>" --json` and show its `schemaName`.
-     Never fall back to "spec-driven": that mislabels every custom-schema change.
    - Status (e.g., "0/5 tasks", "complete", "no tasks")
    - How recently it was modified (from `lastModified` field)
 

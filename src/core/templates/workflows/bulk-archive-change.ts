@@ -32,7 +32,7 @@ ${STORE_SELECTION_GUIDANCE}
 2. **Prompt for change selection**
 
    Ask the user to choose changes (multi-select):
-   - Show each change with its schema
+   - Show each change name and task status from the list output
    - Include an option for "All changes"
    - Allow any number of selections (1+ works, 2+ is the typical use case)
 
@@ -371,7 +371,7 @@ ${STORE_SELECTION_GUIDANCE}
 2. **Prompt for change selection**
 
    Ask the user to choose changes (multi-select):
-   - Show each change with its schema
+   - Show each change name and task status from the list output
    - Include an option for "All changes"
    - Allow any number of selections (1+ works, 2+ is the typical use case)
 

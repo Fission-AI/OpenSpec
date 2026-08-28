@@ -2,4 +2,4 @@
 "@fission-ai/openspec": patch
 ---
 
-Stop the `/opsx:update` and `/opsx:continue` change pickers from labelling every change `spec-driven`. Both templates read a `schema` field from `openspec list --json`, which that command does not emit, so the fallback fired unconditionally and mislabelled custom-schema changes. The schema line is now optional and, when shown, resolved from `openspec status --change "<name>" --json` (`schemaName`).
+Stop workflows from displaying schema names that `openspec list --json` does not return. Update and continue no longer fabricate a `spec-driven` picker label, while bulk archive and explore describe only the change fields the list command actually provides.
