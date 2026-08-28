@@ -345,7 +345,13 @@ Revise a change's existing planning artifacts and keep them coherent with one an
 - Applies your requested revision, or reviews the artifacts for contradictions if you didn't name one
 - Reconciles the other existing artifacts in any direction (a design edit may ripple back to the proposal)
 - Confirms every edit with you before writing, one artifact at a time
-- Ends by recommending the next step: `/opsx:continue` (artifacts missing), `/opsx:apply` (carry a revised plan into code), or `/opsx:archive` (all done)
+- Ends by recommending the next step: `/opsx:continue` (unstarted artifacts), `/opsx:apply` (carry a revised plan into code), or `/opsx:archive` (all done)
+
+**Missing files:**
+
+- For a glob artifact such as `specs/**/*.md` with at least one existing file, update can propose a missing companion file. It uses the schema's instructions and asks you to confirm the concrete path before creating it.
+- Artifacts with no files yet remain with `/opsx:continue`. Intentionally skipped artifacts stay untouched.
+- New files must stay inside the change directory. If a file appears at the confirmed path before creation, update stops instead of overwriting it.
 
 **Example:**
 
@@ -366,7 +372,7 @@ AI:  Reading add-dark-mode artifacts...
 
 **Tips:**
 
-- It won't create missing artifacts - that's `/opsx:continue`
+- It won't start an artifact with no existing files. Enable `/opsx:continue` for that, or use `openspec status` and `openspec instructions` if that optional workflow isn't installed.
 - If the change was already implemented, follow up with `/opsx:apply` so the code matches the revised plan
 - If your revision changes the *intent* of the change, start fresh with a new change instead (see [When to Update vs. Start Fresh](opsx.md#when-to-update-vs-start-fresh))
 
