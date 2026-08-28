@@ -182,6 +182,13 @@ Third-party schema bundles distributed via standalone repositories — these pro
 → **[Browse the catalog](docs/customization.md#community-schemas)** in the customization docs.
 
 
+## Community visual workspaces
+
+These projects are maintained independently and are not part of the OpenSpec CLI. See each project's repository for setup and support.
+
+- **[OpenSpec UI](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: A standalone web dashboard and VS Code extension for browsing OpenSpec changes, archives, specs, and tasks.
+
+
 ## Why OpenSpec?
 
 AI coding assistants are powerful but unpredictable when requirements live only in chat history. OpenSpec adds a lightweight spec layer so you agree on what to build before any code is written.
