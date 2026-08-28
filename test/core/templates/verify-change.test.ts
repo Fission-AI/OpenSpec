@@ -14,6 +14,16 @@ const bodies: Array<[string, string]> = [
 ];
 
 describe('verify-change templates', () => {
+  it('keeps active no-task changes eligible for ambiguous selection', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('show all active changes returned by the list');
+      expect(body, label).toContain('including changes with `status: "no-tasks"`');
+      expect(body, label).not.toContain(
+        'show changes that have implementation tasks (tasks artifact exists)'
+      );
+    }
+  });
+
   it('uses schema-aware apply task fields instead of a hardcoded tasks artifact id', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('top-level `tasks` and `progress`');
@@ -39,6 +49,9 @@ describe('verify-change templates', () => {
       expect(body, label).toContain('`Not verified (<reason>)` for every skipped check');
       expect(body, label).toContain('Never score a skipped check as passing');
       expect(body, label).toContain('If any check was skipped and there are no CRITICAL issues');
+      expect(body, label).toContain(
+        'If any check was skipped, also name every skipped check and its reason'
+      );
       expect(body, label).toContain('do not claim readiness');
       expect(body, label).toContain('If no issues and no checks were skipped');
     }

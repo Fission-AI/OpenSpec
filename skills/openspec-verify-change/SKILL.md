@@ -24,7 +24,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    - Auto-select if only one active change exists
    - If ambiguous, run `openspec list --json` to get available changes and ask the user to select one
 
-   When prompting, show changes that have implementation tasks (tasks artifact exists).
+   When prompting, show all active changes returned by the list, including changes with `status: "no-tasks"`.
    Include the schema used for each change if available.
    Mark changes with incomplete tasks as "(In Progress)".
 
@@ -148,7 +148,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
       - Each with specific recommendation
 
    **Final Assessment**:
-   - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
+   - If CRITICAL issues: "X critical issue(s) found. Fix before archiving." If any check was skipped, also name every skipped check and its reason.
    - If only warnings and no checks were skipped: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
    - If no issues and no checks were skipped: "All checks passed. Ready for archive."
    - If any check was skipped and there are no CRITICAL issues: do not claim readiness. Say "No critical issues found in the checks that ran. <check(s)> not verified: <reason>." Include the warning count when nonzero.
