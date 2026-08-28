@@ -28,7 +28,7 @@ export const atomcodeAdapter: ToolCommandAdapter = {
 
   formatFile(content: CommandContent): string {
     // Keep ordinary descriptions plain for the literal custom-command parser,
-    // while escaping special values for AtomCode's separate YAML skill loader.
+    // while keeping special values valid YAML for frontmatter consumers.
     const description = stringify({ description: content.description }, { lineWidth: 0, blockQuote: false });
     return `---
 name: opsx-${content.id}

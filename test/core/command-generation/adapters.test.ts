@@ -280,8 +280,8 @@ describe('command-generation/adapters', () => {
         description: content.description,
         args: 'optional',
       });
-      // AtomCode's custom-command loader takes these values literally, unlike
-      // its skill loader, which parses YAML. Quoting either breaks dispatch.
+      // AtomCode's custom-command loader takes these values literally.
+      // Quoting either breaks dispatch.
       expect(output).toContain(`\nname: opsx-${content.id}\n`);
       expect(output).toContain('\nargs: optional\n');
       expect(output).toContain(`\ndescription: ${content.description}\n`);
