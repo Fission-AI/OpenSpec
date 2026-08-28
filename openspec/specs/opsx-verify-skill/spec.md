@@ -15,22 +15,30 @@ The system SHALL provide an `/opsx:verify` skill that validates implementation a
 #### Scenario: Verify without change name
 - **WHEN** agent executes `/opsx:verify` without a change name
 - **THEN** the agent infers the change from conversation context, or auto-selects it when only one active change exists
-- **AND** when ambiguous, prompts user to select from available changes, showing only changes that have implementation tasks
+- **AND** when ambiguous, prompts user to select from all active changes, including changes with no tracked tasks
 - **AND** announces which change was selected and how to override
 
-#### Scenario: Change has no tasks
-- **WHEN** selected change has no tasks.md or tasks are empty
-- **THEN** the agent reports "No tasks to verify"
-- **AND** suggests running `/opsx:continue` to create tasks
+#### Scenario: Change has no task descriptions
+- **WHEN** neither the structured task list nor the resolved task artifact fallback provides usable task descriptions, even if task progress reports nonzero totals
+- **THEN** the agent reports Task Completion as not verified with the reason
+- **AND** continues checks supported by the remaining artifacts
+- **AND** does not require tasks when the schema does not track them
 
 ### Requirement: Completeness Verification
 The agent SHALL verify that all required work has been completed.
 
 #### Scenario: Task completion check
 - **WHEN** verifying completeness
-- **THEN** the agent reads tasks.md
-- **AND** counts tasks marked `- [x]` (complete) vs `- [ ]` (incomplete)
+- **THEN** the agent prefers the top-level `tasks` and `progress` from apply instructions, resolved from the active schema's `apply.tracks` configuration
+- **AND** reports complete and total task counts from `progress`
 - **AND** reports completion status with specific incomplete tasks listed
+- **AND** reports remaining checkboxes without descriptions when `progress.remaining` exceeds the listed incomplete tasks
+
+#### Scenario: Resolved task artifact fallback
+- **WHEN** structured apply tasks are empty but resolved files exist in `contextFiles.tasks`
+- **THEN** read every resolved task artifact and derive task descriptions and checkbox totals from those files
+- **AND** identify the totals as artifact-derived rather than presenting zero apply progress as task completion
+- **AND** report Task Completion as not verified if the files cannot be read or provide no usable task descriptions
 
 #### Scenario: Spec coverage check
 - **WHEN** verifying completeness
@@ -42,7 +50,8 @@ The agent SHALL verify that all required work has been completed.
 #### Scenario: All tasks complete
 - **WHEN** all tasks are marked complete
 - **THEN** report "Tasks: N/N complete"
-- **AND** mark completeness dimension as passed
+- **AND** mark Task Completion as passed only when task descriptions are available
+- **AND** mark the completeness dimension as passed only when all its checks ran and passed
 
 #### Scenario: Incomplete tasks found
 - **WHEN** some tasks are incomplete
@@ -98,7 +107,7 @@ The agent SHALL verify that implementation is sensible and follows design decisi
 - **WHEN** verifying coherence
 - **AND** no design.md exists
 - **THEN** skip design adherence check
-- **AND** note "No design.md to verify against"
+- **AND** report "Design Adherence: Not verified (No design.md to verify against)"
 
 #### Scenario: Design decision followed
 - **WHEN** implementation follows a design decision
@@ -113,8 +122,10 @@ The agent SHALL verify that implementation is sensible and follows design decisi
 
 #### Scenario: Code pattern consistency
 - **WHEN** verifying coherence
+- **AND** available artifacts support identifying implementation changes beyond a tasks-only check
 - **THEN** check if new code follows existing project patterns
 - **AND** flag any significant deviations as suggestions
+- **AND** report Code Pattern Consistency as not verified if implementation changes cannot be identified
 
 ### Requirement: Verification Report Format
 The agent SHALL produce a structured, prioritized report.
@@ -132,6 +143,8 @@ The agent SHALL produce a structured, prioritized report.
   | Correctness  | X/Y      |
   | Coherence    | Followed |
   ```
+- **AND** report `Not verified (<reason>)` for every skipped or partially verified check in its dimension's status
+- **AND** never count a skipped check as passing
 
 #### Scenario: Issue prioritization
 - **WHEN** issues are found
@@ -147,7 +160,7 @@ The agent SHALL produce a structured, prioritized report.
 - **AND** avoid vague suggestions like "consider reviewing"
 
 #### Scenario: All checks pass
-- **WHEN** no issues found across all dimensions
+- **WHEN** every check ran and no issues were found across all dimensions
 - **THEN** display:
   ```text
   All checks passed. Ready for archive.
@@ -160,14 +173,30 @@ The agent SHALL produce a structured, prioritized report.
   X critical issue(s) found. Fix before archiving.
   ```
 - **AND** do NOT suggest running archive
+- **AND** name every skipped check and its reason, if any
 
-#### Scenario: Only warnings/suggestions
-- **WHEN** no CRITICAL issues but warnings exist
+#### Scenario: Only warnings
+- **WHEN** every check ran and no CRITICAL issues but warnings exist
 - **THEN** display:
   ```text
   No critical issues. Y warning(s) to consider.
   Ready for archive (with noted improvements).
   ```
+
+#### Scenario: Only suggestions
+- **WHEN** every check ran and only suggestions exist
+- **THEN** report "No critical issues or warnings. Z suggestion(s) to consider. Ready for archive (with noted improvements)."
+
+#### Scenario: Checks skipped
+- **WHEN** any check was skipped or partially verified and no CRITICAL issues exist
+- **THEN** report "No critical issues found in the checks that ran"
+- **AND** name every unverified check and its reason
+- **AND** include the warning count when nonzero
+- **AND** do not claim archive readiness
+
+#### Scenario: Suggestions in final assessment
+- **WHEN** suggestions exist
+- **THEN** include their count in the final assessment, including assessments with critical issues or skipped checks
 
 ### Requirement: Flexible Artifact Handling
 The agent SHALL gracefully handle changes with varying artifact completeness.
@@ -188,3 +217,15 @@ The agent SHALL gracefully handle changes with varying artifact completeness.
 - **WHEN** change has proposal, design, specs, and tasks
 - **THEN** perform all verification checks
 - **AND** cross-reference artifacts for consistency
+
+#### Scenario: Unusable or partial artifact evidence
+- **WHEN** an artifact cannot be read or lacks usable requirements, scenarios, or design decisions
+- **THEN** mark each affected check as not verified with its reason
+- **AND** continue checks supported by the remaining evidence without treating partial coverage as a fully verified check
+
+#### Scenario: Intentional artifact omissions
+- **WHEN** a check has no supporting artifacts because the schema omits task tracking or optional artifacts, or the change declares `skip_specs: true`
+- **THEN** report why the corresponding checks were not verified
+- **AND** do not require or create optional or intentionally skipped artifacts to obtain a passing report
+- **AND** treat verification as advisory: not verified describes a limit of the report, not a new archive gate
+- **AND** leave archive checks and user-confirmation behavior unchanged

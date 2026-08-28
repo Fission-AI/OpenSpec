@@ -58,16 +58,21 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
+   Verification is advisory. Respect intentional omissions such as `skip_specs: true`, optional design documents, and schemas without task tracking. Do not require or invent optional or intentionally omitted artifacts to obtain a clean report. `Not verified` describes a limit of this report, not a new archive prerequisite. Archive retains its own checks and user-confirmation behavior.
+
+   If only task evidence is available, verify task completion only and mark the remaining checks, including **Code Pattern Consistency**, as not verified with the reason "Only task evidence available".
+
    If artifacts cannot be read or contain no usable requirements, scenarios, or design decisions, mark the affected checks as not verified with the specific reason. Continue checks supported by the remaining evidence, but a partially checked input set is not a fully verified check. Missing requirements affect Spec Coverage and Requirement Implementation Mapping; missing scenarios affect Scenario Coverage; missing design decisions affect Design Adherence.
 
 5. **Verify Completeness**
 
    **Task Completion**:
-   - Use the top-level `tasks` and `progress` fields; do not look for a `contextFiles.tasks` artifact id.
-   - If `tasks` is empty, even when `progress.total` is nonzero, no task descriptions can be evaluated. Mark **Task Completion** as not verified and record the reason from the apply `state` and `instruction`.
-   - Report complete vs total tasks from `progress`.
-   - If `progress.remaining` is greater than 0:
-     - Add CRITICAL issue for each listed incomplete task. If the remaining count exceeds the listed incomplete tasks, also report the incomplete checkboxes without descriptions and recommend adding descriptions and completing them. Do not infer completion from the listed tasks alone.
+   - Prefer the top-level `tasks` and `progress` fields; do not assume every schema uses a `tasks` artifact id.
+   - If `tasks` is empty but `contextFiles.tasks` contains paths, read every resolved file and count its checkboxes, including nested and blank checkboxes. This preserves verification for task globs that apply metadata does not represent. Label these as artifact-derived totals; do not report the zero apply totals as completion. If any file cannot be read, report the partial evidence and mark **Task Completion** as not verified.
+   - If neither source provides task descriptions, mark **Task Completion** as not verified and record the reason from the available evidence, including apply `state` and `instruction`. Nonzero totals alone do not establish evaluable tasks.
+   - Report complete vs total tasks from `progress`, or the artifact-derived totals when using the fallback.
+   - If `progress.remaining` is greater than 0 or the fallback files contain incomplete checkboxes:
+     - Add CRITICAL issue for each incomplete task from the selected source. If the remaining count exceeds the listed incomplete tasks, also report the incomplete checkboxes without descriptions and recommend adding descriptions and completing them. Do not infer completion from the listed tasks alone.
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
    **Spec Coverage**:
@@ -109,7 +114,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
      - If contradiction detected:
        - Add WARNING: "Design decision not followed: <decision>"
        - Recommendation: "Update implementation or revise design.md to match reality"
-   - If `contextFiles.design` is absent or empty: mark **Design Adherence** as not verified. **Code Pattern Consistency** still runs.
+   - If `contextFiles.design` is absent or empty: mark **Design Adherence** as not verified. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
 
    **Code Pattern Consistency**:
    - If implementation changes cannot be identified, mark **Code Pattern Consistency** as not verified and explain the missing evidence.

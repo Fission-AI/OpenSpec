@@ -24,13 +24,22 @@ describe('verify-change templates', () => {
     }
   });
 
-  it('uses schema-aware apply task fields instead of a hardcoded tasks artifact id', () => {
+  it('prefers schema-aware apply task fields without assuming a tasks artifact id', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('top-level `tasks` and `progress`');
       expect(body, label).toContain("schema's `apply.tracks` configuration");
-      expect(body, label).toContain('do not look for a `contextFiles.tasks` artifact id');
-      expect(body, label).toContain('If `tasks` is empty, even when `progress.total` is nonzero');
-      expect(body, label).not.toContain('`contextFiles.tasks` exists');
+      expect(body, label).toContain('do not assume every schema uses a `tasks` artifact id');
+      expect(body, label).toContain('If neither source provides task descriptions');
+    }
+  });
+
+  it('preserves task checks when apply metadata cannot represent glob artifacts', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('If `tasks` is empty but `contextFiles.tasks` contains paths');
+      expect(body, label).toContain('read every resolved file and count its checkboxes');
+      expect(body, label).toContain('Label these as artifact-derived totals');
+      expect(body, label).toContain('do not report the zero apply totals as completion');
+      expect(body, label).toContain('or the fallback files contain incomplete checkboxes');
     }
   });
 
@@ -55,6 +64,25 @@ describe('verify-change templates', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('Treat apply `state` and `instruction` as context, not a verification verdict');
       expect(body, label).toContain('Do not implement tasks or archive the change during verification');
+    }
+  });
+
+  it('preserves optional artifacts and the existing archive workflow', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('Verification is advisory');
+      expect(body, label).toContain('`skip_specs: true`');
+      expect(body, label).toContain('schemas without task tracking');
+      expect(body, label).toContain('Do not require or invent optional or intentionally omitted artifacts');
+      expect(body, label).toContain('`Not verified` describes a limit of this report, not a new archive prerequisite');
+      expect(body, label).toContain('Archive retains its own checks and user-confirmation behavior');
+    }
+  });
+
+  it('preserves task-only verification without dropping checks supported by other artifacts', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('If only task evidence is available, verify task completion only');
+      expect(body, label).toContain('including **Code Pattern Consistency**, as not verified');
+      expect(body, label).toContain('With other supporting artifacts, **Code Pattern Consistency** still runs');
     }
   });
 

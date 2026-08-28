@@ -79,6 +79,51 @@ ${tracked ? '  tracks: checklist.md\n' : ''}`
     expect(instructions.instruction).toContain(kind === 'missing' ? 'Missing artifacts: tasks' : 'contains no tasks');
   });
 
+  it('exposes resolved task artifacts when apply cannot parse a tracking glob', async () => {
+    const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'glob-tasks');
+    fs.mkdirSync(schemaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      `name: glob-tasks
+version: 1
+artifacts:
+  - id: tasks
+    generates: "**/tasks.md"
+    description: Implementation checklists
+    template: tasks.md
+    requires: []
+apply:
+  requires: [tasks]
+  tracks: "**/tasks.md"
+`
+    );
+    fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: glob-tasks\n');
+    const backendTasks = path.join(changeDir, 'backend', 'tasks.md');
+    const frontendTasks = path.join(changeDir, 'frontend', 'tasks.md');
+    fs.mkdirSync(path.dirname(backendTasks), { recursive: true });
+    fs.mkdirSync(path.dirname(frontendTasks), { recursive: true });
+    fs.writeFileSync(backendTasks, '- [x] Finished backend task\n');
+    fs.writeFileSync(frontendTasks, '- [x] Finished frontend task\n- [ ] Pending frontend task\n');
+
+    const instructions = await generateApplyInstructions(tempDir, 'my-change');
+    const listProgress = await getTaskProgressForChange(
+      path.join(tempDir, 'openspec', 'changes'),
+      'my-change',
+      tempDir
+    );
+
+    expect(instructions.contextFiles.tasks).toEqual([
+      fs.realpathSync.native(backendTasks),
+      fs.realpathSync.native(frontendTasks),
+    ]);
+    // Apply reads tracks as one literal path; verify can still inspect the
+    // resolved artifacts instead of losing the unfinished task in those files.
+    expect(instructions.tasks).toEqual([]);
+    expect(instructions.progress).toEqual({ total: 0, complete: 0, remaining: 0 });
+    expect(instructions.state).toBe('blocked');
+    expect(listProgress).toEqual({ total: 3, completed: 2 });
+  });
+
   it('returns existing spec and design paths even when their files contain no evidence', async () => {
     writeTasks('- [x] Finished task\n');
     const spec = path.join(changeDir, 'specs', 'demo', 'spec.md');
