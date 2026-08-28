@@ -50,7 +50,7 @@ export class ViewCommand {
         );
         if (change.workflowStatus) {
           const { schemaName, artifacts } = change.workflowStatus;
-          console.log(`    ${chalk.dim(`└─ [${schemaName}]`)} ${this.formatWorkflowArtifacts(artifacts)}`);
+          console.log(`    ${chalk.dim(`└─ [${this.sanitizeWorkflowText(schemaName)}]`)} ${this.formatWorkflowArtifacts(artifacts)}`);
         }
       });
     }
@@ -119,9 +119,9 @@ export class ViewCommand {
             workflowStatus = formatChangeStatus(loadChangeContext(projectRoot, entry.name));
           } catch (error) {
             // Preserve task progress even when this change's workflow cannot be loaded.
-            console.warn(chalk.yellow(
+            console.warn(chalk.yellow(this.sanitizeWorkflowText(
               `Could not load workflow status for "${entry.name}": ${error instanceof Error ? error.message : String(error)}`
-            ));
+            )));
           }
           active.push({ name: entry.name, progress, workflowStatus });
         }
@@ -213,17 +213,23 @@ export class ViewCommand {
     }
   }
 
+  private sanitizeWorkflowText(value: string): string {
+    // Metadata may contain terminal controls; mask them before adding our own colors.
+    return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?');
+  }
+
   private formatWorkflowArtifacts(artifacts: ChangeStatus['artifacts']): string {
     return artifacts.map((artifact) => {
+      const id = this.sanitizeWorkflowText(artifact.id);
       switch (artifact.status) {
         case 'done':
-          return `${artifact.id}${chalk.green('✓')}`;
+          return `${id}${chalk.green('✓')}`;
         case 'ready':
-          return `${artifact.id}${chalk.cyan('→')}`;
+          return `${id}${chalk.cyan('→')}`;
         case 'skipped':
-          return chalk.dim(`${artifact.id} (skipped)`);
+          return chalk.dim(`${id} (skipped)`);
         case 'blocked':
-          return chalk.dim(artifact.id);
+          return chalk.dim(id);
       }
     }).join(' ');
   }

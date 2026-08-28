@@ -68,6 +68,12 @@ The dashboard SHALL show each active change's schema and artifact states beneath
 - **THEN** print a warning identifying the change and the error
 - **AND** omit only that change's workflow status while retaining its task progress and rendering other changes
 
+#### Scenario: Terminal controls in workflow text
+
+- **WHEN** schema names, artifact identifiers, or workflow errors contain terminal control characters
+- **THEN** replace those characters with inert text in the dashboard output
+- **AND** preserve the underlying identifiers and workflow states
+
 ### Requirement: Completed Changes Display
 
 The dashboard SHALL list completed changes in a separate section, only showing changes with ALL tasks completed.

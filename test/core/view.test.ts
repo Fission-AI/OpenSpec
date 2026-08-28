@@ -91,6 +91,58 @@ describe('ViewCommand', () => {
     expect(lines.join('\n')).toContain('Task Progress: 0/2 (0% complete)');
   });
 
+  it('renders terminal controls in workflow errors as inert text', async () => {
+    const changeDir = path.join(tempDir, 'openspec', 'changes', 'broken');
+    await fs.mkdir(changeDir, { recursive: true });
+    await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Pending\n');
+    await fs.writeFile(
+      path.join(changeDir, '.openspec.yaml'),
+      JSON.stringify({ schema: 'missing\u001b[2J\u009bH\r\nFORGED' })
+    );
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await new ViewCommand().execute(tempDir);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(stripAnsi(String(warn.mock.calls[0][0]))).toContain("Unknown schema 'missing?[2J?H??FORGED'");
+    expect(logOutput.map(stripAnsi).join('\n')).toContain('Task Progress: 0/1 (0% complete)');
+  });
+
+  it('renders terminal controls in every artifact state without changing workflow semantics', async () => {
+    const openspecDir = path.join(tempDir, 'openspec');
+    const schemaDir = path.join(openspecDir, 'schemas', 'custom');
+    const changeDir = path.join(openspecDir, 'changes', 'display-controls');
+    const ready = '設計\u001b[2J';
+    const blocked = 'blocked\u009bH';
+    const skipped = 'specs\r\n';
+    const done = 'tasks\b\u0007';
+    const artifact = (id: string, generates: string, requires: string[] = []) => ({
+      id, generates, requires, description: 'Test artifact', template: 'template.md',
+    });
+    await fs.mkdir(schemaDir, { recursive: true });
+    await fs.mkdir(changeDir, { recursive: true });
+    await fs.writeFile(path.join(schemaDir, 'schema.yaml'), JSON.stringify({
+      name: 'custom',
+      version: 1,
+      artifacts: [
+        artifact(ready, 'design.md'),
+        artifact(blocked, 'review.md', [ready]),
+        artifact(skipped, 'specs/**/*.md'),
+        artifact(done, 'tasks.md'),
+      ],
+      apply: { requires: [done], tracks: 'tasks.md' },
+    }));
+    await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: custom\nskip_specs: true\n');
+    await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [ ] Pending\n');
+
+    await new ViewCommand().execute(tempDir);
+
+    expect(logOutput.map(stripAnsi)).toContain(
+      '    └─ [custom] 設計?[2J→ blocked?H specs?? (skipped) tasks??✓'
+    );
+    expect(logOutput.map(stripAnsi).join('\n')).toContain('Task Progress: 0/1 (0% complete)');
+  });
+
   it('shows changes with no tasks in Draft section, not Completed', async () => {
     const changesDir = path.join(tempDir, 'openspec', 'changes');
     await fs.mkdir(changesDir, { recursive: true });

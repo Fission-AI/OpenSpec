@@ -471,7 +471,7 @@ Changes:
 
 Print a dashboard of specs, changes, and task progress.
 
-```
+```bash
 openspec view
 ```
 
