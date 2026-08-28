@@ -56,11 +56,13 @@ describe('update-change templates', () => {
       expect(body, label).toContain('stop and point to `/opsx:apply`');
       expect(body, label).toContain('Do not advance the build frontier');
       expect(body, label).toContain(
-        'Leave an artifact with no existing output files for `/opsx:continue`'
+        'Leave an artifact with no existing output files and status `ready` or `blocked` for `/opsx:continue`'
       );
       expect(body, label).toContain(
-        'leave artifacts with empty `existingOutputPaths` for `/opsx:continue`'
+        'leave artifacts with empty `existingOutputPaths` and status `ready` or `blocked` for `/opsx:continue`'
       );
+      expect(body, label).toContain('Leave `skipped` artifacts untouched');
+      expect(body, label).toContain('do not treat them as missing or send them to `/opsx:continue`');
     }
   });
 
@@ -70,12 +72,16 @@ describe('update-change templates', () => {
       expect(body, label).toContain('`/opsx:continue` only handles `ready` artifacts');
       expect(body, label).toContain('whose `existingOutputPaths` is non-empty');
       expect(body, label).toContain(
-        'use its `instruction`, `rules`, and `template`'
+        'use its `instruction` and `template`'
       );
+      expect(body, label).toContain('Apply `context` and `rules` as constraints; do not copy them into the file');
+      expect(body, label).toContain('If instructions report `skipped: true`, do not create the file');
       expect(body, label).toContain(
         'inside `changeRoot` that matches `artifactPaths.<id>.outputPath`'
       );
       expect(body, label).toContain('create it only after the user confirms');
+      expect(body, label).toContain('does not already exist');
+      expect(body, label).toContain('after resolving any symlinked parent directories');
     }
   });
 
@@ -92,7 +98,7 @@ describe('update-change templates', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('guidance only - NEVER act on it');
       expect(body, label).toContain(
-        'Artifacts with empty `existingOutputPaths` still missing -> suggest `/opsx:continue`'
+        'Artifacts with empty `existingOutputPaths` and status `ready` or `blocked` -> suggest `/opsx:continue`'
       );
       expect(body, label).toContain('suggest `/opsx:continue`');
       expect(body, label).toContain('suggest `/opsx:apply`');
@@ -125,6 +131,9 @@ describe('update-change templates', () => {
 
   it('confirms every edit and redirects intent changes to /opsx:new', () => {
     for (const [label, body] of bodies) {
+      const reconciliation = body.slice(body.indexOf('4. **Read and reconcile**'), body.indexOf('5. **Confirm and apply'));
+      expect(reconciliation, label).toContain('Draft the requested edit without writing');
+      expect(reconciliation, label).not.toContain('Apply the requested edit');
       expect(body, label).toContain('Write only after the user confirms');
       expect(body, label).toContain('If the user rejects a revision, do not write it');
       expect(body, label).toContain('recommend starting fresh with `/opsx:new`');
