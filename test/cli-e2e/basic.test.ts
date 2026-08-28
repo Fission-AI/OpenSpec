@@ -115,6 +115,30 @@ describe('openspec CLI e2e basics', () => {
     expect(realpathSync.native(output.root.path)).toBe(realpathSync.native(projectDir));
   });
 
+  it.skipIf(process.platform === 'win32')('lists a change after archive leaves its relative notes link dangling', async () => {
+    const projectDir = await prepareFixture('tmp-init');
+    const changeName = '2026-08-28-linked-notes';
+    const changesDir = path.join(projectDir, 'openspec', 'changes');
+    const changeDir = path.join(changesDir, changeName);
+    await fs.mkdir(changeDir);
+    await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done\n');
+    await fs.writeFile(path.join(changesDir, 'reference.md'), 'Shared notes\n');
+    await fs.symlink('../reference.md', path.join(changeDir, 'notes.md'));
+
+    const before = await runCLI(['list', '--json'], { cwd: projectDir });
+    expectJsonOnlyOutput(before);
+    const archived = await runCLI(['archive', changeName, '--skip-specs', '--yes'], { cwd: projectDir });
+    expect(archived.exitCode, archived.stderr).toBe(0);
+    await expect(fs.stat(path.join(changesDir, 'archive', changeName, 'notes.md'))).rejects.toMatchObject({ code: 'ENOENT' });
+
+    const result = await runCLI(['list', '--archived', '--json'], { cwd: projectDir });
+
+    expectJsonOnlyOutput(result);
+    expect(JSON.parse(result.stdout).changes).toContainEqual(expect.objectContaining({
+      name: changeName, archived: true, completedTasks: 1, totalTasks: 1
+    }));
+  });
+
   it.each(['--archived', '--all'])('rejects --specs with %s as a JSON error', async (flag) => {
     const projectDir = await prepareFixture('tmp-init');
     const result = await runCLI(['list', '--specs', flag, '--json'], { cwd: projectDir });

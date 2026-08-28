@@ -207,6 +207,38 @@ describe('ListCommand', () => {
       expect(JSON.parse(logOutput[0]).changes.map((change: { name: string }) => change.name)).toEqual(['recent', 'old']);
     });
 
+    it.each([{ archived: true }, { all: true }])('lists archives with nested dangling links using link timestamps: %j', async (options) => {
+      const changeDir = await writeChange('archive/linked-change');
+      const target = path.join(tempDir, 'shared-notes');
+      const link = path.join(changeDir, 'nested', 'notes');
+      await fs.mkdir(target);
+      await fs.mkdir(path.dirname(link));
+      await fs.symlink(target, link, process.platform === 'win32' ? 'junction' : 'dir');
+      await fs.rmdir(target);
+      const modified = new Date('2026-01-01T00:00:00Z');
+      await fs.utimes(path.join(changeDir, 'tasks.md'), modified, modified);
+      const linkModified = (await fs.lstat(link)).mtime.toISOString();
+
+      await new ListCommand().execute(tempDir, 'changes', { ...options, json: true });
+
+      expect(JSON.parse(logOutput[0]).changes).toEqual([expect.objectContaining({
+        name: 'linked-change', archived: true, lastModified: linkModified
+      })]);
+    });
+
+    it('preserves linked-target modification times for active changes', async () => {
+      const changeDir = await writeChange('active');
+      const target = path.join(tempDir, 'shared-notes');
+      await fs.mkdir(target);
+      await fs.symlink(target, path.join(changeDir, 'notes'), process.platform === 'win32' ? 'junction' : 'dir');
+      const modified = new Date('2030-01-01T00:00:00Z');
+      await fs.utimes(target, modified, modified);
+
+      await new ListCommand().execute(tempDir, 'changes', { json: true });
+
+      expect(JSON.parse(logOutput[0]).changes[0].lastModified).toBe(modified.toISOString());
+    });
+
     it('resolves archived task progress using project-local schema metadata', async () => {
       const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'custom-tasks');
       await fs.mkdir(schemaDir, { recursive: true });

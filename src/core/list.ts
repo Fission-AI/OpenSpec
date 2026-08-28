@@ -43,8 +43,9 @@ async function readChangeDirectoryEntries(changesDir: string): Promise<Dirent[]>
 /**
  * Get the most recent modification time of any file in a directory (recursive).
  * Falls back to the directory's own mtime if no files are found.
+ * Archived links use their own mtime: moving a change can break relative targets.
  */
-async function getLastModified(dirPath: string): Promise<Date> {
+async function getLastModified(dirPath: string, archived: boolean = false): Promise<Date> {
   let latest: Date | null = null;
 
   async function walk(dir: string): Promise<void> {
@@ -54,7 +55,9 @@ async function getLastModified(dirPath: string): Promise<Date> {
       if (entry.isDirectory()) {
         await walk(fullPath);
       } else {
-        const stat = await fs.stat(fullPath);
+        const stat = archived && entry.isSymbolicLink()
+          ? await fs.lstat(fullPath)
+          : await fs.stat(fullPath);
         if (latest === null || stat.mtime > latest) {
           latest = stat.mtime;
         }
@@ -137,7 +140,7 @@ export class ListCommand {
       for (const changeDir of changeDirs) {
         const progress = await getTaskProgressForChange(changeDir.parent, changeDir.name, targetPath);
         const changePath = path.join(changeDir.parent, changeDir.name);
-        const lastModified = await getLastModified(changePath);
+        const lastModified = await getLastModified(changePath, changeDir.archived);
         changes.push({
           name: changeDir.name,
           completedTasks: progress.completed,
