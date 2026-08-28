@@ -21,10 +21,17 @@ describe('workflow list --json field usage', () => {
     ];
 
     for (const body of bodies) {
-      expect(body).toContain('openspec list --json');
-      expect(body).not.toContain('- Schema (from `schema` field');
-      expect(body).not.toContain('- Schema (optional)');
-      expect(body).not.toContain('otherwise "spec-driven"');
+      const picker = body.slice(body.indexOf('1. **Select the change**'), body.indexOf('2. **'));
+      expect(picker).toContain('openspec list --json');
+      expect(picker).toContain('- Change name');
+      expect(picker).toContain('- Status');
+      expect(picker).toContain('`lastModified`');
+      expect(picker).not.toMatch(/schema/i);
+      expect(picker).not.toContain('openspec status');
+
+      const status = body.slice(body.indexOf('2. **'), body.indexOf('3. **'));
+      expect(status).toContain('openspec status --change "<name>" --json');
+      expect(status).toContain('`schemaName`');
     }
   });
 
@@ -35,8 +42,14 @@ describe('workflow list --json field usage', () => {
     ];
 
     for (const body of bodies) {
-      expect(body).toContain('Show each change name and task status from the list output');
-      expect(body).not.toContain('Show each change with its schema');
+      const picker = body.slice(body.indexOf('2. **'), body.indexOf('3. **'));
+      expect(picker).toContain('Show each change name and task status from the list output');
+      expect(picker).not.toMatch(/schema/i);
+      expect(picker).not.toContain('openspec status');
+
+      const status = body.slice(body.indexOf('3. **'), body.indexOf('4. **'));
+      expect(status).toContain('openspec status --change "<name>" --json');
+      expect(status).toContain('`schemaName`');
     }
   });
 
