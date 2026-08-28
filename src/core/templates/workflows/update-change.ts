@@ -145,7 +145,7 @@ ${CONTINUE_SCOPE_NOTE}
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts still missing -> ${CONTINUE_NEXT_STEP}.
+   - Artifacts with empty \`existingOutputPaths\` still missing -> ${CONTINUE_NEXT_STEP}.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
    - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 
@@ -244,7 +244,7 @@ ${CONTINUE_SCOPE_NOTE}
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts still missing -> ${CONTINUE_NEXT_STEP}.
+   - Artifacts with empty \`existingOutputPaths\` still missing -> ${CONTINUE_NEXT_STEP}.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
    - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 

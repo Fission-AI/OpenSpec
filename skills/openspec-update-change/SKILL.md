@@ -82,7 +82,7 @@ This workflow revises artifacts that already exist; `/openspec-continue-change` 
      ```
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts still missing -> suggest `/openspec-continue-change` to create them.
+   - Artifacts with empty `existingOutputPaths` still missing -> suggest `/openspec-continue-change` to create them.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest `/openspec-apply-change` to carry the delta into code.
    - Everything done and implemented -> suggest `/openspec-archive-change`.
 
