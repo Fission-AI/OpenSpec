@@ -104,6 +104,8 @@ openspec list --specs
 \`\`\`
 Add \`--json\` for ids and requirement counts, and append \`--store "<id>"\` only for a registered standalone store. This is the inventory of what the project already claims to do, and \`openspec list\` on its own never shows it. To look at one, run \`openspec show "<spec-id>" --type spec --json --no-scenarios\` (same \`--store\` rule) - it returns that capability's purpose and requirement texts without pulling the whole spec file into context, and \`--type spec\` stops a change of the same name from making it ambiguous.
 
+The filtered read is only an overview. Before deciding what is already covered or what should change, read each relevant spec in full, including scenarios, with \`openspec show "<spec-id>" --type spec\` (same \`--store\` rule).
+
 Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
 - \`context\`: project background - tech stack, conventions, constraints
 - \`rules\`: keyed by artifact id - the entries for an artifact apply only when you write that artifact
@@ -427,6 +429,8 @@ That is the *change* list - work in flight. It does not include the project's du
 openspec list --specs
 \`\`\`
 Add \`--json\` for ids and requirement counts, and append \`--store "<id>"\` only for a registered standalone store. This is the inventory of what the project already claims to do, and \`openspec list\` on its own never shows it. To look at one, run \`openspec show "<spec-id>" --type spec --json --no-scenarios\` (same \`--store\` rule) - it returns that capability's purpose and requirement texts without pulling the whole spec file into context, and \`--type spec\` stops a change of the same name from making it ambiguous.
+
+The filtered read is only an overview. Before deciding what is already covered or what should change, read each relevant spec in full, including scenarios, with \`openspec show "<spec-id>" --type spec\` (same \`--store\` rule).
 
 Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
 - \`context\`: project background - tech stack, conventions, constraints

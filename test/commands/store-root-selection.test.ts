@@ -180,6 +180,11 @@ describe('store root selection for normal commands', () => {
           requirements: [{ text: 'The system SHALL bill.', scenarios: [] }],
           root: json.root,
         });
+
+        // The overview omits scenarios; decisions use the complete spec.
+        const full = await runCLI(['show', id, '--type', 'spec', ...storeArgs], { cwd: appRepo, env });
+        expect(full.exitCode).toBe(0);
+        expect(full.stdout.trim()).toBe(spec.trim());
       }
     },
     30_000

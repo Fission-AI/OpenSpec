@@ -139,4 +139,19 @@ describe('spec inventory vocabulary (#1689)', () => {
       );
     }
   });
+
+  it('reads full relevant specs before deciding coverage or changes', () => {
+    const sites: Array<[string, string]> = [
+      ...exploreBodies,
+      ['proposal instruction', instructionFor('proposal')],
+    ];
+
+    for (const [label, body] of sites) {
+      const normalized = body.replace(/\s+/g, ' ');
+      expect(normalized, label).toContain('The filtered read is only an overview.');
+      expect(normalized, label).toContain(
+        'Before deciding what is already covered or what should change, read each relevant spec in full, including scenarios, with `openspec show "<spec-id>" --type spec` (same `--store` rule).'
+      );
+    }
+  });
 });

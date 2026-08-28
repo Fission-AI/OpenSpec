@@ -28,6 +28,9 @@ artifacts:
       error. `openspec list` without `--specs` lists in-flight changes, not
       specs - it never shows what the project already covers. Reuse an existing
       capability's exact path instead of introducing a near-duplicate name.
+      The filtered read is only an overview. Before deciding what is already
+      covered or what should change, read each relevant spec in full, including
+      scenarios, with `openspec show "<spec-id>" --type spec` (same `--store` rule).
       Each capability listed here will need a corresponding spec file.
 
       Every change must either declare at least one capability (new or
