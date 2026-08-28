@@ -55,26 +55,36 @@ describe('update-change templates', () => {
       expect(body, label).toContain('NEVER edit implementation code');
       expect(body, label).toContain('stop and point to `/opsx:apply`');
       expect(body, label).toContain('Do not advance the build frontier');
-      expect(body, label).toContain('never create an artifact that has no files yet');
-      expect(body, label).toContain('Do NOT create an artifact that has no files at all');
+      expect(body, label).toContain(
+        'Leave an artifact with no existing output files for `/opsx:continue`'
+      );
+      expect(body, label).toContain(
+        'leave artifacts with empty `existingOutputPaths` for `/opsx:continue`'
+      );
     }
   });
 
   it('fills a gap under an already-satisfied glob artifact instead of deferring it (3.3a)', () => {
     for (const [label, body] of bodies) {
-      // A glob artifact is complete once one file matches, and /opsx:continue only
-      // picks up `ready` artifacts, so deferring the missing file strands it.
-      expect(body, label).toContain('counts as done as soon as ONE file matches');
-      expect(body, label).toContain('create it here rather than deferring');
-      expect(body, label).toContain('cannot reach it');
+      expect(body, label).toContain('is marked `done` after at least one file matches');
+      expect(body, label).toContain('`/opsx:continue` only handles `ready` artifacts');
+      expect(body, label).toContain('whose `existingOutputPaths` is non-empty');
+      expect(body, label).toContain(
+        'use its `instruction`, `rules`, and `template`'
+      );
+      expect(body, label).toContain(
+        'inside `changeRoot` that matches `artifactPaths.<id>.outputPath`'
+      );
+      expect(body, label).toContain('create it only after the user confirms');
     }
   });
 
   it('writes to existingOutputPaths, never to a glob resolvedOutputPath (3.4)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('artifactPaths.<id>.existingOutputPaths');
-      expect(body, label).toContain('Do NOT write to `resolvedOutputPath`');
-      expect(body, label).toContain('still the glob pattern, not a real file');
+      expect(body, label).toContain('`resolvedOutputPath` is still a pattern');
+      expect(body, label).toContain('Never write to the glob `resolvedOutputPath`');
+      expect(body, label).toContain('The only new-file exception');
     }
   });
 
