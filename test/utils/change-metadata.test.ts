@@ -2,13 +2,13 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import {
   writeChangeMetadata,
   readChangeMetadata,
   resolveSchemaForChange,
   validateSchemaName,
   ChangeMetadataError,
+  readRetireCapabilitiesMarker,
 } from '../../src/utils/change-metadata.js';
 import { ChangeMetadataSchema } from '../../src/core/change-metadata/index.js';
 
@@ -24,6 +24,23 @@ describe('ChangeMetadataSchema', () => {
         expect(result.data.schema).toBe('spec-driven');
         expect(result.data.created).toBe('2025-01-05');
       }
+    });
+
+    it('should accept skip_specs boolean and reject non-boolean values', () => {
+      const withFlag = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: true,
+      });
+      expect(withFlag.success).toBe(true);
+      if (withFlag.success) {
+        expect(withFlag.data.skip_specs).toBe(true);
+      }
+
+      const nonBoolean = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: 'yes',
+      });
+      expect(nonBoolean.success).toBe(false);
     });
 
     it('should accept valid schema without created date', () => {
@@ -124,7 +141,7 @@ describe('writeChangeMetadata', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -161,7 +178,7 @@ describe('readChangeMetadata', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -238,7 +255,7 @@ describe('resolveSchemaForChange', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -364,5 +381,37 @@ describe('validateSchemaName', () => {
     expect(() => validateSchemaName('unknown-schema')).toThrow(
       /Unknown schema 'unknown-schema'/
     );
+  });
+});
+
+describe('boolean marker reasons', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-marker-reason-'));
+    await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'c'), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  // Every reason quotes something the author wrote, and callers print it
+  // straight to a terminal. A schema name carrying an ESC could redraw the
+  // screen; a CR could forge a line of its own.
+  it('strips control characters from a reason that quotes authored content', async () => {
+    const changeDir = path.join(tempDir, 'openspec', 'changes', 'c');
+    await fs.writeFile(
+      path.join(changeDir, '.openspec.yaml'),
+      'schema: "ghost\u001b[31m-schema"\nretire_capabilities: true\n',
+      'utf-8'
+    );
+
+    const marker = readRetireCapabilitiesMarker(changeDir);
+
+    expect(marker.declared).toBe(false);
+    // The name is still recognisable, so the author can find what they typed.
+    expect(marker.invalidReason).toContain("unknown schema 'ghost?[31m-schema'");
+    expect(marker.invalidReason).not.toMatch(/[\u0000-\u001f\u007f]/);
   });
 });

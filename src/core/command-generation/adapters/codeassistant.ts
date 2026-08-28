@@ -1,12 +1,13 @@
 /**
  * SourceCraft Code Assistant Command Adapter
  *
- * Formats commands for SourceCraft Code Assistant following its frontmatter specification.
+ * Formats commands for the SourceCraft Code Assistant VS Code extension.
+ *
+ * @see https://sourcecraft.dev/portal/docs/en/code-assistant/operations/agent/slash-commands
  */
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-import { transformToHyphenCommands } from '../../../utils/command-references.js';
 import { escapeYamlValue } from '../yaml.js';
 
 /**
@@ -22,13 +23,11 @@ export const codeassistantAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    const transformedBody = transformToHyphenCommands(content.body);
-
     return `---
 description: ${escapeYamlValue(content.description)}
 ---
 
-${transformedBody}
+${content.body}
 `;
   },
 };
