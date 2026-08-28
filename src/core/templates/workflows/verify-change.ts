@@ -47,7 +47,7 @@ ${STORE_SELECTION_GUIDANCE}
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
+   This returns the change directory, \`contextFiles\` (artifact ID -> array of concrete file paths), and top-level \`tasks\` and \`progress\` resolved from the schema's \`apply.tracks\` configuration. Read all available artifacts from \`contextFiles\`.
 
 4. **Initialize verification report structure**
 
@@ -61,16 +61,15 @@ ${STORE_SELECTION_GUIDANCE}
 5. **Verify Completeness**
 
    **Task Completion**:
-   - If \`contextFiles\` has no \`tasks\` entry, this dimension is **not verified** - record it as skipped, same as above
-   - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
-   - Count complete vs total tasks
+   - Use the top-level \`tasks\` and \`progress\` fields; do not look for a \`contextFiles.tasks\` artifact id.
+   - If \`tasks\` is empty and \`progress.total\` is 0, no tracked tasks can be evaluated. Mark **Task Completion** as not verified and record the reason from the apply \`state\` and \`instruction\`.
+   - Report complete vs total tasks from \`progress\`.
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
    **Spec Coverage**:
-   - \`contextFiles\` is keyed by artifact id, and artifact ids come from the active schema. If it has no \`specs\` entry, or the entry is empty, this dimension is **not verified** - record it as skipped and carry that through to the report rather than treating it as clean.
+   - \`contextFiles\` is keyed by artifact id, and artifact ids come from the active schema. If \`contextFiles.specs\` is absent or empty, mark **Spec Coverage**, **Requirement Implementation Mapping**, and **Scenario Coverage** as not verified; do not treat any of them as clean.
    - If delta specs exist in \`contextFiles.specs\`:
      - Extract all requirements (marked with "### Requirement:")
      - For each requirement:
@@ -108,7 +107,7 @@ ${STORE_SELECTION_GUIDANCE}
      - If contradiction detected:
        - Add WARNING: "Design decision not followed: <decision>"
        - Recommendation: "Update implementation or revise design.md to match reality"
-   - If no design.md: Skip design adherence check, note "No design.md to verify against"
+   - If \`contextFiles.design\` is absent or empty: mark **Design Adherence** as not verified. **Code Pattern Consistency** still runs.
 
    **Code Pattern Consistency**:
    - Review new code for consistency with project patterns
@@ -131,7 +130,7 @@ ${STORE_SELECTION_GUIDANCE}
    | Coherence    | Followed/Issues  |
    \`\`\`
 
-   Write \`Not verified (<reason>)\` in the Status cell of any dimension whose artifacts were absent. Never leave it blank or score it as passing.
+   In each Status cell, report the results of checks that ran and \`Not verified (<reason>)\` for every skipped check. If all checks in a dimension were skipped, start the cell with \`Not verified\`. Never score a skipped check as passing.
 
    **Issues by Priority**:
 
@@ -152,9 +151,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Final Assessment**:
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
-   - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
-   - If all clear and every dimension was verified: "All checks passed. Ready for archive."
-   - If all clear but a dimension was skipped: say so - "No issues found in the checks that ran. <dimension(s)> not verified: <reason>." A dimension that checked nothing has not passed.
+   - If only warnings and no checks were skipped: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
+   - If no issues and no checks were skipped: "All checks passed. Ready for archive."
+   - If any check was skipped and there are no CRITICAL issues: do not claim readiness. Say "No critical issues found in the checks that ran. <check(s)> not verified: <reason>." Include the warning count when nonzero.
 
 **Verification Heuristics**
 
@@ -163,13 +162,6 @@ ${STORE_SELECTION_GUIDANCE}
 - **Coherence**: Look for glaring inconsistencies, don't nitpick style
 - **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
 - **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
-
-**Graceful Degradation**
-
-- If only tasks.md exists: verify task completion only, skip spec/design checks
-- If tasks + specs exist: verify completeness and correctness, skip design
-- If full artifacts: verify all three dimensions
-- Always note which checks were skipped and why
 
 **Output Format**
 
@@ -227,7 +219,7 @@ ${STORE_SELECTION_GUIDANCE}
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns the change directory and \`contextFiles\` (artifact ID -> array of concrete file paths). Read all available artifacts from \`contextFiles\`.
+   This returns the change directory, \`contextFiles\` (artifact ID -> array of concrete file paths), and top-level \`tasks\` and \`progress\` resolved from the schema's \`apply.tracks\` configuration. Read all available artifacts from \`contextFiles\`.
 
 4. **Initialize verification report structure**
 
@@ -241,16 +233,15 @@ ${STORE_SELECTION_GUIDANCE}
 5. **Verify Completeness**
 
    **Task Completion**:
-   - If \`contextFiles\` has no \`tasks\` entry, this dimension is **not verified** - record it as skipped, same as above
-   - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
-   - Count complete vs total tasks
+   - Use the top-level \`tasks\` and \`progress\` fields; do not look for a \`contextFiles.tasks\` artifact id.
+   - If \`tasks\` is empty and \`progress.total\` is 0, no tracked tasks can be evaluated. Mark **Task Completion** as not verified and record the reason from the apply \`state\` and \`instruction\`.
+   - Report complete vs total tasks from \`progress\`.
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
    **Spec Coverage**:
-   - \`contextFiles\` is keyed by artifact id, and artifact ids come from the active schema. If it has no \`specs\` entry, or the entry is empty, this dimension is **not verified** - record it as skipped and carry that through to the report rather than treating it as clean.
+   - \`contextFiles\` is keyed by artifact id, and artifact ids come from the active schema. If \`contextFiles.specs\` is absent or empty, mark **Spec Coverage**, **Requirement Implementation Mapping**, and **Scenario Coverage** as not verified; do not treat any of them as clean.
    - If delta specs exist in \`contextFiles.specs\`:
      - Extract all requirements (marked with "### Requirement:")
      - For each requirement:
@@ -288,7 +279,7 @@ ${STORE_SELECTION_GUIDANCE}
      - If contradiction detected:
        - Add WARNING: "Design decision not followed: <decision>"
        - Recommendation: "Update implementation or revise design.md to match reality"
-   - If no design.md: Skip design adherence check, note "No design.md to verify against"
+   - If \`contextFiles.design\` is absent or empty: mark **Design Adherence** as not verified. **Code Pattern Consistency** still runs.
 
    **Code Pattern Consistency**:
    - Review new code for consistency with project patterns
@@ -311,7 +302,7 @@ ${STORE_SELECTION_GUIDANCE}
    | Coherence    | Followed/Issues  |
    \`\`\`
 
-   Write \`Not verified (<reason>)\` in the Status cell of any dimension whose artifacts were absent. Never leave it blank or score it as passing.
+   In each Status cell, report the results of checks that ran and \`Not verified (<reason>)\` for every skipped check. If all checks in a dimension were skipped, start the cell with \`Not verified\`. Never score a skipped check as passing.
 
    **Issues by Priority**:
 
@@ -332,9 +323,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Final Assessment**:
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
-   - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
-   - If all clear and every dimension was verified: "All checks passed. Ready for archive."
-   - If all clear but a dimension was skipped: say so - "No issues found in the checks that ran. <dimension(s)> not verified: <reason>." A dimension that checked nothing has not passed.
+   - If only warnings and no checks were skipped: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
+   - If no issues and no checks were skipped: "All checks passed. Ready for archive."
+   - If any check was skipped and there are no CRITICAL issues: do not claim readiness. Say "No critical issues found in the checks that ran. <check(s)> not verified: <reason>." Include the warning count when nonzero.
 
 **Verification Heuristics**
 
@@ -343,13 +334,6 @@ ${STORE_SELECTION_GUIDANCE}
 - **Coherence**: Look for glaring inconsistencies, don't nitpick style
 - **False Positives**: When uncertain, prefer SUGGESTION over WARNING, WARNING over CRITICAL
 - **Actionability**: Every issue must have a specific recommendation with file/line references where applicable
-
-**Graceful Degradation**
-
-- If only tasks.md exists: verify task completion only, skip spec/design checks
-- If tasks + specs exist: verify completeness and correctness, skip design
-- If full artifacts: verify all three dimensions
-- Always note which checks were skipped and why
 
 **Output Format**
 
