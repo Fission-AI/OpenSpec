@@ -47,6 +47,8 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
    This returns the change directory, `contextFiles` (artifact ID -> array of concrete file paths), and top-level `tasks` and `progress` resolved from the schema's `apply.tracks` configuration. Read all available artifacts from `contextFiles`.
 
+   Treat apply `state` and `instruction` as context, not a verification verdict. Do not implement tasks or archive the change during verification.
+
 4. **Initialize verification report structure**
 
    Create a report structure with three dimensions:
@@ -56,14 +58,16 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
    Each dimension can have CRITICAL, WARNING, or SUGGESTION issues.
 
+   If artifacts cannot be read or contain no usable requirements, scenarios, or design decisions, mark the affected checks as not verified with the specific reason. Continue checks supported by the remaining evidence, but a partially checked input set is not a fully verified check. Missing requirements affect Spec Coverage and Requirement Implementation Mapping; missing scenarios affect Scenario Coverage; missing design decisions affect Design Adherence.
+
 5. **Verify Completeness**
 
    **Task Completion**:
    - Use the top-level `tasks` and `progress` fields; do not look for a `contextFiles.tasks` artifact id.
-   - If `tasks` is empty and `progress.total` is 0, no tracked tasks can be evaluated. Mark **Task Completion** as not verified and record the reason from the apply `state` and `instruction`.
+   - If `tasks` is empty, even when `progress.total` is nonzero, no task descriptions can be evaluated. Mark **Task Completion** as not verified and record the reason from the apply `state` and `instruction`.
    - Report complete vs total tasks from `progress`.
-   - If incomplete tasks exist:
-     - Add CRITICAL issue for each incomplete task
+   - If `progress.remaining` is greater than 0:
+     - Add CRITICAL issue for each listed incomplete task. If the remaining count exceeds the listed incomplete tasks, also report the incomplete checkboxes without descriptions and recommend adding descriptions and completing them. Do not infer completion from the listed tasks alone.
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
    **Spec Coverage**:
@@ -108,7 +112,8 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    - If `contextFiles.design` is absent or empty: mark **Design Adherence** as not verified. **Code Pattern Consistency** still runs.
 
    **Code Pattern Consistency**:
-   - Review new code for consistency with project patterns
+   - If implementation changes cannot be identified, mark **Code Pattern Consistency** as not verified and explain the missing evidence.
+   - Otherwise, review new code for consistency with project patterns
    - Check file naming, directory structure, coding style
    - If significant deviations found:
      - Add SUGGESTION: "Code pattern deviation: <details>"
@@ -128,7 +133,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    | Coherence    | Followed/Issues  |
    ```
 
-   In each Status cell, report the results of checks that ran and `Not verified (<reason>)` for every skipped check. If all checks in a dimension were skipped, start the cell with `Not verified`. Never score a skipped check as passing.
+   In each Status cell, report the results of checks that ran and `Not verified (<reason>)` for every skipped check. If all checks in a dimension were skipped, start the cell with `Not verified`. Never score a skipped check as passing. Treat every not verified or partially verified check as skipped in the final assessment.
 
    **Issues by Priority**:
 
@@ -149,9 +154,11 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
    **Final Assessment**:
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving." If any check was skipped, also name every skipped check and its reason.
-   - If only warnings and no checks were skipped: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
+   - If no CRITICAL issues, one or more warnings, and no checks were skipped: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
+   - If only suggestions and no checks were skipped: "No critical issues or warnings. Z suggestion(s) to consider. Ready for archive (with noted improvements)."
    - If no issues and no checks were skipped: "All checks passed. Ready for archive."
    - If any check was skipped and there are no CRITICAL issues: do not claim readiness. Say "No critical issues found in the checks that ran. <check(s)> not verified: <reason>." Include the warning count when nonzero.
+   - Include the suggestion count when nonzero in every final assessment.
 
 **Verification Heuristics**
 
