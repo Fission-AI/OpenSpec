@@ -55,7 +55,18 @@ describe('update-change templates', () => {
       expect(body, label).toContain('NEVER edit implementation code');
       expect(body, label).toContain('stop and point to `/opsx:apply`');
       expect(body, label).toContain('Do not advance the build frontier');
-      expect(body, label).toContain('Do NOT create artifacts that don\'t exist yet');
+      expect(body, label).toContain('never create an artifact that has no files yet');
+      expect(body, label).toContain('Do NOT create an artifact that has no files at all');
+    }
+  });
+
+  it('fills a gap under an already-satisfied glob artifact instead of deferring it (3.3a)', () => {
+    for (const [label, body] of bodies) {
+      // A glob artifact is complete once one file matches, and /opsx:continue only
+      // picks up `ready` artifacts, so deferring the missing file strands it.
+      expect(body, label).toContain('counts as done as soon as ONE file matches');
+      expect(body, label).toContain('create it here rather than deferring');
+      expect(body, label).toContain('cannot reach it');
     }
   });
 
