@@ -128,7 +128,8 @@ ${CONTINUE_SCOPE_NOTE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Draft the requested edit in the conversation, not in files. Work out exactly what it changes; step 5 owns every write. Then check every other existing artifact against the drafted edit - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Propose revisions only to files that already exist (\`existingOutputPaths\`). Do NOT create artifacts that don't exist yet, and do NOT invent new files under a glob artifact - note them and ${CONTINUE_CREATE_THEM}.
+   - Propose revisions to the files that already exist (\`existingOutputPaths\`). Do NOT create an artifact that has no files at all - note it and ${CONTINUE_CREATE_THEM}.
+   - A glob artifact (e.g. \`specs/**/*.md\`) counts as done as soon as ONE file matches it, so the continue workflow will never come back to it. If reconciliation finds a file missing under a glob artifact that already has at least one file, propose creating it here: choose a concrete path (never \`resolvedOutputPath\`), fetch that artifact's rules and template with \`openspec instructions "<artifact-id>" --change "<name>" --json\`, and write it only under step 5's confirmation rule.
    - If the change is already coherent, say so and propose no revisions.
 
 5. **Confirm and apply, one artifact at a time**
@@ -149,14 +150,15 @@ ${CONTINUE_SCOPE_NOTE}
 
 After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
+- Any file created under a glob artifact that was already partially populated
 - ${CONTINUE_DEFERRED}
 - Where the change stands and the recommended next command
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
-- Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
-- Do not advance the build frontier: no new artifacts, no new files under glob artifacts - ${CONTINUE_FRONTIER}.
+- Write only concrete file paths; never write to a glob \`resolvedOutputPath\`.
+- Do not advance the build frontier: never create an artifact that has no files yet - ${CONTINUE_FRONTIER}. Filling a gap under a glob artifact that is already satisfied is in scope because the continue workflow cannot reach it.
 - Confirm every edit with the user before writing.
 - If the request changes the change's *intent* rather than refining it, ${INTENT_CHANGE_GUARDRAIL}.`,
     license: 'MIT',
@@ -222,7 +224,8 @@ ${CONTINUE_SCOPE_NOTE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Draft the requested edit in the conversation, not in files. Work out exactly what it changes; step 5 owns every write. Then check every other existing artifact against the drafted edit - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Propose revisions only to files that already exist (\`existingOutputPaths\`). Do NOT create artifacts that don't exist yet, and do NOT invent new files under a glob artifact - note them and ${CONTINUE_CREATE_THEM}.
+   - Propose revisions to the files that already exist (\`existingOutputPaths\`). Do NOT create an artifact that has no files at all - note it and ${CONTINUE_CREATE_THEM}.
+   - A glob artifact (e.g. \`specs/**/*.md\`) counts as done as soon as ONE file matches it, so the continue workflow will never come back to it. If reconciliation finds a file missing under a glob artifact that already has at least one file, propose creating it here: choose a concrete path (never \`resolvedOutputPath\`), fetch that artifact's rules and template with \`openspec instructions "<artifact-id>" --change "<name>" --json\`, and write it only under step 5's confirmation rule.
    - If the change is already coherent, say so and propose no revisions.
 
 5. **Confirm and apply, one artifact at a time**
@@ -243,14 +246,15 @@ ${CONTINUE_SCOPE_NOTE}
 
 After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
+- Any file created under a glob artifact that was already partially populated
 - ${CONTINUE_DEFERRED}
 - Where the change stands and the recommended next command
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
-- Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
-- Do not advance the build frontier: no new artifacts, no new files under glob artifacts - ${CONTINUE_FRONTIER}.
+- Write only concrete file paths; never write to a glob \`resolvedOutputPath\`.
+- Do not advance the build frontier: never create an artifact that has no files yet - ${CONTINUE_FRONTIER}. Filling a gap under a glob artifact that is already satisfied is in scope because the continue workflow cannot reach it.
 - Confirm every edit with the user before writing.
 - If the request changes the change's *intent* rather than refining it, ${INTENT_CHANGE_GUARDRAIL}.`
   };
