@@ -61,6 +61,7 @@ ${STORE_SELECTION_GUIDANCE}
 5. **Verify Completeness**
 
    **Task Completion**:
+   - If \`contextFiles\` has no \`tasks\` entry, this dimension is **not verified** - record it as skipped, same as above
    - If \`contextFiles.tasks\` exists, read every file path in it
    - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
    - Count complete vs total tasks
@@ -69,6 +70,7 @@ ${STORE_SELECTION_GUIDANCE}
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
    **Spec Coverage**:
+   - \`contextFiles\` is keyed by artifact id, and artifact ids come from the active schema. If it has no \`specs\` entry, or the entry is empty, this dimension is **not verified** - record it as skipped and carry that through to the report rather than treating it as clean.
    - If delta specs exist in \`contextFiles.specs\`:
      - Extract all requirements (marked with "### Requirement:")
      - For each requirement:
@@ -129,6 +131,8 @@ ${STORE_SELECTION_GUIDANCE}
    | Coherence    | Followed/Issues  |
    \`\`\`
 
+   Write \`Not verified (<reason>)\` in the Status cell of any dimension whose artifacts were absent. Never leave it blank or score it as passing.
+
    **Issues by Priority**:
 
    1. **CRITICAL** (Must fix before archive):
@@ -149,7 +153,8 @@ ${STORE_SELECTION_GUIDANCE}
    **Final Assessment**:
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
    - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
-   - If all clear: "All checks passed. Ready for archive."
+   - If all clear and every dimension was verified: "All checks passed. Ready for archive."
+   - If all clear but a dimension was skipped: say so - "No issues found in the checks that ran. <dimension(s)> not verified: <reason>." A dimension that checked nothing has not passed.
 
 **Verification Heuristics**
 
@@ -236,6 +241,7 @@ ${STORE_SELECTION_GUIDANCE}
 5. **Verify Completeness**
 
    **Task Completion**:
+   - If \`contextFiles\` has no \`tasks\` entry, this dimension is **not verified** - record it as skipped, same as above
    - If \`contextFiles.tasks\` exists, read every file path in it
    - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
    - Count complete vs total tasks
@@ -244,6 +250,7 @@ ${STORE_SELECTION_GUIDANCE}
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
    **Spec Coverage**:
+   - \`contextFiles\` is keyed by artifact id, and artifact ids come from the active schema. If it has no \`specs\` entry, or the entry is empty, this dimension is **not verified** - record it as skipped and carry that through to the report rather than treating it as clean.
    - If delta specs exist in \`contextFiles.specs\`:
      - Extract all requirements (marked with "### Requirement:")
      - For each requirement:
@@ -304,6 +311,8 @@ ${STORE_SELECTION_GUIDANCE}
    | Coherence    | Followed/Issues  |
    \`\`\`
 
+   Write \`Not verified (<reason>)\` in the Status cell of any dimension whose artifacts were absent. Never leave it blank or score it as passing.
+
    **Issues by Priority**:
 
    1. **CRITICAL** (Must fix before archive):
@@ -324,7 +333,8 @@ ${STORE_SELECTION_GUIDANCE}
    **Final Assessment**:
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
    - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
-   - If all clear: "All checks passed. Ready for archive."
+   - If all clear and every dimension was verified: "All checks passed. Ready for archive."
+   - If all clear but a dimension was skipped: say so - "No issues found in the checks that ran. <dimension(s)> not verified: <reason>." A dimension that checked nothing has not passed.
 
 **Verification Heuristics**
 
