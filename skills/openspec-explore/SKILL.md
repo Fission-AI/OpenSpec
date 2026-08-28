@@ -93,7 +93,7 @@ openspec list --json
 
 This tells you:
 - If there are active changes
-- Their names, schemas, and status
+- Their names and task status
 - What the user might be working on
 
 Then read the project's own context from the resolved root - `<root.path>/openspec/config.yaml` (or `config.yml`). Use the `root.path` returned above, and skip this if neither file exists:
