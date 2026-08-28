@@ -155,6 +155,8 @@ Or add to your development environment in `flake.nix`:
 }
 ```
 
+For shell activation and ownership, see [Nix completions](cli.md#nix-completions).
+
 ## Verify Installation
 
 ```bash
