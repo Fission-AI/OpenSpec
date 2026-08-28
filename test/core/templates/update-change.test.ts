@@ -76,12 +76,33 @@ describe('update-change templates', () => {
       );
       expect(body, label).toContain('Apply `context` and `rules` as constraints; do not copy them into the file');
       expect(body, label).toContain('If instructions report `skipped: true`, do not create the file');
+      expect(body, label).toContain('Read current dependency files from disk');
+      expect(body, label).toContain('if a required non-skipped dependency is missing, stop and ask the user to restore it first');
+      expect(body, label).toContain('If `instruction` delegates creation to another skill or command');
+      expect(body, label).toContain('only if it can honor the confirmed path and these guardrails; otherwise stop');
       expect(body, label).toContain(
         'inside `changeRoot` that matches `artifactPaths.<id>.outputPath`'
       );
       expect(body, label).toContain('create it only after the user confirms');
       expect(body, label).toContain('does not already exist');
       expect(body, label).toContain('after resolving any symlinked parent directories');
+    }
+  });
+
+  it('rechecks new-file scope after confirmation and refuses concurrent overwrites', () => {
+    for (const [label, body] of bodies) {
+      const confirmation = body.indexOf('create it only after the user confirms');
+      const recheck = body.indexOf('After confirmation, immediately before creation');
+      const create = body.indexOf('Use a create operation that fails if the target already exists');
+
+      expect(confirmation, label).toBeGreaterThanOrEqual(0);
+      expect(recheck, label).toBeGreaterThan(confirmation);
+      expect(create, label).toBeGreaterThan(recheck);
+      const writeGuard = body.slice(recheck, create);
+      expect(writeGuard, label).toContain('refresh status and instructions');
+      expect(writeGuard, label).toContain('still in scope, not skipped, and partially populated');
+      expect(writeGuard, label).toContain('repeat the concrete-path checks above');
+      expect(body, label).toContain('stop and reconcile with the user instead of overwriting or choosing a different path');
     }
   });
 

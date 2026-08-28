@@ -60,9 +60,11 @@ Revise a change's existing planning artifacts and keep them coherent. Never edit
    - Note everything that is now inconsistent, missing, or contradictory.
    - Revise files that already exist (`existingOutputPaths`). Leave an artifact with no existing output files and status `ready` or `blocked` for `/openspec-continue-change`. Leave `skipped` artifacts untouched; do not treat them as missing or send them to `/openspec-continue-change`.
    - A glob artifact (e.g. `specs/**/*.md`) is marked `done` after at least one file matches, and `/openspec-continue-change` only handles `ready` artifacts. When reconciliation identifies a missing file for a glob artifact whose `existingOutputPaths` is non-empty:
-     1. Run `openspec instructions "<artifact-id>" --change "<name>" --json` and use its `instruction` and `template`. Apply `context` and `rules` as constraints; do not copy them into the file. If instructions report `skipped: true`, do not create the file.
+     1. Run `openspec instructions "<artifact-id>" --change "<name>" --json` and use its `instruction` and `template`. Apply `context` and `rules` as constraints; do not copy them into the file. If instructions report `skipped: true`, do not create the file. Read current dependency files from disk; if a required non-skipped dependency is missing, stop and ask the user to restore it first.
      2. Choose a concrete path inside `changeRoot` that matches `artifactPaths.<id>.outputPath` and does not already exist. Verify it remains inside `changeRoot` after resolving any symlinked parent directories. Never write to the glob `resolvedOutputPath`.
      3. Include the new file in step 5's proposed revisions and create it only after the user confirms.
+     4. After confirmation, immediately before creation, refresh status and instructions. Verify the artifact is still in scope, not skipped, and partially populated; repeat the concrete-path checks above.
+     5. Use a create operation that fails if the target already exists. If `instruction` delegates creation to another skill or command, invoke it only if it can honor the confirmed path and these guardrails; otherwise stop. If any check fails or the confirmed draft is no longer valid, stop and reconcile with the user instead of overwriting or choosing a different path.
    - If the change is already coherent, say so and make no edits.
 
 5. **Confirm and apply, one artifact at a time**

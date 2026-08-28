@@ -330,12 +330,17 @@ describe('artifact-workflow CLI commands', () => {
         `name: ${schemaName}
 version: 1
 artifacts:
+  - id: brief
+    generates: brief.md
+    description: Review brief
+    template: brief.md
+    requires: []
   - id: assessments
     generates: ${outputPath}
     description: Component assessments
     template: review.md
     instruction: Write an assessment for each affected component.
-    requires: []
+    requires: [brief]
   - id: signoff
     generates: signoff.md
     description: Review signoff
@@ -343,6 +348,7 @@ artifacts:
     requires: [assessments]
 `
       );
+      await fs.writeFile(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
       await fs.writeFile(path.join(schemaDir, 'templates', 'review.md'), template);
       await fs.writeFile(path.join(schemaDir, 'templates', 'signoff.md'), '# Signoff\n');
       await fs.writeFile(
@@ -358,6 +364,8 @@ rules:
       const changeDir = path.join(changesDir, changeName);
       await fs.mkdir(changeDir, { recursive: true });
       await fs.writeFile(path.join(changeDir, '.openspec.yaml'), `schema: ${schemaName}\n`);
+      const briefPath = path.join(changeDir, 'brief.md');
+      await fs.writeFile(briefPath, '# Brief\nReview the API and UI.\n');
       const apiPath = path.join(changeDir, 'reviews', 'api', 'notes.md');
       const uiPath = path.join(changeDir, 'reviews', 'ui', 'notes.md');
 
@@ -369,6 +377,7 @@ rules:
 
       const empty = await readJson(['status']);
       expect(empty.artifacts).toMatchObject([
+        { id: 'brief', status: 'done' },
         { id: 'assessments', status: 'ready' },
         { id: 'signoff', status: 'blocked', missingDeps: ['assessments'] },
       ]);
@@ -380,6 +389,7 @@ rules:
       await fs.writeFile(apiPath, existingContent);
       const partial = await readJson(['status']);
       expect(partial.artifacts).toMatchObject([
+        { id: 'brief', status: 'done' },
         { id: 'assessments', status: 'done' },
         { id: 'signoff', status: 'ready' },
       ]);
@@ -394,6 +404,7 @@ rules:
         context: 'Review both the API and UI components.',
         rules: ['Preserve existing findings when adding a companion assessment.'],
         template,
+        dependencies: [{ id: 'brief', done: true, path: 'brief.md' }],
       });
       expect(canonical(instructions.changeDir)).toBe(canonical(changeDir));
       expect(instructions.resolvedOutputPath).toBe(path.join(instructions.changeDir, outputPath));
@@ -411,6 +422,17 @@ rules:
       );
       expect(await fs.readFile(apiPath, 'utf-8')).toBe(existingContent);
       await expect(fs.stat(path.join(changeDir, 'signoff.md'))).rejects.toMatchObject({ code: 'ENOENT' });
+
+      await fs.unlink(briefPath);
+      const missingInput = await readJson(['status']);
+      expect(missingInput.artifacts.find((artifact: any) => artifact.id === 'assessments')).toMatchObject({
+        status: 'done',
+        requires: ['brief'],
+      });
+      const missingInputInstructions = await readJson(['instructions', 'assessments']);
+      expect(missingInputInstructions.dependencies).toMatchObject([
+        { id: 'brief', done: false, path: 'brief.md' },
+      ]);
     });
 
     it('shows instructions for proposal on scaffolded change', async () => {

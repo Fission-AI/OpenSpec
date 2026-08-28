@@ -105,6 +105,12 @@ Review feedback flagged that "update" alone is generic — could it apply to any
 ### 6. Next-step guidance, especially for already-implemented changes
 A change can be revised after it was built — tasks checked off, `/opsx:apply` already run. The update itself behaves identically (planning artifacts only), but stopping silently would strand the user: the code and the revised plan now disagree. So the skill ends by reporting where the change stands (from the status JSON and the tasks checklist) and recommending the next command — `/opsx:continue` if artifacts are missing, `/opsx:apply` to carry a revised plan into code, `/opsx:archive` when everything is done. Guidance only: the skill never implements, mirroring the "All artifacts created! You can now implement this change with `/opsx:apply`" hand-off that `continue-change.ts` already uses.
 
+### 7. Companion-file correction (#1733)
+
+The original glob-file deferral was unreachable: one matching file marks an artifact `done`, while continue selects only `ready` artifacts. Update can therefore propose a missing companion file within an already populated glob. This corrects the unarchived spec's former blanket deferral without changing the graph's completion rule or starting another artifact.
+
+The exception uses existing status and instructions output, requires current dependency context and user confirmation, and preserves the change-only planning scope. Immediately before creation, it rechecks scope and the concrete path and uses an operation that refuses an existing target. Delegated creators must obey the same limits. No new CLI command, metadata, graph state, or automatic artifact writer is introduced.
+
 ## Risks / Trade-offs
 
 - **No deterministic staleness signal.** With no digest/ledger, the skill relies on the agent reading the artifacts to spot incoherence. Trade-off accepted: an agent that rewrites prose must read it anyway, and a content-blind signal earns its cost only for use cases this change excludes (Decision 3).
