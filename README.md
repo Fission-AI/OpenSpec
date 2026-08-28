@@ -172,6 +172,7 @@ Both are in the default profile. If you want the expanded workflow (`/opsx:new`,
 → **[Concepts](docs/concepts.md)**: how it all fits<br>
 → **[Multi-Language](docs/multi-language.md)**: multi-language support<br>
 → **[Customization](docs/customization.md)**: make it yours<br>
+→ **[Community Showcase](docs/community.md)**: projects and resources built with and for OpenSpec<br>
 → **[FAQ](docs/faq.md)** · **[Troubleshooting](docs/troubleshooting.md)** · **[Glossary](docs/glossary.md)**: quick help
 
 
@@ -180,13 +181,6 @@ Both are in the default profile. If you want the expanded workflow (`/opsx:new`,
 Third-party schema bundles distributed via standalone repositories — these provide opinionated workflows that integrate OpenSpec with other tools, similar to how [github/spec-kit's community extension catalog](https://github.com/github/spec-kit/tree/main/extensions) handles tool integrations.
 
 → **[Browse the catalog](docs/customization.md#community-schemas)** in the customization docs.
-
-
-## Community visual workspaces
-
-These projects are maintained independently and are not part of the OpenSpec CLI. See each project's repository for setup and support.
-
-- **[OpenSpec UI](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: A standalone web dashboard and VS Code extension for browsing OpenSpec changes, archives, specs, and tasks.
 
 
 ## Why OpenSpec?
