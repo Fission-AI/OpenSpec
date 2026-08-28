@@ -13,6 +13,7 @@ import {
   getCommandContents,
   getSkillTemplates,
 } from '../../../src/core/shared/skill-generation.js';
+import { toolSupportsSkills } from '../../../src/core/shared/skill-paths.js';
 import { getTransformerForTool } from '../../../src/utils/command-references.js';
 
 const profiles = [
@@ -26,15 +27,29 @@ const skillWorkflows = new Map(getSkillTemplates().map(({ dirName, workflowId })
 // Check both invocation spellings and bare skill names (archive's sync handoff).
 // Unknown references also fail: a typo must not make the guard silently pass.
 function expectInstalledReferences(content: string, workflows: readonly string[], label: string): void {
-  for (const match of content.matchAll(/[/@]opsx[:-]([a-z-]+)|\b(openspec-[a-z-]+)\b/g)) {
+  for (const match of content.matchAll(/[/@]opsx[:-]([\w-]+)|\b(openspec-[\w-]+)/g)) {
     const workflow = match[1] ?? skillWorkflows.get(match[2]);
     expect(workflows, `${label}: unavailable workflow reference ${match[0]}`).toContain(workflow);
   }
 }
 
+describe('workflow reference guard', () => {
+  it.each(['/opsx:continue', '@opsx-continue', '$openspec-continue-change', 'the openspec-sync-specs skill'])(
+    'rejects an unavailable workflow in %s', (reference) => {
+      expect(() => expectInstalledReferences(reference, ['apply'], 'guard')).toThrow('unavailable workflow reference');
+    },
+  );
+
+  it.each(['/opsx:aply', '/opsx:apply2', '/opsx:apply_new', '/skill:openspec-aply-change'])(
+    'does not accept a misspelled workflow in %s', (reference) => {
+      expect(() => expectInstalledReferences(reference, ['apply'], 'guard')).toThrow('unavailable workflow reference');
+    },
+  );
+});
+
 describe.each(profiles)('$name workflow handoffs', ({ workflows }) => {
   for (const delivery of ['skills', 'commands', 'both'] as const) {
-    const tools = AI_TOOLS.filter(tool => tool.skillsDir && (
+    const tools = AI_TOOLS.filter(tool => toolSupportsSkills(tool) && (
       shouldGenerateSkillsForTool(tool.value, delivery) || shouldGenerateCommandsForTool(tool.value, delivery)
     ));
     it.each(tools)(`only references installed workflows for $value (${delivery})`, (tool) => {

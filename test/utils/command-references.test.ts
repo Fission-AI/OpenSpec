@@ -359,12 +359,15 @@ describe('apply skill template generates valid per-target invocations', () => {
     it(`emits ${tool} invocations for apply/archive and direct CLI recovery when blocked`, () => {
       const out = transform(skill);
       expect(out).not.toContain('openspec-continue-change');
-      const blocked = out.split('\n').find(line => line.includes('If `state: "blocked"`'))!;
+      const blocked = out.slice(out.indexOf('If `state: "blocked"`'), out.indexOf('If `state: "all_done"`'));
       expect(blocked).toContain('pause implementation');
+      expect(blocked).toContain('If `missingArtifacts` is non-empty');
       expect(blocked).toContain('openspec status --change "<name>" --json');
       expect(blocked).toContain('next `ready` artifact (not `skipped` or `blocked`)');
       expect(blocked).toContain('openspec instructions "<artifact-id>" --change "<name>" --json');
       expect(blocked).toContain('Keep the selected `--store <id>` on both commands');
+      expect(blocked).toContain('Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file');
+      expect(blocked).toContain('Do not assume another artifact is ready or start implementation while blocked');
       expect(out).toContain(arch);
       expect(out).toContain(`${apply} add-auth`);
       // No canonical token survives the rewrite.

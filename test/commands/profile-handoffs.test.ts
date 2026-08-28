@@ -113,6 +113,10 @@ apply:
     const before = await fs.readdir(changeRoot);
     const blocked = JSON.parse(await cli(['instructions', 'apply', '--change', 'original', '--json', ...flags]));
     expect(blocked.state).toBe('blocked');
+    expect(blocked.instruction).not.toContain('openspec-continue-change');
+    expect(blocked.instruction).toContain('Complete the missing planning artifacts');
+    const blockedText = await cli(['instructions', 'apply', '--change', 'original', ...flags]);
+    expect(blockedText).not.toContain('openspec-continue-change');
     const status = JSON.parse(await cli(['status', '--change', 'original', '--json', ...flags]));
     const next = status.artifacts.find((artifact: { status: string }) => artifact.status === 'ready');
     expect(next.id).toBe('brief');
@@ -133,5 +137,64 @@ apply:
     if (scope === 'store') {
       expect(await fs.readdir(path.join(project, 'openspec', 'changes'))).toEqual(['archive']);
     }
+  }, 30_000);
+
+  it.each([
+    { name: 'missing', content: undefined, total: 0 },
+    { name: 'empty', content: '# Work\n', total: 0 },
+    { name: 'text-less checkboxes', content: '- [ ]\n', total: 1 },
+  ])('repairs $name tracking without an optional workflow or a ready artifact', async ({ content, total }) => {
+    createOpenSpecRoot(project);
+    const schemaDir = path.join(project, 'openspec', 'schemas', 'tracking-test');
+    await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+    await fs.writeFile(path.join(schemaDir, 'schema.yaml'), `name: tracking-test
+version: 1
+artifacts:
+  - id: brief
+    generates: brief.md
+    description: Planning brief
+    template: brief.md
+    requires: []
+apply:
+  requires: [brief]
+  tracks: implementation/checklist.md
+`);
+    await fs.writeFile(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
+    await fs.writeFile(path.join(project, 'openspec', 'config.yaml'), 'schema: tracking-test\n');
+    await cli(['new', 'change', 'tracking']);
+    const changeRoot = path.join(project, 'openspec', 'changes', 'tracking');
+    const briefPath = path.join(changeRoot, 'brief.md');
+    await fs.writeFile(briefPath, '# Brief\n\nKeep this plan unchanged.\n');
+    const trackingPath = path.join(changeRoot, 'implementation', 'checklist.md');
+    await fs.mkdir(path.dirname(trackingPath));
+    if (content !== undefined) await fs.writeFile(trackingPath, content);
+
+    const status = JSON.parse(await cli(['status', '--change', 'tracking', '--json']));
+    expect(status.artifacts.map((artifact: { status: string }) => artifact.status)).toEqual(['done']);
+    const blocked = JSON.parse(await cli(['instructions', 'apply', '--change', 'tracking', '--json']));
+    expect(blocked.state).toBe('blocked');
+    expect(blocked.missingArtifacts).toBeUndefined();
+    expect(blocked.progress).toEqual({ total, complete: 0, remaining: total });
+    expect(blocked.tasks).toEqual([]);
+    expect(blocked.instruction).not.toContain('openspec-continue-change');
+    expect(blocked.instruction).toContain('implementation/checklist.md');
+    expect(blocked.instruction).toContain('existing planning artifacts');
+    expect(await cli(['instructions', 'apply', '--change', 'tracking'])).not.toContain('openspec-continue-change');
+    if (content === undefined) {
+      await expect(fs.stat(trackingPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    } else {
+      expect(await fs.readFile(trackingPath, 'utf-8')).toBe(content);
+    }
+
+    // The fixture repairs tracking separately; CLI status/progress semantics stay unchanged.
+    await fs.writeFile(trackingPath, '- [ ] Implement the brief\n');
+    const ready = JSON.parse(await cli(['instructions', 'apply', '--change', 'tracking', '--json']));
+    expect(ready.state).toBe('ready');
+    expect(ready.progress).toEqual({ total: 1, complete: 0, remaining: 1 });
+    await fs.writeFile(trackingPath, '- [x] Implement the brief\n');
+    const done = JSON.parse(await cli(['instructions', 'apply', '--change', 'tracking', '--json']));
+    expect(done.state).toBe('all_done');
+    expect(done.progress).toEqual({ total: 1, complete: 1, remaining: 0 });
+    expect(await fs.readFile(briefPath, 'utf-8')).toBe('# Brief\n\nKeep this plan unchanged.\n');
   }, 30_000);
 });
