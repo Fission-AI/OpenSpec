@@ -1345,6 +1345,8 @@ export class InitCommand {
           // as an instruction rather than a dead command with an argument.
           hint = usesNaturalLanguageSkillReferences(tool.value)
             ? `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`
+            : tool.value === 'codex'
+              ? `Start your first change in Codex CLI/IDE: ${skillReference} "your idea"; in Codex app, select ${skillReference.slice(1)} from the Skills sidebar`
             : `Start your first change: ${skillReference} "your idea"`;
         } else {
           continue;

@@ -2064,6 +2064,8 @@ describe('InitCommand - profile and detection features', () => {
     const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
     const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
     expect(startHint).toContain('$openspec-propose');
+    expect(startHint).toContain('Codex CLI/IDE');
+    expect(startHint).toContain('select openspec-propose from the Skills sidebar');
     expect(startHint).not.toContain('/openspec-propose');
     expect(startHint).not.toContain('/opsx:propose');
 
@@ -2113,6 +2115,8 @@ describe('InitCommand - profile and detection features', () => {
     const codexHint = startHints.find((entry) => entry.includes('(Codex)'));
     const vibeHint = startHints.find((entry) => entry.includes('Mistral Vibe'));
     expect(codexHint).toContain('$openspec-propose');
+    expect(codexHint).toContain('Codex CLI/IDE');
+    expect(codexHint).toContain('Skills sidebar');
     expect(codexHint).not.toContain('/openspec-propose');
     expect(vibeHint).toContain('/openspec-propose');
     for (const hint of startHints) {
