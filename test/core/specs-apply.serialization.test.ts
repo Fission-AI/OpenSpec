@@ -129,4 +129,56 @@ describe('spec serialization', () => {
       'serializer output.\n\n## Requirements\n\n### Requirement: Existing behavior'
     );
   });
+
+  it('preserves internal blank-line runs in untouched fences while collapsing prose', async () => {
+    const fencedSpec = [
+      '# demo Specification',
+      '',
+      '## Purpose',
+      'Purpose prose before.',
+      '',
+      '',
+      '',
+      'Purpose prose after.',
+      '',
+      '```text',
+      'purpose fence before',
+      '',
+      '',
+      'purpose fence after',
+      '```',
+      '',
+      '## Requirements',
+      ORIGINAL_REQUIREMENT,
+      '',
+      '### Requirement: Untouched fenced example',
+      'The project SHALL preserve fenced examples.',
+      '',
+      '~~~text',
+      'requirement fence before',
+      '',
+      '',
+      'requirement fence after',
+      '~~~',
+      '',
+      '#### Scenario: Untouched path',
+      '- **WHEN** an unrelated requirement is updated',
+      '- **THEN** the fenced example SHALL keep its internal blank lines',
+      '',
+    ].join('\n');
+
+    const result = await build(fencedSpec);
+
+    expect(result.counts.modified).toBe(1);
+    expect(result.rebuilt).toContain('The project SHALL expose the updated behavior.');
+    expect(result.rebuilt).toContain(
+      '```text\npurpose fence before\n\n\npurpose fence after\n```'
+    );
+    expect(result.rebuilt).toContain(
+      '~~~text\nrequirement fence before\n\n\nrequirement fence after\n~~~'
+    );
+    expect(result.rebuilt).toContain('Purpose prose before.\n\nPurpose prose after.');
+    expect(result.rebuilt).not.toContain('Purpose prose before.\n\n\nPurpose prose after.');
+    expectOneFinalLf(result.rebuilt);
+  });
 });
