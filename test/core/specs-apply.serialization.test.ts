@@ -154,6 +154,7 @@ describe('spec serialization', () => {
       '### Requirement: Untouched fenced example',
       'The project SHALL preserve fenced examples.',
       '',
+      '',
       '~~~text',
       'requirement fence before',
       '',
@@ -161,9 +162,16 @@ describe('spec serialization', () => {
       'requirement fence after',
       '~~~',
       '',
+      '',
       '#### Scenario: Untouched path',
       '- **WHEN** an unrelated requirement is updated',
       '- **THEN** the fenced example SHALL keep its internal blank lines',
+      '',
+      'Whitespace-only prose boundary.',
+      '   ',
+      '',
+      '',
+      'Whitespace-only prose after.',
       '',
     ].join('\n');
 
@@ -177,8 +185,13 @@ describe('spec serialization', () => {
     expect(result.rebuilt).toContain(
       '~~~text\nrequirement fence before\n\n\nrequirement fence after\n~~~'
     );
+    expect(result.rebuilt).toContain('fenced examples.\n\n~~~text');
+    expect(result.rebuilt).toContain('~~~\n\n#### Scenario: Untouched path');
     expect(result.rebuilt).toContain('Purpose prose before.\n\nPurpose prose after.');
     expect(result.rebuilt).not.toContain('Purpose prose before.\n\n\nPurpose prose after.');
+    expect(result.rebuilt).toContain(
+      'Whitespace-only prose boundary.\n   \n\nWhitespace-only prose after.'
+    );
     expectOneFinalLf(result.rebuilt);
   });
 });
