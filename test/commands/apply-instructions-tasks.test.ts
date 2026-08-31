@@ -79,7 +79,7 @@ ${tracked ? '  tracks: checklist.md\n' : ''}`
     expect(instructions.instruction).toContain(kind === 'missing' ? 'Missing artifacts: tasks' : 'contains no tasks');
   });
 
-  it('exposes resolved task artifacts when apply cannot parse a tracking glob', async () => {
+  it('aggregates a tracking glob owned by an artifact not named tasks', async () => {
     const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'glob-tasks');
     fs.mkdirSync(schemaDir, { recursive: true });
     fs.writeFileSync(
@@ -87,13 +87,13 @@ ${tracked ? '  tracks: checklist.md\n' : ''}`
       `name: glob-tasks
 version: 1
 artifacts:
-  - id: tasks
+  - id: implementation
     generates: "**/tasks.md"
     description: Implementation checklists
     template: tasks.md
     requires: []
 apply:
-  requires: [tasks]
+  requires: [implementation]
   tracks: "**/tasks.md"
 `
     );
@@ -112,15 +112,17 @@ apply:
       tempDir
     );
 
-    expect(instructions.contextFiles.tasks).toEqual([
+    expect(instructions.contextFiles.implementation).toEqual([
       fs.realpathSync.native(backendTasks),
       fs.realpathSync.native(frontendTasks),
     ]);
-    // Apply reads tracks as one literal path; verify can still inspect the
-    // resolved artifacts instead of losing the unfinished task in those files.
-    expect(instructions.tasks).toEqual([]);
-    expect(instructions.progress).toEqual({ total: 0, complete: 0, remaining: 0 });
-    expect(instructions.state).toBe('blocked');
+    expect(instructions.tasks).toEqual([
+      { id: '1', description: 'Finished backend task', done: true },
+      { id: '2', description: 'Finished frontend task', done: true },
+      { id: '3', description: 'Pending frontend task', done: false },
+    ]);
+    expect(instructions.progress).toEqual({ total: 3, complete: 2, remaining: 1 });
+    expect(instructions.state).toBe('ready');
     expect(listProgress).toEqual({ total: 3, completed: 2 });
   });
 

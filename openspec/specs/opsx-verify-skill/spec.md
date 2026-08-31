@@ -19,7 +19,7 @@ The system SHALL provide an `/opsx:verify` skill that validates implementation a
 - **AND** announces which change was selected and how to override
 
 #### Scenario: Change has no task descriptions
-- **WHEN** neither the structured task list nor the resolved task artifact fallback provides usable task descriptions, even if task progress reports nonzero totals
+- **WHEN** the structured task list provides no usable task descriptions, even if task progress reports nonzero totals
 - **THEN** the agent reports Task Completion as not verified with the reason
 - **AND** continues checks supported by the remaining artifacts
 - **AND** does not require tasks when the schema does not track them
@@ -29,16 +29,11 @@ The agent SHALL verify that all required work has been completed.
 
 #### Scenario: Task completion check
 - **WHEN** verifying completeness
-- **THEN** the agent prefers the top-level `tasks` and `progress` from apply instructions, resolved from the active schema's `apply.tracks` configuration
+- **THEN** the agent uses the top-level `tasks` and `progress` from apply instructions
+- **AND** apply instructions aggregate every concrete file matched by the active schema's `apply.tracks`, regardless of the tracked artifact's ID
 - **AND** reports complete and total task counts from `progress`
 - **AND** reports completion status with specific incomplete tasks listed
 - **AND** reports remaining checkboxes without descriptions when `progress.remaining` exceeds the listed incomplete tasks
-
-#### Scenario: Resolved task artifact fallback
-- **WHEN** structured apply tasks are empty but resolved files exist in `contextFiles.tasks`
-- **THEN** read every resolved task artifact and derive task descriptions and checkbox totals from those files
-- **AND** identify the totals as artifact-derived rather than presenting zero apply progress as task completion
-- **AND** report Task Completion as not verified if the files cannot be read or provide no usable task descriptions
 
 #### Scenario: Spec coverage check
 - **WHEN** verifying completeness

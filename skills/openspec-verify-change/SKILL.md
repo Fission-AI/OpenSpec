@@ -45,7 +45,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    openspec instructions apply --change "<name>" --json
    ```
 
-   This returns the change directory, `contextFiles` (artifact ID -> array of concrete file paths), and top-level `tasks` and `progress` resolved from the schema's `apply.tracks` configuration. Read all available artifacts from `contextFiles`.
+   This returns the change directory, `contextFiles` (artifact ID -> array of concrete file paths), and top-level `tasks` and `progress` aggregated from every concrete file matched by the schema's `apply.tracks` configuration. Read all available artifacts from `contextFiles`.
 
    Treat apply `state` and `instruction` as context, not a verification verdict. Do not implement tasks or archive the change during verification.
 
@@ -67,12 +67,11 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 5. **Verify Completeness**
 
    **Task Completion**:
-   - Prefer the top-level `tasks` and `progress` fields; do not assume every schema uses a `tasks` artifact id.
-   - If `tasks` is empty but `contextFiles.tasks` contains paths, read every resolved file and count its checkboxes, including nested and blank checkboxes. This preserves verification for task globs that apply metadata does not represent. Label these as artifact-derived totals; do not report the zero apply totals as completion. If any file cannot be read, report the partial evidence and mark **Task Completion** as not verified.
-   - If neither source provides task descriptions, mark **Task Completion** as not verified and record the reason from the available evidence, including apply `state` and `instruction`. Nonzero totals alone do not establish evaluable tasks.
-   - Report complete vs total tasks from `progress`, or the artifact-derived totals when using the fallback.
-   - If `progress.remaining` is greater than 0 or the fallback files contain incomplete checkboxes:
-     - Add CRITICAL issue for each incomplete task from the selected source. If the remaining count exceeds the listed incomplete tasks, also report the incomplete checkboxes without descriptions and recommend adding descriptions and completing them. Do not infer completion from the listed tasks alone.
+   - Use the top-level `tasks` and `progress` fields. They already aggregate every concrete file matched by `apply.tracks`, regardless of the tracked artifact's ID; do not infer tracking from a `contextFiles` key.
+   - If `tasks` is empty, mark **Task Completion** as not verified and record the reason from apply `state` and `instruction`. Nonzero totals alone do not establish evaluable task descriptions.
+   - Report complete vs total tasks from `progress`.
+   - If `progress.remaining` is greater than 0:
+     - Add CRITICAL issue for each listed incomplete task. If the remaining count exceeds the listed incomplete tasks, also report the incomplete checkboxes without descriptions and recommend adding descriptions and completing them. Do not infer completion from the listed tasks alone.
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
    **Spec Coverage**:

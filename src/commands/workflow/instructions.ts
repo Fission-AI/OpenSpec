@@ -12,7 +12,6 @@ import {
   loadChangeContext,
   generateInstructions,
   resolveSchema,
-  resolveArtifactOutputPath,
   resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
@@ -412,15 +411,17 @@ export async function generateApplyInstructions(
     }
   }
 
-  // Parse tasks if tracking file exists
+  // Parse every concrete file matched by apply.tracks. A tracking path may be
+  // a glob owned by an artifact with any ID, so treating it as one literal
+  // path loses task evidence for valid custom schemas.
   let parsedTasks: ParsedTask[] = [];
   let tracksFileExists = false;
   if (tracksFile) {
-    const tracksPath = resolveArtifactOutputPath(changeDir, tracksFile);
-    tracksFileExists = fs.existsSync(tracksPath);
-    if (tracksFileExists) {
+    const tracksPaths = resolveArtifactOutputs(changeDir, tracksFile);
+    tracksFileExists = tracksPaths.length > 0;
+    for (const tracksPath of tracksPaths) {
       const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
-      parsedTasks = parseTaskLines(tasksContent);
+      parsedTasks.push(...parseTaskLines(tasksContent));
     }
   }
   const tasks = toTaskItems(parsedTasks);

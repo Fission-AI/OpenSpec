@@ -28,20 +28,12 @@ describe('verify-change templates', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('top-level `tasks` and `progress`');
       expect(body, label).toContain("schema's `apply.tracks` configuration");
-      expect(body, label).toContain('do not assume every schema uses a `tasks` artifact id');
-      expect(body, label).toContain('If neither source provides task descriptions');
+      expect(body, label).toContain('aggregated from every concrete file matched');
+      expect(body, label).toContain("regardless of the tracked artifact's ID");
+      expect(body, label).toContain('do not infer tracking from a `contextFiles` key');
     }
   });
 
-  it('preserves task checks when apply metadata cannot represent glob artifacts', () => {
-    for (const [label, body] of bodies) {
-      expect(body, label).toContain('If `tasks` is empty but `contextFiles.tasks` contains paths');
-      expect(body, label).toContain('read every resolved file and count its checkboxes');
-      expect(body, label).toContain('Label these as artifact-derived totals');
-      expect(body, label).toContain('do not report the zero apply totals as completion');
-      expect(body, label).toContain('or the fallback files contain incomplete checkboxes');
-    }
-  });
 
   it('does not lose incomplete checkboxes omitted from the task list', () => {
     for (const [label, body] of bodies) {
