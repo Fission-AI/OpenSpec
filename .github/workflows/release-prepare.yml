@@ -53,7 +53,7 @@ jobs:
       # Opens/updates the Version Packages PR; publishes when the Version PR merges
       - name: Create/Update Version PR
         id: changesets
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v1
         with:
           title: 'chore(release): version packages'
           createGithubReleases: true
