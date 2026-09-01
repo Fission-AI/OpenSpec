@@ -444,6 +444,7 @@ openspec list [options]
 | `--changes` | List changes (default) |
 | `--sort <order>` | Sort by `recent` (default) or `name` |
 | `--json` | Output as JSON |
+| `--store <id>` | Use a registered store as the OpenSpec root |
 
 **Examples:**
 
@@ -500,6 +501,7 @@ openspec show [item-name] [options]
 | `--type <type>` | Specify type: `change` or `spec` (auto-detected if unambiguous) |
 | `--json` | Output as JSON |
 | `--no-interactive` | Disable prompts |
+| `--store <id>` | Use a registered store as the OpenSpec root |
 
 **Change-specific options:**
 
