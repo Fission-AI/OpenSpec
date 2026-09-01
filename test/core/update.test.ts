@@ -169,6 +169,91 @@ Old instructions content
       consoleSpy.mockRestore();
     });
 
+    it('should refresh configured DeepSeek Harness skills and stay idempotent', async () => {
+      const skillsDir = path.join(testDir, '.dsh', 'skills');
+      const skillFile = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+
+      const oldSkillContent = `---
+name: openspec-explore (old)
+description: Old description
+license: MIT
+compatibility: Requires openspec CLI.
+metadata:
+  author: openspec
+  version: "0.9"
+---
+
+Old instructions content
+`;
+      await fs.writeFile(skillFile, oldSkillContent);
+
+      await updateCommand.execute(testDir);
+
+      const refreshed = await fs.readFile(skillFile, 'utf-8');
+      expect(refreshed).toContain('name: openspec-explore');
+      expect(refreshed).not.toContain('Old instructions content');
+      expect(refreshed).toContain('license: MIT');
+
+      const beforeSecondUpdate = await fs.stat(skillFile);
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+      expect(consoleSpy.mock.calls.flat().map(String).join('\n')).toContain('up to date');
+      consoleSpy.mockRestore();
+
+      expect(await fs.readFile(skillFile, 'utf-8')).toBe(refreshed);
+      expect((await fs.stat(skillFile)).mtimeMs).toBe(beforeSecondUpdate.mtimeMs);
+    });
+
+    it.each(['profile', 'delivery'] as const)(
+      'should preserve custom DeepSeek Harness and shared skills when changing %s',
+      async (setting) => {
+        const customFiles = [
+          path.join(testDir, '.dsh', 'skills', 'my-custom-skill', 'SKILL.md'),
+          path.join(testDir, '.dsh', 'skills', 'openspec-user-notes', 'SKILL.md'),
+          path.join(testDir, '.agents', 'skills', 'shared-custom-skill', 'SKILL.md'),
+        ];
+        for (const file of customFiles) {
+          await fs.mkdir(path.dirname(file), { recursive: true });
+          await fs.writeFile(file, 'custom skill instructions');
+        }
+
+        await new InitCommand({ tools: 'dsh', force: true }).execute(testDir);
+        const skillsDir = path.join(testDir, '.dsh', 'skills');
+        expect(await FileSystemUtils.fileExists(
+          path.join(skillsDir, 'openspec-apply-change', 'SKILL.md')
+        )).toBe(true);
+
+        setMockConfig(setting === 'profile'
+          ? { featureFlags: {}, profile: 'custom', workflows: ['explore'], delivery: 'both' }
+          : { featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        await updateCommand.execute(testDir);
+
+        const expectedSkills = ['my-custom-skill', 'openspec-user-notes'];
+        if (setting === 'profile') {
+          expectedSkills.push('openspec-explore');
+        } else {
+          const correction = consoleSpy.mock.calls.flat().map(String)
+            .find((entry) => entry.includes('No skills or commands remain'));
+          expect(correction).toContain('DeepSeek Harness');
+          expect(correction).toContain('openspec config set delivery both');
+        }
+        expect((await fs.readdir(skillsDir)).sort()).toEqual(expectedSkills.sort());
+        expect(await FileSystemUtils.directoryExists(path.join(testDir, '.dsh', 'commands'))).toBe(false);
+        expect(await fs.readdir(path.join(testDir, '.agents', 'skills'))).toEqual(['shared-custom-skill']);
+
+        consoleSpy.mockClear();
+        await updateCommand.execute(testDir);
+        expect(consoleSpy.mock.calls.flat().map(String).join('\n')).not.toContain('Updating 1 tool(s)');
+        expect((await fs.readdir(skillsDir)).sort()).toEqual(expectedSkills.sort());
+        for (const file of customFiles) {
+          expect(await fs.readFile(file, 'utf-8')).toBe('custom skill instructions');
+        }
+      }
+    );
+
     it('should update MiniMax Code skills without touching unrelated global skills', async () => {
       const skillsDir = path.join(testDir, 'home', '.minimax', 'skills');
       const exploreSkill = path.join(skillsDir, 'openspec-explore', 'SKILL.md');

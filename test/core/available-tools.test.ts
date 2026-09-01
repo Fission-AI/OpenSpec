@@ -532,5 +532,37 @@ describe('available-tools', () => {
       expect(ohMyPiTool?.name).toBe('Oh My Pi');
       expect(ohMyPiTool?.skillsDir).toBe('.omp');
     });
+
+    it('should detect DeepSeek Harness when .dsh/skills exists', async () => {
+      // dsh discovers skills from <project>/.dsh/skills, its rank-100 project root.
+      await fs.mkdir(path.join(testDir, '.dsh', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const dsh = tools.find((t) => t.value === 'dsh');
+      expect(dsh).toMatchObject({
+        name: 'DeepSeek Harness',
+        skillsDir: '.dsh',
+      });
+    });
+
+    it('should detect DeepSeek Harness from a bare .dsh project directory', async () => {
+      // .dsh is DeepSeek Harness's project config root, so its presence is a
+      // meaningful signal even before any skill directory exists.
+      await fs.mkdir(path.join(testDir, '.dsh'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).toContain('dsh');
+    });
+
+    it('should not detect DeepSeek Harness when no .dsh signal exists', () => {
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('dsh');
+    });
+
+    it('should not detect DeepSeek Harness when .dsh is a regular file', async () => {
+      await fs.writeFile(path.join(testDir, '.dsh'), 'not a tool directory');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).not.toContain('dsh');
+    });
   });
 });
