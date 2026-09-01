@@ -442,14 +442,24 @@ openspec list [options]
 |--------|-------------|
 | `--specs` | List specs instead of changes |
 | `--changes` | List changes (default) |
+| `--archived` | List only archived changes |
+| `--all` | List active and archived changes |
 | `--sort <order>` | Sort by `recent` (default) or `name` |
 | `--json` | Output as JSON |
+
+**Archive filters:** `--archived` and `--all` read `openspec/changes/archive/` in the selected root. Neither can be combined with `--specs`. If both are supplied, `--all` takes precedence.
 
 **Examples:**
 
 ```bash
 # List all active changes
 openspec list
+
+# List archived changes by name
+openspec list --archived --sort name
+
+# List active and archived changes
+openspec list --all
 
 # List all specs
 openspec list --specs
@@ -465,17 +475,21 @@ Changes:
   add-dark-mode     No tasks      just now
 ```
 
+**Archive output:** Text output groups active and archived changes under separate headings. Each group uses the selected sort order.
+
+**JSON output:** With `--archived` or `--all`, each entry in `changes` includes an `archived` boolean. The combined array uses the selected sort order. `status` still reports task progress, so an archived change can have unfinished tasks. Without either archive flag, the JSON format is unchanged.
+
 ---
 
 ### `openspec view`
 
-Display an interactive dashboard for exploring specs and changes.
+Display a dashboard of specs and changes.
 
-```
+```bash
 openspec view
 ```
 
-Opens a terminal-based interface for navigating your project's specifications and changes.
+The summary counts archived changes separately. The **Archived Changes** section lists their directory names alphabetically. Archived changes do not contribute to active, completed, or task-progress metrics.
 
 ---
 

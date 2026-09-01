@@ -355,12 +355,17 @@ program
   .description('List items (changes by default). Use --specs to list specs.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
+  .option('--archived', 'Show only archived changes')
+  .option('--all', 'Show both active and archived changes')
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; archived?: boolean; all?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
+      if (options?.specs && (options.archived || options.all)) {
+        throw new Error('--archived and --all can only be used when listing changes.');
+      }
       const root = await resolveRootForCommand(options ?? {}, {
         json: options?.json,
         failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
@@ -377,6 +382,8 @@ program
       await listCommand.execute(root.path, mode, {
         sort,
         json: options?.json,
+        archived: options?.archived,
+        all: options?.all,
         ...(options?.json ? { root: toRootOutput(root) } : {}),
       });
     } catch (error) {

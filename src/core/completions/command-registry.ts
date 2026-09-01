@@ -68,6 +68,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         description: 'List changes explicitly (default)',
       },
       {
+        name: 'archived',
+        description: 'Show only archived changes',
+      },
+      {
+        name: 'all',
+        description: 'Show both active and archived changes',
+      },
+      {
         name: 'sort',
         description: 'Sort order: "recent" (default) or "name"',
         takesValue: true,

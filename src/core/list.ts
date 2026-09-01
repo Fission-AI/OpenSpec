@@ -11,12 +11,15 @@ interface ChangeInfo {
   completedTasks: number;
   totalTasks: number;
   lastModified: Date;
+  archived: boolean;
 }
 
 interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
   root?: RootOutput;
+  archived?: boolean;
+  all?: boolean;
 }
 
 function isMissingPathError(error: unknown): boolean {
@@ -40,8 +43,9 @@ async function readChangeDirectoryEntries(changesDir: string): Promise<Dirent[]>
 /**
  * Get the most recent modification time of any file in a directory (recursive).
  * Falls back to the directory's own mtime if no files are found.
+ * Archived links use their own mtime: moving a change can break relative targets.
  */
-async function getLastModified(dirPath: string): Promise<Date> {
+async function getLastModified(dirPath: string, archived: boolean = false): Promise<Date> {
   let latest: Date | null = null;
 
   async function walk(dir: string): Promise<void> {
@@ -51,7 +55,9 @@ async function getLastModified(dirPath: string): Promise<Date> {
       if (entry.isDirectory()) {
         await walk(fullPath);
       } else {
-        const stat = await fs.stat(fullPath);
+        const stat = archived && entry.isSymbolicLink()
+          ? await fs.lstat(fullPath)
+          : await fs.stat(fullPath);
         if (latest === null || stat.mtime > latest) {
           latest = stat.mtime;
         }
@@ -96,22 +102,34 @@ function formatRelativeTime(date: Date): string {
 
 export class ListCommand {
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
-    const { sort = 'recent', json = false, root } = options;
+    const { sort = 'recent', json = false, root, archived = false, all = false } = options;
+
+    if (mode === 'specs' && (archived || all)) {
+      throw new Error('--archived and --all can only be used when listing changes.');
+    }
 
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
+      const archiveDir = path.join(changesDir, 'archive');
+      const includeArchived = archived || all;
 
-      // Get all directories in changes (excluding archive)
+      // Read the parent even for --archived: Windows can report ENOENT for
+      // changes/archive when changes is a file, hiding a malformed root.
       const entries = await readChangeDirectoryEntries(changesDir);
-      const changeDirs = entries
+      const activeDirs = !archived || all ? entries
         .filter(entry => entry.isDirectory() && entry.name !== 'archive')
-        .map(entry => entry.name);
+        .map(entry => ({ name: entry.name, parent: changesDir, archived: false })) : [];
+      const archiveEntries = includeArchived ? await readChangeDirectoryEntries(archiveDir) : [];
+      const archivedDirs = archiveEntries
+        .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
+        .map(entry => ({ name: entry.name, parent: archiveDir, archived: true }));
+      const changeDirs = [...activeDirs, ...archivedDirs];
 
       if (changeDirs.length === 0) {
         if (json) {
           console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
         } else {
-          console.log('No active changes found.');
+          console.log(all ? 'No changes found.' : archived ? 'No archived changes found.' : 'No active changes found.');
         }
         return;
       }
@@ -120,14 +138,15 @@ export class ListCommand {
       const changes: ChangeInfo[] = [];
 
       for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
-        const changePath = path.join(changesDir, changeDir);
-        const lastModified = await getLastModified(changePath);
+        const progress = await getTaskProgressForChange(changeDir.parent, changeDir.name, targetPath);
+        const changePath = path.join(changeDir.parent, changeDir.name);
+        const lastModified = await getLastModified(changePath, changeDir.archived);
         changes.push({
-          name: changeDir,
+          name: changeDir.name,
           completedTasks: progress.completed,
           totalTasks: progress.total,
-          lastModified
+          lastModified,
+          archived: changeDir.archived
         });
       }
 
@@ -145,21 +164,29 @@ export class ListCommand {
           completedTasks: c.completedTasks,
           totalTasks: c.totalTasks,
           lastModified: c.lastModified.toISOString(),
-          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress'
+          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress',
+          ...(includeArchived ? { archived: c.archived } : {})
         }));
         console.log(JSON.stringify({ changes: jsonOutput, ...(root ? { root } : {}) }, null, 2));
         return;
       }
 
       // Display results
-      console.log('Changes:');
-      const padding = '  ';
-      const nameWidth = Math.max(...changes.map(c => c.name.length));
-      for (const change of changes) {
-        const paddedName = change.name.padEnd(nameWidth);
-        const status = formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
-        const timeAgo = formatRelativeTime(change.lastModified);
-        console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
+      const groups = [
+        { heading: 'Changes:', changes: changes.filter(change => !change.archived) },
+        { heading: 'Archived Changes:', changes: changes.filter(change => change.archived) }
+      ].filter(group => group.changes.length > 0);
+      for (const [index, group] of groups.entries()) {
+        if (index > 0) console.log('');
+        console.log(group.heading);
+        const padding = '  ';
+        const nameWidth = Math.max(...group.changes.map(c => c.name.length));
+        for (const change of group.changes) {
+          const paddedName = change.name.padEnd(nameWidth);
+          const status = formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
+          const timeAgo = formatRelativeTime(change.lastModified);
+          console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
+        }
       }
       return;
     }

@@ -1,5 +1,5 @@
 import { afterAll, describe, it, expect } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { runCLI, cliProjectRoot } from '../helpers/run-cli.js';
@@ -84,6 +84,88 @@ describe('openspec CLI e2e basics', () => {
     const projectDir = await prepareFixture('tmp-init');
     const result = await runCLI(['list', '--json'], { cwd: projectDir });
     expectJsonOnlyOutput(result);
+  });
+
+  it.each([
+    { flags: ['--archived'], active: false },
+    { flags: ['--all'], active: true },
+    { flags: ['--archived', '--all'], active: true },
+  ])('lists archive entries as JSON with $flags', async ({ flags, active }) => {
+    const projectDir = await prepareFixture('tmp-init');
+    const archiveName = '2026-08-27-shipped';
+    const archiveDir = path.join(projectDir, 'openspec', 'changes', 'archive', archiveName);
+    await fs.mkdir(archiveDir, { recursive: true });
+    await fs.writeFile(path.join(archiveDir, 'tasks.md'), '- [x] Done\n- [ ] Deferred\n');
+
+    const result = await runCLI(['list', ...flags, '--sort', 'name', '--json'], { cwd: projectDir });
+
+    expectJsonOnlyOutput(result);
+    const output = JSON.parse(result.stdout);
+    expect(output.changes).toContainEqual(expect.objectContaining({
+      name: archiveName,
+      archived: true,
+      completedTasks: 1,
+      totalTasks: 2,
+      status: 'in-progress',
+    }));
+    expect(output.changes.some((change: { archived: boolean }) => !change.archived)).toBe(active);
+    expect(output.changes.map((change: { name: string }) => change.name)).toEqual(
+      output.changes.map((change: { name: string }) => change.name).sort((a: string, b: string) => a.localeCompare(b))
+    );
+    expect(realpathSync.native(output.root.path)).toBe(realpathSync.native(projectDir));
+  });
+
+  it.skipIf(process.platform === 'win32')('lists a change after archive leaves its relative notes link dangling', async () => {
+    const projectDir = await prepareFixture('tmp-init');
+    const changeName = '2026-08-28-linked-notes';
+    const changesDir = path.join(projectDir, 'openspec', 'changes');
+    const changeDir = path.join(changesDir, changeName);
+    await fs.mkdir(changeDir);
+    await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done\n');
+    await fs.writeFile(path.join(changesDir, 'reference.md'), 'Shared notes\n');
+    await fs.symlink('../reference.md', path.join(changeDir, 'notes.md'));
+
+    const before = await runCLI(['list', '--json'], { cwd: projectDir });
+    expectJsonOnlyOutput(before);
+    const archived = await runCLI(['archive', changeName, '--skip-specs', '--yes'], { cwd: projectDir });
+    expect(archived.exitCode, archived.stderr).toBe(0);
+    await expect(fs.stat(path.join(changesDir, 'archive', changeName, 'notes.md'))).rejects.toMatchObject({ code: 'ENOENT' });
+
+    const result = await runCLI(['list', '--archived', '--json'], { cwd: projectDir });
+
+    expectJsonOnlyOutput(result);
+    expect(JSON.parse(result.stdout).changes).toContainEqual(expect.objectContaining({
+      name: changeName, archived: true, completedTasks: 1, totalTasks: 1
+    }));
+  });
+
+  it.each(['--archived', '--all'])('rejects --specs with %s as a JSON error', async (flag) => {
+    const projectDir = await prepareFixture('tmp-init');
+    const result = await runCLI(['list', '--specs', flag, '--json'], { cwd: projectDir });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    const output = JSON.parse(result.stdout);
+    expect(output.specs).toEqual([]);
+    expect(output.status).toEqual([expect.objectContaining({
+      severity: 'error',
+      code: 'list_error',
+      message: '--archived and --all can only be used when listing changes.',
+    })]);
+  });
+
+  it.each(['archive', ''])('reports malformed changes/%s as an error instead of an empty JSON list', async (entry) => {
+    const projectDir = await prepareFixture('tmp-init');
+    const malformedPath = path.join(projectDir, 'openspec', 'changes', entry);
+    await fs.rm(malformedPath, { recursive: true, force: true });
+    await fs.writeFile(malformedPath, 'not a directory\n');
+
+    const result = await runCLI(['list', '--archived', '--json'], { cwd: projectDir });
+
+    expect(result.exitCode).toBe(1);
+    const output = JSON.parse(result.stdout);
+    expect(output.changes).toEqual([]);
+    expect(output.status).toEqual([expect.objectContaining({ severity: 'error', code: 'list_error' })]);
   });
 
   it('keeps schemas --json free of spinner output', async () => {
