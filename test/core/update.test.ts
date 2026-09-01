@@ -3443,6 +3443,96 @@ More user content after markers.
       }
     );
 
+    it.each(['both', 'skills'] as const)(
+      'should refresh Grok Build skills and preserve user files when delivery=%s',
+      async (delivery) => {
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+
+        const grokDir = path.join(testDir, '.grok');
+        const skillsDir = path.join(grokDir, 'skills');
+        const exploreSkill = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+        const userNotes = path.join(skillsDir, 'openspec-explore', 'notes.md');
+        const customSkill = path.join(skillsDir, 'my-custom-skill', 'SKILL.md');
+        const userConfig = path.join(grokDir, 'settings.json');
+        await fs.mkdir(path.dirname(exploreSkill), { recursive: true });
+        await fs.writeFile(exploreSkill, 'old instructions: /opsx:explore');
+        await fs.writeFile(userNotes, 'my exploration notes');
+        await fs.mkdir(path.dirname(customSkill), { recursive: true });
+        await fs.writeFile(customSkill, 'my custom skill');
+        await fs.writeFile(userConfig, '{"custom":true}\n');
+
+        await updateCommand.execute(testDir);
+
+        for (const skillName of ['openspec-explore', 'openspec-update-change']) {
+          const content = await fs.readFile(path.join(skillsDir, skillName, 'SKILL.md'), 'utf-8');
+          expect(content).toContain(`name: ${skillName}`);
+          expect(content).toContain('/openspec-');
+          expect(content).not.toMatch(/\/opsx[:-]/);
+          expect(content).not.toContain('old instructions');
+        }
+        expect(await fs.readFile(userNotes, 'utf-8')).toBe('my exploration notes');
+        expect(await fs.readFile(customSkill, 'utf-8')).toBe('my custom skill');
+        expect(await fs.readFile(userConfig, 'utf-8')).toBe('{"custom":true}\n');
+        expect((await fs.readdir(grokDir)).sort()).toEqual(['settings.json', 'skills']);
+      }
+    );
+
+    it('should remove only managed Grok Build skills when switching to commands-only delivery', async () => {
+      await new InitCommand({ tools: 'grok', force: true }).execute(testDir);
+      const grokDir = path.join(testDir, '.grok');
+      const skillsDir = path.join(grokDir, 'skills');
+      const customSkill = path.join(skillsDir, 'openspec-custom', 'SKILL.md');
+      await fs.mkdir(path.dirname(customSkill));
+      await fs.writeFile(customSkill, 'my custom skill');
+      await fs.writeFile(path.join(grokDir, 'notes.md'), 'my Grok notes');
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readdir(skillsDir)).toEqual(['openspec-custom']);
+      expect(await fs.readFile(customSkill, 'utf-8')).toBe('my custom skill');
+      expect(await fs.readFile(path.join(grokDir, 'notes.md'), 'utf-8')).toBe('my Grok notes');
+      expect((await fs.readdir(grokDir)).sort()).toEqual(['notes.md', 'skills']);
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining(
+        "No skills or commands remain for Grok Build: delivery is set to 'commands' but it supports only skills."
+      ));
+    });
+
+    it('should sync Grok Build from a custom profile to core without removing unrelated files', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        workflows: ['explore', 'new'],
+        delivery: 'both',
+      });
+      await new InitCommand({ tools: 'grok', force: true }).execute(testDir);
+
+      const grokDir = path.join(testDir, '.grok');
+      const skillsDir = path.join(grokDir, 'skills');
+      expect((await fs.readdir(skillsDir)).sort()).toEqual(['openspec-explore', 'openspec-new-change']);
+      const customSkill = path.join(skillsDir, 'openspec-custom', 'SKILL.md');
+      await fs.mkdir(path.dirname(customSkill));
+      await fs.writeFile(customSkill, 'my custom skill');
+      await fs.writeFile(path.join(grokDir, 'notes.md'), 'my Grok notes');
+
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+      await updateCommand.execute(testDir);
+
+      expect((await fs.readdir(skillsDir)).sort()).toEqual([
+        'openspec-apply-change',
+        'openspec-archive-change',
+        'openspec-custom',
+        'openspec-explore',
+        'openspec-propose',
+        'openspec-sync-specs',
+        'openspec-update-change',
+      ]);
+      expect(await fs.readFile(customSkill, 'utf-8')).toBe('my custom skill');
+      expect(await fs.readFile(path.join(grokDir, 'notes.md'), 'utf-8')).toBe('my Grok notes');
+      expect((await fs.readdir(grokDir)).sort()).toEqual(['notes.md', 'skills']);
+    });
+
     it('should report Codex command generation as skipped because it uses skills', async () => {
       setMockConfig({
         featureFlags: {},

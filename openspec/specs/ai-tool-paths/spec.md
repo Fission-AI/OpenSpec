@@ -50,6 +50,11 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **AND** `setupNote` SHALL explain that project `.hermes/skills` must be added to `skills.external_dirs` in `~/.hermes/config.yaml`
 - **AND** `openspec init` and `openspec update` SHALL display the note whenever `hermes` is configured
 
+#### Scenario: Grok Build paths defined
+
+- **WHEN** looking up the `grok` tool
+- **THEN** `skillsDir` SHALL be `.grok`
+
 #### Scenario: Tools without skillsDir
 
 - **WHEN** a tool has no `skillsDir` defined
