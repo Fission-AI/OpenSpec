@@ -17,6 +17,7 @@ export { costrictAdapter } from './costrict.js';
 export { crushAdapter } from './crush.js';
 export { cursorAdapter } from './cursor.js';
 export { devinAdapter } from './devin.js';
+export { easycodeAdapter } from './easycode.js';
 export { factoryAdapter } from './factory.js';
 export { geminiAdapter } from './gemini.js';
 export { githubCopilotAdapter } from './github-copilot.js';
