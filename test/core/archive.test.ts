@@ -2383,7 +2383,7 @@ The system will log all events.
       }
     });
 
-    it('should proceed with archive when user declines spec updates', async () => {
+    it.each(['legacy', 'MODIFIED', 'RENAMED', 'REMOVED'])('archives when the user declines %s sync', async (operation) => {
       const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
@@ -2392,8 +2392,21 @@ The system will log all events.
       const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
       await fs.mkdir(changeSpecDir, { recursive: true });
       
-      // Create valid spec in change
-      const specContent = `# Test Capability Spec
+      // These deltas cannot build a new main spec. Declining sync must still
+      // archive them without creating one, including the legacy no-operations case.
+      const specContent = operation === 'RENAMED'
+        ? '## RENAMED Requirements\n- FROM: `### Requirement: Old name`\n- TO: `### Requirement: New name`\n'
+        : operation !== 'legacy'
+          ? `## ${operation} Requirements
+
+### Requirement: Test capability
+The system SHALL provide test capability.
+
+#### Scenario: Basic test
+- **WHEN** an action occurs
+- **THEN** the expected result happens
+`
+          : `# Test Capability Spec
 
 ## Purpose
 This is a test capability specification.
@@ -2434,6 +2447,10 @@ Then expected result happens`;
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
       expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+      expect(process.exitCode).not.toBe(1);
+      await expect(
+        fs.readFile(path.join(archiveDir, archives[0], 'specs', 'test-capability', 'spec.md'), 'utf-8')
+      ).resolves.toBe(specContent);
     });
 
     it('warns about absorbed content before asking to apply the destructive spec update', async () => {
@@ -4766,22 +4783,35 @@ The system SHALL do the thing differently.
       );
     });
 
-    it('archives a REMOVED-only delta whose main spec was already deleted', async () => {
+    it.each([true, false])('handles an already-deleted main spec with retirement declared: %s', async (declareRetirement) => {
       // The issue's second dead end: pre-deleting the spec made the delta look
       // like a create, which landed on an empty spec and failed the same way.
       const changeName = 'retire-already-gone';
-      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL, { declareRetirement });
 
       await archiveCommand.execute(changeName, { yes: true });
 
-      expect(process.exitCode).not.toBe(1);
       // Nothing was recreated.
       await expect(
         fs.access(path.join(tempDir, 'openspec', 'specs', 'legacy-layer'))
       ).rejects.toThrow();
-      await expect(
-        fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
-      ).rejects.toThrow();
+      if (declareRetirement) {
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(changeDir)).rejects.toThrow();
+        const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+        const [archivedName] = await fs.readdir(archiveDir);
+        await expect(
+          fs.readFile(path.join(archiveDir, archivedName, 'specs', 'legacy-layer', 'spec.md'), 'utf-8')
+        ).resolves.toBe(REMOVE_ALL);
+      } else {
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining(VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS)
+        );
+        await expect(fs.readFile(path.join(changeDir, 'specs', 'legacy-layer', 'spec.md'), 'utf-8'))
+          .resolves.toBe(REMOVE_ALL);
+        expect(await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))).toEqual([]);
+      }
     });
 
     // The requirement-block count and the validator do NOT agree on what a

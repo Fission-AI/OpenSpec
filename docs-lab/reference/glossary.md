@@ -19,7 +19,7 @@ OpenSpec reuses words that mean something else in git, CI, and agent tooling. Ea
 | **Fast-forward** | Create a change proposal with every planning artifact in one pass, ready to implement. Skill: `openspec-ff-change`. Not a git fast-forward. | [Skills](skills.md) |
 | **Legacy workflow** | The pre-OPSX `/openspec:*` commands. | [Migration](../help/legacy/migration.md) |
 | **Loop** | The cycle a change proposal moves through: explore, propose, review, apply, archive. | [Quickstart](../start/quickstart.md) |
-| **Main specs** | The `openspec/specs/` tree: the current, agreed behavior of your system. Archiving merges deltas into it. | [Concepts](../guides/concepts.md) |
+| **Main specs** | The `openspec/specs/` tree: the current behavior of your system. Sync or archive creates a new capability's spec from its `ADDED` requirements. | [Concepts](../guides/concepts.md) |
 | **OpenSpec root** | The `openspec/` tree a command resolves to and operates on: your repo's, or a store's. | [Stores](configuration/stores.md) |
 | **OPSX** | The current OpenSpec workflow system, and the command prefix it installs (`/opsx:`). | [Architecture](architecture/index.md) |
 | **Profile** | Which workflows init installs: `core` or `custom`. | [Profiles](../customize/profiles.md) |
