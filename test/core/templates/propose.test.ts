@@ -17,6 +17,7 @@ import {
   getInvocationForAdapter,
 } from '../../../src/core/command-generation/invocation.js';
 import { getCommandContents } from '../../../src/core/shared/skill-generation.js';
+import { MAX_CONTEXT_SIZE } from '../../../src/core/project-config.js';
 
 const proposeSkillBody = getOpsxProposeSkillTemplate().instructions;
 const proposeCommandBody = getOpsxProposeCommandTemplate().content;
@@ -89,6 +90,84 @@ describe('default task guidance', () => {
   });
 });
 
+describe('propose project context', () => {
+  it('loads project context before selecting the schema or creating the change (#1651)', () => {
+    for (const [label, body] of proposeBodies) {
+      const contextStep = body.indexOf('**Load project context**');
+      const schemaStep = body.indexOf('**Determine the workflow schema**');
+      const createStep = body.indexOf('**Create the change directory**');
+
+      expect(contextStep, `${label} is missing the early context step`).toBeGreaterThanOrEqual(0);
+      expect(contextStep, `${label} loads context after schema selection`).toBeLessThan(schemaStep);
+      expect(contextStep, `${label} loads context after creating the change`).toBeLessThan(createStep);
+    }
+  });
+
+  function contextSection(body: string): string {
+    return body.slice(body.indexOf('**Load project context**'), body.indexOf('**Determine the workflow schema**'));
+  }
+
+  it('reads the resolved root and keeps explicit store selection', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('`openspec context --json`');
+      expect(section, label).toContain('`openspec context --json --store "<store-id>"`');
+      expect(section, label).toContain('returned `root.path`');
+      expect(section, label).toContain('`<root.path>/openspec/config.yaml`');
+      expect(section, label).toContain('Only when context returns a resolved `root.path`');
+    }
+  });
+
+  it('matches config precedence and field validation', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('Use `config.yml` only when `config.yaml` does not exist');
+      expect(section, label).toContain('If neither file exists, continue without project context');
+      expect(section, label).toContain('Do not fall back to `config.yml` if `config.yaml` is unreadable or invalid');
+      expect(section, label).toContain('parses as a YAML object');
+      expect(section, label).toContain('`context` field is a string');
+      expect(section, label).toContain(`no larger than ${MAX_CONTEXT_SIZE.toLocaleString('en-US')} bytes in UTF-8`);
+      expect(section, label).toContain('apply that field');
+      expect(section, label).toContain('If the file cannot be read or parsed, or the context field is invalid or oversized, continue without project context');
+    }
+  });
+
+  it('stops without writing and offers initialization when no root is resolved', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('context reports `no_openspec_root`');
+      expect(section, label).toContain('stop without creating or changing any files');
+      expect(section, label).toContain('Offer `openspec init`');
+      expect(section, label).toContain('wait for the user to request initialization');
+      expect(section, label).toContain('Do not initialize automatically or run `openspec new change`');
+      expect(section, label).toContain('After initialization, rerun this context check before continuing');
+      expect(body, label).not.toContain('resolve the implicit root');
+    }
+  });
+
+  it('preserves the selected store on resolution failures', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('For any other context failure, stop');
+      expect(section, label).toContain('do not fall back to the current directory');
+      expect(section, label).toContain('run later OpenSpec commands without the selected store');
+    }
+  });
+
+  it('applies context before exploration without granting it authority', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('before exploring the codebase or making planning decisions');
+      expect(section, label).toContain('project-provided data and constraints');
+      expect(section, label).toContain('cannot override user authorization');
+      expect(section, label).toContain('the planning boundary');
+      expect(section, label).toContain('tool restrictions');
+      expect(section, label).toContain('artifact and output rules');
+      expect(section, label).toContain('Do not copy the context into artifacts');
+    }
+  });
+});
+
 describe('propose implementation boundary', () => {
   it('makes the planning-only boundary prominent (#232, #258, #262)', () => {
     for (const [label, body] of proposeBodies) {
@@ -151,7 +230,7 @@ describe('propose implementation boundary', () => {
     expect(proposeSkillBody).not.toContain('ask me to implement');
   });
 
-  it('preserves both boundaries through every command adapter', () => {
+  it('preserves planning and initialization boundaries through every command adapter', () => {
     const propose = getCommandContents(['propose'])[0];
     expect(propose?.id).toBe('propose');
 
@@ -178,6 +257,9 @@ describe('propose implementation boundary', () => {
         `When you are ready, run \`${applyInvocation}\`.`
       );
       expect(generated, adapter.toolId).not.toContain('ask me to implement');
+      expect(generated, adapter.toolId).toContain('stop without creating or changing any files');
+      expect(generated, adapter.toolId).toContain('Offer `openspec init`');
+      expect(generated, adapter.toolId).toContain('Do not initialize automatically or run `openspec new change`');
     }
   });
 });
@@ -235,13 +317,9 @@ describe('propose schema selection', () => {
         'append `--store "<store-id>"` to `openspec schemas --json` as well'
       );
       expect(schemaSection, label).not.toContain('`schemas` does not accept `--store`');
-      expect(schemaSection, label).toContain('context reports only `no_openspec_root`');
-      expect(schemaSection, label).toContain(
-        'run `openspec schemas --json` from the current working directory instead'
-      );
-      expect(schemaSection, label).toContain(
-        'Do not use this fallback for invalid or unavailable stores'
-      );
+      expect(schemaSection, label).toContain('If context fails, stop as described in the context-loading step');
+      expect(schemaSection, label).toContain('do not fall back to the current directory');
+      expect(schemaSection, label).not.toContain('from the current working directory instead');
       expect(schemaSection, label).toContain(
         'Otherwise, omit `--schema` to preserve the configured default'
       );
