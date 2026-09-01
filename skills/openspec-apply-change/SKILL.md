@@ -48,9 +48,12 @@ Implement tasks from an OpenSpec change.
    - Dynamic instruction based on current state
    - Optional `context`: current required project instruction input from the selected root
    - Optional `operationGuidance`: current advisory guidance for apply
+   - `missingArtifacts` (when present): required artifact ids with no output
 
    **Handle states:**
-   - If `state: "blocked"` (missing artifacts): show message, suggest using `/openspec-continue-change` (if it is not installed, run `openspec status --change "<name>" --json` to see the next artifact and `openspec instructions <artifact-id> --change "<name>" --json` for how to create it)
+   - If `state: "blocked"`: show the message and pause implementation.
+     - If `missingArtifacts` is non-empty: suggest completing the missing artifacts. Run `openspec status --change "<name>" --json`, select the next `ready` artifact (not `skipped` or `blocked`), and use `openspec instructions "<artifact-id>" --change "<name>" --json` for its rules and template. Keep the selected `--store <id>` on both commands.
+     - Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file from existing planning artifacts. Do not assume another artifact is ready or start implementation while blocked.
    - If `state: "all_done"`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
