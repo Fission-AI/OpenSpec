@@ -86,6 +86,55 @@ describe('openspec CLI e2e basics', () => {
     expectJsonOnlyOutput(result);
   });
 
+  it.each([
+    { tasks: '', completedTasks: 0, totalTasks: 0, status: 'no-tasks' },
+    { tasks: '- [x] Done\n- [ ] Pending\n', completedTasks: 1, totalTasks: 2, status: 'in-progress' },
+    { tasks: '- [x] Done\n', completedTasks: 1, totalTasks: 1, status: 'complete' },
+  ])('lists custom-schema task status ($status) without inventing a schema field', async (expected) => {
+    const projectDir = await prepareFixture('tmp-init');
+    const schemaDir = path.join(projectDir, 'openspec', 'schemas', 'custom-workflow');
+    await fs.mkdir(schemaDir, { recursive: true });
+    await fs.writeFile(path.join(schemaDir, 'schema.yaml'), [
+      'name: custom-workflow',
+      'version: 1',
+      'description: Custom tracked work',
+      'artifacts:',
+      '  - id: work',
+      '    generates: work.md',
+      '    description: Implementation work',
+      '    template: work.md',
+      '    requires: []',
+      'apply:',
+      '  requires: [work]',
+      '  tracks: work.md',
+      '',
+    ].join('\n'));
+    const changeDir = path.join(projectDir, 'openspec', 'changes', 'custom-change');
+    await fs.mkdir(changeDir, { recursive: true });
+    await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: custom-workflow\n');
+    await fs.writeFile(path.join(changeDir, 'work.md'), expected.tasks);
+
+    const listResult = await runCLI(['list', '--json'], { cwd: projectDir });
+    expectJsonOnlyOutput(listResult);
+    const change = JSON.parse(listResult.stdout).changes.find(
+      (entry: { name: string }) => entry.name === 'custom-change'
+    );
+    expect(change).toMatchObject({
+      name: 'custom-change',
+      completedTasks: expected.completedTasks,
+      totalTasks: expected.totalTasks,
+      status: expected.status,
+      lastModified: expect.any(String),
+    });
+    expect(Number.isFinite(Date.parse(change.lastModified))).toBe(true);
+    expect(change).not.toHaveProperty('schema');
+    expect(change).not.toHaveProperty('schemaName');
+
+    const statusResult = await runCLI(['status', '--change', 'custom-change', '--json'], { cwd: projectDir });
+    expectJsonOnlyOutput(statusResult);
+    expect(JSON.parse(statusResult.stdout).schemaName).toBe('custom-workflow');
+  });
+
   it('keeps schemas --json free of spinner output', async () => {
     const projectDir = await prepareFixture('tmp-init');
     const result = await runCLI(['schemas', '--json'], { cwd: projectDir });
