@@ -17,7 +17,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
-\`/opsx:continue\` is an optional workflow and may not be installed. Before suggesting it anywhere below, verify that it is available. If it is unavailable, \`openspec status --change "<name>" --json\` shows the next artifact and \`openspec instructions "<artifact-id>" --change "<name>" --json\` explains how to create it.
+the continue workflow is an optional workflow and may not be installed. Before suggesting it anywhere below, verify that it is available. If it is unavailable, \`openspec status --change "<name>" --json\` shows the next artifact and \`openspec instructions "<artifact-id>" --change "<name>" --json\` explains how to create it.
 
 **Steps**
 
@@ -60,7 +60,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Apply the requested edit. Then check every other existing artifact against it - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Revise only files that already exist (\`existingOutputPaths\`). Do NOT create artifacts that don't exist yet, and do NOT invent new files under a glob artifact - note them and point the user to \`/opsx:continue\` to create them.
+   - Revise only files that already exist (\`existingOutputPaths\`). Do NOT create artifacts that don't exist yet, and do NOT invent new files under a glob artifact - note them and point the user to the continue workflow to create them.
    - If the change is already coherent, say so and make no edits.
 
 5. **Confirm and apply, one artifact at a time**
@@ -72,7 +72,7 @@ ${STORE_SELECTION_GUIDANCE}
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts still missing -> suggest \`/opsx:continue\` to create them.
+   - Artifacts still missing -> suggest the continue workflow to create them.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest \`/opsx:apply\` to carry the delta into code.
    - Everything done and implemented -> suggest \`/opsx:archive\`.
 
@@ -80,16 +80,16 @@ ${STORE_SELECTION_GUIDANCE}
 
 After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
-- Anything deferred to \`/opsx:continue\` (not-yet-created artifacts or files)
+- Anything deferred to the continue workflow (not-yet-created artifacts or files)
 - Where the change stands and the recommended next command
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to \`/opsx:apply\`.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
-- Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is \`/opsx:continue\`'s job.
+- Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is the continue workflow's job.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, first verify whether the optional \`/opsx:new\` workflow is available. If it is, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend \`openspec new change "<new-change-name>"\` instead.`,
+- If the request changes the change's *intent* rather than refining it, first verify whether the optional new workflow is available. If it is, recommend starting fresh with that workflow (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend \`openspec new change "<new-change-name>"\` instead.`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -108,7 +108,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Input**: Optionally specify a change name after \`/opsx:update\` (e.g., \`/opsx:update add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
-\`/opsx:continue\` is an optional workflow and may not be installed. Before suggesting it anywhere below, verify that it is available. If it is unavailable, \`openspec status --change "<name>" --json\` shows the next artifact and \`openspec instructions "<artifact-id>" --change "<name>" --json\` explains how to create it.
+the continue workflow is an optional workflow and may not be installed. Before suggesting it anywhere below, verify that it is available. If it is unavailable, \`openspec status --change "<name>" --json\` shows the next artifact and \`openspec instructions "<artifact-id>" --change "<name>" --json\` explains how to create it.
 
 **Steps**
 
@@ -151,7 +151,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Apply the requested edit. Then check every other existing artifact against it - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Revise only files that already exist (\`existingOutputPaths\`). Do NOT create artifacts that don't exist yet, and do NOT invent new files under a glob artifact - note them and point the user to \`/opsx:continue\` to create them.
+   - Revise only files that already exist (\`existingOutputPaths\`). Do NOT create artifacts that don't exist yet, and do NOT invent new files under a glob artifact - note them and point the user to the continue workflow to create them.
    - If the change is already coherent, say so and make no edits.
 
 5. **Confirm and apply, one artifact at a time**
@@ -163,7 +163,7 @@ ${STORE_SELECTION_GUIDANCE}
      \`\`\`
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts still missing -> suggest \`/opsx:continue\` to create them.
+   - Artifacts still missing -> suggest the continue workflow to create them.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest \`/opsx:apply\` to carry the delta into code.
    - Everything done and implemented -> suggest \`/opsx:archive\`.
 
@@ -171,15 +171,15 @@ ${STORE_SELECTION_GUIDANCE}
 
 After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
-- Anything deferred to \`/opsx:continue\` (not-yet-created artifacts or files)
+- Anything deferred to the continue workflow (not-yet-created artifacts or files)
 - Where the change stands and the recommended next command
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to \`/opsx:apply\`.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
-- Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is \`/opsx:continue\`'s job.
+- Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is the continue workflow's job.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, first verify whether the optional \`/opsx:new\` workflow is available. If it is, recommend starting fresh with \`/opsx:new\` (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend \`openspec new change "<new-change-name>"\` instead.`
+- If the request changes the change's *intent* rather than refining it, first verify whether the optional new workflow is available. If it is, recommend starting fresh with that workflow (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend \`openspec new change "<new-change-name>"\` instead.`
   };
 }
