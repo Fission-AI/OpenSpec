@@ -68,6 +68,81 @@ describe('InitCommand', () => {
       expect(await directoryExists(path.join(openspecPath, 'changes', 'archive'))).toBe(true);
     });
 
+    it('should create .gitkeep files in empty directories', async () => {
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+
+      await initCommand.execute(testDir);
+
+      const openspecPath = path.join(testDir, 'openspec');
+      expect(await fileExists(path.join(openspecPath, 'specs', '.gitkeep'))).toBe(true);
+      // The archive anchor also keeps its parent changes/ directory in Git.
+      expect(await fileExists(path.join(openspecPath, 'changes', '.gitkeep'))).toBe(false);
+      expect(await fileExists(path.join(openspecPath, 'changes', 'archive', '.gitkeep'))).toBe(true);
+    });
+
+    it('should restore missing directories and anchors in extend mode', async () => {
+      const initCommand1 = new InitCommand({ tools: 'claude', force: true });
+      await initCommand1.execute(testDir);
+
+      const openspecPath = path.join(testDir, 'openspec');
+
+      // Older projects may lose these empty directories when cloned.
+      await fs.rm(path.join(openspecPath, 'specs'), { recursive: true });
+      await fs.rm(path.join(openspecPath, 'changes'), { recursive: true });
+
+      // Re-run init (triggers extend mode since openspec dir already exists)
+      const initCommand2 = new InitCommand({ tools: 'claude', force: true });
+      await initCommand2.execute(testDir);
+
+      expect(await fileExists(path.join(openspecPath, 'specs', '.gitkeep'))).toBe(true);
+      expect(await fileExists(path.join(openspecPath, 'changes', '.gitkeep'))).toBe(false);
+      expect(await fileExists(path.join(openspecPath, 'changes', 'archive', '.gitkeep'))).toBe(true);
+    });
+
+    it('should preserve existing directory anchor contents when re-running init', async () => {
+      const marker = path.join(testDir, 'openspec', 'specs', '.gitkeep');
+      await fs.mkdir(path.dirname(marker), { recursive: true });
+      await fs.writeFile(marker, 'Keep this directory in Git.\n');
+
+      await new InitCommand({ tools: 'none', force: true }).execute(testDir);
+
+      expect(await fs.readFile(marker, 'utf-8')).toBe('Keep this directory in Git.\n');
+    });
+
+    it('should not add anchors to populated directories', async () => {
+      const specsPath = path.join(testDir, 'openspec', 'specs');
+      const archivePath = path.join(testDir, 'openspec', 'changes', 'archive');
+      await fs.mkdir(specsPath, { recursive: true });
+      await fs.mkdir(archivePath, { recursive: true });
+      await fs.writeFile(path.join(specsPath, '.custom'), 'keep me');
+      await fs.mkdir(path.join(archivePath, '2026-08-27-example'));
+
+      await new InitCommand({ tools: 'none', force: true }).execute(testDir);
+
+      expect(await fs.readdir(specsPath)).toEqual(['.custom']);
+      expect(await fs.readdir(archivePath)).toEqual(['2026-08-27-example']);
+    });
+
+    it.skipIf(process.platform === 'win32').each([false, true])(
+      'should leave anchor symlinks untouched (dangling: %s)',
+      async (dangling) => {
+        const target = path.join(configTempDir, 'outside-target');
+        if (!dangling) await fs.writeFile(target, 'do not overwrite');
+        const marker = path.join(testDir, 'openspec', 'specs', '.gitkeep');
+        await fs.mkdir(path.dirname(marker), { recursive: true });
+        await fs.symlink(target, marker);
+
+        await new InitCommand({ tools: 'none', force: true }).execute(testDir);
+
+        expect(await fs.readlink(marker)).toBe(target);
+        if (dangling) {
+          expect(await fileExists(target)).toBe(false);
+        } else {
+          expect(await fs.readFile(target, 'utf-8')).toBe('do not overwrite');
+        }
+      },
+    );
+
     it('should create config.yaml with default schema', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
 

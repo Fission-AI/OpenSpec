@@ -2,7 +2,9 @@ import { afterAll, describe, it, expect } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
+import { execFileSync } from 'node:child_process';
 import { runCLI, cliProjectRoot } from '../helpers/run-cli.js';
+import { isolatedGitEnv } from '../helpers/store-git.js';
 import { AI_TOOLS } from '../../src/core/config.js';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { createOpenSpecRoot } from '../helpers/openspec-fixtures.js';
@@ -39,6 +41,37 @@ afterAll(async () => {
 });
 
 describe('openspec CLI e2e basics', () => {
+  it('preserves initialized directories through a Git clone without listing anchors as work', async () => {
+    const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-init-clone-'));
+    tempRoots.push(base);
+    const projectDir = path.join(base, 'project');
+    const cloneDir = path.join(base, 'clone');
+    await fs.mkdir(projectDir);
+    const env = {
+      ...isolatedGitEnv(base),
+      XDG_CONFIG_HOME: path.join(base, 'config'),
+      XDG_DATA_HOME: path.join(base, 'data'),
+    };
+    const initialized = await runCLI(['init', '--tools', 'none'], { cwd: projectDir, env });
+    expect(initialized.exitCode).toBe(0);
+
+    const gitOptions = { cwd: projectDir, env: { ...process.env, ...env }, stdio: 'pipe' as const };
+    execFileSync('git', ['init'], gitOptions);
+    execFileSync('git', ['add', 'openspec'], gitOptions);
+    execFileSync('git', ['commit', '-m', 'Initialize OpenSpec'], gitOptions);
+    execFileSync('git', ['clone', '--no-local', projectDir, cloneDir], gitOptions);
+
+    expect(await fs.readdir(path.join(cloneDir, 'openspec', 'specs'))).toEqual(['.gitkeep']);
+    expect(await fs.readdir(path.join(cloneDir, 'openspec', 'changes'))).toEqual(['archive']);
+    expect(await fs.readdir(path.join(cloneDir, 'openspec', 'changes', 'archive'))).toEqual(['.gitkeep']);
+    const changes = await runCLI(['list', '--json'], { cwd: cloneDir, env });
+    expectJsonOnlyOutput(changes);
+    expect(JSON.parse(changes.stdout).changes).toEqual([]);
+    const specs = await runCLI(['list', '--specs'], { cwd: cloneDir, env });
+    expect(specs.exitCode).toBe(0);
+    expect(specs.stdout).toContain('No specs found.');
+  });
+
   it('shows help output', async () => {
     const result = await runCLI(['--help']);
     expect(result.exitCode).toBe(0);
