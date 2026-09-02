@@ -664,6 +664,25 @@ openspec archive add-dark-mode --yes
 openspec archive update-ci-config --skip-specs
 ```
 
+**Retire a capability:** Add the retirement marker to the change metadata:
+
+```yaml
+# openspec/changes/retire-legacy/.openspec.yaml
+schema: spec-driven
+retire_capabilities: true
+```
+
+Then archive the change normally:
+
+```bash
+openspec archive retire-legacy --yes
+```
+
+When the change removes the capability's last requirement, OpenSpec deletes its
+live `spec.md`. Other capability deltas in the same change still update their
+main specs. Without the marker, archive stops before changing any files and
+tells you to add it.
+
 **What it does:**
 
 1. Validates the change (unless `--no-validate`)
