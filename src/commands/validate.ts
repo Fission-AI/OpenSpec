@@ -245,11 +245,12 @@ export class ValidateCommand {
       console.log(`${type === 'change' ? 'Change' : 'Specification'} '${id}' is valid`);
     } else {
       console.error(`${type === 'change' ? 'Change' : 'Specification'} '${id}' has issues`);
-      for (const issue of report.issues) {
-        const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
-        const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
-        console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
-      }
+    }
+    for (const issue of report.issues) {
+      const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
+      console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
+    }
+    if (!report.valid) {
       this.printNextSteps(type, id, root, report.issues);
     }
   }
@@ -394,6 +395,10 @@ export class ValidateCommand {
       for (const res of results) {
         if (res.valid) console.log(`✓ ${res.type}/${res.id}`);
         else console.error(`✗ ${res.type}/${res.id}`);
+        for (const issue of res.issues) {
+          const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
+          console.error(`  ${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
+        }
       }
       console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
       const firstFailure = results.find((res) => !res.valid);

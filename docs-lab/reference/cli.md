@@ -657,13 +657,27 @@ With no name and no bulk flag, validate prompts you to pick items. Outside an in
 
 **Output**
 
-One line per item. Bulk runs end with totals:
+Bulk runs print one status line per item, followed by any findings, and end with totals:
 
 ```
 ✓ change/add-rate-limit
 ✓ spec/api
 Totals: 2 passed, 0 failed (2 items)
 ```
+
+**Archive merge findings**
+
+For changes, validate runs archive's merge builder against the current main specs without writing files. It reports merge conflicts, such as a missing `MODIFIED` target or a conflicting `ADDED` requirement, as `INFO`:
+
+```text
+ℹ [INFO] api/spec.md: Archive would refuse this delta: api MODIFIED failed for header "### Requirement: Rate limiting" - not found
+```
+
+These findings appear even when validation passes, in both text and JSON output. `INFO` never changes the exit code, including under `--strict`: a missing target may belong to a sibling change that has not archived yet. Deltas already synced into the main specs follow archive's existing merge rules.
+
+This check does not run archive's later merged-spec validation or retirement checks. A clean report does not guarantee that archive will succeed.
+
+If the merge preflight cannot start, an `INFO` finding explains why. Existing validation findings and the exit code stay unchanged.
 
 A failing item lists each issue and the fix:
 
