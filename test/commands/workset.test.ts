@@ -613,20 +613,29 @@ describe('openspec workset (7.1)', () => {
   });
 
   describe('opener config', () => {
-    it('adds a new workspace-file tool from config', async () => {
-      writeOpenersConfig({ zed: { style: 'workspace-file' } });
-      await createPlatform(['--tool', 'zed']);
-      const fakeZed = createFakeTool(tempDir, 'zed');
+    it.each([
+      { tool: 'code-insiders', args: [] },
+      { tool: 'code', args: ['--new-window'] },
+    ])('launches the documented $tool opener configuration', async ({ tool, args }) => {
+      delete process.env.OPENSPEC_ENABLE_CLI_AGENT_OPENERS;
+      writeOpenersConfig({
+        'code-insiders': { style: 'workspace-file', label: 'VS Code Insiders' },
+        code: { args: ['--new-window'] },
+      });
+      const created = await createPlatform(['--tool', tool]);
+      expect(created.exitCode).toBe(0);
+      const fakeEditor = createFakeTool(tempDir, tool);
 
       const result = await runCLI(['workset', 'open', 'platform'], {
         cwd: tempDir,
-        env: envWithFakeTools(env, [fakeZed]),
+        env: envWithFakeTools(env, [fakeEditor]),
       });
 
       expect(result.exitCode).toBe(0);
-      expect(readLaunchLog(fakeZed.logPath).args).toEqual([
-        getWorksetCodeWorkspacePath('platform', pathOptions()),
-      ]);
+      expect(readLaunchLog(fakeEditor.logPath)).toEqual({
+        cwd: memberA,
+        args: [...args, getWorksetCodeWorkspacePath('platform', pathOptions())],
+      });
     });
 
     it('renaming an attach flag is a one-line local fix', async () => {
