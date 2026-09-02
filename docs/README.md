@@ -76,6 +76,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 | [Customization](customization.md) | Project config, custom schemas, shared context |
 | [Multi-Language](multi-language.md) | Generate artifacts in languages other than English |
 | [Supported Tools](supported-tools.md) | The 30+ AI tools OpenSpec integrates with, and where files land |
+| [Community Showcase](community.md) | Projects and resources built with and for OpenSpec |
 
 ### When you need help
 

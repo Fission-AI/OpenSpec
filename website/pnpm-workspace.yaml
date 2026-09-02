@@ -2,13 +2,13 @@ packages:
   - '.'
 
 allowBuilds:
-  esbuild@0.28.1: true
+  esbuild@0.28.2: true
 
 overrides:
   postcss: ^8.5.26
   sharp: ^0.35.3
   brace-expansion@<=5.0.8: '>=5.0.9 <6'
-  fast-uri@<3.1.5: ^3.1.5
+  fast-uri@<3.1.6: ^3.1.6
   # GHSA-2v37-7h3g-55p8 / CVE-2026-67213 — nanoid infinite loop on size=0. Build-time
   # only (transitive via postcss); this is a statically exported site with no server
   # runtime. Remove once transitive nanoid is >=3.3.17 (check: pnpm why nanoid).

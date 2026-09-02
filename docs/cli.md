@@ -1274,12 +1274,33 @@ openspec completion install
 # Install for specific shell
 openspec completion install zsh
 
-# Generate script for manual installation
+# Generate script for manual installation (bash)
 openspec completion generate bash > ~/.bash_completion.d/openspec
 
 # Uninstall
 openspec completion uninstall
 ```
+
+**Windows (PowerShell):** Install completions for the current PowerShell host:
+
+```powershell
+$env:PROFILE = $PROFILE
+openspec completion install powershell
+. $PROFILE
+```
+
+`$env:PROFILE` tells OpenSpec which profile to configure in this session. The
+installer creates missing profile directories and adds a managed block that loads
+`OpenSpecCompletion.ps1`. Reloading the profile enables completions immediately.
+
+To uninstall from the current host, run:
+
+```powershell
+$env:PROFILE = $PROFILE
+openspec completion uninstall powershell
+```
+
+Restart PowerShell after uninstalling to clear completions from the current session.
 
 Completions are opt-in. The CLI mentions them once, on stderr, the first time you
 run a command in an interactive terminal, and never again — it also stays quiet
