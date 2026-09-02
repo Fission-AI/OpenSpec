@@ -107,6 +107,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'archived',
         description: 'Validate that archived changes have all tasks completed (for pre-commit linting)',
       },
+      {
+        name: 'report',
+        description: 'Select bulk report content',
+        takesValue: true,
+        values: ['full', 'findings'],
+      },
       COMMON_FLAGS.type,
       COMMON_FLAGS.strict,
       COMMON_FLAGS.jsonValidation,
