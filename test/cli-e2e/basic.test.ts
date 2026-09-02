@@ -86,6 +86,40 @@ describe('openspec CLI e2e basics', () => {
     expectJsonOnlyOutput(result);
   });
 
+  describe('legacy change list compatibility', () => {
+    it.each([
+      { args: [], output: 'c1\n' },
+      { args: ['--long'], output: 'c1: Test Change [deltas 1]\n' },
+    ])('preserves text output with $args and warns on stderr', async ({ args, output }) => {
+      const projectDir = await prepareFixture('tmp-init');
+      const result = await runCLI(['change', 'list', ...args], { cwd: projectDir });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe(output);
+      expect(result.stderr).toContain('Warning: "openspec change list" is deprecated. Use "openspec list".');
+    });
+
+    it('preserves JSON output and warns on stderr', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const result = await runCLI(['change', 'list', '--json'], { cwd: projectDir });
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual([
+        { id: 'c1', title: 'Test Change', deltaCount: 1, taskStatus: { total: 0, completed: 0 } },
+      ]);
+      expect(result.stderr).toContain('Warning: "openspec change list" is deprecated. Use "openspec list".');
+    });
+
+    it('rejects the unsupported --all option', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const result = await runCLI(['change', 'list', '--all'], { cwd: projectDir });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain("error: unknown option '--all'");
+    });
+  });
+
   it('keeps schemas --json free of spinner output', async () => {
     const projectDir = await prepareFixture('tmp-init');
     const result = await runCLI(['schemas', '--json'], { cwd: projectDir });
