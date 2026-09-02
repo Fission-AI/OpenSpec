@@ -53,13 +53,17 @@ jobs:
       # Opens/updates the Version Packages PR; publishes when the Version PR merges
       - name: Create/Update Version PR
         id: changesets
-        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v1
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
         with:
-          title: 'chore(release): version packages'
-          createGithubReleases: true
+          github-token: ${{ steps.app-token.outputs.token }}
+          pr-title: 'chore(release): version packages'
+          create-github-releases: true
+          # Preserve the v1 release path: pushes use the GitHub App token from
+          # checkout so version PR updates trigger their normal CI workflows.
+          push-with-git-cli: true
           # Use CI-specific release script: relies on version PR having been merged
           # so package.json already contains the bumped version.
-          publish: pnpm run release:ci
+          publish-script: pnpm run release:ci
         env:
           GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
           # npm authentication handled via OIDC trusted publishing (no token needed)

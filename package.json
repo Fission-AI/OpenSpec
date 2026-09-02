@@ -17,7 +17,7 @@
   "license": "MIT",
   "author": "OpenSpec Contributors",
   "type": "module",
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@10.34.5",
   "publishConfig": {
     "access": "public"
   },
@@ -60,8 +60,8 @@
     "node": ">=20.19.0"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "^0.7.0",
-    "@changesets/cli": "^2.31.1",
+    "@changesets/changelog-github": "^1.0.0",
+    "@changesets/cli": "^3.0.1",
     "@types/node": "^20.19.43",
     "@vitest/ui": "^3.2.6",
     "eslint": "^10.5.0",
