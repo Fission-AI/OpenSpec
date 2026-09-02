@@ -558,6 +558,44 @@ describe('InitCommand', () => {
       expect(await directoryExists(path.join(testDir, '.agents'))).toBe(false);
     });
 
+    it.each(['both', 'skills', 'commands'] as const)(
+      'should initialize SourceCraft Code Assistant with delivery=%s and working invocation hints',
+      async (delivery) => {
+        if (delivery !== 'both') {
+          saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery });
+        }
+
+        await new InitCommand({ tools: 'codeassistant', force: true }).execute(testDir);
+
+        const skillFile = path.join(testDir, '.codeassistant', 'skills', 'openspec-apply-change', 'SKILL.md');
+        const commandFile = path.join(testDir, '.codeassistant', 'commands', 'opsx-apply.md');
+        expect(await fileExists(skillFile)).toBe(delivery !== 'commands');
+        expect(await fileExists(commandFile)).toBe(delivery !== 'skills');
+
+        if (delivery !== 'commands') {
+          const skillContent = await fs.readFile(skillFile, 'utf-8');
+          expect(skillContent).toContain(delivery === 'skills' ? 'the openspec-archive-change skill' : '/opsx-archive');
+          expect(skillContent).not.toContain('/opsx:');
+          if (delivery === 'skills') {
+            expect(skillContent).not.toContain('/openspec-');
+            expect(skillContent).not.toContain('/opsx-');
+          }
+        }
+        if (delivery !== 'skills') {
+          const commandContent = await fs.readFile(commandFile, 'utf-8');
+          expect(commandContent).toMatch(/^---\ndescription: /);
+          expect(commandContent).toContain('/opsx-archive');
+          expect(commandContent).not.toContain('/opsx:');
+        }
+
+        const logCalls = vi.mocked(console.log).mock.calls.flat().map(String);
+        const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+        expect(startHint).toContain(delivery === 'skills'
+          ? 'ask SourceCraft Code Assistant to use the openspec-propose skill with "your idea"'
+          : '/opsx-propose');
+      }
+    );
+
     it('should support the shared agents target as an adapterless skills-only tool', async () => {
       saveGlobalConfig({
         featureFlags: {},

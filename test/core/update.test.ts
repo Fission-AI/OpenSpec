@@ -1260,6 +1260,40 @@ metadata:
       expect(skillContent).not.toContain('/opsx-');
     });
 
+    it.each(['both', 'commands'] as const)(
+      'should discover and refresh SourceCraft Code Assistant commands with delivery=%s',
+      async (delivery) => {
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+        const commandsDir = path.join(testDir, '.codeassistant', 'commands');
+        await fs.mkdir(commandsDir, { recursive: true });
+        await fs.writeFile(path.join(commandsDir, 'opsx-apply.md'), 'old command content');
+        const skillFile = path.join(testDir, '.codeassistant', 'skills', 'openspec-apply-change', 'SKILL.md');
+        if (delivery === 'both') {
+          await fs.mkdir(path.dirname(skillFile), { recursive: true });
+          await fs.writeFile(skillFile, 'old skill content');
+        }
+
+        await updateCommand.execute(testDir);
+
+        const commandContent = await fs.readFile(path.join(commandsDir, 'opsx-apply.md'), 'utf-8');
+        expect(commandContent).toMatch(/^---\ndescription: /);
+        expect(commandContent).toContain('/opsx-archive');
+        expect(commandContent).not.toContain('/opsx:');
+        expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-propose.md'))).toBe(true);
+
+        expect(await FileSystemUtils.fileExists(skillFile)).toBe(delivery === 'both');
+        if (delivery === 'both') {
+          const skillContent = await fs.readFile(skillFile, 'utf-8');
+          expect(skillContent).toContain('/opsx-archive');
+          expect(skillContent).not.toContain('/opsx:');
+        }
+
+        const consoleSpy = vi.spyOn(console, 'log');
+        await updateCommand.execute(testDir);
+        expect(consoleSpy.mock.calls.flat().map(String).some((entry) => entry.includes('up to date'))).toBe(true);
+      }
+    );
+
     it('should update command files when tool is configured via commands-only delivery without skills', async () => {
       setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
       const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
@@ -3365,6 +3399,34 @@ More user content after markers.
       expect(updateSkillContent).not.toContain('/opsx-');
       expect(updateSkillContent).toContain('/openspec-');
     });
+
+    it.each(['skills', 'commands'] as const)(
+      'should switch SourceCraft Code Assistant to delivery=%s without deleting custom files',
+      async (delivery) => {
+        await new InitCommand({ tools: 'codeassistant', force: true }).execute(testDir);
+        const toolDir = path.join(testDir, '.codeassistant');
+        const customCommand = path.join(toolDir, 'commands', 'opsx-custom.md');
+        const customSkill = path.join(toolDir, 'skills', 'custom-review', 'SKILL.md');
+        await fs.mkdir(path.dirname(customSkill), { recursive: true });
+        await fs.writeFile(customCommand, 'custom command');
+        await fs.writeFile(customSkill, 'custom skill');
+
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+        await updateCommand.execute(testDir);
+
+        expect(await FileSystemUtils.fileExists(path.join(toolDir, 'commands', 'opsx-apply.md'))).toBe(delivery === 'commands');
+        const skillFile = path.join(toolDir, 'skills', 'openspec-apply-change', 'SKILL.md');
+        expect(await FileSystemUtils.fileExists(skillFile)).toBe(delivery === 'skills');
+        if (delivery === 'skills') {
+          const skillContent = await fs.readFile(skillFile, 'utf-8');
+          expect(skillContent).toContain('the openspec-archive-change skill');
+          expect(skillContent).not.toContain('/openspec-');
+          expect(skillContent).not.toContain('/opsx-');
+        }
+        expect(await fs.readFile(customCommand, 'utf-8')).toBe('custom command');
+        expect(await fs.readFile(customSkill, 'utf-8')).toBe('custom skill');
+      }
+    );
 
     it('should respect commands-only delivery setting', async () => {
       setMockConfig({
