@@ -34,6 +34,14 @@ describe('verify-change templates', () => {
     }
   });
 
+  it('marks partial tracking evidence as not verified', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('If `unavailableTrackingFiles` is nonempty');
+      expect(body, label).toContain('include every unavailable path and reason');
+      expect(body, label).toContain('do not infer completion from the partial `tasks` and `progress` fields');
+    }
+  });
+
 
   it('does not lose incomplete checkboxes omitted from the task list', () => {
     for (const [label, body] of bodies) {

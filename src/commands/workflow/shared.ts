@@ -41,6 +41,10 @@ export interface ApplyInstructions {
     remaining: number;
   };
   tasks: TaskItem[];
+  unavailableTrackingFiles?: Array<{
+    path: string;
+    reason: string;
+  }>;
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
   instruction: string;

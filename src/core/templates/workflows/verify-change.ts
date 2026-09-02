@@ -47,7 +47,7 @@ ${STORE_SELECTION_GUIDANCE}
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns the change directory, \`contextFiles\` (artifact ID -> array of concrete file paths), and top-level \`tasks\` and \`progress\` aggregated from every concrete file matched by the schema's \`apply.tracks\` configuration. Read all available artifacts from \`contextFiles\`.
+   This returns the change directory, \`contextFiles\` (artifact ID -> array of concrete file paths), and top-level \`tasks\` and \`progress\` aggregated from every concrete file matched by the schema's \`apply.tracks\` configuration that could be read. Read all available artifacts from \`contextFiles\`.
 
    Treat apply \`state\` and \`instruction\` as context, not a verification verdict. Do not implement tasks or archive the change during verification.
 
@@ -69,7 +69,8 @@ ${STORE_SELECTION_GUIDANCE}
 5. **Verify Completeness**
 
    **Task Completion**:
-   - Use the top-level \`tasks\` and \`progress\` fields. They already aggregate every concrete file matched by \`apply.tracks\`, regardless of the tracked artifact's ID; do not infer tracking from a \`contextFiles\` key.
+   - Use the top-level \`tasks\` and \`progress\` fields. They already aggregate every readable concrete file matched by \`apply.tracks\`, regardless of the tracked artifact's ID; do not infer tracking from a \`contextFiles\` key.
+   - If \`unavailableTrackingFiles\` is nonempty, mark **Task Completion** as not verified and include every unavailable path and reason. Continue using any readable task evidence, but do not infer completion from the partial \`tasks\` and \`progress\` fields.
    - If \`tasks\` is empty, mark **Task Completion** as not verified and record the reason from apply \`state\` and \`instruction\`. Nonzero totals alone do not establish evaluable task descriptions.
    - Report complete vs total tasks from \`progress\`.
    - If \`progress.remaining\` is greater than 0:
@@ -230,7 +231,7 @@ ${STORE_SELECTION_GUIDANCE}
    openspec instructions apply --change "<name>" --json
    \`\`\`
 
-   This returns the change directory, \`contextFiles\` (artifact ID -> array of concrete file paths), and top-level \`tasks\` and \`progress\` aggregated from every concrete file matched by the schema's \`apply.tracks\` configuration. Read all available artifacts from \`contextFiles\`.
+   This returns the change directory, \`contextFiles\` (artifact ID -> array of concrete file paths), and top-level \`tasks\` and \`progress\` aggregated from every concrete file matched by the schema's \`apply.tracks\` configuration that could be read. Read all available artifacts from \`contextFiles\`.
 
    Treat apply \`state\` and \`instruction\` as context, not a verification verdict. Do not implement tasks or archive the change during verification.
 
@@ -252,7 +253,8 @@ ${STORE_SELECTION_GUIDANCE}
 5. **Verify Completeness**
 
    **Task Completion**:
-   - Use the top-level \`tasks\` and \`progress\` fields. They already aggregate every concrete file matched by \`apply.tracks\`, regardless of the tracked artifact's ID; do not infer tracking from a \`contextFiles\` key.
+   - Use the top-level \`tasks\` and \`progress\` fields. They already aggregate every readable concrete file matched by \`apply.tracks\`, regardless of the tracked artifact's ID; do not infer tracking from a \`contextFiles\` key.
+   - If \`unavailableTrackingFiles\` is nonempty, mark **Task Completion** as not verified and include every unavailable path and reason. Continue using any readable task evidence, but do not infer completion from the partial \`tasks\` and \`progress\` fields.
    - If \`tasks\` is empty, mark **Task Completion** as not verified and record the reason from apply \`state\` and \`instruction\`. Nonzero totals alone do not establish evaluable task descriptions.
    - Report complete vs total tasks from \`progress\`.
    - If \`progress.remaining\` is greater than 0:

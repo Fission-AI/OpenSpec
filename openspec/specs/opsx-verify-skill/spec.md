@@ -35,6 +35,13 @@ The agent SHALL verify that all required work has been completed.
 - **AND** reports completion status with specific incomplete tasks listed
 - **AND** reports remaining checkboxes without descriptions when `progress.remaining` exceeds the listed incomplete tasks
 
+#### Scenario: Tracking evidence becomes unavailable
+- **WHEN** one or more files matched by `apply.tracks` cannot be read after resolution
+- **THEN** apply instructions include every unavailable path and reason
+- **AND** preserve tasks and progress from readable tracking files
+- **AND** do not report `all_done`
+- **AND** the agent marks Task Completion as not verified from partial evidence
+
 #### Scenario: Spec coverage check
 - **WHEN** verifying completeness
 - **AND** delta specs exist in `openspec/changes/<name>/specs/`
