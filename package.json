@@ -73,7 +73,7 @@
   "dependencies": {
     "@inquirer/core": "^11.2.1",
     "@inquirer/prompts": "^8.5.2",
-    "chalk": "^6.0.0",
+    "chalk": "^5.6.2",
     "commander": "^14.0.0",
     "diff": "^9.0.0",
     "cross-spawn": "7.0.6",
