@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import path from 'path';
 import { amazonQAdapter } from '../../../src/core/command-generation/adapters/amazon-q.js';
 import { antigravityAdapter } from '../../../src/core/command-generation/adapters/antigravity.js';
+import { atomcodeAdapter } from '../../../src/core/command-generation/adapters/atomcode.js';
 import { auggieAdapter } from '../../../src/core/command-generation/adapters/auggie.js';
 import { bobAdapter } from '../../../src/core/command-generation/adapters/bob.js';
 import { claudeAdapter } from '../../../src/core/command-generation/adapters/claude.js';
@@ -252,6 +253,53 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('description: "Enter explore mode for thinking"');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('atomcodeAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(atomcodeAdapter.toolId).toBe('atomcode');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = atomcodeAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.atomcode', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(atomcodeAdapter.getFilePath('new')).toBe(path.join('.atomcode', 'commands', 'opsx-new.md'));
+      expect(atomcodeAdapter.getFilePath('bulk-archive')).toBe(path.join('.atomcode', 'commands', 'opsx-bulk-archive.md'));
+    });
+
+    it.each(getCommandContents())('should register $id with its invocation name and optional arguments', (content) => {
+      const output = atomcodeAdapter.formatFile(content);
+      const frontmatter = parseYaml(output.match(/^---\n([\s\S]*?)\n---/)![1]);
+
+      expect(frontmatter).toEqual({
+        name: `opsx-${content.id}`,
+        description: content.description,
+        args: 'optional',
+      });
+      // AtomCode's custom-command loader takes these values literally.
+      // Quoting either breaks dispatch.
+      expect(output).toContain(`\nname: opsx-${content.id}\n`);
+      expect(output).toContain('\nargs: optional\n');
+      expect(output).toContain(`\ndescription: ${content.description}\n`);
+      expect(output).toContain(content.body);
+      expect(output).toContain('**Provided arguments**: $ARGUMENTS');
+    });
+
+    it('should leave command reference rewriting to the shared generator', () => {
+      const content: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
+      };
+
+      expect(atomcodeAdapter.formatFile(content)).toContain(content.body);
+      const generated = generateCommand(content, atomcodeAdapter);
+      expect(generated.fileContent).toContain('/opsx-apply');
+      expect(generated.fileContent).toContain('/opsx-archive');
+      expect(generated.fileContent).not.toContain('/opsx:');
     });
   });
 
@@ -1132,7 +1180,7 @@ describe('command-generation/adapters', () => {
     it('All adapters use path.join for paths', () => {
       // Verify all adapters produce valid paths
       const adapters = [
-        amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, clineAdapter,
+        amazonQAdapter, antigravityAdapter, atomcodeAdapter, auggieAdapter, bobAdapter, clineAdapter,
         codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, kiroAdapter, lingmaAdapter, ohMyPiAdapter,

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { parse as parseYaml } from 'yaml';
 import { InitCommand } from '../../src/core/init.js';
 import { saveGlobalConfig, getGlobalConfig } from '../../src/core/global-config.js';
 import { MAX_CONTEXT_SIZE, readProjectConfig } from '../../src/core/project-config.js';
@@ -1376,6 +1377,48 @@ describe('InitCommand', () => {
   });
 
   describe('tool-specific adapters', () => {
+    it.each(['both', 'skills', 'commands'] as const)(
+      'should generate usable AtomCode workflows with %s delivery',
+      async (delivery) => {
+        saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery });
+        await new InitCommand({ tools: 'atomcode', force: true }).execute(testDir);
+
+        const skillsDir = path.join(testDir, '.atomcode', 'skills');
+        const commandsDir = path.join(testDir, '.atomcode', 'commands');
+        const applySkill = path.join(skillsDir, 'openspec-apply-change', 'SKILL.md');
+        expect(await fileExists(applySkill)).toBe(delivery !== 'commands');
+        expect(await directoryExists(commandsDir)).toBe(delivery !== 'skills');
+
+        if (delivery !== 'commands') {
+          const content = await fs.readFile(applySkill, 'utf-8');
+          expect(content).not.toContain('/opsx:');
+          expect(content).toContain(delivery === 'skills' ? '/openspec-' : '/opsx-');
+        }
+
+        if (delivery !== 'skills') {
+          const commandFiles = await fs.readdir(commandsDir);
+          expect(commandFiles.sort()).toEqual([
+            'opsx-apply.md', 'opsx-archive.md', 'opsx-explore.md',
+            'opsx-propose.md', 'opsx-sync.md', 'opsx-update.md',
+          ]);
+          for (const filename of commandFiles) {
+            const content = await fs.readFile(path.join(commandsDir, filename), 'utf-8');
+            const frontmatter = content.match(/^---\n([\s\S]*?)\n---\n/);
+            expect(frontmatter).not.toBeNull();
+            expect(parseYaml(frontmatter![1])).toMatchObject({
+              name: path.basename(filename, '.md'),
+              description: expect.any(String),
+              args: 'optional',
+            });
+            expect(content).toContain('$ARGUMENTS');
+            expect(content).not.toContain('/opsx:');
+          }
+          const applyCommand = await fs.readFile(path.join(commandsDir, 'opsx-apply.md'), 'utf-8');
+          expect(applyCommand).toContain('/opsx-');
+        }
+      }
+    );
+
     it('should generate Gemini CLI commands as TOML files', async () => {
       const initCommand = new InitCommand({ tools: 'gemini', force: true });
       await initCommand.execute(testDir);
@@ -1595,17 +1638,18 @@ describe('InitCommand - profile and detection features', () => {
     );
   });
 
-  it('should use detected tools in non-interactive mode when no --tools flag', async () => {
-    // Create a .claude directory to simulate detected tool
-    await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
+  it.each(['claude', 'atomcode'])(
+    'should detect %s in non-interactive mode when no --tools flag',
+    async (tool) => {
+      await fs.mkdir(path.join(testDir, `.${tool}`), { recursive: true });
 
-    const initCommand = new InitCommand({ interactive: false, force: true });
-    await initCommand.execute(testDir);
+      const initCommand = new InitCommand({ interactive: false, force: true });
+      await initCommand.execute(testDir);
 
-    // Should have used claude (detected)
-    const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
-    expect(await fileExists(skillFile)).toBe(true);
-  });
+      const skillFile = path.join(testDir, `.${tool}`, 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+    }
+  );
 
   it('should auto-cleanup legacy artifacts in non-interactive mode without --force', async () => {
     // Create legacy OpenCode command files (singular 'command' path)

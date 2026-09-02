@@ -45,6 +45,7 @@ export const AI_TOOLS: AIToolOption[] = [
   // shared with Codex, Zed, and the vendor-neutral target, so its presence
   // alone says nothing about Antigravity.
   { name: 'Antigravity', value: 'antigravity', available: true, successLabel: 'Antigravity', skillsDir: '.agents', legacySkillsDirs: ['.agent'], detectionPaths: ['.agent', '.agents/workflows'], requiresIdeRestart: true },
+  { name: 'AtomCode', value: 'atomcode', available: true, successLabel: 'AtomCode', skillsDir: '.atomcode' },
   { name: 'Auggie (Augment CLI)', value: 'auggie', available: true, successLabel: 'Auggie', skillsDir: '.augment' },
   { name: 'Bob Shell', value: 'bob', available: true, successLabel: 'Bob Shell', skillsDir: '.bob' },
   { name: 'Claude Code', value: 'claude', available: true, successLabel: 'Claude Code', skillsDir: '.claude' },

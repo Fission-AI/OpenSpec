@@ -3178,6 +3178,70 @@ More user content after markers.
   });
 
   describe('profile-aware updates', () => {
+    it.each(['both', 'skills', 'commands'] as const)(
+      'should sync AtomCode profile and %s delivery while preserving custom files',
+      async (delivery) => {
+        setMockConfig({
+          featureFlags: {}, profile: 'custom', delivery: 'both', workflows: ['explore', 'new'],
+        });
+        await new InitCommand({ tools: 'atomcode', force: true }).execute(testDir);
+
+        const skillsDir = path.join(testDir, '.atomcode', 'skills');
+        const commandsDir = path.join(testDir, '.atomcode', 'commands');
+        const customSkill = path.join(skillsDir, 'my-custom-skill', 'SKILL.md');
+        const customCommand = path.join(commandsDir, 'opsx-custom.md');
+        await fs.mkdir(path.dirname(customSkill), { recursive: true });
+        await fs.writeFile(customSkill, 'my custom skill');
+        await fs.writeFile(customCommand, 'my custom command');
+
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+        await updateCommand.execute(testDir);
+
+        expect(await FileSystemUtils.fileExists(
+          path.join(skillsDir, 'openspec-new-change', 'SKILL.md')
+        )).toBe(false);
+        expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-new.md'))).toBe(false);
+        expect(await FileSystemUtils.fileExists(
+          path.join(skillsDir, 'openspec-propose', 'SKILL.md')
+        )).toBe(delivery !== 'commands');
+        expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-propose.md')))
+          .toBe(delivery !== 'skills');
+        expect(await FileSystemUtils.fileExists(
+          path.join(skillsDir, 'openspec-explore', 'SKILL.md')
+        )).toBe(delivery !== 'commands');
+        expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-explore.md')))
+          .toBe(delivery !== 'skills');
+        expect(await fs.readFile(customSkill, 'utf-8')).toBe('my custom skill');
+        expect(await fs.readFile(customCommand, 'utf-8')).toBe('my custom command');
+        expect(getConfiguredToolsForProfileSync(testDir)).toContain('atomcode');
+
+        const consoleSpy = vi.spyOn(console, 'log');
+        await updateCommand.execute(testDir);
+        expect(consoleSpy.mock.calls.flat().map(String).some((line) => line.includes('up to date')))
+          .toBe(true);
+      }
+    );
+
+    it('should detect and repair an AtomCode commands-only install', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const commandsDir = path.join(testDir, '.atomcode', 'commands');
+      const commandFile = path.join(commandsDir, 'opsx-explore.md');
+      await fs.mkdir(commandsDir, { recursive: true });
+      await fs.writeFile(commandFile, '---\ndescription: old command\n---\nold body');
+
+      expect(getConfiguredToolsForProfileSync(testDir)).toContain('atomcode');
+      expect(scanInstalledWorkflows(testDir, ['atomcode'])).toEqual(['explore']);
+
+      await updateCommand.execute(testDir);
+
+      const content = await fs.readFile(commandFile, 'utf-8');
+      expect(content).toContain('name: opsx-explore');
+      expect(content).toContain('$ARGUMENTS');
+      expect(content).not.toContain('old body');
+      expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-propose.md'))).toBe(true);
+      expect(await FileSystemUtils.directoryExists(path.join(testDir, '.atomcode', 'skills'))).toBe(false);
+    });
+
     it('should generate only profile workflows when custom profile is set', async () => {
       // Set custom profile with only explore and new
       setMockConfig({
