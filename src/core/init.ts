@@ -18,6 +18,7 @@ import {
   storePointerProblem,
 } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
+import { ANCHORED_OPENSPEC_DIRS, ensureDirectoryAnchor } from './openspec-root.js';
 import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
@@ -55,6 +56,7 @@ import {
   resolveToolSkillsDir,
   toolSupportsSkills,
   type ToolSkillStatus,
+  formatIdeRestart,
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
@@ -148,7 +150,6 @@ type ValidatedInitTool = {
   skillsRoot: string;
   isGlobalSkillTarget: boolean;
   wasConfigured: boolean;
-  requiresIdeRestart?: boolean;
   writesSkills: boolean;
 };
 
@@ -843,7 +844,6 @@ export class InitCommand {
         skillsRoot: isGlobalSkillTarget ? skillsPath : projectPath,
         isGlobalSkillTarget,
         wasConfigured: preState?.configured ?? false,
-        requiresIdeRestart: tool.requiresIdeRestart,
         writesSkills: !tool.skillsDir || skillWriters.has(tool.value),
       });
     }
@@ -856,24 +856,6 @@ export class InitCommand {
   // ═══════════════════════════════════════════════════════════
 
   private async createDirectoryStructure(openspecPath: string, extendMode: boolean): Promise<void> {
-    if (extendMode) {
-      // In extend mode, just ensure directories exist without spinner
-      const directories = [
-        openspecPath,
-        path.join(openspecPath, 'specs'),
-        path.join(openspecPath, 'changes'),
-        path.join(openspecPath, 'changes', 'archive'),
-      ];
-
-      for (const dir of directories) {
-        FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
-        await FileSystemUtils.createDirectory(dir);
-      }
-      return;
-    }
-
-    const spinner = this.startSpinner('Creating OpenSpec structure...');
-
     const directories = [
       openspecPath,
       path.join(openspecPath, 'specs'),
@@ -881,15 +863,35 @@ export class InitCommand {
       path.join(openspecPath, 'changes', 'archive'),
     ];
 
+    if (extendMode) {
+      // In extend mode, just ensure directories exist without spinner
+      for (const dir of directories) {
+        FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
+        await FileSystemUtils.createDirectory(dir);
+      }
+      await this.writeGitkeepFiles(openspecPath);
+      return;
+    }
+
+    const spinner = this.startSpinner('Creating OpenSpec structure...');
+
     for (const dir of directories) {
       FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
       await FileSystemUtils.createDirectory(dir);
     }
 
+    await this.writeGitkeepFiles(openspecPath);
+
     spinner.stopAndPersist({
       symbol: PALETTE.white('▌'),
       text: PALETTE.white('OpenSpec structure created'),
     });
+  }
+
+  private async writeGitkeepFiles(openspecPath: string): Promise<void> {
+    for (const relativeDir of ANCHORED_OPENSPEC_DIRS) {
+      await ensureDirectoryAnchor(path.dirname(openspecPath), relativeDir);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1402,37 +1404,16 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction only when at least one IDE/editor-resident tool
-    // actually received a generated surface. Two conditions, coupled to the SAME
-    // tool: (1) its commands/skills are loaded by a long-running editor process
-    // (CLI tools pick the files up immediately, so a restart line would be wrong
-    // for them — see #1067), and (2) a surface was actually generated for it
-    // under the active delivery (an IDE tool that generated nothing has nothing a
-    // restart would pick up, even if a co-configured CLI tool did generate).
-    // Wording follows what the IDE tool itself generated, not the global
-    // aggregate: it must not say "commands" when the IDE tool only got skills
-    // while a co-configured CLI tool got commands. Not "slash commands" either:
-    // Amazon Q's generated files are prompt-library entries invoked with @, so a
-    // restart line promising slash commands would be wrong for it.
-    const restartCommandsGenerated = successfulTools.some(
-      (tool) =>
-        tool.requiresIdeRestart &&
-        shouldGenerateCommandsForTool(tool.value, activeDelivery)
+    // Restart instruction for successfully configured IDE/editor-resident tools
+    // with a supported surface under the active delivery. The rule and wording live in
+    // formatIdeRestart so `update` says the same thing for the same event.
+    const restartHint = formatIdeRestart(
+      successfulTools.map((tool) => tool.value),
+      activeDelivery
     );
-    const restartSkillsGenerated = successfulTools.some(
-      (tool) =>
-        tool.requiresIdeRestart &&
-        shouldGenerateSkillsForTool(tool.value, activeDelivery)
-    );
-    if (restartCommandsGenerated || restartSkillsGenerated) {
+    if (restartHint) {
       console.log();
-      console.log(
-        chalk.white(
-          restartCommandsGenerated
-            ? 'Restart your IDE for the new commands to take effect.'
-            : 'Restart your IDE for the new skills to take effect.'
-        )
-      );
+      console.log(chalk.white(restartHint));
     }
 
     console.log();

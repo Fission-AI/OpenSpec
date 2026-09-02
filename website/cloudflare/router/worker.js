@@ -82,6 +82,7 @@ function isDocsRoute(pathname) {
     pathname === '/llms-full.txt' ||
     pathname === '/llms.mdx/docs' ||
     pathname.startsWith('/llms.mdx/docs/') ||
-    pathname === '/icon.svg'
+    pathname === '/icon.svg' ||
+    pathname === '/openspec-pixel.svg'
   );
 }
