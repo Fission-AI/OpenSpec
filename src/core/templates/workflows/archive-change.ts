@@ -124,7 +124,7 @@ ${STORE_SELECTION_GUIDANCE}
    - The file MUST start with a \`# <capability> Specification\` title.
    - Preserve existing \`## Purpose\` sections completely untouched for established main specs.
    - For a new main spec, copy the delta \`## Purpose\` verbatim. Warn only if the purpose text is shorter than standard validation expects. Do not regenerate or rewrite existing authored purpose. If no usable \`## Purpose\` is provided, use the existing TBD Purpose behavior and warning.
-   - Verify that no delta-style section headers (\`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
+   - Verify that no delta-style section headers (\`## ADDED Requirements\`, \`## MODIFIED Requirements\`, \`## REMOVED Requirements\`, \`## RENAMED Requirements\`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
    - Ensure all requirement blocks use \`### Requirement:\` headings and scenario blocks use \`#### Scenario:\` headings under a unified \`## Requirements\` section.
 
    Then re-run the comparison from the top of this step against every capability that has a delta spec in \`artifactPaths.specs.existingOutputPaths\` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
@@ -313,7 +313,7 @@ ${STORE_SELECTION_GUIDANCE}
    - The file MUST start with a \`# <capability> Specification\` title.
    - Preserve existing \`## Purpose\` sections completely untouched for established main specs.
    - For a new main spec, copy the delta \`## Purpose\` verbatim. Warn only if the purpose text is shorter than standard validation expects. Do not regenerate or rewrite existing authored purpose. If no usable \`## Purpose\` is provided, use the existing TBD Purpose behavior and warning.
-   - Verify that no delta-style section headers (\`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
+   - Verify that no delta-style section headers (\`## ADDED Requirements\`, \`## MODIFIED Requirements\`, \`## REMOVED Requirements\`, \`## RENAMED Requirements\`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
    - Ensure all requirement blocks use \`### Requirement:\` headings and scenario blocks use \`#### Scenario:\` headings under a unified \`## Requirements\` section.
 
 

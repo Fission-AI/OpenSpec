@@ -50,11 +50,11 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxContinueCommandTemplate: 'e50e50266efa1b8e64ff9b6274ee8254f0a240d6adc1b862d126e2f1c9d3a559',
   getOpsxApplyCommandTemplate: 'e3579ac78f2e2c75fa3d3a7ac7dc3e49c395e96f7323398f0f041d94f8de9bb0',
   getOpsxFfCommandTemplate: 'e603bc0996604e6c17a3140943ea642a32d0fc65565e25424bf956e124c55772',
-  getArchiveChangeSkillTemplate: '414b554cfc43fdbf14d78a97b03e917584d1d9d502ce78f7de33e833598614b4',
+  getArchiveChangeSkillTemplate: '30d2c42e0c70dbfbe577fe56986eacd509f2569b2d1598a4ddb06faad3864fdf',
   getBulkArchiveChangeSkillTemplate: '93875998cade5322d95b43299fba794bc1da754e917dd63a770406386a6d295d',
   getOpsxSyncCommandTemplate: '0d2427efb79986e8fff3f96bd075a739c80d45eb29159fae717e950030da8202',
   getVerifyChangeSkillTemplate: '223b7ffd99299a7d430e13092b9a0a3421b39f0d3217232f46c39d79b5f619ff',
-  getOpsxArchiveCommandTemplate: '4cebaf32959ab6f3ab6735246394c226aedd2ae719e693412cb34eba228b4db7',
+  getOpsxArchiveCommandTemplate: 'c7d9fa80cdf86080c79313e7681d52576e2e3642175b92fbf12e46474906532a',
   getOpsxOnboardCommandTemplate: 'ee99aa99252c602720fbb8c63fb3ac438a5bd4e952fd961ddf1ae956cbfc2c8f',
   getOpsxBulkArchiveCommandTemplate: '9fa8cdebe2f5667ebfc37bdc023396762c59d5b038c771dac2d8fd2c19e2627b',
   getOpsxVerifyCommandTemplate: '1efcf7eff0671f48e9d9420f50865c563dd3079ee60f8c380bb7a90dd0102696',
@@ -72,7 +72,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-apply-change': '81ea96d9fa6ec8536cd23c1fe561ed28e1cc1cad0a8ceb700588e08974cc0e49',
   'openspec-ff-change': '217c78da2b6e8358f609ac57dcd02266aaec3354ce26dc6ec2fc9c2174673ab4',
   'openspec-sync-specs': 'd933d8856584d6c1253de91e652e7aee9e85c77ad4d3531f6476f79d84e6e5e8',
-  'openspec-archive-change': '815c6fdee974349ea17d9eacdd725d81fea41ad7032ec6e3a00ff944e6812e4a',
+  'openspec-archive-change': '9cd2bb6d0b4f97ec11120082b0b02e0cc9d5d65c78080db57bf4929d5de7ece5',
   'openspec-bulk-archive-change': '2039b9ecf6e64339dffe0e16272507a386d9fe326f419ff758315aa736fdd96c',
   'openspec-verify-change': 'af9be013dcbe8c6d8f6d9ab10c893fbd03f4c62933c384d82f63894dd0ceb84f',
   'openspec-onboard': 'f6f59476acaf5e4d65dbb180da4cef62432612f3cecf207d471a951295e2003a',
@@ -478,6 +478,27 @@ describe('skill templates split parity', () => {
 
       // Main spec paths are store-root aware
       expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability-path>/spec.md');
+
+      // Semantic main-spec structure contract.
+      expect(content, variant).toContain('The file MUST start with a `# <capability> Specification` title.');
+      expect(content, variant).toContain('Preserve existing `## Purpose` sections completely untouched for established main specs.');
+      expect(content, variant).toContain('For a new main spec, copy the delta `## Purpose` verbatim.');
+      expect(content, variant).toContain('If no usable `## Purpose` is provided, use the existing TBD Purpose behavior and warning.');
+      expect(content, variant).toContain('Ensure all requirement blocks use `### Requirement:` headings and scenario blocks use `#### Scenario:` headings under a unified `## Requirements` section.');
+
+      // Every canonical delta header must be rejected.
+      const deltaHeaders = [
+          '## ADDED Requirements',
+          '## MODIFIED Requirements',
+          '## REMOVED Requirements',
+          '## RENAMED Requirements',
+      ];
+
+      expect(content, variant).toContain('Verify that no delta-style section headers (`## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, `## RENAMED Requirements`) remain in the main spec');
+
+      for (const header of deltaHeaders) {
+          expect(content, variant).toContain(header);
+      }
     }
   });
 
