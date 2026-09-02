@@ -1288,9 +1288,10 @@ suppress that tip entirely. This does not disable active completions.
 
 #### Nix completions
 
-Nix packages include Bash, Fish, and Zsh completion files. Your shell's completion
-configuration controls activation and may load them automatically. Installing the
-Nix package does not edit your shell startup files.
+Nix packages include Bash, Fish, and Zsh completion files when the build platform
+can run the target `openspec` binary. Cross-built packages omit them when it cannot.
+Your shell's completion configuration controls activation and may load them
+automatically. Installing the Nix package does not edit your shell startup files.
 
 `openspec completion install` and `uninstall` manage user-local copies, not files
 in the Nix package. The CLI may still show its installation tip when only packaged
