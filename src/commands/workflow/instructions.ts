@@ -12,7 +12,6 @@ import {
   loadChangeContext,
   generateInstructions,
   resolveSchema,
-  resolveArtifactOutputPath,
   resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
@@ -412,15 +411,27 @@ export async function generateApplyInstructions(
     }
   }
 
-  // Parse tasks if tracking file exists
+  // Parse every concrete file matched by apply.tracks. A tracking path may be
+  // a glob owned by an artifact with any ID, so treating it as one literal
+  // path loses task evidence for valid custom schemas.
   let parsedTasks: ParsedTask[] = [];
+  const unavailableTrackingFiles: Array<{ path: string; reason: string }> = [];
   let tracksFileExists = false;
   if (tracksFile) {
-    const tracksPath = resolveArtifactOutputPath(changeDir, tracksFile);
-    tracksFileExists = fs.existsSync(tracksPath);
-    if (tracksFileExists) {
-      const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
-      parsedTasks = parseTaskLines(tasksContent);
+    const tracksPaths = resolveArtifactOutputs(changeDir, tracksFile);
+    tracksFileExists = tracksPaths.length > 0;
+    for (const tracksPath of tracksPaths) {
+      try {
+        const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
+        parsedTasks.push(...parseTaskLines(tasksContent));
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException)?.code;
+        const message = error instanceof Error ? error.message : String(error);
+        unavailableTrackingFiles.push({
+          path: tracksPath,
+          reason: code && !message.includes(code) ? `${code}: ${message}` : message,
+        });
+      }
     }
   }
   const tasks = toTaskItems(parsedTasks);
@@ -443,13 +454,21 @@ export async function generateApplyInstructions(
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
     instruction = `The ${tracksFilename} file is missing and must be created.\nUse openspec-continue-change to generate the tracking file.`;
+  } else if (tracksFile && unavailableTrackingFiles.length > 0 && tasks.length === 0) {
+    state = 'blocked';
+    instruction = 'No readable task descriptions are available.';
   } else if (tracksFile && tracksFileExists && tasks.length === 0) {
     // Tracking file exists but lists nothing an agent can work on: either no
     // checkboxes at all, or only checkboxes with no text after them.
     const tracksFilename = path.basename(tracksFile);
     state = 'blocked';
     instruction = `The ${tracksFilename} file exists but contains no tasks to work on.\nAdd tasks to ${tracksFilename} or regenerate it with openspec-continue-change.`;
-  } else if (tracksFile && remaining === 0 && total > 0) {
+  } else if (
+    tracksFile &&
+    unavailableTrackingFiles.length === 0 &&
+    remaining === 0 &&
+    total > 0
+  ) {
     state = 'all_done';
     instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
   } else if (!tracksFile) {
@@ -461,6 +480,13 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
+  if (unavailableTrackingFiles.length > 0) {
+    const unavailableDetails = unavailableTrackingFiles
+      .map((file) => `- ${file.path}: ${file.reason}`)
+      .join('\n');
+    instruction += `\nTask completion is not verified because tracking evidence was unavailable:\n${unavailableDetails}`;
+  }
+
   return {
     changeName,
     changeDir,
@@ -468,6 +494,7 @@ export async function generateApplyInstructions(
     contextFiles,
     progress: { total, complete, remaining },
     tasks,
+    ...(unavailableTrackingFiles.length > 0 ? { unavailableTrackingFiles } : {}),
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     instruction,
