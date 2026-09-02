@@ -2,7 +2,7 @@ packages:
   - '.'
 
 allowBuilds:
-  esbuild@0.28.1: true
+  esbuild@0.28.2: true
 
 overrides:
   postcss: ^8.5.26
