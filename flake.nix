@@ -15,71 +15,98 @@
         "aarch64-darwin"
       ];
 
-      forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems (system: f system);
+      forAllSystems = f: nixpkgs.lib.genAttrs supportedSystems f;
+
+      pkgsFor =
+        system:
+        import nixpkgs {
+          inherit system;
+          overlays = [ self.overlays.default ];
+        };
     in
     {
+      overlays.default = final: _prev: {
+        openspec = final.stdenv.mkDerivation (finalAttrs: {
+          pname = "openspec";
+          version = (builtins.fromJSON (builtins.readFile ./package.json)).version;
+
+          src = final.lib.fileset.toSource {
+            root = ./.;
+            fileset = final.lib.fileset.unions [
+              ./src
+              ./bin
+              ./schemas
+              ./scripts
+              ./test
+              ./package.json
+              ./pnpm-lock.yaml
+              ./pnpm-workspace.yaml
+              ./tsconfig.json
+              ./build.js
+              ./vitest.config.ts
+              ./vitest.setup.ts
+              ./eslint.config.js
+            ];
+          };
+
+          pnpmDeps = final.fetchPnpmDeps {
+            inherit (finalAttrs) pname version src;
+            pnpm = final.pnpm_9;
+            fetcherVersion = 3;
+            hash = "sha256-+qGFLSVLJ9faZOmfO6ZVBP525i5LRgwhsJat2vT7Aw8=";
+          };
+
+          nativeBuildInputs = with final; [
+            installShellFiles
+            nodejs_22
+            npmHooks.npmInstallHook
+            pnpmConfigHook
+            pnpm_9
+          ];
+
+          buildPhase = ''
+            runHook preBuild
+
+            pnpm run build
+
+            runHook postBuild
+          '';
+
+          postInstall = final.lib.optionalString (final.stdenv.buildPlatform.canExecute final.stdenv.hostPlatform) ''
+            # Disable telemetry during build-time completion generation.
+            export OPENSPEC_TELEMETRY=0
+
+            # Generate separately so a failure cannot be hidden by process substitution.
+            for shell in bash fish zsh; do
+              "$out/bin/openspec" completion generate "$shell" > "openspec.$shell"
+            done
+
+            installShellCompletion --cmd openspec \
+              --bash openspec.bash \
+              --fish openspec.fish \
+              --zsh openspec.zsh
+          '';
+
+          dontNpmPrune = true;
+
+          meta = with final.lib; {
+            description = "AI-native system for spec-driven development";
+            homepage = "https://github.com/Fission-AI/OpenSpec";
+            license = licenses.mit;
+            maintainers = [ ];
+            mainProgram = "openspec";
+          };
+        });
+      };
+
       packages = forAllSystems (
         system:
         let
-          pkgs = nixpkgs.legacyPackages.${system};
-          inherit (pkgs) lib;
+          pkgs = pkgsFor system;
         in
         {
-          default = pkgs.stdenv.mkDerivation (finalAttrs: {
-            pname = "openspec";
-            version = (builtins.fromJSON (builtins.readFile ./package.json)).version;
-
-            src = lib.fileset.toSource {
-              root = ./.;
-              fileset = lib.fileset.unions [
-                ./src
-                ./bin
-                ./schemas
-                ./scripts
-                ./test
-                ./package.json
-                ./pnpm-lock.yaml
-                ./pnpm-workspace.yaml
-                ./tsconfig.json
-                ./build.js
-                ./vitest.config.ts
-                ./vitest.setup.ts
-                ./eslint.config.js
-              ];
-            };
-
-            pnpmDeps = pkgs.fetchPnpmDeps {
-              inherit (finalAttrs) pname version src;
-              pnpm = pkgs.pnpm_9;
-              fetcherVersion = 3;
-              hash = "sha256-+qGFLSVLJ9faZOmfO6ZVBP525i5LRgwhsJat2vT7Aw8=";
-            };
-
-            nativeBuildInputs = with pkgs; [
-              nodejs_22
-              npmHooks.npmInstallHook
-              pnpmConfigHook
-              pnpm_9
-            ];
-
-            buildPhase = ''
-              runHook preBuild
-
-              pnpm run build
-
-              runHook postBuild
-            '';
-
-            dontNpmPrune = true;
-
-            meta = with pkgs.lib; {
-              description = "AI-native system for spec-driven development";
-              homepage = "https://github.com/Fission-AI/OpenSpec";
-              license = licenses.mit;
-              maintainers = [ ];
-              mainProgram = "openspec";
-            };
-          });
+          default = pkgs.openspec;
+          inherit (pkgs) openspec;
         }
       );
 

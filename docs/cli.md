@@ -1281,10 +1281,22 @@ openspec completion generate bash > ~/.bash_completion.d/openspec
 openspec completion uninstall
 ```
 
-Completions are opt-in. The CLI mentions them once, on stderr, the first time you
-run a command in an interactive terminal, and never again — it also stays quiet
-if you already have completions installed. Set `OPENSPEC_NO_COMPLETIONS=1` to
-suppress that tip entirely.
+Installing completions with this command is opt-in. The CLI mentions them once,
+on stderr, the first time you run a command in an interactive terminal. It stays
+quiet if it detects a user-installed copy. Set `OPENSPEC_NO_COMPLETIONS=1` to
+suppress that tip entirely. This does not disable active completions.
+
+#### Nix completions
+
+Nix packages include Bash, Fish, and Zsh completion files when the build platform
+can run the target `openspec` binary. Cross-built packages omit them when it cannot.
+Your shell's completion configuration controls activation and may load them
+automatically. Installing the Nix package does not edit your shell startup files.
+
+`openspec completion install` and `uninstall` manage user-local copies, not files
+in the Nix package. The CLI may still show its installation tip when only packaged
+completions are present. Manage those completions through Nix or your shell's
+configuration.
 
 ---
 

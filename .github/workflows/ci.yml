@@ -181,6 +181,42 @@ jobs:
       - name: Setup Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@908b263ff629f4cc17666315b7fd3ec127c6244d # v14
 
+      - name: Test downstream overlay composition
+        run: |
+          # Interpolation belongs to Nix, not the shell.
+          # shellcheck disable=SC2016
+          nix eval --impure --expr '
+            let
+              flake = builtins.getFlake (toString ./.);
+              system = builtins.currentSystem;
+              pkgs = import flake.inputs.nixpkgs {
+                inherit system;
+                overlays = [ flake.overlays.default ];
+              };
+              composed = import flake.inputs.nixpkgs {
+                inherit system;
+                overlays = [
+                  flake.overlays.default
+                  (_final: prev: {
+                    nodejs_22 = prev.nodejs_22.overrideAttrs (_: {
+                      pname = "openspec-test-nodejs";
+                    });
+                  })
+                ];
+              };
+              overridden = pkgs.openspec.overrideAttrs (_: { version = "0.0.0-test"; });
+            in
+            assert pkgs.openspec.drvPath == flake.packages.${system}.default.drvPath;
+            assert pkgs.openspec.drvPath == flake.packages.${system}.openspec.drvPath;
+            # stdenv selects the dev output of multi-output native build inputs.
+            assert builtins.any (input: input.drvPath == composed.nodejs_22.drvPath)
+              composed.openspec.nativeBuildInputs;
+            assert composed.openspec.drvPath != pkgs.openspec.drvPath;
+            assert overridden.version == "0.0.0-test";
+            assert overridden.pnpmDeps.version == "0.0.0-test";
+            true
+          '
+
       - name: Build with Nix
         run: nix build
 
@@ -196,6 +232,20 @@ jobs:
           fi
           echo "✅ Build output verified"
 
+      - name: Verify packaged shell completions
+        env:
+          OPENSPEC_TELEMETRY: '0'
+        run: |
+          completion_dir="$(mktemp -d)"
+          trap 'rm -rf "$completion_dir"' EXIT
+          for shell in bash fish zsh; do
+            result/bin/openspec completion generate "$shell" > "$completion_dir/$shell"
+            test -s "$completion_dir/$shell"
+          done
+          cmp "$completion_dir/bash" result/share/bash-completion/completions/openspec.bash
+          cmp "$completion_dir/fish" result/share/fish/vendor_completions.d/openspec.fish
+          cmp "$completion_dir/zsh" result/share/zsh/site-functions/_openspec
+
       - name: Test binary execution
         run: |
           VERSION=$(nix run . -- --version)
@@ -207,9 +257,14 @@ jobs:
           echo "✅ Binary execution successful"
 
       - name: Validate update script
+        shell: bash
         run: |
           echo "Testing update-flake.sh script..."
-          bash scripts/update-flake.sh
+          bash scripts/update-flake.sh | tee "$RUNNER_TEMP/update-flake.log"
+          if grep -q "Warning: flake.nix doesn't use dynamic version" "$RUNNER_TEMP/update-flake.log"; then
+            echo "Error: update-flake.sh did not recognize the dynamic package version"
+            exit 1
+          fi
           echo "✅ Update script executed successfully"
 
       - name: Check flake.nix modifications
