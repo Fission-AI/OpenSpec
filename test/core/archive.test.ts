@@ -2146,6 +2146,25 @@ New feature description.
       await expect(fs.access(claimPath)).resolves.not.toThrow();
     });
 
+    it('releases its archive claim when the path stat has no Windows device id', async () => {
+      const changeName = 'windows-archive-claim-release';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      const archiveName = `${formatLocalDate()}-${changeName}`;
+      const claimPath = archiveClaimPath(archiveName);
+      const realLstat = fs.lstat.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        const stats = await realLstat(target, options as any);
+        if (String(target) !== claimPath) return stats;
+        return { ...stats, dev: 0n };
+      });
+
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
+
+      await expect(fs.access(claimPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
     // Windows defers deletion of an open file until its original handle closes,
     // so unlink-and-recreate cannot model a persistent replacement there.
     it.skipIf(process.platform === 'win32')(

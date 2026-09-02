@@ -594,6 +594,21 @@ interface ArchiveClaim {
   contents: string;
 }
 
+interface ArchiveClaimFileIdentity {
+  dev: bigint;
+  ino: bigint;
+}
+
+function isSameArchiveClaimFile(
+  first: ArchiveClaimFileIdentity,
+  second: ArchiveClaimFileIdentity
+): boolean {
+  return (
+    first.ino === second.ino &&
+    (first.dev === second.dev || first.dev === 0n || second.dev === 0n)
+  );
+}
+
 async function releaseArchiveClaim(
   claim: ArchiveClaim,
   claimPath: string
@@ -609,10 +624,8 @@ async function releaseArchiveClaim(
     const contents = await fs.readFile(claimPath, 'utf8');
     const currentAfterRead = await fs.lstat(claimPath, { bigint: true });
     if (
-      current.dev === owned.dev &&
-      current.ino === owned.ino &&
-      current.dev === currentAfterRead.dev &&
-      current.ino === currentAfterRead.ino &&
+      isSameArchiveClaimFile(current, owned) &&
+      isSameArchiveClaimFile(current, currentAfterRead) &&
       contents === claim.contents
     ) {
       await fs.unlink(claimPath);
