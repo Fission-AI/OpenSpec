@@ -82,6 +82,11 @@ describe('openspec validate checks task checkbox formatting (#354)', () => {
     await write('openspec/changes/nested-bullets/backend/tasks.md', '- build the api\n');
     await write('openspec/changes/nested-bullets/frontend/tasks.md', '- [ ] 2.1 build the ui\n');
 
+    await write('openspec/changes/nested-all-bullets/.openspec.yaml', 'schema: glob-tasks\n');
+    await write('openspec/changes/nested-all-bullets/specs/tasks/spec.md', validDelta);
+    await write('openspec/changes/nested-all-bullets/backend/tasks.md', '- build the api\n');
+    await write('openspec/changes/nested-all-bullets/frontend/tasks.md', '- build the ui\n');
+
     await write('openspec/schemas/no-tasks-artifact/schema.yaml', untrackedTasksSchema);
     await write('openspec/changes/untracked-tasks/.openspec.yaml', 'schema: no-tasks-artifact\n');
     await write('openspec/changes/untracked-tasks/specs/tasks/spec.md', validDelta);
@@ -148,6 +153,20 @@ describe('openspec validate checks task checkbox formatting (#354)', () => {
     expect(taskIssues).toEqual([]);
   });
 
+  it('reports each nested file with a POSIX path when none of them has a checkbox', async () => {
+    const result = await runCLI(
+      ['validate', '--type', 'change', 'nested-all-bullets', '--strict', '--json'],
+      { cwd: projectDir }
+    );
+
+    expect(result.exitCode).toBe(1);
+    // Paths are normalized, so this assertion fails on a Windows separator.
+    expect(JSON.parse(result.stdout).items[0].issues).toEqual([
+      expect.objectContaining({ level: 'WARNING', path: 'backend/tasks.md', line: 1 }),
+      expect.objectContaining({ level: 'WARNING', path: 'frontend/tasks.md', line: 1 }),
+    ]);
+  });
+
   it('ignores a tasks file no artifact tracks', async () => {
     const result = await runCLI(
       ['validate', '--type', 'change', 'untracked-tasks', '--strict', '--json'],
@@ -173,6 +192,7 @@ describe('openspec validate checks task checkbox formatting (#354)', () => {
     expect(byId['bullet-tasks']).toBe(false);
     expect(byId['checkbox-tasks']).toBe(true);
     expect(byId['nested-bullets']).toBe(true);
+    expect(byId['nested-all-bullets']).toBe(false);
     expect(byId['untracked-tasks']).toBe(true);
   });
 });

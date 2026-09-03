@@ -18,8 +18,15 @@ export interface TaskCheckboxIssue {
  */
 const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+\S/;
 
-/** A fenced block opener/closer: three or more backticks or tildes. */
-const FENCE = /^\s*(`{3,}|~{3,})/;
+/**
+ * A fenced block delimiter: a run of three or more backticks or tildes, plus
+ * whatever follows it on the line (an info string on an opener, nothing on a
+ * valid closer).
+ *
+ * Deliberately unanchored at the end: `.` does not match `\r`, so `(.*)$` would
+ * fail on every line of a CRLF file and blind the scan to fences entirely.
+ */
+const FENCE = /^\s*(`{3,}|~{3,})(.*)/;
 
 /**
  * Reports tracked task files that list work as plain bullets or numbered items
@@ -67,16 +74,26 @@ export function findMissingTaskCheckboxIssues(
 
 /** 1-based line of the first list item outside a fenced block, if any. */
 function findFirstListItemLine(content: string): number | undefined {
-  let openFence: string | undefined;
+  let openFence: { marker: string; length: number } | undefined;
 
   const lines = content.split('\n');
   for (let index = 0; index < lines.length; index++) {
     const line = lines[index];
-    const fence = line.match(FENCE)?.[1];
+    const fence = line.match(FENCE);
     if (fence) {
+      const marker = fence[1][0];
+      const length = fence[1].length;
       if (openFence === undefined) {
-        openFence = fence[0];
-      } else if (fence[0] === openFence) {
+        openFence = { marker, length };
+      } else if (
+        marker === openFence.marker &&
+        length >= openFence.length &&
+        fence[2].trim() === ''
+      ) {
+        // CommonMark: a closer matches its opener's character, runs at least as
+        // long, and carries no info string. A shorter or annotated run inside a
+        // block is content, so a ```` ``` ```` sample nested in a ```` ```` ````
+        // block does not end the block early and expose its bullets.
         openFence = undefined;
       }
       continue;

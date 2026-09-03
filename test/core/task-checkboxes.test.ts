@@ -54,6 +54,32 @@ describe('findMissingTaskCheckboxIssues', () => {
     ).toEqual([{ line: 5, message: expect.any(String) }]);
   });
 
+  it('closes a fence only on a matching, long enough, bare delimiter', () => {
+    // A three-marker sample nested inside a four-marker block: the inner run is
+    // content, so the bullets after it are still fenced.
+    expect(
+      findInSingleFile(
+        ['````md', '```', '- an example bullet', '```', '````', ''].join('\n')
+      )
+    ).toEqual([]);
+    // An annotated run is an opener's shape, never a closer's.
+    expect(
+      findInSingleFile(['```', '```js', '- an example bullet', '```', ''].join('\n'))
+    ).toEqual([]);
+    // Tildes do not close a backtick fence.
+    expect(findInSingleFile(['```', '~~~', '- an example bullet', ''].join('\n'))).toEqual([]);
+    // A longer closing run still closes.
+    expect(
+      findInSingleFile(['```', 'sample', '`````', '', '- a real bullet', ''].join('\n'))
+    ).toEqual([{ line: 5, message: expect.any(String) }]);
+  });
+
+  it('tracks fences in CRLF files', () => {
+    expect(
+      findInSingleFile(['```md', '- an example bullet', '```', '', '- a real bullet', ''].join('\r\n'))
+    ).toEqual([{ line: 5, message: expect.any(String) }]);
+  });
+
   it('does not treat a horizontal rule or emphasis as a list item', () => {
     expect(findInSingleFile('# Tasks\n\n---\n\n***\n')).toEqual([]);
   });
