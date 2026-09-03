@@ -49,7 +49,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Trae | `trae` | `.trae/skills/` | `/openspec-apply-change` | `.trae/commands/` | `/opsx-apply` |
 | ZCode | `zcode` | `.zcode/skills/` | `/openspec-apply-change` | `.zcode/commands/opsx/` | `/opsx:apply` |
 | Zoo Code | `roocode` | `.roo/skills/` | `/openspec-apply-change` | `.roo/commands/` | `/opsx-apply` |
-| Shared `.agents` skills | `agents` | `.agents/skills/` | `/openspec-apply-change` | none | none |
+| Other / Universal | `agents` | `.agents/skills/` | `/openspec-apply-change` | none | none |
 
 - **Skill invocation**: whether a tool registers skills as typed entries is the tool's
   own behavior. The column shows the spelling OpenSpec uses in generated files and in
@@ -118,10 +118,12 @@ init prints this reminder after install.
 - **Safe across projects**: a commands-only delivery leaves the global skills in
   place, so one project's setting cannot remove skills another project uses.
 
-### Shared `.agents` skills
+### Other / Universal (shared `.agents` skills)
 
 - **When it fits**: any tool that reads the shared `.agents/skills/` folder,
-  including tools with no row in the matrix.
+  including tools with no row in the matrix. It is the entry to pick when your
+  assistant is not listed; the init picker's search box finds it by `universal`,
+  `other`, `generic`, `custom`, `proprietary`, `unlisted`, or `unsupported`.
 - **Alongside other targets**: Antigravity, Codex, Zed Agent, and this target share
   one physical skill tree. OpenSpec records one writer in `.openspec-target` and
   writes the tree once per run. Each tool's separate command files are still

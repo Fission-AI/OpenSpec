@@ -33,6 +33,7 @@ export interface AIToolOption {
   legacySkillsDirs?: string[]; // Former roots read for detection and migrated after replacement
   globalSkillsDir?: string; // e.g., '.minimax' - /skills suffix, resolved from the user's home directory
   detectionPaths?: string[]; // Override skillsDir for auto-detection; any path existing triggers detection
+  searchAliases?: string[]; // Extra single-word terms the init tool picker matches; never displayed
   setupNote?: string; // Manual setup required before the tool picks up generated files; shown after init/update
   requiresIdeRestart?: boolean; // True when slash commands are loaded by an IDE/editor process (a CLI picks them up immediately, so no restart hint — see #1067)
 }
@@ -88,8 +89,36 @@ export const AI_TOOLS: AIToolOption[] = [
   // A project that does keep skills there is a project this target fits, the same
   // way `.claude/` selects Claude Code — the signal is the user's setup, not
   // OpenSpec's own files.
-  { name: 'Shared .agents skills', value: 'agents', available: true, successLabel: 'shared .agents skills', skillsDir: '.agents', detectionPaths: ['.agents/skills'] }
+  // The picker is searchable, so this entry also answers to the words someone
+  // whose assistant is not on the list actually types (#653) — it is named for
+  // a directory, which none of them would guess. Aliases are single words: the
+  // space bar toggles a selection rather than typing into the search box.
+  { name: 'Other / Universal (shared .agents skills)', value: 'agents', available: true, successLabel: 'shared .agents skills', skillsDir: '.agents', detectionPaths: ['.agents/skills'], searchAliases: ['universal', 'other', 'generic', 'custom', 'proprietary', 'unlisted', 'unsupported', 'vendor-neutral', 'agents.md'] }
 ];
+
+/**
+ * The vendor-neutral target every assistant that is not listed above can use.
+ * Named wherever a tool lookup comes up empty, so "my tool isn't here" is never
+ * a dead end (#653).
+ */
+export const UNIVERSAL_TOOL_ID = 'agents';
+
+/** The universal target's entry, or undefined if it was removed from AI_TOOLS. */
+export function getUniversalTool(): AIToolOption | undefined {
+  return AI_TOOLS.find((tool) => tool.value === UNIVERSAL_TOOL_ID);
+}
+
+/**
+ * One-line pointer at the universal target for non-interactive errors, the
+ * scripted counterpart of the picker's empty-search hint. Undefined when the
+ * target is not among the tools on offer, so the hint never names a choice the
+ * caller cannot make.
+ */
+export function universalToolFallbackHint(offeredToolIds: string[]): string | undefined {
+  const universal = getUniversalTool();
+  if (!universal || !offeredToolIds.includes(universal.value)) return undefined;
+  return `Tool not listed? Use --tools ${universal.value} — the vendor-neutral target that writes ${universal.skillsDir}/skills/ for any assistant.`;
+}
 
 /**
  * Retired tool ids that still resolve, so a rebrand does not break scripted

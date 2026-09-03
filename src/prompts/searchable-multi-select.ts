@@ -3,6 +3,11 @@ import chalk from 'chalk';
 interface Choice {
   name: string;
   value: string;
+  /**
+   * Extra terms the search box matches, for choices users look for by a word
+   * the name does not spell (see #653). Never rendered.
+   */
+  searchAliases?: string[];
   description?: string;
   configured?: boolean;
   detected?: boolean;
@@ -15,6 +20,16 @@ interface Config {
   choices: Choice[];
   pageSize?: number;
   validate?: (selected: string[]) => boolean | string;
+  /** Shown when a search matches nothing, so the list is not a dead end. */
+  emptyHint?: string;
+}
+
+/**
+ * True when every character is printable, so the text can go in the search box.
+ * `\u007f` is DEL, which sorts above the printable range.
+ */
+function isPrintable(text: string): boolean {
+  return text.length > 0 && [...text].every((char) => char >= ' ' && char !== '\u007f');
 }
 
 /**
@@ -37,7 +52,7 @@ async function createSearchableMultiSelect(): Promise<
   } = await import('@inquirer/core');
 
   return createPrompt((config: Config, done: (value: string[]) => void): string => {
-    const { message, choices, pageSize = 15, validate } = config;
+    const { message, choices, pageSize = 15, validate, emptyHint } = config;
 
     const [searchText, setSearchText] = useState('');
     const [selectedValues, setSelectedValues] = useState<string[]>(
@@ -52,11 +67,14 @@ async function createSearchableMultiSelect(): Promise<
     // Filter choices by search
     const filteredChoices = useMemo(() => {
       if (!searchText.trim()) return choices;
-      const term = searchText.toLowerCase();
+      const term = searchText.trim().toLowerCase();
       return choices.filter(
         (c) =>
           c.name.toLowerCase().includes(term) ||
-          c.value.toLowerCase().includes(term)
+          c.value.toLowerCase().includes(term) ||
+          (c.searchAliases ?? []).some((alias) =>
+            alias.toLowerCase().includes(term)
+          )
       );
     }, [searchText, choices]);
 
@@ -117,9 +135,29 @@ async function createSearchableMultiSelect(): Promise<
         return;
       }
 
-      // Character input - handle printable characters
-      if (key.name && key.name.length === 1 && !key.ctrl) {
-        setSearchText(searchText + key.name);
+      // Character input - handle printable characters.
+      // readline reports punctuation (`.`, `-`, `/`) only in `sequence`, leaving
+      // `name` undefined, so keying off `name` alone silently dropped every
+      // non-alphanumeric character the user typed.
+      // `@inquirer/core` types only `name` and `ctrl`; readline emits more.
+      const event = key as typeof key & { sequence?: string; meta?: boolean };
+      if (event.ctrl || event.meta) return;
+      // A multi-character sequence is either a paste or an escape sequence
+      // (arrows, function keys). Escape sequences carry control characters, so
+      // requiring every character to be printable admits the paste and drops
+      // the rest — tab, escape and delete included.
+      const typed =
+        typeof event.sequence === 'string' && isPrintable(event.sequence)
+          ? event.sequence
+          : // Only the sequence may be multi-character: readline `name`s such as
+            // 'tab' and 'escape' are printable strings but not typed input.
+            typeof event.name === 'string' &&
+              event.name.length === 1 &&
+              isPrintable(event.name)
+            ? event.name
+            : undefined;
+      if (typed) {
+        setSearchText(searchText + typed);
         setCursor(0);
       }
     });
@@ -158,6 +196,7 @@ async function createSearchableMultiSelect(): Promise<
     // List
     if (filteredChoices.length === 0) {
       lines.push(chalk.yellow('  No matches'));
+      if (emptyHint) lines.push(chalk.dim(`  ${emptyHint}`));
     } else {
       // Calculate pagination
       const startIndex = Math.max(

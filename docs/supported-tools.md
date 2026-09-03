@@ -103,7 +103,7 @@ to read the hint.
 | Trae (`trae`) | `.trae/skills/openspec-*/SKILL.md` | `.trae/commands/opsx-<id>.md` |
 | [Zed Agent](https://zed.dev/docs/ai/skills) (`zed`) | `.agents/skills/openspec-*/SKILL.md` | Not generated (skills-only; use `/openspec-*` or `@openspec-*`) |
 | ZCode (`zcode`) | `.zcode/skills/openspec-*/SKILL.md` | `.zcode/commands/opsx/<id>.md` |
-| Shared `.agents` skills (`agents`) | `.agents/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
+| Other / Universal (`agents`) | `.agents/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
 
 \*\* GitHub Copilot prompt files are recognized as custom slash commands in IDE extensions (VS Code, JetBrains, Visual Studio). Copilot CLI does not currently consume `.github/prompts/*.prompt.md` directly. Selecting `github-copilot` can also set up the GitHub-hosted **cloud coding agent** — see [GitHub Copilot cloud coding agent](#github-copilot-cloud-coding-agent) below.
 
@@ -142,7 +142,11 @@ Your choice is saved in `openspec/config.yaml` as `githubCopilot.cloudAgent: tru
 ### When to pick the shared `.agents` target
 
 `agents` is the vendor-neutral option: it writes skills to `.agents/skills/`, the
-shared root many agent tools read, instead of a tool-specific directory.
+shared root many agent tools read, instead of a tool-specific directory. It is
+the entry to pick when your assistant is not on the list above — `openspec init`
+shows it as **Other / Universal (shared .agents skills)**, and the picker's
+search box also finds it by `universal`, `other`, `generic`, `custom`,
+`proprietary`, `unlisted`, or `unsupported`.
 
 | Situation | Pick |
 |-----------|------|
