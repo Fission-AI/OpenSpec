@@ -7529,6 +7529,8 @@ This change exists to document greeting behavior thoroughly for the team, which 
       expect(mainSpec.split('\n').filter((line) => line.startsWith('# '))).toEqual([
         '# widget Specification',
       ]);
+      // The delta's title is gone entirely, not demoted to a lower level.
+      expect(mainSpec).not.toMatch(/^#+\s+Spec Delta\s*$/m);
       // The delta's title did not displace the Purpose archive carries over.
       expect(mainSpec).toContain(
         '## Purpose\nLets users assemble widgets from parts in a repeatable way.'

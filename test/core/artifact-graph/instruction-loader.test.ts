@@ -23,22 +23,24 @@ describe('instruction-loader', () => {
       expect(template).toContain('exact existing path under openspec/specs/');
     });
 
-    it.each(['proposal.md', 'design.md', 'spec.md', 'tasks.md'])(
-      'opens %s with a top-level heading',
-      (templateName) => {
-        // Artifacts inherit the template's opening line, so every packaged
-        // template starts the document with an `# ` heading instead of a
-        // section header. Without it every generated proposal.md, design.md,
-        // spec.md and tasks.md trips markdownlint MD041 (#1138).
-        const template = loadTemplate('spec-driven', templateName);
+    it.each([
+      ['proposal.md', '# Proposal'],
+      ['design.md', '# Design'],
+      ['spec.md', '# Spec Delta'],
+      ['tasks.md', '# Tasks'],
+    ])('opens %s with %s', (templateName, heading) => {
+      // Artifacts inherit the template's opening line, so every packaged
+      // template starts the document with an `# ` heading instead of a section
+      // header. Without it every generated proposal.md, design.md, spec.md and
+      // tasks.md trips markdownlint MD041 (#1138).
+      const template = loadTemplate('spec-driven', templateName);
 
-        // The repository can be checked out with CRLF endings, so compare on
-        // normalized text rather than on the bytes on disk.
-        const [firstLine, secondLine] = template.replace(/\r\n?/g, '\n').split('\n');
-        expect(firstLine).toMatch(/^# \S/);
-        expect(secondLine).toBe('');
-      }
-    );
+      // The repository can be checked out with CRLF endings, so compare on
+      // normalized text rather than on the bytes on disk.
+      const [firstLine, secondLine] = template.replace(/\r\n?/g, '\n').split('\n');
+      expect(firstLine).toBe(heading);
+      expect(secondLine).toBe('');
+    });
 
     it('should throw TemplateLoadError for non-existent template', () => {
       expect(() => loadTemplate('spec-driven', 'nonexistent.md')).toThrow(
