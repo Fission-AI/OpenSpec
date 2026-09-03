@@ -52,7 +52,7 @@ describe('formatOptionalWorkflowsNote', () => {
       'Note: 6 more workflows are available (new, continue, ff, bulk-archive, verify, onboard).'
     );
     expect(note?.[1]).toBe(
-      'Run `openspec config profile` to add them, then `openspec update`.'
+      'Add them with `openspec config profile`.'
     );
   });
 
@@ -73,7 +73,7 @@ describe('formatOptionalWorkflowsNote', () => {
 
     expect(note?.[0]).toBe('Note: 1 more workflow is available (onboard).');
     expect(note?.[1]).toBe(
-      'Run `openspec config profile` to add it, then `openspec update`.'
+      'Add it with `openspec config profile`.'
     );
   });
 
