@@ -94,4 +94,35 @@ describe('optionalWorkflow / resolveOptionalWorkflows', () => {
       /Malformed optional-workflow conditional/
     );
   });
+
+  // Validation runs before a branch is chosen. Checking only the output would
+  // let a broken block inside the *discarded* branch through for one profile
+  // and throw for another — profile-dependent authoring errors are the thing
+  // this module exists to remove.
+  it('throws for every profile, including ones that discard the broken branch', () => {
+    const brokenMissingBranch =
+      '[[opsx:if-workflow continue]]ok[[opsx:else]]oops [[opsx:if-workflow new]][[opsx:end]]';
+
+    for (const set of [installed('continue'), installed(), installed('continue', 'new')]) {
+      expect(() => resolveOptionalWorkflows(brokenMissingBranch, set)).toThrow(
+        /Malformed optional-workflow conditional/
+      );
+    }
+  });
+
+  it('rejects a marker it does not recognize', () => {
+    const typo = '[[opsx:if-workflow continue]]a[[opsx:otherwise]]b[[opsx:end]]';
+
+    expect(() => resolveOptionalWorkflows(typo, installed('continue'))).toThrow(
+      /unrecognized marker/
+    );
+  });
+
+  it('rejects markers that are out of order', () => {
+    const swapped = '[[opsx:else]]a[[opsx:if-workflow continue]]b[[opsx:end]]';
+
+    expect(() => resolveOptionalWorkflows(swapped, installed('continue'))).toThrow(
+      /out of order or a block is incomplete/
+    );
+  });
 });

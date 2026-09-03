@@ -35,6 +35,51 @@ const CONDITIONAL_PATTERN =
 /** Any leftover marker, used to fail loudly on malformed authoring. */
 const RESIDUAL_MARKER_PATTERN = /\[\[opsx:(if-workflow|else|end)/;
 
+/** A single well-formed marker, in any position. */
+const MARKER_PATTERN = /\[\[opsx:(?:if-workflow [a-z-]+|else|end)\]\]/g;
+
+/** Anything that opens like a marker, well-formed or not. */
+const MARKER_LIKE_PATTERN = /\[\[opsx:/;
+
+/**
+ * Rejects a malformed conditional before any branch is chosen.
+ *
+ * Checking after resolution is not enough: the unselected branch is discarded
+ * first, so a truncated block inside it would pass for one profile and throw
+ * for another — the exact profile-dependent behavior this module exists to
+ * remove. Authoring is either valid for every profile or valid for none.
+ *
+ * @param text - Template body as authored
+ * @throws If a marker is unrecognized, or the blocks are not a flat sequence
+ *         of if / else / end
+ */
+function assertConditionalsWellFormed(text: string): void {
+  const kinds: Array<'if' | 'else' | 'end'> = [];
+  const withoutMarkers = text.replace(MARKER_PATTERN, (marker) => {
+    kinds.push(marker.startsWith(OPEN) ? 'if' : marker === ELSE ? 'else' : 'end');
+    return '';
+  });
+
+  const unrecognized = MARKER_LIKE_PATTERN.exec(withoutMarkers);
+  if (unrecognized) {
+    throw new Error(
+      `Malformed optional-workflow conditional: unrecognized marker at '${withoutMarkers
+        .slice(unrecognized.index, unrecognized.index + 40)
+        .split('\n')[0]}'. Markers are [[opsx:if-workflow <id>]], [[opsx:else]] and [[opsx:end]].`
+    );
+  }
+
+  for (let i = 0; i < kinds.length; i += 3) {
+    if (kinds[i] !== 'if' || kinds[i + 1] !== 'else' || kinds[i + 2] !== 'end') {
+      throw new Error(
+        'Malformed optional-workflow conditional: markers are out of order or a ' +
+          'block is incomplete. Each block needs the full [[opsx:if-workflow <id>]] ' +
+          '... [[opsx:else]] ... [[opsx:end]] form, and blocks cannot nest.'
+      );
+    }
+  }
+}
+
 /**
  * Authors a passage whose wording depends on whether `workflowId` is installed.
  *
@@ -87,6 +132,8 @@ export function resolveOptionalWorkflows(
   text: string,
   installedWorkflows: ReadonlySet<string>
 ): string {
+  assertConditionalsWellFormed(text);
+
   const wholeLinesResolved = text.replace(
     WHOLE_LINE_PATTERN,
     (
