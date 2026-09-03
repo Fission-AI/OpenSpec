@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { parseSchema } from '../../../src/core/artifact-graph/schema.js';
 import {
   loadTemplate,
   loadChangeContext,
@@ -9,6 +10,28 @@ import {
   formatChangeStatus,
   TemplateLoadError,
 } from '../../../src/core/artifact-graph/instruction-loader.js';
+
+const PACKAGED_SCHEMAS_DIR = path.join(__dirname, '..', '..', '..', 'schemas');
+
+/** Every artifact of every packaged schema, with the template it generates from. */
+function packagedArtifacts(): Array<[schema: string, artifactId: string, template: string]> {
+  return fs
+    .readdirSync(PACKAGED_SCHEMAS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      const schemaPath = path.join(PACKAGED_SCHEMAS_DIR, entry.name, 'schema.yaml');
+      const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
+      return schema.artifacts.map(
+        (artifact): [string, string, string] => [entry.name, artifact.id, artifact.template]
+      );
+    });
+}
+
+/** First line and the line under it, on normalized endings (the repo may be checked out CRLF). */
+function openingLines(template: string): [string, string] {
+  const [firstLine = '', secondLine = ''] = template.replace(/\r\n?/g, '\n').split('\n');
+  return [firstLine, secondLine];
+}
 
 describe('instruction-loader', () => {
   describe('loadTemplate', () => {
@@ -23,23 +46,45 @@ describe('instruction-loader', () => {
       expect(template).toContain('exact existing path under openspec/specs/');
     });
 
-    it.each([
-      ['proposal.md', '# Proposal'],
-      ['design.md', '# Design'],
-      ['spec.md', '# Spec Delta'],
-      ['tasks.md', '# Tasks'],
-    ])('opens %s with %s', (templateName, heading) => {
-      // Artifacts inherit the template's opening line, so every packaged
-      // template starts the document with an `# ` heading instead of a section
-      // header. Without it every generated proposal.md, design.md, spec.md and
-      // tasks.md trips markdownlint MD041 (#1138).
-      const template = loadTemplate('spec-driven', templateName);
+    // Artifacts inherit the template's opening line, so every packaged template
+    // starts the document with an `# ` title instead of a section header.
+    // Without it every generated proposal.md, design.md, spec.md and tasks.md
+    // trips markdownlint MD041 (#1138).
+    it.each(packagedArtifacts())(
+      'opens the %s schema\'s %s template with a title',
+      (schemaName, _artifactId, templateName) => {
+        const [firstLine, secondLine] = openingLines(loadTemplate(schemaName, templateName));
 
-      // The repository can be checked out with CRLF endings, so compare on
-      // normalized text rather than on the bytes on disk.
-      const [firstLine, secondLine] = template.replace(/\r\n?/g, '\n').split('\n');
-      expect(firstLine).toBe(heading);
-      expect(secondLine).toBe('');
+        expect(firstLine).toMatch(/^# \S/);
+        expect(secondLine).toBe('');
+      }
+    );
+
+    describe('spec-driven titles', () => {
+      const TITLES: Record<string, string> = {
+        proposal: '# Proposal',
+        specs: '# Spec Delta',
+        design: '# Design',
+        tasks: '# Tasks',
+      };
+
+      const artifacts = packagedArtifacts().filter(([schemaName]) => schemaName === 'spec-driven');
+
+      // Pins the wording, not just the shape: a template retitled by accident
+      // would pass the guard above.
+      it.each(artifacts)('titles %s\'s %s artifact', (schemaName, artifactId, templateName) => {
+        const [firstLine] = openingLines(loadTemplate(schemaName, templateName));
+
+        expect(firstLine).toBe(TITLES[artifactId]);
+      });
+
+      // And the table covers the whole schema, so a new artifact cannot be
+      // added without deciding what its document is called.
+      it('names every artifact the schema declares', () => {
+        expect(artifacts.map(([, artifactId]) => artifactId).sort()).toEqual(
+          Object.keys(TITLES).sort()
+        );
+      });
     });
 
     it('should throw TemplateLoadError for non-existent template', () => {
