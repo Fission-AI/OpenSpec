@@ -252,6 +252,25 @@ describe('parseTaskLines', () => {
     ]);
   });
 
+  it('counts an empty checkbox as not done, rather than dropping it (#1761)', () => {
+    // `- []` is a checkbox-like line that was lost the same silent way as
+    // `- [~]`: neither numerator nor denominator, so archive stopped warning.
+    expect(parseTaskLines('- [] 1.1 Open\n- [x] 1.2 Done\n')).toEqual([
+      { done: false, description: '1.1 Open' },
+      { done: true, description: '1.2 Done' },
+    ]);
+  });
+
+  it('reads a padded tick as done, wherever the space sits (#1761)', () => {
+    // `[ x]` is an affirmative tick, so honouring it cannot hide work the
+    // author still considers open - the direction that matters. Before the fix
+    // these lines were dropped entirely, which could hide either.
+    const tasks = parseTaskLines('- [ x] 1.1 One\n- [x ] 1.2 Two\n- [ x ] 1.3 Three\n');
+
+    expect(tasks.every((task) => task.done)).toBe(true);
+    expect(tasks.map((task) => task.description)).toEqual(['1.1 One', '1.2 Two', '1.3 Three']);
+  });
+
   it('counts an unrecognised marker as not done, rather than dropping it (#1761)', () => {
     const tasks = parseTaskLines(
       '- [x] 1.1 Done\n- [~] 1.2 Deferred\n- [-] 1.3 Cancelled\n- [?] 1.4 Unclear\n- [/] 1.5 Partial\n'
@@ -266,6 +285,36 @@ describe('parseTaskLines', () => {
     ]);
   });
 
+  it('sees an unrecognised marker at every indent depth, and on CRLF files (#1761 + #1485)', () => {
+    const tasks = parseTaskLines(
+      '- [x] 1.1 Parent\r\n  - [~] 1.1.1 Deferred child\r\n\t- [-] 1.1.2 Tab child\r\n'
+    );
+
+    expect(tasks).toEqual([
+      { done: true, description: '1.1 Parent' },
+      { done: false, description: '1.1.1 Deferred child' },
+      { done: false, description: '1.1.2 Tab child' },
+    ]);
+  });
+
+  it('keeps multi-character brackets out, so link bullets are not phantom tasks (#1761)', () => {
+    // The guard on the widened marker. `- [Some doc](./doc.md)` ends its
+    // bracket with `(`, not a space, so a `[^\]]*` marker would match it and
+    // turn every Markdown link list into unfinished work.
+    const tasks = parseTaskLines(
+      [
+        '- [Some doc](./doc.md)',
+        '- [Another](https://example.com) with trailing prose',
+        '- [WIP] 1.1 Multi-character marker',
+        '- [xx] 1.2 Two characters',
+        '- [ ] 1.3 Only this one counts',
+        '',
+      ].join('\n')
+    );
+
+    expect(tasks).toEqual([{ done: false, description: '1.3 Only this one counts' }]);
+  });
+
   it('keeps unrecognised markers in the denominator, so progress cannot go up when work is deferred (#1761)', () => {
     // The reported failure: marking open items `[~]` moved them out of the
     // count instead of leaving them not-done, and the change read "✓ Complete".
@@ -274,6 +323,22 @@ describe('parseTaskLines', () => {
 
     expect(countTasksFromContent(deferred)).toEqual(countTasksFromContent(open));
     expect(formatTaskStatus(countTasksFromContent(deferred))).toBe('1/3 tasks');
+  });
+
+  it('reproduces the reported ratio: 42 done, 17 deferred, none open (#1761)', () => {
+    // The wild case: reported "✓ Complete" with seventeen items still open,
+    // and 22/48 before those items were re-marked - the count moved the wrong
+    // way when work was deferred.
+    const lines = [
+      ...Array.from({ length: 42 }, (_, i) => `- [x] 1.${i + 1} Done`),
+      ...Array.from({ length: 17 }, (_, i) => `- [~] 2.${i + 1} Deferred`),
+      '',
+    ];
+
+    const progress = countTasksFromContent(lines.join('\n'));
+
+    expect(progress).toEqual({ total: 59, completed: 42 });
+    expect(formatTaskStatus(progress)).toBe('42/59 tasks');
   });
 
   it('leaves non-checkbox lines, prose and headings alone', () => {
@@ -348,6 +413,22 @@ describe('countTasksFromContent', () => {
     ].join('\n');
 
     expect(countTasksFromContent(content)).toEqual({ total: 6, completed: 3 });
+  });
+
+  it('counts the checkbox shapes the strict marker class used to drop (#1761)', () => {
+    // Everything here was invisible to progress and to archive's gate before
+    // the marker widened; only `x`/`X` reads as done.
+    const content = [
+      '- [~] 1.1 Unrecognised marker',
+      '- [-] 1.2 Another unrecognised marker',
+      '- [] 1.3 Empty checkbox',
+      '  - [?] 1.4 Indented, unrecognised',
+      '- [ x] 1.5 Padded tick',
+      '- [X ] 1.6 Padded uppercase tick',
+      '',
+    ].join('\n');
+
+    expect(countTasksFromContent(content)).toEqual({ total: 6, completed: 2 });
   });
 });
 

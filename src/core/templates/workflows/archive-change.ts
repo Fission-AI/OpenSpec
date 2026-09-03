@@ -78,7 +78,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    Read the tasks file (typically \`tasks.md\`) to check for incomplete tasks.
 
-   Count tasks marked with \`- [ ]\` (incomplete) vs \`- [x]\` (complete).
+   Count \`- [x]\`/\`- [X]\` as complete and every other checkbox marker as
+   incomplete - \`- [ ]\`, and also markers OpenSpec assigns no meaning to such
+   as \`- [~]\` or \`- [-]\`. Never read an unfamiliar marker as complete.
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks
@@ -260,7 +262,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    Read the tasks file (typically \`tasks.md\`) to check for incomplete tasks.
 
-   Count tasks marked with \`- [ ]\` (incomplete) vs \`- [x]\` (complete).
+   Count \`- [x]\`/\`- [X]\` as complete and every other checkbox marker as
+   incomplete - \`- [ ]\`, and also markers OpenSpec assigns no meaning to such
+   as \`- [~]\` or \`- [-]\`. Never read an unfamiliar marker as complete.
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks

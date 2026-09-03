@@ -715,6 +715,7 @@ describe('ArchiveCommand', () => {
           '- [x] 1.1 Done',
           '- [~] 1.2 Deferred, not done',
           '- [-] 1.3 Cancelled, not done',
+          '- [] 1.4 Empty box, not done',
           '',
         ].join('\n')
       );
@@ -722,7 +723,7 @@ describe('ArchiveCommand', () => {
       await archiveCommand.execute(changeName, { yes: true });
 
       expect(console.log).toHaveBeenCalledWith(
-        expect.stringContaining('Warning: 2 incomplete task(s) found')
+        expect.stringContaining('Warning: 3 incomplete task(s) found')
       );
     });
 

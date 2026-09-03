@@ -24,6 +24,28 @@ describe('findTaskNumberingIssues', () => {
     ]);
   });
 
+  it('checks lines written with an unrecognised marker too (#1761)', () => {
+    // The numbering check shares the task parser, so a marker it used to drop
+    // also escaped duplicate-ID and wrong-group detection.
+    const issues = findInSingleFile(
+      ['## 3. Work', '- [x] 3.1 first', '- [~] 3.1 deferred duplicate', '- [] 4.1 wrong group', ''].join(
+        '\n'
+      )
+    );
+
+    expect(issues).toEqual([
+      {
+        line: 3,
+        message: 'Task ID "3.1" is duplicated; it was first declared on line 2.',
+      },
+      {
+        line: 4,
+        message:
+          'Task "4.1" is under group 3, but its leading number points to group 4. Move it to group 4 or renumber it.',
+      },
+    ]);
+  });
+
   it('accepts alphabetic suffixes and numbering gaps', () => {
     const issues = findInSingleFile(
       ['## 4. Work', '- [ ] 4.2a inserted', '- [ ] 4.2b another', '- [ ] 4.7 gap'].join(

@@ -60,7 +60,8 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
    **Task Completion**:
    - If `contextFiles.tasks` exists, read every file path in it
-   - Parse checkboxes: `- [ ]` (incomplete) vs `- [x]` (complete)
+   - Parse checkboxes: `- [x]`/`- [X]` is complete, every other marker is
+     incomplete (`- [ ]`, and unfamiliar ones such as `- [~]` or `- [-]`)
    - Count complete vs total tasks
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task

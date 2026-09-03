@@ -5,22 +5,23 @@ import { resolveArtifactOutputs, resolveSchema } from '../core/artifact-graph/in
 import { resolveSchemaForChange } from './change-metadata.js';
 
 /**
- * A Markdown task line: a `-`/`*` bullet carrying a single-character checkbox.
+ * A Markdown task line: a `-`/`*` bullet carrying a checkbox that holds at most
+ * one non-whitespace marker - `[ ]`, `[x]`, `[]`, `[~]`, `[ x ]` all qualify.
  *
  * Leading whitespace is allowed so nested sub-tasks count like their parents.
  * Anchoring at column 0 made `  - [ ] 1.1.1 ...` invisible to progress, to the
  * apply task list, and to archive's incomplete-task check, so a change with
  * unfinished sub-tasks reported "✓ Complete" and archived without a warning.
  *
- * The marker is any single non-`]` character, not just ` `/`x`/`X`, because a
- * marker this pattern rejects is a line that counts toward neither the
- * numerator nor the denominator: a tasks.md whose remaining work is written
- * `- [~] ...` reported "✓ Complete" and archived with no incomplete-task
- * warning, and marking items `[~]` *shrank* the denominator instead of leaving
- * them counted as not-done (#1761). Only `x`/`X` means done, so an
- * unrecognised marker now reads as not-done - the conservative default, and no
- * new concept: OpenSpec does not adopt `[~]` or any other marker, it just stops
- * dropping the line.
+ * The marker is no longer restricted to ` `/`x`/`X`, because a checkbox this
+ * pattern rejects is a line that counts toward neither the numerator nor the
+ * denominator: a tasks.md whose remaining work was written `- [~] ...`
+ * reported "✓ Complete" and archived with no incomplete-task warning, and
+ * marking items `[~]` *shrank* the denominator instead of leaving them counted
+ * as not-done (#1761). An empty `[]` and a padded `[ x]` were lost the same
+ * silent way. Only `x`/`X` means done, so every unrecognised marker reads as
+ * not-done - the conservative default, and no new concept: OpenSpec does not
+ * adopt `[~]` or any other marker's meaning, it just stops dropping the line.
  *
  * Permissive on purpose, and safe to keep that way: any character class
  * tightened here drops lines that used to count, and a task this parser drops
@@ -28,13 +29,20 @@ import { resolveSchemaForChange } from './change-metadata.js';
  * is over-counting - `- [1] ...` in a tasks file now reads as one unfinished
  * task - which is a loud, correctable false positive, unlike the silent loss.
  *
+ * Where the width stops, and why: the marker is one token, so a *multi*
+ * character bracket stays unmatched. Widening to `[^\]]*` would swallow the
+ * commonest bullet in Markdown - `- [Some doc](./doc.md)`, whose `]` is
+ * followed by `(`, not by a space - and turn every link list into phantom
+ * unfinished work. A dropped `- [WIP] ...` is the accepted residue of keeping
+ * link bullets out; report it as a bug in this trade, not in the marker set.
+ *
  * Deliberately unanchored at the end: `.` does not match `\r`, so writing the
  * description group as `(.*)$` would reject every line of a CRLF tasks.md.
  */
-const TASK_LINE_PATTERN = /^\s*[-*]\s*\[([^\]])\]\s*(.*)/;
+const TASK_LINE_PATTERN = /^\s*[-*]\s*\[\s*([^\]\s]?)\s*\]\s*(.*)/;
 
 export interface ParsedTask {
-  /** Checkbox state: `[x]`/`[X]` is done, every other marker is not. */
+  /** Checkbox state: `[x]`/`[X]` is done, every other marker (and none) is not. */
   done: boolean;
   /** Task text after the checkbox, trimmed (may be empty). */
   description: string;
