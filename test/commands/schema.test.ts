@@ -524,7 +524,7 @@ artifacts:
       // opens with an `# ` heading rather than a section header (#1138).
       for (const template of templates) {
         const content = fs.readFileSync(path.join(templatesDir, template), 'utf-8');
-        expect(content.split('\n')[0]).toMatch(/^# \S/);
+        expect(content.replace(/\r\n?/g, '\n').split('\n')[0]).toMatch(/^# \S/);
       }
     });
 

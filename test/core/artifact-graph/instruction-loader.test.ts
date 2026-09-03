@@ -32,7 +32,9 @@ describe('instruction-loader', () => {
         // spec.md and tasks.md trips markdownlint MD041 (#1138).
         const template = loadTemplate('spec-driven', templateName);
 
-        const [firstLine, secondLine] = template.split('\n');
+        // The repository can be checked out with CRLF endings, so compare on
+        // normalized text rather than on the bytes on disk.
+        const [firstLine, secondLine] = template.replace(/\r\n?/g, '\n').split('\n');
         expect(firstLine).toMatch(/^# \S/);
         expect(secondLine).toBe('');
       }
