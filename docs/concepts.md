@@ -338,6 +338,7 @@ Tasks are the **implementation checklist** — concrete steps with checkboxes.
 ```
 
 **Task best practices:**
+- Write every task as a `- [ ]` checkbox: progress, `openspec apply`, and `openspec archive` count checkboxes and nothing else, so a plain bullet list reads as zero tasks (`openspec validate` warns when a tracked task file has no checkbox at all)
 - Group related tasks under headings
 - Use hierarchical numbering (1.1, 1.2, etc.)
 - Keep tasks small enough to complete in one session
