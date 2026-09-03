@@ -19,7 +19,7 @@ import {
 } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
 import { ANCHORED_OPENSPEC_DIRS, ensureDirectoryAnchor } from './openspec-root.js';
-import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
+import { getTransformerForTool } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   OPENSPEC_DIR_NAME,
@@ -70,6 +70,7 @@ import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptIn
 import {
   resolveCommandSurfaceCapability,
   resolveCommandInvocation,
+  resolveWorkflowReference,
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
@@ -1331,26 +1332,16 @@ export class InitCommand {
     const startHintLines = (command: string): string[] => {
       const hintToTools = new Map<string, string[]>();
       for (const tool of successfulTools) {
-        let hint: string;
-        if (shouldGenerateCommandsForTool(tool.value, activeDelivery)) {
-          const transformer = getTransformerForTool(
-            tool.value,
-            activeDelivery,
-            resolveCommandSurfaceCapability(tool.value),
-            resolveCommandInvocation(tool.value)
-          );
-          hint = `Start your first change: ${transformer ? transformer(command) : command} "your idea"`;
-        } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
-          const skillReference = getSkillReferenceTransformer(tool.value)(command);
-          // Tools with no slash surface (e.g. Rovo Dev) reference skills as
-          // prose ("the openspec-propose skill"); phrase the hint so it reads
-          // as an instruction rather than a dead command with an argument.
-          hint = usesNaturalLanguageSkillReferences(tool.value)
-            ? `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`
-            : `Start your first change: ${skillReference} "your idea"`;
-        } else {
+        const workflowReference = resolveWorkflowReference(tool.value, activeDelivery, command);
+        if (!workflowReference) {
           continue;
         }
+        // Tools with no slash surface (e.g. Rovo Dev) reference skills as
+        // prose ("the openspec-propose skill"); phrase the hint so it reads
+        // as an instruction rather than a dead command with an argument.
+        const hint = workflowReference.naturalLanguage
+          ? `Start your first change: ask ${tool.name} to use ${workflowReference.reference} with "your idea"`
+          : `Start your first change: ${workflowReference.reference} "your idea"`;
         hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
       }
       if (hintToTools.size === 0) {
