@@ -17,7 +17,13 @@ import {
   type ActionContext,
   type PlanningHomeSummary,
 } from '../change-status-policy.js';
-import { readProjectConfig, validateConfigRules, type ProjectConfig } from '../project-config.js';
+import {
+  readProjectConfig,
+  validateConfigRules,
+  resolveEffectiveContext,
+  resolveEffectiveRules,
+  type ProjectConfig,
+} from '../project-config.js';
 import type { ReferenceIndexEntry } from '../references.js';
 import type { PlanningHome } from '../planning-home.js';
 import type { ChangeMetadata } from '../change-metadata/index.js';
@@ -359,13 +365,42 @@ export function generateInstructions(
   }
 
   // Validate rules artifact IDs if config has rules (only once per session).
-  // The rules map is global while each change can use a different schema, so a
-  // key is only "unknown" when it matches no artifact in ANY available schema.
-  if (projectConfig?.rules) {
-    const validArtifactIds = new Set(
-      listSchemasWithInfo(effectiveProjectRoot ?? undefined).flatMap((s) => s.artifacts)
-    );
-    const warnings = validateConfigRules(projectConfig.rules, validArtifactIds);
+  // The global rules map applies while each change can use a different
+  // schema, so a key is only "unknown" when it matches no artifact in ANY
+  // available schema. Schema-scoped `schemas.<name>.rules` are checked more
+  // precisely, against just that schema's own artifacts, since they only
+  // ever apply there.
+  if (projectConfig?.rules || projectConfig?.schemas) {
+    const schemasWithInfo = listSchemasWithInfo(effectiveProjectRoot ?? undefined);
+    const warnings: string[] = [];
+
+    if (projectConfig.rules) {
+      const validArtifactIds = new Set(schemasWithInfo.flatMap((s) => s.artifacts));
+      warnings.push(...validateConfigRules(projectConfig.rules, validArtifactIds));
+    }
+
+    if (projectConfig.schemas) {
+      const artifactIdsBySchema = new Map(
+        schemasWithInfo.map((s) => [s.name, new Set(s.artifacts)])
+      );
+      for (const [scopedSchemaName, scoped] of Object.entries(projectConfig.schemas)) {
+        const scopedValidIds = artifactIdsBySchema.get(scopedSchemaName);
+        if (!scopedValidIds) {
+          // A typo'd or removed schema name here never matches any active
+          // schema, so its context/rules silently never apply - warn instead
+          // of leaving that dead config unexplained.
+          const knownSchemas = Array.from(artifactIdsBySchema.keys()).sort().join(', ');
+          warnings.push(
+            `Unknown schema '${scopedSchemaName}' in config 'schemas'. ` +
+              `It matches no available schema, so its context/rules overrides are ignored. Known schemas: ${knownSchemas}`
+          );
+          continue;
+        }
+        if (scoped.rules) {
+          warnings.push(...validateConfigRules(scoped.rules, scopedValidIds, scopedSchemaName));
+        }
+      }
+    }
 
     // Show each unique warning only once per session
     for (const warning of warnings) {
@@ -376,13 +411,12 @@ export function generateInstructions(
     }
   }
 
-  // Extract context and rules as separate fields (not prepended to template)
-  const configContext = projectConfig?.context?.trim() || undefined;
-  const rulesForArtifact =
-    projectConfig?.rules && Object.hasOwn(projectConfig.rules, artifactId)
-      ? projectConfig.rules[artifactId]
-      : undefined;
-  const configRules = rulesForArtifact && rulesForArtifact.length > 0 ? rulesForArtifact : undefined;
+  // Extract context and rules as separate fields (not prepended to template).
+  // Both layer the schema-scoped `schemas.<schemaName>` override (if any) on
+  // top of the project-level value, so single-schema projects that only use
+  // the flat `context`/`rules` fields keep behaving exactly as before.
+  const configContext = resolveEffectiveContext(projectConfig, context.schemaName);
+  const configRules = resolveEffectiveRules(projectConfig, context.schemaName, artifactId);
 
   return {
     changeName: context.changeName,
