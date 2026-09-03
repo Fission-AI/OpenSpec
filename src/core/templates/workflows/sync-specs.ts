@@ -168,6 +168,8 @@ ${STORE_SELECTION_GUIDANCE}
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+# Spec Delta
+
 ## Purpose
 
 Only on a delta that introduces a brand-new capability. Seeds the new main spec.
@@ -430,6 +432,8 @@ ${STORE_SELECTION_GUIDANCE}
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+# Spec Delta
+
 ## Purpose
 
 Only on a delta that introduces a brand-new capability. Seeds the new main spec.

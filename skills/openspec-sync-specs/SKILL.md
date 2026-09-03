@@ -166,6 +166,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 **Delta Spec Format Reference**
 
 ```markdown
+# Spec Delta
+
 ## Purpose
 
 Only on a delta that introduces a brand-new capability. Seeds the new main spec.
