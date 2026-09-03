@@ -472,23 +472,18 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ## Command Reference
 
-**Core workflow:**
+**The commands you have installed:**
 
- | Command           | What it does                               |
- |-------------------|--------------------------------------------|
+ | Command          | What it does                               |
+ |------------------|--------------------------------------------|
  | `/openspec-propose` | Create a change and generate all artifacts |
  | `/openspec-explore` | Think through problems before/during work  |
  | `/openspec-apply-change`   | Implement tasks from a change              |
  | `/openspec-archive-change` | Archive a completed change                 |
-
-**Additional commands** (only if installed - availability depends on your profile):
-
- | Command            | What it does                                             |
- |--------------------|----------------------------------------------------------|
- | `/openspec-new-change`      | Start a new change, step through artifacts one at a time |
- | `/openspec-continue-change` | Continue working on an existing change                   |
- | `/openspec-ff-change`       | Fast-forward: create all artifacts at once               |
- | `/openspec-verify-change`   | Verify implementation matches artifacts                  |
+ | `/openspec-new-change`     | Start a new change, one artifact at a time |
+ | `/openspec-continue-change` | Continue working on an existing change    |
+ | `/openspec-ff-change`      | Fast-forward: create all artifacts at once |
+ | `/openspec-verify-change`  | Verify implementation matches artifacts    |
 
 ---
 
@@ -508,8 +503,8 @@ If the user says they need to stop, want to pause, or seem disengaged:
 ```
 No problem! Your change is saved at the `changeRoot` reported by `openspec status --change "<name>" --json`.
 
-To pick up where we left off later:
-- `/openspec-continue-change <name>` - Resume artifact creation (if installed; otherwise `openspec status --change "<name>" --json` shows the next artifact)
+To pick up where we left off later, `openspec status --change "<name>" --json` shows exactly where the change stands.
+- `/openspec-continue-change <name>` - Resume artifact creation
 - `/openspec-apply-change <name>` - Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.
@@ -524,23 +519,18 @@ If the user says they just want to see the commands or skip the tutorial:
 ```
 ## OpenSpec Quick Reference
 
-**Core workflow:**
+**The commands you have installed:**
 
  | Command                  | What it does                               |
  |--------------------------|--------------------------------------------|
- | `/openspec-propose <name>` | Create a change and generate all artifacts |
- | `/openspec-explore`        | Think through problems (no code changes)   |
- | `/openspec-apply-change <name>`   | Implement tasks                            |
- | `/openspec-archive-change <name>` | Archive when done                          |
-
-**Additional commands** (only if installed - availability depends on your profile):
-
- | Command                   | What it does                        |
- |---------------------------|-------------------------------------|
- | `/openspec-new-change <name>`      | Start a new change, step by step    |
- | `/openspec-continue-change <name>` | Continue an existing change         |
- | `/openspec-ff-change <name>`       | Fast-forward: all artifacts at once |
- | `/openspec-verify-change <name>`   | Verify implementation               |
+ | `/openspec-propose <name>`  | Create a change and generate all artifacts |
+ | `/openspec-explore`         | Think through problems (no code changes)   |
+ | `/openspec-apply-change <name>`    | Implement tasks                            |
+ | `/openspec-archive-change <name>`  | Archive when done                          |
+ | `/openspec-new-change <name>`      | Start a new change, step by step           |
+ | `/openspec-continue-change <name>` | Continue an existing change                |
+ | `/openspec-ff-change <name>`       | Fast-forward: all artifacts at once        |
+ | `/openspec-verify-change <name>`   | Verify implementation                      |
 
 Try `/openspec-propose` to start your first change.
 ```

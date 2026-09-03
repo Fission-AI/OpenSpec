@@ -19,6 +19,13 @@ const BLOCKED_STATE_HANDOFF = optionalWorkflow(
   'run `openspec status --change "<name>" --json` to see the next artifact and `openspec instructions <artifact-id> --change "<name>" --json` for how to create it'
 );
 
+/** The archive handoff shown once every task is done. */
+const ARCHIVE_HANDOFF = optionalWorkflow(
+  'archive',
+  'You can archive this change with `/opsx:archive`.',
+  'You can archive this change by running `openspec archive "<name>"`.'
+);
+
 /**
  * The apply workflow instructions, authored once and rendered by both the
  * skill and command surfaces. The surfaces are intentionally distinct, but
@@ -159,7 +166,7 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! You can archive this change with \`/opsx:archive\`.
+All tasks complete! ${ARCHIVE_HANDOFF}
 \`\`\`
 
 **Output On Pause (Issue Encountered)**

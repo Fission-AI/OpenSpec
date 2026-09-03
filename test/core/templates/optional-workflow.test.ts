@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  onlyWithWorkflow,
   optionalWorkflow,
   resolveOptionalWorkflows,
 } from '../../../src/core/templates/optional-workflow.js';
@@ -40,6 +41,48 @@ describe('optionalWorkflow / resolveOptionalWorkflows', () => {
     const text = 'Plain body naming `/opsx:apply` only.';
 
     expect(resolveOptionalWorkflows(text, installed())).toBe(text);
+  });
+
+  // A dropped table row must take its line with it. A blank line left behind
+  // ends the table in markdown, so the rows after it stop rendering as a table.
+  it('removes the whole line when a line-level conditional resolves to empty', () => {
+    const table = [
+      '| Command | What it does |',
+      '|---------|--------------|',
+      onlyWithWorkflow('propose', '| `/opsx:propose` | Start a change |'),
+      onlyWithWorkflow('ff', '| `/opsx:ff` | Fast-forward |'),
+      onlyWithWorkflow('apply', '| `/opsx:apply` | Implement tasks |'),
+      '',
+      'Done.',
+    ].join('\n');
+
+    expect(resolveOptionalWorkflows(table, installed('propose', 'apply'))).toBe(
+      [
+        '| Command | What it does |',
+        '|---------|--------------|',
+        '| `/opsx:propose` | Start a change |',
+        '| `/opsx:apply` | Implement tasks |',
+        '',
+        'Done.',
+      ].join('\n')
+    );
+  });
+
+  it('keeps the indentation of a line-level conditional it keeps', () => {
+    const text = `intro\n  ${onlyWithWorkflow('apply', '- run `/opsx:apply`')}\nouttro`;
+
+    expect(resolveOptionalWorkflows(text, installed('apply'))).toBe(
+      'intro\n  - run `/opsx:apply`\nouttro'
+    );
+    expect(resolveOptionalWorkflows(text, installed())).toBe('intro\nouttro');
+  });
+
+  // Only a conditional that owns its whole line takes the line with it; one
+  // that sits inside a sentence must not swallow the text around it.
+  it('leaves the surrounding line intact for an inline conditional', () => {
+    const text = `Next: ${onlyWithWorkflow('apply', 'run `/opsx:apply`')}.`;
+
+    expect(resolveOptionalWorkflows(text, installed())).toBe('Next: .');
   });
 
   // A branch that is dropped must leave nothing behind: a surviving marker

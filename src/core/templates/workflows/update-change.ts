@@ -44,6 +44,28 @@ const CONTINUE_FRONTIER = optionalWorkflow(
   'creating them is a separate step, outside this workflow'
 );
 
+/**
+ * `apply` and `archive` are in the `core` profile but not guaranteed in a
+ * custom one, so their handoffs are resolved the same way.
+ */
+const APPLY_DELTA_HANDOFF = optionalWorkflow(
+  'apply',
+  'suggest `/opsx:apply` to carry the delta into code',
+  'say that the code may need updating and offer to carry the delta into it'
+);
+
+const APPLY_GUARDRAIL = optionalWorkflow(
+  'apply',
+  'stop and point to `/opsx:apply`',
+  'stop and say that the revised plan now implies code changes; implementing them is a separate step'
+);
+
+const ARCHIVE_HANDOFF = optionalWorkflow(
+  'archive',
+  'suggest `/opsx:archive`',
+  'suggest archiving with `openspec archive "<name>"`'
+);
+
 const INTENT_CHANGE_GUARDRAIL = optionalWorkflow(
   'new',
   'recommend starting fresh with `/opsx:new` (the "Update vs. Start Fresh" heuristic)',
@@ -116,8 +138,8 @@ ${CONTINUE_SCOPE_NOTE}
 
 6. **Point to the next step (guidance only - NEVER act on it)**
    - Artifacts still missing -> ${CONTINUE_NEXT_STEP}.
-   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest \`/opsx:apply\` to carry the delta into code.
-   - Everything done and implemented -> suggest \`/opsx:archive\`.
+   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
+   - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 
 **Output**
 
@@ -127,7 +149,7 @@ After each invocation, show:
 - Where the change stands and the recommended next command
 
 **Guardrails**
-- Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to \`/opsx:apply\`.
+- Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - ${CONTINUE_FRONTIER}.
@@ -207,8 +229,8 @@ ${CONTINUE_SCOPE_NOTE}
 
 6. **Point to the next step (guidance only - NEVER act on it)**
    - Artifacts still missing -> ${CONTINUE_NEXT_STEP}.
-   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest \`/opsx:apply\` to carry the delta into code.
-   - Everything done and implemented -> suggest \`/opsx:archive\`.
+   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
+   - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 
 **Output**
 
@@ -218,7 +240,7 @@ After each invocation, show:
 - Where the change stands and the recommended next command
 
 **Guardrails**
-- Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to \`/opsx:apply\`.
+- Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
 - Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - ${CONTINUE_FRONTIER}.

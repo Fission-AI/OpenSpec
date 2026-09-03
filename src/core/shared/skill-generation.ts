@@ -32,7 +32,10 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
-import { resolveOptionalWorkflows } from '../templates/optional-workflow.js';
+import {
+  assertWorkflowConditionalsResolved,
+  resolveOptionalWorkflows,
+} from '../templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../profiles.js';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
 
@@ -169,6 +172,11 @@ export function generateSkillContent(
   const instructions = transformInstructions
     ? transformInstructions(template.instructions)
     : template.instructions;
+
+  assertWorkflowConditionalsResolved(
+    instructions,
+    `Skill '${template.name}' was generated without resolving its optional-workflow blocks`
+  );
 
   return `---
 name: ${template.name}
