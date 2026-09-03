@@ -61,6 +61,7 @@ import {
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
+import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import {
   resolveSharedSkillWriters,
   sharedSkillRootOwner,
@@ -1388,15 +1389,32 @@ export class InitCommand {
         )
       );
     }
+    let printedStartHints = true;
     if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
       // Nothing was generated for any tool: the correction above is the
       // whole story, so don't advertise an invocation that doesn't exist.
+      printedStartHints = false;
     } else if (activeWorkflows.includes('propose')) {
       printStartHints('/opsx:propose');
     } else if (activeWorkflows.includes('new')) {
       printStartHints('/opsx:new');
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
+      printedStartHints = false;
+    }
+
+    // Workflows the active profile left out. Setup is the only moment a user
+    // is told what exists, so name them here rather than let a missing
+    // command read as a broken install (#1076). Skipped when the branch above
+    // already pointed at `openspec config profile`.
+    if (printedStartHints) {
+      const optionalWorkflowsNote = formatOptionalWorkflowsNote(activeWorkflows);
+      if (optionalWorkflowsNote) {
+        console.log();
+        for (const line of optionalWorkflowsNote) {
+          console.log(chalk.dim(line));
+        }
+      }
     }
 
     // Links
