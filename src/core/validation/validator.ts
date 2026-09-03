@@ -556,14 +556,37 @@ export class Validator {
         continue;
       }
 
-      documents.push({
-        path: FileSystemUtils.toPosixPath(path.relative(changeDir, file)),
-        content,
-      });
+      documents.push({ path: this.taskDocumentPath(changeDir, file), content });
     }
 
     documents.sort((left, right) => left.path.localeCompare(right.path));
     return { documents, unreadable };
+  }
+
+  /**
+   * Names a task file relative to its change, POSIX-separated.
+   *
+   * Both sides are canonicalized first. `resolveArtifactOutputs` hands back real
+   * paths, while `changeDir` carries whatever spelling the caller resolved, and
+   * the two can differ without being apart: on Windows a short 8.3 alias
+   * (`RUNNER~1`) against its expanded form turned `tasks.md` into a
+   * `../../../..`-prefixed absolute path in the report, and a symlinked project
+   * directory does the same elsewhere. Canonicalizing recovers the real
+   * relationship. The Windows CI job is the regression guard — the mismatch
+   * cannot be staged on POSIX, where the spawned CLI's `process.cwd()` is
+   * already physical.
+   *
+   * A path that still escapes would be a resolver bug rather than a spelling
+   * difference, but the report must never leak an absolute filesystem path, so
+   * the file name stands in.
+   */
+  private taskDocumentPath(changeDir: string, file: string): string {
+    const relative = path.relative(
+      FileSystemUtils.canonicalizeExistingPath(changeDir),
+      FileSystemUtils.canonicalizeExistingPath(file)
+    );
+    const escapes = relative === '' || relative.startsWith('..') || path.isAbsolute(relative);
+    return escapes ? path.basename(file) : FileSystemUtils.toPosixPath(relative);
   }
 
   /**
