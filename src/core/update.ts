@@ -250,20 +250,7 @@ export class UpdateCommand {
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
-      // Both notes must run: `||` would short-circuit the second one away.
-      const printedExtraNote = this.displayExtraWorkflowsNote(
-        resolvedProjectPath,
-        configuredTools,
-        desiredWorkflows
-      );
-      const printedMissingCoreNote = this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
-      const pointedAtProfileConfig = printedExtraNote || printedMissingCoreNote;
-      this.displayOptionalWorkflowsNote(
-        configuredTools,
-        desiredWorkflows,
-        delivery,
-        pointedAtProfileConfig
-      );
+      this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
       return;
     }
@@ -501,21 +488,8 @@ export class UpdateCommand {
     // 13. Detect new tool directories not currently configured
     this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
 
-    // 14. Display note about extra workflows not in profile
-    // Both notes must run: `||` would short-circuit the second one away.
-    const printedExtraNote = this.displayExtraWorkflowsNote(
-      resolvedProjectPath,
-      configuredAndNewTools,
-      desiredWorkflows
-    );
-    const printedMissingCoreNote = this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
-    const pointedAtProfileConfig = printedExtraNote || printedMissingCoreNote;
-    this.displayOptionalWorkflowsNote(
-      configuredAndNewTools,
-      desiredWorkflows,
-      delivery,
-      pointedAtProfileConfig
-    );
+    // 14. Display the profile notes
+    this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile, delivery);
     this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
@@ -658,6 +632,34 @@ export class UpdateCommand {
         )
       );
     }
+  }
+
+  /**
+   * Prints the profile notes, in order, with one pointer at
+   * `openspec config profile` rather than three.
+   *
+   * Every note is evaluated: reading them as one short-circuited `||` chain
+   * would swallow whichever ran second.
+   */
+  private displayProfileNotes(
+    projectPath: string,
+    configuredTools: string[],
+    desiredWorkflows: readonly string[] | undefined,
+    profile: Profile,
+    delivery: Delivery
+  ): void {
+    const printedExtraNote = this.displayExtraWorkflowsNote(
+      projectPath,
+      configuredTools,
+      desiredWorkflows ?? []
+    );
+    const printedMissingCoreNote = this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
+    this.displayOptionalWorkflowsNote(
+      configuredTools,
+      desiredWorkflows,
+      delivery,
+      printedExtraNote || printedMissingCoreNote
+    );
   }
 
   /**
