@@ -61,6 +61,20 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
 
 6. **Confirm your tool supports command files.** Codex, CodeArts, ForgeCode, Hermes, Kimi Code, Mistral Vibe, Zed Agent, and the shared `.agents` target don't get generated `opsx-*` command files; they use skill-based invocations instead, so `/opsx` will never autocomplete for them. Type `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code, and `/openspec-propose` in the rest. The shared `.agents` target is vendor-neutral, so `/openspec-propose` is the common form rather than a guaranteed one — if your assistant does not answer to it, check its own docs for how it invokes a skill. Amazon Q does get command files, but loads them into its prompt library rather than its slash menu — type `@opsx-propose` there, not `/opsx`. Every tool's form is listed in [How To Invoke](supported-tools.md#how-to-invoke).
 
+### Only some `/opsx:` commands show up
+
+If `/opsx:propose` works but `/opsx:ff`, `/opsx:new`, `/opsx:continue`, `/opsx:verify`, `/opsx:bulk-archive`, or `/opsx:onboard` is missing, nothing is broken: those are the **expanded** workflows, and the default `core` profile doesn't install them. `openspec init` and `openspec update` both name the ones your profile left out when they finish.
+
+Add them with:
+
+```bash
+openspec config profile
+```
+
+It offers to apply the change to the current project before it exits. If you decline, or you want the same workflows in another project, run `openspec update` there.
+
+See the [glossary](glossary.md#workflow-and-commands) for what each set contains.
+
 ## Working with changes
 
 ### "Change not found"
