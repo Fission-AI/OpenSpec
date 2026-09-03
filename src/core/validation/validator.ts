@@ -34,6 +34,7 @@ import {
 } from '../../utils/change-metadata.js';
 import { resolveTaskFilesForChange } from '../../utils/task-progress.js';
 import { findTaskNumberingIssues } from './task-numbering.js';
+import { findMissingTaskCheckboxIssues } from './task-checkboxes.js';
 import { findPurposePlaceholderIssue } from './purpose-placeholder.js';
 import { getPackageSchemasDir, getSchemaDir } from '../artifact-graph/index.js';
 
@@ -479,67 +480,102 @@ export class Validator {
     }
 
     if (options.projectRoot) {
-      issues.push(...await this.collectTaskNumberingIssues(changeDir, options.projectRoot));
+      issues.push(...await this.collectTaskFileIssues(changeDir, options.projectRoot));
     }
 
     return this.createReport(issues);
   }
 
-  private async collectTaskNumberingIssues(
+  /**
+   * Lints the change's task files.
+   *
+   * Two checks with deliberately different reach. Checkbox formatting is read
+   * from whatever the change's own schema declares as its tracked task output,
+   * because every schema's progress, apply and archive behavior is computed by
+   * counting checkboxes in exactly those files. Numbering stays scoped to the
+   * built-in `spec-driven` schema, whose template is the one that numbers tasks
+   * in the first place.
+   *
+   * The checkbox check never falls back to a bare top-level `tasks.md`: a file
+   * no artifact declares is not a tracked task list, and warning about its
+   * formatting would be a guess about a file the tool does not read.
+   */
+  private async collectTaskFileIssues(
     changeDir: string,
     projectRoot: string
   ): Promise<ValidationIssue[]> {
+    let trackedFiles: string[];
     try {
-      const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot).replace(
-        /\.ya?ml$/,
-        ''
-      );
-      const schemaDir = getSchemaDir(schemaName, projectRoot);
-      const builtInSchemaDir = path.join(getPackageSchemasDir(), 'spec-driven');
-      if (
-        schemaName !== 'spec-driven' ||
-        schemaDir === null ||
-        FileSystemUtils.canonicalizeExistingPath(schemaDir) !==
-          FileSystemUtils.canonicalizeExistingPath(builtInSchemaDir)
-      ) {
-        return [];
-      }
+      trackedFiles = resolveTaskFilesForChange(changeDir, projectRoot);
     } catch {
       return [];
     }
 
-    let taskFiles: string[];
-    try {
-      taskFiles = resolveTaskFilesForChange(changeDir, projectRoot);
-    } catch {
-      return [];
-    }
-    if (taskFiles.length === 0) {
-      taskFiles = [path.join(changeDir, 'tasks.md')];
-    }
+    const files = trackedFiles.length > 0 ? trackedFiles : [path.join(changeDir, 'tasks.md')];
+    const documents = await this.readTaskDocuments(changeDir, files);
+    const toWarning = (issue: { path: string; line: number; message: string }): ValidationIssue => ({
+      level: 'WARNING',
+      path: issue.path,
+      line: issue.line,
+      message: issue.message,
+    });
 
+    const issues: ValidationIssue[] = [];
+    if (trackedFiles.length > 0) {
+      issues.push(...findMissingTaskCheckboxIssues(documents).map(toWarning));
+    }
+    if (this.usesBuiltInSpecDrivenSchema(changeDir, projectRoot)) {
+      issues.push(...findTaskNumberingIssues(documents).map(toWarning));
+    }
+    return issues;
+  }
+
+  /** Reads task files into change-relative documents, skipping unreadable ones. */
+  private async readTaskDocuments(
+    changeDir: string,
+    files: readonly string[]
+  ): Promise<Array<{ path: string; content: string }>> {
     const documents: Array<{ path: string; content: string }> = [];
-    for (const taskFile of taskFiles) {
+    for (const file of files) {
       let content: string;
       try {
-        content = await fs.readFile(taskFile, 'utf-8');
+        content = await fs.readFile(file, 'utf-8');
       } catch {
         continue;
       }
 
       documents.push({
-        path: FileSystemUtils.toPosixPath(path.relative(changeDir, taskFile)),
+        path: FileSystemUtils.toPosixPath(path.relative(changeDir, file)),
         content,
       });
     }
 
     documents.sort((left, right) => left.path.localeCompare(right.path));
-    return findTaskNumberingIssues(documents).map((issue) => ({
-      level: 'WARNING',
-      path: issue.path,
-      line: issue.line,
-      message: issue.message,
-    }));
+    return documents;
+  }
+
+  /**
+   * True when the change resolves to the package's own `spec-driven` schema. A
+   * project schema that merely reuses the name is not it, so checks written
+   * against the built-in template never fire on someone else's task format.
+   */
+  private usesBuiltInSpecDrivenSchema(changeDir: string, projectRoot: string): boolean {
+    try {
+      const schemaName = resolveSchemaForChange(changeDir, undefined, projectRoot).replace(
+        /\.ya?ml$/,
+        ''
+      );
+      if (schemaName !== 'spec-driven') return false;
+      const schemaDir = getSchemaDir(schemaName, projectRoot);
+      if (schemaDir === null) return false;
+      const builtInSchemaDir = path.join(getPackageSchemasDir(), 'spec-driven');
+      return (
+        FileSystemUtils.canonicalizeExistingPath(schemaDir) ===
+        FileSystemUtils.canonicalizeExistingPath(builtInSchemaDir)
+      );
+    } catch {
+      return false;
+    }
   }
 
   /**
