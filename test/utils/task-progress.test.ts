@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import {
   countTasksFromContent,
+  formatTaskStatus,
   getTaskProgressForChange,
   getTaskProgressDetailForChange,
   parseTaskLines,
@@ -249,6 +250,30 @@ describe('parseTaskLines', () => {
       { done: false, description: '' },
       { done: true, description: '' },
     ]);
+  });
+
+  it('counts an unrecognised marker as not done, rather than dropping it (#1761)', () => {
+    const tasks = parseTaskLines(
+      '- [x] 1.1 Done\n- [~] 1.2 Deferred\n- [-] 1.3 Cancelled\n- [?] 1.4 Unclear\n- [/] 1.5 Partial\n'
+    );
+
+    expect(tasks).toEqual([
+      { done: true, description: '1.1 Done' },
+      { done: false, description: '1.2 Deferred' },
+      { done: false, description: '1.3 Cancelled' },
+      { done: false, description: '1.4 Unclear' },
+      { done: false, description: '1.5 Partial' },
+    ]);
+  });
+
+  it('keeps unrecognised markers in the denominator, so progress cannot go up when work is deferred (#1761)', () => {
+    // The reported failure: marking open items `[~]` moved them out of the
+    // count instead of leaving them not-done, and the change read "✓ Complete".
+    const open = ['- [x] 1.1 Done', '- [ ] 1.2 Open', '- [ ] 1.3 Open', ''].join('\n');
+    const deferred = ['- [x] 1.1 Done', '- [~] 1.2 Deferred', '- [~] 1.3 Deferred', ''].join('\n');
+
+    expect(countTasksFromContent(deferred)).toEqual(countTasksFromContent(open));
+    expect(formatTaskStatus(countTasksFromContent(deferred))).toBe('1/3 tasks');
   });
 
   it('leaves non-checkbox lines, prose and headings alone', () => {

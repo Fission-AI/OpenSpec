@@ -5,25 +5,36 @@ import { resolveArtifactOutputs, resolveSchema } from '../core/artifact-graph/in
 import { resolveSchemaForChange } from './change-metadata.js';
 
 /**
- * A Markdown task line: a `-`/`*` bullet carrying a `[ ]` or `[x]` checkbox.
+ * A Markdown task line: a `-`/`*` bullet carrying a single-character checkbox.
  *
  * Leading whitespace is allowed so nested sub-tasks count like their parents.
  * Anchoring at column 0 made `  - [ ] 1.1.1 ...` invisible to progress, to the
  * apply task list, and to archive's incomplete-task check, so a change with
  * unfinished sub-tasks reported "✓ Complete" and archived without a warning.
  *
+ * The marker is any single non-`]` character, not just ` `/`x`/`X`, because a
+ * marker this pattern rejects is a line that counts toward neither the
+ * numerator nor the denominator: a tasks.md whose remaining work is written
+ * `- [~] ...` reported "✓ Complete" and archived with no incomplete-task
+ * warning, and marking items `[~]` *shrank* the denominator instead of leaving
+ * them counted as not-done (#1761). Only `x`/`X` means done, so an
+ * unrecognised marker now reads as not-done - the conservative default, and no
+ * new concept: OpenSpec does not adopt `[~]` or any other marker, it just stops
+ * dropping the line.
+ *
  * Permissive on purpose, and safe to keep that way: any character class
- * tightened here - the `\s` inside the brackets, which lets a tab or
- * non-breaking space stand for an empty box - drops lines that used to count,
- * and a task this parser drops is a task `openspec archive` stops warning about.
+ * tightened here drops lines that used to count, and a task this parser drops
+ * is a task `openspec archive` stops warning about. The cost of the wide class
+ * is over-counting - `- [1] ...` in a tasks file now reads as one unfinished
+ * task - which is a loud, correctable false positive, unlike the silent loss.
  *
  * Deliberately unanchored at the end: `.` does not match `\r`, so writing the
  * description group as `(.*)$` would reject every line of a CRLF tasks.md.
  */
-const TASK_LINE_PATTERN = /^\s*[-*]\s*\[([\sxX])\]\s*(.*)/;
+const TASK_LINE_PATTERN = /^\s*[-*]\s*\[([^\]])\]\s*(.*)/;
 
 export interface ParsedTask {
-  /** Checkbox state: `[x]`/`[X]` is done, anything else is not. */
+  /** Checkbox state: `[x]`/`[X]` is done, every other marker is not. */
   done: boolean;
   /** Task text after the checkbox, trimmed (may be empty). */
   description: string;

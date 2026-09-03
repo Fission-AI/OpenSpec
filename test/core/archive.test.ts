@@ -701,6 +701,31 @@ describe('ArchiveCommand', () => {
       );
     });
 
+    it('detects tasks written with an unrecognised marker (#1761 data-safety gate)', async () => {
+      // Before the fix the marker had to be ` `, `x` or `X`; every other
+      // checkbox character was dropped from the count entirely, so a change
+      // whose remaining work was written `- [~] ...` archived with no warning.
+      const changeName = 'unknown-marker-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        [
+          '## 1. Implementation',
+          '- [x] 1.1 Done',
+          '- [~] 1.2 Deferred, not done',
+          '- [-] 1.3 Cancelled, not done',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Warning: 2 incomplete task(s) found')
+      );
+    });
+
     it('should update specs when archiving (delta-based ADDED) and include change name in skeleton', async () => {
       const changeName = 'spec-feature';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
