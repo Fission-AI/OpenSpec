@@ -565,11 +565,11 @@ export async function buildUpdatedSpec(
   // glued the heading to the Purpose paragraph and the first requirement, so
   // every archive rewrote a well-formatted spec into that shape. Separate
   // non-empty slices with one blank line instead.
-  const rebuilt = [parts.before.trimEnd(), parts.headerLine, reqBody, parts.after.trim()]
-    .filter((s) => s !== '')
-    .join('\n\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trimEnd() + '\n';
+  const rebuilt = collapseExcessiveBlankLinesOutsideFences(
+    [parts.before.trimEnd(), parts.headerLine, reqBody, parts.after.trim()]
+      .filter((s) => s !== '')
+      .join('\n\n')
+  ).trimEnd() + '\n';
 
   return {
     rebuilt,
@@ -588,6 +588,32 @@ export async function buildUpdatedSpec(
     // requirements and miss the identical heading written after them.
     unaccountedContent: contentTheMergeCannotName(parts),
   };
+}
+
+/**
+ * Match the serializer's established blank-line collapse outside code fences
+ * while preserving runs of literal empty lines inside recognized fences.
+ */
+function collapseExcessiveBlankLinesOutsideFences(content: string): string {
+  const lines = content.split('\n');
+  const fenceMask = buildCodeFenceMask(lines);
+  const output = [lines[0] ?? ''];
+  let consecutiveOutsideNewlines = 0;
+
+  for (let index = 1; index < lines.length; index++) {
+    const insideFence = fenceMask[index - 1] && fenceMask[index];
+    if (insideFence || consecutiveOutsideNewlines < 2) {
+      output.push('\n');
+    }
+
+    consecutiveOutsideNewlines = insideFence ? 0 : consecutiveOutsideNewlines + 1;
+    output.push(lines[index]);
+    if (lines[index] !== '') {
+      consecutiveOutsideNewlines = 0;
+    }
+  }
+
+  return output.join('');
 }
 
 /**
