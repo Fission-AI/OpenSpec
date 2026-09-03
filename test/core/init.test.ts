@@ -517,44 +517,54 @@ describe('InitCommand', () => {
         );
       }
 
-      const updateVariants: Array<[string, string]> = [
-        [
-          await fs.readFile(
-            path.join(
-              testDir,
-              '.claude',
-              'skills',
-              'openspec-update-change',
-              'SKILL.md'
-            ),
-            'utf-8'
+      // The default profile installs six workflows; `continue` and `new` are
+      // not among them. Nothing it generates may name them (#1734) - it would
+      // send the agent to a skill that was never written. The CLI fallback is
+      // stated outright instead of behind a runtime availability check.
+      const updateVariants = [
+        await fs.readFile(
+          path.join(
+            testDir,
+            '.claude',
+            'skills',
+            'openspec-update-change',
+            'SKILL.md'
           ),
-          '`/opsx:continue`',
-        ],
-        [
-          await fs.readFile(
-            path.join(testDir, '.claude', 'commands', 'opsx', 'update.md'),
-            'utf-8'
-          ),
-          '`/opsx:continue`',
-        ],
+          'utf-8'
+        ),
+        await fs.readFile(
+          path.join(testDir, '.claude', 'commands', 'opsx', 'update.md'),
+          'utf-8'
+        ),
       ];
 
-      for (const [content, continueReference] of updateVariants) {
-        const availabilityGuidance = content.indexOf(
-          `${continueReference} is an optional workflow and may not be installed`
-        );
-        const nextReference = content.indexOf(
-          continueReference,
-          availabilityGuidance + continueReference.length
-        );
-
-        expect(availabilityGuidance).toBeGreaterThanOrEqual(0);
-        expect(content.indexOf(continueReference)).toBe(availabilityGuidance);
-        expect(nextReference).toBeGreaterThan(availabilityGuidance);
+      for (const content of updateVariants) {
+        expect(content).not.toContain('/opsx:continue');
+        expect(content).not.toContain('/opsx:new');
+        expect(content).not.toContain('is an optional workflow and may not be installed');
+        expect(content).toContain('it never creates missing ones');
         expect(content).toContain('openspec status --change "<name>" --json');
         expect(content).toContain(
           'openspec instructions "<artifact-id>" --change "<name>" --json'
+        );
+        expect(content).toContain('openspec new change "<new-change-name>"');
+      }
+
+      const applyVariants = [
+        await fs.readFile(
+          path.join(testDir, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md'),
+          'utf-8'
+        ),
+        await fs.readFile(
+          path.join(testDir, '.claude', 'commands', 'opsx', 'apply.md'),
+          'utf-8'
+        ),
+      ];
+
+      for (const content of applyVariants) {
+        expect(content).not.toContain('/opsx:continue');
+        expect(content).toContain(
+          'run `openspec status --change "<name>" --json` to see the next artifact'
         );
       }
 
