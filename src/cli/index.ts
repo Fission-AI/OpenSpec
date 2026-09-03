@@ -757,7 +757,7 @@ newCmd
 // instead of hand-building the artifacts (#1221). Same reasoning as the
 // removed options kept registered above: a reachable name can explain itself.
 for (const verb of WORKFLOW_VERBS) {
-  program
+  const verbCommand = program
     .command(verb, { hidden: true })
     // The verb is typed with whatever the user meant to pass the workflow
     // ("openspec propose add auth --fast"); accept it all and explain, rather
@@ -765,14 +765,28 @@ for (const verb of WORKFLOW_VERBS) {
     .argument('[args...]')
     .allowUnknownOption()
     .allowExcessArguments()
+    // No help option: `--help` and `-h` would otherwise print a usage page for
+    // a command that does not do anything, which is a worse dead end than the
+    // unknown-command error this replaced. Dropping it lets both fall through
+    // to allowUnknownOption and reach the guidance.
+    .helpOption(false)
     .action(() => {
       const guidance = getWorkflowVerbGuidance(verb, process.cwd());
       ora().fail(`Error: ${guidance.message}`);
       for (const detail of guidance.details) {
         console.error(detail);
       }
-      process.exit(1);
+      // exitCode rather than exit(): parse() is synchronous, and exiting from
+      // inside the action would cut off the postAction hook and risk
+      // truncating this very output on a pipe.
+      process.exitCode = 1;
     });
+  // `openspec help propose` routes through the command's own help output
+  // rather than its action, so give that path the same answer.
+  verbCommand.helpInformation = () => {
+    const guidance = getWorkflowVerbGuidance(verb, process.cwd());
+    return [guidance.message, ...guidance.details, ''].join('\n');
+  };
 }
 
 export { program };
