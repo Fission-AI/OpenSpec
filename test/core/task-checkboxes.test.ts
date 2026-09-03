@@ -86,6 +86,17 @@ describe('findMissingTaskCheckboxIssues', () => {
     ).toEqual([{ line: 5, message: expect.any(String) }]);
   });
 
+  it('only treats a fence indented up to three spaces as a fence', () => {
+    // Four spaces makes an indented code block, not an opener. Reading it as one
+    // would leave the scan inside a block that never began.
+    expect(
+      findInSingleFile(['    ```', '', '- a real bullet', ''].join('\n'))
+    ).toEqual([{ line: 3, message: expect.any(String) }]);
+    expect(
+      findInSingleFile(['   ```', '- an example bullet', '   ```', ''].join('\n'))
+    ).toEqual([]);
+  });
+
   it('does not treat a horizontal rule or emphasis as a list item', () => {
     expect(findInSingleFile('# Tasks\n\n---\n\n***\n')).toEqual([]);
   });
@@ -109,6 +120,14 @@ describe('findMissingTaskCheckboxIssues', () => {
     expect(findInSingleFile(['---', '', '- a real bullet', ''].join('\n'))).toEqual([
       { line: 3, message: expect.any(String) },
     ]);
+  });
+
+  it('does not read a longer dash run as front matter', () => {
+    // `----` is a thematic break. Reading it as an opener would hide every list
+    // between it and the next `---`.
+    expect(
+      findInSingleFile(['----', '', '- a real bullet', '', '---', ''].join('\n'))
+    ).toEqual([{ line: 3, message: expect.any(String) }]);
   });
 
   it('skips HTML comments without hiding the line that follows them', () => {

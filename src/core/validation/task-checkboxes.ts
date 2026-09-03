@@ -30,13 +30,21 @@ const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+\S/;
  * whatever follows it on the line (an info string on an opener, nothing on a
  * valid closer).
  *
+ * Indented by at most three spaces, as CommonMark requires: at four, the line is
+ * an indented code block rather than a fence, and treating it as an opener would
+ * leave the scan inside a block that never began and hide every list below it.
+ *
  * Deliberately unanchored at the end: `.` does not match `\r`, so `(.*)$` would
  * fail on every line of a CRLF file and blind the scan to fences entirely.
  */
-const FENCE = /^\s*(`{3,}|~{3,})(.*)/;
+const FENCE = /^ {0,3}(`{3,}|~{3,})(.*)/;
 
-/** A YAML front-matter delimiter, recognised only on a document's first line. */
-const FRONT_MATTER = /^(-{3,})\s*$/;
+/**
+ * The YAML front-matter delimiter: exactly three dashes. A longer run is a
+ * thematic break, so `----` must not open a block that swallows the list under
+ * it until the next `---`.
+ */
+const FRONT_MATTER = /^-{3}\s*$/;
 
 const COMMENT_OPEN = '<!--';
 const COMMENT_CLOSE = '-->';

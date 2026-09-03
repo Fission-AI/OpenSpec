@@ -214,13 +214,16 @@ describe('openspec validate checks task checkbox formatting (#354)', () => {
     ]);
   });
 
-  it('prints the warning with its line through the deprecated change validate command', async () => {
+  it('surfaces the warning through the deprecated change validate command', async () => {
     const result = await runCLI(['change', 'validate', 'bullet-tasks', '--strict'], {
       cwd: projectDir,
     });
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('tasks.md');
+    // The text renderer prints level, path and message; it carries no line for
+    // any issue, which is why this asserts what that surface actually emits.
+    // The line lives in the JSON report, asserted above.
+    expect(result.stderr).toContain('[WARNING] tasks.md:');
     expect(result.stderr).toContain('counts as 0 tasks');
   });
 
@@ -247,6 +250,11 @@ describe('openspec validate checks task checkbox formatting (#354)', () => {
       await fs.chmod(locked, 0o000);
 
       try {
+        // Without this the test would pass for the wrong reason: if the lock did
+        // not take (root, or a filesystem that ignores the mode), the checkbox
+        // in this very file would silence the warning on its own.
+        await expect(fs.readFile(locked, 'utf-8')).rejects.toThrow();
+
         const result = await runCLI(
           ['validate', '--type', 'change', 'half-read', '--strict', '--json'],
           { cwd: dir }
