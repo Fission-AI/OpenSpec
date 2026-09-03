@@ -20,6 +20,8 @@ interface Config {
   choices: Choice[];
   pageSize?: number;
   validate?: (selected: string[]) => boolean | string;
+  /** Shown when a search matches nothing, so the list is not a dead end. */
+  emptyHint?: string;
 }
 
 /**
@@ -42,7 +44,7 @@ async function createSearchableMultiSelect(): Promise<
   } = await import('@inquirer/core');
 
   return createPrompt((config: Config, done: (value: string[]) => void): string => {
-    const { message, choices, pageSize = 15, validate } = config;
+    const { message, choices, pageSize = 15, validate, emptyHint } = config;
 
     const [searchText, setSearchText] = useState('');
     const [selectedValues, setSelectedValues] = useState<string[]>(
@@ -179,6 +181,7 @@ async function createSearchableMultiSelect(): Promise<
     // List
     if (filteredChoices.length === 0) {
       lines.push(chalk.yellow('  No matches'));
+      if (emptyHint) lines.push(chalk.dim(`  ${emptyHint}`));
     } else {
       // Calculate pagination
       const startIndex = Math.max(

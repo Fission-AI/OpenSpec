@@ -690,10 +690,19 @@ export class InitCommand {
       console.log(`Detected tool directories: ${detectedOnlyNames.join(', ')} (${detectionLabel})`);
     }
 
+    // A search that matches nothing is where someone whose assistant is not on
+    // the list gives up (#653), so name the vendor-neutral entry right there.
+    const universalTool = AI_TOOLS.find((tool) => tool.value === 'agents');
+    const universalHint =
+      universalTool && validTools.includes(universalTool.value)
+        ? `Tool not listed? Clear the search and pick "${universalTool.name}".`
+        : undefined;
+
     const selectedTools = await searchableMultiSelect({
       message: `Select tools to set up (${validTools.length} available)`,
       pageSize: 15,
       choices: sortedChoices,
+      emptyHint: universalHint,
       validate: (selected: string[]) => selected.length > 0 || 'Select at least one tool',
     });
 

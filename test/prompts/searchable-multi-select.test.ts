@@ -135,7 +135,11 @@ const searchChoices = [
   },
 ];
 
-async function setup(choices = testChoices, validate?: (selected: string[]) => boolean | string) {
+async function setup(
+  choices = testChoices,
+  validate?: (selected: string[]) => boolean | string,
+  emptyHint?: string
+) {
   resetState();
 
   const mod = await import('../../src/prompts/searchable-multi-select.js');
@@ -146,6 +150,7 @@ async function setup(choices = testChoices, validate?: (selected: string[]) => b
     message: 'Select tools',
     choices,
     validate,
+    emptyHint,
   });
 
   // The async chain in searchableMultiSelect involves:
@@ -294,6 +299,19 @@ describe('searchable-multi-select keybindings', () => {
       await setup(searchChoices);
       typeSearch('nonesuch');
       expect(visibleNames()).toEqual([]);
+      expect(renderOutput).toContain('No matches');
+    });
+
+    it('should point at the fallback choice when a search matches nothing', async () => {
+      await setup(searchChoices, undefined, 'Tool not listed? Pick "Other / Universal".');
+      typeSearch('nonesuch');
+      expect(renderOutput).toContain('Tool not listed?');
+    });
+
+    it('should not show the fallback hint while matches remain', async () => {
+      await setup(searchChoices, undefined, 'Tool not listed? Pick "Other / Universal".');
+      typeSearch('claude');
+      expect(renderOutput).not.toContain('Tool not listed?');
     });
   });
 
