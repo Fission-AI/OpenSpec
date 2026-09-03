@@ -62,8 +62,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Task Completion**:
    - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [x]\`/\`- [X]\` is complete, every other marker is
-     incomplete (\`- [ ]\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
+   - Parse checkboxes: complete means the box holds only \`x\`/\`X\`, ignoring
+     spacing (\`- [ x]\` is complete); every other marker is incomplete
+     (\`- [ ]\`, \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
    - Count complete vs total tasks
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task
@@ -238,8 +239,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Task Completion**:
    - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [x]\`/\`- [X]\` is complete, every other marker is
-     incomplete (\`- [ ]\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
+   - Parse checkboxes: complete means the box holds only \`x\`/\`X\`, ignoring
+     spacing (\`- [ x]\` is complete); every other marker is incomplete
+     (\`- [ ]\`, \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
    - Count complete vs total tasks
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task
