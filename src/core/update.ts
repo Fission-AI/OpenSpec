@@ -46,7 +46,7 @@ import {
 import { isInteractive } from '../utils/interactive.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
-import { getOnboardingCommands } from './onboarding-commands.js';
+import { formatOptionalWorkflowsNote, getOnboardingCommands } from './onboarding-commands.js';
 import { getAvailableTools } from './available-tools.js';
 import {
   WORKFLOW_TO_SKILL_DIR,
@@ -250,8 +250,20 @@ export class UpdateCommand {
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
-      this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
-      this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
+      // Both notes must run: `||` would short-circuit the second one away.
+      const printedExtraNote = this.displayExtraWorkflowsNote(
+        resolvedProjectPath,
+        configuredTools,
+        desiredWorkflows
+      );
+      const printedMissingCoreNote = this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
+      const pointedAtProfileConfig = printedExtraNote || printedMissingCoreNote;
+      this.displayOptionalWorkflowsNote(
+        configuredTools,
+        desiredWorkflows,
+        delivery,
+        pointedAtProfileConfig
+      );
       this.displaySetupNotes(configuredTools);
       return;
     }
@@ -490,8 +502,20 @@ export class UpdateCommand {
     this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
 
     // 14. Display note about extra workflows not in profile
-    this.displayExtraWorkflowsNote(resolvedProjectPath, configuredAndNewTools, desiredWorkflows);
-    this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
+    // Both notes must run: `||` would short-circuit the second one away.
+    const printedExtraNote = this.displayExtraWorkflowsNote(
+      resolvedProjectPath,
+      configuredAndNewTools,
+      desiredWorkflows
+    );
+    const printedMissingCoreNote = this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
+    const pointedAtProfileConfig = printedExtraNote || printedMissingCoreNote;
+    this.displayOptionalWorkflowsNote(
+      configuredAndNewTools,
+      desiredWorkflows,
+      delivery,
+      pointedAtProfileConfig
+    );
     this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
@@ -643,14 +667,16 @@ export class UpdateCommand {
     projectPath: string,
     configuredTools: string[],
     profileWorkflows: readonly string[]
-  ): void {
+  ): boolean {
     const installedWorkflows = scanInstalledWorkflows(projectPath, configuredTools);
     const profileSet = new Set(profileWorkflows);
     const extraWorkflows = installedWorkflows.filter((w) => !profileSet.has(w));
 
     if (extraWorkflows.length > 0) {
       console.log(chalk.dim(`Note: ${extraWorkflows.length} extra workflows not in profile (use \`openspec config profile\` to manage)`));
+      return true;
     }
+    return false;
   }
 
   /**
@@ -658,22 +684,64 @@ export class UpdateCommand {
    * grow CORE_WORKFLOWS stay discoverable. Keep custom profiles user-owned;
    * do not mutate them.
    */
-  private displayMissingCoreWorkflowsNote(profile: Profile, workflows?: readonly string[]): void {
+  private displayMissingCoreWorkflowsNote(profile: Profile, workflows?: readonly string[]): boolean {
     if (profile !== 'custom' || !workflows) {
-      return;
+      return false;
     }
 
     const workflowSet = new Set(workflows);
     const missing = CORE_WORKFLOWS.filter((workflow) => !workflowSet.has(workflow));
 
     if (missing.length === 0) {
-      return;
+      return false;
     }
 
     const label = missing.length === 1 ? 'workflow' : 'workflows';
     const pronoun = missing.length === 1 ? 'it' : 'them';
     console.log(chalk.dim(`Note: Your custom profile is missing ${missing.length} core ${label}: ${missing.join(', ')}`));
     console.log(chalk.dim(`Run \`openspec config profile\` to add ${pronoun}, or \`openspec config profile core\` to use the core set.`));
+    return true;
+  }
+
+  /**
+   * Fallback pointer to the workflows the profile leaves out.
+   *
+   * `update` already points at `openspec config profile` when files drift from
+   * the profile, and when a custom profile is missing core workflows. Neither
+   * fires for the default `core` profile, so the user `update` is most likely
+   * to be helping — the one who ran it because a command they read about never
+   * appeared — learns nothing (#1076). This covers that gap.
+   *
+   * Silent when another note already pointed at the same command, and when no
+   * configured tool can receive a workflow surface under the active delivery:
+   * adding workflows would write nothing there.
+   */
+  private displayOptionalWorkflowsNote(
+    configuredTools: string[],
+    workflows: readonly string[] | undefined,
+    delivery: Delivery,
+    alreadyPointedAtProfileConfig: boolean
+  ): void {
+    if (alreadyPointedAtProfileConfig || !workflows) {
+      return;
+    }
+
+    const anyToolHasASurface = configuredTools.some(
+      (toolId) =>
+        shouldGenerateSkillsForTool(toolId, delivery) ||
+        shouldGenerateCommandsForTool(toolId, delivery)
+    );
+    if (!anyToolHasASurface) {
+      return;
+    }
+
+    const note = formatOptionalWorkflowsNote(workflows);
+    if (!note) {
+      return;
+    }
+    for (const line of note) {
+      console.log(chalk.dim(line));
+    }
   }
 
   /**
