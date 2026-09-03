@@ -63,7 +63,7 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
 
 ### Only some `/opsx:` commands show up
 
-If `/opsx:propose` works but `/opsx:ff`, `/opsx:new`, `/opsx:continue`, `/opsx:verify`, `/opsx:bulk-archive`, or `/opsx:onboard` is missing, nothing is broken: those are the **expanded** workflows, and the default `core` profile doesn't install them. `openspec init` names the ones it left out when it finishes.
+If `/opsx:propose` works but `/opsx:ff`, `/opsx:new`, `/opsx:continue`, `/opsx:verify`, `/opsx:bulk-archive`, or `/opsx:onboard` is missing, nothing is broken: those are the **expanded** workflows, and the default `core` profile doesn't install them. `openspec init` and `openspec update` both name the ones your profile left out when they finish.
 
 Add them with:
 

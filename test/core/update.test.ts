@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
 import { InitCommand } from '../../src/core/init.js';
 import { getConfiguredToolsForProfileSync } from '../../src/core/profile-sync-drift.js';
+import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import type { GlobalConfig } from '../../src/core/global-config.js';
@@ -3416,6 +3417,104 @@ More user content after markers.
       expect(calls.some(call =>
         call.includes('Your custom profile is missing')
       )).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should name the workflows the core profile leaves out (#1076)', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // The up-to-date path is where a user chasing a missing command lands:
+      // troubleshooting tells them to run `openspec update` first.
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      const note = calls.find(call => call.includes('more workflows are available'));
+      expect(note).toBeTruthy();
+      for (const workflow of ['new', 'continue', 'ff', 'bulk-archive', 'verify', 'onboard']) {
+        expect(note).toContain(workflow);
+      }
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not repeat the profile pointer when the missing-core note already gave it', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      expect(calls.some(call => call.includes('Your custom profile is missing'))).toBe(true);
+      expect(calls.some(call => call.includes('more workflows are available'))).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not advertise missing workflows when the profile installs all of them', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: [...ALL_WORKFLOWS],
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      expect(calls.some(call => call.includes('more workflows are available'))).toBe(false);
+      expect(calls.some(call => call.includes('more workflow is available'))).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not advertise missing workflows when no tool can receive one', async () => {
+      // A project set up for a skills-only tool, then switched to
+      // delivery=commands: the tool stays configured but can receive nothing,
+      // so adding workflows would write nothing and the pointer would send the
+      // user the wrong way. `update` prints its delivery correction instead.
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+
+      const initCommand = new InitCommand({ tools: 'kimi', force: true });
+      await initCommand.execute(testDir);
+
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      // Proves the run got as far as the notes rather than bailing earlier
+      expect(calls.some(call => call.includes('No skills or commands remain for'))).toBe(true);
+      expect(calls.some(call => call.includes('more workflows are available'))).toBe(false);
 
       consoleSpy.mockRestore();
     });
