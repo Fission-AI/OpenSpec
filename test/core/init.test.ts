@@ -1486,6 +1486,22 @@ describe('InitCommand', () => {
 
       await expect(initCommand.execute(testDir)).rejects.toThrow(/No tools detected and no --tools flag/);
     });
+
+    it('should name the universal target when no tools are detected non-interactively', async () => {
+      // The scripted counterpart of the picker's empty-search hint (#653):
+      // a bare list of ids does not tell someone whose tool is absent what to do.
+      const initCommand = new InitCommand({ interactive: false });
+
+      await expect(initCommand.execute(testDir)).rejects.toThrow(/--tools agents/);
+    });
+
+    it('should name the universal target when --tools names something unknown', async () => {
+      const initCommand = new InitCommand({ tools: 'turing-corp-plugin', force: true });
+
+      await expect(initCommand.execute(testDir)).rejects.toThrow(
+        /Invalid tool\(s\): turing-corp-plugin[\s\S]*--tools agents/
+      );
+    });
   });
 
   describe('tool-specific adapters', () => {
@@ -1885,6 +1901,42 @@ describe('InitCommand - profile and detection features', () => {
     const githubCopilot = choices.find((choice) => choice.value === 'github-copilot');
 
     expect(githubCopilot?.preSelected).toBe(true);
+  });
+
+  it('should offer the universal target with the search terms an unlisted tool suggests', async () => {
+    // #653: the picker filters on name and id, and this entry is named for a
+    // directory. Without aliases the escape hatch cannot be searched for.
+    searchableMultiSelectMock.mockResolvedValue(['claude']);
+
+    const initCommand = new InitCommand({ force: true });
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+
+    await initCommand.execute(testDir);
+
+    const [config] = searchableMultiSelectMock.mock.calls[0] as [
+      { choices: Array<{ value: string; name: string; searchAliases?: string[] }>; emptyHint?: string }
+    ];
+    const universal = config.choices.find((choice) => choice.value === 'agents');
+
+    expect(universal).toBeDefined();
+    expect(universal?.name).toContain('Other / Universal');
+    for (const term of ['universal', 'other', 'generic', 'unlisted']) {
+      expect(universal?.searchAliases).toContain(term);
+    }
+  });
+
+  it('should hand the picker a fallback hint naming the universal target', async () => {
+    searchableMultiSelectMock.mockResolvedValue(['claude']);
+
+    const initCommand = new InitCommand({ force: true });
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+
+    await initCommand.execute(testDir);
+
+    const [config] = searchableMultiSelectMock.mock.calls[0] as [{ emptyHint?: string }];
+
+    expect(config.emptyHint).toContain('Tool not listed?');
+    expect(config.emptyHint).toContain('Other / Universal (shared .agents skills)');
   });
 
   it('interactive init: confirming the cloud prompt writes files and persists the opt-in', async () => {

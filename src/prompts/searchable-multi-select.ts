@@ -25,6 +25,14 @@ interface Config {
 }
 
 /**
+ * True when every character is printable, so the text can go in the search box.
+ * `\u007f` is DEL, which sorts above the printable range.
+ */
+function isPrintable(text: string): boolean {
+  return text.length > 0 && [...text].every((char) => char >= ' ' && char !== '\u007f');
+}
+
+/**
  * Create the searchable multi-select prompt.
  * Uses dynamic import to prevent pre-commit hook hangs (see #367).
  */
@@ -59,7 +67,7 @@ async function createSearchableMultiSelect(): Promise<
     // Filter choices by search
     const filteredChoices = useMemo(() => {
       if (!searchText.trim()) return choices;
-      const term = searchText.toLowerCase();
+      const term = searchText.trim().toLowerCase();
       return choices.filter(
         (c) =>
           c.name.toLowerCase().includes(term) ||
@@ -134,14 +142,21 @@ async function createSearchableMultiSelect(): Promise<
       // `@inquirer/core` types only `name` and `ctrl`; readline emits more.
       const event = key as typeof key & { sequence?: string; meta?: boolean };
       if (event.ctrl || event.meta) return;
+      // A multi-character sequence is either a paste or an escape sequence
+      // (arrows, function keys). Escape sequences carry control characters, so
+      // requiring every character to be printable admits the paste and drops
+      // the rest — tab, escape and delete included.
       const typed =
-        typeof event.sequence === 'string' && event.sequence.length === 1
+        typeof event.sequence === 'string' && isPrintable(event.sequence)
           ? event.sequence
-          : typeof event.name === 'string' && event.name.length === 1
+          : // Only the sequence may be multi-character: readline `name`s such as
+            // 'tab' and 'escape' are printable strings but not typed input.
+            typeof event.name === 'string' &&
+              event.name.length === 1 &&
+              isPrintable(event.name)
             ? event.name
             : undefined;
-      // Control characters (tab, escape, delete) share the single-char shape.
-      if (typed && typed >= ' ' && typed !== '\u007f') {
+      if (typed) {
         setSearchText(searchText + typed);
         setCursor(0);
       }

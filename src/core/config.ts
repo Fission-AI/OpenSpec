@@ -97,6 +97,30 @@ export const AI_TOOLS: AIToolOption[] = [
 ];
 
 /**
+ * The vendor-neutral target every assistant that is not listed above can use.
+ * Named wherever a tool lookup comes up empty, so "my tool isn't here" is never
+ * a dead end (#653).
+ */
+export const UNIVERSAL_TOOL_ID = 'agents';
+
+/** The universal target's entry, or undefined if it was removed from AI_TOOLS. */
+export function getUniversalTool(): AIToolOption | undefined {
+  return AI_TOOLS.find((tool) => tool.value === UNIVERSAL_TOOL_ID);
+}
+
+/**
+ * One-line pointer at the universal target for non-interactive errors, the
+ * scripted counterpart of the picker's empty-search hint. Undefined when the
+ * target is not among the tools on offer, so the hint never names a choice the
+ * caller cannot make.
+ */
+export function universalToolFallbackHint(offeredToolIds: string[]): string | undefined {
+  const universal = getUniversalTool();
+  if (!universal || !offeredToolIds.includes(universal.value)) return undefined;
+  return `Tool not listed? Use --tools ${universal.value} — the vendor-neutral target that writes ${universal.skillsDir}/skills/ for any assistant.`;
+}
+
+/**
  * Retired tool ids that still resolve, so a rebrand does not break scripted
  * `--tools` invocations. Windsurf was rebranded to Devin Desktop on
  * 2026-06-02 and its config directory moved from `.windsurf/` to `.devin/`;

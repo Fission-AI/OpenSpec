@@ -1102,6 +1102,7 @@ export class UpdateCommand {
         return {
           name: tool?.name || toolId,
           value: toolId,
+          searchAliases: tool?.searchAliases,
           configured: false,
           preSelected: true, // Pre-select all detected legacy tools
         };

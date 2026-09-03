@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { AI_TOOLS } from '../../src/core/config.js';
+import {
+  AI_TOOLS,
+  getUniversalTool,
+  universalToolFallbackHint,
+} from '../../src/core/config.js';
 
 /**
  * The `openspec init` tool picker filters on a tool's name and id. A user whose
@@ -31,5 +35,24 @@ describe('tool search aliases', () => {
         expect(alias).toBe(alias.toLowerCase());
       }
     }
+  });
+
+  it('keeps the universal target resolvable by id', () => {
+    expect(getUniversalTool()?.value).toBe('agents');
+  });
+});
+
+describe('universal tool fallback hint', () => {
+  it('names the flag that reaches the universal target', () => {
+    const hint = universalToolFallbackHint(['claude', 'agents']);
+
+    expect(hint).toContain('--tools agents');
+    expect(hint).toContain('.agents/skills/');
+  });
+
+  it('stays silent when the universal target is not on offer', () => {
+    // Never point at a choice the caller cannot make.
+    expect(universalToolFallbackHint(['claude', 'cursor'])).toBeUndefined();
+    expect(universalToolFallbackHint([])).toBeUndefined();
   });
 });

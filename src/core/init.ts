@@ -22,6 +22,8 @@ import { ANCHORED_OPENSPEC_DIRS, ensureDirectoryAnchor } from './openspec-root.j
 import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
+  getUniversalTool,
+  universalToolFallbackHint,
   OPENSPEC_DIR_NAME,
   AIToolOption,
   resolveToolIdAlias,
@@ -631,8 +633,9 @@ export class InitCommand {
       if (detectedToolIds.size > 0) {
         return [...detectedToolIds];
       }
+      const fallbackHint = universalToolFallbackHint(validTools);
       throw new Error(
-        `No tools detected and no --tools flag provided. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...`
+        `No tools detected and no --tools flag provided. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...${fallbackHint ? `\n${fallbackHint}` : ''}`
       );
     }
 
@@ -692,7 +695,7 @@ export class InitCommand {
 
     // A search that matches nothing is where someone whose assistant is not on
     // the list gives up (#653), so name the vendor-neutral entry right there.
-    const universalTool = AI_TOOLS.find((tool) => tool.value === 'agents');
+    const universalTool = getUniversalTool();
     const universalHint =
       universalTool && validTools.includes(universalTool.value)
         ? `Tool not listed? Clear the search and pick "${universalTool.name}".`
@@ -762,8 +765,9 @@ export class InitCommand {
     );
 
     if (invalidTokens.length > 0) {
+      const fallbackHint = universalToolFallbackHint([...availableSet]);
       throw new Error(
-        `Invalid tool(s): ${invalidTokens.join(', ')}. Available values: ${availableList}`
+        `Invalid tool(s): ${invalidTokens.join(', ')}. Available values: ${availableList}${fallbackHint ? `\n${fallbackHint}` : ''}`
       );
     }
 

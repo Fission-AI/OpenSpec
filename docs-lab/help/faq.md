@@ -17,7 +17,9 @@ once the prose lands. -->
 
 If it has a row in the [support matrix](../reference/supported-tools.md), yes.
 Pick its id at init. If it isn't listed but reads the shared `.agents/skills/`
-folder, pick **Shared `.agents` skills** (`--tools agents`). If neither, request
-it in the [OpenSpec repo](https://github.com/Fission-AI/OpenSpec/issues).
+folder, pick **Other / Universal (shared .agents skills)** (`--tools agents`) —
+the init picker also finds it if you search `universal`, `other`, `generic`,
+`custom`, `proprietary`, `unlisted`, or `unsupported`. If neither, request it in
+the [OpenSpec repo](https://github.com/Fission-AI/OpenSpec/issues).
 
 ## Where did the old /openspec:* commands go?
