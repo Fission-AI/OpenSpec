@@ -80,6 +80,33 @@ function pressKey(name: string) {
   keypressHandler({ name, ctrl: false });
 }
 
+/**
+ * Types one printable character. Node's readline leaves `name` undefined for
+ * punctuation such as `.` or `-` and only reports it in `sequence`, so the
+ * two arrive at the handler differently.
+ */
+function typeChar(sequence: string, name?: string) {
+  if (!keypressHandler) throw new Error('No keypress handler registered');
+  keypressHandler({ name, sequence, ctrl: false });
+}
+
+function typeSearch(text: string) {
+  for (const char of text) {
+    typeChar(char, /^[a-z0-9]$/.test(char) ? char : undefined);
+  }
+}
+
+function getSearchText(): string {
+  return (state[0] as string) ?? '';
+}
+
+function visibleNames(): string[] {
+  return renderOutput
+    .split('\n')
+    .filter((line) => line.includes('[ ]') || line.includes('[x]'))
+    .map((line) => line.replace(/.*\[[ x]\]\s*/, '').trim());
+}
+
 function getSelectedValues(): string[] {
   return (state[1] as string[]) ?? [];
 }
@@ -96,6 +123,16 @@ const testChoices = [
   { name: 'Tool A', value: 'tool-a' },
   { name: 'Tool B', value: 'tool-b' },
   { name: 'Tool C', value: 'tool-c' },
+];
+
+const searchChoices = [
+  { name: 'Claude Code', value: 'claude' },
+  { name: 'Amazon Q Developer', value: 'amazon-q' },
+  {
+    name: 'Other / Universal',
+    value: 'agents',
+    searchAliases: ['unlisted', 'generic', '.agents'],
+  },
 ];
 
 async function setup(choices = testChoices, validate?: (selected: string[]) => boolean | string) {
@@ -230,6 +267,56 @@ describe('searchable-multi-select keybindings', () => {
       expect(renderOutput).toContain('[ ]');
       expect(renderOutput).not.toContain('◉');
       expect(renderOutput).not.toContain('○');
+    });
+  });
+
+  describe('search filtering', () => {
+    it('should match a choice by an alias its name does not spell', async () => {
+      await setup(searchChoices);
+      typeSearch('unlisted');
+      expect(getSearchText()).toBe('unlisted');
+      expect(visibleNames()).toEqual(['Other / Universal']);
+    });
+
+    it('should match a second alias for the same choice', async () => {
+      await setup(searchChoices);
+      typeSearch('generic');
+      expect(visibleNames()).toEqual(['Other / Universal']);
+    });
+
+    it('should still match on name and value', async () => {
+      await setup(searchChoices);
+      typeSearch('claude');
+      expect(visibleNames()).toEqual(['Claude Code']);
+    });
+
+    it('should still show no matches for a term nothing carries', async () => {
+      await setup(searchChoices);
+      typeSearch('nonesuch');
+      expect(visibleNames()).toEqual([]);
+    });
+  });
+
+  describe('search input', () => {
+    it('should accept punctuation, which readline reports only in sequence', async () => {
+      await setup(searchChoices);
+      typeSearch('amazon-q');
+      expect(getSearchText()).toBe('amazon-q');
+      expect(visibleNames()).toEqual(['Amazon Q Developer']);
+    });
+
+    it('should accept a leading dot so directory-shaped terms filter', async () => {
+      await setup(searchChoices);
+      typeSearch('.agents');
+      expect(getSearchText()).toBe('.agents');
+      expect(visibleNames()).toEqual(['Other / Universal']);
+    });
+
+    it('should ignore control chords rather than typing them', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ name: 'c', sequence: '\u0003', ctrl: true });
+      expect(getSearchText()).toBe('');
     });
   });
 

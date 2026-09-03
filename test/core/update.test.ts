@@ -711,7 +711,9 @@ metadata:
       expect(configured).not.toContain('codex');
       // The skip names the established owner so the user understands why.
       expect(streamOutput).toMatch(/Skipped Codex/);
-      expect(streamOutput).toMatch(/managed by another tool \(Shared \.agents skills\)/);
+      expect(streamOutput).toMatch(
+        /managed by another tool \(Other \/ Universal \(shared \.agents skills\)\)/
+      );
       // The legacy signal must survive: because Codex was skipped, no
       // replacement skill exists, so the deferred global-prompt cleanup must
       // preserve `~/.codex/prompts` untouched (byte-for-byte) rather than

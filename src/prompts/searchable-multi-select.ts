@@ -3,6 +3,11 @@ import chalk from 'chalk';
 interface Choice {
   name: string;
   value: string;
+  /**
+   * Extra terms the search box matches, for choices users look for by a word
+   * the name does not spell (see #653). Never rendered.
+   */
+  searchAliases?: string[];
   description?: string;
   configured?: boolean;
   detected?: boolean;
@@ -56,7 +61,10 @@ async function createSearchableMultiSelect(): Promise<
       return choices.filter(
         (c) =>
           c.name.toLowerCase().includes(term) ||
-          c.value.toLowerCase().includes(term)
+          c.value.toLowerCase().includes(term) ||
+          (c.searchAliases ?? []).some((alias) =>
+            alias.toLowerCase().includes(term)
+          )
       );
     }, [searchText, choices]);
 
@@ -117,9 +125,22 @@ async function createSearchableMultiSelect(): Promise<
         return;
       }
 
-      // Character input - handle printable characters
-      if (key.name && key.name.length === 1 && !key.ctrl) {
-        setSearchText(searchText + key.name);
+      // Character input - handle printable characters.
+      // readline reports punctuation (`.`, `-`, `/`) only in `sequence`, leaving
+      // `name` undefined, so keying off `name` alone silently dropped every
+      // non-alphanumeric character the user typed.
+      // `@inquirer/core` types only `name` and `ctrl`; readline emits more.
+      const event = key as typeof key & { sequence?: string; meta?: boolean };
+      if (event.ctrl || event.meta) return;
+      const typed =
+        typeof event.sequence === 'string' && event.sequence.length === 1
+          ? event.sequence
+          : typeof event.name === 'string' && event.name.length === 1
+            ? event.name
+            : undefined;
+      // Control characters (tab, escape, delete) share the single-char shape.
+      if (typed && typed >= ' ' && typed !== '\u007f') {
+        setSearchText(searchText + typed);
         setCursor(0);
       }
     });

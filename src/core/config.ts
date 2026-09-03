@@ -33,6 +33,7 @@ export interface AIToolOption {
   legacySkillsDirs?: string[]; // Former roots read for detection and migrated after replacement
   globalSkillsDir?: string; // e.g., '.minimax' - /skills suffix, resolved from the user's home directory
   detectionPaths?: string[]; // Override skillsDir for auto-detection; any path existing triggers detection
+  searchAliases?: string[]; // Extra single-word terms the init tool picker matches; never displayed
   setupNote?: string; // Manual setup required before the tool picks up generated files; shown after init/update
   requiresIdeRestart?: boolean; // True when slash commands are loaded by an IDE/editor process (a CLI picks them up immediately, so no restart hint — see #1067)
 }
@@ -88,7 +89,11 @@ export const AI_TOOLS: AIToolOption[] = [
   // A project that does keep skills there is a project this target fits, the same
   // way `.claude/` selects Claude Code — the signal is the user's setup, not
   // OpenSpec's own files.
-  { name: 'Shared .agents skills', value: 'agents', available: true, successLabel: 'shared .agents skills', skillsDir: '.agents', detectionPaths: ['.agents/skills'] }
+  // The picker is searchable, so this entry also answers to the words someone
+  // whose assistant is not on the list actually types (#653) — it is named for
+  // a directory, which none of them would guess. Aliases are single words: the
+  // space bar toggles a selection rather than typing into the search box.
+  { name: 'Other / Universal (shared .agents skills)', value: 'agents', available: true, successLabel: 'shared .agents skills', skillsDir: '.agents', detectionPaths: ['.agents/skills'], searchAliases: ['universal', 'other', 'generic', 'custom', 'proprietary', 'unlisted', 'unsupported', 'vendor-neutral', 'agents.md'] }
 ];
 
 /**
