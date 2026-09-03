@@ -2,6 +2,8 @@
 
 The OpenSpec CLI (`openspec`) provides terminal commands for project setup, validation, status inspection, and management. These commands complement the AI slash commands (like `/opsx:propose`) documented in [Commands](commands.md).
 
+Workflow names are not CLI commands. Typing `openspec propose` (or `explore`, `apply`, `sync`, ...) prints the invocation your configured tools answer to — `/opsx:propose`, `/opsx-propose`, `/openspec-propose`, depending on the tool — rather than running anything.
+
 ## Summary
 
 | Category | Commands | Purpose |
