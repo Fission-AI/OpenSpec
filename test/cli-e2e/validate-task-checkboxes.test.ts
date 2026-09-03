@@ -46,6 +46,26 @@ describe('openspec validate checks task checkbox formatting (#354)', () => {
     '',
   ].join('\n');
 
+  // No `apply` block: the tracked-tasks artifact is found by its `tasks` id,
+  // the same fallback progress counting uses.
+  const implicitTasksSchema = [
+    'name: implicit-tasks',
+    'version: 1',
+    'description: tasks artifact without an apply block',
+    'artifacts:',
+    '  - id: proposal',
+    '    generates: proposal.md',
+    '    description: Proposal',
+    '    template: proposal.md',
+    '    requires: []',
+    '  - id: tasks',
+    '    generates: tasks.md',
+    '    description: Tasks',
+    '    template: tasks.md',
+    '    requires: [proposal]',
+    '',
+  ].join('\n');
+
   const untrackedTasksSchema = [
     'name: no-tasks-artifact',
     'version: 1',
@@ -86,6 +106,11 @@ describe('openspec validate checks task checkbox formatting (#354)', () => {
     await write('openspec/changes/nested-all-bullets/specs/tasks/spec.md', validDelta);
     await write('openspec/changes/nested-all-bullets/backend/tasks.md', '- build the api\n');
     await write('openspec/changes/nested-all-bullets/frontend/tasks.md', '- build the ui\n');
+
+    await write('openspec/schemas/implicit-tasks/schema.yaml', implicitTasksSchema);
+    await write('openspec/changes/implicit-tracking/.openspec.yaml', 'schema: implicit-tasks\n');
+    await write('openspec/changes/implicit-tracking/specs/tasks/spec.md', validDelta);
+    await write('openspec/changes/implicit-tracking/tasks.md', '- build the api\n');
 
     await write('openspec/schemas/no-tasks-artifact/schema.yaml', untrackedTasksSchema);
     await write('openspec/changes/untracked-tasks/.openspec.yaml', 'schema: no-tasks-artifact\n');
@@ -177,6 +202,65 @@ describe('openspec validate checks task checkbox formatting (#354)', () => {
     expect(JSON.parse(result.stdout).items[0].issues).toEqual([]);
   });
 
+  it('follows the tracked-tasks artifact when a schema declares no apply block', async () => {
+    const result = await runCLI(
+      ['validate', '--type', 'change', 'implicit-tracking', '--strict', '--json'],
+      { cwd: projectDir }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout).items[0].issues).toEqual([
+      expect.objectContaining({ level: 'WARNING', path: 'tasks.md', line: 1 }),
+    ]);
+  });
+
+  it('prints the warning with its line through the deprecated change validate command', async () => {
+    const result = await runCLI(['change', 'validate', 'bullet-tasks', '--strict'], {
+      cwd: projectDir,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('tasks.md');
+    expect(result.stderr).toContain('counts as 0 tasks');
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'stays silent when a tracked file exists but cannot be read',
+    async () => {
+      // The claim is about the whole tracked set, and the checkboxes could be
+      // in exactly the file that would not open.
+      const dir = await fs.mkdtemp(path.join(tmpdir(), 'openspec-task-unreadable-e2e-'));
+      const writeIn = async (relative: string, content: string) => {
+        const file = path.join(dir, relative);
+        await fs.mkdir(path.dirname(file), { recursive: true });
+        await fs.writeFile(file, content, 'utf-8');
+        return file;
+      };
+      await writeIn('openspec/schemas/glob-tasks/schema.yaml', globTasksSchema);
+      await writeIn('openspec/changes/half-read/.openspec.yaml', 'schema: glob-tasks\n');
+      await writeIn('openspec/changes/half-read/specs/tasks/spec.md', validDelta);
+      await writeIn('openspec/changes/half-read/backend/tasks.md', '- build the api\n');
+      const locked = await writeIn(
+        'openspec/changes/half-read/frontend/tasks.md',
+        '- [ ] 2.1 build the ui\n'
+      );
+      await fs.chmod(locked, 0o000);
+
+      try {
+        const result = await runCLI(
+          ['validate', '--type', 'change', 'half-read', '--strict', '--json'],
+          { cwd: dir }
+        );
+
+        expect(result.exitCode).toBe(0);
+        expect(JSON.parse(result.stdout).items[0].issues).toEqual([]);
+      } finally {
+        await fs.chmod(locked, 0o644);
+        await fs.rm(dir, { recursive: true, force: true });
+      }
+    }
+  );
+
   it('applies the warning in bulk validation', async () => {
     const result = await runCLI(['validate', '--changes', '--strict', '--json'], {
       cwd: projectDir,
@@ -193,6 +277,7 @@ describe('openspec validate checks task checkbox formatting (#354)', () => {
     expect(byId['checkbox-tasks']).toBe(true);
     expect(byId['nested-bullets']).toBe(true);
     expect(byId['nested-all-bullets']).toBe(false);
+    expect(byId['implicit-tracking']).toBe(false);
     expect(byId['untracked-tasks']).toBe(true);
   });
 });

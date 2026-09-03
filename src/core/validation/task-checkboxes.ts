@@ -15,6 +15,13 @@ export interface TaskCheckboxIssue {
  * A list item that carries text but no checkbox: `- item`, `* item`, `+ item`,
  * `1. item`, `1) item`. Checkbox lines match this too, so callers must rule the
  * document set out on checkbox count first.
+ *
+ * A thematic break (`---`, `***`, `- - -`) is not a list item: the run has no
+ * text after it, and this pattern requires a non-space character. `* * *` is
+ * the one break spelled like a list of `*` items, and it is accepted as a list
+ * item rather than special-cased, because a file whose only list-shaped line is
+ * a horizontal rule still has zero tasks — the warning stays true, it just
+ * points at an odd line.
  */
 const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+\S/;
 
@@ -27,6 +34,12 @@ const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+\S/;
  * fail on every line of a CRLF file and blind the scan to fences entirely.
  */
 const FENCE = /^\s*(`{3,}|~{3,})(.*)/;
+
+/** A YAML front-matter delimiter, recognised only on a document's first line. */
+const FRONT_MATTER = /^(-{3,})\s*$/;
+
+const COMMENT_OPEN = '<!--';
+const COMMENT_CLOSE = '-->';
 
 /**
  * Reports tracked task files that list work as plain bullets or numbered items
@@ -43,11 +56,12 @@ const FENCE = /^\s*(`{3,}|~{3,})(.*)/;
  * this catches, and a change that is mid-authoring keeps its progress the
  * moment a single checkbox exists.
  *
- * Fenced blocks are skipped when looking for the offending list item. Unlike
- * the task parser — where fence awareness would silently drop real tasks — the
- * only thing a mis-read fence costs here is the warning itself, and a tasks
- * file whose sole list lives inside a code sample is a documented example, not
- * a checklist someone forgot to tick.
+ * The scan for the offending line looks at rendered content only: fenced
+ * blocks, HTML comments and YAML front matter are skipped. Every one of those
+ * exclusions can only *silence* a warning, never drop a real task — that is the
+ * opposite trade from the task parser, where fence awareness would hide work
+ * that `archive` must still refuse, and it is why the parser stays literal
+ * while this scan does not.
  */
 export function findMissingTaskCheckboxIssues(
   documents: readonly TaskCheckboxDocument[]
@@ -63,22 +77,30 @@ export function findMissingTaskCheckboxIssues(
       path: document.path,
       line,
       message:
-        'Tasks are listed without checkboxes, so this change counts as 0 tasks: ' +
-        '"openspec list" and "openspec status" report no work, and "openspec archive" ' +
-        'has nothing to flag as incomplete. Rewrite each task as "- [ ] 1.1 Description".',
+        'This change counts as 0 tasks: no line in its tracked task files is a checkbox, ' +
+        'so "openspec list" and "openspec status" report no work and "openspec archive" ' +
+        'has nothing to flag as incomplete. Write each task as "- [ ] 1.1 Description".',
     });
   }
 
   return issues;
 }
 
-/** 1-based line of the first list item outside a fenced block, if any. */
+/** 1-based line of the first list item in rendered content, if any. */
 function findFirstListItemLine(content: string): number | undefined {
-  let openFence: { marker: string; length: number } | undefined;
-
   const lines = content.split('\n');
-  for (let index = 0; index < lines.length; index++) {
+  let openFence: { marker: string; length: number } | undefined;
+  let inComment = false;
+  let index = skipFrontMatter(lines);
+
+  for (; index < lines.length; index++) {
     const line = lines[index];
+
+    if (inComment) {
+      if (line.includes(COMMENT_CLOSE)) inComment = false;
+      continue;
+    }
+
     const fence = line.match(FENCE);
     if (fence) {
       const marker = fence[1][0];
@@ -99,8 +121,37 @@ function findFirstListItemLine(content: string): number | undefined {
       continue;
     }
     if (openFence !== undefined) continue;
+
+    // Only a comment that opens the line hides it. `- [ ] 1.1 do it <!-- note`
+    // is a task line first, and the template's own `## 1. <!-- Task Group -->`
+    // must not swallow the checklist that follows it.
+    if (line.trimStart().startsWith(COMMENT_OPEN)) {
+      if (!line.includes(COMMENT_CLOSE, line.indexOf(COMMENT_OPEN) + COMMENT_OPEN.length)) {
+        inComment = true;
+      }
+      continue;
+    }
+
     if (LIST_ITEM.test(line)) return index + 1;
   }
 
   return undefined;
+}
+
+/**
+ * Index of the first line after a YAML front-matter block, or 0 when the
+ * document does not open with one. A list under `tags:` is metadata about the
+ * file, never the work it tracks, and pointing a "write checkboxes" warning at
+ * it would name the wrong line.
+ */
+function skipFrontMatter(lines: readonly string[]): number {
+  if (lines.length === 0 || !FRONT_MATTER.test(lines[0].trimEnd())) return 0;
+
+  for (let index = 1; index < lines.length; index++) {
+    if (FRONT_MATTER.test(lines[index].trimEnd())) return index + 1;
+  }
+
+  // An unterminated opener is a thematic break, not front matter: rewinding to
+  // the top keeps every list in the document visible to the scan.
+  return 0;
 }

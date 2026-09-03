@@ -512,7 +512,7 @@ export class Validator {
     }
 
     const files = trackedFiles.length > 0 ? trackedFiles : [path.join(changeDir, 'tasks.md')];
-    const documents = await this.readTaskDocuments(changeDir, files);
+    const { documents, unreadable } = await this.readTaskDocuments(changeDir, files);
     const toWarning = (issue: { path: string; line: number; message: string }): ValidationIssue => ({
       level: 'WARNING',
       path: issue.path,
@@ -521,7 +521,11 @@ export class Validator {
     });
 
     const issues: ValidationIssue[] = [];
-    if (trackedFiles.length > 0) {
+    // "No file here holds a checkbox" is a claim about the whole tracked set, so
+    // a file that exists but could not be read withdraws it: the checkboxes may
+    // be in exactly that file. `validate --archived` is the surface that reports
+    // an unreadable task file loudly (#205); this one must not guess from it.
+    if (trackedFiles.length > 0 && unreadable === 0) {
       issues.push(...findMissingTaskCheckboxIssues(documents).map(toWarning));
     }
     if (this.usesBuiltInSpecDrivenSchema(changeDir, projectRoot)) {
@@ -530,17 +534,25 @@ export class Validator {
     return issues;
   }
 
-  /** Reads task files into change-relative documents, skipping unreadable ones. */
+  /**
+   * Reads task files into change-relative documents, counting the ones that
+   * exist but could not be read. A file that is simply absent is not counted:
+   * the resolver only returns files it found, so the remaining read failures
+   * are permissions and I/O, and a check that reasons over the whole set needs
+   * to know its evidence was incomplete.
+   */
   private async readTaskDocuments(
     changeDir: string,
     files: readonly string[]
-  ): Promise<Array<{ path: string; content: string }>> {
+  ): Promise<{ documents: Array<{ path: string; content: string }>; unreadable: number }> {
     const documents: Array<{ path: string; content: string }> = [];
+    let unreadable = 0;
     for (const file of files) {
       let content: string;
       try {
         content = await fs.readFile(file, 'utf-8');
-      } catch {
+      } catch (error: any) {
+        if (error?.code !== 'ENOENT') unreadable++;
         continue;
       }
 
@@ -551,7 +563,7 @@ export class Validator {
     }
 
     documents.sort((left, right) => left.path.localeCompare(right.path));
-    return documents;
+    return { documents, unreadable };
   }
 
   /**
