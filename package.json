@@ -1,6 +1,6 @@
 {
   "name": "@fission-ai/openspec",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "openspec",
@@ -17,7 +17,7 @@
   "license": "MIT",
   "author": "OpenSpec Contributors",
   "type": "module",
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@10.34.5",
   "publishConfig": {
     "access": "public"
   },
@@ -49,7 +49,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
-    "prepare": "pnpm run build",
+    "prepare": "node build.js",
     "prepublishOnly": "pnpm run build",
     "check:pack-version": "node scripts/pack-version-check.mjs",
     "release": "pnpm run release:ci",
@@ -60,8 +60,8 @@
     "node": ">=20.19.0"
   },
   "devDependencies": {
-    "@changesets/changelog-github": "^0.7.0",
-    "@changesets/cli": "^2.31.1",
+    "@changesets/changelog-github": "^1.0.0",
+    "@changesets/cli": "^3.0.1",
     "@types/node": "^20.19.43",
     "@vitest/ui": "^3.2.6",
     "eslint": "^10.5.0",

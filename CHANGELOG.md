@@ -1,5 +1,29 @@
 # @fission-ai/openspec
 
+## 1.12.0
+
+### Minor Changes
+
+- [#1171](https://github.com/Fission-AI/OpenSpec/pull/1171) [`44a39eb`](https://github.com/Fission-AI/OpenSpec/commit/44a39eb24b7ca0f2cf08df697888c3b1e9818a5a) Thanks [@aleksandr4842](https://github.com/aleksandr4842)! - Add SourceCraft Code Assistant as a supported tool for project skills and commands in its VS Code extension.
+
+- [#1713](https://github.com/Fission-AI/OpenSpec/pull/1713) [`db03c6c`](https://github.com/Fission-AI/OpenSpec/commit/db03c6c4b0ef8a05308497482bdc5fc4dd151569) Thanks [@Marzx13](https://github.com/Marzx13)! - ### New Features
+  
+  - Add `openspec validate --report findings` for explicit bulk scopes. It returns only items with errors, warnings, or information while keeping full-run totals and exit codes. JSON output identifies the report and its scope; human output includes each finding's path and message. The default full report is unchanged.
+
+### Patch Changes
+
+- [#1710](https://github.com/Fission-AI/OpenSpec/pull/1710) [`a4fcdbe`](https://github.com/Fission-AI/OpenSpec/commit/a4fcdbece6f4f7ce86fbd57230be2753945020ba) Thanks [@ryandemelo](https://github.com/ryandemelo)! - Report delta merge conflicts during validation as informational findings, including in successful text reports, without changing validation exit codes. Preserve filesystem read errors so unreadable main specs are not mistaken for missing specs.
+  
+  Keep the validation report intact when the advisory merge preflight cannot resolve its inputs.
+
+- [#1017](https://github.com/Fission-AI/OpenSpec/pull/1017) [`b976106`](https://github.com/Fission-AI/OpenSpec/commit/b976106d954a0eebbf94ec26b056208968313a4d) Thanks [@DanRioDev](https://github.com/DanRioDev)! - Improve explore mode guidance so it asks more useful dependency-aware questions, recommends defaults, and checks the codebase before asking for facts the repo can answer.
+
+- [#1737](https://github.com/Fission-AI/OpenSpec/pull/1737) [`98bf53e`](https://github.com/Fission-AI/OpenSpec/commit/98bf53e59ec91eb71de4ed0e8036459de7352585) Thanks [@clay-good](https://github.com/clay-good)! - Guide propose and fast-forward workflows to inspect relevant project code, tests, and documentation before drafting artifacts, so plans reflect the existing implementation instead of deferring basic discovery to implementation tasks.
+
+- [#786](https://github.com/Fission-AI/OpenSpec/pull/786) [`0296401`](https://github.com/Fission-AI/OpenSpec/commit/0296401b823726ae6a8d8505104e95c7899b3056) Thanks [@Br1an67](https://github.com/Br1an67)! - Preserve empty OpenSpec directories in Git after initialization. Re-running init restores missing directory markers without overwriting existing files or following marker symlinks.
+
+- [#1725](https://github.com/Fission-AI/OpenSpec/pull/1725) [`cd72444`](https://github.com/Fission-AI/OpenSpec/commit/cd724449aced1655eb513f3207600bec074c7588) Thanks [@aron-intframe](https://github.com/aron-intframe)! - `openspec init` and `openspec update` now share the IDE restart hint: "Restart your IDE to refresh commands." or "Restart your IDE to refresh skills." The message also covers removing workflows, without claiming that new files were generated.
+
 ## 1.11.0
 
 ### Minor Changes
