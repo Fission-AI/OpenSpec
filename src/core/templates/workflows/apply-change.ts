@@ -5,7 +5,19 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+
+/**
+ * `/opsx:continue` is not in the `core` profile, so the blocked-state handoff
+ * is authored with a CLI fallback and resolved at generation time (see
+ * optional-workflow.ts).
+ */
+const BLOCKED_STATE_HANDOFF = optionalWorkflow(
+  'continue',
+  'suggest using `/opsx:continue` to create them',
+  'run `openspec status --change "<name>" --json` to see the next artifact and `openspec instructions <artifact-id> --change "<name>" --json` for how to create it'
+);
 
 /**
  * The apply workflow instructions, authored once and rendered by both the
@@ -58,7 +70,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Optional \`operationGuidance\`: current advisory guidance for apply
 
    **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\` (if it is not installed, run \`openspec status --change "<name>" --json\` to see the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` for how to create it)
+   - If \`state: "blocked"\` (missing artifacts): show message, then ${BLOCKED_STATE_HANDOFF}
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 

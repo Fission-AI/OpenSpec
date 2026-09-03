@@ -15,7 +15,7 @@ Revise a change's existing planning artifacts and keep them coherent. Never edit
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
-`/openspec-continue-change` is an optional workflow and may not be installed. Before suggesting it anywhere below, verify that it is available. If it is unavailable, `openspec status --change "<name>" --json` shows the next artifact and `openspec instructions "<artifact-id>" --change "<name>" --json` explains how to create it.
+This workflow revises artifacts that already exist; `/openspec-continue-change` is what creates the ones that do not.
 
 **Steps**
 
@@ -87,4 +87,4 @@ After each invocation, show:
 - Edit only the concrete files in `existingOutputPaths`; never write to a glob `resolvedOutputPath`.
 - Do not advance the build frontier: no new artifacts, no new files under glob artifacts - that is `/openspec-continue-change`'s job.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, first verify whether the optional `/openspec-new-change` workflow is available. If it is, recommend starting fresh with `/openspec-new-change` (the "Update vs. Start Fresh" heuristic). If it is unavailable, ask for a distinct unused change name and recommend `openspec new change "<new-change-name>"` instead.
+- If the request changes the change's *intent* rather than refining it, recommend starting fresh with `/openspec-new-change` (the "Update vs. Start Fresh" heuristic).
