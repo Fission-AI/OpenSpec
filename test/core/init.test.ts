@@ -6,6 +6,7 @@ import { InitCommand } from '../../src/core/init.js';
 import { saveGlobalConfig, getGlobalConfig } from '../../src/core/global-config.js';
 import { MAX_CONTEXT_SIZE, readProjectConfig } from '../../src/core/project-config.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
+import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 
 const { confirmMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
   confirmMock: vi.fn(),
@@ -2104,6 +2105,54 @@ describe('InitCommand - profile and detection features', () => {
     const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
     expect(startHint).toContain('/skill:openspec-propose');
     expect(startHint).not.toContain('/opsx:propose');
+  });
+
+  it('should name the workflows the core profile leaves out (#1076)', async () => {
+    const initCommand = new InitCommand({ tools: 'claude', force: true });
+    await initCommand.execute(testDir);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    const note = logCalls.find((entry) => entry.includes('more workflows are available'));
+    expect(note).toBeTruthy();
+    for (const workflow of ['new', 'continue', 'ff', 'bulk-archive', 'verify', 'onboard']) {
+      expect(note).toContain(workflow);
+    }
+    // Workflows that were installed must not be advertised as missing
+    expect(note).not.toContain('propose,');
+    expect(logCalls.some((entry) => entry.includes('openspec config profile'))).toBe(true);
+  });
+
+  it('should not advertise missing workflows when the profile installs all of them', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'custom',
+      delivery: 'both',
+      workflows: [...ALL_WORKFLOWS],
+    });
+
+    const initCommand = new InitCommand({ tools: 'claude', force: true });
+    await initCommand.execute(testDir);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    expect(logCalls.some((entry) => entry.includes('more workflows are available'))).toBe(false);
+    expect(logCalls.some((entry) => entry.includes('more workflow is available'))).toBe(false);
+  });
+
+  it('should not advertise missing workflows when nothing was generated at all', async () => {
+    saveGlobalConfig({
+      featureFlags: {},
+      profile: 'core',
+      delivery: 'commands',
+    });
+
+    // Kimi has no command adapter: the configuration correction is the whole
+    // story, so a "6 more workflows" note would point at the wrong problem.
+    const initCommand = new InitCommand({ tools: 'kimi', force: true });
+    await initCommand.execute(testDir);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    expect(logCalls.some((entry) => entry.includes('No skills or commands were generated'))).toBe(true);
+    expect(logCalls.some((entry) => entry.includes('more workflows are available'))).toBe(false);
   });
 
   it('should print a configuration correction, not a dead hint, when delivery=commands generates nothing (adapterless tool)', async () => {
