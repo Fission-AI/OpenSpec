@@ -65,6 +65,48 @@ describe('openspec CLI e2e basics', () => {
     expect(result.stderr).toContain('Fix: run /opsx:propose in your assistant.');
   });
 
+  it('answers the help paths for a workflow verb instead of printing an empty usage page', async () => {
+    const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-workflow-verb-help-'));
+    tempRoots.push(base);
+    const projectDir = path.join(base, 'project');
+    await fs.mkdir(path.join(projectDir, '.claude', 'commands', 'opsx'), { recursive: true });
+    await fs.writeFile(
+      path.join(projectDir, '.claude', 'commands', 'opsx', 'explore.md'),
+      '# explore\n'
+    );
+    const home = path.join(base, 'home');
+    await fs.mkdir(home, { recursive: true });
+    const env = { HOME: home, USERPROFILE: home };
+
+    // `--help` and `-h` reach the guidance rather than a usage page for a
+    // command that does nothing.
+    for (const flag of ['--help', '-h']) {
+      const result = await runCLI(['explore', flag], { cwd: projectDir, env });
+      expect(result.exitCode, flag).toBe(1);
+      expect(result.stderr, flag).toContain('Fix: run /opsx:explore in your assistant.');
+      expect(result.stdout, flag).not.toContain('Usage: openspec explore');
+    }
+
+    // `openspec help explore` is an explicit request for help, so it answers
+    // on stdout and succeeds.
+    const helpResult = await runCLI(['help', 'explore'], { cwd: projectDir, env });
+    expect(helpResult.exitCode).toBe(0);
+    expect(helpResult.stdout).toContain('Fix: run /opsx:explore in your assistant.');
+    expect(helpResult.stdout).not.toContain('Usage: openspec explore');
+  });
+
+  it('keeps the workflow verbs out of the top-level help', async () => {
+    const result = await runCLI(['--help']);
+
+    expect(result.exitCode).toBe(0);
+    // A listed command starts its own line and is followed by whitespace;
+    // matching the bare word alone would hit prose in another command's
+    // wrapped description ("...instructions for artifacts, apply, or archive").
+    for (const verb of ['propose', 'explore', 'apply', 'sync', 'verify', 'onboard']) {
+      expect(result.stdout, verb).not.toMatch(new RegExp(`^\\s{2,}${verb}(\\s|$)`, 'm'));
+    }
+  });
+
   it('still reports a genuinely unknown command as unknown', async () => {
     const result = await runCLI(['definitely-not-a-command']);
 

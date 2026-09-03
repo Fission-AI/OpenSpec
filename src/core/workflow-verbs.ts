@@ -55,33 +55,65 @@ export interface WorkflowVerbGuidance {
 }
 
 /**
- * One invocation line per distinct spelling, labeled with the tools it serves
- * when the project's tools disagree.
+ * How one detected tool is told to invoke the workflow.
+ */
+interface InvocationEntry {
+  /** `/opsx:explore`, or `ask Rovo Dev CLI to use the openspec-explore skill`. */
+  text: string;
+  /** True when `text` is already a sentence naming its own tool. */
+  naturalLanguage: boolean;
+}
+
+/**
+ * One entry per distinct spelling, labeled with the tools it serves when the
+ * project's tools disagree.
  *
  * Natural-language tools (no slash surface for skills) are grouped per tool
- * rather than per reference: their line names the tool inside the sentence, so
- * two such tools sharing a reference still need two lines.
+ * rather than per reference: their text names the tool inside the sentence, so
+ * two such tools sharing a reference still need two entries - and appending a
+ * `(Tool)` label to a sentence that already says "ask Tool to..." would just
+ * repeat it.
  */
-function invocationLines(
+function invocationEntries(
   tools: AIToolOption[],
   delivery: Delivery,
   verb: string
-): string[] {
-  const lineToTools = new Map<string, string[]>();
+): InvocationEntry[] {
+  const textToTools = new Map<string, { toolNames: string[]; naturalLanguage: boolean }>();
   for (const tool of tools) {
     const workflowReference = resolveWorkflowReference(tool.value, delivery, canonicalCommand(verb));
     if (!workflowReference) {
       continue;
     }
-    const line = workflowReference.naturalLanguage
+    const text = workflowReference.naturalLanguage
       ? `ask ${tool.name} to use ${workflowReference.reference}`
       : workflowReference.reference;
-    lineToTools.set(line, [...(lineToTools.get(line) ?? []), tool.name]);
+    const existing = textToTools.get(text);
+    textToTools.set(text, {
+      toolNames: [...(existing?.toolNames ?? []), tool.name],
+      naturalLanguage: workflowReference.naturalLanguage,
+    });
   }
-  if (lineToTools.size === 1) {
-    return [...lineToTools.keys()];
+  const entries = [...textToTools.entries()];
+  if (entries.length === 1) {
+    const [text, { naturalLanguage }] = entries[0];
+    return [{ text, naturalLanguage }];
   }
-  return [...lineToTools.entries()].map(([line, toolNames]) => `${line} (${toolNames.join(', ')})`);
+  return entries.map(([text, { toolNames, naturalLanguage }]) => ({
+    text: naturalLanguage ? text : `${text} (${toolNames.join(', ')})`,
+    naturalLanguage,
+  }));
+}
+
+/**
+ * Turns one entry into an instruction. A slash invocation is something to run;
+ * a natural-language reference is already a request, so it is quoted as-is
+ * rather than wrapped in a verb that would read as "run ask Tool to...".
+ */
+function instruction(entry: InvocationEntry, lead: string): string {
+  return entry.naturalLanguage
+    ? `${lead} ${entry.text}.`
+    : `${lead} run ${entry.text} in your assistant.`;
 }
 
 /**
@@ -91,8 +123,13 @@ function invocationLines(
  * Three cases, in order of what the user can act on:
  * - No OpenSpec tools detected: nothing is installed yet, so point at `init`.
  * - Tools detected but this workflow is not among the installed ones: the
- *   invocation would be dead text, so point at the profile picker (#1076).
+ *   invocation exists only after it is added, so lead with the profile picker
+ *   (#1076) and still name the spelling it will answer to.
  * - Otherwise: name the invocation each detected tool answers to.
+ *
+ * The spelling comes from the tool and the delivery mode, never from whether
+ * the workflow happens to be installed - so the two installed/not-installed
+ * branches cannot disagree about how the same tool spells the same workflow.
  *
  * @param verb - A workflow id from WORKFLOW_VERBS
  * @param projectPath - Directory to inspect for installed tools and workflows
@@ -110,20 +147,27 @@ export function getWorkflowVerbGuidance(verb: string, projectPath: string): Work
     };
   }
 
+  const delivery: Delivery = getGlobalConfig().delivery ?? 'both';
+  const entries = invocationEntries(tools, delivery, verb);
   const installed = new Set(safeScanInstalledWorkflows(projectPath, tools));
+
   if (!installed.has(verb)) {
-    return {
-      message,
-      details: [
-        `The ${verb} workflow is not installed in this project.`,
-        `Fix: run 'openspec config profile' to add it, then invoke ${canonicalCommand(verb)} in your assistant.`,
-      ],
-    };
+    const notInstalled = `The ${verb} workflow is not installed in this project.`;
+    const addIt = "Fix: run 'openspec config profile' to add it, then";
+    if (entries.length > 1) {
+      return {
+        message,
+        details: [notInstalled, `${addIt} use it in your assistant:`, ...indent(entries)],
+      };
+    }
+    // One agreed spelling, or none at all. When no tool has one to offer, the
+    // canonical form is the only honest answer - and it is what the workflow
+    // will answer to once the profile installs it for a tool that invokes it.
+    const entry = entries[0] ?? { text: canonicalCommand(verb), naturalLanguage: false };
+    return { message, details: [notInstalled, instruction(entry, addIt)] };
   }
 
-  const delivery: Delivery = getGlobalConfig().delivery ?? 'both';
-  const lines = invocationLines(tools, delivery, verb);
-  if (lines.length === 0) {
+  if (entries.length === 0) {
     // Detected tools, but the delivery mode left none of them with an
     // invocation to name. Stay syntax-neutral rather than invent one.
     return {
@@ -131,13 +175,17 @@ export function getWorkflowVerbGuidance(verb: string, projectPath: string): Work
       details: [`Fix: run 'openspec update' to regenerate this project's workflow files.`],
     };
   }
-  if (lines.length === 1) {
-    return { message, details: [`Fix: run ${lines[0]} in your assistant.`] };
+  if (entries.length === 1) {
+    return { message, details: [instruction(entries[0], 'Fix:')] };
   }
   return {
     message,
-    details: ['Fix: run it in your assistant:', ...lines.map((line) => `  ${line}`)],
+    details: ['Fix: use it in your assistant:', ...indent(entries)],
   };
+}
+
+function indent(entries: InvocationEntry[]): string[] {
+  return entries.map((entry) => `  ${entry.text}`);
 }
 
 /**

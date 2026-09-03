@@ -30,6 +30,12 @@ async function installCommand(projectDir: string, filePath: string): Promise<voi
   await fs.writeFile(target, '# command\n');
 }
 
+async function writeGlobalConfig(config: Record<string, unknown>): Promise<void> {
+  const configDir = path.join(process.env.XDG_CONFIG_HOME as string, 'openspec');
+  await fs.mkdir(configDir, { recursive: true });
+  await fs.writeFile(path.join(configDir, 'config.json'), JSON.stringify(config));
+}
+
 beforeEach(async () => {
   // Detection reads global skill roots (e.g. ~/.minimax/skills) and the global
   // config; point both at an empty directory so the machine running the tests
@@ -99,7 +105,90 @@ describe('workflow verbs typed at the CLI', () => {
 
     expect(guidance.details).toEqual([
       'The verify workflow is not installed in this project.',
-      "Fix: run 'openspec config profile' to add it, then invoke /opsx:verify in your assistant.",
+      "Fix: run 'openspec config profile' to add it, then run /opsx:verify in your assistant.",
+    ]);
+  });
+
+  it('spells the workflow the same way whether or not it is installed', async () => {
+    const projectDir = await makeProject();
+    await installSkill(projectDir, '.claude', 'openspec-propose');
+    await writeGlobalConfig({ delivery: 'skills' });
+
+    const missing = getWorkflowVerbGuidance('verify', projectDir);
+    const present = getWorkflowVerbGuidance('propose', projectDir);
+
+    // The spelling follows the tool and the delivery mode, never whether the
+    // workflow happens to be installed - so a skills-only project is told to
+    // add `verify` and invoke it the same way it already invokes `propose`.
+    expect(missing.details).toEqual([
+      'The verify workflow is not installed in this project.',
+      "Fix: run 'openspec config profile' to add it, then run /openspec-verify-change in your assistant.",
+    ]);
+    expect(present.details).toEqual(['Fix: run /openspec-propose in your assistant.']);
+  });
+
+  it('labels every spelling when a missing workflow serves tools that disagree', async () => {
+    const projectDir = await makeProject();
+    await installCommand(projectDir, path.join('.claude', 'commands', 'opsx', 'propose.md'));
+    await installCommand(projectDir, path.join('.github', 'prompts', 'opsx-propose.prompt.md'));
+
+    const guidance = getWorkflowVerbGuidance('verify', projectDir);
+
+    expect(guidance.details).toEqual([
+      'The verify workflow is not installed in this project.',
+      "Fix: run 'openspec config profile' to add it, then use it in your assistant:",
+      '  /opsx:verify (Claude Code)',
+      '  /opsx-verify (GitHub Copilot)',
+    ]);
+  });
+
+  it("uses a tool's own prompt-library prefix", async () => {
+    const projectDir = await makeProject();
+    // Amazon Q loads these files into its prompt library, invoked with `@`.
+    await installSkill(projectDir, '.amazonq', 'openspec-explore');
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual(['Fix: run @opsx-explore in your assistant.']);
+  });
+
+  it('phrases the fix as a request for tools with no slash surface', async () => {
+    const projectDir = await makeProject();
+    // Rovo Dev matches skills by description; it has no slash invocation.
+    await installSkill(projectDir, '.rovodev', 'openspec-explore');
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual([
+      'Fix: ask Rovo Dev CLI to use the openspec-explore skill.',
+    ]);
+  });
+
+  it('does not repeat the tool name on a line that already says it', async () => {
+    const projectDir = await makeProject();
+    await installCommand(projectDir, path.join('.claude', 'commands', 'opsx', 'explore.md'));
+    await installSkill(projectDir, '.rovodev', 'openspec-explore');
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual([
+      'Fix: use it in your assistant:',
+      '  /opsx:explore (Claude Code)',
+      '  ask Rovo Dev CLI to use the openspec-explore skill',
+    ]);
+  });
+
+  it('sends the user to update when the delivery mode leaves a tool nothing to invoke', async () => {
+    const projectDir = await makeProject();
+    // Kimi Code has no command surface at all, so commands-only delivery
+    // generates neither commands nor skills for it.
+    await installSkill(projectDir, '.kimi-code', 'openspec-explore');
+    await writeGlobalConfig({ delivery: 'commands' });
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual([
+      "Fix: run 'openspec update' to regenerate this project's workflow files.",
     ]);
   });
 
@@ -115,9 +204,7 @@ describe('workflow verbs typed at the CLI', () => {
   it('spells the invocation as a skill when delivery is skills-only', async () => {
     const projectDir = await makeProject();
     await installSkill(projectDir, '.claude', 'openspec-explore');
-    const configDir = path.join(process.env.XDG_CONFIG_HOME as string, 'openspec');
-    await fs.mkdir(configDir, { recursive: true });
-    await fs.writeFile(path.join(configDir, 'config.json'), JSON.stringify({ delivery: 'skills' }));
+    await writeGlobalConfig({ delivery: 'skills' });
 
     const guidance = getWorkflowVerbGuidance('explore', projectDir);
 
@@ -133,7 +220,7 @@ describe('workflow verbs typed at the CLI', () => {
 
     const guidance = getWorkflowVerbGuidance('explore', projectDir);
 
-    expect(guidance.details[0]).toBe('Fix: run it in your assistant:');
+    expect(guidance.details[0]).toBe('Fix: use it in your assistant:');
     expect(guidance.details.slice(1)).toEqual([
       '  /opsx:explore (Claude Code)',
       '  /opsx-explore (GitHub Copilot)',
