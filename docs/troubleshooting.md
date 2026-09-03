@@ -65,15 +65,13 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
 
 If `/opsx:propose` works but `/opsx:ff`, `/opsx:new`, `/opsx:continue`, `/opsx:verify`, `/opsx:bulk-archive`, or `/opsx:onboard` is missing, nothing is broken: those are the **expanded** workflows, and the default `core` profile doesn't install them. `openspec init` names the ones it left out when it finishes.
 
-Add them, then regenerate the files:
+Add them with:
 
 ```bash
 openspec config profile
 ```
 
-```bash
-openspec update
-```
+It offers to apply the change to the current project before it exits. If you decline, or you want the same workflows in another project, run `openspec update` there.
 
 See the [glossary](glossary.md#workflow-and-commands) for what each set contains.
 
