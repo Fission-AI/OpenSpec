@@ -2138,6 +2138,16 @@ describe('InitCommand - profile and detection features', () => {
     expect(logCalls.some((entry) => entry.includes('more workflow is available'))).toBe(false);
   });
 
+  it('should not advertise missing workflows when no tool was selected', async () => {
+    // With no tools, `openspec config profile` + `openspec update` would write
+    // nothing, so naming the workflows would point at the wrong problem.
+    const initCommand = new InitCommand({ tools: 'none', force: true });
+    await initCommand.execute(testDir);
+
+    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+    expect(logCalls.some((entry) => entry.includes('more workflows are available'))).toBe(false);
+  });
+
   it('should not advertise missing workflows when nothing was generated at all', async () => {
     saveGlobalConfig({
       featureFlags: {},
