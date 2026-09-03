@@ -53,6 +53,7 @@ import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/i
 import { maybeShowCompletionTip } from '../core/completion-tip.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { isInteractive } from '../utils/interactive.js';
+import { WORKFLOW_VERBS, getWorkflowVerbGuidance } from '../core/workflow-verbs.js';
 
 const STORE_OPTION_DESCRIPTION = COMMON_FLAGS.store.description;
 
@@ -748,6 +749,31 @@ newCmd
       process.exit(1);
     }
   });
+
+// Workflow verbs are not CLI commands - the workflows run inside the user's AI
+// assistant. Registering them hidden replaces commander's bare "unknown
+// command" with the invocation this project's tools actually answer to, so a
+// user (or an agent) who types `openspec propose` is routed to the workflow
+// instead of hand-building the artifacts (#1221). Same reasoning as the
+// removed options kept registered above: a reachable name can explain itself.
+for (const verb of WORKFLOW_VERBS) {
+  program
+    .command(verb, { hidden: true })
+    // The verb is typed with whatever the user meant to pass the workflow
+    // ("openspec propose add auth --fast"); accept it all and explain, rather
+    // than answer a discovery question with an argument error.
+    .argument('[args...]')
+    .allowUnknownOption()
+    .allowExcessArguments()
+    .action(() => {
+      const guidance = getWorkflowVerbGuidance(verb, process.cwd());
+      ora().fail(`Error: ${guidance.message}`);
+      for (const detail of guidance.details) {
+        console.error(detail);
+      }
+      process.exit(1);
+    });
+}
 
 export { program };
 

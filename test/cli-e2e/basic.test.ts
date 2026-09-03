@@ -41,6 +41,37 @@ afterAll(async () => {
 });
 
 describe('openspec CLI e2e basics', () => {
+  it('answers a workflow verb typed at the CLI with the invocation for this project', async () => {
+    const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-workflow-verb-'));
+    tempRoots.push(base);
+    const projectDir = path.join(base, 'project');
+    // A project with Claude Code commands installed, and a HOME with nothing
+    // in it so no globally installed tool joins the answer.
+    await fs.mkdir(path.join(projectDir, '.claude', 'commands', 'opsx'), { recursive: true });
+    await fs.writeFile(
+      path.join(projectDir, '.claude', 'commands', 'opsx', 'propose.md'),
+      '# propose\n'
+    );
+    const home = path.join(base, 'home');
+    await fs.mkdir(home, { recursive: true });
+
+    const result = await runCLI(['propose', 'add auth'], {
+      cwd: projectDir,
+      env: { HOME: home, USERPROFILE: home },
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("'propose' is an OpenSpec workflow, not a CLI command");
+    expect(result.stderr).toContain('Fix: run /opsx:propose in your assistant.');
+  });
+
+  it('still reports a genuinely unknown command as unknown', async () => {
+    const result = await runCLI(['definitely-not-a-command']);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain("unknown command 'definitely-not-a-command'");
+  });
+
   it('preserves initialized directories through a Git clone without listing anchors as work', async () => {
     const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-init-clone-'));
     tempRoots.push(base);
