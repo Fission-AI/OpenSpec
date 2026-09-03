@@ -70,7 +70,9 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Note which artifacts are `done` vs other states
 
    b. **Task completion** - Read `artifactPaths.tasks.existingOutputPaths` from status JSON
-      - Count `- [ ]` (incomplete) vs `- [x]` (complete)
+      - Complete means the checkbox holds only `x`/`X`, ignoring spacing
+        (`- [ x]` is complete); every other marker is incomplete (`- [ ]`,
+        `- []`, and unfamiliar ones such as `- [~]` or `- [-]`)
       - If no tasks file exists, note as "No tasks"
 
    c. **Delta specs** - Check `artifactPaths.specs.existingOutputPaths` from status JSON
