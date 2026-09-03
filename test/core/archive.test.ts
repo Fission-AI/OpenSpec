@@ -7472,4 +7472,68 @@ This change exists to document greeting behavior thoroughly for the team, which 
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
   });
+  // Every packaged template opens with an `# ` heading so the artifacts an
+  // agent writes are complete markdown documents (#1138). The delta spec is the
+  // one artifact archive reads back, so its title must stay inert: it belongs to
+  // the delta, not to the main spec archive builds from it.
+  describe('templates opening with a title (#1138)', () => {
+    it('keeps the delta spec title out of the main spec it creates', async () => {
+      const changeName = 'add-widget';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'specs', 'widget'), { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        [
+          '# Proposal',
+          '',
+          '## Why',
+          'Widgets are the one thing this product cannot assemble today.',
+          '',
+          '## What Changes',
+          '- Add the widget capability.',
+          '',
+        ].join('\n')
+      );
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        ['# Tasks', '', '## 1. Build', '', '- [x] 1.1 Build it', ''].join('\n')
+      );
+      await fs.writeFile(
+        path.join(changeDir, 'specs', 'widget', 'spec.md'),
+        [
+          '# Spec Delta',
+          '',
+          '## Purpose',
+          'Lets users assemble widgets from parts in a repeatable way.',
+          '',
+          '## ADDED Requirements',
+          '',
+          '### Requirement: User can build a widget',
+          'The system SHALL let a user build a widget.',
+          '',
+          '#### Scenario: Successful build',
+          '- **WHEN** a user requests a widget',
+          '- **THEN** the system builds it',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const mainSpec = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'widget', 'spec.md'),
+        'utf-8'
+      );
+
+      // The main spec keeps its own generated title, and only that one.
+      expect(mainSpec.split('\n').filter((line) => line.startsWith('# '))).toEqual([
+        '# widget Specification',
+      ]);
+      // The delta's title did not displace the Purpose archive carries over.
+      expect(mainSpec).toContain(
+        '## Purpose\nLets users assemble widgets from parts in a repeatable way.'
+      );
+      expect(mainSpec).toContain('### Requirement: User can build a widget');
+    });
+  });
 });

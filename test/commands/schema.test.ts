@@ -487,6 +487,47 @@ artifacts:
       ).toContain('schema: my-workflow');
     });
 
+    it('scaffolds every template with a top-level heading', async () => {
+      const initialized = await runCLI(
+        [
+          'schema',
+          'init',
+          'lint-clean',
+          '--artifacts',
+          'proposal,specs,design,tasks',
+          '--json',
+        ],
+        { cwd: tempDir }
+      );
+      expect(initialized.exitCode).toBe(0);
+
+      const templatesDir = path.join(
+        tempDir,
+        'openspec',
+        'schemas',
+        'lint-clean',
+        'templates'
+      );
+      const templates = fs
+        .readdirSync(templatesDir, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile())
+        .map((entry) => path.join(path.relative(templatesDir, entry.parentPath), entry.name))
+        .sort();
+      expect(templates).toEqual([
+        'design.md',
+        'proposal.md',
+        path.join('specs', 'spec.md'),
+        'tasks.md',
+      ].sort());
+
+      // The artifact a template produces is a document in its own right, so it
+      // opens with an `# ` heading rather than a section header (#1138).
+      for (const template of templates) {
+        const content = fs.readFileSync(path.join(templatesDir, template), 'utf-8');
+        expect(content.split('\n')[0]).toMatch(/^# \S/);
+      }
+    });
+
     describe.each(failureModes)('$label with --default', ({ force }) => {
       it('preserves the schema and invalid YAML config byte-for-byte', async () => {
         const { schemaDir, before } = prepareSchemaForFailure(force);

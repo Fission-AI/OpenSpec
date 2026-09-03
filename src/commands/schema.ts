@@ -1408,11 +1408,17 @@ export function registerSchemaCommand(program: Command): void {
 
 /**
  * Create default template content for an artifact.
+ *
+ * Every template opens with a top-level heading so the artifact it produces is
+ * a well-formed markdown document rather than a file whose first line is a
+ * section header (markdownlint MD041, #1138).
  */
 function createDefaultTemplate(artifactId: string): string {
   switch (artifactId) {
     case 'proposal':
-      return `## Why
+      return `# Proposal
+
+## Why
 
 <!-- Describe the motivation for this change -->
 
@@ -1434,7 +1440,9 @@ function createDefaultTemplate(artifactId: string): string {
 `;
 
     case 'specs':
-      return `## ADDED Requirements
+      return `# Spec Delta
+
+## ADDED Requirements
 
 ### Requirement: Example requirement
 
@@ -1446,7 +1454,9 @@ Description of the requirement.
 `;
 
     case 'design':
-      return `## Context
+      return `# Design
+
+## Context
 
 <!-- Background and context -->
 
@@ -1473,7 +1483,9 @@ Description and rationale.
 `;
 
     case 'tasks':
-      return `## Implementation Tasks
+      return `# Tasks
+
+## Implementation Tasks
 
 - [ ] Task 1
 - [ ] Task 2
@@ -1481,7 +1493,7 @@ Description and rationale.
 `;
 
     default:
-      return `## ${artifactId}
+      return `# ${artifactId}
 
 <!-- Add content here -->
 `;

@@ -276,6 +276,8 @@ Templates are markdown files that guide the AI. They're injected into the prompt
 
 ```markdown
 <!-- templates/proposal.md -->
+# Proposal
+
 ## Why
 
 <!-- Explain the motivation for this change. What problem does this solve? -->
@@ -293,6 +295,11 @@ Templates can include:
 - Section headers the AI should fill in
 - HTML comments with guidance for the AI
 - Example formats showing expected structure
+
+Open each template with a top-level `#` heading. The artifact inherits it, so
+the generated file is a complete markdown document and passes linters that
+require a first-line heading (markdownlint MD041). `openspec schema` scaffolds
+new templates this way already.
 
 ### Validate Your Schema
 
