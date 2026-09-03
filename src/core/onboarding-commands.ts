@@ -70,8 +70,11 @@ export function formatOptionalWorkflowsNote(
 
   const label = missing.length === 1 ? 'workflow is' : 'workflows are';
   const pronoun = missing.length === 1 ? 'it' : 'them';
+  // `openspec config profile` offers to apply to this project before it
+  // exits, and prints the `openspec update` guidance itself when declined, so
+  // naming a second command here would be one step too many.
   return [
     `Note: ${missing.length} more ${label} available (${missing.join(', ')}).`,
-    `Run \`openspec config profile\` to add ${pronoun}, then \`openspec update\`.`,
+    `Add ${pronoun} with \`openspec config profile\`.`,
   ];
 }
