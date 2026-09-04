@@ -49,6 +49,7 @@ import {
   type ArchiveInstructions,
 } from './shared.js';
 import { parseTaskLines, type ParsedTask } from '../../utils/task-progress.js';
+import { METADATA_FILENAME } from '../../utils/change-metadata.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -385,7 +386,7 @@ function collectApplyWarnings(input: {
   );
   if (hasDeltas) return [];
 
-  const metadataPath = path.join(changeDir, '.openspec.yaml');
+  const metadataPath = path.join(changeDir, METADATA_FILENAME);
   return [
     `This change has no delta specs and does not declare \`skip_specs: true\`, so \`openspec validate ${changeName}\` fails on it. ` +
       `Write the delta specs before implementing (\`openspec instructions specs --change ${changeName}\`), ` +
