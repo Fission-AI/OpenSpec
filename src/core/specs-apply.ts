@@ -737,9 +737,13 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       const continuesListItem =
         listContentIndent !== null &&
         indent >= listContentIndent &&
-        // A `#` line is a heading wherever it sits, and `firstForeignTail`
-        // already names it. Left to the checks below rather than absorbed.
-        !/^ {0,3}#{1,6}(?:[ \t]|$)/.test(line);
+        // A heading is a heading wherever it sits - an ATX `#` line, which
+        // `firstForeignTail` already names, or the raw HTML the `before` pass
+        // treats the same way. Left to the checks below rather than absorbed,
+        // so indenting a section under a bullet cannot smuggle it past the
+        // audit.
+        !/^ {0,3}#{1,6}(?:[ \t]|$)/.test(line) &&
+        !/^\s*<h[1-6]\b/i.test(line);
       // Fenced lines render as a code block inside the requirement, so they are
       // its own content however they are spelled - a `### Requirement:` in an
       // example is not a heading to any reader. Flagging them made a spec that

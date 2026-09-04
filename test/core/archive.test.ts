@@ -4459,6 +4459,79 @@ The system SHALL do the thing differently.
       await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
     });
 
+    it('still retires when a nested list item wraps, and when a tab does the indenting', async () => {
+      const changeName = 'retire-wrapped-nested-bullet';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** these happen in order:',
+        '  1. the layer loads from the cache written by the previous run, or from disk',
+        '     when that cache is cold',
+        '\t2. the consumer proceeds',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+    });
+
+    it.each([
+      { what: 'an ATX heading', line: '  ### Data Migration Notes' },
+      { what: 'a raw HTML heading', line: '  <h2>Data Migration Notes</h2>' },
+    ])('still refuses $what indented directly under a scenario bullet', async ({ what, line }) => {
+      // Continuation is for wrapped prose. A heading is a heading wherever it
+      // sits, so indenting a section under a bullet must not smuggle it past
+      // the audit and delete it with the file.
+      const changeName = `retire-indented-heading-${what.split(' ')[1]}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the legacy layer is available',
+        line,
+        '  Export the escrow table by hand first.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Data Migration Notes')
+      );
+    });
     it('names the marker for an unmarked change whose scenario bullets wrap', async () => {
       // The hint was gated on there being nothing unaccounted for, so a wrapped
       // spec got the bare `must have at least one requirement` abort and the
