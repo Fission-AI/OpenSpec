@@ -19,6 +19,7 @@ import {
   formatChangeStatus,
   type ChangeStatus,
 } from '../../core/artifact-graph/index.js';
+import { resolveNextStep } from '../../core/change-status-policy.js';
 import { asStatus } from '../shared-output.js';
 import type { StoreDiagnostic } from '../../core/store/errors.js';
 import {
@@ -84,13 +85,18 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
 
     // Single definition of "load one change's status" so the batch and
     // single-change payloads can never drift apart.
+    // One store-flag decision serves the JSON `nextSteps` sentence and the text
+    // `Next:` line, so a store-selected root can never carry `--store` in one
+    // and drop it from the other.
+    const storeOptions = isStoreSelectedRoot(root) ? { storeId: root.storeId } : {};
+
     const loadStatus = (changeName: string): ChangeStatus =>
       formatChangeStatus(
         loadChangeContext(projectRoot, changeName, options.schema, {
           changeDir: getChangeDir(planningHome, changeName),
           planningHome,
         }),
-        isStoreSelectedRoot(root) ? { storeId: root.storeId } : {}
+        storeOptions
       );
 
     // Handle no-changes case gracefully — status is informational,
@@ -150,7 +156,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
             console.log();
           }
           if ('artifacts' in entry) {
-            printStatusText(entry);
+            printStatusText(entry, storeOptions);
           } else {
             console.log(chalk.red(`✗ ${entry.changeName}: ${entry.status[0]?.message}`));
           }
@@ -195,14 +201,19 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       return;
     }
 
-    printStatusText(status);
+    printStatusText(status, storeOptions);
   } catch (error) {
     spinner?.stop();
     throw error;
   }
 }
 
-export function printStatusText(status: ChangeStatus): void {
+export interface PrintStatusTextOptions {
+  /** Selected store id, so the printed command carries `--store`. */
+  storeId?: string;
+}
+
+export function printStatusText(status: ChangeStatus, options: PrintStatusTextOptions = {}): void {
   const doneCount = status.artifacts.filter((a) => a.status === 'done').length;
   const skippedCount = status.artifacts.filter((a) => a.status === 'skipped').length;
   const total = status.artifacts.length - skippedCount;
@@ -232,8 +243,26 @@ export function printStatusText(status: ChangeStatus): void {
     console.log(line);
   }
 
-  if (status.isPlanningComplete) {
+  // Derived from the same inputs as the JSON `nextSteps` sentence, so the two
+  // surfaces always name the same command. Without this line the text surface
+  // reports state and no verb, which leaves someone resuming a change - after a
+  // lost session, or on a change they did not start - with nowhere to go.
+  const nextStep = resolveNextStep({
+    changeName: status.changeName,
+    artifactStatuses: status.artifacts,
+    allArtifactsComplete: status.isPlanningComplete,
+    ...(options.storeId ? { storeId: options.storeId } : {}),
+  });
+
+  if (status.isPlanningComplete || nextStep) {
     console.log();
+  }
+
+  if (status.isPlanningComplete) {
     console.log(chalk.green('All planning artifacts complete!'));
+  }
+
+  if (nextStep) {
+    console.log(`Next: ${nextStep.command}`);
   }
 }

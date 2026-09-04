@@ -140,6 +140,57 @@ describe('artifact-workflow CLI commands', () => {
       expect(json.nextSteps[0]).toContain('openspec instructions specs');
     });
 
+    // #906: the text surface reported state and no verb, so someone resuming a
+    // change - after a lost session, or on a change they did not start - had to
+    // already know which command comes next. The command is now printed.
+    describe('next step', () => {
+      it('names the command for the next ready artifact', async () => {
+        await createTestChange('resume-planning');
+
+        const result = await runCLI(['status', '--change', 'resume-planning'], { cwd: tempDir });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain(
+          'Next: openspec instructions specs --change "resume-planning" --json'
+        );
+      });
+
+      it('names the apply command once planning is complete', async () => {
+        await createTestChange('resume-apply', ['proposal', 'design', 'specs', 'tasks']);
+
+        const result = await runCLI(['status', '--change', 'resume-apply'], { cwd: tempDir });
+
+        expect(result.exitCode).toBe(0);
+        // The completion line alone reads as "you are done" even while tasks
+        // remain, so it must be followed by the command that resumes the work.
+        expect(result.stdout).toContain('All planning artifacts complete!');
+        expect(result.stdout).toContain(
+          'Next: openspec instructions apply --change "resume-apply" --json'
+        );
+      });
+
+      it('prints the same command the JSON nextSteps sentence names', async () => {
+        for (const artifacts of [[], ['proposal', 'design', 'specs', 'tasks']] as const) {
+          const changeName = `parity-${artifacts.length}`;
+          await createTestChange(changeName, [...artifacts]);
+
+          const text = await runCLI(['status', '--change', changeName], { cwd: tempDir });
+          const json = await runCLI(['status', '--change', changeName, '--json'], { cwd: tempDir });
+
+          const printed = text.stdout
+            .split('\n')
+            .find((line) => line.startsWith('Next: '))
+            ?.slice('Next: '.length)
+            .trim();
+
+          expect(printed).toBeDefined();
+          // One source of truth: the printed command must appear verbatim
+          // inside the published JSON sentence.
+          expect(JSON.parse(json.stdout).nextSteps[0]).toContain(printed);
+        }
+      });
+    });
+
     it('shows planning completion when all artifacts exist', async () => {
       await createTestChange('complete-change', ['proposal', 'design', 'specs', 'tasks']);
 
