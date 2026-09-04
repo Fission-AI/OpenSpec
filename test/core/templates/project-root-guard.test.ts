@@ -60,6 +60,9 @@ describe('project root guard', () => {
   it('names the machine-readable signal rather than a guess', () => {
     expect(PROJECT_ROOT_GUARD).toContain('openspec list --json');
     expect(PROJECT_ROOT_GUARD).toContain('`"root": null`');
+    // An agent that reads the non-zero exit as a broken CLI is one step from
+    // hand-creating `openspec/` instead, which is the failure being guarded.
+    expect(PROJECT_ROOT_GUARD).toContain('exits non-zero in that case');
   });
 
   it('hands the decision to the user instead of setting the project up', () => {

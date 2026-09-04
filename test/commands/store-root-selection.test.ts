@@ -620,8 +620,11 @@ operations:
       expect(created.exitCode).toBe(0);
       const firstOutput = created.stdout + created.stderr;
       expect(firstOutput).toContain('no OpenSpec root was found here');
-      expect(firstOutput).toContain('openspec');
+      // Naming the directory it created is the point: the reader has to know
+      // what to delete if this was not the project they meant.
+      expect(firstOutput).toMatch(/created at .*openspec\//);
       expect(firstOutput).toContain('openspec init');
+      expect(fs.existsSync(path.join(appRepo, 'openspec', 'changes', 'adopt-me'))).toBe(true);
 
       // The root exists now, so the notice must not repeat on every change.
       const second = await runCLI(['new', 'change', 'already-adopted'], {
