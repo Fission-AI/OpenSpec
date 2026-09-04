@@ -775,7 +775,23 @@ Progress: 2/4 artifacts complete
 [x] specs
 [ ] design
 [-] tasks (blocked by: design)
+
+Next: openspec instructions design --change "add-dark-mode" --json
 ```
+
+The `Next:` line names the one command that moves the change forward, so `openspec status` is enough to pick a change back up in a fresh session. It names the next ready artifact while planning is unfinished, and `openspec instructions apply` once every planning artifact exists:
+
+```
+[x] proposal
+[x] specs
+[x] design
+[x] tasks
+
+All planning artifacts complete!
+Next: openspec instructions apply --change "add-dark-mode" --json
+```
+
+It carries `--store <id>` whenever the resolved root is a store, and it names the same command as the JSON `nextSteps` sentence.
 
 A change that declares `skip_specs: true` shows its specs stage as `[~] specs (skipped: change declares skip_specs)` and excludes it from the progress count.
 

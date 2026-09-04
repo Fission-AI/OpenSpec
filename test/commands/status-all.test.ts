@@ -203,6 +203,37 @@ describe('status --all', () => {
     expect(result.stdout).toContain('2/4 artifacts complete');
   });
 
+  it('gives every change in the sweep its own next-step line', async () => {
+    await createTestChange('first-change');
+    await createTestChange('second-change', ['design']);
+
+    const result = await runCLI(['status', '--all'], { cwd: tempDir });
+
+    expect(result.exitCode).toBe(0);
+    // The point of the batch view is one screen saying what each change needs
+    // next - a single shared line, or a line for only one change, would not.
+    expect(result.stdout).toContain(
+      'Next: openspec instructions specs --change "first-change" --json'
+    );
+    expect(result.stdout).toContain(
+      'Next: openspec instructions specs --change "second-change" --json'
+    );
+  });
+
+  it('prints no next-step line for a change that failed to load', async () => {
+    await createTestChange('good-change', ['design']);
+    const brokenDir = await createTestChange('broken-change');
+    await fs.writeFile(path.join(brokenDir, '.openspec.yaml'), 'schema: does-not-exist\n');
+
+    const result = await runCLI(['status', '--all'], { cwd: tempDir });
+
+    // A failed entry has no artifact statuses to reason about, so it must not
+    // be given a next step alongside its diagnostic.
+    expect(getOutput(result)).toContain('✗ broken-change');
+    expect(result.stdout).toContain('Next: openspec instructions specs --change "good-change"');
+    expect(result.stdout).not.toContain('--change "broken-change"');
+  });
+
   it('exits 1 in text mode when a change fails to load, still printing the others', async () => {
     await createTestChange('good-change', ['design']);
     const brokenDir = await createTestChange('broken-change');
