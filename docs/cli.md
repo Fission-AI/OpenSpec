@@ -1302,6 +1302,9 @@ openspec completion uninstall powershell
 
 Restart PowerShell after uninstalling to clear completions from the current session.
 
+**Nix:** the flake package installs the Bash, Fish, and Zsh scripts with the
+package, so completions work without running `completion install`.
+
 Completions are opt-in. The CLI mentions them once, on stderr, the first time you
 run a command in an interactive terminal, and never again — it also stays quiet
 if you already have completions installed. Set `OPENSPEC_NO_COMPLETIONS=1` to

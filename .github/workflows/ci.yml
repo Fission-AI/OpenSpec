@@ -42,6 +42,10 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'scripts/update-flake.sh'
               - '.github/workflows/ci.yml'
+              # The Nix build runs `openspec completion generate`, so a change to
+              # the generator can break packaging without touching flake.nix.
+              - 'src/commands/completion.ts'
+              - 'src/core/completions/**'
 
   test_matrix:
     name: Test (${{ matrix.label }})
@@ -192,6 +196,19 @@ jobs:
           fi
           if [ ! -f "result/bin/openspec" ]; then
             echo "Error: openspec binary not found in build output"
+            exit 1
+          fi
+          for completion in \
+            "share/bash-completion/completions/openspec.bash" \
+            "share/fish/vendor_completions.d/openspec.fish" \
+            "share/zsh/site-functions/_openspec"; do
+            if [ ! -s "result/$completion" ]; then
+              echo "Error: completion script missing or empty: $completion"
+              exit 1
+            fi
+          done
+          if [ "$(head -1 result/share/zsh/site-functions/_openspec)" != "#compdef openspec" ]; then
+            echo "Error: zsh completion is not autoloadable (missing #compdef header)"
             exit 1
           fi
           echo "✅ Build output verified"
