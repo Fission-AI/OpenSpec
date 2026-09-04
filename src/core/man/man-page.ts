@@ -41,9 +41,12 @@ const SEE_ALSO = [
  *
  * Backslashes start escape sequences, and an unescaped hyphen renders as a
  * typographic minus that breaks copy-paste of flags.
+ *
+ * One pass, not a chain of replaces: escaping in two passes would let the
+ * second pass rewrite backslashes the first one just produced.
  */
 export function escapeRoff(text: string): string {
-  return text.replace(/\\/g, '\\e').replace(/-/g, '\\-');
+  return text.replace(/[\\-]/g, (character) => (character === '\\' ? '\\e' : '\\-'));
 }
 
 /**
