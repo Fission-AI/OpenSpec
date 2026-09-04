@@ -16,6 +16,7 @@ import {
   resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
+import { isSpecsArtifactPath } from '../../core/artifact-graph/outputs.js';
 import {
   getChangeDir,
   resolveCurrentPlanningHomeSync,
@@ -350,6 +351,48 @@ function toTaskItems(parsed: ParsedTask[]): TaskItem[] {
   return tasks;
 }
 
+/**
+ * Warnings apply reports alongside its instruction.
+ *
+ * Apply gates on the schema's `apply.requires` only, so a change whose tasks
+ * file was written ahead of its specs reads as ready even though no delta spec
+ * exists - the state `openspec validate` rejects. Blocking here would be a
+ * policy change; naming the gap is not, and it is what keeps apply from being
+ * the one surface that green-lights a change every other surface flags.
+ *
+ * Only reported once apply is past its own gate: for a change that has not
+ * reached tasks yet, the missing specs are the next step rather than a warning.
+ * Schemas that declare no spec-producing artifact carry `skip_specs` from
+ * creation, so this never fires on them.
+ */
+function collectApplyWarnings(input: {
+  state: ApplyInstructions['state'];
+  schema: { artifacts: { id: string; generates: string }[] };
+  changeDir: string;
+  changeName: string;
+  skippedArtifacts?: Set<string>;
+}): string[] {
+  const { state, schema, changeDir, changeName, skippedArtifacts } = input;
+  if (state === 'blocked') return [];
+
+  const specArtifacts = schema.artifacts.filter((artifact) =>
+    isSpecsArtifactPath(artifact.generates)
+  );
+  if (specArtifacts.length === 0) return [];
+  if (specArtifacts.some((artifact) => skippedArtifacts?.has(artifact.id))) return [];
+  const hasDeltas = specArtifacts.some(
+    (artifact) => resolveArtifactOutputs(changeDir, artifact.generates).length > 0
+  );
+  if (hasDeltas) return [];
+
+  const metadataPath = path.join(changeDir, '.openspec.yaml');
+  return [
+    `This change has no delta specs and does not declare \`skip_specs: true\`, so \`openspec validate ${changeName}\` fails on it. ` +
+      `Write the delta specs before implementing (\`openspec instructions specs --change ${changeName}\`), ` +
+      `or add \`skip_specs: true\` to ${metadataPath} if this change really changes no specified behavior.`,
+  ];
+}
+
 export interface GenerateApplyInstructionsOptions {
   planningHome?: PlanningHome;
   references?: ReferenceIndexEntry[];
@@ -461,6 +504,14 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
+  const warnings = collectApplyWarnings({
+    state,
+    schema,
+    changeDir,
+    changeName,
+    skippedArtifacts: context.skippedArtifacts,
+  });
+
   return {
     changeName,
     changeDir,
@@ -470,6 +521,7 @@ export async function generateApplyInstructions(
     tasks,
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
+    ...(warnings.length > 0 ? { warnings } : {}),
     instruction,
     ...(references !== undefined ? { references } : {}),
     ...operationInputs,
@@ -524,7 +576,7 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
 }
 
 export function printApplyInstructionsText(instructions: ApplyInstructions): void {
-  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, instruction } = instructions;
+  const { changeName, schemaName, contextFiles, progress, tasks, state, missingArtifacts, warnings, instruction } = instructions;
 
   console.log(`## Apply: ${changeName}`);
   console.log(`Schema: ${schemaName}`);
@@ -541,6 +593,15 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
     console.log();
     console.log(`Missing artifacts: ${missingArtifacts.join(', ')}`);
     console.log('Use the openspec-continue-change skill to create these first.');
+    console.log();
+  }
+
+  if (warnings && warnings.length > 0) {
+    console.log('### ⚠️ Warnings');
+    console.log();
+    for (const warning of warnings) {
+      console.log(`- ${warning}`);
+    }
     console.log();
   }
 

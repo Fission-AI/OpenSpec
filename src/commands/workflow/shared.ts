@@ -43,6 +43,8 @@ export interface ApplyInstructions {
   tasks: TaskItem[];
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
+  /** Non-blocking problems with the change, reported alongside the instruction. */
+  warnings?: string[];
   instruction: string;
   /** Referenced-store index (read-only upstream context; omitted when none declared) */
   references?: ReferenceIndexEntry[];
