@@ -4230,6 +4230,103 @@ The system SHALL do the thing differently.
       ).resolves.not.toThrow();
     });
 
+    // #1780: a repository that wraps prose at a column limit wraps its
+    // scenario bullets too, and the wrapped remainder is more of the same
+    // bullet. Reading each such line as a line of its own made it "content the
+    // merge cannot account for", which refused the retirement - so on those
+    // repositories `retire_capabilities` could not retire anything at all.
+    describe('wrapped scenario bullets (#1780)', () => {
+      async function retireWith(changeName: string, requirement: string[]): Promise<string> {
+        await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          mainSpec('legacy-layer', requirement.join('\n'))
+        );
+        await archiveCommand.execute(changeName, { yes: true });
+        return mainSpecDir;
+      }
+
+      const WRAPPED_BULLET = [
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the outstanding count becomes zero and the completions are recorded rather',
+      ];
+
+      it('retires a capability whose scenario bullet wraps with indentation', async () => {
+        const mainSpecDir = await retireWith('retire-wrapped-indented', [
+          ...WRAPPED_BULLET,
+          '  than the earned total being reduced',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
+      it('retires a capability whose scenario bullet wraps without indentation', async () => {
+        // CommonMark lazy continuation: the remainder does not have to line up
+        // under the bullet to belong to it, and editors that hard-wrap rarely
+        // indent it.
+        const mainSpecDir = await retireWith('retire-wrapped-lazy', [
+          ...WRAPPED_BULLET,
+          'than the earned total being reduced',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
+      it('still refuses when a wrapped note follows the last scenario', async () => {
+        // The note is a bullet of its own, written past the blank line that
+        // ends the scenario - what the guard exists to catch. Its own wrapped
+        // remainder must not weaken that: the note is still named, and the
+        // retirement still refused.
+        const mainSpecDir = await retireWith('retire-wrapped-note', [
+          ...WRAPPED_BULLET,
+          '  than the earned total being reduced',
+          '',
+          '- Operational note: the layer is mirrored nightly to the reporting',
+          '  warehouse, which nothing else records',
+        ]);
+
+        expect(process.exitCode).toBe(1);
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('- Operational note: the layer is mirrored nightly to the reporting')
+        );
+        // The scenario's own wrapped remainder is not one of the lines standing
+        // in the way, so it is not named among them.
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('"than the earned total being reduced"')
+        );
+      });
+
+      it.each([
+        ['a table row', '| region | mirror |'],
+        ['a block quote', '> Mirrored nightly to the reporting warehouse.'],
+        ['raw HTML', '<div>Mirrored nightly to the reporting warehouse.</div>'],
+        ['a heading', '##### Mirroring'],
+      ])('still refuses %s written directly under a bullet', async (label, line) => {
+        // These interrupt a paragraph in CommonMark, so they are blocks of
+        // their own rather than more of the bullet above them - authored
+        // content the deletion would take unmentioned.
+        const mainSpecDir = await retireWith(
+          `retire-block-${label.replace(/\W+/g, '-')}`,
+          [...WRAPPED_BULLET, '  than the earned total being reduced', line]
+        );
+
+        expect(process.exitCode).toBe(1);
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('content the merge cannot safely account for')
+        );
+      });
+    });
+
     it('refuses to retire an H1 section written after Purpose', async () => {
       const changeName = 'retire-h1-after-purpose';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);
