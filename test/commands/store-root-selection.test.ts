@@ -621,8 +621,9 @@ operations:
       const firstOutput = created.stdout + created.stderr;
       expect(firstOutput).toContain('no OpenSpec root was found here');
       // Naming the directory it created is the point: the reader has to know
-      // what to delete if this was not the project they meant.
-      expect(firstOutput).toMatch(/created at .*openspec\//);
+      // what to delete if this was not the project they meant. The path is
+      // relative to where the command ran, so it reads the same on Windows.
+      expect(firstOutput).toContain('created at openspec/.');
       expect(firstOutput).toContain('openspec init');
       expect(fs.existsSync(path.join(appRepo, 'openspec', 'changes', 'adopt-me'))).toBe(true);
 
@@ -633,6 +634,29 @@ operations:
       });
       expect(second.exitCode).toBe(0);
       expect(second.stdout + second.stderr).not.toContain('no OpenSpec root was found here');
+    });
+
+    // Run from a subdirectory and the subdirectory is what gets adopted - the
+    // note has to name that directory, not the repository above it.
+    it('names the directory it actually adopted when run from a subdirectory', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+      const nested = path.join(appRepo, 'services', 'billing');
+      fs.mkdirSync(nested, { recursive: true });
+
+      const created = await runCLI(['new', 'change', 'adopt-the-subdir'], {
+        cwd: nested,
+        env: isolatedEnv,
+      });
+      expect(created.exitCode).toBe(0);
+      expect(created.stdout + created.stderr).toContain('created at openspec/.');
+
+      expect(fs.existsSync(path.join(nested, 'openspec', 'changes', 'adopt-the-subdir'))).toBe(
+        true
+      );
+      expect(fs.existsSync(path.join(appRepo, 'openspec'))).toBe(false);
     });
 
     it('keeps the notice out of JSON output', async () => {

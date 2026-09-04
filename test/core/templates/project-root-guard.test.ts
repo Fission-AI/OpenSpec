@@ -59,6 +59,9 @@ describe('project root guard', () => {
   // test/commands/store-root-selection.test.ts.
   it('names the machine-readable signal rather than a guess', () => {
     expect(PROJECT_ROOT_GUARD).toContain('openspec list --json');
+    // A selected store is a root, so the check has to carry the flag or it
+    // answers a question about the wrong directory.
+    expect(PROJECT_ROOT_GUARD).toContain('with `--store <id>` when a store is selected');
     expect(PROJECT_ROOT_GUARD).toContain('`"root": null`');
     // An agent that reads the non-zero exit as a broken CLI is one step from
     // hand-creating `openspec/` instead, which is the failure being guarded.
