@@ -4,6 +4,7 @@ import {
   getExploreSkillTemplate,
   getOpsxExploreCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
+import { transformToSkillReferences } from '../../../src/utils/command-references.js';
 
 const skill = getExploreSkillTemplate();
 const command = getOpsxExploreCommandTemplate();
@@ -403,6 +404,57 @@ describe('explore templates', () => {
       expect(recordSkip, label).toBeGreaterThan(evaluateCondition);
       expect(requireExpansion, label).toBeGreaterThan(recordSkip);
       expect(approvalGuard, label).toBeGreaterThan(requireExpansion);
+    }
+  });
+});
+
+// Regression for #869: explore refused to implement and told the agent to
+// "create a change proposal" without ever naming the workflow that does it.
+// With no named exit, agents answered the discovery questions and then went
+// straight to writing code - the failure two reporters hit through Copilot.
+describe('explore handoff to the propose workflow (#869)', () => {
+  it('names the propose workflow when the user asks for implementation', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'point them at `/opsx:propose`, which turns the discussion into a change'
+      );
+      expect(body, label).toContain('The work happens from that change, never from explore mode');
+      expect(body, label).not.toContain(
+        'remind them to exit explore mode first and create a change proposal'
+      );
+    }
+  });
+
+  it('names the propose workflow where discovery ends', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        '**Flow into a proposal**: "Ready to start? Run `/opsx:propose` and this becomes a change."'
+      );
+      expect(body, label).not.toContain('I can create a change proposal');
+    }
+  });
+
+  it('pairs the do-not-implement guardrail with the handoff', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'When the user is ready to build, name the handoff rather than starting: `/opsx:propose` turns the discussion into a change, and the work happens there'
+      );
+    }
+  });
+
+  it('offers the handoff as a next step in the closing summary', () => {
+    expect(skill.instructions).toContain('- Turn this into a change: `/opsx:propose`');
+    expect(skill.instructions).not.toContain('- Create a change proposal');
+  });
+
+  // The reference has to be the canonical `/opsx:<id>` form of a known
+  // command id, or the per-tool transformers leave it as written and the
+  // skill advertises an invocation no tool registers (#727, #1307).
+  it('writes the reference so per-tool rendering rewrites it', () => {
+    for (const [label, body] of bodies) {
+      const rendered = transformToSkillReferences(body);
+      expect(rendered, label).toContain('/openspec-propose');
+      expect(rendered, label).not.toContain('/opsx:propose');
     }
   });
 });
