@@ -1267,6 +1267,13 @@ describe('apply skill/command shared instruction core', () => {
     expect(getApplyChangeSkillTemplate().instructions).toBe(core);
     expect(getOpsxApplyCommandTemplate().content).toBe(core);
   });
+
+  it('keeps task completion distinct from archive readiness (#1790)', () => {
+    const core = getApplyInstructions();
+    expect(core).toContain('All tracked tasks are complete');
+    expect(core).toMatch(/Review or verify the change as appropriate\s+before archiving/);
+    expect(core).not.toContain('All tasks complete! You can archive');
+  });
 });
 
 describe('workflow guidance matches the packaged templates (#1138)', () => {
