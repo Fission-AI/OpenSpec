@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { PROJECT_ROOT_GUARD } from '../../../src/core/templates/workflows/project-root.js';
+import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 import { getFeedbackSkillTemplate } from '../../../src/core/templates/skill-templates.js';
 import {
   generateSkillContent,
@@ -18,6 +19,21 @@ import {
  * the guard has to live in the instructions themselves, in every workflow.
  */
 describe('project root guard', () => {
+  // Both surfaces, rendered exactly as they ship.
+  function renderedBodies(): Array<[string, string]> {
+    return [
+      ...getSkillTemplates().map(
+        ({ template, dirName }): [string, string] => [
+          `skill ${dirName}`,
+          generateSkillContent(template, 'PARITY-BASELINE'),
+        ]
+      ),
+      ...getCommandContents().map(
+        (entry): [string, string] => [`command ${entry.id}`, entry.body]
+      ),
+    ];
+  }
+
   it('warns about an uninitialized project in every deployed skill', () => {
     for (const { template, dirName } of getSkillTemplates()) {
       const content = generateSkillContent(template, 'PARITY-BASELINE');
@@ -57,29 +73,43 @@ describe('project root guard', () => {
   });
 
   // A guard printed after the workflow has already scaffolded a change is no
-  // guard at all: it has to precede the first command the workflow runs.
-  it('precedes the first openspec command in every deployed skill and command', () => {
-    const bodies: Array<[string, string]> = [
-      ...getSkillTemplates().map(
-        ({ template, dirName }): [string, string] => [
-          `skill ${dirName}`,
-          generateSkillContent(template, 'PARITY-BASELINE'),
-        ]
-      ),
-      ...getCommandContents().map(
-        (entry): [string, string] => [`command ${entry.id}`, entry.body]
-      ),
+  // guard at all, so nothing that runs a command or writes an artifact may
+  // appear before it. Asserting on the text *preceding* the guard catches a
+  // stray write wherever it sits - inside a fence or in bare prose - which
+  // looking only at the first fenced block would miss.
+  it('precedes every command block and write instruction it guards', () => {
+    const writeMarkers = [
+      '```', // any command block, whatever the language tag
+      'openspec new change',
+      'openspec archive',
+      'openspec sync',
+      'openspec instructions',
+      'openspec validate',
     ];
 
-    for (const [label, body] of bodies) {
+    for (const [label, body] of renderedBodies()) {
       const guardStart = body.indexOf(PROJECT_ROOT_GUARD);
       expect(guardStart, label).toBeGreaterThanOrEqual(0);
 
-      const guardEnd = guardStart + PROJECT_ROOT_GUARD.length;
-      const firstCommand = body.indexOf('```bash');
-      if (firstCommand >= 0) {
-        expect(firstCommand, label).toBeGreaterThan(guardEnd);
+      const beforeGuard = body.slice(0, guardStart);
+      for (const marker of writeMarkers) {
+        expect(beforeGuard, `${label} runs "${marker}" before the project check`).not.toContain(
+          marker
+        );
       }
+    }
+  });
+
+  // The guard is worthless if it sits at the end of a long workflow, so pin
+  // where it lives: directly under the store-selection guidance, in the
+  // header every workflow reads before it starts.
+  it('sits directly under the store-selection guidance', () => {
+    for (const [label, body] of renderedBodies()) {
+      const storeStart = body.indexOf(STORE_SELECTION_GUIDANCE);
+      expect(storeStart, label).toBeGreaterThanOrEqual(0);
+      expect(body.indexOf(PROJECT_ROOT_GUARD), label).toBe(
+        storeStart + STORE_SELECTION_GUIDANCE.length + '\n\n'.length
+      );
     }
   });
 
