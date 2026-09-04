@@ -19,7 +19,10 @@ const outputPath = path.join(repoRoot, 'dist', 'man', 'openspec.1');
 function buildDate() {
   const epoch = process.env.SOURCE_DATE_EPOCH;
   const parsed = epoch ? Number.parseInt(epoch, 10) : Number.NaN;
-  const date = Number.isFinite(parsed) ? new Date(parsed * 1000) : new Date();
+  const stamped = new Date(parsed * 1000);
+  // A finite epoch can still land outside the range Date represents, and
+  // toISOString throws on that. Fall back rather than fail the build.
+  const date = Number.isNaN(stamped.getTime()) ? new Date() : stamped;
   return date.toISOString().slice(0, 10);
 }
 

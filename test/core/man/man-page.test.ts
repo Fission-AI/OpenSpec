@@ -35,8 +35,14 @@ function buildProgram(): Command {
 describe('renderManPage', () => {
   it('opens with a .TH header carrying the version and date', () => {
     expect(render(buildProgram()).split('\n')[0]).toBe(
-      '.TH OPENSPEC 1 "2026-01-01" "openspec 9.9.9" "OpenSpec Manual"'
+      '.TH OPENSPEC 1 "2026\\-01\\-01" "openspec 9.9.9" "OpenSpec Manual"'
     );
+  });
+
+  it('escapes the version in the header, prereleases included', () => {
+    const page = renderManPage(buildProgram(), { version: '2.0.0-beta.1', date: '2026-01-01' });
+
+    expect(page.split('\n')[0]).toContain('"openspec 2.0.0\\-beta.1"');
   });
 
   it('documents each command as a subsection using its full invocation', () => {

@@ -1322,7 +1322,8 @@ version you have installed.
 
 `man openspec` works out of the box after `npm install -g`, which links the page
 into your man path. Other package managers ship the file but don't link it, so
-point `man` at it directly:
+point `man` at the copy in their global package directory — with pnpm, for
+example:
 
 ```bash
 man "$(pnpm root -g)/@fission-ai/openspec/dist/man/openspec.1"

@@ -135,7 +135,9 @@ export function renderManPage(program: Command, options: ManPageOptions): string
   const name = program.name();
 
   const lines: string[] = [
-    `.TH ${name.toUpperCase()} 1 "${options.date}" "${name} ${options.version}" "OpenSpec Manual"`,
+    // Every field here is escaped too: a date's hyphens, or a prerelease
+    // version's, would otherwise render as typographic minus in the footer.
+    `.TH ${escapeRoff(name.toUpperCase())} 1 "${escapeRoff(options.date)}" "${escapeRoff(name)} ${escapeRoff(options.version)}" "OpenSpec Manual"`,
     '.SH NAME',
     `${escapeRoff(name)} \\- ${textLine(oneLine(program.description()))}`,
     '.SH SYNOPSIS',
