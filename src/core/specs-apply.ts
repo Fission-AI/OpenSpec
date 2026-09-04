@@ -640,6 +640,27 @@ function contentColumn(prefix: string): number {
 const INTERRUPTS_PARAGRAPH =
   /^ {0,3}(?:>|(?:[-*_][ \t]*){3,}$|(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)|[<|])/;
 
+/**
+ * Drop up to `columns` visual columns of leading whitespace, so a line inside a
+ * list item is classified by what it is *within* that item. A `## Retention`
+ * indented under `100. Step` is a heading; measured against the file's left
+ * margin instead, it reads as five spaces of nothing and was absorbed as
+ * continuation. A tab straddling the boundary is consumed whole, which can only
+ * make a line look more like a construct - the direction that refuses.
+ */
+function dropIndent(line: string, columns: number): string {
+  let column = 0;
+  let index = 0;
+  while (index < line.length && column < columns) {
+    const char = line[index];
+    if (char === ' ') column += 1;
+    else if (char === '\t') column += 4 - (column % 4);
+    else break;
+    index++;
+  }
+  return line.slice(index);
+}
+
 /** A heading in any form a spec can write one, ATX or raw HTML. */
 function isHeadingLine(line: string): boolean {
   return /^ {0,3}#{1,6}(?:[ \t]|$)/.test(line) || /^\s*<h[1-6]\b/i.test(line);
@@ -758,6 +779,11 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // Indented to the item's content column: inside the item, whatever it
       // holds - a nested list, a table, an indented quote.
       const insideItem = listContentIndent !== null && indent >= listContentIndent;
+      // Every syntax test below reads the line as the item sees it. A wide
+      // marker (`100. `) pushes its content past the three columns Markdown
+      // constructs are allowed, so measuring from the file's left margin missed
+      // headings and block starts written inside such an item.
+      const withinItem = insideItem ? dropIndent(line, listContentIndent!) : line;
       // Not indented at all, but continuing the bullet's own paragraph inside a
       // scenario's unbroken bullet run - how a hand-wrapped bullet is usually
       // written. Absorbing it widens nothing: a sibling bullet in that same
@@ -766,12 +792,12 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // the run the indent is required, so a note bulleted below the scenarios
       // and its own wrapped lines stay the author's.
       const lazilyContinuesBullet =
-        paragraphOpen && inScenarioBullets && !INTERRUPTS_PARAGRAPH.test(line);
+        paragraphOpen && inScenarioBullets && !INTERRUPTS_PARAGRAPH.test(withinItem);
       // A heading is a heading wherever it sits, so neither form absorbs one:
       // `firstForeignTail` names the ATX spelling and the `before` pass names
       // the raw HTML, and indenting a section under a bullet must not smuggle
       // it past the audit.
-      const continuesListItem = (insideItem || lazilyContinuesBullet) && !isHeadingLine(line);
+      const continuesListItem = (insideItem || lazilyContinuesBullet) && !isHeadingLine(withinItem);
       // Fenced lines render as a code block inside the requirement, so they are
       // its own content however they are spelled - a `### Requirement:` in an
       // example is not a heading to any reader. Flagging them made a spec that
@@ -789,7 +815,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // must not absorb them any more than an indented `#` line is absorbed.
       if (
         index > 1 &&
-        /^ {0,3}(?:=+|-+)\s*$/.test(line) &&
+        /^ {0,3}(?:=+|-+)\s*$/.test(withinItem) &&
         lines[index - 1].trim()
       ) {
         leftovers.push(lines[index - 1].trim());
@@ -805,7 +831,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         // An indented nested list or quote is still inside the item, but it
         // ended the bullet's paragraph - so a later unindented line is not
         // continuing that paragraph either.
-        paragraphOpen = !INTERRUPTS_PARAGRAPH.test(line);
+        paragraphOpen = !INTERRUPTS_PARAGRAPH.test(withinItem);
         continue;
       }
       // Any other line closes the item; a bullet opens the next one. The

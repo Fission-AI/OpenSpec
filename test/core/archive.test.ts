@@ -4854,6 +4854,47 @@ The system SHALL do the thing differently.
       await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
       expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
     });
+    it.each([
+      { what: 'an ATX heading', body: ['     ## Retention'], named: 'Retention' },
+      { what: 'a setext heading', body: ['     Retention', '     ---------'], named: 'Retention' },
+      { what: 'an unindented note', body: ['IMPORTANT: escrow keys live in the "legacy" vault.'], named: 'escrow keys' },
+    ])('still refuses $what written under a wide ordered marker', async ({ what, body, named }) => {
+      // A marker as wide as `100. ` puts the item's content past the three
+      // columns a Markdown construct is allowed at the file's left margin, so
+      // reading these lines against that margin saw five spaces of nothing and
+      // absorbed them. They are classified as the item sees them - which is
+      // also what tells the audit that the nested item closed the outer
+      // bullet's paragraph, so the unindented note below it is not a wrap.
+      const changeName = `retire-wide-marker-${what.split(' ')[1]}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** these happen in order:',
+        '  100. the layer loads',
+        ...body,
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining(named));
+    });
     it('names the marker for an unmarked change whose scenario bullets wrap', async () => {
       // The hint was gated on there being nothing unaccounted for, so a wrapped
       // spec got the bare `must have at least one requirement` abort and the
