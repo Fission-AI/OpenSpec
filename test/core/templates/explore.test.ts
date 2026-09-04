@@ -4,7 +4,18 @@ import {
   getExploreSkillTemplate,
   getOpsxExploreCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
-import { transformToSkillReferences } from '../../../src/utils/command-references.js';
+import {
+  getSkillReferenceTransformer,
+  transformCommandInvocations,
+  transformToCodexCompatibleSkillReferences,
+  transformToSkillReferences,
+} from '../../../src/utils/command-references.js';
+import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
+import {
+  formatCommandInvocation,
+  getInvocationForAdapter,
+} from '../../../src/core/command-generation/invocation.js';
+import { AI_TOOLS } from '../../../src/core/config.js';
 
 const skill = getExploreSkillTemplate();
 const command = getOpsxExploreCommandTemplate();
@@ -455,6 +466,119 @@ describe('explore handoff to the propose workflow (#869)', () => {
       const rendered = transformToSkillReferences(body);
       expect(rendered, label).toContain('/openspec-propose');
       expect(rendered, label).not.toContain('/opsx:propose');
+    }
+  });
+});
+
+// The handoff is only useful if every tool renders it as an invocation that
+// tool actually registers. These assertions walk the real registries rather
+// than a hand-picked few, so a new adapter or a changed invocation shape
+// cannot quietly leave explore advertising a command nobody answers to
+// (the #727 / #1307 failure mode).
+describe('explore handoff renders for every delivery surface (#869)', () => {
+  // Both workflows explore hands off to. Each is a `CORE_WORKFLOWS` member,
+  // so naming them does not advertise anything the default profile omits.
+  const HANDOFF_IDS = ['propose', 'apply'] as const;
+
+  function canonicalCount(body: string, commandId: string): number {
+    return occurrenceCount(body, `/opsx:${commandId}`);
+  }
+
+  it('names both handoff workflows in both bodies before any rendering', () => {
+    for (const [label, body] of bodies) {
+      for (const commandId of HANDOFF_IDS) {
+        expect(canonicalCount(body, commandId), `${label} ${commandId}`).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('rewrites every reference for each registered command adapter', () => {
+    const adapters = CommandAdapterRegistry.getAll();
+    expect(adapters.length).toBeGreaterThan(0);
+
+    for (const adapter of adapters) {
+      const invocation = getInvocationForAdapter(adapter);
+
+      for (const [label, body] of bodies) {
+        const rendered = transformCommandInvocations(body, invocation);
+
+        for (const commandId of HANDOFF_IDS) {
+          const expected = formatCommandInvocation(invocation, commandId);
+          const where = `${adapter.toolId} ${label} ${commandId}`;
+
+          // Every canonical reference became this tool's spelling. Counting
+          // rather than substring-matching catches a partial rewrite, and it
+          // holds for the namespaced tools whose spelling is the canonical one.
+          expect(occurrenceCount(rendered, expected), where).toBe(
+            canonicalCount(body, commandId)
+          );
+        }
+      }
+    }
+  });
+
+  it('rewrites every reference for each skills-only tool', () => {
+    for (const tool of AI_TOOLS) {
+      const transform = getSkillReferenceTransformer(tool.value);
+
+      for (const [label, body] of bodies) {
+        const rendered = transform(body);
+
+        expect(rendered, `${tool.value} ${label}`).not.toContain('/opsx:');
+        expect(occurrenceCount(rendered, 'openspec-propose'), `${tool.value} ${label}`).toBe(
+          canonicalCount(body, 'propose')
+        );
+        expect(
+          occurrenceCount(rendered, 'openspec-apply-change'),
+          `${tool.value} ${label}`
+        ).toBe(canonicalCount(body, 'apply'));
+      }
+    }
+  });
+
+  it('keeps the handoff readable on the shared .agents tree Codex writes', () => {
+    for (const [label, body] of bodies) {
+      const rendered = transformToCodexCompatibleSkillReferences(body);
+
+      expect(rendered, label).not.toContain('/opsx:');
+      expect(
+        occurrenceCount(rendered, '$openspec-propose (Codex) or /openspec-propose (other agents)'),
+        label
+      ).toBe(canonicalCount(body, 'propose'));
+      expect(
+        occurrenceCount(
+          rendered,
+          '$openspec-apply-change (Codex) or /openspec-apply-change (other agents)'
+        ),
+        label
+      ).toBe(canonicalCount(body, 'apply'));
+    }
+  });
+});
+
+// Regression for #869: the seamless capture path let explore scaffold a
+// change and write artifacts, then said nothing about what came next. An
+// agent holding a fresh proposal inside explore mode has an obvious wrong
+// next move, which is the one the issue reported.
+describe('explore capture path names where the work continues (#869)', () => {
+  it('ends the capture by naming propose and apply', () => {
+    for (const [label, body] of bodies) {
+      const transition = newChangeTransition(body, label);
+
+      expect(transition, label).toContain(
+        'When the requested capture is done, stop there and name where the work continues'
+      );
+      expect(transition, label).toContain('`/opsx:propose` writes the remaining planning artifacts');
+      expect(transition, label).toContain('`/opsx:apply` implements the change once tasks exist');
+    }
+  });
+
+  it('says that capturing artifacts is not permission to implement them', () => {
+    for (const [label, body] of bodies) {
+      const transition = newChangeTransition(body, label);
+      expect(transition, label).toContain(
+        'Capturing artifacts is never permission to implement them'
+      );
     }
   });
 });
