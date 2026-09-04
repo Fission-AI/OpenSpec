@@ -144,13 +144,22 @@ describe('artifact-workflow CLI commands', () => {
     // change - after a lost session, or on a change they did not start - had to
     // already know which command comes next. The command is now printed.
     describe('next step', () => {
+      /**
+       * The line closes the output, so a `toContain` would still pass if some
+       * later line pushed it into the middle of the report.
+       */
+      function lastLine(result: { stdout: string }): string {
+        const lines = result.stdout.split('\n').filter((line) => line.trim() !== '');
+        return lines[lines.length - 1] ?? '';
+      }
+
       it('names the command for the next ready artifact', async () => {
         await createTestChange('resume-planning');
 
         const result = await runCLI(['status', '--change', 'resume-planning'], { cwd: tempDir });
 
         expect(result.exitCode).toBe(0);
-        expect(result.stdout).toContain(
+        expect(lastLine(result)).toBe(
           'Next: openspec instructions specs --change "resume-planning" --json'
         );
       });
@@ -164,7 +173,7 @@ describe('artifact-workflow CLI commands', () => {
         // The completion line alone reads as "you are done" even while tasks
         // remain, so it must be followed by the command that resumes the work.
         expect(result.stdout).toContain('All planning artifacts complete!');
-        expect(result.stdout).toContain(
+        expect(lastLine(result)).toBe(
           'Next: openspec instructions apply --change "resume-apply" --json'
         );
       });
@@ -206,7 +215,7 @@ describe('artifact-workflow CLI commands', () => {
 
         const ready = await runCLI(['status', '--change', 'lean-change'], { cwd: tempDir });
         expect(ready.exitCode).toBe(0);
-        expect(ready.stdout).toContain(
+        expect(lastLine(ready)).toBe(
           'Next: openspec instructions plan --change "lean-change" --json'
         );
 
@@ -214,7 +223,7 @@ describe('artifact-workflow CLI commands', () => {
 
         const complete = await runCLI(['status', '--change', 'lean-change'], { cwd: tempDir });
         expect(complete.exitCode).toBe(0);
-        expect(complete.stdout).toContain(
+        expect(lastLine(complete)).toBe(
           'Next: openspec instructions apply --change "lean-change" --json'
         );
       });
@@ -233,7 +242,7 @@ describe('artifact-workflow CLI commands', () => {
         // created, so naming it would send the author to write a file the
         // change forbids.
         expect(result.stdout).toContain('[~] specs');
-        expect(result.stdout).toContain(
+        expect(lastLine(result)).toBe(
           'Next: openspec instructions design --change "skip-next-step" --json'
         );
       });
