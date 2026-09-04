@@ -4391,6 +4391,27 @@ The system SHALL do the thing differently.
         await expect(fs.access(mainSpecDir)).rejects.toThrow();
       });
 
+      it('still refuses a scenario whose bullets are split by a blank line', async () => {
+        // The shape this repository's own `cli-show` spec uses, and the
+        // documented limitation: past a blank line, a bullet reads the same as
+        // a note written below the scenario, and no line-based rule separates
+        // them. It must keep refusing - the blank line that closes the bullet
+        // run closes the wrapped item with it.
+        const mainSpecDir = await retireWith('retire-split-scenario', [
+          ...WRAPPED_BULLET,
+          '  than the earned total being reduced',
+          '',
+          '- **WHEN** the second path runs',
+          '- **THEN** the layer is still available',
+        ]);
+
+        expect(process.exitCode).toBe(1);
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('- **WHEN** the second path runs')
+        );
+      });
+
       it('reads a line written under a bullet with no blank line as part of it', async () => {
         // The deliberate edge of the rule above, pinned so it stays deliberate.
         // CommonMark joins this line to the bullet whether or not it is

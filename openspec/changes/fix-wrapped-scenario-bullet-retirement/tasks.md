@@ -47,7 +47,9 @@
       scenario's own `+` bullets are no longer named alongside it
 - [x] 4.8 Keep refusing a table row, block quote, raw HTML, and heading written
       directly beneath a bullet
-- [x] 4.9 Pin the deliberate edge: a line written under a bullet with no blank
+- [x] 4.9 Keep refusing a scenario whose bullets are split by a blank line - the
+      shape this repository's own `cli-show` spec uses
+- [x] 4.10 Pin the deliberate edge: a line written under a bullet with no blank
       line above it counts as part of that bullet
 
 ## 5. Verify
@@ -60,4 +62,7 @@
 - [x] 5.2 Run the full suite and confirm no existing test changes behavior
 - [x] 5.3 Run lint, typecheck and the build
 - [x] 5.4 Run `openspec validate --specs --strict` on this repo
-- [x] 5.5 Add a `.changeset/` entry
+- [x] 5.5 Sweep all 36 of this repository's own specs through a simulated
+      retirement on both `main` and this branch: identical verdicts (30
+      retirable, 6 blocked), so no real spec changes classification
+- [x] 5.6 Add a `.changeset/` entry
