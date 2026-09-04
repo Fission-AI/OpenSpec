@@ -4305,6 +4305,22 @@ The system SHALL do the thing differently.
         );
       });
 
+      it('reads a line written under a bullet with no blank line as part of it', async () => {
+        // The deliberate edge of the rule above, pinned so it stays deliberate.
+        // CommonMark joins this line to the bullet whether or not it is
+        // indented, so every renderer shows it as part of that bullet - and a
+        // blank line is all it takes to have it weighed on its own, which the
+        // wrapped-note case above proves still works.
+        const mainSpecDir = await retireWith('retire-lazy-aside', [
+          ...WRAPPED_BULLET,
+          '  than the earned total being reduced',
+          'Mirrored nightly to the reporting warehouse.',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
       it.each([
         ['a table row', '| region | mirror |'],
         ['a block quote', '> Mirrored nightly to the reporting warehouse.'],

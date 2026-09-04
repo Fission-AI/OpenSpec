@@ -782,6 +782,13 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // already if the item was reported, and silent if it was not. A line
       // that opens a block of its own is excluded, so this never swallows a
       // table, a quote or raw HTML written under a bullet.
+      //
+      // Indentation is not required, because CommonMark does not require it:
+      // a wrapped line joins the item above whether or not it lines up under
+      // it, and this repository's own specs hold both spellings. That does
+      // mean an aside written with no blank line above it counts as part of
+      // the bullet - which is what it is to every reader and every renderer,
+      // and a blank line is all it takes to be weighed on its own.
       if (inListItem && !opensOwnBlock(line)) continue;
       inListItem = false;
       // Free prose above the first scenario is the requirement statement.
