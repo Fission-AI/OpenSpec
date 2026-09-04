@@ -6,6 +6,7 @@ import {
   generateApplyInstructions,
   printApplyInstructionsText,
 } from '../../src/commands/workflow/instructions.js';
+import { Validator } from '../../src/core/validation/validator.js';
 
 /**
  * Apply gates on the schema's `apply.requires` (tasks) alone, so a change whose
@@ -192,6 +193,28 @@ describe('generateApplyInstructions warnings', () => {
 
     expect(instructions.state).toBe('ready');
     expect(instructions.warnings).toHaveLength(1);
+  });
+
+  // The warning tells the author `openspec validate` fails on this change. If
+  // that ever stops being true the warning is a lie, so pin it to the validator
+  // rather than to a copy of its rule.
+  it('warns about exactly the state the validator rejects', async () => {
+    writeTasks();
+    const warned = await generateApplyInstructions(tempDir, 'my-change');
+    const rejected = await new Validator().validateChangeDeltaSpecs(changeDir);
+
+    expect(warned.warnings).toHaveLength(1);
+    expect(rejected.valid).toBe(false);
+  });
+
+  it('stays quiet about exactly the state the validator accepts', async () => {
+    writeTasks();
+    writeSpecs();
+    const quiet = await generateApplyInstructions(tempDir, 'my-change');
+    const accepted = await new Validator().validateChangeDeltaSpecs(changeDir);
+
+    expect(quiet.warnings).toBeUndefined();
+    expect(accepted.valid).toBe(true);
   });
 
   it('prints no warnings section when there is nothing to warn about', async () => {
