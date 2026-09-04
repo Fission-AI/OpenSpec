@@ -17,6 +17,7 @@ import {
   getInvocationForAdapter,
 } from '../../../src/core/command-generation/invocation.js';
 import { getCommandContents } from '../../../src/core/shared/skill-generation.js';
+import { parseTaskLines } from '../../../src/utils/task-progress.js';
 
 const proposeSkillBody = getOpsxProposeSkillTemplate().instructions;
 const proposeCommandBody = getOpsxProposeCommandTemplate().content;
@@ -62,6 +63,28 @@ describe('propose preamble', () => {
 });
 
 describe('default task guidance', () => {
+  it('keeps tracked tasks within the pre-archive workflow (#1790)', () => {
+    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
+    expect(tasks).toBeDefined();
+    expect(tasks!.instruction).toMatch(
+      /Track implementation and verification work that can be completed before\s+archive/
+    );
+    expect(tasks!.instruction).toMatch(
+      /preserve those steps as plain bullets in an\s+optional `## Workflow follow-up` section at the end of tasks.md/
+    );
+
+    const examples = [...tasks!.instruction.matchAll(/```\s*([\s\S]*?)```/g)];
+    expect(examples).toHaveLength(2);
+    const implementation = examples[0][1];
+    const followUp = examples[1][1];
+    expect(followUp).toContain('## Workflow follow-up');
+    expect(followUp).toContain('- Verify the archived result.');
+    expect(parseTaskLines(followUp)).toEqual([]);
+    expect(parseTaskLines(`${implementation}\n${followUp}`)).toEqual(
+      parseTaskLines(implementation)
+    );
+  });
+
   it('requires a concrete verification method in each task (#345)', () => {
     const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
     expect(tasks).toBeDefined();
