@@ -83,13 +83,13 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     const rootOutput = toRootOutput(root);
     const newChangeHint = withStoreFlag(root, 'openspec new change <name>');
 
-    // Single definition of "load one change's status" so the batch and
-    // single-change payloads can never drift apart.
     // One store-flag decision serves the JSON `nextSteps` sentence and the text
     // `Next:` line, so a store-selected root can never carry `--store` in one
     // and drop it from the other.
     const storeOptions = isStoreSelectedRoot(root) ? { storeId: root.storeId } : {};
 
+    // Single definition of "load one change's status" so the batch and
+    // single-change payloads can never drift apart.
     const loadStatus = (changeName: string): ChangeStatus =>
       formatChangeStatus(
         loadChangeContext(projectRoot, changeName, options.schema, {
