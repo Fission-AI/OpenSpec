@@ -64,6 +64,7 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 - **WHEN** a line inside a requirement block continues the list item above it - no blank line, heading, fence or new bullet has closed that item, and the line does not open a block of its own
 - **THEN** account for it as part of that item rather than as a line in its own right, so a scenario bullet wrapped to a column limit does not refuse the retirement
 - **AND** still weigh a table row, block quote, raw HTML, thematic break, fence or heading written directly beneath a bullet on its own, because each opens a block a reader sees as separate content
+- **AND** read every CommonMark list marker as a list item - `-`, `*`, `+` and ordered items alike - so a capability is not unretirable for the marker its author chose
 
 #### Scenario: Main spec is already gone
 

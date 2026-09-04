@@ -764,7 +764,12 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         inListItem = false;
         continue;
       }
-      if (/^\s*(?:[-*]|\d+[.)])\s/.test(line)) {
+      // Every CommonMark list marker, not only the two this file used to name.
+      // A spec bulleted with `+` validates like any other, and its scenario
+      // bullets were read as unaccounted prose - the same defect as a wrapped
+      // line, wearing a different marker: a capability written that way could
+      // not be retired at all.
+      if (/^\s*(?:[-*+]|\d+[.)])\s/.test(line)) {
         inListItem = true;
         if (inScenarioBullets) {
           bulletsSeen = true;

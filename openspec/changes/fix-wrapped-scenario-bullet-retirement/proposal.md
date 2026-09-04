@@ -32,6 +32,11 @@ classification itself.
 - Lines that open a block of their own are excluded, so they are still weighed
   individually: a heading, a fence, a block quote, a thematic break, a table row,
   or raw HTML written directly beneath a bullet.
+- Every CommonMark list marker counts as a list item. The audit named only `-`,
+  `*` and ordered items, so a spec bulleted with `+` — which OpenSpec's own
+  validator accepts without complaint — had *every* scenario bullet reported as
+  unaccounted content and could not be retired at all. Found while hardening the
+  wrapping fix; it is the same defect wearing a different marker.
 - Nothing else changes. The audit still fails safe — a line it cannot classify
   still refuses the retirement — and a note written past the blank line that ends
   a scenario is still named and still blocks, wrapped or not.
