@@ -149,7 +149,9 @@ describe('artifact-workflow CLI commands', () => {
        * later line pushed it into the middle of the report.
        */
       function lastLine(result: { stdout: string }): string {
-        const lines = result.stdout.split('\n').filter((line) => line.trim() !== '');
+        // Split on \r?\n so a CRLF stream does not leave the carriage return
+        // attached to the line being compared.
+        const lines = result.stdout.split(/\r?\n/).filter((line) => line.trim() !== '');
         return lines[lines.length - 1] ?? '';
       }
 
@@ -269,15 +271,12 @@ describe('artifact-workflow CLI commands', () => {
           const text = await runCLI(['status', '--change', changeName], { cwd: tempDir });
           const json = await runCLI(['status', '--change', changeName, '--json'], { cwd: tempDir });
 
-          const printed = text.stdout
-            .split('\n')
-            .find((line) => line.startsWith('Next: '))
-            ?.slice('Next: '.length)
-            .trim();
+          const closing = lastLine(text);
+          expect(closing.startsWith('Next: ')).toBe(true);
 
-          expect(printed).toBeDefined();
           // One source of truth: the printed command must appear verbatim
           // inside the published JSON sentence.
+          const printed = closing.slice('Next: '.length);
           expect(JSON.parse(json.stdout).nextSteps[0]).toContain(printed);
         }
       });
