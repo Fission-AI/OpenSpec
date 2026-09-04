@@ -38,11 +38,12 @@ describe('project root guard', () => {
     expect(getFeedbackSkillTemplate().instructions).not.toContain('**Project check:**');
   });
 
+  // The CLI contract behind this check - `list` reporting `root: null` instead
+  // of fabricating an implicit root - is pinned in
+  // test/commands/store-root-selection.test.ts.
   it('names the machine-readable signal rather than a guess', () => {
-    expect(PROJECT_ROOT_GUARD).toContain('openspec status --json');
-    expect(PROJECT_ROOT_GUARD).toContain('root.source');
-    expect(PROJECT_ROOT_GUARD).toContain('"source": "implicit"');
-    expect(PROJECT_ROOT_GUARD).toContain('No OpenSpec root found');
+    expect(PROJECT_ROOT_GUARD).toContain('openspec list --json');
+    expect(PROJECT_ROOT_GUARD).toContain('`"root": null`');
   });
 
   it('hands the decision to the user instead of setting the project up', () => {

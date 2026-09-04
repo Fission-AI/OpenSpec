@@ -683,6 +683,28 @@ operations:
       }
     });
 
+    // The generated workflows read `root` from `openspec list --json` to decide
+    // whether a project is set up (#1645). That answer has to stay honest when
+    // stores are registered but this directory has no root of its own -
+    // an implicit root here would read as "set up" and the workflow would
+    // scaffold a change into an unrelated repository.
+    it('reports a missing root as JSON when only stores are registered', async () => {
+      const result = await runCLI(['list', '--json'], { cwd: appRepo, env });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe('');
+
+      const json = parseJson(result);
+      expect(json.root).toBeNull();
+      expect(json.changes).toEqual([]);
+      expect(json.status[0]).toEqual(
+        expect.objectContaining({
+          severity: 'error',
+          code: 'no_root_with_registered_stores',
+        })
+      );
+    });
+
     it('still accepts an existing root with no items', async () => {
       const isolatedEnv = {
         ...env,
