@@ -41,7 +41,7 @@ The full list of tool IDs is in [Supported Tools](supported-tools.md). Use `--to
 
 Skills and commands are installed once per tool, so they are offered in every project you open. If you ask for a proposal in a project that never ran `openspec init`, the assistant stops and asks whether to set the project up, work against a store (`--store <id>`), or drop OpenSpec for that request.
 
-If it went ahead anyway, it is running older instruction files: upgrade the CLI, run `openspec update` in your OpenSpec projects, and restart your assistant. To check a directory yourself, run `openspec list --json` — `"root": null` means there is no `openspec/` directory here, and a command like `openspec new change` would create one. An `openspec/` directory created this way is safe to delete if you didn't want it.
+If it went ahead anyway, it is running older instruction files: upgrade the CLI, run `openspec update` in your OpenSpec projects, and restart your assistant. To check a directory yourself, run `openspec list --json` — `"root": null` means there is no `openspec/` directory here, and a command like `openspec new change` would create one. `openspec new change` also prints a note when it had to create the root itself. An `openspec/` directory created this way is safe to delete if you didn't want it.
 
 ## Commands don't show up
 

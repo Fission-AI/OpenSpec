@@ -604,6 +604,52 @@ operations:
       expect(json.root.source).toBe('implicit');
     });
 
+    // Creating a change in a directory that was never set up silently
+    // materializes `openspec/` there (#1645). The creation stays zero-config,
+    // but a human who did not mean to adopt this directory has to be told.
+    it('says so when the first change creates the root in an unset-up directory', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      const created = await runCLI(['new', 'change', 'adopt-me'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(created.exitCode).toBe(0);
+      const firstOutput = created.stdout + created.stderr;
+      expect(firstOutput).toContain('no OpenSpec root was found here');
+      expect(firstOutput).toContain('openspec');
+      expect(firstOutput).toContain('openspec init');
+
+      // The root exists now, so the notice must not repeat on every change.
+      const second = await runCLI(['new', 'change', 'already-adopted'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(second.exitCode).toBe(0);
+      expect(second.stdout + second.stderr).not.toContain('no OpenSpec root was found here');
+    });
+
+    it('keeps the notice out of JSON output', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      const result = await runCLI(['new', 'change', 'adopt-me-quietly', '--json'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).not.toContain('no OpenSpec root was found here');
+
+      // `root.source` is how a caller in JSON mode learns the same fact.
+      const json = parseJson(result);
+      expect(json.root.source).toBe('implicit');
+    });
+
     it('keeps list working for a legacy project.md root when no stores are registered', async () => {
       const isolatedEnv = {
         ...env,
