@@ -119,6 +119,77 @@ describe('generateApplyInstructions warnings', () => {
     expect(output.indexOf('### ⚠️ Warnings')).toBeLessThan(output.indexOf('### Context Files'));
   });
 
+  it('stays quiet for a schema that produces no specs at all', async () => {
+    const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'mini');
+    fs.mkdirSync(schemaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      [
+        'name: mini',
+        'version: 1',
+        'artifacts:',
+        '  - id: proposal',
+        '    generates: proposal.md',
+        '    description: p',
+        '    template: proposal.md',
+        '  - id: tasks',
+        '    generates: tasks.md',
+        '    description: t',
+        '    template: tasks.md',
+        '    requires: [proposal]',
+        'apply:',
+        '  requires: [tasks]',
+        '  tracks: tasks.md',
+        '',
+      ].join('\n')
+    );
+    fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: mini\n');
+    writeTasks();
+
+    const instructions = await generateApplyInstructions(tempDir, 'my-change');
+
+    expect(instructions.state).toBe('ready');
+    expect(instructions.warnings).toBeUndefined();
+  });
+
+  it('warns for a custom schema whose spec artifact is named something else', async () => {
+    const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'renamed');
+    fs.mkdirSync(schemaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      [
+        'name: renamed',
+        'version: 1',
+        'artifacts:',
+        '  - id: proposal',
+        '    generates: proposal.md',
+        '    description: p',
+        '    template: proposal.md',
+        '  - id: contracts',
+        '    generates: "specs/**/*.md"',
+        '    description: c',
+        '    template: spec.md',
+        '    requires: [proposal]',
+        '  - id: tasks',
+        '    generates: tasks.md',
+        '    description: t',
+        '    template: tasks.md',
+        '    requires: [proposal]',
+        'apply:',
+        '  requires: [tasks]',
+        '  tracks: tasks.md',
+        '',
+      ].join('\n')
+    );
+    fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: renamed\n');
+    writeTasks();
+
+    const instructions = await generateApplyInstructions(tempDir, 'my-change');
+
+    expect(instructions.state).toBe('ready');
+    expect(instructions.warnings).toHaveLength(1);
+  });
+
   it('prints no warnings section when there is nothing to warn about', async () => {
     writeTasks();
     writeSpecs();
