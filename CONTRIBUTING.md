@@ -2,20 +2,18 @@
 
 Thanks for helping improve OpenSpec.
 
-## Before you open a PR
+## 1. Open a discussion or an issue first
 
-Start with a discussion or an issue:
+Every change starts here, including small ones.
 
-- [Discussion](https://github.com/Fission-AI/OpenSpec/discussions) for changes to OpenSpec's core design.
-- [Issue](https://github.com/Fission-AI/OpenSpec/issues) for bugs and everything else.
+- [Start a discussion](https://github.com/Fission-AI/OpenSpec/discussions) if it affects OpenSpec's core design.
+- [Open an issue](https://github.com/Fission-AI/OpenSpec/issues) for bugs and everything else.
 
-Every PR must link its issue (`Closes #123`).
+This is so we can agree on the approach before you spend time building. PRs without a linked issue or a prior discussion may be closed.
 
-PRs without a linked issue or a prior discussion may be closed.
+## 2. Make your change
 
-## Making a change
-
-Requires Node 20.19+ and pnpm.
+You need Node 20.19+ and pnpm.
 
 ```bash
 pnpm install
@@ -24,10 +22,13 @@ pnpm test
 pnpm lint
 ```
 
-Then:
+Run `pnpm changeset` if your change affects users, and commit the file it generates.
 
-1. Branch off `main` in your fork.
-2. Run `pnpm changeset` if your change affects users, and commit the generated file.
-3. Open a PR against `main` with `Closes #123` in the description.
+## 3. Open the PR
+
+- Branch off `main` in your fork.
+- Title it as a conventional commit: `type(scope): subject`, for example `fix(archive): keep authored Purpose`.
+- Link the issue in the description: `Closes #123`.
+- If a coding agent wrote the code, say which agent and model, and confirm you tested it. AI-generated code is welcome when it has been verified.
 
 Maintainers are listed in [MAINTAINERS.md](MAINTAINERS.md).
