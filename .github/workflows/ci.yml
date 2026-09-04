@@ -42,6 +42,10 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'scripts/update-flake.sh'
               - '.github/workflows/ci.yml'
+              # The Nix build runs `openspec completion generate`, so a change to
+              # the generator can break packaging without touching flake.nix.
+              - 'src/commands/completion.ts'
+              - 'src/core/completions/**'
 
   test_matrix:
     name: Test (${{ matrix.label }})
