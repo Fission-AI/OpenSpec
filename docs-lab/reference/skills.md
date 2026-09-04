@@ -151,9 +151,9 @@ Check that the implementation matches the change proposal's artifacts.
 
 | Contract | Description |
 |---|---|
-| **Arguments** | A change proposal name, optional. When ambiguous it asks, listing change proposals that have a tasks artifact. |
+| **Arguments** | A change proposal name, optional. Add `--adversarial` to opt into a bounded falsification pass; this mode intentionally spends more model tokens/work than standard verification. When ambiguous it asks, listing change proposals that have a tasks artifact. `--adversarial` is workflow-only and is never forwarded to an `openspec` CLI command. |
 | **Creates** | Nothing. It reads the change proposal's artifacts and the codebase. Verification is report-only. |
-| **Response** | A report: a scorecard for Completeness, Correctness, and Coherence, then CRITICAL, WARNING, and SUGGESTION issues with recommendations, and a final archive-readiness assessment. It changes nothing and does not archive. |
+| **Response** | Standard mode returns the existing scorecard for Completeness, Correctness, and Coherence, then CRITICAL, WARNING, and SUGGESTION issues with recommendations and the normal archive-readiness assessment. With `--adversarial`, it also reports the bounded set of checked claims, the explicit `UNCHECKED` remainder, and readiness derived from claim outcomes (`FAILED`, `WEAK EVIDENCE`, `SUPPORTED`, `UNVERIFIED`). It changes nothing and does not archive. |
 
 ## openspec-bulk-archive-change
 
