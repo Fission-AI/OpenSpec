@@ -62,6 +62,17 @@ describe('propose preamble', () => {
 });
 
 describe('default task guidance', () => {
+  it('keeps tracked tasks within the pre-archive workflow (#1790)', () => {
+    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
+    expect(tasks).toBeDefined();
+    expect(tasks!.instruction).toMatch(
+      /Track implementation and verification work that can be completed before\s+archive/
+    );
+    expect(tasks!.instruction).toMatch(
+      /Present archive and work that depends on the change already\s+being archived as subsequent workflow steps, not task checkboxes/
+    );
+  });
+
   it('requires a concrete verification method in each task (#345)', () => {
     const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
     expect(tasks).toBeDefined();

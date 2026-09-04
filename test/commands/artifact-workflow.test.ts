@@ -941,9 +941,23 @@ operations:
       });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('complete ✓');
-      expect(result.stdout).toContain('ready to be archived');
+      expect(result.stdout).toContain('All tracked tasks are complete');
+      expect(result.stdout).toContain('as appropriate before archiving');
+      expect(result.stdout).not.toContain('ready to be archived');
       expect(result.stdout).toContain('### Project Context (required instruction input)');
       expect(result.stdout).toContain('### Operation Guidance (advisory)');
+
+      const jsonResult = await runCLI(
+        ['instructions', 'apply', '--change', 'done-apply', '--json'],
+        { cwd: tempDir }
+      );
+      expect(jsonResult.exitCode).toBe(0);
+      expect(jsonResult.stderr).toBe('');
+
+      const json = JSON.parse(jsonResult.stdout);
+      expect(json.state).toBe('all_done');
+      expect(json.progress).toEqual({ total: 2, complete: 2, remaining: 0 });
+      expect(json.instruction).toContain('All tracked tasks are complete');
     });
 
     it('uses spec-driven schema apply configuration', async () => {

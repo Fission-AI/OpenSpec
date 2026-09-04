@@ -188,6 +188,9 @@ artifacts:
       - Each task MUST be a checkbox: `- [ ] X.Y Task description`
       - Tasks should be small enough to complete in one session
       - Order tasks by dependency (what must be done first?)
+      - Track implementation and verification work that can be completed before
+        archive. Present archive and work that depends on the change already
+        being archived as subsequent workflow steps, not task checkboxes.
       - Each task MUST state how to verify completion (a test, command,
         observable behavior, or delivered artifact). Put the verification in
         that task's checkbox description. Use a separate verification task only

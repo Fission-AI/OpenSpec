@@ -344,7 +344,7 @@ describe('apply skill template generates valid per-target invocations', () => {
   it('authors invocation references as transformable /opsx:* tokens', () => {
     expect(skill).toContain('/opsx:apply add-auth');
     expect(skill).toContain('suggest using `/opsx:continue`');
-    expect(skill).toContain('archive this change with `/opsx:archive`');
+    expect(skill).toContain('before archiving with `/opsx:archive`');
     // No bare, non-transformable skill-name prose remains.
     expect(skill).not.toContain('suggest using openspec-continue-change');
   });
