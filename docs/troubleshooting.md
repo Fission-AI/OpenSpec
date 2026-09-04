@@ -37,6 +37,12 @@ openspec init --tools claude,cursor
 
 The full list of tool IDs is in [Supported Tools](supported-tools.md). Use `--tools all` for everything, `--tools none` to skip tool setup.
 
+### The AI started an OpenSpec workflow in a project that doesn't use OpenSpec
+
+Skills and commands are installed once per tool, so they are offered in every project you open. If you ask for a proposal in a project that never ran `openspec init`, the assistant stops and asks whether to set the project up, work against a store (`--store <id>`), or drop OpenSpec for that request.
+
+If it went ahead anyway, it is running older instruction files: upgrade the CLI, run `openspec update` in your OpenSpec projects, and restart your assistant. To check a directory yourself, run `openspec status --json` — a `root.source` of `implicit` means there is no `openspec/` directory here and the next write would create one. An `openspec/` directory created this way is safe to delete if you didn't want it.
+
 ## Commands don't show up
 
 If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anything, work down this list. They're ordered fastest-to-check first.
