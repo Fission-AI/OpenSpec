@@ -169,6 +169,89 @@ describe('artifact-workflow CLI commands', () => {
         );
       });
 
+      it('names artifacts from a custom schema, not spec-driven ones', async () => {
+        // The line is built from the resolved artifact id, so a project whose
+        // schema has no proposal/specs/design/tasks must still get a usable
+        // command rather than a hard-coded default-schema one.
+        const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'lean');
+        await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+        await fs.writeFile(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
+        await fs.writeFile(path.join(schemaDir, 'templates', 'plan.md'), '# Plan\n');
+        await fs.writeFile(
+          path.join(schemaDir, 'schema.yaml'),
+          [
+            'name: lean',
+            'version: 1',
+            'artifacts:',
+            '  - id: brief',
+            '    generates: brief.md',
+            '    description: One-page brief',
+            '    template: brief.md',
+            '    requires: []',
+            '  - id: plan',
+            '    generates: plan.md',
+            '    description: Execution plan',
+            '    template: plan.md',
+            '    requires: [brief]',
+            'apply:',
+            '  requires: [plan]',
+            '',
+          ].join('\n')
+        );
+
+        const changeDir = path.join(changesDir, 'lean-change');
+        await fs.mkdir(changeDir, { recursive: true });
+        await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: lean\n');
+        await fs.writeFile(path.join(changeDir, 'brief.md'), '# Brief\n\nThe brief.\n');
+
+        const ready = await runCLI(['status', '--change', 'lean-change'], { cwd: tempDir });
+        expect(ready.exitCode).toBe(0);
+        expect(ready.stdout).toContain(
+          'Next: openspec instructions plan --change "lean-change" --json'
+        );
+
+        await fs.writeFile(path.join(changeDir, 'plan.md'), '# Plan\n\nThe plan.\n');
+
+        const complete = await runCLI(['status', '--change', 'lean-change'], { cwd: tempDir });
+        expect(complete.exitCode).toBe(0);
+        expect(complete.stdout).toContain(
+          'Next: openspec instructions apply --change "lean-change" --json'
+        );
+      });
+
+      it('never points at a skipped artifact', async () => {
+        const changeDir = await createTestChange('skip-next-step', ['proposal']);
+        await fs.writeFile(
+          path.join(changeDir, '.openspec.yaml'),
+          'schema: spec-driven\nskip_specs: true\n'
+        );
+
+        const result = await runCLI(['status', '--change', 'skip-next-step'], { cwd: tempDir });
+
+        expect(result.exitCode).toBe(0);
+        // A skipped artifact satisfies its dependents but must never be
+        // created, so naming it would send the author to write a file the
+        // change forbids.
+        expect(result.stdout).toContain('[~] specs');
+        expect(result.stdout).toContain(
+          'Next: openspec instructions design --change "skip-next-step" --json'
+        );
+      });
+
+      it('stays out of the JSON payload', async () => {
+        await createTestChange('json-clean');
+
+        const result = await runCLI(['status', '--change', 'json-clean', '--json'], {
+          cwd: tempDir,
+        });
+
+        expect(result.exitCode).toBe(0);
+        // The text line must not leak into --json: it would break the parse
+        // for every agent reading this command.
+        expect(result.stdout).not.toContain('Next: ');
+        expect(() => JSON.parse(result.stdout)).not.toThrow();
+      });
+
       it('prints the same command the JSON nextSteps sentence names', async () => {
         for (const artifacts of [[], ['proposal', 'design', 'specs', 'tasks']] as const) {
           const changeName = `parity-${artifacts.length}`;
