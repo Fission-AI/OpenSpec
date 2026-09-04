@@ -1307,6 +1307,31 @@ run a command in an interactive terminal, and never again — it also stays quie
 if you already have completions installed. Set `OPENSPEC_NO_COMPLETIONS=1` to
 suppress that tip entirely.
 
+### `man openspec`
+
+A global install ships a manual page, so the full command reference is available
+offline:
+
+```bash
+man openspec
+```
+
+The page lists every command, its arguments, and its flags, plus exit codes,
+environment variables, the files OpenSpec reads, and examples. It is generated
+from the CLI itself at build time, so it always matches `openspec --help` for
+the version you have installed.
+
+`man openspec` works out of the box after `npm install -g`, which links the page
+into your man path. Other package managers ship the file but don't link it, so
+point `man` at the copy in their global package directory — with pnpm, for
+example:
+
+```bash
+man "$(pnpm root -g)/@fission-ai/openspec/dist/man/openspec.1"
+```
+
+Windows has no `man` — use `openspec --help` there.
+
 ---
 
 ## Exit Codes
@@ -1315,6 +1340,7 @@ suppress that tip entirely.
 |------|---------|
 | `0` | Success |
 | `1` | Error (validation failure, missing files, etc.) |
+| `130` | Cancelled at a prompt |
 
 ---
 
