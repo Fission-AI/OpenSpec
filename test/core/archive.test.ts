@@ -4230,6 +4230,265 @@ The system SHALL do the thing differently.
       ).resolves.not.toThrow();
     });
 
+    // #1780: a repository that wraps prose at a column limit wraps its
+    // scenario bullets too, and the wrapped remainder is more of the same
+    // bullet. Reading each such line as a line of its own made it "content the
+    // merge cannot account for", which refused the retirement - so on those
+    // repositories `retire_capabilities` could not retire anything at all.
+    describe('wrapped scenario bullets (#1780)', () => {
+      async function retireWith(changeName: string, requirement: string[]): Promise<string> {
+        await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          mainSpec('legacy-layer', requirement.join('\n'))
+        );
+        await archiveCommand.execute(changeName, { yes: true });
+        return mainSpecDir;
+      }
+
+      const WRAPPED_BULLET = [
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the outstanding count becomes zero and the completions are recorded rather',
+      ];
+
+      it('retires a capability whose scenario bullet wraps with indentation', async () => {
+        const mainSpecDir = await retireWith('retire-wrapped-indented', [
+          ...WRAPPED_BULLET,
+          '  than the earned total being reduced',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
+      it('retires a capability whose scenario bullet wraps without indentation', async () => {
+        // CommonMark lazy continuation: the remainder does not have to line up
+        // under the bullet to belong to it, and editors that hard-wrap rarely
+        // indent it.
+        const mainSpecDir = await retireWith('retire-wrapped-lazy', [
+          ...WRAPPED_BULLET,
+          'than the earned total being reduced',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
+      it('still refuses when a wrapped note follows the last scenario', async () => {
+        // The note is a bullet of its own, written past the blank line that
+        // ends the scenario - what the guard exists to catch. Its own wrapped
+        // remainder must not weaken that: the note is still named, and the
+        // retirement still refused.
+        const mainSpecDir = await retireWith('retire-wrapped-note', [
+          ...WRAPPED_BULLET,
+          '  than the earned total being reduced',
+          '',
+          '- Operational note: the layer is mirrored nightly to the reporting',
+          '  warehouse, which nothing else records',
+        ]);
+
+        expect(process.exitCode).toBe(1);
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('- Operational note: the layer is mirrored nightly to the reporting')
+        );
+        // The scenario's own wrapped remainder is not one of the lines standing
+        // in the way, so it is not named among them.
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('"than the earned total being reduced"')
+        );
+      });
+
+      it.each([
+        ['a dash bullet', '-'],
+        ['a star bullet', '*'],
+        ['a plus bullet', '+'],
+        ['an ordered item', '1.'],
+      ])('retires a capability whose scenario wraps %s', async (_label, marker) => {
+        // Every CommonMark list marker, not only the `-` the reporter used. A
+        // spec bulleted with `+` validates like any other and could not be
+        // retired at all before this - the same defect wearing a different
+        // marker.
+        const mainSpecDir = await retireWith(`retire-marker-${marker.replace(/\W/g, 'x')}`, [
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          `${marker} **WHEN** a consumer imports the layer and the outstanding count is read`,
+          `${marker} **THEN** the count becomes zero and the completions are recorded rather`,
+          '  than the earned total being reduced',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
+      it('still names a plus-bulleted note written below the last scenario', async () => {
+        // Widening the marker set must not widen what a note may hide behind:
+        // past the blank line that ends a scenario, `+` is an authored aside
+        // exactly as `-` is.
+        const mainSpecDir = await retireWith('retire-plus-note', [
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          '+ **WHEN** a consumer imports the layer',
+          '+ **THEN** the layer is available',
+          '',
+          '+ Operational note: mirrored nightly to the reporting warehouse',
+        ]);
+
+        expect(process.exitCode).toBe(1);
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('+ Operational note: mirrored nightly to the reporting warehouse')
+        );
+        // The scenario's own `+` bullets are the scenario's, so only the note
+        // stands in the way. Before the marker set was widened every one of
+        // them was named here, which buried the line that actually mattered.
+        expect(console.log).not.toHaveBeenCalledWith(
+          expect.stringContaining('"+ **WHEN** a consumer imports the layer"')
+        );
+      });
+
+      it('retires a capability whose bullet wraps onto several lines', async () => {
+        // The item stays open across every continuation, not just the first.
+        const mainSpecDir = await retireWith('retire-wrapped-thrice', [
+          ...WRAPPED_BULLET,
+          '  than the earned total being reduced, which would understate the',
+          '  historical record for every consumer downstream',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
+      it('retires a capability whose wrapped spec is saved with CRLF endings', async () => {
+        // Windows is in the support matrix and the reporter ran there. The
+        // block is split on normalised endings, so a `\r` must not survive
+        // into the line the classifier reads.
+        const changeName = 'retire-wrapped-crlf';
+        await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+        const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+        await fs.mkdir(mainSpecDir, { recursive: true });
+        await fs.writeFile(
+          path.join(mainSpecDir, 'spec.md'),
+          mainSpec(
+            'legacy-layer',
+            [...WRAPPED_BULLET, '  than the earned total being reduced'].join('\n')
+          ).replace(/\n/g, '\r\n')
+        );
+
+        await archiveCommand.execute(changeName, { yes: true });
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
+      it('still names a note whose first characters look like a long ordered marker', async () => {
+        // CommonMark stops an ordered marker at nine digits, so this line opens
+        // a paragraph, not a list. Read as a marker it was silently deleted,
+        // while the same note beginning with a word was refused - one line, two
+        // verdicts, decided by nothing a reader can see.
+        const mainSpecDir = await retireWith('retire-long-ordered-marker', [
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          '1234567890. Migration note: export the mirror table by hand first.',
+          '- **WHEN** a consumer imports the layer',
+          '- **THEN** the layer is available',
+        ]);
+
+        expect(process.exitCode).toBe(1);
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('1234567890. Migration note: export the mirror table by hand first.')
+        );
+      });
+
+      it('still retires a capability whose scenario uses a nine-digit ordered marker', async () => {
+        // The cap is where CommonMark puts it, not one digit lower: a marker it
+        // accepts must still read as a list item.
+        const mainSpecDir = await retireWith('retire-nine-digit-marker', [
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          '123456789. **WHEN** a consumer imports the layer and the count is read',
+          '123456789. **THEN** the count becomes zero and the completions are recorded',
+          '  rather than the earned total being reduced',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
+      it('still refuses a scenario whose bullets are split by a blank line', async () => {
+        // The shape this repository's own `cli-show` spec uses, and the
+        // documented limitation: past a blank line, a bullet reads the same as
+        // a note written below the scenario, and no line-based rule separates
+        // them. It must keep refusing - the blank line that closes the bullet
+        // run closes the wrapped item with it.
+        const mainSpecDir = await retireWith('retire-split-scenario', [
+          ...WRAPPED_BULLET,
+          '  than the earned total being reduced',
+          '',
+          '- **WHEN** the second path runs',
+          '- **THEN** the layer is still available',
+        ]);
+
+        expect(process.exitCode).toBe(1);
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('- **WHEN** the second path runs')
+        );
+      });
+
+      it('reads a line written under a bullet with no blank line as part of it', async () => {
+        // The deliberate edge of the rule above, pinned so it stays deliberate.
+        // CommonMark joins this line to the bullet whether or not it is
+        // indented, so every renderer shows it as part of that bullet - and a
+        // blank line is all it takes to have it weighed on its own, which the
+        // wrapped-note case above proves still works.
+        const mainSpecDir = await retireWith('retire-lazy-aside', [
+          ...WRAPPED_BULLET,
+          '  than the earned total being reduced',
+          'Mirrored nightly to the reporting warehouse.',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
+      it.each([
+        ['a table row', '| region | mirror |'],
+        ['a block quote', '> Mirrored nightly to the reporting warehouse.'],
+        ['raw HTML', '<div>Mirrored nightly to the reporting warehouse.</div>'],
+        ['a heading', '##### Mirroring'],
+      ])('still refuses %s written directly under a bullet', async (label, line) => {
+        // These interrupt a paragraph in CommonMark, so they are blocks of
+        // their own rather than more of the bullet above them - authored
+        // content the deletion would take unmentioned.
+        const mainSpecDir = await retireWith(
+          `retire-block-${label.replace(/\W+/g, '-')}`,
+          [...WRAPPED_BULLET, '  than the earned total being reduced', line]
+        );
+
+        expect(process.exitCode).toBe(1);
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('content the merge cannot safely account for')
+        );
+      });
+    });
+
     it('refuses to retire an H1 section written after Purpose', async () => {
       const changeName = 'retire-h1-after-purpose';
       await createChange(changeName, 'legacy-layer', REMOVE_ALL);

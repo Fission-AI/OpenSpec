@@ -619,6 +619,26 @@ function firstForeignTail(raw: string): { heading: string; raw: string } | undef
 }
 
 /**
+ * Whether a line inside a requirement block starts a block of its own rather
+ * than continuing the list item above it.
+ *
+ * CommonMark lets a paragraph inside a list item run over several lines, and
+ * only a handful of constructs interrupt it. Everything listed here is one, so
+ * a table, a quotation, raw HTML, a rule, a fence or a heading written directly
+ * under a bullet is still weighed on its own instead of riding along with the
+ * bullet into a deletion.
+ */
+function opensOwnBlock(line: string): boolean {
+  return (
+    /^ {0,3}#{1,6}(?:[ \t]|$)/.test(line) || // ATX heading
+    /^ {0,3}(?:```|~~~)/.test(line) || // fence
+    /^ {0,3}>/.test(line) || // block quote
+    /^ {0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/.test(line) || // thematic break
+    /^\s*[|<]/.test(line) // table row or raw HTML
+  );
+}
+
+/**
  * The non-blank lines of a spec that are not part of what a retirement is able
  * to name: the title, the `## Purpose` section, the `## Requirements` header,
  * and each requirement block's own header, statement and scenario bullets.
@@ -704,12 +724,19 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
     // operational note below the last scenario be deleted unmentioned.
     let inScenarioBullets = false;
     let bulletsSeen = false;
+    // Whether the previous line was a list item, or the continuation of one. A
+    // bullet too long for the file's column limit wraps, and the wrapped
+    // remainder is the same item - not a line of its own (#1780). Reading it as
+    // its own line made every scenario bullet longer than one line unaccounted
+    // content, which refused the retirement of any spec that wraps its bullets.
+    let inListItem = false;
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
       if (!line.trim()) {
         // Only a blank that follows actual bullets closes the run, so a blank
         // between a scenario header and its first bullet is not a boundary.
         if (bulletsSeen) inScenarioBullets = false;
+        inListItem = false;
         continue;
       }
       if (index === 0) continue; // the `### Requirement:` header itself
@@ -717,22 +744,37 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // its own content however they are spelled - a `### Requirement:` in an
       // example is not a heading to any reader. Flagging them made a spec that
       // merely documents a command unretirable.
-      if (mask[index]) continue;
+      if (mask[index]) {
+        inListItem = false;
+        continue;
+      }
       if (
         index > 1 &&
         /^ {0,3}(?:=+|-+)\s*$/.test(line) &&
         lines[index - 1].trim()
       ) {
         leftovers.push(lines[index - 1].trim());
+        inListItem = false;
         continue;
       }
       if (/^ {0,3}####\s+Scenario:/i.test(line)) {
         seenScenario = true;
         inScenarioBullets = true;
         bulletsSeen = false;
+        inListItem = false;
         continue;
       }
-      if (/^\s*(?:[-*]|\d+[.)])\s/.test(line)) {
+      // Every CommonMark list marker, and only those. A spec bulleted with `+`
+      // validates like any other, and its scenario bullets were read as
+      // unaccounted prose - the same defect as a wrapped line, wearing a
+      // different marker: a capability written that way could not be retired at
+      // all. The digit cap is the other half of "only those": CommonMark stops
+      // an ordered marker at nine digits, so `1234567890.` opens a paragraph,
+      // not a list. Reading it as a marker meant an authored note was refused
+      // when it began with a word and deleted when it began with a long enough
+      // number - the same line, two verdicts.
+      if (/^\s*(?:[-*+]|\d{1,9}[.)])\s/.test(line)) {
+        inListItem = true;
         if (inScenarioBullets) {
           bulletsSeen = true;
           continue;
@@ -743,6 +785,21 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         leftovers.push(line.trim());
         continue;
       }
+      // The rest of a bullet that wrapped. Nothing has closed the item - no
+      // blank line, no heading, no new bullet - so this line is more of the
+      // same item and is accounted for exactly as the item was: reported
+      // already if the item was reported, and silent if it was not. A line
+      // that opens a block of its own is excluded, so this never swallows a
+      // table, a quote or raw HTML written under a bullet.
+      //
+      // Indentation is not required, because CommonMark does not require it:
+      // a wrapped line joins the item above whether or not it lines up under
+      // it, and this repository's own specs hold both spellings. That does
+      // mean an aside written with no blank line above it counts as part of
+      // the bullet - which is what it is to every reader and every renderer,
+      // and a blank line is all it takes to be weighed on its own.
+      if (inListItem && !opensOwnBlock(line)) continue;
+      inListItem = false;
       // Free prose above the first scenario is the requirement statement.
       if (!seenScenario && !/^\s*[|<]/.test(line)) continue;
       leftovers.push(line.trim());
