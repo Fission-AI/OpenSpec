@@ -12,6 +12,7 @@ import {
   MAN_PAGE_RELATIVE_PATH,
   escapeRoff,
   renderManPage,
+  resolveBuildDate,
 } from '../../../src/core/man/man-page.js';
 import { program } from '../../../src/cli/index.js';
 
@@ -293,6 +294,28 @@ describe('the examples', () => {
       expect(purpose.length).toBeGreaterThan(0);
     }
   });
+});
+
+describe('resolveBuildDate', () => {
+  const now = new Date('2026-09-04T12:00:00Z');
+
+  it('stamps the page from SOURCE_DATE_EPOCH, so a rebuild is reproducible', () => {
+    expect(resolveBuildDate('1000000000', now)).toBe('2001-09-09');
+  });
+
+  it('falls back to the build date when the variable is unset or empty', () => {
+    expect(resolveBuildDate(undefined, now)).toBe('2026-09-04');
+    expect(resolveBuildDate('   ', now)).toBe('2026-09-04');
+  });
+
+  it.each(['not-a-number', '8640000000001', '-8640000000001'])(
+    'falls back rather than failing the build on %s',
+    (epoch) => {
+      // 8640000000001 seconds parses as a number but lands outside the range
+      // Date represents, where toISOString throws.
+      expect(resolveBuildDate(epoch, now)).toBe('2026-09-04');
+    }
+  );
 });
 
 describe('packaging', () => {

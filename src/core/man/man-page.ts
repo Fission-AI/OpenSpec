@@ -14,6 +14,21 @@ import type { Command, Option, Argument } from 'commander';
  */
 export const MAN_PAGE_RELATIVE_PATH = 'man/openspec.1';
 
+/**
+ * The page date, as `SOURCE_DATE_EPOCH` if the environment sets a usable one.
+ * Packagers set it so identical sources produce an identical page.
+ *
+ * `now` is passed in rather than read, so the fallback is testable.
+ */
+export function resolveBuildDate(epoch: string | undefined, now: Date): string {
+  const seconds = epoch === undefined || epoch.trim() === '' ? Number.NaN : Number(epoch);
+  const stamped = new Date(seconds * 1000);
+  // A number can still land outside the range Date represents, and
+  // toISOString throws on that rather than returning anything useful.
+  const date = Number.isNaN(stamped.getTime()) ? now : stamped;
+  return date.toISOString().slice(0, 10);
+}
+
 export interface ManPageOptions {
   /** Package version, rendered in the page footer. */
   version: string;

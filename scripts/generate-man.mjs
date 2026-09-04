@@ -11,20 +11,6 @@ import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-/**
- * Honor SOURCE_DATE_EPOCH so packagers (Nix, distro builds) get a
- * byte-identical page from identical sources.
- */
-function buildDate() {
-  const epoch = process.env.SOURCE_DATE_EPOCH;
-  const parsed = epoch ? Number.parseInt(epoch, 10) : Number.NaN;
-  const stamped = new Date(parsed * 1000);
-  // A finite epoch can still land outside the range Date represents, and
-  // toISOString throws on that. Fall back rather than fail the build.
-  const date = Number.isNaN(stamped.getTime()) ? new Date() : stamped;
-  return date.toISOString().slice(0, 10);
-}
-
 const cliEntry = path.join(repoRoot, 'dist', 'cli', 'index.js');
 
 // The build script this runs from is reused by fixtures that compile a
@@ -41,13 +27,20 @@ const importFromDist = (...segments) =>
   import(pathToFileURL(path.join(repoRoot, 'dist', ...segments)).href);
 
 const { program } = await importFromDist('cli', 'index.js');
-const { renderManPage, MAN_PAGE_RELATIVE_PATH } = await importFromDist('core', 'man', 'man-page.js');
+const { renderManPage, resolveBuildDate, MAN_PAGE_RELATIVE_PATH } = await importFromDist(
+  'core',
+  'man',
+  'man-page.js'
+);
 
 // One source for the location: package.json's `man` field points at the same
 // path, and the packaging test holds the two together.
 const outputPath = path.join(repoRoot, 'dist', ...MAN_PAGE_RELATIVE_PATH.split('/'));
 
 mkdirSync(path.dirname(outputPath), { recursive: true });
-writeFileSync(outputPath, renderManPage(program, { version, date: buildDate() }), 'utf-8');
+// SOURCE_DATE_EPOCH keeps packagers (Nix, distro builds) reproducible.
+const date = resolveBuildDate(process.env.SOURCE_DATE_EPOCH, new Date());
+
+writeFileSync(outputPath, renderManPage(program, { version, date }), 'utf-8');
 
 console.log(`Generated ${path.relative(repoRoot, outputPath)}`);
