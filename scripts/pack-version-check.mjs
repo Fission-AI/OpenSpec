@@ -11,7 +11,7 @@
 //   means an explicit build is not strictly necessary for the guard.
 
 import { execFileSync } from 'child_process';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 
@@ -91,6 +91,18 @@ function main() {
     }
 
     log('Version check passed.');
+
+    // The man page is generated at build time, so a rename in the CLI could
+    // drop it from the tarball without any test noticing until users do.
+    const manPage = path.join(work, 'node_modules', '@fission-ai', 'openspec', 'dist', 'man', 'openspec.1');
+    if (!existsSync(manPage)) {
+      throw new Error(
+        'Packed tarball ships no man page at dist/man/openspec.1. ' +
+          'Check that the build ran scripts/generate-man.mjs.'
+      );
+    }
+
+    log('Man page check passed.');
   } finally {
     // Always attempt cleanup
     if (work) {
