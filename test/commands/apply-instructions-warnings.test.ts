@@ -57,7 +57,11 @@ describe('generateApplyInstructions warnings', () => {
     expect(instructions.warnings?.[0]).toContain(
       'openspec instructions specs --change my-change'
     );
-    expect(instructions.warnings?.[0]).toContain(path.join(changeDir, '.openspec.yaml'));
+    // Not the absolute path: on Windows the CLI resolves `os.tmpdir()`'s short
+    // form (C:\Users\RUNNER~1) to its long one, so only the tail is stable.
+    expect(instructions.warnings?.[0]).toContain(
+      path.join('my-change', '.openspec.yaml')
+    );
   });
 
   it('stays quiet once the change has a delta spec', async () => {
