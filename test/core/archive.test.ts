@@ -4734,6 +4734,126 @@ The system SHALL do the thing differently.
       expect(refusal).not.toContain('earned total');
       expect(refusal).not.toContain('last time it did so');
     });
+    it.each([
+      { what: 'a blockquote', body: ['> IMPORTANT: escrow keys live in the "legacy" vault.'], named: 'escrow keys' },
+      { what: 'a thematic break', body: ['***', 'IMPORTANT: escrow keys live in the "legacy" vault.'], named: 'escrow keys' },
+      { what: 'a table', body: ['| key | vault |', '| --- | ----- |', '| escrow | legacy |'], named: 'escrow' },
+      { what: 'a nested list', body: ['- IMPORTANT: escrow keys live in the "legacy" vault.'], named: 'escrow keys' },
+    ])('does not lazily absorb $what written flush against the scenario bullets', async ({ what, body, named }) => {
+      // CommonMark lets each of these interrupt a paragraph, so one written
+      // with no blank line after a bullet opens something new rather than
+      // continuing the bullet - and deleting the file would take it.
+      //
+      // The nested-list case is the one exception in kind: a sibling bullet in
+      // that position has always been read as the scenario's own, which is what
+      // makes the lazy allowance safe. It is here to pin that behavior, not to
+      // change it.
+      const changeName = `retire-lazy-block-${what.split(' ')[1]}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the legacy layer is available',
+        ...body,
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      if (what === 'a nested list') {
+        // Pinned, not asserted as desirable: unchanged from before the lazy
+        // allowance existed.
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+        return;
+      }
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining(named));
+    });
+
+    it.each([
+      { where: 'flush against the bullet', fence: ['```sh', 'openspec archive legacy', '```'] },
+      { where: 'indented inside the bullet', fence: ['  ```sh', '  openspec archive legacy', '  ```'] },
+    ])('does not lazily absorb a note written under a fence $where', async ({ where, fence }) => {
+      // A fence ends the paragraph wherever it sits, so the line after it is
+      // not continuing the bullet however tightly it is written.
+      const changeName = `retire-lazy-after-fence-${where.split(' ')[0]}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the legacy layer is available',
+        ...fence,
+        'IMPORTANT: escrow keys live in the "legacy" vault.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+    });
+
+    it('does not lazily absorb a note written under an indented quote in the bullet', async () => {
+      // The quote is inside the item, so it is not named - but it closed the
+      // bullet's paragraph, and the unindented line below it is new content.
+      const changeName = 'retire-lazy-after-indented-quote';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the legacy layer is available',
+        '  > and the operator is told which consumers are still importing it',
+        'IMPORTANT: escrow keys live in the "legacy" vault.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+    });
     it('names the marker for an unmarked change whose scenario bullets wrap', async () => {
       // The hint was gated on there being nothing unaccounted for, so a wrapped
       // spec got the bare `must have at least one requirement` abort and the
