@@ -736,7 +736,15 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       const indent = contentColumn(/^[ \t]*/.exec(line)![0]);
       const continuesListItem =
         listContentIndent !== null &&
-        indent >= listContentIndent &&
+        // Indented to the item's content column, or - inside a scenario's
+        // unbroken bullet run - lazily continued without indenting, which is
+        // how a hand-wrapped bullet is usually written. Absorbing it widens
+        // nothing: a sibling bullet written in that same position is already
+        // read as the scenario's own, and a lazy line is part of the bullet
+        // above it where a sibling is merely next to it. Outside the run the
+        // indent is still required, so a note bulleted below the scenarios and
+        // its own wrapped lines stay the author's.
+        (indent >= listContentIndent || inScenarioBullets) &&
         // A heading is a heading wherever it sits - an ATX `#` line, which
         // `firstForeignTail` already names, or the raw HTML the `before` pass
         // treats the same way. Left to the checks below rather than absorbed,
