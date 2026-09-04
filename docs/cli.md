@@ -1316,9 +1316,10 @@ offline:
 man openspec
 ```
 
-The page lists every command, its arguments, and its flags. It is generated from
-the CLI itself at build time, so it always matches `openspec --help` for the
-version you have installed.
+The page lists every command, its arguments, and its flags, plus exit codes,
+environment variables, the files OpenSpec reads, and examples. It is generated
+from the CLI itself at build time, so it always matches `openspec --help` for
+the version you have installed.
 
 `man openspec` works out of the box after `npm install -g`, which links the page
 into your man path. Other package managers ship the file but don't link it, so
@@ -1339,6 +1340,7 @@ Windows has no `man` — use `openspec --help` there.
 |------|---------|
 | `0` | Success |
 | `1` | Error (validation failure, missing files, etc.) |
+| `130` | Cancelled at a prompt |
 
 ---
 

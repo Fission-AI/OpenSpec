@@ -10,7 +10,6 @@ import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const outputPath = path.join(repoRoot, 'dist', 'man', 'openspec.1');
 
 /**
  * Honor SOURCE_DATE_EPOCH so packagers (Nix, distro builds) get a
@@ -42,7 +41,11 @@ const importFromDist = (...segments) =>
   import(pathToFileURL(path.join(repoRoot, 'dist', ...segments)).href);
 
 const { program } = await importFromDist('cli', 'index.js');
-const { renderManPage } = await importFromDist('core', 'man', 'man-page.js');
+const { renderManPage, MAN_PAGE_RELATIVE_PATH } = await importFromDist('core', 'man', 'man-page.js');
+
+// One source for the location: package.json's `man` field points at the same
+// path, and the packaging test holds the two together.
+const outputPath = path.join(repoRoot, 'dist', ...MAN_PAGE_RELATIVE_PATH.split('/'));
 
 mkdirSync(path.dirname(outputPath), { recursive: true });
 writeFileSync(outputPath, renderManPage(program, { version, date: buildDate() }), 'utf-8');
