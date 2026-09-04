@@ -619,6 +619,17 @@ function firstForeignTail(raw: string): { heading: string; raw: string } | undef
 }
 
 /**
+ * The column a line's content starts at, tabs expanded to a four-column stop.
+ * `prefix` is the text that precedes the content: a line's indentation, or a
+ * list item's indentation together with its marker.
+ */
+function contentColumn(prefix: string): number {
+  let column = 0;
+  for (const char of prefix) column += char === '\t' ? 4 - (column % 4) : 1;
+  return column;
+}
+
+/**
  * The non-blank lines of a spec that are not part of what a retirement is able
  * to name: the title, the `## Purpose` section, the `## Requirements` header,
  * and each requirement block's own header, statement and scenario bullets.
@@ -704,20 +715,50 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
     // operational note below the last scenario be deleted unmentioned.
     let inScenarioBullets = false;
     let bulletsSeen = false;
+    // The content column of the list item the previous line opened or
+    // continued, or null when the last line was not part of one. A line
+    // indented to that column continues the item it sits under (#1780) - a
+    // repository that wraps its prose at a column limit writes most scenario
+    // bullets over two lines, and counting the second line as loose content
+    // made every such capability unretirable. Reset by a blank line, so an
+    // indented note written below the scenarios is still the author's own.
+    let listContentIndent: number | null = null;
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
       if (!line.trim()) {
         // Only a blank that follows actual bullets closes the run, so a blank
         // between a scenario header and its first bullet is not a boundary.
         if (bulletsSeen) inScenarioBullets = false;
+        listContentIndent = null;
         continue;
       }
       if (index === 0) continue; // the `### Requirement:` header itself
+      const indent = contentColumn(/^[ \t]*/.exec(line)![0]);
+      const continuesListItem =
+        listContentIndent !== null &&
+        indent >= listContentIndent &&
+        // A `#` line is a heading wherever it sits, and `firstForeignTail`
+        // already names it. Left to the checks below rather than absorbed.
+        !/^ {0,3}#{1,6}(?:[ \t]|$)/.test(line);
       // Fenced lines render as a code block inside the requirement, so they are
       // its own content however they are spelled - a `### Requirement:` in an
       // example is not a heading to any reader. Flagging them made a spec that
       // merely documents a command unretirable.
-      if (mask[index]) continue;
+      if (mask[index]) {
+        // A fence that starts left of the item's content column has ended it.
+        if (!continuesListItem) listContentIndent = null;
+        continue;
+      }
+      // A continuation of the list item above: indented to its content column
+      // with no blank line between. Whatever the item is, this line is part of
+      // it - accounted for when the item was, and already reported when it was
+      // not, so nothing is deleted unmentioned either way.
+      if (continuesListItem) continue;
+      // Any other line closes the item; a bullet opens the next one. The
+      // content column is the marker's own indent plus the marker itself, so a
+      // nested list and its own wrapped lines stay inside the item too.
+      const bullet = line.match(/^(\s*(?:[-*]|\d+[.)])\s+)\S/);
+      listContentIndent = bullet ? contentColumn(bullet[1]) : null;
       if (
         index > 1 &&
         /^ {0,3}(?:=+|-+)\s*$/.test(line) &&

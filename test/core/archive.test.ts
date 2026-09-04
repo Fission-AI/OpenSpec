@@ -4421,6 +4421,112 @@ The system SHALL do the thing differently.
       expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
     });
 
+    // #1780: a repository that wraps its prose at a column limit writes every
+    // long scenario bullet over two lines. The continuation line is part of the
+    // bullet, but it was counted as content the merge could not name - so a
+    // wrapped spec could not be retired at all, and the same count suppressed
+    // the hint that told an unmarked author the marker exists.
+    it('still retires a spec whose scenario bullets wrap onto a second line', async () => {
+      const changeName = 'retire-wrapped-bullet';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers, wrapped at the',
+        "repository's column limit like every other paragraph in this file.",
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the outstanding count becomes zero and the completions are recorded',
+        '  rather than the earned total being reduced',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+    });
+
+    it('names the marker for an unmarked change whose scenario bullets wrap', async () => {
+      // The hint was gated on there being nothing unaccounted for, so a wrapped
+      // spec got the bare `must have at least one requirement` abort and the
+      // author never learned the retirement path existed.
+      const changeName = 'retire-wrapped-bullet-unmarked';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL, {
+        declareRetirement: false,
+      });
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        [
+          '# legacy-layer Specification',
+          '',
+          '## Purpose',
+          PURPOSE,
+          '',
+          '## Requirements',
+          '',
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          '- **WHEN** a consumer imports the layer',
+          '- **THEN** the outstanding count becomes zero and the completions are recorded',
+          '  rather than the earned total being reduced',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('add `retire_capabilities: true`')
+      );
+    });
+
+    it('still refuses a note indented below a blank line after the scenarios', async () => {
+      // Indentation alone is not continuation: a blank line ends the list item,
+      // so what follows is the author's own note however it is indented. The
+      // wrapped-bullet allowance must not swallow it.
+      const changeName = 'retire-indented-note-after-blank';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        REQUIREMENT,
+        '',
+        '  IMPORTANT: escrow keys live in the "legacy" vault; rotate before deleting.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+    });
     it('still retires a spec whose requirement uses lists and code examples', async () => {
       // The guard must not refuse ordinary spec prose: a numbered list, a fenced
       // example, and a statement opening with inline code are all a
