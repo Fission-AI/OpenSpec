@@ -15,13 +15,13 @@ export function getVerifyChangeSkillTemplate(): SkillTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name. Add \`--adversarial\` to opt into a deeper falsification pass (for example, \`/opsx:verify add-auth --adversarial\`). Parse \`--adversarial\` as workflow input before change selection: remove it from the positional input, never treat it as a change name, and never append it to any \`openspec\` CLI command. If the flag is absent, run the standard verification only. If the change name is omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
 1. **Select the change**
 
-   If a name is provided, use it. Otherwise:
+   If a name remains after removing workflow flags, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
    - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
@@ -115,7 +115,34 @@ ${STORE_SELECTION_GUIDANCE}
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Generate Verification Report**
+8. **Optional adversarial pass (\`--adversarial\` only)**
+
+   If \`--adversarial\` was not provided, skip this entire step. Do not spend tokens on adversarial claim selection, counterexample search, or extra validation.
+
+   When enabled, reuse the evidence already gathered above rather than repeating broad discovery.
+
+   **Build a bounded claim set**:
+   - Inventory behavioral claims from requirements, scenarios, completed task outcomes, and explicit design decisions
+   - Prioritize claims touching changed implementation paths first, then high-risk boundaries/error paths and cross-component behavior, then other contract-important claims
+   - Review at most 5 important claims in one invocation; if fewer than 5 important claims exist, review all of them
+   - Record important claims beyond the budget as \`UNCHECKED\`; summarize lower-priority unchecked claims too, so the report never implies exhaustive coverage
+
+   **Try to falsify each selected claim**:
+   - Trace the actual execution path instead of treating symbol/keyword presence as proof
+   - Inspect whether relevant tests assert the required outcome instead of treating a passing suite as proof
+   - Try a plausible boundary, negative/error, alternate-state, or cross-component counterexample
+   - When practical, run the smallest focused executable validation that could disprove the claim
+   - Classify the result as \`FAILED\`, \`WEAK EVIDENCE\`, \`SUPPORTED\`, or \`UNVERIFIED\`
+   - Every \`FAILED\` result must cite the artifact claim, contradicting implementation/test evidence, and concrete failure mechanism
+   - Missing tooling or environment produces \`UNVERIFIED\`, not an invented defect
+
+   **Determine adversarial readiness from claim outcomes, not issue severity**:
+   - Any \`FAILED\` important claim -> **Not ready**
+   - Any important \`WEAK EVIDENCE\` or \`UNVERIFIED\` claim -> **Partially verified — not ready**
+   - Any important claim left \`UNCHECKED\` because of the budget -> **Partially verified — not ready**
+   - **Ready** only when every important claim is \`SUPPORTED\`; lower-priority \`UNCHECKED\` remainder may exist but must be reported explicitly
+
+9. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`markdown
@@ -150,6 +177,12 @@ ${STORE_SELECTION_GUIDANCE}
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
    - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
    - If all clear: "All checks passed. Ready for archive."
+
+   **Adversarial Assessment** (\`--adversarial\` only):
+   - Add a compact checked-claims table with each selected claim and its \`FAILED\`, \`WEAK EVIDENCE\`, \`SUPPORTED\`, or \`UNVERIFIED\` outcome
+   - Add an \`UNCHECKED\` remainder section, distinguishing important claims skipped because of the budget from lower-priority claims not selected
+   - End with the adversarial readiness from claim outcomes above. This readiness is independent of CRITICAL/WARNING/SUGGESTION issue counts
+   - Do not use the baseline "All checks passed" terminal line as the adversarial readiness result
 
 **Verification Heuristics**
 
@@ -190,13 +223,13 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name after \`/opsx:verify\` (e.g., \`/opsx:verify add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx:verify\` (e.g., \`/opsx:verify add-auth\`). Add \`--adversarial\` anywhere after the command to opt into a deeper falsification pass (e.g., \`/opsx:verify add-auth --adversarial\`). Parse \`--adversarial\` as workflow input before change selection: remove it from the positional input, never treat it as a change name, and never append it to any \`openspec\` CLI command. If the flag is absent, run the standard verification only. If the change name is omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
 1. **Select the change**
 
-   If a name is provided, use it. Otherwise:
+   If a name remains after removing workflow flags, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
    - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
@@ -290,7 +323,34 @@ ${STORE_SELECTION_GUIDANCE}
      - Add SUGGESTION: "Code pattern deviation: <details>"
      - Recommendation: "Consider following project pattern: <example>"
 
-8. **Generate Verification Report**
+8. **Optional adversarial pass (\`--adversarial\` only)**
+
+   If \`--adversarial\` was not provided, skip this entire step. Do not spend tokens on adversarial claim selection, counterexample search, or extra validation.
+
+   When enabled, reuse the evidence already gathered above rather than repeating broad discovery.
+
+   **Build a bounded claim set**:
+   - Inventory behavioral claims from requirements, scenarios, completed task outcomes, and explicit design decisions
+   - Prioritize claims touching changed implementation paths first, then high-risk boundaries/error paths and cross-component behavior, then other contract-important claims
+   - Review at most 5 important claims in one invocation; if fewer than 5 important claims exist, review all of them
+   - Record important claims beyond the budget as \`UNCHECKED\`; summarize lower-priority unchecked claims too, so the report never implies exhaustive coverage
+
+   **Try to falsify each selected claim**:
+   - Trace the actual execution path instead of treating symbol/keyword presence as proof
+   - Inspect whether relevant tests assert the required outcome instead of treating a passing suite as proof
+   - Try a plausible boundary, negative/error, alternate-state, or cross-component counterexample
+   - When practical, run the smallest focused executable validation that could disprove the claim
+   - Classify the result as \`FAILED\`, \`WEAK EVIDENCE\`, \`SUPPORTED\`, or \`UNVERIFIED\`
+   - Every \`FAILED\` result must cite the artifact claim, contradicting implementation/test evidence, and concrete failure mechanism
+   - Missing tooling or environment produces \`UNVERIFIED\`, not an invented defect
+
+   **Determine adversarial readiness from claim outcomes, not issue severity**:
+   - Any \`FAILED\` important claim -> **Not ready**
+   - Any important \`WEAK EVIDENCE\` or \`UNVERIFIED\` claim -> **Partially verified — not ready**
+   - Any important claim left \`UNCHECKED\` because of the budget -> **Partially verified — not ready**
+   - **Ready** only when every important claim is \`SUPPORTED\`; lower-priority \`UNCHECKED\` remainder may exist but must be reported explicitly
+
+9. **Generate Verification Report**
 
    **Summary Scorecard**:
    \`\`\`markdown
@@ -325,6 +385,12 @@ ${STORE_SELECTION_GUIDANCE}
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving."
    - If only warnings: "No critical issues. Y warning(s) to consider. Ready for archive (with noted improvements)."
    - If all clear: "All checks passed. Ready for archive."
+
+   **Adversarial Assessment** (\`--adversarial\` only):
+   - Add a compact checked-claims table with each selected claim and its \`FAILED\`, \`WEAK EVIDENCE\`, \`SUPPORTED\`, or \`UNVERIFIED\` outcome
+   - Add an \`UNCHECKED\` remainder section, distinguishing important claims skipped because of the budget from lower-priority claims not selected
+   - End with the adversarial readiness from claim outcomes above. This readiness is independent of CRITICAL/WARNING/SUGGESTION issue counts
+   - Do not use the baseline "All checks passed" terminal line as the adversarial readiness result
 
 **Verification Heuristics**
 

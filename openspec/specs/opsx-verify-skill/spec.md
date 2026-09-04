@@ -1,7 +1,7 @@
 # opsx-verify-skill Specification
 
 ## Purpose
-Define `/opsx:verify` behavior for assessing implementation completeness, correctness, and coherence against change artifacts.
+Define `/opsx:verify` behavior for assessing implementation completeness, correctness, and coherence against change artifacts, including an opt-in bounded adversarial mode.
 
 ## Requirements
 ### Requirement: Verify Skill Invocation
@@ -22,6 +22,58 @@ The system SHALL provide an `/opsx:verify` skill that validates implementation a
 - **WHEN** selected change has no tasks.md or tasks are empty
 - **THEN** the agent reports "No tasks to verify"
 - **AND** suggests running `/opsx:continue` to create tasks
+
+### Requirement: Optional Adversarial Verification
+The agent SHALL support `--adversarial` as an explicit opt-in mode of the existing verify workflow while preserving standard verification behavior when the mode is absent.
+
+#### Scenario: Standard verification remains the default
+- **WHEN** `/opsx:verify <change-name>` is invoked without `--adversarial`
+- **THEN** the agent performs the existing completeness, correctness, and coherence checks
+- **AND** does not perform adversarial claim selection, counterexample search, or extra validation
+- **AND** uses the existing baseline report and archive-readiness assessment
+
+#### Scenario: Adversarial flag is workflow input
+- **WHEN** `/opsx:verify <change-name> --adversarial` is invoked
+- **THEN** the agent removes `--adversarial` from positional input before selecting the change
+- **AND** does not treat `--adversarial` as a change name
+- **AND** does not forward `--adversarial` to any `openspec` CLI command
+
+#### Scenario: Adversarial effort is bounded and prioritized
+- **WHEN** adversarial mode is enabled
+- **THEN** the agent reuses evidence gathered by standard verification
+- **AND** prioritizes claims touching changed implementation paths, high-risk boundaries and error paths, cross-component behavior, and other contract-important behavior
+- **AND** checks at most 5 important claims in one invocation
+- **AND** reports important claims beyond the budget as `UNCHECKED`
+- **AND** reports the lower-priority unchecked remainder explicitly rather than implying exhaustive coverage
+
+#### Scenario: Selected claims are actively challenged
+- **WHEN** an important claim is selected for adversarial verification
+- **THEN** the agent traces the relevant execution path
+- **AND** inspects whether tests assert the required outcome
+- **AND** tries a plausible boundary, negative/error, alternate-state, or cross-component counterexample
+- **AND** runs the smallest focused executable validation when practical
+- **AND** classifies the claim as `FAILED`, `WEAK EVIDENCE`, `SUPPORTED`, or `UNVERIFIED`
+
+#### Scenario: Failed important claim blocks readiness
+- **WHEN** any important claim is `FAILED`
+- **THEN** the adversarial final assessment is `Not ready`
+- **AND** the result includes the artifact claim, contradicting evidence, and concrete failure mechanism
+
+#### Scenario: Weak or unavailable evidence blocks readiness
+- **WHEN** no important claim is `FAILED`
+- **AND** any important claim is `WEAK EVIDENCE` or `UNVERIFIED`
+- **THEN** the adversarial final assessment is `Partially verified — not ready`
+
+#### Scenario: Important claim remains unchecked
+- **WHEN** no important claim is `FAILED`, `WEAK EVIDENCE`, or `UNVERIFIED`
+- **AND** an important claim is `UNCHECKED` because the adversarial budget was exhausted
+- **THEN** the adversarial final assessment is `Partially verified — not ready`
+
+#### Scenario: Important claims are supported
+- **WHEN** every important claim is `SUPPORTED`
+- **THEN** the adversarial final assessment is `Ready`
+- **AND** any lower-priority `UNCHECKED` remainder is still reported explicitly
+- **AND** the report does not claim exhaustive proof
 
 ### Requirement: Completeness Verification
 The agent SHALL verify that all required work has been completed.
