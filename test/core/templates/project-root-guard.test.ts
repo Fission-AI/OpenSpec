@@ -48,7 +48,7 @@ describe('project root guard', () => {
   it('hands the decision to the user instead of setting the project up', () => {
     expect(PROJECT_ROOT_GUARD).toContain('stop before writing and ask the user how to proceed');
     expect(PROJECT_ROOT_GUARD).toContain('drop OpenSpec for this request and help them directly');
-    expect(PROJECT_ROOT_GUARD).toContain('Do not run `openspec init` on your own');
+    expect(PROJECT_ROOT_GUARD).toContain('Do not run `openspec init` until they ask for it');
     expect(PROJECT_ROOT_GUARD).toContain('do not hand-create `openspec/` files');
     expect(PROJECT_ROOT_GUARD).toContain(
       'do not let a command create the root as a side effect'
