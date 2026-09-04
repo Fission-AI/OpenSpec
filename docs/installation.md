@@ -155,6 +155,11 @@ Or add to your development environment in `flake.nix`:
 }
 ```
 
+The Nix package ships Bash, Fish, and Zsh completions at the standard locations
+(`share/bash-completion/completions`, `share/fish/vendor_completions.d`,
+`share/zsh/site-functions`), so they load with the package — there is no need to
+run `openspec completion install`.
+
 ## Verify Installation
 
 ```bash

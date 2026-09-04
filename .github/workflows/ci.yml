@@ -194,6 +194,19 @@ jobs:
             echo "Error: openspec binary not found in build output"
             exit 1
           fi
+          for completion in \
+            "share/bash-completion/completions/openspec.bash" \
+            "share/fish/vendor_completions.d/openspec.fish" \
+            "share/zsh/site-functions/_openspec"; do
+            if [ ! -s "result/$completion" ]; then
+              echo "Error: completion script missing or empty: $completion"
+              exit 1
+            fi
+          done
+          if [ "$(head -1 result/share/zsh/site-functions/_openspec)" != "#compdef openspec" ]; then
+            echo "Error: zsh completion is not autoloadable (missing #compdef header)"
+            exit 1
+          fi
           echo "✅ Build output verified"
 
       - name: Test binary execution

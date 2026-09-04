@@ -56,6 +56,7 @@
             };
 
             nativeBuildInputs = with pkgs; [
+              installShellFiles
               nodejs_22
               npmHooks.npmInstallHook
               pnpmConfigHook
@@ -71,6 +72,21 @@
             '';
 
             dontNpmPrune = true;
+
+            # `openspec completion generate` renders a static command registry, so it
+            # needs no project and no network. Opting out of telemetry also disables
+            # the update check, keeping the build offline.
+            postInstall = lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
+              export OPENSPEC_TELEMETRY=0
+              completions=$(mktemp -d)
+              for shell in bash fish zsh; do
+                $out/bin/openspec completion generate "$shell" > "$completions/openspec.$shell"
+              done
+              installShellCompletion --cmd openspec \
+                --bash "$completions/openspec.bash" \
+                --fish "$completions/openspec.fish" \
+                --zsh "$completions/openspec.zsh"
+            '';
 
             meta = with pkgs.lib; {
               description = "AI-native system for spec-driven development";
