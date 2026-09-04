@@ -604,6 +604,79 @@ operations:
       expect(json.root.source).toBe('implicit');
     });
 
+    // Creating a change in a directory that was never set up silently
+    // materializes `openspec/` there (#1645). The creation stays zero-config,
+    // but a human who did not mean to adopt this directory has to be told.
+    it('says so when the first change creates the root in an unset-up directory', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      const created = await runCLI(['new', 'change', 'adopt-me'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(created.exitCode).toBe(0);
+      const firstOutput = created.stdout + created.stderr;
+      expect(firstOutput).toContain('no OpenSpec root was found here');
+      // Naming the directory it created is the point: the reader has to know
+      // what to delete if this was not the project they meant. The path is
+      // relative to where the command ran, so it reads the same on Windows.
+      expect(firstOutput).toContain('created at openspec/.');
+      expect(firstOutput).toContain('openspec init');
+      expect(fs.existsSync(path.join(appRepo, 'openspec', 'changes', 'adopt-me'))).toBe(true);
+
+      // The root exists now, so the notice must not repeat on every change.
+      const second = await runCLI(['new', 'change', 'already-adopted'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(second.exitCode).toBe(0);
+      expect(second.stdout + second.stderr).not.toContain('no OpenSpec root was found here');
+    });
+
+    // Run from a subdirectory and the subdirectory is what gets adopted - the
+    // note has to name that directory, not the repository above it.
+    it('names the directory it actually adopted when run from a subdirectory', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+      const nested = path.join(appRepo, 'services', 'billing');
+      fs.mkdirSync(nested, { recursive: true });
+
+      const created = await runCLI(['new', 'change', 'adopt-the-subdir'], {
+        cwd: nested,
+        env: isolatedEnv,
+      });
+      expect(created.exitCode).toBe(0);
+      expect(created.stdout + created.stderr).toContain('created at openspec/.');
+
+      expect(fs.existsSync(path.join(nested, 'openspec', 'changes', 'adopt-the-subdir'))).toBe(
+        true
+      );
+      expect(fs.existsSync(path.join(appRepo, 'openspec'))).toBe(false);
+    });
+
+    it('keeps the notice out of JSON output', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      const result = await runCLI(['new', 'change', 'adopt-me-quietly', '--json'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).not.toContain('no OpenSpec root was found here');
+
+      // `root.source` is how a caller in JSON mode learns the same fact.
+      const json = parseJson(result);
+      expect(json.root.source).toBe('implicit');
+    });
+
     it('keeps list working for a legacy project.md root when no stores are registered', async () => {
       const isolatedEnv = {
         ...env,
@@ -681,6 +754,28 @@ operations:
           })
         );
       }
+    });
+
+    // The generated workflows read `root` from `openspec list --json` to decide
+    // whether a project is set up (#1645). That answer has to stay honest when
+    // stores are registered but this directory has no root of its own -
+    // an implicit root here would read as "set up" and the workflow would
+    // scaffold a change into an unrelated repository.
+    it('reports a missing root as JSON when only stores are registered', async () => {
+      const result = await runCLI(['list', '--json'], { cwd: appRepo, env });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe('');
+
+      const json = parseJson(result);
+      expect(json.root).toBeNull();
+      expect(json.changes).toEqual([]);
+      expect(json.status[0]).toEqual(
+        expect.objectContaining({
+          severity: 'error',
+          code: 'no_root_with_registered_stores',
+        })
+      );
     });
 
     it('still accepts an existing root with no items', async () => {
