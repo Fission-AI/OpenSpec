@@ -21,6 +21,7 @@ import { getCommandContents } from '../../../src/core/shared/skill-generation.js
 import { MAX_CONTEXT_SIZE } from '../../../src/core/project-config.js';
 import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
+import { parseTaskLines } from '../../../src/utils/task-progress.js';
 
 // Templates carry optional-workflow conditionals; a body only means anything
 // once resolved against a workflow set. Unless a test says otherwise, these are
@@ -124,7 +125,18 @@ describe('default task guidance', () => {
       /Track implementation and verification work that can be completed before\s+archive/
     );
     expect(tasks!.instruction).toMatch(
-      /Present archive and work that depends on the change already\s+being archived as subsequent workflow steps, not task checkboxes/
+      /preserve those steps as plain bullets in an\s+optional `## Workflow follow-up` section at the end of tasks.md/
+    );
+
+    const examples = [...tasks!.instruction.matchAll(/```\s*([\s\S]*?)```/g)];
+    expect(examples).toHaveLength(2);
+    const implementation = examples[0][1];
+    const followUp = examples[1][1];
+    expect(followUp).toContain('## Workflow follow-up');
+    expect(followUp).toContain('- Verify the archived result.');
+    expect(parseTaskLines(followUp)).toEqual([]);
+    expect(parseTaskLines(`${implementation}\n${followUp}`)).toEqual(
+      parseTaskLines(implementation)
     );
   });
 
