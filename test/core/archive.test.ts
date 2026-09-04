@@ -4496,6 +4496,7 @@ The system SHALL do the thing differently.
     it.each([
       { what: 'an ATX heading', line: '  ### Data Migration Notes' },
       { what: 'a raw HTML heading', line: '  <h2>Data Migration Notes</h2>' },
+      { what: 'a setext heading', line: '  Data Migration Notes\n  --------------------' },
     ])('still refuses $what indented directly under a scenario bullet', async ({ what, line }) => {
       // Continuation is for wrapped prose. A heading is a heading wherever it
       // sits, so indenting a section under a bullet must not smuggle it past

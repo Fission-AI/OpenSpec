@@ -753,6 +753,18 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         if (!continuesListItem) listContentIndent = null;
         continue;
       }
+      // Checked ahead of the continuation branch: a setext underline turns the
+      // line above it into a heading, and indenting the pair under a bullet
+      // must not absorb them any more than an indented `#` line is absorbed.
+      if (
+        index > 1 &&
+        /^ {0,3}(?:=+|-+)\s*$/.test(line) &&
+        lines[index - 1].trim()
+      ) {
+        leftovers.push(lines[index - 1].trim());
+        listContentIndent = null;
+        continue;
+      }
       // A continuation of the list item above: indented to its content column
       // with no blank line between. Whatever the item is, this line is part of
       // it - accounted for when the item was, and already reported when it was
@@ -763,14 +775,6 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // nested list and its own wrapped lines stay inside the item too.
       const bullet = line.match(/^(\s*(?:[-*]|\d+[.)])\s+)\S/);
       listContentIndent = bullet ? contentColumn(bullet[1]) : null;
-      if (
-        index > 1 &&
-        /^ {0,3}(?:=+|-+)\s*$/.test(line) &&
-        lines[index - 1].trim()
-      ) {
-        leftovers.push(lines[index - 1].trim());
-        continue;
-      }
       if (/^ {0,3}####\s+Scenario:/i.test(line)) {
         seenScenario = true;
         inScenarioBullets = true;
