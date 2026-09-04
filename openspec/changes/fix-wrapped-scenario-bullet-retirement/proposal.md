@@ -37,6 +37,10 @@ classification itself.
   validator accepts without complaint — had *every* scenario bullet reported as
   unaccounted content and could not be retired at all. Found while hardening the
   wrapping fix; it is the same defect wearing a different marker.
+- Only those markers count. CommonMark stops an ordered marker at nine digits,
+  so `1234567890. Migration note...` opens a paragraph, not a list — and reading
+  it as a marker meant the same authored note was refused when it began with a
+  word and silently deleted when it began with a long enough number.
 - Nothing else changes. The audit still fails safe — a line it cannot classify
   still refuses the retirement — and a note written past the blank line that ends
   a scenario is still named and still blocks, wrapped or not.

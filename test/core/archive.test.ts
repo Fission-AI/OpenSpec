@@ -4391,6 +4391,45 @@ The system SHALL do the thing differently.
         await expect(fs.access(mainSpecDir)).rejects.toThrow();
       });
 
+      it('still names a note whose first characters look like a long ordered marker', async () => {
+        // CommonMark stops an ordered marker at nine digits, so this line opens
+        // a paragraph, not a list. Read as a marker it was silently deleted,
+        // while the same note beginning with a word was refused - one line, two
+        // verdicts, decided by nothing a reader can see.
+        const mainSpecDir = await retireWith('retire-long-ordered-marker', [
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          '1234567890. Migration note: export the mirror table by hand first.',
+          '- **WHEN** a consumer imports the layer',
+          '- **THEN** the layer is available',
+        ]);
+
+        expect(process.exitCode).toBe(1);
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).resolves.not.toThrow();
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining('1234567890. Migration note: export the mirror table by hand first.')
+        );
+      });
+
+      it('still retires a capability whose scenario uses a nine-digit ordered marker', async () => {
+        // The cap is where CommonMark puts it, not one digit lower: a marker it
+        // accepts must still read as a list item.
+        const mainSpecDir = await retireWith('retire-nine-digit-marker', [
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          '123456789. **WHEN** a consumer imports the layer and the count is read',
+          '123456789. **THEN** the count becomes zero and the completions are recorded',
+          '  rather than the earned total being reduced',
+        ]);
+
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(mainSpecDir)).rejects.toThrow();
+      });
+
       it('still refuses a scenario whose bullets are split by a blank line', async () => {
         // The shape this repository's own `cli-show` spec uses, and the
         // documented limitation: past a blank line, a bullet reads the same as

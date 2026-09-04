@@ -28,6 +28,9 @@
 - [x] 3.2 Read `+` as a list marker alongside `-`, `*` and ordered items, and
       confirm a `+` note written past the blank line that ends a scenario is
       still named and still blocks
+- [x] 3.3 Cap an ordered marker at nine digits, where CommonMark caps it, after
+      review found the same note refused when it opened with a word and deleted
+      when it opened with a ten-digit number
 
 ## 4. Tests
 
@@ -49,7 +52,10 @@
       directly beneath a bullet
 - [x] 4.9 Keep refusing a scenario whose bullets are split by a blank line - the
       shape this repository's own `cli-show` spec uses
-- [x] 4.10 Pin the deliberate edge: a line written under a bullet with no blank
+- [x] 4.10 Name a note opening with a ten-digit ordered marker, and keep
+      retiring one whose scenario uses a nine-digit marker, so the cap is held
+      from both sides
+- [x] 4.11 Pin the deliberate edge: a line written under a bullet with no blank
       line above it counts as part of that bullet
 
 ## 5. Verify
@@ -58,7 +64,8 @@
       guard in turn: 11 of the 15 cases fail on `main`; neutering
       `opensOwnBlock` kills the four block cases; dropping `+` from the marker
       set kills the plus case; closing the item after the first continuation
-      kills the three-line wrap and the lazy-aside case
+      kills the three-line wrap and the lazy-aside case; loosening the digit cap
+      kills the long-marker case and tightening it kills the nine-digit case
 - [x] 5.2 Run the full suite and confirm no existing test changes behavior
 - [x] 5.3 Run lint, typecheck and the build
 - [x] 5.4 Run `openspec validate --specs --strict` on this repo

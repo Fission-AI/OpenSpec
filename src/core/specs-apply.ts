@@ -764,12 +764,16 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         inListItem = false;
         continue;
       }
-      // Every CommonMark list marker, not only the two this file used to name.
-      // A spec bulleted with `+` validates like any other, and its scenario
-      // bullets were read as unaccounted prose - the same defect as a wrapped
-      // line, wearing a different marker: a capability written that way could
-      // not be retired at all.
-      if (/^\s*(?:[-*+]|\d+[.)])\s/.test(line)) {
+      // Every CommonMark list marker, and only those. A spec bulleted with `+`
+      // validates like any other, and its scenario bullets were read as
+      // unaccounted prose - the same defect as a wrapped line, wearing a
+      // different marker: a capability written that way could not be retired at
+      // all. The digit cap is the other half of "only those": CommonMark stops
+      // an ordered marker at nine digits, so `1234567890.` opens a paragraph,
+      // not a list. Reading it as a marker meant an authored note was refused
+      // when it began with a word and deleted when it began with a long enough
+      // number - the same line, two verdicts.
+      if (/^\s*(?:[-*+]|\d{1,9}[.)])\s/.test(line)) {
         inListItem = true;
         if (inScenarioBullets) {
           bulletsSeen = true;
