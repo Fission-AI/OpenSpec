@@ -130,20 +130,24 @@ ${STORE_SELECTION_GUIDANCE}
 
 5. **Perform the archive**
 
-   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
+   After the checks and any selected sync have completed, let the CLI perform
+   the move with its archive lock and destination-collision checks:
    \`\`\`bash
-   mkdir -p "<planningHome.changesDir>/archive"
+   openspec archive "<name>" --skip-specs --yes --json
    \`\`\`
+   Keep the same selected-root flags. \`--yes\` carries the confirmations already
+   obtained above; it does not replace them. \`--skip-specs\` prevents a second
+   merge and preserves the user's sync or skip decision from step 4.
 
-   Generate the target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
+   Require a zero exit status and an \`archive\` result for the selected change.
+   If the command fails or returns no archive result, report its diagnostics and
+   stop. Do not fall back to a shell move or bypass validation. If the destination
+   already exists, leave it intact and suggest a different change name or resolving
+   the collision before retrying.
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
-
-   \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
-   \`\`\`
+   The CLI derives \`<target-name>\`: it keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Use the returned \`archive.path\` as the archive location.
+   Preserve the step 4 sync outcome in the summary: \`archive.specsUpdated\` is
+   false for this move-only invocation even when the earlier inline sync succeeded.
 
 6. **Display summary**
 
@@ -161,7 +165,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
+**Archived to:** <archive.path returned by the CLI>
 **Specs:** <"✓ Synced to main specs" only if the step 4 verification passed; otherwise "No delta specs" or "Sync skipped">
 
 <"All artifacts complete. All tasks complete." — or, if archived with warnings, list them instead (e.g. "Archived with 2 incomplete tasks")>
@@ -312,20 +316,24 @@ ${STORE_SELECTION_GUIDANCE}
 
 5. **Perform the archive**
 
-   Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
+   After the checks and any selected sync have completed, let the CLI perform
+   the move with its archive lock and destination-collision checks:
    \`\`\`bash
-   mkdir -p "<planningHome.changesDir>/archive"
+   openspec archive "<name>" --skip-specs --yes --json
    \`\`\`
+   Keep the same selected-root flags. \`--yes\` carries the confirmations already
+   obtained above; it does not replace them. \`--skip-specs\` prevents a second
+   merge and preserves the user's sync or skip decision from step 4.
 
-   Generate the target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
+   Require a zero exit status and an \`archive\` result for the selected change.
+   If the command fails or returns no archive result, report its diagnostics and
+   stop. Do not fall back to a shell move or bypass validation. If the destination
+   already exists, leave it intact and suggest a different change name or resolving
+   the collision before retrying.
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
-
-   \`\`\`bash
-   mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
-   \`\`\`
+   The CLI derives \`<target-name>\`: it keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Use the returned \`archive.path\` as the archive location.
+   Preserve the step 4 sync outcome in the summary: \`archive.specsUpdated\` is
+   false for this move-only invocation even when the earlier inline sync succeeded.
 
 6. **Display summary**
 
@@ -343,7 +351,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
+**Archived to:** <archive.path returned by the CLI>
 **Specs:** ✓ Synced to main specs
 
 All artifacts complete. All tasks complete.
@@ -356,7 +364,7 @@ All artifacts complete. All tasks complete.
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
+**Archived to:** <archive.path returned by the CLI>
 **Specs:** No delta specs
 
 All artifacts complete. All tasks complete.
@@ -369,7 +377,7 @@ All artifacts complete. All tasks complete.
 
 **Change:** <change-name>
 **Schema:** <schema-name>
-**Archived to:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
+**Archived to:** <archive.path returned by the CLI>
 **Specs:** Sync skipped (user chose to skip)
 
 **Warnings:**
@@ -386,14 +394,13 @@ Review the archive if this was not intentional.
 ## Archive Failed
 
 **Change:** <change-name>
-**Target:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
+**Target:** <planningHome.changesDir>/archive/<target-name>/
 
 Target archive directory already exists.
 
 **Options:**
-1. Rename the existing archive
-2. Delete the existing archive if it's a duplicate
-3. Wait until a different date to archive
+1. Keep the existing archive intact and review the CLI diagnostics to resolve the collision.
+2. Use a different change name, then retry.
 \`\`\`
 
 **Guardrails**
