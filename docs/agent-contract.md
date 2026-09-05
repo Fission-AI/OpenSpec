@@ -77,6 +77,10 @@ Success: `{ "change": { "id", "path", "metadataPath", "schema" }, "root" }`. Fai
 ### 4.9 `archive <name> --json`
 Success: `{ "archive": { "change", "archivedAs": "YYYY-MM-DD-name", "path", "specsUpdated", "totals"?, "warnings"? }, "root" }`. Failure: `{ "archive": null, "root"?, "status": [d] }`, exit 1. `specsUpdated` is true only when at least one spec file was written or retired (a capability whose last requirement the change removed has its spec deleted, which requires `retire_capabilities: true` in the change's `.openspec.yaml`; every retirement is named in `warnings`, with a pasteable Git recovery command only when the spec lived in the caller's checkout); an already-synced change archives with all-zero totals and the skips listed in `warnings`. JSON mode is strictly non-interactive: every prompt point becomes an `archive_*` code.
 
+- **`archive: null`**: the command failed. This is not a guarantee that files are unchanged.
+- **`archive_retirement_cleanup_failed`**: the change was archived, but retirement backup verification or cleanup failed. A listed backup path may have changed or disappeared. The message can also report a staged source left by a failed fallback-copy cleanup. Inspect the current archive and all reported recovery paths before cleanup. Preserve any needed content. Retrying archive does not clean up these paths.
+- **`archive_error`**: the fallback diagnostic does not identify whether files changed. Inspect the change, archive, and affected specs before retrying.
+
 ### 4.10 `doctor --json`
 `{ "root": { "path", "source", "store_id"?, "healthy", "status": [] }, "store": { "id", "metadata": {present,valid,remote?}, "origin_url"?, "drift"?: {ahead,behind}, "status": [] } | null, "references": [...], "status": [] }`. `drift` (present only for a git-backed store checkout that has an upstream tracking ref) is ahead/behind counts against the last-fetched upstream, not the live remote. Health findings of any severity exit 0. Failure payload: `{ "root": null, "store": null, "references": [], "status": [d] }`, exit 1.
 
@@ -122,7 +126,7 @@ setup/register: `{ "store": {id, root, metadata_path?}, "registry": {path, regis
 `relationship_registry_unreadable`, `root_pointer_ignored`, `root_pointer_invalid`, `pointer_declarations_inert`.
 
 ### Archive (JSON mode)
-`archive_change_name_required`, `archive_change_not_found`, `archive_change_symlink`, `archive_validation_failed`, `archive_confirmation_required`, `archive_tasks_incomplete`, `archive_spec_update_failed`, `archive_spec_validation_failed`, `archive_target_exists`, `archive_error`.
+`archive_change_name_required`, `archive_change_not_found`, `archive_change_symlink`, `archive_validation_failed`, `archive_confirmation_required`, `archive_tasks_incomplete`, `archive_spec_update_failed`, `archive_spec_validation_failed`, `archive_target_exists`, `archive_retirement_cleanup_failed`, `archive_error`.
 
 ### Context writes
 `context_file_exists`, `context_output_dir_missing`.
