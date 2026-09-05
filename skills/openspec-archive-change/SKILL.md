@@ -74,16 +74,22 @@ Archive a completed change in the experimental workflow.
 
 3. **Check task completion status**
 
-   Read the tasks file (typically `tasks.md`) to check for incomplete tasks.
+   Run `openspec list --json` with the same selected-root flags and find the
+   entry in `changes` whose `name` exactly matches the selected change.
+   Use its `totalTasks` and `completedTasks`: the CLI resolves the schema's
+   tracked task files, including custom artifact names, output paths, and globs.
+   Incomplete tasks = `totalTasks - completedTasks`.
 
-   Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete).
+   Do not infer task completion from artifact status or the absence of a
+   top-level `tasks.md`. If the lookup fails, returns invalid JSON, or omits
+   the selected change, report the problem and stop before syncing or archiving.
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks
    - Ask the user to confirm they want to proceed
    - Proceed if user confirms
 
-   **If no tasks file exists:** Proceed without task-related warning.
+   **If `totalTasks` is zero:** Proceed without a task-related warning.
 
 4. **Assess delta spec sync state**
 

@@ -63,15 +63,21 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 3. **Batch validation - gather status for all selected changes**
 
+   Run `openspec list --json` once with the same selected-root flags for task
+   progress. If the lookup fails, returns invalid JSON, or omits any selected
+   change, report the problem and stop before syncing or archiving the batch.
+
    For each selected change, collect:
 
    a. **Artifact status** - Run `openspec status --change "<name>" --json`
       - Parse `schemaName`, `artifacts`, `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`
       - Note which artifacts are `done` vs other states
 
-   b. **Task completion** - Read `artifactPaths.tasks.existingOutputPaths` from status JSON
-      - Count `- [ ]` (incomplete) vs `- [x]` (complete)
-      - If no tasks file exists, note as "No tasks"
+   b. **Task completion** - Find the `changes` entry from the list response whose `name` exactly matches this change
+      - Use `totalTasks` and `completedTasks`; incomplete tasks = `totalTasks - completedTasks`
+      - The CLI resolves the schema's tracked task files, including custom artifact names, output paths, and globs
+      - Do not infer task completion from artifact status, an artifact id of `tasks`, or the absence of a top-level `tasks.md`
+      - If `totalTasks` is zero, note as "No tasks"
 
    c. **Delta specs** - Check `artifactPaths.specs.existingOutputPaths` from status JSON
       - List which capability specs exist
