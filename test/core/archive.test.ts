@@ -6,7 +6,7 @@ import { MarkdownParser } from '../../src/core/parsers/markdown-parser.js';
 import { findMainSpecStructureIssues } from '../../src/core/parsers/spec-structure.js';
 import { VALIDATION_MESSAGES } from '../../src/core/validation/constants.js';
 import { formatLocalDate } from '../../src/utils/date.js';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import os from 'os';
 
@@ -44,8 +44,10 @@ describe('ArchiveCommand', () => {
   }
 
   beforeEach(async () => {
-    // Create temp directory
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-archive-test-'));
+    // Match archive's canonical root across temporary-directory aliases.
+    tempDir = realpathSync.native(
+      await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-archive-test-'))
+    );
 
     // Change to temp directory
     process.chdir(tempDir);
@@ -6205,8 +6207,10 @@ The system SHALL provide a new behavior.
 
       const realOpen = fs.open.bind(fs);
       onTestFinished(() => vi.restoreAllMocks());
+      let claimDenied = false;
       vi.spyOn(fs, 'open').mockImplementation(async (candidate, flags, mode) => {
         if (String(candidate) === archiveClaimPath(changeName)) {
+          claimDenied = true;
           throw Object.assign(new Error('claim open denied'), { code: 'EACCES' });
         }
         return realOpen(candidate, flags, mode);
@@ -6214,6 +6218,7 @@ The system SHALL provide a new behavior.
 
       await archiveCommand.execute(changeName, { yes: true, json: true });
 
+      expect(claimDenied).toBe(true);
       expect(process.exitCode).toBe(1);
       expect(console.log).toHaveBeenCalledTimes(1);
       const payload = JSON.parse((console.log as any).mock.calls[0][0]);
@@ -6247,6 +6252,7 @@ The system SHALL provide a new behavior.
       const realRename = fs.rename.bind(fs);
       onTestFinished(() => vi.restoreAllMocks());
       let editedBackup: string | undefined;
+      let backupChanged = false;
       vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
         const result = await realRename(source, destination);
         if (String(source) === changeDir && String(destination) === archivePath) {
@@ -6259,12 +6265,14 @@ The system SHALL provide a new behavior.
           if (backupChange !== 'removed') {
             await fs.writeFile(editedBackup, 'concurrent content in retirement backup\n');
           }
+          backupChanged = true;
         }
         return result;
       });
 
       await archiveCommand.execute(changeName, { yes: true, json: true });
 
+      expect(backupChanged).toBe(true);
       expect(process.exitCode).toBe(1);
       expect(console.log).toHaveBeenCalledTimes(1);
       const payload = JSON.parse((console.log as any).mock.calls[0][0]);
@@ -6314,8 +6322,12 @@ The system SHALL provide a new behavior.
       const realUnlink = fs.unlink.bind(fs);
       onTestFinished(() => vi.restoreAllMocks());
       let stagedSource: string | undefined;
+      let fallbackInjected = false;
+      let sourceCleanupDenied = false;
+      let backupCleanupsDenied = 0;
       vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
         if (String(source) === changeDir && String(destination) === archivePath) {
+          fallbackInjected = true;
           throw Object.assign(new Error('cross-device move'), { code: 'EXDEV' });
         }
         return realRename(source, destination);
@@ -6324,12 +6336,14 @@ The system SHALL provide a new behavior.
         if (String(candidate).includes(`${path.sep}changes${path.sep}.openspec-move-`)) {
           stagedSource = String(candidate);
           await realUnlink(path.join(stagedSource, 'tasks.md'));
+          sourceCleanupDenied = true;
           throw Object.assign(new Error('partial source cleanup'), { code: 'EACCES' });
         }
         return realRm(candidate, options);
       });
       vi.spyOn(fs, 'unlink').mockImplementation(async (candidate) => {
         if (String(candidate).includes('.openspec-retire-')) {
+          backupCleanupsDenied += 1;
           throw Object.assign(new Error('backup cleanup denied'), { code: 'EACCES' });
         }
         return realUnlink(candidate);
@@ -6337,6 +6351,9 @@ The system SHALL provide a new behavior.
 
       await archiveCommand.execute(changeName, { yes: true, json: true });
 
+      expect(fallbackInjected).toBe(true);
+      expect(sourceCleanupDenied).toBe(true);
+      expect(backupCleanupsDenied).toBe(2);
       expect(process.exitCode).toBe(1);
       expect(console.log).toHaveBeenCalledTimes(1);
       const payload = JSON.parse(vi.mocked(console.log).mock.calls[0][0]);
