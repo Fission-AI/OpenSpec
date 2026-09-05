@@ -2026,8 +2026,8 @@ New feature description.
     });
 
     it('does not nest a change inside a destination created just before the final rename', async () => {
-      const changeName = 'late-move-collision';
-      const archiveName = `${formatLocalDate()}-${changeName}`;
+      const changeName = '2026-09-05-late-move-collision';
+      const archiveName = changeName;
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
       const destination = path.join(tempDir, 'openspec', 'changes', 'archive', archiveName);
       await fs.mkdir(changeDir);

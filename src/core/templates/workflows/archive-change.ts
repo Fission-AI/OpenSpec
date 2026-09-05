@@ -394,14 +394,13 @@ Review the archive if this was not intentional.
 ## Archive Failed
 
 **Change:** <change-name>
-**Target:** the archive path derived from \`planningHome.changesDir\`/<target-name>/
+**Target:** <planningHome.changesDir>/archive/<target-name>/
 
 Target archive directory already exists.
 
 **Options:**
-1. Rename the existing archive
-2. Delete the existing archive if it's a duplicate
-3. Wait until a different date to archive
+1. Keep the existing archive intact and review the CLI diagnostics to resolve the collision.
+2. Use a different change name, then retry.
 \`\`\`
 
 **Guardrails**
