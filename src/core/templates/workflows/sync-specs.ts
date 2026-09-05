@@ -32,7 +32,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    When prompting, show changes that have delta specs (under \`specs/\` directory).
 
-   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:sync <other>\`).
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx-sync <other>\`).
 
 2. **Resolve change context**
 
@@ -281,7 +281,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
-**Input**: Optionally specify a change name after \`/opsx:sync\` (e.g., \`/opsx:sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx-sync\` (e.g., \`/opsx-sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -294,7 +294,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    When prompting, show changes that have delta specs (under \`specs/\` directory).
 
-   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:sync <other>\`).
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx-sync <other>\`).
 
 2. **Resolve change context**
 

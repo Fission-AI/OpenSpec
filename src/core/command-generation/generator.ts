@@ -5,13 +5,13 @@
  */
 
 import type { CommandContent, ToolCommandAdapter, GeneratedCommand } from './types.js';
-import { getInvocationForAdapter, needsInvocationRewrite } from './invocation.js';
+import { getInvocationForAdapter } from './invocation.js';
 import { transformCommandInvocations } from '../../utils/command-references.js';
 
 /**
  * Generate a single command file using the provided adapter.
  *
- * Command bodies are authored with `/opsx:<id>` references. Tools whose command
+ * Command bodies are authored with `/opsx-<id>` references. Tools whose command
  * files are invoked by filename register `/opsx-<id>` instead, and Amazon Q
  * surfaces them in its prompt library as `@opsx-<id>`, so the body is rewritten
  * to the form that tool answers to before the adapter formats it. Doing it here
@@ -27,9 +27,7 @@ export function generateCommand(
   adapter: ToolCommandAdapter
 ): GeneratedCommand {
   const invocation = getInvocationForAdapter(adapter);
-  const formatted = needsInvocationRewrite(invocation)
-    ? { ...content, body: transformCommandInvocations(content.body, invocation) }
-    : content;
+  const formatted = { ...content, body: transformCommandInvocations(content.body, invocation) };
 
   return {
     path: adapter.getFilePath(content.id),

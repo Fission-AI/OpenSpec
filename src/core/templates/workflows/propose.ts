@@ -132,7 +132,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx:apply\` or ask me to apply this change."
+- Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx-apply\` or ask me to apply this change."
 
 **Artifact Creation Guidelines**
 
@@ -182,7 +182,7 @@ When the user is ready to implement, they must start the apply workflow explicit
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: The argument after \`/opsx:propose\` is the change name (kebab-case), OR a description of what the user wants to build.
+**Input**: The argument after \`/opsx-propose\` is the change name (kebab-case), OR a description of what the user wants to build.
 
 **Steps**
 
@@ -285,7 +285,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx:apply\`."
+- Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx-apply\`."
 
 **Artifact Creation Guidelines**
 

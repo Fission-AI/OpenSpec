@@ -126,9 +126,9 @@ Finally /opsx-apply to implement`;
       );
     });
 
-    it('is a no-op for the canonical namespaced slash form', () => {
-      const input = 'Use /opsx:new then /opsx:apply';
-      expect(transformCommandInvocations(input, NAMESPACED_SLASH)).toBe(input);
+    it('normalizes canonical flat input for a namespaced slash target', () => {
+      const input = 'Use /opsx-new then /opsx-apply';
+      expect(transformCommandInvocations(input, NAMESPACED_SLASH)).toBe('Use /opsx:new then /opsx:apply');
     });
   });
 });
@@ -313,9 +313,12 @@ describe('getTransformerForTool', () => {
     );
   });
 
-  it('selects no transformer for namespaced tools when commands are generated', () => {
-    expect(getTransformerForTool('claude', 'both', 'adapter-backed', NAMESPACED_SLASH)).toBeUndefined();
-    expect(getTransformerForTool('claude', 'commands', 'adapter-backed', NAMESPACED_SLASH)).toBeUndefined();
+  it('selects a normalizer for namespaced tools when commands are generated', () => {
+    for (const delivery of ['both', 'commands'] as const) {
+      const transformer = getTransformerForTool('claude', delivery, 'adapter-backed', NAMESPACED_SLASH);
+      expect(transformer?.('/opsx-apply')).toBe('/opsx:apply');
+      expect(transformer?.('/opsx:apply')).toBe('/opsx:apply');
+    }
   });
 
   it('selects shared-tree-safe Codex skill references in every delivery mode', () => {
@@ -341,10 +344,10 @@ describe('getTransformerForTool', () => {
 describe('apply skill template generates valid per-target invocations', () => {
   const skill = getApplyChangeSkillTemplate().instructions;
 
-  it('authors invocation references as transformable /opsx:* tokens', () => {
-    expect(skill).toContain('/opsx:apply add-auth');
-    expect(skill).toContain('suggest using `/opsx:continue`');
-    expect(skill).toContain('archive this change with `/opsx:archive`');
+  it('authors invocation references as transformable /opsx-* tokens', () => {
+    expect(skill).toContain('/opsx-apply add-auth');
+    expect(skill).toContain('suggest using `/opsx-continue`');
+    expect(skill).toContain('archive this change with `/opsx-archive`');
     // No bare, non-transformable skill-name prose remains.
     expect(skill).not.toContain('suggest using openspec-continue-change');
   });

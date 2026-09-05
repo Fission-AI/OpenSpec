@@ -44,7 +44,7 @@ const sampleContent: CommandContent = {
   description: 'Implement tasks',
   category: 'Workflow',
   tags: ['openspec'],
-  body: 'Run /opsx:archive when done. See /opsx:continue for the next artifact.',
+  body: 'Run /opsx-archive when done. See /opsx-continue for the next artifact.',
 };
 
 describe('command-generation/invocation', () => {
@@ -125,8 +125,8 @@ describe('command-generation/invocation', () => {
     });
 
     it('rewrites only what differs from the canonical authored form', () => {
-      expect(needsInvocationRewrite({ style: 'namespaced', prefix: '/' })).toBe(false);
-      expect(needsInvocationRewrite({ style: 'flat', prefix: '/' })).toBe(true);
+      expect(needsInvocationRewrite({ style: 'flat', prefix: '/' })).toBe(false);
+      expect(needsInvocationRewrite({ style: 'namespaced', prefix: '/' })).toBe(true);
       expect(needsInvocationRewrite({ style: 'namespaced', prefix: '@' })).toBe(true);
     });
   });
@@ -153,7 +153,7 @@ describe('command-generation/invocation', () => {
       expect(fileContent).not.toContain('/opsx:');
     });
 
-    it('leaves command references alone for namespaced tools', () => {
+    it('normalizes canonical flat references for namespaced tools', () => {
       for (const toolId of NAMESPACED_TOOLS) {
         const adapter = CommandAdapterRegistry.get(toolId)!;
         const { fileContent } = generateCommand(sampleContent, adapter);
@@ -175,7 +175,7 @@ describe('command-generation/invocation', () => {
       // generateCommand happens to be identical (the rewrite is idempotent).
       for (const toolId of ['bob', 'oh-my-pi', 'opencode', 'pi', 'qwen', 'cursor', 'devin']) {
         const adapter = CommandAdapterRegistry.get(toolId)!;
-        expect(adapter.formatFile(sampleContent), toolId).toContain('/opsx:archive');
+        expect(adapter.formatFile(sampleContent), toolId).toContain('/opsx-archive');
       }
     });
   });

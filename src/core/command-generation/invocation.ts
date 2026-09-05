@@ -38,7 +38,7 @@ export interface CommandInvocation {
 }
 
 /** The form these docs, command bodies, and skill templates are authored in. */
-export const CANONICAL_INVOCATION: CommandInvocation = { style: 'namespaced', prefix: '/' };
+export const CANONICAL_INVOCATION: CommandInvocation = { style: 'flat', prefix: '/' };
 
 /**
  * Classifies a generated command file by the name the tool will answer to.
@@ -88,7 +88,7 @@ export function formatCommandInvocation(
 }
 
 /**
- * Whether a tool's invocation differs from the canonical `/opsx:<id>` that
+ * Whether a tool's invocation differs from the canonical `/opsx-<id>` that
  * command bodies and skill templates are authored in — that is, whether
  * generated text has to be rewritten for that tool at all.
  */

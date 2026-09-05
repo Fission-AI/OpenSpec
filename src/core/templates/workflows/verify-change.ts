@@ -30,7 +30,7 @@ ${STORE_SELECTION_GUIDANCE}
    Include the schema used for each change if available.
    Mark changes with incomplete tasks as "(In Progress)".
 
-   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:verify <other>\`).
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx-verify <other>\`).
 
 2. **Check status to understand the schema**
    \`\`\`bash
@@ -190,7 +190,7 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name after \`/opsx:verify\` (e.g., \`/opsx:verify add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx-verify\` (e.g., \`/opsx-verify add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -205,7 +205,7 @@ ${STORE_SELECTION_GUIDANCE}
    Include the schema used for each change if available.
    Mark changes with incomplete tasks as "(In Progress)".
 
-   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:verify <other>\`).
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx-verify <other>\`).
 
 2. **Check status to understand the schema**
    \`\`\`bash

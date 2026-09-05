@@ -34,7 +34,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to continue.
 
-   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:continue <other>\`).
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx-continue <other>\`).
 
 2. **Check current status**
    \`\`\`bash
@@ -133,7 +133,7 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name after \`/opsx-continue\` (e.g., \`/opsx-continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -152,7 +152,7 @@ ${STORE_SELECTION_GUIDANCE}
 
    Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to continue.
 
-   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:continue <other>\`).
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx-continue <other>\`).
 
 2. **Check current status**
    \`\`\`bash
@@ -171,7 +171,7 @@ ${STORE_SELECTION_GUIDANCE}
    **If all planning artifacts are complete (\`isPlanningComplete: true\`, or legacy \`isComplete: true\`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "Planning is complete! You can now implement this change with \`/opsx:apply\`. Once implementation and any tracked work are complete, archive it with \`/opsx:archive\`."
+   - Suggest: "Planning is complete! You can now implement this change with \`/opsx-apply\`. Once implementation and any tracked work are complete, archive it with \`/opsx-archive\`."
    - STOP
 
    ---
@@ -217,7 +217,7 @@ After each invocation, show:
 - Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
-- Prompt: "Run \`/opsx:continue\` to create the next artifact"
+- Prompt: "Run \`/opsx-continue\` to create the next artifact"
 
 **Artifact Creation Guidelines**
 

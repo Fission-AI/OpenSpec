@@ -11,7 +11,7 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
  * The apply workflow instructions, authored once and rendered by both the
  * skill and command surfaces. The surfaces are intentionally distinct, but
  * they differ only in how they are invoked — the generation transformers
- * rewrite the canonical `/opsx:<id>` tokens per surface downstream (see
+ * rewrite the canonical `/opsx-<id>` tokens per surface downstream (see
  * command-references.ts). The instruction text itself is shared, so the two
  * cannot silently drift. Should a surface ever need genuinely different
  * wording, add a parameter here and pass it from that surface's template.
@@ -21,7 +21,7 @@ export function getApplyInstructions(): string {
 
 ${STORE_SELECTION_GUIDANCE}
 
-**Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
+**Input**: Optionally specify a change name (e.g., \`/opsx-apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
@@ -32,7 +32,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Auto-select if only one active change exists
    - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
-   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx-apply <other>\`).
 
 2. **Check status to understand the schema**
    \`\`\`bash
@@ -58,7 +58,7 @@ ${STORE_SELECTION_GUIDANCE}
    - Optional \`operationGuidance\`: current advisory guidance for apply
 
    **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\` (if it is not installed, run \`openspec status --change "<name>" --json\` to see the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` for how to create it)
+   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx-continue\` (if it is not installed, run \`openspec status --change "<name>" --json\` to see the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` for how to create it)
    - If \`state: "all_done"\`: congratulate, suggest archive
    - Otherwise: proceed to implementation
 
@@ -147,7 +147,7 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! You can archive this change with \`/opsx:archive\`.
+All tasks complete! You can archive this change with \`/opsx-archive\`.
 \`\`\`
 
 **Output On Pause (Issue Encountered)**
