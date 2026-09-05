@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { promises as fs } from 'node:fs';
+import { promises as fs, realpathSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
@@ -62,10 +62,25 @@ describe('archive workflows delegate the final move to the CLI', () => {
       const { archive } = JSON.parse(result.stdout);
       const destination = path.join(root, 'openspec/changes/archive', name);
       expect(archive).toMatchObject({ change: name, archivedAs: name, specsUpdated: false });
-      expect(archive.path).toBe(await fs.realpath(destination));
+      expect(realpathSync.native(archive.path)).toBe(realpathSync.native(destination));
       await expect(fs.readFile(path.join(destination, 'specs/capability/spec.md'), 'utf8')).resolves.toBe(deltaSpec);
       await expect(fs.readFile(path.join(root, 'openspec/specs/capability/spec.md'), 'utf8')).resolves.toBe(mainSpec);
       await expect(fs.access(path.join(root, 'openspec/changes', name))).rejects.toThrow();
+    });
+
+    it(`${surface}: compares archive identity through a directory alias`, async () => {
+      const alias = path.join(root, 'archive-alias');
+      const archiveRoot = path.join(root, 'openspec/changes/archive');
+      await fs.mkdir(archiveRoot);
+      await fs.symlink(archiveRoot, alias, process.platform === 'win32' ? 'junction' : 'dir');
+
+      const result = await runCLI(commandArgs(content), { cwd: root });
+      expect(result.exitCode, result.stdout + result.stderr).toBe(0);
+      const { archive } = JSON.parse(result.stdout);
+      const destination = path.join(alias, name);
+      expect(archive.path).not.toBe(destination);
+      expect(realpathSync.native(archive.path)).toBe(realpathSync.native(destination));
+      await expect(fs.readFile(path.join(destination, 'tasks.md'), 'utf8')).resolves.toBe('- [x] Finished\n');
     });
 
     it.each(['empty', 'nonempty'])(`${surface}: rejects a %s destination created before the move`, async (state) => {
@@ -86,4 +101,13 @@ describe('archive workflows delegate the final move to the CLI', () => {
       await expect(fs.readFile(path.join(root, 'openspec/specs/capability/spec.md'), 'utf8')).resolves.toBe(mainSpec);
     });
   }
+
+  it('keeps the existing archive intact in the command collision-recovery example', () => {
+    const content = getOpsxArchiveCommandTemplate().content;
+    const recovery = content.split('**Output On Error (Archive Exists)**')[1].split('**Guardrails**')[0];
+    expect(recovery).toContain('Keep the existing archive intact');
+    expect(recovery).toContain('different change name');
+    expect(recovery).toContain('CLI diagnostics');
+    expect(recovery).not.toMatch(/delete the existing archive|wait until a different date/i);
+  });
 });
