@@ -11,13 +11,10 @@ import type { CommandSurfaceCapability } from '../core/command-surface.js';
 import type { CommandInvocation } from '../core/command-generation/invocation.js';
 // Value import of a pure, dependency-free helper: invocation.ts imports only
 // `path` and a type, so this does not close the cycle the note above guards.
-import {
-  formatCommandInvocation,
-  needsInvocationRewrite,
-} from '../core/command-generation/invocation.js';
+import { formatCommandInvocation } from '../core/command-generation/invocation.js';
 
 /**
- * Rewrites the canonical `/opsx:<command>` references that command bodies and
+ * Rewrites the canonical `/opsx-<command>` references that command bodies and
  * skill templates are authored with into the form one tool actually registers
  * — `/opsx-<command>` for tools that name the command by filename,
  * `@opsx-<command>` for Amazon Q's prompt library.
@@ -39,7 +36,7 @@ export function transformCommandInvocations(
   text: string,
   invocation: CommandInvocation
 ): string {
-  return text.replace(/\/opsx:([a-z-]+)/g, (match, commandId: string) =>
+  return text.replace(/\/opsx[:-]([a-z-]+)/g, (match, commandId: string) =>
     commandId in COMMAND_TO_SKILL_NAME
       ? formatCommandInvocation(invocation, commandId)
       : match
@@ -96,14 +93,14 @@ export function usesNaturalLanguageSkillReferences(toolId: string): boolean {
 }
 
 function replaceCommandsWithNaturalLanguageSkillReferences(text: string): string {
-  return text.replace(/\/opsx:([a-z-]+)/g, (match, commandId: string) => {
+  return text.replace(/\/opsx[:-]([a-z-]+)/g, (match, commandId: string) => {
     const skillName = COMMAND_TO_SKILL_NAME[commandId];
     return skillName === undefined ? match : `the ${skillName} skill`;
   });
 }
 
 function replaceCommandsWithSkillReferences(text: string, prefix: string): string {
-  return text.replace(/\/opsx:([a-z-]+)/g, (match, commandId: string) => {
+  return text.replace(/\/opsx[:-]([a-z-]+)/g, (match, commandId: string) => {
     const skillName = COMMAND_TO_SKILL_NAME[commandId];
     return skillName === undefined ? match : `${prefix}${skillName}`;
   });
@@ -114,7 +111,7 @@ function replaceCommandsWithSkillReferences(text: string, prefix: string): strin
  * `.agents` tree usable by agents that invoke the same skills with `/<name>`.
  */
 export function transformToCodexCompatibleSkillReferences(text: string): string {
-  return text.replace(/\/opsx:([a-z-]+)/g, (match, commandId: string) => {
+  return text.replace(/\/opsx[:-]([a-z-]+)/g, (match, commandId: string) => {
     const skillName = COMMAND_TO_SKILL_NAME[commandId];
     return skillName === undefined
       ? match
@@ -198,7 +195,7 @@ export function getSkillReferenceTransformer(toolId: string): (text: string) => 
  *        adapter. Required rather than optional so a caller that forgets it
  *        fails to compile instead of silently getting the canonical form.
  * @returns The transformer to pass to generateSkillContent, or undefined when
- *          the tool already answers to the canonical `/opsx:<id>`
+ *          the tool already answers to the canonical `/opsx-<id>`
  */
 export function getTransformerForTool(
   toolId: string,
@@ -214,7 +211,7 @@ export function getTransformerForTool(
   if (toolId === 'devin' && delivery === 'both') {
     return getSkillReferenceTransformer(toolId);
   }
-  if (invocation !== undefined && needsInvocationRewrite(invocation)) {
+  if (invocation !== undefined) {
     return (text: string) => transformCommandInvocations(text, invocation);
   }
   return undefined;

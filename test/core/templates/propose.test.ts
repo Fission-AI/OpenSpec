@@ -188,12 +188,12 @@ describe('propose implementation boundary', () => {
   });
 
   it('hands command-only tools to apply instead of advertising direct coding (#258)', () => {
-    expect(proposeCommandBody).toContain('When you are ready, run `/opsx:apply`.');
+    expect(proposeCommandBody).toContain('When you are ready, run `/opsx-apply`.');
     expect(proposeCommandBody).not.toContain('ask me to implement');
     expect(proposeCommandBody).not.toContain('ask me to apply this change');
 
     expect(proposeSkillBody).toContain(
-      'run `/opsx:apply` or ask me to apply this change'
+      'run `/opsx-apply` or ask me to apply this change'
     );
     expect(proposeSkillBody).not.toContain('ask me to implement');
   });
