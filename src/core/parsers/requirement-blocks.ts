@@ -298,8 +298,11 @@ function parseRemovedNames(sectionBody: SectionBody): string[] {
       names.push(normalizeRequirementName(m[1]));
       continue;
     }
-    // Also support bullet list of headers
-    const bullet = line.match(/^\s*-\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
+    // Also support bullet list of headers. Every CommonMark bullet marker
+    // counts: `*` and `+` open a list exactly as `-` does, so accepting only
+    // `-` turned a removal written with either of them into a silent no-op -
+    // archive reported success while the requirement stayed in the spec.
+    const bullet = line.match(/^\s*[-*+]\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
     if (bullet) {
       names.push(normalizeRequirementName(bullet[1]));
     }
@@ -315,8 +318,11 @@ function parseRenamedPairs(sectionBody: SectionBody): Array<{ from: string; to: 
   for (let i = 0; i < lines.length; i++) {
     if (fenceMask[i]) continue;
     const line = lines[i];
-    const fromMatch = line.match(/^\s*-?\s*FROM:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
-    const toMatch = line.match(/^\s*-?\s*TO:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
+    // The bullet stays optional, and any CommonMark marker is accepted: a rename
+    // written with `*` or `+` used to match nothing at all, so the rename never
+    // happened while archive still reported success.
+    const fromMatch = line.match(/^\s*[-*+]?\s*FROM:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
+    const toMatch = line.match(/^\s*[-*+]?\s*TO:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
     if (fromMatch) {
       current.from = normalizeRequirementName(fromMatch[1]);
     } else if (toMatch) {
