@@ -185,16 +185,20 @@ The command SHALL generate Agent Skills for selected AI tools.
 
 - **WHEN** a tool is selected during initialization
 - **THEN** create one skill directory under `.<tool>/skills/` for each workflow in the effective workflow selection, drawn from:
+  - `openspec-propose/SKILL.md`
   - `openspec-explore/SKILL.md`
   - `openspec-new-change/SKILL.md`
   - `openspec-continue-change/SKILL.md`
   - `openspec-apply-change/SKILL.md`
+  - `openspec-update-change/SKILL.md`
   - `openspec-ff-change/SKILL.md`
-  - `openspec-verify-change/SKILL.md`
   - `openspec-sync-specs/SKILL.md`
   - `openspec-archive-change/SKILL.md`
   - `openspec-bulk-archive-change/SKILL.md`
-  - `openspec-review/SKILL.md` (opt-in: only when the effective workflow selection includes `review`)
+  - `openspec-verify-change/SKILL.md`
+  - `openspec-review/SKILL.md`
+  - `openspec-onboard/SKILL.md`
+- **AND** the default core selection covers `propose`, `explore`, `apply`, `update`, `sync`, and `archive`; every other workflow in the list is opt-in through `openspec config`
 - **AND** each SKILL.md SHALL contain YAML frontmatter with name and description
 - **AND** each SKILL.md SHALL contain the skill instructions
 
@@ -213,16 +217,20 @@ The command SHALL generate opsx slash commands only for selected tools that have
 
 - **WHEN** a tool with a registered command adapter is selected during initialization
 - **THEN** create one slash command file per workflow in the effective workflow selection, using the tool's command adapter, drawn from:
+  - `/opsx:propose`
   - `/opsx:explore`
   - `/opsx:new`
   - `/opsx:continue`
   - `/opsx:apply`
+  - `/opsx:update`
   - `/opsx:ff`
-  - `/opsx:verify`
   - `/opsx:sync`
   - `/opsx:archive`
   - `/opsx:bulk-archive`
-  - `/opsx:review` (opt-in: only when the effective workflow selection includes `review`)
+  - `/opsx:verify`
+  - `/opsx:review`
+  - `/opsx:onboard`
+- **AND** the default core selection covers `propose`, `explore`, `apply`, `update`, `sync`, and `archive`; every other workflow in the list is opt-in through `openspec config`
 - **AND** use tool-specific path conventions (e.g., `.claude/commands/opsx/` for Claude)
 - **AND** include tool-specific frontmatter format
 
