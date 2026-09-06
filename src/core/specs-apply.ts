@@ -565,11 +565,12 @@ export async function buildUpdatedSpec(
   // glued the heading to the Purpose paragraph and the first requirement, so
   // every archive rewrote a well-formatted spec into that shape. Separate
   // non-empty slices with one blank line instead.
-  const rebuilt = [parts.before.trimEnd(), parts.headerLine, reqBody, parts.after.trim()]
-    .filter((s) => s !== '')
-    .join('\n\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trimEnd() + '\n';
+  const rebuilt =
+    collapseBlankRunsOutsideFences(
+      [parts.before.trimEnd(), parts.headerLine, reqBody, parts.after.trim()]
+        .filter((s) => s !== '')
+        .join('\n\n')
+    ).trimEnd() + '\n';
 
   return {
     rebuilt,
@@ -750,6 +751,44 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
   }
 
   return [...new Set(leftovers)];
+}
+
+/**
+ * Collapse runs of blank lines to a single blank line - everywhere except
+ * inside a fenced code block.
+ *
+ * The normalisation exists to tidy the seams between the slices this function
+ * rejoins. Applying it to the whole document also rewrote the inside of fenced
+ * code blocks, so a requirement documenting a sample with two consecutive blank
+ * lines had that sample silently edited on every archive. That matters for
+ * whitespace-significant content, and every other structural pass in this
+ * module is already fence-aware via `buildCodeFenceMask`.
+ *
+ * Only a truly empty line counts as blank, exactly as the `/\n{3,}/` it
+ * replaces did: a line of spaces was never collapsed and still is not.
+ */
+function collapseBlankRunsOutsideFences(content: string): string {
+  const lines = content.split('\n');
+  const mask = buildCodeFenceMask(lines);
+  const kept: string[] = [];
+  let blankRun = 0;
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (mask[index]) {
+      blankRun = 0;
+      kept.push(line);
+      continue;
+    }
+    if (line === '') {
+      blankRun++;
+      if (blankRun > 1) continue;
+      kept.push(line);
+      continue;
+    }
+    blankRun = 0;
+    kept.push(line);
+  }
+  return kept.join('\n');
 }
 
 function normalizeBlockRaw(raw: string): string {
