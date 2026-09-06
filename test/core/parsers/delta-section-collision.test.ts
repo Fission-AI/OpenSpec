@@ -217,10 +217,22 @@ describe('parseDeltaSpec (repeated delta section headers)', () => {
     });
   });
 
-  it('reports section presence for a header written only as a second copy', () => {
+  it('reports section presence for a delta header that follows another section', () => {
     const plan = parseDeltaSpec(
-      ['## ADDED Requirements', '### Requirement: A', 'a'].join('\n')
+      [
+        '## Purpose',
+        'A capability that does not exist yet.',
+        '',
+        '## ADDED Requirements',
+        '### Requirement: A',
+        'a',
+      ].join('\n')
     );
+
+    // The lookup now scans a list rather than reading one keyed entry, so a
+    // delta header preceded by a non-matching section is still found.
+    expect(plan.sectionPresence.added).toBe(true);
+    expect(plan.added.map((block) => block.name)).toEqual(['A']);
     expect(plan.sectionPresence.removed).toBe(false);
   });
 });
@@ -258,6 +270,10 @@ describe('buildUpdatedSpec (repeated delta section headers)', () => {
     '',
   ].join('\n');
 
+  /**
+   * Write a main spec and a delta into a temp project, then run the merge and
+   * return its result without touching any real project.
+   */
   async function build(deltaBody: string) {
     const specsRoot = path.join(tempDir, 'openspec', 'specs');
     const specsDir = path.join(specsRoot, 'billing');
