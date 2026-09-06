@@ -31,20 +31,22 @@ The skill SHALL build a shared change context block before involving any role, a
 - **THEN** the agent reads the change's status and apply instructions via `openspec status --change "<name>" --json` and `openspec instructions apply --change "<name>" --json`
 - **AND** reads every artifact named by the status output (proposal, design, delta specs, tasks)
 - **AND** the context block names the change, artifact paths, affected modules/paths, and the build and test commands for those modules
+- **AND** the agent runs those build and test commands before spawning any role and records the observed outcome, with failure output, in the context block
 
 ### Requirement: Reviewer Role
 The skill SHALL instruct a read-only reviewer to audit the implementation against the change artifacts and report findings with evidence.
 
 #### Scenario: Reviewer audit
 - **WHEN** the reviewer role is run with the change context block
-- **THEN** the reviewer reads every artifact, verifies each delta-spec requirement and scenario against code citing `file:line` evidence, and verifies each task checkbox is backed by implementation and tests
-- **AND** runs the build and test commands from the context block and reports failures with the relevant output
+- **THEN** the reviewer reads every artifact, verifies each delta-spec requirement and scenario against code citing `file:line` evidence, and verifies each task checkbox against evidence appropriate to its type: a code task needs implementation and a test, a documentation, coordination, or CI task needs the outcome it states
+- **AND** consumes the recorded build and test results from the context block instead of running those commands, reporting the failures they carry with their output, and raising a missing or stale result as a must-fix finding
 - **AND** checks changed files for security issues and regressions against surrounding code
 - **AND** reports findings as `MUST-FIX` or `SUGGESTION` entries with `file:line` and evidence, ending with `Verdict: CLEAN` or `Verdict: ISSUES (N must-fix, M suggestions)`
 
 #### Scenario: Reviewer write boundary
 - **WHEN** the reviewer role is run
 - **THEN** no file is modified, created, or deleted and no mutating command is run by that role
+- **AND** the role is spawned without file-editing or install tools and runs no build command, since the build rewrites generated output such as `dist/`
 
 ### Requirement: Critic Role
 The skill SHALL instruct a read-only critic to challenge each reviewer finding with evidence and to search for missed defects.
@@ -53,7 +55,8 @@ The skill SHALL instruct a read-only critic to challenge each reviewer finding w
 - **WHEN** the critic role is run with the change context block and the reviewer's findings
 - **THEN** the critic marks each reviewer finding `CONFIRMED` or `REJECTED` with evidence (diff, test output, or quoted code)
 - **AND** reports missed edge cases, logic gaps, silent failures, regressions, scope creep, and over-engineering
-- **AND** classifies every finding as `BLOCKING`, `WARNING`, or `SUGGESTION` with a concrete alternative for each
+- **AND** classifies every finding as `BLOCKING`, `WARNING`, or `SUGGESTION` with a concrete alternative for each, reserving `BLOCKING` for a violated spec, data loss, a security issue, or a failing test
+- **AND** reports `PASS` whenever no blocking finding stands, whatever the warning and suggestion count, and reports `WARNING` only to bring a non-blocking finding to the user's attention
 - **AND** ends with `Verdict: PASS`, `Verdict: WARNING`, or `Verdict: BLOCKING (N blocking, M warnings, K suggestions)`
 
 #### Scenario: Critic write boundary
@@ -65,7 +68,7 @@ The skill SHALL dispatch write-capable fixer roles that resolve exactly one conf
 
 #### Scenario: Implementer fixes a confirmed defect
 - **WHEN** a confirmed must-fix issue calls for behavior change, a missing requirement, or a failing test
-- **THEN** an implementer role writes or updates the failing test first, then the minimal fix, staying inside the files named in the issue
+- **THEN** an implementer role writes or updates the failing test first, then the minimal fix, staying inside the files named in the issue together with the test file that directly covers them so the fix can carry its regression test
 - **AND** runs the test command from the context block and shows it passing before reporting
 - **AND** if the fix would require editing files outside the issue's scope, stops and reports why instead of proceeding
 
@@ -79,7 +82,7 @@ The skill SHALL dispatch write-capable fixer roles that resolve exactly one conf
 - **THEN** fixer roles run one at a time, one issue per role, with disjoint file scopes
 
 ### Requirement: Consensus Gate
-The skill SHALL end the loop only when all four consensus conditions hold on evidence, and SHALL otherwise feed the failing evidence back into the fix step.
+The skill SHALL end the loop only when all four consensus conditions hold on evidence, and SHALL otherwise feed the failing evidence back into the fix step within a bounded number of cycles.
 
 #### Scenario: Consensus reached
 - **WHEN** the reviewer reports `Verdict: CLEAN` and the critic reports `Verdict: PASS` and `openspec validate --change "<name>" --json` reports the change valid and all tests for the affected modules pass with the build completing without errors
@@ -90,9 +93,15 @@ The skill SHALL end the loop only when all four consensus conditions hold on evi
 - **THEN** the failing evidence is fed back into the fix step and the loop repeats
 - **AND** a single clean reviewer pass without the other conditions is not sufficient to end the loop
 
+#### Scenario: The loop is bounded
+- **WHEN** a change has run 3 cycles, or a cycle applies no fix, or a cycle repeats the previous cycle's blocking findings
+- **THEN** the loop stops and reports consensus NOT REACHED together with the outstanding evidence
+- **AND** `WARNING` and `SUGGESTION` findings are collected for the final report and never hold the loop open on their own
+
 #### Scenario: Pre-existing failures do not block
-- **WHEN** a test or build failure is shown to predate the change
-- **THEN** it is noted separately in the report and does not block consensus
+- **WHEN** the same test or build failure is reproduced on the pre-change baseline and that reproduction is quoted in the report
+- **THEN** the failure is noted separately and does not block consensus
+- **AND** a failure without that baseline reproduction stays blocking
 
 ### Requirement: Cycle Report
 The skill SHALL report the outcome of every cycle and the final readiness verdict.

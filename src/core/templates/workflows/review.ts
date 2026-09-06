@@ -52,7 +52,11 @@ Do not assume any named agent type (reviewer/critic/implementer/etc.) exists. If
    Modules: <affected modules/paths>
    Build: <build command for affected modules>
    Tests: <test command for affected modules>
+   Build result: <outcome you observed running the build command, plus the failure output if any>
+   Test result: <outcome you observed running the test command, plus the failure output if any>
    \`\`\`
+
+   Run the build and test commands yourself before spawning any role, and record what you observe in the block. Read-only roles consume these results instead of running the commands: the build rewrites generated output such as \`dist/\`, which sits outside a read-only role.
 
 3. **Review** — spawn a subagent with the REVIEWER brief. Read-only role.
 
@@ -60,11 +64,11 @@ Do not assume any named agent type (reviewer/critic/implementer/etc.) exists. If
 
 5. **Implement fixes** — for each confirmed must-fix issue, spawn a subagent with the IMPLEMENTER brief (bugs, missing requirements, failing tests) or the SIMPLIFIER brief (complexity, dead code). One issue per subagent. Run fixers sequentially with disjoint file scopes.
 
-6. **Re-verify** — repeat steps 3–5 until the reviewer reports \`CLEAN\` and the critic reports \`PASS\`.
+6. **Re-verify** — repeat steps 3–5 until the reviewer reports \`CLEAN\` and the critic reports \`PASS\` (no blocking findings). \`WARNING\` and \`SUGGESTION\` findings never keep the loop open: collect them for the final report. Run at most 3 cycles per change; when a cycle applies no fix, or repeats the previous cycle's blocking findings, stop and report \`NOT REACHED\` with the outstanding evidence.
 
 7. **Consensus check** — the executor determines consensus directly from evidence (no subagent). Consensus holds only when ALL of:
-   - Reviewer verdict \`CLEAN\`: every spec requirement/scenario implemented, every task genuinely complete
-   - Critic verdict \`PASS\`: no blocking findings
+   - Reviewer verdict \`CLEAN\`: every spec requirement/scenario implemented, and every task genuinely complete on evidence appropriate to its type
+   - Critic verdict \`PASS\`: no blocking findings; \`WARNING\` and \`SUGGESTION\` findings are reported, not gatekept
    - \`openspec validate --change "<name>" --json\` reports the change valid
    - All tests for the affected modules pass and the build completes with no errors
 
@@ -91,13 +95,13 @@ Each brief is a complete, self-contained prompt. Pass it verbatim together with 
 
 ### REVIEWER (read-only)
 
-You are a code reviewer auditing an OpenSpec change implementation. READ-ONLY: do not modify, create, or delete any file; do not run mutating commands (no git commit, no edits, no installs).
+You are a code reviewer auditing an OpenSpec change implementation. READ-ONLY: do not modify, create, or delete any file; do not run mutating commands (no git commit, no edits, no installs, no build — the build rewrites generated output such as \`dist/\`).
 
 Given the change context block, do:
 1. Read every change artifact (proposal, design, delta specs, tasks).
 2. Verify each requirement and scenario in the delta specs is implemented: locate the code and quote \`file:line\` as evidence.
-3. Verify every task in tasks.md is genuinely complete: the implementation exists AND is tested. A checkbox with no code or no test is a must-fix finding.
-4. Run the build and test commands from the context block. Report failures with the relevant output.
+3. Verify every task in tasks.md is genuinely complete on evidence appropriate to its type: a code task needs the implementation plus its test; a documentation, coordination, or CI task needs the outcome it states. A checkbox with no evidence of the right kind is a must-fix finding.
+4. Consume the recorded Build result and Test result from the context block instead of running those commands yourself; report the failures they carry with their output. If either result is missing or predates the latest fix, raise it as a must-fix finding.
 5. Check the changed files for security issues (secrets, injection) and regressions against surrounding code.
 
 Report every finding in exactly this format:
@@ -116,6 +120,8 @@ Given the change context block plus the reviewer's findings, do:
 3. Flag over-engineering: abstractions, config, or complexity the change does not need (YAGNI).
 4. Classify every finding: \`BLOCKING\` (spec violated, data loss, security, failing test) | \`WARNING\` | \`SUGGESTION\`. Offer a concrete alternative for each, not just criticism.
 
+Report \`PASS\` when there are no blocking findings, whatever the warning and suggestion count; \`WARNING\` when a non-blocking finding deserves the user's attention; \`BLOCKING\` only when a blocking finding stands.
+
 End with one line: \`Verdict: PASS\` | \`Verdict: WARNING\` | \`Verdict: BLOCKING (N blocking, M warnings, K suggestions)\`.
 
 ### IMPLEMENTER (writes code)
@@ -126,7 +132,7 @@ Given the change context block plus one issue (file, line, description, evidence
 1. Read the surrounding code and existing tests.
 2. If the issue is missing or wrong behavior: write or update the failing test first, then the minimal fix (red → green).
 3. Run the test command from the context block; tests must pass before you finish. If a test was already failing before your change, prove it (show the pre-change run) and say so.
-4. Stay inside the files named in the issue. If the fix requires touching other files, stop and report why instead of proceeding.
+4. Stay inside the files named in the issue, plus the test file that directly covers them: writing the regression test your step 2 calls for is inside your scope. If the fix requires touching any other file, stop and report why instead of proceeding.
 
 Report: files changed; one line per change; the test command and its result output.
 
@@ -143,11 +149,12 @@ Report: files changed; lines removed/changed; the test command and its result ou
 
 **Guardrails**
 
-- **Read-only roles never write** — only the IMPLEMENTER and SIMPLIFIER modify code, one issue at a time, sequentially, with disjoint file scopes.
+- **Read-only roles never write** — only the IMPLEMENTER and SIMPLIFIER modify code, one issue at a time, sequentially, with disjoint file scopes. The executor enforces this with tool capabilities, not instruction alone: spawn the REVIEWER and CRITIC without file-editing or install tools, keep their shell to read-only inspection such as \`git diff\`, and keep the build command in the executor.
 - **Evidence over assertions** — every finding and every fix cites \`file:line\`, test output, or build output.
-- **Distinguish pre-existing failures** — failures that predate the change (with proof) are noted separately and do not block consensus.
+- **Distinguish pre-existing failures on proof** — a failure is excused from consensus only when the same failure is reproduced on the pre-change baseline (a clean checkout of the base commit, or the executor's run recorded before any fix), with that reproduction quoted in the report. Without that proof it blocks.
 - **No task checkbox flips without proof** — a task is complete only when its implementation and tests exist.
 - **Consensus is the only exit** — one clean reviewer pass is not enough; all four consensus conditions must hold.
+- **The loop is bounded** — at most 3 cycles per change, and a cycle that applies no fix or repeats the previous cycle's blocking findings ends it with \`NOT REACHED\` plus the outstanding evidence. A bounded stop is reported as such, never dressed up as consensus.
 - **Per-change loops** — if multiple changes are in scope, complete the full loop for one change before starting the next.`;
 
 const REVIEW_COMMAND_CONTENT = `Run an iterative review–critique–implement loop on an OpenSpec change: spawn subagents from the self-contained role briefs below, apply fixes where issues are found, and repeat until the consensus check passes.
@@ -193,7 +200,11 @@ Do not assume any named agent type (reviewer/critic/implementer/etc.) exists. If
    Modules: <affected modules/paths>
    Build: <build command for affected modules>
    Tests: <test command for affected modules>
+   Build result: <outcome you observed running the build command, plus the failure output if any>
+   Test result: <outcome you observed running the test command, plus the failure output if any>
    \`\`\`
+
+   Run the build and test commands yourself before spawning any role, and record what you observe in the block. Read-only roles consume these results instead of running the commands: the build rewrites generated output such as \`dist/\`, which sits outside a read-only role.
 
 3. **Review** — spawn a subagent with the REVIEWER brief. Read-only role.
 
@@ -201,11 +212,11 @@ Do not assume any named agent type (reviewer/critic/implementer/etc.) exists. If
 
 5. **Implement fixes** — for each confirmed must-fix issue, spawn a subagent with the IMPLEMENTER brief (bugs, missing requirements, failing tests) or the SIMPLIFIER brief (complexity, dead code). One issue per subagent. Run fixers sequentially with disjoint file scopes.
 
-6. **Re-verify** — repeat steps 3–5 until the reviewer reports \`CLEAN\` and the critic reports \`PASS\`.
+6. **Re-verify** — repeat steps 3–5 until the reviewer reports \`CLEAN\` and the critic reports \`PASS\` (no blocking findings). \`WARNING\` and \`SUGGESTION\` findings never keep the loop open: collect them for the final report. Run at most 3 cycles per change; when a cycle applies no fix, or repeats the previous cycle's blocking findings, stop and report \`NOT REACHED\` with the outstanding evidence.
 
 7. **Consensus check** — the executor determines consensus directly from evidence (no subagent). Consensus holds only when ALL of:
-   - Reviewer verdict \`CLEAN\`: every spec requirement/scenario implemented, every task genuinely complete
-   - Critic verdict \`PASS\`: no blocking findings
+   - Reviewer verdict \`CLEAN\`: every spec requirement/scenario implemented, and every task genuinely complete on evidence appropriate to its type
+   - Critic verdict \`PASS\`: no blocking findings; \`WARNING\` and \`SUGGESTION\` findings are reported, not gatekept
    - \`openspec validate --change "<name>" --json\` reports the change valid
    - All tests for the affected modules pass and the build completes with no errors
 
@@ -232,13 +243,13 @@ Each brief is a complete, self-contained prompt. Pass it verbatim together with 
 
 ### REVIEWER (read-only)
 
-You are a code reviewer auditing an OpenSpec change implementation. READ-ONLY: do not modify, create, or delete any file; do not run mutating commands (no git commit, no edits, no installs).
+You are a code reviewer auditing an OpenSpec change implementation. READ-ONLY: do not modify, create, or delete any file; do not run mutating commands (no git commit, no edits, no installs, no build — the build rewrites generated output such as \`dist/\`).
 
 Given the change context block, do:
 1. Read every change artifact (proposal, design, delta specs, tasks).
 2. Verify each requirement and scenario in the delta specs is implemented: locate the code and quote \`file:line\` as evidence.
-3. Verify every task in tasks.md is genuinely complete: the implementation exists AND is tested. A checkbox with no code or no test is a must-fix finding.
-4. Run the build and test commands from the context block. Report failures with the relevant output.
+3. Verify every task in tasks.md is genuinely complete on evidence appropriate to its type: a code task needs the implementation plus its test; a documentation, coordination, or CI task needs the outcome it states. A checkbox with no evidence of the right kind is a must-fix finding.
+4. Consume the recorded Build result and Test result from the context block instead of running those commands yourself; report the failures they carry with their output. If either result is missing or predates the latest fix, raise it as a must-fix finding.
 5. Check the changed files for security issues (secrets, injection) and regressions against surrounding code.
 
 Report every finding in exactly this format:
@@ -257,6 +268,8 @@ Given the change context block plus the reviewer's findings, do:
 3. Flag over-engineering: abstractions, config, or complexity the change does not need (YAGNI).
 4. Classify every finding: \`BLOCKING\` (spec violated, data loss, security, failing test) | \`WARNING\` | \`SUGGESTION\`. Offer a concrete alternative for each, not just criticism.
 
+Report \`PASS\` when there are no blocking findings, whatever the warning and suggestion count; \`WARNING\` when a non-blocking finding deserves the user's attention; \`BLOCKING\` only when a blocking finding stands.
+
 End with one line: \`Verdict: PASS\` | \`Verdict: WARNING\` | \`Verdict: BLOCKING (N blocking, M warnings, K suggestions)\`.
 
 ### IMPLEMENTER (writes code)
@@ -267,7 +280,7 @@ Given the change context block plus one issue (file, line, description, evidence
 1. Read the surrounding code and existing tests.
 2. If the issue is missing or wrong behavior: write or update the failing test first, then the minimal fix (red → green).
 3. Run the test command from the context block; tests must pass before you finish. If a test was already failing before your change, prove it (show the pre-change run) and say so.
-4. Stay inside the files named in the issue. If the fix requires touching other files, stop and report why instead of proceeding.
+4. Stay inside the files named in the issue, plus the test file that directly covers them: writing the regression test your step 2 calls for is inside your scope. If the fix requires touching any other file, stop and report why instead of proceeding.
 
 Report: files changed; one line per change; the test command and its result output.
 
@@ -284,11 +297,12 @@ Report: files changed; lines removed/changed; the test command and its result ou
 
 **Guardrails**
 
-- **Read-only roles never write** — only the IMPLEMENTER and SIMPLIFIER modify code, one issue at a time, sequentially, with disjoint file scopes.
+- **Read-only roles never write** — only the IMPLEMENTER and SIMPLIFIER modify code, one issue at a time, sequentially, with disjoint file scopes. The executor enforces this with tool capabilities, not instruction alone: spawn the REVIEWER and CRITIC without file-editing or install tools, keep their shell to read-only inspection such as \`git diff\`, and keep the build command in the executor.
 - **Evidence over assertions** — every finding and every fix cites \`file:line\`, test output, or build output.
-- **Distinguish pre-existing failures** — failures that predate the change (with proof) are noted separately and do not block consensus.
+- **Distinguish pre-existing failures on proof** — a failure is excused from consensus only when the same failure is reproduced on the pre-change baseline (a clean checkout of the base commit, or the executor's run recorded before any fix), with that reproduction quoted in the report. Without that proof it blocks.
 - **No task checkbox flips without proof** — a task is complete only when its implementation and tests exist.
 - **Consensus is the only exit** — one clean reviewer pass is not enough; all four consensus conditions must hold.
+- **The loop is bounded** — at most 3 cycles per change, and a cycle that applies no fix or repeats the previous cycle's blocking findings ends it with \`NOT REACHED\` plus the outstanding evidence. A bounded stop is reported as such, never dressed up as consensus.
 - **Per-change loops** — if multiple changes are in scope, complete the full loop for one change before starting the next.`;
 
 export function getReviewSkillTemplate(): SkillTemplate {
