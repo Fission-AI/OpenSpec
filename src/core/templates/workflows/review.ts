@@ -19,9 +19,10 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Spawning roles**
 
-For each role, spawn a general-purpose subagent (Agent tool, \`subagent_type: general-purpose\`) with exactly two things:
+For each role, spawn a general-purpose subagent (Agent tool, \`subagent_type: general-purpose\`) with:
 1. The role brief, verbatim, from the Role Briefs section.
 2. The change context block (built in step 2).
+3. Any role-specific evidence the Steps name for that role (for the critic: the reviewer's findings, verbatim).
 
 Do not assume any named agent type (reviewer/critic/implementer/etc.) exists. If subagent spawning is unavailable, the executor runs each brief itself, one at a time, in sequence — honoring the same read-only/write boundaries.
 
@@ -159,9 +160,10 @@ ${STORE_SELECTION_GUIDANCE}
 
 **Spawning roles**
 
-For each role, spawn a general-purpose subagent (Agent tool, \`subagent_type: general-purpose\`) with exactly two things:
+For each role, spawn a general-purpose subagent (Agent tool, \`subagent_type: general-purpose\`) with:
 1. The role brief, verbatim, from the Role Briefs section.
 2. The change context block (built in step 2).
+3. Any role-specific evidence the Steps name for that role (for the critic: the reviewer's findings, verbatim).
 
 Do not assume any named agent type (reviewer/critic/implementer/etc.) exists. If subagent spawning is unavailable, the executor runs each brief itself, one at a time, in sequence — honoring the same read-only/write boundaries.
 
