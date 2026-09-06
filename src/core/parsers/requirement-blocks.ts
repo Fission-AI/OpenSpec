@@ -169,24 +169,32 @@ export function parseDeltaSpec(content: string): DeltaPlan {
   const lines = normalized.split('\n');
   const fenceMask = buildCodeFenceMask(lines);
   const sections = splitTopLevelSections(lines, fenceMask);
-  const addedLookup = getSectionCaseInsensitive(sections, 'ADDED Requirements');
-  const modifiedLookup = getSectionCaseInsensitive(sections, 'MODIFIED Requirements');
-  const removedLookup = getSectionCaseInsensitive(sections, 'REMOVED Requirements');
-  const renamedLookup = getSectionCaseInsensitive(sections, 'RENAMED Requirements');
+  const addedLookup = getSectionsCaseInsensitive(sections, 'ADDED Requirements');
+  const modifiedLookup = getSectionsCaseInsensitive(sections, 'MODIFIED Requirements');
+  const removedLookup = getSectionsCaseInsensitive(sections, 'REMOVED Requirements');
+  const renamedLookup = getSectionsCaseInsensitive(sections, 'RENAMED Requirements');
   const skippedHeaders: SkippedHeader[] = [];
-  const added = parseRequirementBlocksFromSection(addedLookup.body, {
-    section: addedLookup.title,
-    bodyStartLine: addedLookup.bodyStartLine,
-    sink: skippedHeaders,
-  });
-  const modified = parseRequirementBlocksFromSection(modifiedLookup.body, {
-    section: modifiedLookup.title,
-    bodyStartLine: modifiedLookup.bodyStartLine,
-    sink: skippedHeaders,
-  });
-  const removedNames = parseRemovedNames(removedLookup.body);
-  const removedBlocks = parseRequirementBlocksFromSection(removedLookup.body);
-  const renamedPairs = parseRenamedPairs(renamedLookup.body);
+  const added = addedLookup.bodies.flatMap((body) =>
+    parseRequirementBlocksFromSection(body, {
+      section: addedLookup.title,
+      bodyStartLine: body.bodyStartLine,
+      sink: skippedHeaders,
+    })
+  );
+  const modified = modifiedLookup.bodies.flatMap((body) =>
+    parseRequirementBlocksFromSection(body, {
+      section: modifiedLookup.title,
+      bodyStartLine: body.bodyStartLine,
+      sink: skippedHeaders,
+    })
+  );
+  const removedNames = removedLookup.bodies.flatMap((body) => parseRemovedNames(body));
+  const removedBlocks = removedLookup.bodies.flatMap((body) =>
+    parseRequirementBlocksFromSection(body)
+  );
+  // Pairs are read per section, so a FROM in one copy of the header can never
+  // pair with a TO in another.
+  const renamedPairs = renamedLookup.bodies.flatMap((body) => parseRenamedPairs(body));
   skippedHeaders.sort((a, b) => a.line - b.line);
   return {
     added,
@@ -204,8 +212,22 @@ export function parseDeltaSpec(content: string): DeltaPlan {
   };
 }
 
-function splitTopLevelSections(lines: string[], fenceMask: boolean[]): Record<string, SectionBody> {
-  const result: Record<string, SectionBody> = {};
+/** One `## ` section of a delta file, in the order it was written. */
+interface DeltaSection {
+  title: string;
+  body: SectionBody;
+}
+
+/**
+ * Every `## ` section, as a LIST rather than a title-keyed record.
+ *
+ * Keying by title silently dropped a repeated header: a delta that wrote
+ * `## ADDED Requirements` twice kept only the last body, so every requirement
+ * under the first copy was discarded before any validation or merge rule could
+ * see it. A list keeps each occurrence, and the lookup below merges them.
+ */
+function splitTopLevelSections(lines: string[], fenceMask: boolean[]): DeltaSection[] {
+  const sections: DeltaSection[] = [];
   const indices: Array<{ title: string; index: number }> = [];
   for (let i = 0; i < lines.length; i++) {
     if (fenceMask[i]) continue;
@@ -218,28 +240,43 @@ function splitTopLevelSections(lines: string[], fenceMask: boolean[]): Record<st
     const current = indices[i];
     const next = indices[i + 1];
     const end = next ? next.index : lines.length;
-    result[current.title] = {
-      lines: lines.slice(current.index + 1, end),
-      fenceMask: fenceMask.slice(current.index + 1, end),
-      bodyStartLine: current.index + 2,
-    };
+    sections.push({
+      title: current.title,
+      body: {
+        lines: lines.slice(current.index + 1, end),
+        fenceMask: fenceMask.slice(current.index + 1, end),
+        bodyStartLine: current.index + 2,
+      },
+    });
   }
-  return result;
+  return sections;
 }
 
-const EMPTY_SECTION_BODY: SectionBody = { lines: [], fenceMask: [], bodyStartLine: 0 };
-
-function getSectionCaseInsensitive(
-  sections: Record<string, SectionBody>,
+/**
+ * Every section body whose title folds to `desired`, in document order.
+ *
+ * Returning all of them - rather than the first match - is what makes a
+ * repeated header (`## ADDED Requirements` twice) and a case variant
+ * (`## ADDED Requirements` + `## Added Requirements`) both apply in full. Each
+ * body keeps its own `bodyStartLine`, so reported line numbers stay correct for
+ * the copy the header actually came from.
+ *
+ * `title` is the first spelling the author used, which is what diagnostics quote.
+ */
+function getSectionsCaseInsensitive(
+  sections: DeltaSection[],
   desired: string
-): { title: string; body: SectionBody; bodyStartLine: number; found: boolean } {
+): { title: string; bodies: SectionBody[]; found: boolean } {
   const target = desired.toLowerCase();
-  for (const [title, body] of Object.entries(sections)) {
-    if (title.toLowerCase() === target) {
-      return { title, body, bodyStartLine: body.bodyStartLine, found: true };
-    }
+  const matches = sections.filter((section) => section.title.toLowerCase() === target);
+  if (matches.length === 0) {
+    return { title: desired, bodies: [], found: false };
   }
-  return { title: desired, body: EMPTY_SECTION_BODY, bodyStartLine: 0, found: false };
+  return {
+    title: matches[0].title,
+    bodies: matches.map((section) => section.body),
+    found: true,
+  };
 }
 
 function parseRequirementBlocksFromSection(
