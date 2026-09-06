@@ -222,6 +222,23 @@ export class Validator {
           });
         }
 
+        // A well-formed requirement written outside every delta section. The
+        // reader only looks inside the four delta sections, so this block is
+        // ignored - reported as a WARNING rather than an ERROR because a
+        // handful of pre-format archived changes still carry this shape, and
+        // the fix is to move the block, not to reject the change outright.
+        for (const orphan of plan.orphanedRequirements) {
+          const where = orphan.section
+            ? `under "## ${orphan.section}"`
+            : 'above the first "## " section';
+          issues.push({
+            level: 'WARNING',
+            path: entryPath,
+            line: orphan.line,
+            message: `Requirement "${orphan.name}" is ${where}, which is not a delta section, so it is ignored. Move it under "## ADDED Requirements", "## MODIFIED Requirements", "## REMOVED Requirements", or "## RENAMED Requirements".`,
+          });
+        }
+
         const sectionNames: string[] = [];
         if (plan.sectionPresence.added) sectionNames.push('## ADDED Requirements');
         if (plan.sectionPresence.modified) sectionNames.push('## MODIFIED Requirements');
