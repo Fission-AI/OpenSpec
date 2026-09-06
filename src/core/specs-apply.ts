@@ -198,6 +198,21 @@ export async function buildUpdatedSpec(
   const plan = parseDeltaSpec(changeContent);
   const specName = update.id;
 
+  // A well-formed requirement written outside every delta section is not
+  // applied. Say so here as well as in validate: archive is the last point at
+  // which the author can still notice, and the block reads exactly like one
+  // that would have applied.
+  for (const orphan of plan.orphanedRequirements) {
+    const where = orphan.section
+      ? `under "## ${orphan.section}"`
+      : 'above the first "## " section';
+    warn(
+      `${specName} - requirement "${orphan.name}" (line ${orphan.line}) is ${where}, ` +
+        `which is not a delta section, so it was not applied. ` +
+        `Move it under ADDED/MODIFIED/REMOVED/RENAMED Requirements.`
+    );
+  }
+
   // Pre-validate duplicates within sections
   const addedNames = new Set<string>();
   for (const add of plan.added) {
