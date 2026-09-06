@@ -198,6 +198,20 @@ export async function buildUpdatedSpec(
   const plan = parseDeltaSpec(changeContent);
   const specName = update.id;
 
+  // A FROM:/TO: line that never formed a pair means the RENAMED section does not
+  // say what the author meant. Refuse rather than apply the pairing the reader
+  // happened to form: with interleaved lines that pairing renames a requirement
+  // the delta never named, under a name written for a different one.
+  if (plan.unpairedRenames.length > 0) {
+    const first = plan.unpairedRenames[0];
+    const missing = first.side === 'FROM' ? 'TO' : 'FROM';
+    throw new Error(
+      `${specName} validation failed - RENAMED entry on line ${first.line} has no matching ${missing}: ` +
+        `for header "### Requirement: ${first.name}". ` +
+        `Write each rename as a FROM: line followed immediately by its TO: line.`
+    );
+  }
+
   // Pre-validate duplicates within sections
   const addedNames = new Set<string>();
   for (const add of plan.added) {
