@@ -14,6 +14,7 @@ import { Validator } from '../../../src/core/validation/validator.js';
  * unpaired line is now reported, and the merge refuses rather than guessing.
  */
 describe('parseDeltaSpec (RENAMED pairing)', () => {
+  /** Parse a delta whose only section is `## RENAMED Requirements`. */
   const renamed = (...lines: string[]) =>
     parseDeltaSpec(['## RENAMED Requirements', '', ...lines].join('\n'));
 
@@ -147,6 +148,10 @@ describe('buildUpdatedSpec (RENAMED pairing)', () => {
     '',
   ].join('\n');
 
+  /**
+   * Write a main spec and a delta into a temp project, then run the merge and
+   * return its result without touching any real project.
+   */
   async function build(deltaBody: string) {
     const specsRoot = path.join(tempDir, 'openspec', 'specs');
     const specsDir = path.join(specsRoot, 'billing');
@@ -227,6 +232,10 @@ describe('validate <change> (RENAMED pairing)', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
+  /**
+   * Validate a change whose only content is the given delta spec, in a temp
+   * project, and return the report.
+   */
   async function validateDelta(deltaBody: string) {
     const changeDir = path.join(tempDir, 'openspec', 'changes', 'c');
     await fs.mkdir(path.join(changeDir, 'specs', 'billing'), { recursive: true });
