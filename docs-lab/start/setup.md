@@ -73,7 +73,7 @@ These are the OpenSpec workflows, the actions you'll use as you work. Here they 
 └── openspec-bulk-archive-change/  archive several changes at once (not included by default)
 ```
 
-This is the default set plus two optional workflows. [Profiles](../customize/profiles.md) lists all twelve.
+This is the default set plus two optional workflows. [Profiles](../customize/profiles.md) lists all thirteen.
 
 By default each workflow installs in two forms:
 

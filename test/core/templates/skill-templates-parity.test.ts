@@ -24,8 +24,10 @@ import {
   getOpsxSyncCommandTemplate,
   getOpsxProposeCommandTemplate,
   getOpsxProposeSkillTemplate,
+  getOpsxReviewCommandTemplate,
   getOpsxUpdateCommandTemplate,
   getOpsxVerifyCommandTemplate,
+  getReviewSkillTemplate,
   getSyncSpecsSkillTemplate,
   getUpdateChangeSkillTemplate,
   getVerifyChangeSkillTemplate,
@@ -63,6 +65,8 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getFeedbackSkillTemplate: 'dabeb5e825b9349abc8156c3e7b8608f27987912a6d9bf47ef29addde6138133',
   getUpdateChangeSkillTemplate: '7dc8abc6f64c58bf34d7581ed4ab095a3b7a53cb372349bee2d840db58622819',
   getOpsxUpdateCommandTemplate: 'e2388521b22f92f74561df9a0c2f98e1fa4d265af93b5ba26f42fb47a6c5bfed',
+  getReviewSkillTemplate: 'c78fd80a030976e4e67b55fe0a1f8907464a7f7997d19caabe36ea399584d536',
+  getOpsxReviewCommandTemplate: '6c6ebd37e91a032fea0b81b8e152437c11a2e8b115cc7c65f1f8df49b9eedad6',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
@@ -78,6 +82,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-onboard': 'f6f59476acaf5e4d65dbb180da4cef62432612f3cecf207d471a951295e2003a',
   'openspec-propose': 'e358b45102a88082cf20f5c4441cba02533724ad6eef8ed15ba174e3496cb6ed',
   'openspec-update-change': '586547406aca94422dfeb3ffedce6c01049429b743f57ce829baa79ebc714d51',
+  'openspec-review': '5d77fb18933187abdf7445d32b4d9ae2e651f33b96755e038ad8d591266862c8',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
@@ -95,6 +100,7 @@ const GENERATED_SKILL_FACTORIES: Array<[string, () => SkillTemplate]> = [
   ['openspec-onboard', getOnboardSkillTemplate],
   ['openspec-propose', getOpsxProposeSkillTemplate],
   ['openspec-update-change', getUpdateChangeSkillTemplate],
+  ['openspec-review', getReviewSkillTemplate],
 ];
 
 function stableStringify(value: unknown): string {
@@ -145,6 +151,8 @@ describe('skill templates split parity', () => {
       getFeedbackSkillTemplate,
       getUpdateChangeSkillTemplate,
       getOpsxUpdateCommandTemplate,
+      getReviewSkillTemplate,
+      getOpsxReviewCommandTemplate,
     };
 
     const actualHashes = Object.fromEntries(

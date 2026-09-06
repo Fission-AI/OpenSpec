@@ -89,6 +89,10 @@ export const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
     name: 'Verify change',
     description: 'Run verification checks against a change',
   },
+  review: {
+    name: 'Review',
+    description: 'Run a review-fix cycle on a change before archiving',
+  },
   onboard: {
     name: 'Onboard',
     description: 'Guided onboarding flow for OpenSpec',

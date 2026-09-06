@@ -21,7 +21,7 @@ Each links to its full contract: arguments, what it creates, and what it respond
 
 ## Expanding the set: optional workflows
 
-Six more workflows are available beyond the core set. Three of them (`new`, `continue`, `ff`) create a change proposal artifact by artifact, instead of all at once like `propose`.
+Seven more workflows are available beyond the core set. Three of them (`new`, `continue`, `ff`) create a change proposal artifact by artifact, instead of all at once like `propose`.
 
 | Workflow | What it's for |
 |---|---|
@@ -29,6 +29,7 @@ Six more workflows are available beyond the core set. Three of them (`new`, `con
 | [`continue`](../reference/skills.md#openspec-continue-change) | Create the next planning artifact in a change proposal, one at a time |
 | [`ff`](../reference/skills.md#openspec-ff-change) | Create a change proposal and every planning artifact implementation needs, in one pass |
 | [`verify`](../reference/skills.md#openspec-verify-change) | Check that the implementation matches the change proposal's artifacts |
+| [`review`](../reference/skills.md#openspec-review) | Run a review-critique-implement loop until the implementation provably matches the change proposal and tests pass |
 | [`bulk-archive`](../reference/skills.md#openspec-bulk-archive-change) | Archive several change proposals at once |
 | [`onboard`](../reference/skills.md#openspec-onboard) | Learn the workflow by doing one real change proposal end to end |
 
@@ -38,7 +39,7 @@ To change the set, run the interactive picker:
 openspec config profile
 ```
 
-The picker asks what to configure ([delivery](#delivery-skills-commands-or-both), workflows, or both), then lists all twelve workflows as checkboxes, with the installed ones checked. Any selection that isn't exactly the core six is saved as the `custom` profile, so you can also uncheck core workflows you don't use.
+The picker asks what to configure ([delivery](#delivery-skills-commands-or-both), workflows, or both), then lists all thirteen workflows as checkboxes, with the installed ones checked. Any selection that isn't exactly the core six is saved as the `custom` profile, so you can also uncheck core workflows you don't use.
 
 ## Delivery: skills, commands, or both
 

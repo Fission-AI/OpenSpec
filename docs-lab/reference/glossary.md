@@ -26,6 +26,7 @@ OpenSpec reuses words that mean something else in git, CI, and agent tooling. Ea
 | **Propose** | Create a change proposal and generate all its planning artifacts in one step. Skill: `openspec-propose`. | [Quickstart](../start/quickstart.md) |
 | **Registry** | The machine-level list of registered stores, in `registry.yaml`. Not a package registry. | [CLI](cli.md#openspec-store) |
 | **Requirement** | One behavior the system must have, written with SHALL: `### Requirement:` in a spec. | [Delta specs](schemas/spec-driven/index.md#delta-specs-specmd) |
+| **Review** | Run a review-critique-implement loop on a change proposal until reviewer and critic pass, validation is clean, and tests pass. Skill: `openspec-review`. | [Skills](skills.md) |
 | **Scenario** | A testable example under a requirement, in WHEN/THEN form. | [Delta specs](schemas/spec-driven/index.md#delta-specs-specmd) |
 | **Schema** | The definition of which artifacts a change proposal produces, and in what order. Not JSON Schema. | [Schemas](schemas/index.md) |
 | **Skill** | A workflow's instructions, installed where your AI tool reads them (`.agents/skills/`, ...). | [Skills](skills.md) |
