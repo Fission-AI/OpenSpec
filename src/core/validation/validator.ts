@@ -222,6 +222,19 @@ export class Validator {
           });
         }
 
+        // A FROM:/TO: line that never formed a pair. Reported here so the author
+        // learns at authoring time, rather than having archive either skip the
+        // rename or apply it to a requirement they never named.
+        for (const unpaired of plan.unpairedRenames) {
+          const missing = unpaired.side === 'FROM' ? 'TO' : 'FROM';
+          issues.push({
+            level: 'ERROR',
+            path: entryPath,
+            line: unpaired.line,
+            message: `RENAMED ${unpaired.side}: "${unpaired.name}" has no matching ${missing}: line. Write each rename as a FROM: line followed immediately by its TO: line.`,
+          });
+        }
+
         const sectionNames: string[] = [];
         if (plan.sectionPresence.added) sectionNames.push('## ADDED Requirements');
         if (plan.sectionPresence.modified) sectionNames.push('## MODIFIED Requirements');
