@@ -156,6 +156,10 @@ describe('buildUpdatedSpec (delta list markers)', () => {
     '',
   ].join('\n');
 
+  /**
+   * Write a main spec and a delta into a temp project, then run the merge and
+   * return its result without touching any real project.
+   */
   async function build(deltaBody: string) {
     const specsRoot = path.join(tempDir, 'openspec', 'specs');
     const specsDir = path.join(specsRoot, 'billing');

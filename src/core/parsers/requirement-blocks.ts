@@ -286,6 +286,13 @@ function parseRequirementBlocksFromSection(
   return blocks;
 }
 
+/**
+ * Requirement names listed in `## REMOVED Requirements`, in document order.
+ *
+ * Two spellings are accepted: a plain `### Requirement:` header, and a bullet
+ * carrying one. Every CommonMark bullet marker counts for the second form -
+ * see the pattern below for why that matters.
+ */
 function parseRemovedNames(sectionBody: SectionBody): string[] {
   const { lines, fenceMask } = sectionBody;
   if (lines.length === 0) return [];
@@ -310,6 +317,13 @@ function parseRemovedNames(sectionBody: SectionBody): string[] {
   return names;
 }
 
+/**
+ * `FROM:`/`TO:` rename pairs from `## RENAMED Requirements`, in document order.
+ *
+ * The bullet is optional, and every CommonMark bullet marker is accepted: a
+ * rename written with `*` or `+` used to match nothing at all, so the rename
+ * silently never happened while archive still reported success.
+ */
 function parseRenamedPairs(sectionBody: SectionBody): Array<{ from: string; to: string }> {
   const { lines, fenceMask } = sectionBody;
   if (lines.length === 0) return [];
