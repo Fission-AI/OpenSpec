@@ -39,6 +39,10 @@ describe('buildUpdatedSpec (code fence preservation)', () => {
     '',
   ].join('\n');
 
+  /**
+   * Write a main spec and a delta into a temp project, then run the merge and
+   * return its result without touching any real project.
+   */
   async function build(deltaBody: string, mainSpec = MAIN_SPEC) {
     const specsRoot = path.join(tempDir, 'openspec', 'specs');
     const specsDir = path.join(specsRoot, 'billing');
@@ -51,6 +55,7 @@ describe('buildUpdatedSpec (code fence preservation)', () => {
     return buildUpdatedSpec(update, 'c', { silent: true });
   }
 
+  /** An ADDED delta whose scenario ends in the given fenced block. */
   const withFence = (...fenceLines: string[]) =>
     [
       '## ADDED Requirements',
