@@ -162,6 +162,10 @@ describe('buildUpdatedSpec (requirements outside delta sections)', () => {
     '',
   ].join('\n');
 
+  /**
+   * Write a main spec and a delta into a temp project, then run the merge and
+   * return its result without touching any real project.
+   */
   async function build(deltaBody: string) {
     const specsRoot = path.join(tempDir, 'openspec', 'specs');
     const specsDir = path.join(specsRoot, 'billing');
@@ -225,6 +229,10 @@ describe('validate <change> (requirements outside delta sections)', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
+  /**
+   * Validate a change whose only content is the given delta spec, in a temp
+   * project, and return the report.
+   */
   async function validateDelta(deltaBody: string) {
     const changeDir = path.join(tempDir, 'openspec', 'changes', 'c');
     await fs.mkdir(path.join(changeDir, 'specs', 'billing'), { recursive: true });
