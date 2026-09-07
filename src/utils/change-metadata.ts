@@ -505,9 +505,23 @@ export function writeChangeStatus(changeDir: string, status: ChangeStatus): void
     );
   }
 
+  // Written through a sibling temp file and renamed into place. A direct
+  // write that fails partway (ENOSPC, a full disk, a killed process) truncates
+  // the file, and this one carries the change's `schema:` - losing it breaks
+  // every command that reads the change, not just the field being set. The
+  // rename is atomic on the same filesystem, so the file is either the old
+  // content or the new one.
+  const tempPath = `${metaPath}.openspec-status-${process.pid}-${Date.now()}`;
   try {
-    fs.writeFileSync(metaPath, doc.toString(), 'utf-8');
+    fs.writeFileSync(tempPath, doc.toString(), 'utf-8');
+    fs.renameSync(tempPath, metaPath);
   } catch (err) {
+    try {
+      fs.unlinkSync(tempPath);
+    } catch {
+      // Nothing to clean up, or it cannot be removed; the original file is
+      // intact either way, which is the property that matters here.
+    }
     const ioError = err instanceof Error ? err : new Error(String(err));
     throw new ChangeMetadataError(
       `Failed to write metadata: ${ioError.message}`,
