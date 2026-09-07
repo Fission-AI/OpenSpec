@@ -47,6 +47,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Qoder | `qoder` | `.qoder/skills/` | `/openspec-apply-change` | `.qoder/commands/opsx/` | `/opsx:apply` |
 | Qwen Code | `qwen` | `.qwen/skills/` | `/openspec-apply-change` | `.qwen/commands/` | `/opsx-apply` |
 | Trae | `trae` | `.trae/skills/` | `/openspec-apply-change` | `.trae/commands/` | `/opsx-apply` |
+| Warp | `warp` | `.warp/skills/` | `/openspec-apply-change` | none | none |
 | ZCode | `zcode` | `.zcode/skills/` | `/openspec-apply-change` | `.zcode/commands/opsx/` | `/opsx:apply` |
 | Zoo Code | `roocode` | `.roo/skills/` | `/openspec-apply-change` | `.roo/commands/` | `/opsx-apply` |
 | Shared `.agents` skills | `agents` | `.agents/skills/` | `/openspec-apply-change` | none | none |
@@ -117,6 +118,13 @@ init prints this reminder after install.
   the repo.
 - **Safe across projects**: a commands-only delivery leaves the global skills in
   place, so one project's setting cannot remove skills another project uses.
+
+### Warp
+
+- **Skills always**: skills go to `.warp/skills/` even when delivery is `commands`,
+  because Warp has no command files and invokes skills directly.
+- **What OpenSpec claims**: only `.warp/skills/`. Warp settings and `WARP.md` are
+  not created or edited.
 
 ### Shared `.agents` skills
 

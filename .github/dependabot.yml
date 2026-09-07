@@ -29,6 +29,10 @@ updates:
       - dependency-name: "@types/node"
         update-types:
           - version-update:semver-major
+      # Chalk 6 requires Node 22, while the published CLI supports Node 20.19.
+      - dependency-name: "chalk"
+        update-types:
+          - version-update:semver-major
       - dependency-name: "typescript"
         update-types:
           - version-update:semver-major

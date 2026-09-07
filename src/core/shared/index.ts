@@ -36,3 +36,9 @@ export {
   hasGlobalSkillTarget,
   resolveToolSkillsDir,
 } from './skill-paths.js';
+
+export {
+  type IdeRestartSurface,
+  resolveIdeRestartSurface,
+  formatIdeRestart,
+} from './ide-restart.js';
