@@ -224,9 +224,9 @@ openspec update
 
 ## Contributing
 
-Open a discussion (for core design changes) or an issue before you open a PR, and link the issue from the PR.
+Open a discussion (for core design changes) or an issue before you open a PR, and link the issue or discussion from the PR. New features, significant refactors, and architectural changes need an OpenSpec change proposal first.
 
-→ **[CONTRIBUTING.md](CONTRIBUTING.md)**: full process and local development setup
+→ **[CONTRIBUTING.md](CONTRIBUTING.md)**: the full process, from first issue to merged PR
 
 ## Other
 
