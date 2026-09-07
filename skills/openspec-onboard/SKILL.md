@@ -220,6 +220,8 @@ Here's a draft proposal:
 
 ---
 
+# Proposal
+
 ## Why
 
 [1-2 sentences explaining the problem/opportunity]
@@ -287,6 +289,8 @@ Here's the spec:
 
 ---
 
+# Spec Delta
+
 ## ADDED Requirements
 
 ### Requirement: <Name>
@@ -325,6 +329,8 @@ For small changes, this might be brief. That's fine—not every change needs dee
 Here's the design:
 
 ---
+
+# Design
 
 ## Context
 
@@ -370,6 +376,8 @@ These should be small, clear, and in logical order.
 Here are the implementation tasks:
 
 ---
+
+# Tasks
 
 ## 1. [Category or file]
 

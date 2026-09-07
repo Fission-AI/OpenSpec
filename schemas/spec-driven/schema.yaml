@@ -83,7 +83,7 @@ artifacts:
       - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
       - Every requirement MUST have at least one scenario.
 
-      New capabilities only: start the delta spec with a `## Purpose` section -
+      New capabilities only: the delta spec's first section is `## Purpose` -
       one or two sentences (50+ characters, or `openspec validate --strict`
       reports it as too brief) describing what the capability is for. Archive
       copies it into the main spec it creates; without it the new main spec is
@@ -108,8 +108,10 @@ artifacts:
       Common pitfall: Using MODIFIED with partial content loses detail at archive time.
       If adding new concerns without changing existing behavior, use ADDED instead.
 
-      Example (a new capability, so it opens with `## Purpose`):
+      Example (a new capability, so its first section is `## Purpose`):
       ```
+      # Spec Delta
+
       ## Purpose
 
       Lets users take their data out of the product in a portable format.
@@ -196,6 +198,8 @@ artifacts:
 
       Example:
       ```
+      # Tasks
+
       ## 1. Setup
 
       - [ ] 1.1 Create new module structure and verify expected files are present
