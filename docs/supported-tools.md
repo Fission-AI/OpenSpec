@@ -143,10 +143,10 @@ Your choice is saved in `openspec/config.yaml` as `githubCopilot.cloudAgent: tru
 
 `agents` is the vendor-neutral option: it writes skills to `.agents/skills/`, the
 shared root many agent tools read, instead of a tool-specific directory. It is
-the entry to pick when your assistant is not on the list above — `openspec init`
+the entry to pick when your assistant is not on the list above. `openspec init`
 shows it as **Other / Universal (shared .agents skills)**, and the picker's
 search box also finds it by `universal`, `other`, `generic`, `custom`,
-`proprietary`, `unlisted`, or `unsupported`.
+`proprietary`, `unlisted`, `unsupported`, `vendor-neutral`, or `agents.md`.
 
 | Situation | Pick |
 |-----------|------|

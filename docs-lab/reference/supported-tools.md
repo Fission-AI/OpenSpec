@@ -122,8 +122,9 @@ init prints this reminder after install.
 
 - **When it fits**: any tool that reads the shared `.agents/skills/` folder,
   including tools with no row in the matrix. It is the entry to pick when your
-  assistant is not listed; the init picker's search box finds it by `universal`,
-  `other`, `generic`, `custom`, `proprietary`, `unlisted`, or `unsupported`.
+  assistant is not listed. The init picker's search box finds it by `universal`,
+  `other`, `generic`, `custom`, `proprietary`, `unlisted`, `unsupported`,
+  `vendor-neutral`, or `agents.md`.
 - **Alongside other targets**: Antigravity, Codex, Zed Agent, and this target share
   one physical skill tree. OpenSpec records one writer in `.openspec-target` and
   writes the tree once per run. Each tool's separate command files are still
