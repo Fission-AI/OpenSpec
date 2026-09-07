@@ -648,22 +648,38 @@ With no name and no bulk flag, validate prompts you to pick items. Outside an in
 | `--all` | Validate every change and spec. |
 | `--changes` | Validate every change. |
 | `--specs` | Validate every spec. |
+| `--archived` | Check task completion in archived changes, without validating their applied spec deltas. |
 | `--strict` | Treat warnings as failures. |
 | `--type <change\|spec>` | Pick the type when a change and a spec share a name. |
 | `--json` | Print a structured report instead of text. |
+| `--report <mode>` | Bulk output: `full` (default) or `findings`. Requires an explicit bulk scope. |
 | `--concurrency <n>` | Max parallel validations in bulk runs. Default: `OPENSPEC_CONCURRENCY`, else 6. |
 | `--no-interactive` | Never prompt: a missing or ambiguous name becomes an error. |
 | `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
 
 **Output**
 
-One line per item. Bulk runs end with totals:
+Bulk runs print one status line per item, followed by any findings, and end with totals:
 
 ```
 ✓ change/add-rate-limit
 ✓ spec/api
 Totals: 2 passed, 0 failed (2 items)
 ```
+
+**Archive merge findings**
+
+For changes, validate runs archive's merge builder against the current main specs without writing files. It reports merge conflicts, such as a missing `MODIFIED` target or a conflicting `ADDED` requirement, as `INFO`:
+
+```text
+ℹ [INFO] api/spec.md: Archive would refuse this delta: api MODIFIED failed for header "### Requirement: Rate limiting" - not found
+```
+
+These findings appear even when validation passes, in both text and JSON output. `INFO` never changes the exit code, including under `--strict`: a missing target may belong to a sibling change that has not archived yet. Deltas already synced into the main specs follow archive's existing merge rules.
+
+This check does not run archive's later merged-spec validation or retirement checks. A clean report does not guarantee that archive will succeed.
+
+If the merge preflight cannot start, an `INFO` finding explains why. Existing validation findings and the exit code stay unchanged.
 
 A failing item lists each issue and the fix:
 
@@ -715,8 +731,141 @@ Next steps:
 
 **Exit codes**
 
-- `0`: every validated item passed.
-- `1`: an item failed, or the run couldn't validate anything (unknown name, nothing to validate).
+- `0`: every validated item passed, including an empty bulk scope.
+- `1`: an item failed, the report request is invalid, or the run failed (for example an unknown name or no OpenSpec root).
+
+### --report full|findings
+
+Selects the output for an explicit bulk validation scope:
+
+- **`full`**: every item. This is the default. Explicit `--report full` keeps the existing output shape without adding report metadata.
+- **`findings`**: only items with issues, including passing items with warnings or information. Every item is still validated. Totals, strict-mode behavior, and exit codes are unchanged.
+
+```bash
+openspec validate --all --report findings
+openspec validate --archived --report findings --json
+```
+
+**Scopes**
+
+| Flags | Findings `report.scope` |
+|---|---|
+| `--all` | `all` |
+| `--changes` | `changes` |
+| `--specs` | `specs` |
+| `--changes --specs`, or `--all` with either flag | `all` |
+| `--archived` | `archived` |
+
+Both explicit report modes reject a positional item name, a missing bulk scope, or archive and active scopes combined.
+
+#### Findings text output
+
+**Human output**: stdout prints `Scope: <scope> (<count> items)`, then totals. With no issue-bearing items:
+
+```text
+Scope: all (2 items)
+No item findings.
+Totals: 2 passed, 0 failed (2 items)
+```
+
+Issue-bearing item labels, severity labels, paths, and messages print to stderr. Active-scope failures keep the `Details:` rerun hint after totals. The existing root banner and progress output may precede the report.
+
+#### Findings JSON output
+
+`--report findings --json` prints one document. This example has two clean items:
+
+```json
+{
+  "report": {
+    "kind": "validation-findings",
+    "version": "1.0",
+    "scope": "all",
+    "returnedItems": 0,
+    "totalItems": 2
+  },
+  "itemFindings": [],
+  "summary": {
+    "totals": { "items": 2, "passed": 2, "failed": 0 },
+    "byType": {
+      "change": { "items": 1, "passed": 1, "failed": 0 },
+      "spec": { "items": 1, "passed": 1, "failed": 0 }
+    }
+  },
+  "root": { "path": "/Users/you/projects/my-app", "source": "nearest" }
+}
+```
+
+- **`report.kind` and `report.version`**: identify the `validation-findings` shape, version `1.0`. There is no top-level `version` or `items`.
+- **`report.returnedItems` and `report.totalItems`**: count the returned records and all validated items, respectively.
+- **`itemFindings`**: complete item records whose `issues` array is nonempty. Includes `ERROR`, `WARNING`, and `INFO` issues. Each record retains `id`, `type`, `valid`, `issues`, and `durationMs`. Archived items use `type: "change"`.
+- **`summary`**: full-run totals and per-type counts, not counts of the returned subset. An empty scope has zero totals and exits 0.
+- **`root`**: the same selected-root metadata as the full report.
+
+**Record preservation**: returned items keep their full-report order and any additive fields on items or issues. Filtering does not rewrite messages or locations, including optional `line` and `column` fields.
+
+**Command failures**: root-selection or item-discovery failures retain the existing `status` diagnostic and exit 1. They do not return a completed findings report or a successful empty report.
+
+#### Invalid report requests
+
+Both explicit report modes reject these requests before root selection or item discovery:
+
+- An unsupported report value, including an empty string.
+- A positional item name, even with a bulk flag.
+- No explicit bulk scope.
+- `--archived` combined with `--all`, `--changes`, or `--specs`.
+
+In JSON mode, a rejected request exits 1 with only a single-element `status` array. It has no `root` or report payload:
+
+```bash
+openspec validate --all --report bogus --json
+```
+
+```json
+{
+  "status": [
+    {
+      "severity": "error",
+      "code": "invalid_validation_report_request",
+      "message": "Unknown validation report 'bogus'.",
+      "fix": "Use --report full|findings with --all, --changes, --specs, or --archived, without an item name. Do not combine archived and active scopes."
+    }
+  ]
+}
+```
+
+Human mode prints the error to stderr. A bare `--report` with no value is a Commander syntax error on stderr, including with `--json`; it does not use this diagnostic envelope.
+
+#### Filter a full report externally
+
+For a custom JSON view, filter the full report with `jq` or PowerShell. These script examples preserve the validation exit code and leave command-error documents intact.
+
+In Bash with `jq`:
+
+```bash
+if validation_json=$(openspec validate --all --json); then
+  validation_exit=0
+else
+  validation_exit=$?
+fi
+printf '%s\n' "$validation_json" |
+  jq 'if has("items") then .items |= map(select(.issues | length > 0)) else . end'
+exit "$validation_exit"
+```
+
+In PowerShell:
+
+```powershell
+$validationJson = openspec validate --all --json
+$validationExit = $LASTEXITCODE
+$validationReport = $validationJson | ConvertFrom-Json
+if ($validationReport.PSObject.Properties.Name -contains 'items') {
+  $validationReport.items = @($validationReport.items | Where-Object { $_.issues.Count -gt 0 })
+}
+$validationReport | ConvertTo-Json -Depth 100
+exit $validationExit
+```
+
+These custom views keep the full report's keys but omit clean items. They are neither complete full-v1 reports nor the versioned `--report findings` shape.
 
 ## openspec archive
 

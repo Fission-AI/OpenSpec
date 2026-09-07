@@ -32,10 +32,16 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **WHEN** looking up the `cursor` tool
 - **THEN** `skillsDir` SHALL be `.cursor`
 
-#### Scenario: Windsurf paths defined
+#### Scenario: Devin Desktop paths defined
 
-- **WHEN** looking up the `windsurf` tool
-- **THEN** `skillsDir` SHALL be `.windsurf`
+- **WHEN** looking up the `devin` tool
+- **THEN** `skillsDir` SHALL be `.devin`
+
+#### Scenario: Legacy Windsurf tool ID
+
+- **WHEN** initializing with `openspec init --tools windsurf`
+- **THEN** the `windsurf` alias SHALL resolve to `devin`
+- **AND** when skill delivery is enabled, skills SHALL be generated under `.devin/skills/`, not `.windsurf/skills/`
 
 #### Scenario: Kimi Code paths defined
 

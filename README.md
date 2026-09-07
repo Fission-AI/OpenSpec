@@ -172,6 +172,7 @@ Both are in the default profile. If you want the expanded workflow (`/opsx:new`,
 → **[Concepts](docs/concepts.md)**: how it all fits<br>
 → **[Multi-Language](docs/multi-language.md)**: multi-language support<br>
 → **[Customization](docs/customization.md)**: make it yours<br>
+→ **[Community Showcase](docs/community.md)**: projects and resources built with and for OpenSpec<br>
 → **[FAQ](docs/faq.md)** · **[Troubleshooting](docs/troubleshooting.md)** · **[Glossary](docs/glossary.md)**: quick help
 
 
