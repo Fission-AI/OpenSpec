@@ -157,6 +157,25 @@ The system SHALL report ${body}.
     expect(JSON.parse(result.stdout).overlaps).toBeUndefined();
   });
 
+  it('leaves the findings report to its own shape', async () => {
+    const json = await runCLI(['validate', '--changes', '--report', 'findings', '--json'], {
+      cwd: projectDir,
+    });
+
+    // `--report findings` (#1713) is a closed v1 document — report, itemFindings,
+    // summary, root — so the advisory overlaps ride the full report only.
+    expect(json.exitCode).toBe(0);
+    const payload = JSON.parse(json.stdout);
+    expect(payload.report.kind).toBe('validation-findings');
+    expect(payload.overlaps).toBeUndefined();
+
+    const text = await runCLI(['validate', '--changes', '--report', 'findings'], {
+      cwd: projectDir,
+    });
+    expect(text.exitCode).toBe(0);
+    expect(text.stdout).not.toContain('claimed by more than one active change');
+  });
+
   it('keeps the overlaps key present for a changes-scoped run with no changes', async () => {
     const emptyDir = path.join(tempRoots[0], 'empty');
     await fs.mkdir(emptyDir, { recursive: true });
