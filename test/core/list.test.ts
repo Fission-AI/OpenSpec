@@ -130,6 +130,22 @@ Regular text that should be ignored
       expect(logOutput.some(line => line.includes('✓ Complete'))).toBe(false);
     });
 
+    it('does not report a change whose remaining work uses an unrecognised marker as complete (#1761)', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'deferred-change'), { recursive: true });
+
+      await fs.writeFile(
+        path.join(changesDir, 'deferred-change', 'tasks.md'),
+        '- [x] 1.1 Done\n- [~] 1.2 Deferred\n- [] 1.3 Empty box\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes');
+
+      expect(logOutput.some(line => line.includes('1/3 tasks'))).toBe(true);
+      expect(logOutput.some(line => line.includes('✓ Complete'))).toBe(false);
+    });
+
     it('should handle changes without tasks.md', async () => {
       const changesDir = path.join(tempDir, 'openspec', 'changes');
       await fs.mkdir(path.join(changesDir, 'no-tasks'), { recursive: true });

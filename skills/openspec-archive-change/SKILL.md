@@ -76,7 +76,11 @@ Archive a completed change in the experimental workflow.
 
    Read the tasks file (typically `tasks.md`) to check for incomplete tasks.
 
-   Count tasks marked with `- [ ]` (incomplete) vs `- [x]` (complete).
+   A checkbox is complete when its only content is `x` or `X`; spacing inside
+   the brackets does not matter, so `- [ x]` counts as complete too. Every
+   other marker is incomplete - `- [ ]`, an empty `- []`, and markers OpenSpec
+   assigns no meaning to such as `- [~]` or `- [-]`. Never read an unfamiliar
+   marker as complete.
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks
