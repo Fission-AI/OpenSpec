@@ -145,18 +145,25 @@ export function getWorkflowVerbGuidance(verb: string, projectPath: string): Work
   const message = `'${verb}' is an OpenSpec workflow, not a CLI command. Workflows run inside your AI assistant.`;
   const tools = safeDetectTools(projectPath);
   const installed = new Set(safeScanInstalledWorkflows(projectPath, tools));
-
-  if (installed.size === 0) {
-    return {
-      message,
-      details: [
-        `Fix: run 'openspec init' to install the workflows, then invoke ${canonicalCommand(verb)} in your assistant.`,
-      ],
-    };
-  }
-
   const delivery: Delivery = getGlobalConfig().delivery ?? 'both';
   const entries = invocationEntries(tools, delivery, verb);
+
+  if (installed.size === 0) {
+    // Nothing installed, but a tool may still be detected - a repo with a
+    // `.claude/` that has never run init is exactly this case. When one is,
+    // name the spelling that tool will answer to rather than the canonical
+    // form, so this branch cannot disagree with the other two about how the
+    // same tool spells the same workflow.
+    const setUp = "Fix: run 'openspec init' to install the workflows, then";
+    if (entries.length > 1) {
+      return {
+        message,
+        details: [`${setUp} use it in your assistant:`, ...indent(entries)],
+      };
+    }
+    const entry = entries[0] ?? { text: canonicalCommand(verb), naturalLanguage: false };
+    return { message, details: [instruction(entry, setUp)] };
+  }
 
   if (!installed.has(verb)) {
     const notInstalled = `The ${verb} workflow is not installed in this project.`;

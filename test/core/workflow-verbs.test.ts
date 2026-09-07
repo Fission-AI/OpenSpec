@@ -93,7 +93,7 @@ describe('workflow verbs typed at the CLI', () => {
 
     expect(guidance.message).toContain("'propose' is an OpenSpec workflow, not a CLI command");
     expect(guidance.details).toEqual([
-      "Fix: run 'openspec init' to install the workflows, then invoke /opsx:propose in your assistant.",
+      "Fix: run 'openspec init' to install the workflows, then run /opsx:propose in your assistant.",
     ]);
   });
 
@@ -110,7 +110,34 @@ describe('workflow verbs typed at the CLI', () => {
     const guidance = getWorkflowVerbGuidance('propose', projectDir);
 
     expect(guidance.details).toEqual([
-      "Fix: run 'openspec init' to install the workflows, then invoke /opsx:propose in your assistant.",
+      "Fix: run 'openspec init' to install the workflows, then run /opsx:propose in your assistant.",
+    ]);
+  });
+
+  it("names the detected tool's own spelling in the init answer", async () => {
+    // Nothing is installed, but a tool can still be detected, so this branch
+    // must not fall back to the canonical form when it knows better. Amazon Q
+    // loads these into its prompt library, invoked with `@`, and the three
+    // branches are not allowed to disagree about how one tool spells one
+    // workflow.
+    const projectDir = await makeProject();
+    await fs.mkdir(path.join(projectDir, '.amazonq'), { recursive: true });
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual([
+      "Fix: run 'openspec init' to install the workflows, then run @opsx-explore in your assistant.",
+    ]);
+  });
+
+  it('phrases the init answer as a request for a tool with no slash surface', async () => {
+    const projectDir = await makeProject();
+    await fs.mkdir(path.join(projectDir, '.rovodev'), { recursive: true });
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual([
+      "Fix: run 'openspec init' to install the workflows, then ask Rovo Dev CLI to use the openspec-explore skill.",
     ]);
   });
 
