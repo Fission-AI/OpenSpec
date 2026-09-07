@@ -46,6 +46,18 @@ export const ChangeMetadataSchema = z.object({
   // tree - only from git - so it is the author's call, not an inference from the
   // shape of a delta.
   retire_capabilities: z.boolean().optional(),
+  // Where the change sits in its own lifecycle, as data rather than as a
+  // directory position. Optional and absent by default: a change with no
+  // `status` is `proposed`, which is what every change in `changes/` has always
+  // meant. Declaring `shipped` says "these deltas belong in `specs/` now", and
+  // is what `openspec sync --check` gates on - so a proposed change passes the
+  // gate for free and red means a real mistake, instead of a check that is red
+  // for the whole life of an open PR (#1683).
+  //
+  // Nothing writes this field on its own: `openspec new change` does not emit
+  // it, and `archive` neither reads nor stamps it. A project that never opts in
+  // never sees it.
+  status: z.enum(['proposed', 'shipped']).optional(),
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;

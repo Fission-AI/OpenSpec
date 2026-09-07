@@ -19,6 +19,7 @@ import {
 } from '../core/version-check.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
+import { SyncCommand, type SyncOptions } from '../core/sync.js';
 import { ViewCommand } from '../core/view.js';
 import { resolveRootForCommand, toRootOutput } from '../core/root-selection.js';
 import { registerSpecCommand } from '../commands/spec.js';
@@ -356,10 +357,11 @@ program
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
   .option('--sort <order>', 'Sort order: "recent" (default) or "name"', 'recent')
+  .option('--status <state>', 'Only list changes in this lifecycle state: proposed|shipped')
   .option('--json', 'Output as JSON (for programmatic use)')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; json?: boolean; store?: string; storePath?: string }) => {
+  .action(async (options?: { specs?: boolean; changes?: boolean; sort?: string; status?: string; json?: boolean; store?: string; storePath?: string }) => {
     try {
       const root = await resolveRootForCommand(options ?? {}, {
         json: options?.json,
@@ -374,9 +376,17 @@ program
       const listCommand = new ListCommand();
       const mode: 'changes' | 'specs' = options?.specs ? 'specs' : 'changes';
       const sort = options?.sort === 'name' ? 'name' : 'recent';
+      // Rejected rather than ignored: a typo would otherwise silently list
+      // everything, which reads as "no change has that state".
+      if (options?.status !== undefined && options.status !== 'proposed' && options.status !== 'shipped') {
+        throw new Error(
+          `Unknown --status '${options.status}'. Use 'proposed' or 'shipped'.`
+        );
+      }
       await listCommand.execute(root.path, mode, {
         sort,
         json: options?.json,
+        ...(options?.status ? { status: options.status as 'proposed' | 'shipped' } : {}),
         ...(options?.json ? { root: toRootOutput(root) } : {}),
       });
     } catch (error) {
@@ -491,6 +501,26 @@ program
       await archiveCommand.execute(changeName, options);
     } catch (error) {
       failWithError(error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('sync [change-name]')
+  .description('Fold a change\'s spec deltas into the main specs without archiving it')
+  .option('--check', 'Report shipped changes whose deltas are not in the main specs; write nothing')
+  .option('--ship', 'Mark the named change `status: shipped` before folding it')
+  .option('-y, --yes', 'Sync even when the change still has incomplete tasks')
+  .option('--no-validate', 'Skip validation (not recommended)')
+  .option('--json', 'Output as JSON (for hooks and CI)')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (changeName?: string, options?: SyncOptions) => {
+    try {
+      const syncCommand = new SyncCommand();
+      await syncCommand.execute(changeName, options);
+    } catch (error) {
+      failWithError(error, { enabled: options?.json, fallbackCode: 'sync_error' });
       process.exit(1);
     }
   });

@@ -158,7 +158,12 @@ async function decideSpecOutcome(
   return built.counts.removed > 0 ? 'retire' : 'write';
 }
 
-async function listActiveChangeNames(changesDir: string): Promise<string[]> {
+/**
+ * Every change directory directly under `changes/`, excluding the archive.
+ * Exported so `openspec sync` enumerates the same set archive does - the two
+ * commands must never disagree about which changes are active.
+ */
+export async function listActiveChangeNames(changesDir: string): Promise<string[]> {
   try {
     const entries = await fs.readdir(changesDir, { withFileTypes: true });
     return entries

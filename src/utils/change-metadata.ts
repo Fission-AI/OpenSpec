@@ -343,3 +343,176 @@ function readBooleanMarker(
   }
   return { declared: false };
 }
+
+/**
+ * Where a change sits in its own lifecycle.
+ *
+ * `proposed` is the resting state and needs no declaration: it is what every
+ * change under `changes/` has always meant, so a project that never opts in
+ * reads as proposed everywhere.
+ */
+export type ChangeStatus = 'proposed' | 'shipped';
+
+export interface ChangeStatusMarker {
+  /** The change's state. `proposed` unless the metadata explicitly says otherwise. */
+  status: ChangeStatus;
+  /** True only when `.openspec.yaml` sets `status` itself. */
+  declared: boolean;
+  /**
+   * Set when the state could not be determined: the metadata file exists but
+   * cannot be read, does not parse, or fails the contract the rest of the CLI
+   * enforces. Callers must never round this to `proposed` - that is the
+   * direction that lets a shipped change slip past `openspec sync --check`.
+   */
+  invalidReason?: string;
+}
+
+/**
+ * Non-throwing read of the `status` field, with the same metadata contract the
+ * boolean markers above enforce: the file has to parse under
+ * ChangeMetadataSchema and name a schema that both passes `listSchemas`
+ * membership and actually resolves.
+ *
+ * The one difference is what an unreadable file means. A boolean marker that
+ * cannot be honored falls back to "not declared", which is the safe direction
+ * for `skip_specs` and `retire_capabilities` - both authorize an action, so
+ * withholding them does less. `status` gates a *check*, so the safe direction
+ * is the opposite: undetermined must stay undetermined and be reported, or a
+ * change whose metadata broke would quietly pass the gate that exists to
+ * notice exactly that kind of rot.
+ */
+export function readChangeStatus(changeDir: string): ChangeStatusMarker {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(path.join(changeDir, METADATA_FILENAME), 'utf-8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException)?.code === 'ENOENT') {
+      // No metadata at all is the ordinary case for changes authored before
+      // the file existed, and for every change that never opts in.
+      return { status: 'proposed', declared: false };
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    return undetermined(`the metadata file cannot be read (${message})`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = yaml.parse(raw);
+  } catch {
+    // Anchored so a comment like "# set status: shipped once merged" does not
+    // turn an unrelated YAML problem into an undetermined state.
+    const mentioned = /^\s*(['"]?)status\1\s*:/m.test(raw);
+    return mentioned
+      ? undetermined('the file is not valid YAML')
+      : { status: 'proposed', declared: false };
+  }
+
+  const result = ChangeMetadataSchema.safeParse(parsed);
+  if (result.success) {
+    if (result.data.status === undefined) {
+      return { status: 'proposed', declared: false };
+    }
+    // Checked only when the field is declared, exactly as the boolean markers
+    // do: a broken schema on an ordinary change is `openspec status`'s problem
+    // to report, not this reader's.
+    try {
+      const projectRoot = path.resolve(changeDir, '../../..');
+      if (!listSchemas(projectRoot).includes(result.data.schema)) {
+        return undetermined(`schema: unknown schema '${result.data.schema}'`);
+      }
+      resolveSchema(result.data.schema, projectRoot);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return undetermined(message);
+    }
+    return { status: result.data.status, declared: true };
+  }
+
+  // Key presence, not value: `status: shiped` must surface as undetermined
+  // rather than silently reading as proposed. Metadata that is broken for some
+  // unrelated reason, on a change that never mentions `status`, is simply not
+  // declared - the same restraint the boolean markers show.
+  const mentioned =
+    typeof parsed === 'object' && parsed !== null && 'status' in parsed;
+  if (mentioned) {
+    const first = result.error.issues[0];
+    const where = first.path.length > 0 ? `${first.path.join('.')}: ` : '';
+    return undetermined(`${where}${first.message}`);
+  }
+  return { status: 'proposed', declared: false };
+}
+
+/**
+ * A state that could not be determined, with its reason made safe to print.
+ * Same treatment as `unhonorable` above: every reason quotes something the
+ * author wrote, and callers print it straight to a terminal.
+ */
+function undetermined(reason: string): ChangeStatusMarker {
+  return {
+    status: 'proposed',
+    declared: false,
+    invalidReason: reason.replace(/[\u0000-\u001f\u007f]/g, '?'),
+  };
+}
+
+/**
+ * Set `status` in a change's `.openspec.yaml`, preserving every other field and
+ * the file's own formatting.
+ *
+ * Edits the parsed document rather than rewriting it from the validated object,
+ * so comments and key order survive - `writeChangeMetadata` would flatten both,
+ * and this file is hand-authored.
+ */
+export function writeChangeStatus(changeDir: string, status: ChangeStatus): void {
+  const metaPath = path.join(changeDir, METADATA_FILENAME);
+  let raw: string;
+  try {
+    raw = fs.readFileSync(metaPath, 'utf-8');
+  } catch (err) {
+    const ioError = err instanceof Error ? err : new Error(String(err));
+    throw new ChangeMetadataError(
+      (err as NodeJS.ErrnoException)?.code === 'ENOENT'
+        ? `No ${METADATA_FILENAME} in this change, so there is nothing to set status on. ` +
+          `Create the change with openspec new change, or add the file by hand.`
+        : `Failed to read metadata: ${ioError.message}`,
+      metaPath,
+      ioError
+    );
+  }
+
+  let doc: ReturnType<typeof yaml.parseDocument>;
+  try {
+    doc = yaml.parseDocument(raw);
+    if (doc.errors.length > 0) throw new Error(doc.errors[0].message);
+  } catch (err) {
+    const parseError = err instanceof Error ? err : new Error(String(err));
+    throw new ChangeMetadataError(
+      `Invalid YAML in metadata file: ${parseError.message}`,
+      metaPath,
+      parseError
+    );
+  }
+
+  doc.set('status', status);
+
+  // The edited document still has to satisfy the contract every reader
+  // enforces, or this would be a way to write metadata the CLI then rejects.
+  const check = ChangeMetadataSchema.safeParse(doc.toJS());
+  if (!check.success) {
+    throw new ChangeMetadataError(
+      `Invalid metadata: ${check.error.message}`,
+      metaPath
+    );
+  }
+
+  try {
+    fs.writeFileSync(metaPath, doc.toString(), 'utf-8');
+  } catch (err) {
+    const ioError = err instanceof Error ? err : new Error(String(err));
+    throw new ChangeMetadataError(
+      `Failed to write metadata: ${ioError.message}`,
+      metaPath,
+      ioError
+    );
+  }
+}

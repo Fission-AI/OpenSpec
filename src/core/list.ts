@@ -5,18 +5,27 @@ import { readFileSync, type Dirent } from 'fs';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import type { RootOutput } from './root-selection.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import { readChangeStatus, type ChangeStatus } from '../utils/change-metadata.js';
 
 interface ChangeInfo {
   name: string;
   completedTasks: number;
   totalTasks: number;
   lastModified: Date;
+  /**
+   * Only set when the change's `.openspec.yaml` declares `status` itself. Left
+   * undefined otherwise so a project that never opts in sees no new column and
+   * no new JSON key.
+   */
+  status?: ChangeStatus;
 }
 
 interface ListOptions {
   sort?: 'recent' | 'name';
   json?: boolean;
   root?: RootOutput;
+  /** Filter to changes in this lifecycle state. Undeclared counts as `proposed`. */
+  status?: ChangeStatus;
 }
 
 function isMissingPathError(error: unknown): boolean {
@@ -96,7 +105,7 @@ function formatRelativeTime(date: Date): string {
 
 export class ListCommand {
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
-    const { sort = 'recent', json = false, root } = options;
+    const { sort = 'recent', json = false, root, status: statusFilter } = options;
 
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
@@ -120,15 +129,33 @@ export class ListCommand {
       const changes: ChangeInfo[] = [];
 
       for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
         const changePath = path.join(changesDir, changeDir);
+        // Undeclared reads as `proposed`, which is what a change under
+        // `changes/` has always meant. Metadata that cannot be read is left
+        // unfiltered rather than guessed at - `openspec sync --check` and
+        // `openspec status` are where a broken file gets reported.
+        const marker = readChangeStatus(changePath);
+        if (statusFilter && !marker.invalidReason && marker.status !== statusFilter) {
+          continue;
+        }
+        const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
         const lastModified = await getLastModified(changePath);
         changes.push({
           name: changeDir,
           completedTasks: progress.completed,
           totalTasks: progress.total,
-          lastModified
+          lastModified,
+          ...(marker.declared ? { status: marker.status } : {})
         });
+      }
+
+      if (changes.length === 0) {
+        if (json) {
+          console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
+        } else {
+          console.log(`No changes with status '${statusFilter}' found.`);
+        }
+        return;
       }
 
       // Sort by preference (default: recent first)
@@ -145,7 +172,11 @@ export class ListCommand {
           completedTasks: c.completedTasks,
           totalTasks: c.totalTasks,
           lastModified: c.lastModified.toISOString(),
-          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress'
+          // `status` here has always meant task progress. The lifecycle state is
+          // a different axis and gets its own key, emitted only when the change
+          // declares one, so existing consumers see byte-identical output.
+          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress',
+          ...(c.status ? { lifecycle: c.status } : {})
         }));
         console.log(JSON.stringify({ changes: jsonOutput, ...(root ? { root } : {}) }, null, 2));
         return;
@@ -155,11 +186,17 @@ export class ListCommand {
       console.log('Changes:');
       const padding = '  ';
       const nameWidth = Math.max(...changes.map(c => c.name.length));
+      const anyLifecycleDeclared = changes.some(c => c.status !== undefined);
       for (const change of changes) {
         const paddedName = change.name.padEnd(nameWidth);
         const status = formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
         const timeAgo = formatRelativeTime(change.lastModified);
-        console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
+        // Only rendered when some change in this root declares a lifecycle
+        // state, so the default listing is unchanged for everyone else.
+        const lifecycle = anyLifecycleDeclared
+          ? `  ${(change.status ?? 'proposed').padEnd(8)}`
+          : '';
+        console.log(`${padding}${paddedName}${lifecycle}     ${status.padEnd(12)}  ${timeAgo}`);
       }
       return;
     }

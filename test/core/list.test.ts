@@ -187,4 +187,81 @@ Regular text that should be ignored
       expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);
     });
   });
+
+  describe('lifecycle status', () => {
+    async function change(name: string, metadata?: string): Promise<void> {
+      const dir = path.join(tempDir, 'openspec', 'changes', name);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, 'tasks.md'), '- [x] 1.1 Done\n');
+      if (metadata !== undefined) {
+        await fs.writeFile(path.join(dir, '.openspec.yaml'), metadata);
+      }
+    }
+
+    it('renders no lifecycle column when no change declares one', async () => {
+      await change('a');
+      await change('b', 'schema: spec-driven\n');
+
+      await new ListCommand().execute(tempDir, 'changes');
+
+      // A project that never opts in must see byte-identical output.
+      expect(logOutput.join('\n')).not.toContain('proposed');
+      expect(logOutput.join('\n')).not.toContain('shipped');
+    });
+
+    it('renders the column once any change declares one', async () => {
+      await change('a');
+      await change('b', 'schema: spec-driven\nstatus: shipped\n');
+
+      await new ListCommand().execute(tempDir, 'changes');
+
+      const text = logOutput.join('\n');
+      expect(text).toContain('shipped');
+      // An undeclared change reads as proposed rather than blank.
+      expect(text).toContain('proposed');
+    });
+
+    it('filters to shipped changes', async () => {
+      await change('a');
+      await change('b', 'schema: spec-driven\nstatus: shipped\n');
+
+      await new ListCommand().execute(tempDir, 'changes', { status: 'shipped' });
+
+      const text = logOutput.join('\n');
+      expect(text).toContain('b');
+      expect(text).not.toMatch(/^\s+a\s/m);
+    });
+
+    it('counts an undeclared change as proposed when filtering', async () => {
+      await change('a');
+      await change('b', 'schema: spec-driven\nstatus: shipped\n');
+
+      await new ListCommand().execute(tempDir, 'changes', { status: 'proposed' });
+
+      const text = logOutput.join('\n');
+      expect(text).toContain('a');
+      expect(text).not.toContain('shipped');
+    });
+
+    it('says so when a filter matches nothing', async () => {
+      await change('a');
+
+      await new ListCommand().execute(tempDir, 'changes', { status: 'shipped' });
+
+      expect(logOutput).toEqual(["No changes with status 'shipped' found."]);
+    });
+
+    it('emits the lifecycle key in JSON only when declared', async () => {
+      await change('a');
+      await change('b', 'schema: spec-driven\nstatus: shipped\n');
+
+      await new ListCommand().execute(tempDir, 'changes', { json: true, sort: 'name' });
+
+      const payload = JSON.parse(logOutput.join('\n'));
+      expect(payload.changes[0]).not.toHaveProperty('lifecycle');
+      expect(payload.changes[1].lifecycle).toBe('shipped');
+      // The pre-existing `status` key still means task progress.
+      expect(payload.changes[1].status).toBe('complete');
+    });
+  });
 });

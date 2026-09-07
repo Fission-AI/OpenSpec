@@ -174,6 +174,7 @@ describe('command completion registry', () => {
       'schemas',
       'show',
       'status',
+      'sync',
       'validate',
       'view',
     ]);
