@@ -578,7 +578,7 @@ Each entry names the claiming changes and what each one does to the requirement 
 Whichever of these archives second lands on a spec the first one changed; re-read it before archiving.
 ```
 
-Under `--json` the same entries appear in an `overlaps` array alongside `items` and `summary`, present (possibly empty) whenever changes are in scope.
+Under `--json` the same entries appear in an `overlaps` array alongside `items` and `summary`, present (possibly empty) whenever changes are in scope. `--report findings` is a separate document carrying item findings only, so it reports no overlaps in either format.
 
 **Examples:**
 
