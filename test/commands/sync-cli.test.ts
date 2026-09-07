@@ -18,8 +18,10 @@ describe('openspec sync / list --status (CLI surface)', () => {
     await fs.mkdir(path.join(tempDir, 'openspec', 'changes'), { recursive: true });
     await fs.mkdir(path.join(tempDir, 'openspec', 'specs'), { recursive: true });
     await fs.writeFile(path.join(tempDir, 'openspec', 'project.md'), '# Demo\n');
-    // Keep root resolution off any store registry on the host machine.
-    env = { ...process.env, XDG_DATA_HOME: path.join(tempDir, 'xdg-data') };
+    // Only the override: runCLI merges process.env itself, and forwarding a
+    // host XDG_CONFIG_HOME would count as an explicit one, sending the CLI to
+    // the developer's real config directory instead of runCLI's isolated one.
+    env = { XDG_DATA_HOME: path.join(tempDir, 'xdg-data') };
   });
 
   afterEach(async () => {

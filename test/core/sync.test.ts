@@ -382,6 +382,30 @@ describe('SyncCommand', () => {
       expect(readChangeStatus(dir).status).toBe('proposed');
     });
 
+    it('does not stamp the change when the spec write fails', async () => {
+      const dir = await makeChange('add-tracing');
+      const real = fs.writeFile;
+      const spy = vi
+        .spyOn(fs, 'writeFile')
+        .mockImplementation(async (...args: Parameters<typeof fs.writeFile>) => {
+          if (String(args[0]).endsWith(path.join('specs', 'api', 'spec.md'))) {
+            throw new Error('ENOSPC: no space left on device');
+          }
+          return real(...args);
+        });
+
+      await expect(sync.execute('add-tracing', { ship: true })).rejects.toThrow(
+        /Could not write the main specs/
+      );
+      spy.mockRestore();
+
+      // The field is stamped only once the specs on disk are correct, so a
+      // failed write cannot leave a change claiming shipped with its deltas
+      // absent.
+      expect(readChangeStatus(dir).status).toBe('proposed');
+      expect(await mainSpec()).toBe(MAIN_SPEC);
+    });
+
     it('is refused alongside --check', async () => {
       await makeChange('add-tracing');
 

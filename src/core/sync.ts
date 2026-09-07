@@ -579,18 +579,6 @@ export class SyncCommand {
       }
     }
 
-    // Every guard has passed, so this is the first point at which the change is
-    // known to be foldable. Stamping earlier would leave the working tree in the
-    // exact state this flag exists to prevent: a change claiming `shipped` while
-    // its deltas are absent from the specs, with the gate red until someone
-    // hand-edits the metadata back.
-    if (options.ship) {
-      const shipped = evaluations[0].report;
-      writeChangeStatus(path.join(changesDir, shipped.change), 'shipped');
-      shipped.status = 'shipped';
-      if (!json) console.log(`Marked '${shipped.change}' as shipped.`);
-    }
-
     const pending = evaluations.flatMap(({ writes }) => writes);
     // Sync applies one change across several capabilities, so a failure part
     // way through the loop would leave some main specs folded and others not.
@@ -651,6 +639,24 @@ export class SyncCommand {
           `requirement in ways that cannot both hold.`,
         'Reconcile the conflicting deltas, then rerun.'
       );
+    }
+
+    // Stamped last, once the specs on disk are known to be correct. Writing the
+    // field any earlier means every later failure - a write that cannot
+    // complete, a fold that does not settle - has to remember to take the
+    // metadata back with it, and the one that forgets leaves a change claiming
+    // `shipped` with its deltas absent, which is the state this flag exists to
+    // prevent. Ordering removes the failure rather than compensating for it.
+    //
+    // The reverse order is harmless and self-correcting: a fold that lands
+    // without the stamp is a proposed change whose deltas happen to already be
+    // in the specs, which the gate ignores, and rerunning `--ship` folds
+    // nothing and stamps the field.
+    if (options.ship) {
+      const shipped = evaluations[0].report;
+      writeChangeStatus(path.join(changesDir, shipped.change), 'shipped');
+      shipped.status = 'shipped';
+      if (!json) console.log(`Marked '${shipped.change}' as shipped.`);
     }
 
     const changes = evaluations.map((evaluation) => ({
