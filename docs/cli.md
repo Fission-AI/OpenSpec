@@ -651,7 +651,7 @@ that they are.
 | Option | Description |
 |--------|-------------|
 | `--check` | Report shipped changes whose deltas are not in the main specs and exit 1. Writes nothing |
-| `--ship` | Set `status: shipped` on the named change, then fold it — one command, one diff |
+| `--ship` | Set `status: shipped` on the named change, then fold it — both land in one set of file changes for you to commit |
 | `-y, --yes` | Sync even when the change still has incomplete tasks |
 | `--no-validate` | Skip validation (not recommended) |
 | `--json` | Structured output for hooks and CI |
@@ -687,7 +687,7 @@ openspec sync --check
 # Fold one change's deltas now; the change stays where it is
 openspec sync add-rate-limit
 
-# Mark it shipped and fold it in a single commit
+# Mark it shipped and fold it, so both land in one commit when you make it
 openspec sync add-rate-limit --ship
 
 # Fold every change that declares status: shipped

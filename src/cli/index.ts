@@ -383,6 +383,12 @@ program
           `Unknown --status '${options.status}'. Use 'proposed' or 'shipped'.`
         );
       }
+      // A lifecycle state belongs to a change, not a spec, so the flag has
+      // nothing to filter in specs mode. Silently ignoring it would print the
+      // full spec list as though the filter had matched everything.
+      if (options?.status !== undefined && mode === 'specs') {
+        throw new Error('--status filters changes and cannot be combined with --specs.');
+      }
       await listCommand.execute(root.path, mode, {
         sort,
         json: options?.json,

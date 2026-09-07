@@ -353,6 +353,35 @@ describe('SyncCommand', () => {
       expect(await mainSpec()).toContain('Request tracing');
     });
 
+    it('does not stamp the change when a guard refuses it', async () => {
+      const dir = await makeChange('add-tracing', {
+        tasks: '## 1. Work\n- [ ] 1.1 Not done\n',
+      });
+
+      await expect(
+        sync.execute('add-tracing', { ship: true })
+      ).rejects.toThrow(/incomplete task/i);
+
+      // Stamping before the guards would leave the tree in the exact state
+      // --ship exists to prevent: shipped, with its deltas absent.
+      expect(readChangeStatus(dir).status).toBe('proposed');
+      expect(await mainSpec()).toBe(MAIN_SPEC);
+    });
+
+    it('does not stamp the change when its deltas fail validation', async () => {
+      const dir = await makeChange('add-tracing', {
+        delta:
+          '## ADDED Requirements\n\n### Requirement: Request tracing\n' +
+          'The API SHALL attach a trace id.\n',
+      });
+
+      await expect(
+        sync.execute('add-tracing', { ship: true })
+      ).rejects.toThrow(/Validation failed/);
+
+      expect(readChangeStatus(dir).status).toBe('proposed');
+    });
+
     it('is refused alongside --check', async () => {
       await makeChange('add-tracing');
 
@@ -409,6 +438,47 @@ describe('SyncCommand', () => {
       expect(payload.sync).toBeNull();
       expect(payload.status[0].code).toBe('sync_tasks_incomplete');
       expect(process.exitCode).toBe(1);
+    });
+  });
+
+  describe('write failures leave no partly folded tree', () => {
+    it('restores every spec it had already written', async () => {
+      await makeChange('add-tracing', { status: 'shipped' });
+      // A second capability, so the run writes more than one file and a
+      // failure on the later one can strand the earlier one.
+      await fs.mkdir(path.join(changesDir(), 'add-tracing', 'specs', 'billing'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(changesDir(), 'add-tracing', 'specs', 'billing', 'spec.md'),
+        '## ADDED Requirements\n\n### Requirement: Invoice totals\n' +
+          'The system SHALL total invoices in the account currency.\n\n' +
+          '#### Scenario: Totalling\n- **WHEN** an invoice is issued\n' +
+          '- **THEN** its total is in the account currency\n'
+      );
+
+      const before = await mainSpec();
+      const real = fs.writeFile;
+      let writes = 0;
+      const spy = vi
+        .spyOn(fs, 'writeFile')
+        .mockImplementation(async (...args: Parameters<typeof fs.writeFile>) => {
+          // Let the first spec through, fail the second, then let the
+          // rollback's own writes succeed.
+          if (++writes === 2) throw new Error('ENOSPC: no space left on device');
+          return real(...args);
+        });
+
+      await expect(sync.execute(undefined, { yes: true })).rejects.toThrow(
+        /Could not write the main specs/
+      );
+      spy.mockRestore();
+
+      expect(await mainSpec()).toBe(before);
+      // The spec this run would have created must not be left behind either.
+      await expect(
+        fs.stat(path.join(specsDir(), 'billing', 'spec.md'))
+      ).rejects.toThrow();
     });
   });
 

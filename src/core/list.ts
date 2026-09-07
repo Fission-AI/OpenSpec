@@ -131,11 +131,16 @@ export class ListCommand {
       for (const changeDir of changeDirs) {
         const changePath = path.join(changesDir, changeDir);
         // Undeclared reads as `proposed`, which is what a change under
-        // `changes/` has always meant. Metadata that cannot be read is left
-        // unfiltered rather than guessed at - `openspec sync --check` and
-        // `openspec status` are where a broken file gets reported.
+        // `changes/` has always meant.
+        //
+        // A change whose metadata cannot be honored matches NEITHER filter. A
+        // filter is a claim of membership, and membership cannot be
+        // established here - listing it under both `--status proposed` and
+        // `--status shipped` states something false in one of the two. It stays
+        // visible in the unfiltered listing, and `openspec sync --check` is
+        // where the broken file gets named.
         const marker = readChangeStatus(changePath);
-        if (statusFilter && !marker.invalidReason && marker.status !== statusFilter) {
+        if (statusFilter && (marker.invalidReason || marker.status !== statusFilter)) {
           continue;
         }
         const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);

@@ -392,15 +392,6 @@ export class SyncCommand {
       return result;
     }
 
-    // `--ship` before evaluation, so the fold that follows is measured against
-    // the state the commit will carry: the field flip and the spec write land
-    // in one working-tree diff, and no intermediate commit can claim a change
-    // is shipped while its deltas are not in the specs.
-    if (options.ship) {
-      writeChangeStatus(path.join(changesDir, targets[0]), 'shipped');
-      if (!json) console.log(`Marked '${targets[0]}' as shipped.`);
-    }
-
     const evaluations: Evaluation[] = [];
     for (const name of targets) {
       evaluations.push(
@@ -588,10 +579,32 @@ export class SyncCommand {
       }
     }
 
+    // Every guard has passed, so this is the first point at which the change is
+    // known to be foldable. Stamping earlier would leave the working tree in the
+    // exact state this flag exists to prevent: a change claiming `shipped` while
+    // its deltas are absent from the specs, with the gate red until someone
+    // hand-edits the metadata back.
+    if (options.ship) {
+      const shipped = evaluations[0].report;
+      writeChangeStatus(path.join(changesDir, shipped.change), 'shipped');
+      shipped.status = 'shipped';
+      if (!json) console.log(`Marked '${shipped.change}' as shipped.`);
+    }
+
+    const pending = evaluations.flatMap(({ writes }) => writes);
+    // Sync applies one change across several capabilities, so a failure part
+    // way through the loop would leave some main specs folded and others not.
+    // Re-running would finish the job - the fold is idempotent - but a tree
+    // nobody asked for is not a state to hand back, so the previous bytes are
+    // restored instead. Simpler than archive's equivalent because sync only
+    // ever writes: there is no retirement to undo and no directory move to
+    // unwind.
+    const snapshots = await captureTargets(pending.map((write) => write.update.target));
+
     const totals = { added: 0, modified: 0, removed: 0, renamed: 0 };
     let wroteAny = false;
-    for (const { writes } of evaluations) {
-      for (const write of writes) {
+    try {
+      for (const write of pending) {
         await writeUpdatedSpec(write.update, write.rebuilt, write.counts, {
           silent: json,
           ...(isStoreSelectedRoot(root) ? { displayPath: write.update.target } : {}),
@@ -602,6 +615,15 @@ export class SyncCommand {
         totals.removed += write.counts.removed;
         totals.renamed += write.counts.renamed;
       }
+    } catch (error) {
+      const restoreFailure = await restoreTargets(snapshots);
+      throw new SyncBlockedError(
+        'sync_write_failed',
+        `Could not write the main specs: ${
+          error instanceof Error ? error.message : String(error)
+        }.${restoreFailure ? ` ${restoreFailure}` : ' No spec was left partly folded.'}`,
+        restoreFailure ? 'Restore the named files from git, then rerun.' : undefined
+      );
     }
 
     // Re-evaluate rather than assume. Folding is idempotent for a single
@@ -721,6 +743,59 @@ export class SyncCommand {
       `Complete the tasks, or rerun with ${withStoreFlag(root, `openspec sync ${changeName} --yes`)}.`
     );
   }
+}
+
+interface TargetSnapshot {
+  target: string;
+  /** The bytes that were there, or undefined when the file did not exist. */
+  content?: Buffer;
+}
+
+/** Read the current bytes of each target so a failed write can be undone. */
+async function captureTargets(targets: string[]): Promise<TargetSnapshot[]> {
+  return Promise.all(
+    targets.map(async (target) => {
+      try {
+        return { target, content: await fs.readFile(target) };
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { target };
+        throw error;
+      }
+    })
+  );
+}
+
+/**
+ * Put every captured target back the way it was, in reverse order.
+ *
+ * Returns a sentence naming what could not be restored, or undefined when the
+ * tree is back to its original state. Never throws: it runs inside a failure
+ * path, and losing the original error to a rollback error would hide the cause.
+ */
+async function restoreTargets(
+  snapshots: TargetSnapshot[]
+): Promise<string | undefined> {
+  const failed: string[] = [];
+  for (const snapshot of [...snapshots].reverse()) {
+    try {
+      if (snapshot.content === undefined) {
+        // The file did not exist before this run, so the rollback is removing
+        // whatever was created. A missing file is already the desired state.
+        await fs.unlink(snapshot.target).catch((error) => {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        });
+      } else {
+        // Written in place, exactly as writeUpdatedSpec does, so a symlinked or
+        // hard-linked spec keeps the semantics it had before the fold.
+        await fs.writeFile(snapshot.target, snapshot.content);
+      }
+    } catch {
+      failed.push(snapshot.target);
+    }
+  }
+  return failed.length > 0
+    ? `These specs could not be restored and may hold partly folded content: ${failed.join(', ')}.`
+    : undefined;
 }
 
 function toDiagnostic(error: unknown): { code: string; message: string; fix?: string } {

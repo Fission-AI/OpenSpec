@@ -80,7 +80,7 @@ The everyday shape of it:
    ```bash
    openspec sync add-rate-limit --ship
    ```
-   That sets `status: shipped` and writes the deltas into `specs/` in a single commit, so no intermediate commit claims a change shipped while the specs say otherwise.
+   That sets `status: shipped` and writes the deltas into `specs/` in one command, so both land in the same set of file changes for you to commit together. OpenSpec never runs git itself — commit the result as usual.
 3. Merge. Archive whenever you like afterwards — re-applying a delta that's already folded is a no-op, so `openspec archive` behaves exactly as it always did.
 
 The check is a pure function of the files on disk, so the same command works as a pre-commit hook, a pre-push hook, and the CI gate, and all three agree.

@@ -875,7 +875,7 @@ Folds a change's delta specs into the main specs, without archiving the change.
 
 ```bash
 openspec sync add-rate-limit          # fold one change now; nothing moves
-openspec sync add-rate-limit --ship   # mark it shipped and fold it, in one diff
+openspec sync add-rate-limit --ship   # mark it shipped and fold it, in one set of changes
 openspec sync                         # fold every change declaring status: shipped
 openspec sync --check                 # exit 1 if a shipped change has unfolded deltas
 ```

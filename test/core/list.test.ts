@@ -243,6 +243,31 @@ Regular text that should be ignored
       expect(text).not.toContain('shipped');
     });
 
+    it('excludes a change whose status cannot be determined from either filter', async () => {
+      await change('a', 'schema: spec-driven\nstatus: shiped\n');
+      await change('b', 'schema: spec-driven\nstatus: shipped\n');
+
+      await new ListCommand().execute(tempDir, 'changes', { status: 'shipped' });
+      const shippedOnly = logOutput.join('\n');
+      logOutput = [];
+      await new ListCommand().execute(tempDir, 'changes', { status: 'proposed' });
+      const proposedOnly = logOutput.join('\n');
+
+      // A filter is a claim of membership; an undetermined change belongs to
+      // neither list rather than to both.
+      expect(shippedOnly).toContain('b');
+      expect(shippedOnly).not.toMatch(/^\s+a\s/m);
+      expect(proposedOnly).toBe("No changes with status 'proposed' found.");
+    });
+
+    it('still lists an undetermined change when no filter is given', async () => {
+      await change('a', 'schema: spec-driven\nstatus: shiped\n');
+
+      await new ListCommand().execute(tempDir, 'changes');
+
+      expect(logOutput.join('\n')).toContain('a');
+    });
+
     it('says so when a filter matches nothing', async () => {
       await change('a');
 
