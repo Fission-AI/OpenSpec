@@ -121,11 +121,18 @@ function instruction(entry: InvocationEntry, lead: string): string {
  * actually installed in this project.
  *
  * Three cases, in order of what the user can act on:
- * - No OpenSpec tools detected: nothing is installed yet, so point at `init`.
- * - Tools detected but this workflow is not among the installed ones: the
- *   invocation exists only after it is added, so lead with the profile picker
- *   (#1076) and still name the spelling it will answer to.
+ * - No OpenSpec workflow artifacts at all: the project has never run `init`,
+ *   so point at `init`.
+ * - Workflows installed, but not this one: the invocation exists only after it
+ *   is added, so lead with the profile picker (#1076) and still name the
+ *   spelling it will answer to.
  * - Otherwise: name the invocation each detected tool answers to.
+ *
+ * The first case tests for installed artifacts, not for AI tool directories.
+ * `getAvailableTools` reads a bare `.claude/` as Claude Code, which says the
+ * user has an assistant and nothing about whether OpenSpec has ever run here;
+ * branching on it sent a project that never ran `init` to `openspec config
+ * profile`, a command that cannot help until there is something to configure.
  *
  * The spelling comes from the tool and the delivery mode, never from whether
  * the workflow happens to be installed - so the two installed/not-installed
@@ -137,8 +144,9 @@ function instruction(entry: InvocationEntry, lead: string): string {
 export function getWorkflowVerbGuidance(verb: string, projectPath: string): WorkflowVerbGuidance {
   const message = `'${verb}' is an OpenSpec workflow, not a CLI command. Workflows run inside your AI assistant.`;
   const tools = safeDetectTools(projectPath);
+  const installed = new Set(safeScanInstalledWorkflows(projectPath, tools));
 
-  if (tools.length === 0) {
+  if (installed.size === 0) {
     return {
       message,
       details: [
@@ -149,7 +157,6 @@ export function getWorkflowVerbGuidance(verb: string, projectPath: string): Work
 
   const delivery: Delivery = getGlobalConfig().delivery ?? 'both';
   const entries = invocationEntries(tools, delivery, verb);
-  const installed = new Set(safeScanInstalledWorkflows(projectPath, tools));
 
   if (!installed.has(verb)) {
     const notInstalled = `The ${verb} workflow is not installed in this project.`;
@@ -208,7 +215,8 @@ function safeScanInstalledWorkflows(projectPath: string, tools: AIToolOption[]):
   } catch {
     // Unknown rather than absent: treat every workflow as installed so the
     // guidance names the invocation instead of sending the user to the
-    // profile picker over an unreadable directory.
+    // profile picker, or to `init` over a project that already has one, over
+    // an unreadable directory.
     return [...ALL_WORKFLOWS];
   }
 }

@@ -97,6 +97,36 @@ describe('workflow verbs typed at the CLI', () => {
     ]);
   });
 
+  it('points at init when a tool directory exists but OpenSpec never ran here', async () => {
+    // Detection reads a bare `.claude/` as Claude Code, which says the user has
+    // an assistant and nothing about whether OpenSpec has ever run in this
+    // project. Branching on tool presence sent this project to
+    // `openspec config profile`, which cannot help until there is something to
+    // configure.
+    const projectDir = await makeProject();
+    await fs.mkdir(path.join(projectDir, '.claude', 'commands'), { recursive: true });
+    await fs.writeFile(path.join(projectDir, '.claude', 'settings.json'), '{}\n');
+
+    const guidance = getWorkflowVerbGuidance('propose', projectDir);
+
+    expect(guidance.details).toEqual([
+      "Fix: run 'openspec init' to install the workflows, then invoke /opsx:propose in your assistant.",
+    ]);
+  });
+
+  it('sends an initialized project to the profile picker, not back to init', async () => {
+    // The other side of the same branch: one installed workflow is enough to
+    // prove init has run, so a *different* missing workflow is a profile
+    // question rather than an install question.
+    const projectDir = await makeProject();
+    await fs.mkdir(path.join(projectDir, '.claude', 'commands'), { recursive: true });
+    await installSkill(projectDir, '.claude', 'openspec-propose');
+
+    expect(getWorkflowVerbGuidance('verify', projectDir).details[0]).toBe(
+      'The verify workflow is not installed in this project.'
+    );
+  });
+
   it('points at the profile picker when the workflow is not installed', async () => {
     const projectDir = await makeProject();
     await installSkill(projectDir, '.claude', 'openspec-propose');
