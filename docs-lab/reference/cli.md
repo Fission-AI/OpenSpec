@@ -999,6 +999,19 @@ Schema: spec-driven
 Next: openspec status --change add-caching
 ```
 
+When no `openspec/` directory was found, `new change` creates one where you are and says so:
+
+```
+Created change 'add-caching' at openspec/changes/add-caching/
+Schema: spec-driven
+Next: openspec status --change add-caching
+
+Note: no OpenSpec root was found here, so one was created at openspec/.
+Run `openspec init` to finish setting this project up, or delete that directory if you meant a different project.
+```
+
+The notice goes to stdout with the rest of the human output, and never appears with `--json`. In JSON, `root.source` reads `implicit` for the same case.
+
 With `--json`:
 
 ```json

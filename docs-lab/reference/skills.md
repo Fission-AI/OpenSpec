@@ -39,6 +39,8 @@ The skills come in two sets:
 - **Core**: installed by default, the main planning loop.
 - **Optional**: installed only when you add them, via [Profiles](../customize/profiles.md).
 
+Every skill expects a project that already uses OpenSpec. Before its first step that writes anything, a skill confirms the resolved root and stops when there is none, then asks how to proceed: set this project up with `openspec init`, target a store you already have with `--store <id>`, or drop OpenSpec for that request. It waits for your answer, and never creates an `openspec/` directory on its own. The entries below describe what each skill does once a root is in place.
+
 | Skill | Job | Type |
 |---|---|---|
 | [openspec-explore](#openspec-explore) | Think through an idea before it becomes a change proposal | Core |
