@@ -1,7 +1,7 @@
 import path from 'path';
 import { promises as fs } from 'fs';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
-import { compareCodePoints } from '../utils/compare.js';
+import { compareCodeUnits } from '../utils/compare.js';
 import {
   parseDeltaSpec,
   normalizeRequirementName,
@@ -212,7 +212,7 @@ export async function loadBaseRequirements(
  * Group claims into overlaps: one entry per (spec, requirement) claimed by more
  * than one change. Results are sorted by spec then requirement, and claimants
  * by change id, so output is stable enough to diff in CI. Ordering is by code
- * point rather than locale for the same reason discoverSpecFiles() is: spec
+ * unit rather than locale for the same reason discoverSpecFiles() is: spec
  * ids and requirement names are free-form text, and a locale-sensitive sort
  * would reorder non-ASCII names between one machine and the next.
  */
@@ -238,7 +238,7 @@ export function findOverlaps(
 
     const sorted = [...group].sort(
       (a, b) =>
-        compareCodePoints(a.changeId, b.changeId) || compareCodePoints(a.operation, b.operation)
+        compareCodeUnits(a.changeId, b.changeId) || compareCodeUnits(a.operation, b.operation)
     );
     overlaps.push({
       specId: group[0].specId,
@@ -253,7 +253,7 @@ export function findOverlaps(
   }
 
   return overlaps.sort(
-    (a, b) => compareCodePoints(a.specId, b.specId) || compareCodePoints(a.requirement, b.requirement)
+    (a, b) => compareCodeUnits(a.specId, b.specId) || compareCodeUnits(a.requirement, b.requirement)
   );
 }
 
