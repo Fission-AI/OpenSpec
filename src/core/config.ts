@@ -117,7 +117,7 @@ export function getUniversalTool(): AIToolOption | undefined {
 export function universalToolFallbackHint(offeredToolIds: string[]): string | undefined {
   const universal = getUniversalTool();
   if (!universal || !offeredToolIds.includes(universal.value)) return undefined;
-  return `Tool not listed? Use --tools ${universal.value} — the vendor-neutral target that writes ${universal.skillsDir}/skills/ for any assistant.`;
+  return `Tool not listed? Use --tools ${universal.value}: the vendor-neutral target that writes ${universal.skillsDir}/skills/ for any assistant.`;
 }
 
 /**
