@@ -5,16 +5,26 @@ import {
   getOpsxUpdateCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
+import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
+import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../../src/core/profiles.js';
 
 const skill = getUpdateChangeSkillTemplate();
 const command = getOpsxUpdateCommandTemplate();
 
+const render = (workflows: readonly string[]): Array<[string, string]> => {
+  const installed = new Set<string>(workflows);
+  return [
+    ['skill', resolveOptionalWorkflows(skill.instructions, installed)],
+    ['command', resolveOptionalWorkflows(command.content, installed)],
+  ];
+};
+
 // Both delivery surfaces must carry the same contract; every behavioral
-// assertion below runs against each body.
-const bodies: Array<[string, string]> = [
-  ['skill', skill.instructions],
-  ['command', command.content],
-];
+// assertion below runs against each body. Templates carry optional-workflow
+// conditionals, so a body is only meaningful once resolved against a workflow
+// set — these are the bodies a profile with every workflow installed receives.
+const bodies = render(ALL_WORKFLOWS);
+const coreBodies = render(CORE_WORKFLOWS);
 
 describe('update-change templates', () => {
   it('generates the expected skill and command shape (3.1)', () => {
@@ -77,45 +87,54 @@ describe('update-change templates', () => {
     }
   });
 
-  it('explains the optional continue workflow before suggesting it', () => {
+  it('hands off to /opsx:continue when that workflow is installed', () => {
     for (const [label, body] of bodies) {
-      const availabilityGuidance = body.indexOf(
-        '`/opsx:continue` is an optional workflow and may not be installed'
-      );
-      const firstSuggestion = body.indexOf(
-        '`/opsx:continue`',
-        availabilityGuidance + '`/opsx:continue`'.length
-      );
-
-      expect(availabilityGuidance, label).toBeGreaterThanOrEqual(0);
-      expect(body.indexOf('`/opsx:continue`'), label).toBe(availabilityGuidance);
-      expect(firstSuggestion, label).toBeGreaterThan(availabilityGuidance);
       expect(body, label).toContain(
-        'If it is unavailable, `openspec status --change "<name>" --json` shows the next artifact'
+        '`/opsx:continue` is what creates the ones that do not'
       );
-      expect(body, label).toContain(
-        '`openspec instructions "<artifact-id>" --change "<name>" --json` explains how to create it'
-      );
+      expect(body, label).toContain('suggest `/opsx:continue` to create them');
+      expect(body, label).toContain("that is `/opsx:continue`'s job");
+      // The handoff is stated outright, not deferred to a runtime availability
+      // check the model has to perform (#1734).
+      expect(body, label).not.toContain('may not be installed');
+      expect(body, label).not.toContain('verify that it is available');
     }
   });
 
-  it('confirms every edit and redirects intent changes to /opsx:new', () => {
+  it('never names /opsx:continue on a profile that does not install it', () => {
+    for (const [label, body] of coreBodies) {
+      expect(body, label).not.toContain('/opsx:continue');
+      expect(body, label).toContain('it never creates missing ones');
+      expect(body, label).toContain(
+        'run `openspec status --change "<name>" --json` for the next artifact'
+      );
+      expect(body, label).toContain(
+        '`openspec instructions "<artifact-id>" --change "<name>" --json` for how to create them'
+      );
+      expect(body, label).toContain(
+        'Anything deferred because it does not exist yet'
+      );
+      expect(body, label).toContain('creating them is a separate step, outside this workflow');
+    }
+  });
+
+  it('confirms every edit and redirects intent changes to /opsx:new when installed', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('Write only after the user confirms');
       expect(body, label).toContain('If the user rejects a revision, do not write it');
       expect(body, label).toContain('recommend starting fresh with `/opsx:new`');
       expect(body, label).toContain('Update vs. Start Fresh');
+      expect(body, label).not.toContain('first verify whether the optional');
+    }
+  });
+
+  it('routes intent changes to the CLI when /opsx:new is not installed', () => {
+    for (const [label, body] of coreBodies) {
+      expect(body, label).not.toContain('/opsx:new');
       expect(body, label).toContain('ask for a distinct unused change name');
       expect(body, label).toContain('openspec new change "<new-change-name>"');
       expect(body, label).not.toContain('openspec new change "<name>"');
-
-      const newAvailabilityCheck = body.indexOf(
-        'first verify whether the optional `/opsx:new` workflow is available'
-      );
-      const newRecommendation = body.indexOf('recommend starting fresh with `/opsx:new`');
-      expect(newAvailabilityCheck, label).toBeGreaterThanOrEqual(0);
-      expect(body.slice(0, newAvailabilityCheck), label).not.toContain('`/opsx:new`');
-      expect(newRecommendation, label).toBeGreaterThan(newAvailabilityCheck);
+      expect(body, label).toContain('Update vs. Start Fresh');
     }
   });
 });

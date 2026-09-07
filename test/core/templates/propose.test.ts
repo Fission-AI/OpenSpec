@@ -17,19 +17,37 @@ import {
   getInvocationForAdapter,
 } from '../../../src/core/command-generation/invocation.js';
 import { getCommandContents } from '../../../src/core/shared/skill-generation.js';
+import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
+import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
 
-const proposeSkillBody = getOpsxProposeSkillTemplate().instructions;
-const proposeCommandBody = getOpsxProposeCommandTemplate().content;
+// Templates carry optional-workflow conditionals; a body only means anything
+// once resolved against a workflow set. Unless a test says otherwise, these are
+// the bodies a profile with every workflow installed receives.
+const withAll = (body: string) =>
+  resolveOptionalWorkflows(body, new Set<string>(ALL_WORKFLOWS));
+const withoutApply = (body: string) =>
+  resolveOptionalWorkflows(
+    body,
+    new Set<string>(ALL_WORKFLOWS.filter((id) => id !== 'apply'))
+  );
+
+const proposeSkillBody = withAll(getOpsxProposeSkillTemplate().instructions);
+const proposeCommandBody = withAll(getOpsxProposeCommandTemplate().content);
+const asDeployed = <T extends { instructions: string }>(template: T): T => ({
+  ...template,
+  instructions: withAll(template.instructions),
+});
+
 const proposeBodies: Array<[string, string]> = [
-  ['propose skill', generateSkillContent(getOpsxProposeSkillTemplate(), 'TEST')],
-  ['propose command', getOpsxProposeCommandTemplate().content],
+  ['propose skill', generateSkillContent(asDeployed(getOpsxProposeSkillTemplate()), 'TEST')],
+  ['propose command', proposeCommandBody],
 ];
 
 // ff runs the byte-identical artifact loop, so it carries the identical guards.
 const loopBodies: Array<[string, string]> = [
   ...proposeBodies,
-  ['ff skill', getFfChangeSkillTemplate().instructions],
-  ['ff command', getOpsxFfCommandTemplate().content],
+  ['ff skill', withAll(getFfChangeSkillTemplate().instructions)],
+  ['ff command', withAll(getOpsxFfCommandTemplate().content)],
 ];
 
 const repoRoot = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
@@ -122,7 +140,9 @@ describe('planning code inspection (#339)', () => {
   });
 
   it('preserves inspection guidance through every command adapter', () => {
-    for (const command of getCommandContents(['propose', 'ff'])) {
+    for (const command of getCommandContents(ALL_WORKFLOWS).filter(({ id }) =>
+      ['propose', 'ff'].includes(id)
+    )) {
       for (const adapter of CommandAdapterRegistry.getAll()) {
         const generated = generateCommand(command, adapter).fileContent;
         const inspection = generated.indexOf('**Inspect the relevant project before drafting**');
@@ -198,8 +218,36 @@ describe('propose implementation boundary', () => {
     expect(proposeSkillBody).not.toContain('ask me to implement');
   });
 
+  // The same boundary has to hold when `apply` is not installed: the command
+  // surface may name the CLI, never a conversational handoff (#1734).
+  it('keeps command-only tools off direct coding when apply is not installed', () => {
+    const command = withoutApply(getOpsxProposeCommandTemplate().content);
+    const skill = withoutApply(getOpsxProposeSkillTemplate().instructions);
+    const ffCommand = withoutApply(getOpsxFfCommandTemplate().content);
+
+    for (const body of [command, skill, ffCommand]) {
+      expect(body).not.toContain('/opsx:apply');
+    }
+
+    expect(command).toContain(
+      'run `openspec instructions apply --change "<name>" --json` to get the tasks'
+    );
+    expect(command).not.toContain('ask me to implement');
+    expect(command).not.toContain('ask me to apply this change');
+
+    expect(ffCommand).toContain(
+      'Run `openspec instructions apply --change "<name>" --json` to get the task list'
+    );
+    expect(ffCommand).not.toContain('ask me to implement');
+
+    expect(skill).toContain('ask me to apply this change');
+    expect(skill).not.toContain('ask me to implement');
+  });
+
   it('preserves both boundaries through every command adapter', () => {
-    const propose = getCommandContents(['propose'])[0];
+    // Resolve against every workflow: this asserts the apply handoff, which
+    // is only emitted when `apply` is installed.
+    const propose = getCommandContents(ALL_WORKFLOWS).find(({ id }) => id === 'propose');
     expect(propose?.id).toBe('propose');
 
     for (const adapter of CommandAdapterRegistry.getAll()) {

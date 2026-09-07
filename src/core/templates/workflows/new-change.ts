@@ -5,7 +5,24 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+
+/**
+ * Handoffs to `continue`, which is not guaranteed to be installed alongside
+ * `new`; resolved at generation time (see optional-workflow.ts).
+ */
+const FIRST_ARTIFACT_PROMPT = optionalWorkflow(
+  'continue',
+  'Run `/opsx:continue` or just describe what this change is about and I\'ll draft it.',
+  'Just describe what this change is about and I\'ll draft it.'
+);
+
+const EXISTING_CHANGE_HINT = optionalWorkflow(
+  'continue',
+  'suggest using `/opsx:continue` instead',
+  'say so and ask whether to resume that change or pick a different name'
+);
 
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {
@@ -144,13 +161,13 @@ After completing the steps, summarize:
 - Schema/workflow being used and its artifact sequence
 - Current status (0/N artifacts complete)
 - The template for the first artifact
-- Prompt: "Ready to create the first artifact? Run \`/opsx:continue\` or just describe what this change is about and I'll draft it."
+- Prompt: "Ready to create the first artifact? ${FIRST_ARTIFACT_PROMPT}"
 
 **Guardrails**
 - Do NOT create any artifacts yet - just show the instructions
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
-- If a change with that name already exists, suggest using \`/opsx:continue\` instead
+- If a change with that name already exists, ${EXISTING_CHANGE_HINT}
 - Pass --schema if using a non-default workflow`
   };
 }

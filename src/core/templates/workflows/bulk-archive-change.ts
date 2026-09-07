@@ -5,7 +5,27 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+
+/**
+ * Archiving must merge delta specs into the main specs; the `sync` workflow is
+ * how it normally does that. A profile that selects `archive` gets `sync`
+ * injected (see getProfileWorkflows), but an install whose workflow set was
+ * read back off disk can still be missing it — in which case the merge has to
+ * happen inline rather than be handed to a workflow that is not there.
+ */
+const SYNC_INLINE_HANDOFF = optionalWorkflow(
+  'sync',
+  'Run the `/opsx:sync` workflow inline (agent-driven intelligent merge)',
+  'Perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)'
+);
+
+const SYNC_GUARDRAIL = optionalWorkflow(
+  'sync',
+  'run the `/opsx:sync` workflow inline (agent-driven)',
+  'perform the delta-to-main-spec merge inline (agent-driven)'
+);
 
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
@@ -519,7 +539,7 @@ ${STORE_SELECTION_GUIDANCE}
    Process changes in the determined order (respecting conflict resolution):
 
    a. **Sync included delta specs**:
-      - Run the \`/opsx:sync\` workflow inline (agent-driven intelligent merge) only for changes with entries in \`includedDeltas\`, passing only the included delta paths and explicitly instructing it to ignore that change's \`excludedDeltas\`. Wait for it to finish.
+      - ${SYNC_INLINE_HANDOFF} only for changes with entries in \`includedDeltas\`, passing only the included delta paths and explicitly instructing it to ignore that change's \`excludedDeltas\`. Wait for it to finish.
       - For conflicts, apply in resolved order.
       - Pass that change's fetched specs-rule snapshot into inline sync; inline
         sync must reuse it without fetching instructions again
@@ -664,7 +684,7 @@ No active changes found. Create a new change to get started.
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
-- If sync is requested, run the \`/opsx:sync\` workflow inline (agent-driven) for each change with included delta specs
+- If sync is requested, ${SYNC_GUARDRAIL} for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
 - Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`

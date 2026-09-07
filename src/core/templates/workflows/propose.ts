@@ -5,7 +5,29 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+
+/**
+ * The implementation handoff. `apply` is not guaranteed to be installed, so
+ * the prompt is resolved at generation time (see optional-workflow.ts) rather
+ * than naming a workflow that may not exist.
+ *
+ * The two surfaces word this differently on purpose (#258): a command-only
+ * tool has no conversational agent to ask, so its prompt names a command or
+ * the CLI and never invites "ask me to implement".
+ */
+const SKILL_APPLY_HANDOFF = optionalWorkflow(
+  'apply',
+  'run `/opsx:apply` or ask me to apply this change',
+  'ask me to apply this change'
+);
+
+const COMMAND_APPLY_HANDOFF = optionalWorkflow(
+  'apply',
+  'run `/opsx:apply`',
+  'run `openspec instructions apply --change "<name>" --json` to get the tasks'
+);
 
 export function getOpsxProposeSkillTemplate(): SkillTemplate {
   return {
@@ -132,7 +154,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx:apply\` or ask me to apply this change."
+- Prompt: "The artifacts are ready for review. When you are ready, ${SKILL_APPLY_HANDOFF}."
 
 **Artifact Creation Guidelines**
 
@@ -285,7 +307,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "The artifacts are ready for review. When you are ready, run \`/opsx:apply\`."
+- Prompt: "The artifacts are ready for review. When you are ready, ${COMMAND_APPLY_HANDOFF}."
 
 **Artifact Creation Guidelines**
 
