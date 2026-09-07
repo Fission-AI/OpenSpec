@@ -3,6 +3,7 @@ import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import fg from 'fast-glob';
 
 import {
   ENVIRONMENT,
@@ -201,19 +202,6 @@ describe('the manual rendered from the real CLI', () => {
 
 describe('the sections a command tree cannot supply', () => {
   const page = render(program);
-  const docs = fs.readFileSync(path.join(repoRoot, 'docs', 'cli.md'), 'utf-8');
-
-  /**
-   * Every term in the first column of a docs table, so a row that names two
-   * (`EDITOR` or `VISUAL`) contributes both.
-   */
-  function tableTerms(heading: string): string[] {
-    const section = docs.split(`## ${heading}`)[1] ?? '';
-    const table = section.split('\n---')[0];
-    return [...table.matchAll(/^\|([^|]+)\|/gm)].flatMap((row) =>
-      [...row[1].matchAll(/`([^`]+)`/g)].map((term) => term[1])
-    );
-  }
 
   it('places its sections in the order a manual is read in', () => {
     const sections = [...page.matchAll(/^\.SH (.+)$/gm)].map((match) => match[1]);
@@ -232,14 +220,34 @@ describe('the sections a command tree cannot supply', () => {
     ]);
   });
 
-  it('documents the same exit codes as the CLI reference', () => {
-    expect(EXIT_STATUS.map(([code]) => code)).toEqual(tableTerms('Exit Codes'));
+  it('names an environment variable the CLI actually reads', () => {
+    // These lists are not pinned to a prose page. Parity against `docs/cli.md`
+    // would tie the manual to the tree `docs-lab/README.md` retires, and it
+    // read backwards: the legacy table omits 130, which the CLI really does
+    // exit with. The canonical home for the variables is
+    // `docs-lab/reference/configuration/environment-variables.md`, still a
+    // skeleton; re-anchor here once it is written. Until then this holds the
+    // one property a prose table cannot: every documented variable is one the
+    // code reads, so the manual cannot advertise a variable that does nothing.
+    const sources = fg
+      .sync('src/**/*.ts', { cwd: repoRoot, absolute: true })
+      .flatMap((file) => [
+        ...fs
+          .readFileSync(file, 'utf-8')
+          .matchAll(/process\.env(?:\.([A-Za-z_][A-Za-z0-9_]*)|\[['"]([A-Za-z_][A-Za-z0-9_]*)['"]\])/g),
+      ])
+      .map((match) => match[1] ?? match[2]);
+    const readByCode = new Set(sources);
+
+    const documented = ENVIRONMENT.flatMap(([term]) => term.split(', '));
+    expect(documented.filter((name) => !readByCode.has(name))).toEqual([]);
   });
 
-  it('documents the same environment variables as the CLI reference', () => {
-    const documented = ENVIRONMENT.flatMap(([term]) => term.split(', '));
-
-    expect(documented).toEqual(tableTerms('Environment Variables'));
+  it('documents the exit codes the CLI can produce', () => {
+    // 0 and 1 are universal; 130 is the Ctrl-C code the prompts exit with, and
+    // `docs-lab/reference/cli.md` records it per command (openspec init,
+    // openspec config profile, openspec workset open).
+    expect(EXIT_STATUS.map(([code]) => code)).toEqual(['0', '1', '130']);
   });
 
   it('renders every entry into the page', () => {
