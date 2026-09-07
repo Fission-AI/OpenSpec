@@ -40,9 +40,21 @@
  *    set is exactly the active changes that declare `status: shipped`, which is
  *    bounded and drains itself as those changes archive.
  *
- * Credit: the diagnosis, the `shipped => folded` framing, and the argument that
- * a checker which reimplements the doer eventually disagrees with it are all
- * from Matan Bendix Shenhav's proposal in #1683.
+ * Credit: this design is Matan Bendix Shenhav's, from his proposal #1683 and his
+ * implementation #1684, which he closed himself. No code from it is reused here.
+ * His, not ours: the diagnosis above; `shipped => folded` as a tree predicate
+ * evaluable at every tier (his decision V); the argument that a checker which
+ * reimplements the doer eventually disagrees with it (IV); the standalone
+ * idempotent `sync` (III); status as data rather than directory position (I and
+ * II); and setting the field and folding in one working-tree diff (VI, his
+ * `ship`).
+ *
+ * One deliberate divergence. His IV decides folded-ness by byte-identical
+ * regeneration; this module uses archive's zero-operations predicate instead,
+ * because the rebuild normalizes blank lines - a hand-formatted main spec would
+ * compare unequal while being perfectly in sync, and the gate would be red for a
+ * change nobody made. Same goal as IV, reached by sharing the doer's own
+ * predicate rather than comparing its output.
  */
 
 import { promises as fs } from 'fs';
@@ -65,7 +77,12 @@ import {
   writeUpdatedSpec,
   type SpecUpdate,
 } from './specs-apply.js';
-import { isRetirableSpec, listActiveChangeNames } from './archive.js';
+import {
+  assertDistinctSpecTargets,
+  changeHasDeltaSpecsToValidate,
+  isRetirableSpec,
+  listActiveChangeNames,
+} from './archive.js';
 import {
   readChangeStatus,
   writeChangeStatus,
@@ -82,7 +99,11 @@ import { folderStyleNameProblem } from './id.js';
 export interface SyncOptions {
   /** Report what is unfolded and exit non-zero, without writing anything. */
   check?: boolean;
-  /** Set `status: shipped` on the change before folding, in one working-tree diff. */
+  /**
+   * Fold the change, then set `status: shipped` on it - one working-tree diff.
+   * The stamp is last on purpose: a failed write or a non-convergent fold must
+   * not leave the field claiming shipped with the deltas absent.
+   */
   ship?: boolean;
   /** Proceed past incomplete tasks without asking. */
   yes?: boolean;
@@ -186,7 +207,8 @@ function sumCounts(counts: SyncSpecReport['counts']): number {
 async function evaluateChange(
   changeName: string,
   changeDir: string,
-  mainSpecsDir: string
+  mainSpecsDir: string,
+  validate = true
 ): Promise<Evaluation> {
   const status = readChangeStatus(changeDir);
   const report: SyncChangeReport = {
@@ -206,6 +228,52 @@ async function evaluateChange(
       `Could not read the change's lifecycle status from ${METADATA_FILENAME}: ${status.invalidReason}`
     );
     return { report, writes: [] };
+  }
+
+  // Run BEFORE the fold, and on the `--check` path too.
+  //
+  // The gate promises `shipped => folded`, and a delta the merge would refuse is
+  // not folded and never will be. Leaving this to the write path made `--check`
+  // certify as clean a change whose only delta sat at `specs/spec.md`, which
+  // `discoverSpecFiles` does not walk (#1385): zero updates found, nothing
+  // pending, green - while `openspec sync` and `openspec archive` both refused
+  // the same tree. A gate that is green on a silently dropped requirement is
+  // worse than no gate.
+  //
+  // Whether a change HAS deltas to validate is archive's own question, asked
+  // through its own function, so a zero-delta change is treated identically by
+  // both commands.
+  if (validate) {
+    let hasDeltas: boolean;
+    try {
+      hasDeltas = await changeHasDeltaSpecsToValidate(changeDir);
+    } catch (error) {
+      report.folded = false;
+      report.blockers.push(
+        `Could not read this change's delta specs: ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+      return { report, writes: [] };
+    }
+    if (hasDeltas) {
+      // No mainSpecsDir, matching archive: the scenario-loss check standalone
+      // validate runs (#1477) is the same one buildUpdatedSpec enforces below,
+      // and reporting it here would relabel that failure.
+      const deltaReport = await new Validator().validateChangeDeltaSpecs(changeDir);
+      if (!deltaReport.valid) {
+        report.folded = false;
+        for (const issue of deltaReport.issues) {
+          if (issue.level === 'ERROR') report.blockers.push(issue.message);
+        }
+        // A report that is invalid with no ERROR issue would otherwise pass
+        // silently while claiming to have blocked.
+        if (report.blockers.length === 0) {
+          report.blockers.push(`Delta specs for '${changeName}' failed validation.`);
+        }
+        return { report, writes: [] };
+      }
+    }
   }
 
   let updates: SpecUpdate[];
@@ -369,9 +437,40 @@ export class SyncCommand {
       );
     }
 
+    // Archive refuses to skip validation without an explicit answer, because
+    // skipping it can write a spec that would never have validated. Sync is
+    // unattended by design, so there is no prompt to give - `--yes` is the
+    // answer, exactly as archive's own JSON path requires.
+    if (options.validate === false && !options.yes && !options.check) {
+      throw new SyncBlockedError(
+        'sync_confirmation_required',
+        'Skipping validation can fold a spec that would never have validated, so it needs confirmation.',
+        withStoreFlag(root, `openspec sync ${changeName ?? '<change-name>'} --no-validate --yes`)
+      );
+    }
+
     const targets = changeName
       ? [await this.resolveNamedChange(changeName, changesDir, root)]
       : await this.shippedChanges(changesDir);
+
+    // Checked before the fold, not after it. `writeChangeStatus` refuses a
+    // change with no `.openspec.yaml`, and discovering that only once the specs
+    // are written leaves a fold that is never stamped - and a rerun that fails
+    // in exactly the same place, so the ordering's usual self-correction does
+    // not apply.
+    if (options.ship) {
+      const metaPath = path.join(changesDir, targets[0], METADATA_FILENAME);
+      try {
+        await fs.access(metaPath);
+      } catch {
+        throw new SyncBlockedError(
+          'sync_ship_no_metadata',
+          `Change '${targets[0]}' has no ${METADATA_FILENAME}, so there is no file to record ` +
+            `\`status: shipped\` in. No specs were folded.`,
+          `Create the change with openspec new change, or add ${METADATA_FILENAME} by hand, then rerun.`
+        );
+      }
+    }
 
     if (targets.length === 0) {
       const result: SyncResult = {
@@ -395,13 +494,18 @@ export class SyncCommand {
     const evaluations: Evaluation[] = [];
     for (const name of targets) {
       evaluations.push(
-        await evaluateChange(name, path.join(changesDir, name), mainSpecsDir)
+        await evaluateChange(
+          name,
+          path.join(changesDir, name),
+          mainSpecsDir,
+          options.validate !== false
+        )
       );
     }
 
     return check
       ? this.reportCheck(evaluations, root, json)
-      : this.applyFolds(evaluations, changesDir, root, options, json);
+      : this.applyFolds(evaluations, changesDir, mainSpecsDir, root, options, json);
   }
 
   /** A named change has to exist, exactly as archive requires. */
@@ -517,6 +621,7 @@ export class SyncCommand {
   private async applyFolds(
     evaluations: Evaluation[],
     changesDir: string,
+    mainSpecsDir: string,
     root: ResolvedOpenSpecRoot,
     options: SyncOptions,
     json: boolean
@@ -537,74 +642,126 @@ export class SyncCommand {
       );
     }
 
-    // Same guards archive runs before it writes a spec, in the same order.
+    // Delta validation already ran inside `evaluateChange`, on the check path
+    // too, so a blocked change never reaches here. Task completion is the one
+    // guard that is about the change rather than about its deltas, and it has
+    // no bearing on whether the tree satisfies the gate - so it gates the write
+    // and deliberately does not make `--check` red.
     for (const { report } of evaluations) {
-      const changeDir = path.join(changesDir, report.change);
-      if (!skipValidation) {
-        await this.assertDeltaSpecsValid(report.change, changeDir, root, json);
-      }
       await this.assertTasksComplete(report.change, changesDir, options, root, json);
     }
 
-    if (!json) {
-      for (const { report } of evaluations) {
-        for (const warning of report.warnings) {
-          console.log(chalk.yellow(`⚠️  Warning: ${warning}`));
-        }
-      }
-    }
-
-    // Every rebuilt spec is validated before any of them is written, so a late
-    // failure leaves every target unchanged rather than half the tree folded.
-    if (!skipValidation) {
-      const validator = new Validator();
-      for (const { report, writes } of evaluations) {
-        for (const write of writes) {
-          const specReport = await validator.validateSpecContent(
-            write.update.id,
-            write.rebuilt
-          );
-          if (specReport.valid) continue;
-          const details = specReport.issues
-            .filter((issue) => issue.level === 'ERROR')
-            .map((issue) => issue.message)
-            .join('; ');
-          throw new SyncBlockedError(
-            'sync_spec_validation_failed',
-            `The spec '${write.update.id}' would be rebuilt into an invalid state by ` +
-              `change '${report.change}': ${details}. No files were changed.`,
-            `Run ${withStoreFlag(root, `openspec validate ${write.update.id}`)} after fixing the change deltas.`
-          );
-        }
-      }
-    }
-
-    const pending = evaluations.flatMap(({ writes }) => writes);
-    // Sync applies one change across several capabilities, so a failure part
-    // way through the loop would leave some main specs folded and others not.
-    // Re-running would finish the job - the fold is idempotent - but a tree
-    // nobody asked for is not a state to hand back, so the previous bytes are
-    // restored instead. Simpler than archive's equivalent because sync only
-    // ever writes: there is no retirement to undo and no directory move to
-    // unwind.
-    const snapshots = await captureTargets(pending.map((write) => write.update.target));
-
+    // Fold ONE CHANGE AT A TIME, rebuilding each against the specs as they are
+    // on disk at that moment.
+    //
+    // Evaluating every change up front and then writing them all would rebuild
+    // each one from the same pre-write baseline, so two shipped changes adding
+    // different requirements to the same capability would each produce a spec
+    // containing only their own - and the second write would erase the first,
+    // silently, while the console reported both as applied. That is not a
+    // conflict between the changes; they compose fine. It is the batch reading
+    // a stale baseline. `archive` never had the bug because it takes one change
+    // per invocation, and folding sequentially is how sync inherits that.
+    //
+    // Every target written across the whole run is captured first, so a failure
+    // on the third change still puts the first two back rather than handing
+    // back a tree nobody asked for.
     const totals = { added: 0, modified: 0, removed: 0, renamed: 0 };
+    const snapshots: TargetSnapshot[] = [];
+    // What this run last wrote to each target, so the rollback can tell its own
+    // output apart from a concurrent edit it must not clobber.
+    const wrote = new Map<string, string>();
     let wroteAny = false;
+
     try {
-      for (const write of pending) {
-        await writeUpdatedSpec(write.update, write.rebuilt, write.counts, {
-          silent: json,
-          ...(isStoreSelectedRoot(root) ? { displayPath: write.update.target } : {}),
-        });
-        wroteAny = true;
-        totals.added += write.counts.added;
-        totals.modified += write.counts.modified;
-        totals.removed += write.counts.removed;
-        totals.renamed += write.counts.renamed;
+      for (const evaluation of evaluations) {
+        const changeName = evaluation.report.change;
+        // Re-evaluated against the current tree rather than reusing the plan
+        // built before the previous change was folded.
+        const current = await evaluateChange(
+          changeName,
+          path.join(changesDir, changeName),
+          mainSpecsDir,
+          !skipValidation
+        );
+        if (current.report.blockers.length > 0) {
+          throw new SyncBlockedError(
+            'sync_change_blocked',
+            `Cannot sync '${changeName}': ${current.report.blockers[0]}`
+          );
+        }
+        evaluation.report.specs = current.report.specs;
+        evaluation.report.warnings = current.report.warnings;
+        if (current.writes.length === 0) continue;
+
+        // Two capability ids can resolve to the SAME file - a symlinked
+        // capability directory is explicitly allowed by the trust model, and a
+        // case-variant id aliases on a case-insensitive filesystem. Writing
+        // both in sequence is last-writer-wins, which loses one fold and files
+        // the other's requirements under the wrong name. Archive refuses this
+        // outright; sync uses archive's own check so the two agree on which
+        // trees they will write.
+        await assertDistinctSpecTargets(
+          current.writes.map(({ update }) => ({ id: update.id, target: update.target })),
+          'syncing'
+        );
+
+        // Validated before any of THIS change's specs is written, so a late
+        // failure inside one change leaves that change wholly unapplied.
+        if (!skipValidation) {
+          const validator = new Validator();
+          for (const write of current.writes) {
+            const specReport = await validator.validateSpecContent(
+              write.update.id,
+              write.rebuilt
+            );
+            if (specReport.valid) continue;
+            const details = specReport.issues
+              .filter((issue) => issue.level === 'ERROR')
+              .map((issue) => issue.message)
+              .join('; ');
+            throw new SyncBlockedError(
+              'sync_spec_validation_failed',
+              `The spec '${write.update.id}' would be rebuilt into an invalid state by ` +
+                `change '${changeName}': ${details}.`,
+              `Run ${withStoreFlag(root, `openspec validate ${write.update.id}`)} after fixing the change deltas.`
+            );
+          }
+        }
+
+        if (!json) {
+          for (const warning of current.report.warnings) {
+            console.log(chalk.yellow(`⚠️  Warning: ${warning}`));
+          }
+        }
+
+        for (const write of current.writes) {
+          if (!wrote.has(write.update.target)) {
+            snapshots.push(await captureTarget(write.update.target));
+          }
+          await writeUpdatedSpec(write.update, write.rebuilt, write.counts, {
+            silent: json,
+            ...(isStoreSelectedRoot(root) ? { displayPath: write.update.target } : {}),
+          });
+          wrote.set(write.update.target, write.rebuilt);
+          wroteAny = true;
+          totals.added += write.counts.added;
+          totals.modified += write.counts.modified;
+          totals.removed += write.counts.removed;
+          totals.renamed += write.counts.renamed;
+        }
       }
     } catch (error) {
-      const restoreFailure = await restoreTargets(snapshots);
+      const restoreFailure = await restoreTargets(snapshots, wrote);
+      if (error instanceof SyncBlockedError) {
+        throw new SyncBlockedError(
+          error.diagnostic.code,
+          `${error.message}${
+            restoreFailure ? ` ${restoreFailure}` : ' No spec was left partly folded.'
+          }`,
+          restoreFailure ? 'Restore the named files from git, then rerun.' : error.diagnostic.fix
+        );
+      }
       throw new SyncBlockedError(
         'sync_write_failed',
         `Could not write the main specs: ${
@@ -614,29 +771,31 @@ export class SyncCommand {
       );
     }
 
-    // Re-evaluate rather than assume. Folding is idempotent for a single
-    // change, but two shipped changes can disagree about the same requirement -
-    // one adding what the other removes - and a fold that does not settle would
-    // otherwise report success while `--check` immediately after went red. The
-    // merge builder catches the destructive shapes of that disagreement on its
-    // own (a MODIFIED that would drop a scenario, an ADDED whose content
-    // differs), so what reaches here is the non-convergent rest, and naming it
-    // is better than looping on it.
+    // Re-evaluate rather than assume. Sequential folding removes the stale
+    // baseline, but two shipped changes can still genuinely disagree - one
+    // adding a requirement the other removes - and such a pair never settles.
+    // The merge builder catches the destructive shapes on its own (a MODIFIED
+    // that would drop a scenario, an ADDED whose content differs), so what
+    // reaches here is the non-convergent rest, and naming it beats looping.
     const unsettled: string[] = [];
     for (const { report } of evaluations) {
       const after = await evaluateChange(
         report.change,
         path.join(changesDir, report.change),
-        root.specsDir
+        mainSpecsDir,
+        !skipValidation
       );
       if (!after.report.folded) unsettled.push(report.change);
     }
     if (unsettled.length > 0) {
+      const restoreFailure = await restoreTargets(snapshots, wrote);
       throw new SyncBlockedError(
         'sync_did_not_converge',
-        `Specs were written, but these changes still report unfolded deltas: ` +
+        `These changes still report unfolded deltas after a fold: ` +
           `${unsettled.join(', ')}. Two shipped changes are claiming the same ` +
-          `requirement in ways that cannot both hold.`,
+          `requirement in ways that cannot both hold.${
+            restoreFailure ? ` ${restoreFailure}` : ' The main specs were left unchanged.'
+          }`,
         'Reconcile the conflicting deltas, then rerun.'
       );
     }
@@ -680,35 +839,6 @@ export class SyncCommand {
       changes,
       totals,
     };
-  }
-
-  /**
-   * Archive's delta validation, restricted to what sync needs. Sync only ever
-   * runs on a change that has deltas to fold, so the `skip_specs` reconciliation
-   * archive performs (a change declaring it has no deltas, but carrying files)
-   * has nothing to decide here - `findSpecUpdates` already found the files.
-   */
-  private async assertDeltaSpecsValid(
-    changeName: string,
-    changeDir: string,
-    root: ResolvedOpenSpecRoot,
-    json: boolean
-  ): Promise<void> {
-    const report = await new Validator().validateChangeDeltaSpecs(changeDir);
-    if (report.valid) return;
-
-    if (!json) {
-      console.log(chalk.red(`\nValidation errors in change delta specs:`));
-      for (const issue of report.issues) {
-        if (issue.level === 'ERROR') console.log(chalk.red(`  ✗ ${issue.message}`));
-        else if (issue.level === 'WARNING') console.log(chalk.yellow(`  ⚠ ${issue.message}`));
-      }
-    }
-    throw new SyncBlockedError(
-      'sync_validation_failed',
-      `Validation failed for change '${changeName}'. No files were changed.`,
-      `Run ${withStoreFlag(root, `openspec validate ${changeName}`)} for details, fix the errors, or rerun with --no-validate.`
-    );
   }
 
   /**
@@ -757,51 +887,81 @@ interface TargetSnapshot {
   content?: Buffer;
 }
 
-/** Read the current bytes of each target so a failed write can be undone. */
-async function captureTargets(targets: string[]): Promise<TargetSnapshot[]> {
-  return Promise.all(
-    targets.map(async (target) => {
-      try {
-        return { target, content: await fs.readFile(target) };
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { target };
-        throw error;
-      }
-    })
-  );
+/** Read the current bytes of a target so a failed write can be undone. */
+async function captureTarget(target: string): Promise<TargetSnapshot> {
+  try {
+    return { target, content: await fs.readFile(target) };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { target };
+    throw error;
+  }
 }
 
 /**
- * Put every captured target back the way it was, in reverse order.
+ * Put every target that this run actually changed back the way it was, in
+ * reverse order.
  *
- * Returns a sentence naming what could not be restored, or undefined when the
+ * Two things it will not do, both mirroring `archive`'s rollback:
+ *
+ * - **It does not touch a target whose bytes already match the snapshot.** The
+ *   write that failed is usually the one that never landed, and "restoring" an
+ *   unchanged file only to fail on a read-only one produced a false "may hold
+ *   partly folded content" alarm about a file nothing had written.
+ * - **It does not overwrite content this run did not produce.** A target whose
+ *   bytes match neither the snapshot nor what was written was changed by
+ *   something else while the fold was running; clobbering it would destroy an
+ *   edit to save a rollback. It is reported instead.
+ *
+ * Returns a sentence naming what could not be put back, or undefined when the
  * tree is back to its original state. Never throws: it runs inside a failure
  * path, and losing the original error to a rollback error would hide the cause.
  */
 async function restoreTargets(
-  snapshots: TargetSnapshot[]
+  snapshots: TargetSnapshot[],
+  wrote: Map<string, string>
 ): Promise<string | undefined> {
   const failed: string[] = [];
+  const foreign: string[] = [];
   for (const snapshot of [...snapshots].reverse()) {
     try {
+      const current = await fs.readFile(snapshot.target).catch((error) => {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+        throw error;
+      });
+
       if (snapshot.content === undefined) {
-        // The file did not exist before this run, so the rollback is removing
-        // whatever was created. A missing file is already the desired state.
-        await fs.unlink(snapshot.target).catch((error) => {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-        });
-      } else {
-        // Written in place, exactly as writeUpdatedSpec does, so a symlinked or
-        // hard-linked spec keeps the semantics it had before the fold.
-        await fs.writeFile(snapshot.target, snapshot.content);
+        // The file did not exist before this run.
+        if (current === undefined) continue;
+        if (current.toString() !== wrote.get(snapshot.target)) {
+          foreign.push(snapshot.target);
+          continue;
+        }
+        await fs.unlink(snapshot.target);
+        continue;
       }
+
+      if (current !== undefined && current.equals(snapshot.content)) continue;
+      if (current !== undefined && current.toString() !== wrote.get(snapshot.target)) {
+        foreign.push(snapshot.target);
+        continue;
+      }
+      // Written in place, exactly as writeUpdatedSpec does, so a symlinked or
+      // hard-linked spec keeps the semantics it had before the fold.
+      await fs.writeFile(snapshot.target, snapshot.content);
     } catch {
       failed.push(snapshot.target);
     }
   }
-  return failed.length > 0
-    ? `These specs could not be restored and may hold partly folded content: ${failed.join(', ')}.`
-    : undefined;
+
+  const problems = [
+    failed.length > 0
+      ? `These specs could not be restored and may hold partly folded content: ${failed.join(', ')}.`
+      : '',
+    foreign.length > 0
+      ? `These specs changed underneath this run and were left as they are: ${foreign.join(', ')}.`
+      : '',
+  ].filter(Boolean);
+  return problems.length > 0 ? problems.join(' ') : undefined;
 }
 
 function toDiagnostic(error: unknown): { code: string; message: string; fix?: string } {

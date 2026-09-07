@@ -651,7 +651,7 @@ that they are.
 | Option | Description |
 |--------|-------------|
 | `--check` | Report shipped changes whose deltas are not in the main specs and exit 1. Writes nothing |
-| `--ship` | Set `status: shipped` on the named change, then fold it — both land in one set of file changes for you to commit |
+| `--ship` | Fold the named change, then set `status: shipped` on it — both land in one set of file changes for you to commit. If the fold fails, the field is not set |
 | `-y, --yes` | Sync even when the change still has incomplete tasks |
 | `--no-validate` | Skip validation (not recommended) |
 | `--json` | Structured output for hooks and CI |
@@ -668,6 +668,11 @@ The field is optional and absent by default. A change with no `status` is
 `proposed`, which is what every change under `changes/` has always meant, so a
 project that never opts in is unaffected. Nothing writes the field on its own —
 not `openspec new change`, not `archive`.
+
+If the fold fails — validation, incomplete tasks, a retirement, a write error —
+the field is not set. `--ship` writes `status: shipped` only after the specs are
+correct, so a failed run never leaves a change claiming to be shipped with its
+deltas absent.
 
 **The CI gate.** `openspec sync --check` asserts one property: *a change that
 claims to be shipped has its deltas in `specs/`*. A proposed change passes for

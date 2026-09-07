@@ -895,7 +895,7 @@ the change is still open, and CI can check that they are.
 | Flag | Effect |
 |---|---|
 | `--check` | Report shipped changes with unfolded deltas and exit 1. Writes nothing. |
-| `--ship` | Set `status: shipped` on the named change, then fold it. |
+| `--ship` | Fold the named change, then set `status: shipped` on it. If the fold fails, the field is not set. |
 | `-y, --yes` | Sync even when the change has incomplete tasks. |
 | `--no-validate` | Skip validation. |
 | `--json` | Print a structured result instead of text. |

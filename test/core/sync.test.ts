@@ -5,6 +5,10 @@ import os from 'os';
 import { SyncCommand } from '../../src/core/sync.js';
 import { ArchiveCommand } from '../../src/core/archive.js';
 import { readChangeStatus, writeChangeStatus } from '../../src/utils/change-metadata.js';
+import {
+  writeStoreMetadataState,
+  writeStoreRegistryState,
+} from '../../src/core/store/foundation.js';
 
 vi.mock('@inquirer/prompts', () => ({
   select: vi.fn(),
@@ -42,6 +46,7 @@ describe('SyncCommand', () => {
   const originalConsoleLog = console.log;
   const originalExitCode = process.exitCode;
   const originalXdgDataHome = process.env.XDG_DATA_HOME;
+  const originalCwd = process.cwd();
   let logged: string[];
 
   const changesDir = (): string => path.join(tempDir, 'openspec', 'changes');
@@ -56,10 +61,15 @@ describe('SyncCommand', () => {
       delta?: string;
       tasks?: string;
       metadata?: string;
+      /** Capability id relative to `specs/`, e.g. `platform/session-layout`. */
+      capability?: string;
     } = {}
   ): Promise<string> {
     const dir = path.join(changesDir(), name);
-    await fs.mkdir(path.join(dir, 'specs', 'api'), { recursive: true });
+    const capability = options.capability ?? 'api';
+    await fs.mkdir(path.join(dir, 'specs', ...capability.split('/')), {
+      recursive: true,
+    });
     await fs.writeFile(
       path.join(dir, '.openspec.yaml'),
       options.metadata ??
@@ -75,7 +85,7 @@ describe('SyncCommand', () => {
       options.tasks ?? '## 1. Work\n- [x] 1.1 Done\n'
     );
     await fs.writeFile(
-      path.join(dir, 'specs', 'api', 'spec.md'),
+      path.join(dir, 'specs', ...capability.split('/'), 'spec.md'),
       options.delta ?? ADDED_DELTA
     );
     return dir;
@@ -86,7 +96,12 @@ describe('SyncCommand', () => {
   }
 
   beforeEach(async () => {
-    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-sync-test-'));
+    // realpath'd: a Windows runner can hand back an 8.3 short path while the
+    // CLI canonicalizes to the long form, and macOS /var resolves to
+    // /private/var - both make a root read as outside itself.
+    tempDir = await fs.realpath(
+      await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-sync-test-'))
+    );
     process.chdir(tempDir);
     // Keep root resolution off any real store registry on the host.
     process.env.XDG_DATA_HOME = path.join(tempDir, 'xdg-data');
@@ -105,6 +120,10 @@ describe('SyncCommand', () => {
   });
 
   afterEach(async () => {
+    // Before the rm: Windows locks the process working directory, so removing
+    // a tree we are standing inside fails and leaks it, leaving the next
+    // describe running from a deleted path.
+    process.chdir(originalCwd);
     console.log = originalConsoleLog;
     process.exitCode = originalExitCode;
     if (originalXdgDataHome === undefined) delete process.env.XDG_DATA_HOME;
@@ -216,6 +235,110 @@ describe('SyncCommand', () => {
       ).resolves.toBeTruthy();
     });
 
+    it('folds a nested capability into the same nested path', async () => {
+      const nested = path.join(specsDir(), 'platform', 'session-layout');
+      await fs.mkdir(nested, { recursive: true });
+      await fs.writeFile(
+        path.join(nested, 'spec.md'),
+        '# session-layout Specification\n\n## Purpose\n' +
+          'How sessions are laid out across the platform surface.\n\n' +
+          '## Requirements\n\n### Requirement: Session store\n' +
+          'The platform SHALL persist sessions.\n\n' +
+          '#### Scenario: Persisted\n- **WHEN** a session is created\n- **THEN** it is persisted\n'
+      );
+      await makeChange('evict-sessions', {
+        status: 'shipped',
+        capability: 'platform/session-layout',
+        delta:
+          '## ADDED Requirements\n\n### Requirement: Session eviction\n' +
+          'The platform SHALL evict idle sessions.\n\n#### Scenario: Idle session\n' +
+          '- **WHEN** a session idles out\n- **THEN** it is evicted\n',
+      });
+
+      await sync.execute(undefined, { yes: true });
+
+      expect(await fs.readFile(path.join(nested, 'spec.md'), 'utf-8')).toContain(
+        'Session eviction'
+      );
+      expect(await mainSpec()).toBe(MAIN_SPEC);
+    });
+
+    it('folds a MODIFIED delta and reports folded afterwards', async () => {
+      await makeChange('retry-after', {
+        status: 'shipped',
+        delta:
+          '## MODIFIED Requirements\n\n### Requirement: Rate limiting\n' +
+          'The API SHALL reject requests above the configured rate, with a Retry-After header.\n\n' +
+          '#### Scenario: Over the limit\n- **WHEN** a client exceeds the rate\n' +
+          '- **THEN** the API responds 429 with Retry-After\n',
+      });
+
+      await sync.execute(undefined, { yes: true });
+      logged = [];
+      process.exitCode = undefined;
+      await sync.execute(undefined, { check: true });
+
+      expect(await mainSpec()).toContain('Retry-After');
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('folds a RENAMED delta and counts it as a rename', async () => {
+      await makeChange('rename-limits', {
+        status: 'shipped',
+        delta:
+          '## RENAMED Requirements\n\n- FROM: `### Requirement: Rate limiting`\n' +
+          '- TO: `### Requirement: Request throttling`\n',
+      });
+
+      await sync.execute(undefined, { check: true, json: true });
+      // The only path that increments `renamed`.
+      expect(JSON.parse(output()).sync.changes[0].specs[0].counts).toEqual({
+        added: 0,
+        modified: 0,
+        removed: 0,
+        renamed: 1,
+      });
+
+      logged = [];
+      process.exitCode = undefined;
+      await sync.execute(undefined, { yes: true });
+
+      const folded = await mainSpec();
+      expect(folded).toContain('### Requirement: Request throttling');
+      expect(folded).not.toContain('### Requirement: Rate limiting');
+    });
+
+    it('folds every shipped change and leaves proposed ones alone', async () => {
+      await makeChange('a-tracing', { status: 'shipped' });
+      await makeChange('b-billing', {
+        status: 'shipped',
+        capability: 'billing',
+        delta:
+          '## ADDED Requirements\n\n### Requirement: Invoice totals\n' +
+          'The system SHALL total invoices in the account currency.\n\n' +
+          '#### Scenario: Totalling\n- **WHEN** an invoice is issued\n' +
+          '- **THEN** its total is in the account currency\n',
+      });
+      await makeChange('c-proposed');
+
+      await sync.execute(undefined, { yes: true });
+
+      expect(await mainSpec()).toContain('Request tracing');
+      expect(
+        await fs.readFile(path.join(specsDir(), 'billing', 'spec.md'), 'utf-8')
+      ).toContain('Invoice totals');
+      expect(output()).toContain('Totals: + 2');
+    });
+
+    it('creates the specs tree when the project has none yet', async () => {
+      await fs.rm(specsDir(), { recursive: true, force: true });
+      await makeChange('add-tracing', { status: 'shipped' });
+
+      await sync.execute(undefined, { yes: true });
+
+      expect(await mainSpec()).toContain('### Requirement: Request tracing');
+    });
+
     it('stops checking a change once it is archived', async () => {
       await makeChange('add-tracing', { status: 'shipped' });
       await sync.execute(undefined, { yes: true });
@@ -229,6 +352,133 @@ describe('SyncCommand', () => {
       // that came later is a merge conflict, not a drift check.
       expect(process.exitCode).toBeUndefined();
       expect(output()).toContain('nothing to check');
+    });
+  });
+
+  describe('folding several changes in one run', () => {
+    /** A second change adding a different requirement to the SAME capability. */
+    async function secondChange(name: string): Promise<void> {
+      const dir = path.join(changesDir(), name);
+      await fs.mkdir(path.join(dir, 'specs', 'api'), { recursive: true });
+      await fs.writeFile(
+        path.join(dir, '.openspec.yaml'),
+        'schema: spec-driven\nstatus: shipped\n'
+      );
+      await fs.writeFile(
+        path.join(dir, 'proposal.md'),
+        '## Why\nThe API needs audit logging, and today nothing records calls.\n\n' +
+          '## What Changes\n- Add audit logging to the API surface.\n'
+      );
+      await fs.writeFile(path.join(dir, 'tasks.md'), '## 1. Work\n- [x] 1.1 Done\n');
+      await fs.writeFile(
+        path.join(dir, 'specs', 'api', 'spec.md'),
+        '## ADDED Requirements\n\n### Requirement: Audit logging\n' +
+          'The API SHALL record every call in the audit log.\n\n' +
+          '#### Scenario: Logged call\n- **WHEN** a request is served\n' +
+          '- **THEN** the audit log gains an entry\n'
+      );
+    }
+
+    it('keeps both folds when two shipped changes touch one capability', async () => {
+      await makeChange('add-tracing', { status: 'shipped' });
+      await secondChange('add-audit');
+
+      await sync.execute(undefined, { yes: true });
+
+      // Evaluating both against the same pre-write baseline and then writing
+      // them in sequence makes the second write erase the first: each rebuilt
+      // body is a whole file derived from the original spec. The changes do not
+      // conflict, so losing one is pure data loss.
+      const spec = await mainSpec();
+      expect(spec).toContain('Request tracing');
+      expect(spec).toContain('Audit logging');
+      expect(spec).toContain('Rate limiting');
+    });
+
+    it('is green afterwards for every change it folded', async () => {
+      await makeChange('add-tracing', { status: 'shipped' });
+      await secondChange('add-audit');
+      await sync.execute(undefined, { yes: true });
+
+      logged = [];
+      process.exitCode = undefined;
+      await sync.execute(undefined, { check: true });
+
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    // fs.symlink needs Developer Mode or elevation on a Windows runner.
+    it.skipIf(process.platform === 'win32')(
+      'refuses when two capability ids resolve to the same file',
+      async () => {
+      // A capability directory may deliberately be a symlink, so two ids
+      // aliasing one spec is a shape the trust model allows. Writing both in
+      // sequence is last-writer-wins: one fold is destroyed and the other's
+      // requirements are filed under the wrong capability.
+      await makeChange('add-tracing', { status: 'shipped' });
+      await fs.mkdir(path.join(changesDir(), 'add-tracing', 'specs', 'apiv2'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(changesDir(), 'add-tracing', 'specs', 'apiv2', 'spec.md'),
+        '## ADDED Requirements\n\n### Requirement: Audit logging\n' +
+          'The API SHALL record every call in the audit log.\n\n' +
+          '#### Scenario: Logged call\n- **WHEN** a request is served\n' +
+          '- **THEN** the audit log gains an entry\n'
+      );
+      await fs.symlink('api', path.join(specsDir(), 'apiv2'), 'dir');
+
+      await expect(sync.execute('add-tracing', { yes: true })).rejects.toThrow(
+        /resolve to the same target/
+      );
+      expect(await mainSpec()).toBe(MAIN_SPEC);
+      }
+    );
+  });
+
+  describe('the check path sees what the writer would refuse', () => {
+    it('fails a shipped change whose delta specs do not validate', async () => {
+      await makeChange('add-tracing', {
+        status: 'shipped',
+        delta:
+          '## ADDED Requirements\n\n### Requirement: Request tracing\n' +
+          'The API SHALL attach a trace id.\n',
+      });
+
+      await sync.execute(undefined, { check: true });
+
+      // The gate promises `shipped => folded`. A delta the merge would refuse
+      // is not folded and never will be, so certifying it clean is a false
+      // green on the one surface teams wire into CI.
+      expect(process.exitCode).toBe(1);
+      expect(output()).toContain('at least one scenario');
+    });
+
+    it('fails a shipped change whose only delta sits at the specs root', async () => {
+      // `discoverSpecFiles` does not walk `specs/spec.md`, so the change looks
+      // like it has nothing to fold while its requirement is silently dropped
+      // (#1385). Archive and the sync writer both refuse this tree.
+      const dir = await makeChange('add-tracing', { status: 'shipped' });
+      await fs.rm(path.join(dir, 'specs', 'api'), { recursive: true });
+      await fs.writeFile(path.join(dir, 'specs', 'spec.md'), ADDED_DELTA);
+
+      await sync.execute(undefined, { check: true });
+
+      expect(process.exitCode).toBe(1);
+      expect(output()).toContain('specs/spec.md');
+    });
+
+    it('passes a shipped change that declares it has no deltas', async () => {
+      // Archive treats a zero-delta change as fine; sync must give the same
+      // answer rather than a stricter one of its own.
+      const dir = await makeChange('add-tracing', {
+        metadata: 'schema: spec-driven\nstatus: shipped\nskip_specs: true\n',
+      });
+      await fs.rm(path.join(dir, 'specs'), { recursive: true });
+
+      await sync.execute(undefined, { check: true });
+
+      expect(process.exitCode).toBeUndefined();
     });
   });
 
@@ -266,7 +516,7 @@ describe('SyncCommand', () => {
       });
 
       await expect(sync.execute('add-tracing', { yes: true })).rejects.toThrow(
-        /Validation failed/
+        /must include at least one scenario/
       );
       expect(await mainSpec()).toBe(MAIN_SPEC);
     });
@@ -302,6 +552,54 @@ describe('SyncCommand', () => {
       expect(process.exitCode).toBe(1);
       expect(output()).toContain('openspec archive');
       expect(output()).not.toContain('Run openspec sync to fold them');
+    });
+  });
+
+  describe('--no-validate', () => {
+    it('needs --yes, the way archive needs an answer', async () => {
+      await makeChange('add-tracing', {
+        status: 'shipped',
+        delta:
+          '## ADDED Requirements\n\n### Requirement: Request tracing\n' +
+          'The API SHALL attach a trace id.\n',
+      });
+
+      await expect(
+        sync.execute('add-tracing', { validate: false })
+      ).rejects.toThrow(/needs confirmation/);
+      expect(await mainSpec()).toBe(MAIN_SPEC);
+    });
+
+    it('folds a delta validation would refuse, once confirmed', async () => {
+      await makeChange('add-tracing', {
+        status: 'shipped',
+        // The same scenario-less ADDED the validation guard rejects.
+        delta:
+          '## ADDED Requirements\n\n### Requirement: Request tracing\n' +
+          'The API SHALL attach a trace id.\n',
+      });
+
+      await sync.execute('add-tracing', { validate: false, yes: true });
+
+      expect(await mainSpec()).toContain('### Requirement: Request tracing');
+    });
+  });
+
+  describe('a fold that does not settle', () => {
+    it('refuses to report success when two shipped changes cannot both hold', async () => {
+      const conflicting = (discriminator: string): string =>
+        '## MODIFIED Requirements\n\n### Requirement: Rate limiting\n' +
+        `The API SHALL reject requests above the configured rate, per ${discriminator}.\n\n` +
+        '#### Scenario: Over the limit\n- **WHEN** a client exceeds the rate\n' +
+        `- **THEN** the API responds 429 with a per-${discriminator} message\n`;
+      await makeChange('a-widen', { status: 'shipped', delta: conflicting('API key') });
+      await makeChange('b-narrow', { status: 'shipped', delta: conflicting('IP address') });
+
+      // Reporting success would have `--check`, run immediately after, go red
+      // for a fold that just claimed to have succeeded.
+      await expect(sync.execute(undefined, { yes: true })).rejects.toThrow(
+        /still report unfolded deltas/
+      );
     });
   });
 
@@ -377,7 +675,7 @@ describe('SyncCommand', () => {
 
       await expect(
         sync.execute('add-tracing', { ship: true })
-      ).rejects.toThrow(/Validation failed/);
+      ).rejects.toThrow(/must include at least one scenario/);
 
       expect(readChangeStatus(dir).status).toBe('proposed');
     });
@@ -403,6 +701,19 @@ describe('SyncCommand', () => {
       // failed write cannot leave a change claiming shipped with its deltas
       // absent.
       expect(readChangeStatus(dir).status).toBe('proposed');
+      expect(await mainSpec()).toBe(MAIN_SPEC);
+    });
+
+    it('refuses before folding when there is no metadata file to stamp', async () => {
+      const dir = await makeChange('add-tracing');
+      await fs.rm(path.join(dir, '.openspec.yaml'));
+
+      await expect(sync.execute('add-tracing', { ship: true })).rejects.toThrow(
+        /no \.openspec\.yaml/
+      );
+
+      // Folding first and discovering the missing file afterwards leaves a
+      // fold that is never stamped, and a rerun that fails in the same place.
       expect(await mainSpec()).toBe(MAIN_SPEC);
     });
 
@@ -447,6 +758,25 @@ describe('SyncCommand', () => {
       const payload = JSON.parse(output());
       expect(payload.sync.clean).toBe(false);
       expect(payload.sync.changes[0].specs[0].counts.added).toBe(1);
+      expect(process.exitCode).toBe(1);
+    });
+
+    it('names a blocked change rather than showing it as having no specs', async () => {
+      await makeChange('retire-limits', {
+        status: 'shipped',
+        delta:
+          '## REMOVED Requirements\n\n### Requirement: Rate limiting\n' +
+          '**Reason**: Moved to the gateway.\n**Migration**: Configure the gateway.\n',
+      });
+
+      await sync.execute(undefined, { check: true, json: true });
+
+      // Structurally unlike a dirty change: no spec entries at all, so a CI
+      // consumer reading `specs` alone would read this as clean.
+      const change = JSON.parse(output()).sync.changes[0];
+      expect(change.folded).toBe(false);
+      expect(change.specs).toEqual([]);
+      expect(change.blockers[0]).toContain('openspec archive');
       expect(process.exitCode).toBe(1);
     });
 
@@ -503,6 +833,47 @@ describe('SyncCommand', () => {
       await expect(
         fs.stat(path.join(specsDir(), 'billing', 'spec.md'))
       ).rejects.toThrow();
+    });
+  });
+
+  describe('stores', () => {
+    it("folds the selected store's specs and leaves the working directory alone", async () => {
+      const storeRoot = path.join(tempDir, 'stores', 'team-context');
+      const storeSpec = path.join(storeRoot, 'openspec', 'specs', 'api', 'spec.md');
+      const changeDir = path.join(storeRoot, 'openspec', 'changes', 'add-tracing');
+      await fs.mkdir(path.join(storeRoot, 'openspec', 'specs', 'api'), { recursive: true });
+      await fs.mkdir(path.join(storeRoot, 'openspec', 'changes', 'archive'), {
+        recursive: true,
+      });
+      await fs.mkdir(path.join(changeDir, 'specs', 'api'), { recursive: true });
+      await fs.writeFile(
+        path.join(storeRoot, 'openspec', 'config.yaml'),
+        'schema: spec-driven\n'
+      );
+      await fs.writeFile(storeSpec, MAIN_SPEC);
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nstatus: shipped\n'
+      );
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        '## Why\nThe API needs request tracing, and today nothing correlates calls.\n\n' +
+          '## What Changes\n- Add request tracing to the API surface.\n'
+      );
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '## 1. Work\n- [x] 1.1 Done\n');
+      await fs.writeFile(path.join(changeDir, 'specs', 'api', 'spec.md'), ADDED_DELTA);
+      await writeStoreMetadataState(storeRoot, { version: 1, id: 'team-context' });
+      await writeStoreRegistryState({
+        version: 1,
+        stores: { 'team-context': { backend: { type: 'git', local_path: storeRoot } } },
+      });
+
+      await sync.execute(undefined, { yes: true, store: 'team-context' });
+
+      expect(await fs.readFile(storeSpec, 'utf-8')).toContain('Request tracing');
+      // The working directory's own project has no shipped change; nothing
+      // there may be touched by a store-scoped run.
+      expect(await mainSpec()).toBe(MAIN_SPEC);
     });
   });
 
@@ -565,6 +936,35 @@ describe('readChangeStatus / writeChangeStatus', () => {
     expect(written).toContain('# hand-authored');
     expect(written.indexOf('schema:')).toBeLessThan(written.indexOf('created:'));
     expect(readChangeStatus(changeDir()).status).toBe('shipped');
+  });
+
+  it('leaves the state undetermined when the declared schema does not resolve', async () => {
+    await fs.writeFile(
+      path.join(changeDir(), '.openspec.yaml'),
+      'schema: no-such-schema\nstatus: shipped\n'
+    );
+
+    // Distinct from a bad status value: the field parses, the schema does not
+    // resolve, and rounding that to `proposed` is the fail-open direction.
+    const marker = readChangeStatus(changeDir());
+
+    expect(marker.invalidReason).toContain('no-such-schema');
+    expect(marker.declared).toBe(false);
+  });
+
+  it('replaces a status that is already set, in place', async () => {
+    await fs.writeFile(
+      path.join(changeDir(), '.openspec.yaml'),
+      '# hand-authored\nschema: spec-driven\nstatus: proposed\ncreated: 2026-09-07\n'
+    );
+
+    writeChangeStatus(changeDir(), 'shipped');
+
+    // Replaced, not appended: a duplicate `status` key would make the file
+    // parse differently in yaml and in a hand-reading author's head.
+    expect(await fs.readFile(path.join(changeDir(), '.openspec.yaml'), 'utf-8')).toBe(
+      '# hand-authored\nschema: spec-driven\nstatus: shipped\ncreated: 2026-09-07\n'
+    );
   });
 
   it('refuses to stamp a change with no metadata file', () => {

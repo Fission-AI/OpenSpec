@@ -65,5 +65,10 @@ from drifting apart (#1112).
 - Affected docs: `docs/cli.md`, `docs/team-workflow.md`,
   `docs-lab/reference/cli.md`
 
-Credit: the diagnosis and the `shipped ⇒ folded` framing are from Matan Bendix
-Shenhav's proposal in #1683.
+Credit: the design is Matan Bendix Shenhav's, from #1683 and his implementation
+#1684. His: the diagnosis, `shipped ⇒ folded` as a tree predicate (V), the
+checker-versus-doer argument (IV), the standalone idempotent `sync` (III), status
+as data (I and II), and shipping in one working-tree diff (VI). This change takes
+a smaller, additive subset — no mode, no layout change, no migration — and
+decides folded-ness by archive's zero-operations predicate rather than his
+byte-identical regeneration.

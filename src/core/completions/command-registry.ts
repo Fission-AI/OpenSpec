@@ -210,7 +210,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       {
         name: 'ship',
-        description: 'Mark the named change `status: shipped` before folding it',
+        description: 'Fold the named change, then mark it `status: shipped`',
       },
       {
         name: 'yes',

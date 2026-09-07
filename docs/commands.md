@@ -444,6 +444,8 @@ AI:  Verifying add-dark-mode...
 
 **Optional command.** Merge delta specs from a change into main specs. Archive will prompt to sync if needed, so you typically don't need to run this manually.
 
+> Not the same as the CLI's `openspec sync`. This one is the agent doing the merge in your session. `openspec sync` is a deterministic terminal command that does the same fold without a model, and carries the `--check` gate for CI — see [CLI](cli.md#openspec-sync).
+
 **Syntax:**
 ```
 /opsx:sync [change-name]

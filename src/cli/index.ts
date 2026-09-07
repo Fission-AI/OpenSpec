@@ -515,7 +515,7 @@ program
   .command('sync [change-name]')
   .description('Fold a change\'s spec deltas into the main specs without archiving it')
   .option('--check', 'Report shipped changes whose deltas are not in the main specs; write nothing')
-  .option('--ship', 'Mark the named change `status: shipped` before folding it')
+  .option('--ship', 'Fold the named change, then mark it `status: shipped`')
   .option('-y, --yes', 'Sync even when the change still has incomplete tasks')
   .option('--no-validate', 'Skip validation (not recommended)')
   .option('--json', 'Output as JSON (for hooks and CI)')
