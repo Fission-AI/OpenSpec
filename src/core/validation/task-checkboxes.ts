@@ -16,6 +16,9 @@ export interface TaskCheckboxIssue {
  * `1. item`, `1) item`. Checkbox lines match this too, so callers must rule the
  * document set out on checkbox count first.
  *
+ * Matches at any indent; the caller decides how deep is too deep. See
+ * `CODE_BLOCK_COLUMN`.
+ *
  * A thematic break (`---`, `***`, `- - -`) is not a list item: the run has no
  * text after it, and this pattern requires a non-space character. `* * *` is
  * the one break spelled like a list of `*` items, and it is accepted as a list
@@ -24,6 +27,34 @@ export interface TaskCheckboxIssue {
  * points at an odd line.
  */
 const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+\S/;
+
+/**
+ * The indent at which a top-level line stops being content and becomes an
+ * indented code block, per CommonMark.
+ *
+ * The fence logic already treats four spaces as code; the list scan did not,
+ * so a sample of terminal output written as `    - example output` was
+ * reported as an uncheckboxed task list, and under `--strict` that false
+ * positive failed validation on a correct file.
+ *
+ * Genuine nested lists survive the cut, because this scan reports the *first*
+ * list item it finds and a nested item always sits under a shallower parent.
+ * That parent is what gets reported, exactly as before. A list-shaped line
+ * four columns deep with no shallower item above it is not nested under
+ * anything, which is precisely what makes it code.
+ */
+const CODE_BLOCK_COLUMN = 4;
+
+/** Leading whitespace of a line in visual columns, a tab counting as four. */
+function indentColumns(line: string): number {
+  let column = 0;
+  for (const char of line) {
+    if (char === ' ') column += 1;
+    else if (char === '\t') column += CODE_BLOCK_COLUMN - (column % CODE_BLOCK_COLUMN);
+    else break;
+  }
+  return column;
+}
 
 /**
  * A fenced block delimiter: a run of three or more backticks or tildes, plus
@@ -65,7 +96,8 @@ const COMMENT_CLOSE = '-->';
  * moment a single checkbox exists.
  *
  * The scan for the offending line looks at rendered content only: fenced
- * blocks, HTML comments and YAML front matter are skipped. Every one of those
+ * blocks, HTML comments, YAML front matter and top-level indented code are
+ * skipped. Every one of those
  * exclusions can only *silence* a warning, never drop a real task — that is the
  * opposite trade from the task parser, where fence awareness would hide work
  * that `archive` must still refuse, and it is why the parser stays literal
@@ -140,7 +172,7 @@ function findFirstListItemLine(content: string): number | undefined {
       continue;
     }
 
-    if (LIST_ITEM.test(line)) return index + 1;
+    if (LIST_ITEM.test(line) && indentColumns(line) < CODE_BLOCK_COLUMN) return index + 1;
   }
 
   return undefined;

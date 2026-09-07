@@ -97,6 +97,34 @@ describe('findMissingTaskCheckboxIssues', () => {
     ).toEqual([]);
   });
 
+  it('does not read top-level indented code as a task list', () => {
+    // Four spaces of indent is a code block, the same rule the fence logic
+    // already applies. A tasks file that pastes terminal output was reported
+    // as an uncheckboxed task list, and under --strict that failed validation
+    // on a correct file.
+    expect(
+      findInSingleFile(['## 1. Notes', '', 'Example output:', '', '    - example output', ''].join('\n'))
+    ).toEqual([]);
+    expect(
+      findInSingleFile(['## 1. Notes', '', 'Example output:', '', '\t- tabbed output', ''].join('\n'))
+    ).toEqual([]);
+    expect(
+      findInSingleFile(['## 1. Notes', '', 'Example output:', '', '    1. numbered output', ''].join('\n'))
+    ).toEqual([]);
+  });
+
+  it('still reports a genuine nested list, by naming its parent', () => {
+    // The cut is safe because this scan reports the first list item it finds,
+    // and a nested item always sits under a shallower parent. Three spaces is
+    // not code, so an indented-but-shallow list is still reported on its own.
+    expect(
+      findInSingleFile(['## 1. Work', '', '- Parent task', '    - Nested detail', ''].join('\n'))
+    ).toEqual([{ line: 3, message: expect.any(String) }]);
+    expect(
+      findInSingleFile(['## 1. Work', '', '   - Three spaces is not code', ''].join('\n'))
+    ).toEqual([{ line: 3, message: expect.any(String) }]);
+  });
+
   it('does not treat a horizontal rule or emphasis as a list item', () => {
     expect(findInSingleFile('# Tasks\n\n---\n\n***\n')).toEqual([]);
   });

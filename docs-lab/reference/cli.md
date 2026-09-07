@@ -667,6 +667,18 @@ Bulk runs print one status line per item, followed by any findings, and end with
 Totals: 2 passed, 0 failed (2 items)
 ```
 
+**Task checkbox findings**
+
+Progress counts checkboxes and nothing else, so a task file written as plain bullets reads as zero tasks: `openspec list` and `openspec status` report no work, and `openspec archive` has nothing to flag as incomplete. Validate reports a `WARNING` on each tracked task file that lists work without a checkbox:
+
+```text
+⚠ [WARNING] tasks.md: This change counts as 0 tasks: no line in its tracked task files is a checkbox, so "openspec list" and "openspec status" report no work and "openspec archive" has nothing to flag as incomplete. Write each task as "- [ ] 1.1 Description".
+```
+
+The warning fires only when the change's whole tracked set holds no checkbox at all. One file of prose beside a real checklist is not reported, and a change mid-authoring keeps its progress the moment a single checkbox exists. `--strict` turns the warning into a failure. The line number is in the `--json` report.
+
+Fenced blocks, HTML comments, YAML front matter and indented code are not scanned, so a pasted terminal sample is never mistaken for a task list.
+
 **Archive merge findings**
 
 For changes, validate runs archive's merge builder against the current main specs without writing files. It reports merge conflicts, such as a missing `MODIFIED` target or a conflicting `ADDED` requirement, as `INFO`:
