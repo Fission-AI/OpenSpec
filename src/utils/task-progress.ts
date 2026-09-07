@@ -36,10 +36,18 @@ import { resolveSchemaForChange } from './change-metadata.js';
  * unfinished work. A dropped `- [WIP] ...` is the accepted residue of keeping
  * link bullets out; report it as a bug in this trade, not in the marker set.
  *
+ * One-character labels need the same guard, which the width alone does not
+ * give: `- [A](https://example.com)` and `- [1](./one)` are a link bullet and
+ * a reference-link bullet, not tasks, yet their label is a single token and
+ * would match. So the closing bracket may not be followed by `(` or `[`, the
+ * only two characters that continue Markdown link syntax. Nothing that used to
+ * count is lost: a checkbox is followed by its description or by end of line,
+ * and `- [x]done` still parses.
+ *
  * Deliberately unanchored at the end: `.` does not match `\r`, so writing the
  * description group as `(.*)$` would reject every line of a CRLF tasks.md.
  */
-const TASK_LINE_PATTERN = /^\s*[-*]\s*\[\s*([^\]\s]?)\s*\]\s*(.*)/;
+const TASK_LINE_PATTERN = /^\s*[-*]\s*\[\s*([^\]\s]?)\s*\](?![([])\s*(.*)/;
 
 export interface ParsedTask {
   /** Checkbox state: `[x]`/`[X]` is done, every other marker (and none) is not. */

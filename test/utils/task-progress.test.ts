@@ -315,6 +315,35 @@ describe('parseTaskLines', () => {
     expect(tasks).toEqual([{ done: false, description: '1.3 Only this one counts' }]);
   });
 
+  it('keeps one-character link bullets out too (#1761)', () => {
+    // The width guard alone does not cover these: a single-character link
+    // label is one token, so `- [A](https://example.com)` and the reference
+    // form `- [1][one]` matched the marker class and reported phantom work.
+    // What excludes them is the separator: a checkbox is followed by its
+    // description or by end of line, never by `(` or `[`.
+    const tasks = parseTaskLines(
+      [
+        '- [A](https://example.com)',
+        '- [1](./one)',
+        '- [a][ref]',
+        '- [x]1.1 No space after the box still counts',
+        '- [ ] 1.2 Counts',
+        '',
+      ].join('\n')
+    );
+
+    expect(tasks).toEqual([
+      { done: true, description: '1.1 No space after the box still counts' },
+      { done: false, description: '1.2 Counts' },
+    ]);
+  });
+
+  it('reads a link inside a task description as description, not as a marker (#1761)', () => {
+    const tasks = parseTaskLines('- [ ] 1.1 See [the doc](./doc.md)\n');
+
+    expect(tasks).toEqual([{ done: false, description: '1.1 See [the doc](./doc.md)' }]);
+  });
+
   it('keeps unrecognised markers in the denominator, so progress cannot go up when work is deferred (#1761)', () => {
     // The reported failure: marking open items `[~]` moved them out of the
     // count instead of leaving them not-done, and the change read "✓ Complete".
