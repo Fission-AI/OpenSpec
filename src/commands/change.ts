@@ -545,11 +545,12 @@ export class ChangeCommand {
         console.log(`Change "${changeName}" is valid`);
       } else {
         console.error(`Change "${changeName}" has issues`);
-        report.issues.forEach(issue => {
-          const label = issue.level === 'ERROR' ? 'ERROR' : 'WARNING';
-          const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
-          console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
-        });
+      }
+      report.issues.forEach(issue => {
+        const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
+        console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
+      });
+      if (!report.valid) {
         // Next steps footer to guide fixing issues
         this.printNextSteps(report.issues);
         if (!options?.json) {

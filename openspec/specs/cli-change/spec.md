@@ -37,19 +37,29 @@ The system SHALL provide a `change` command with subcommands for displaying, lis
 
 ### Requirement: Legacy Compatibility
 
-The system SHALL maintain backward compatibility with the existing `list` command while showing deprecation notices.
+The system SHALL retain `openspec change list` as a deprecated alias for listing active changes and direct users to `openspec list`.
 
 #### Scenario: Legacy list command
 
+- **WHEN** executing `openspec change list`
+- **THEN** display the current list of active changes on stdout
+- **AND** write `Warning: "openspec change list" is deprecated. Use "openspec list".` to stderr
+
+#### Scenario: Legacy list with JSON output
+
+- **WHEN** executing `openspec change list --json`
+- **THEN** output the active changes as a JSON array on stdout
+- **AND** write the deprecation warning to stderr without corrupting the JSON output
+
+#### Scenario: Unsupported legacy list flag
+
+- **WHEN** executing `openspec change list --all`
+- **THEN** reject the unknown option with a nonzero exit code
+
+#### Scenario: Preferred list command
+
 - **WHEN** executing `openspec list`
-- **THEN** display current list of changes (existing behavior)
-- **AND** show deprecation notice: "Note: 'openspec list' is deprecated. Use 'openspec change list' instead."
-
-#### Scenario: Legacy list with --all flag
-
-- **WHEN** executing `openspec list --all`
-- **THEN** display all changes (existing behavior)
-- **AND** show same deprecation notice
+- **THEN** display the current list of active changes without a deprecation warning
 
 ### Requirement: Interactive show selection
 
