@@ -324,7 +324,11 @@ export async function buildUpdatedSpec(
         );
       }
     }
-  } catch {
+  } catch (error) {
+    // An unreadable target is not a new spec. Preserve the filesystem error
+    // for callers, rather than synthesizing a baseline or a missing-target finding.
+    const code = (error as NodeJS.ErrnoException)?.code;
+    if (code !== 'ENOENT' && code !== 'ENOTDIR') throw error;
     // Target spec does not exist; MODIFIED and RENAMED are not allowed for new specs
     // REMOVED will be ignored with a warning since there's nothing to remove
     if (plan.modified.length > 0 || plan.renamed.length > 0) {

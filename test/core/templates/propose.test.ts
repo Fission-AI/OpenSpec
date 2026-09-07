@@ -89,6 +89,53 @@ describe('default task guidance', () => {
   });
 });
 
+describe('planning code inspection (#339)', () => {
+  it('inspects the project after loading instructions and dependencies, before creating or delegating artifacts', () => {
+    for (const [label, body] of loopBodies) {
+      const instructions = body.indexOf('openspec instructions <artifact-id>');
+      const dependencies = body.indexOf('Read any completed dependency files');
+      const inspection = body.indexOf('**Inspect the relevant project before drafting**');
+      const delegation = body.indexOf('If the `instruction` field delegates creation');
+      expect(instructions, label).toBeGreaterThanOrEqual(0);
+      expect(dependencies, label).toBeGreaterThan(instructions);
+      expect(inspection, label).toBeGreaterThan(dependencies);
+      expect(delegation, label).toBeGreaterThan(inspection);
+
+      const guidance = body.slice(inspection, delegation);
+      expect(guidance, label).toContain('Read `context` and `rules` first');
+      expect(guidance, label).toContain('relevant implementation, nearby tests, configuration, and documentation outside `openspec/`');
+      expect(guidance, label).toContain('Keep inspection read-only and proportional to the change');
+      expect(guidance, label).toContain('reuse findings for later artifacts');
+      expect(guidance, label).toContain('Do this discovery now');
+    }
+  });
+
+  it('handles separate stores, missing code, and uncertain findings without inventing facts', () => {
+    for (const [label, body] of loopBodies) {
+      expect(body, label).toContain('the planning home may be separate from the code');
+      expect(body, label).toContain('If the target is unclear, ask');
+      expect(body, label).toContain('For greenfield or non-code changes, inspect the available structure and relevant documents');
+      expect(body, label).toContain('If source is unavailable, state the limitation');
+      expect(body, label).toContain('Distinguish observed behavior from assumptions and proposed additions');
+      expect(body, label).toContain('surface conflicts with existing specs instead of silently deciding which is correct');
+    }
+  });
+
+  it('preserves inspection guidance through every command adapter', () => {
+    for (const command of getCommandContents(['propose', 'ff'])) {
+      for (const adapter of CommandAdapterRegistry.getAll()) {
+        const generated = generateCommand(command, adapter).fileContent;
+        const inspection = generated.indexOf('**Inspect the relevant project before drafting**');
+        const delegation = generated.indexOf('If the `instruction` field delegates creation');
+        const label = `${adapter.toolId} ${command.id}`;
+        expect(inspection, label).toBeGreaterThanOrEqual(0);
+        expect(delegation, label).toBeGreaterThan(inspection);
+        expect(generated, label).toContain('Keep inspection read-only and proportional to the change');
+      }
+    }
+  });
+});
+
 describe('propose implementation boundary', () => {
   it('makes the planning-only boundary prominent (#232, #258, #262)', () => {
     for (const [label, body] of proposeBodies) {
