@@ -3,6 +3,8 @@ import {
   extractRequirementsSection,
   parseDeltaSpec,
   findMissingCurrentScenarios,
+  diffScenarioNames,
+  describeScenarioBalance,
   type RequirementBlock,
 } from '../../../src/core/parsers/requirement-blocks.js';
 
@@ -242,5 +244,95 @@ describe('findMissingCurrentScenarios: level-4 header parity', () => {
     const current = req('#### Scenario: Edge case', '- **WHEN** a', '- **THEN** b');
     const incoming = req('#### Scenario: Edge case ####', '- **WHEN** a', '- **THEN** b');
     expect(findMissingCurrentScenarios(current, incoming)).toEqual([]);
+  });
+});
+
+describe('diffScenarioNames: what the block adds, alongside what it drops', () => {
+  const block = (raw: string): RequirementBlock => ({ headerLine: raw.split('\n')[0], name: '', raw });
+  const req = (...names: string[]) =>
+    block(
+      [
+        '### Requirement: Widget state',
+        'The system SHALL report it.',
+        '',
+        ...names.flatMap((name) => [`#### Scenario: ${name}`, '- **WHEN** a', '- **THEN** b', '']),
+      ].join('\n')
+    );
+
+  it('reports both directions and both totals', () => {
+    const diff = diffScenarioNames(req('Kept', 'Dropped'), req('Kept', 'Fresh'));
+    expect(diff).toEqual({
+      missing: ['Dropped'],
+      added: ['Fresh'],
+      currentCount: 2,
+      incomingCount: 2,
+    });
+  });
+
+  it('counts added names by multiplicity, mirroring missing', () => {
+    // A name twice in the incoming block and once in the current leaves one
+    // instance unmatched, the same rule the loss half already applies.
+    const diff = diffScenarioNames(req('Edge case'), req('Edge case', 'Edge case'));
+    expect(diff.missing).toEqual([]);
+    expect(diff.added).toEqual(['Edge case']);
+  });
+
+  it('agrees with findMissingCurrentScenarios, which is its missing half', () => {
+    const current = req('Kept', 'Dropped');
+    const incoming = req('Kept');
+    expect(findMissingCurrentScenarios(current, incoming)).toEqual(
+      diffScenarioNames(current, incoming).missing
+    );
+  });
+
+  it('ignores a fenced #### on either side, like the loss half', () => {
+    const current = block(
+      ['### Requirement: Widget state', '', '#### Scenario: Real', '- **WHEN** a'].join('\n')
+    );
+    const incoming = block(
+      [
+        '### Requirement: Widget state',
+        '',
+        '#### Scenario: Real',
+        '- **WHEN** a',
+        '',
+        '```markdown',
+        '#### Scenario: Only an example',
+        '```',
+      ].join('\n')
+    );
+    expect(diffScenarioNames(current, incoming).added).toEqual([]);
+  });
+});
+
+describe('describeScenarioBalance: the sentence archive and validate share', () => {
+  const diff = (over: Partial<ReturnType<typeof diffScenarioNames>>) => ({
+    missing: [],
+    added: [],
+    currentCount: 0,
+    incomingCount: 0,
+    ...over,
+  });
+
+  it('names what a block adds, which is what separates a rename from a loss', () => {
+    expect(
+      describeScenarioBalance(diff({ added: ['Fresh'], currentCount: 2, incomingCount: 2 }))
+    ).toBe(
+      'The modified block has 2 scenario(s) to the current spec\'s 2, and adds 1 the spec does not have: "Fresh".'
+    );
+  });
+
+  it('says so when a block adds nothing, which reads as a truncation', () => {
+    expect(describeScenarioBalance(diff({ currentCount: 5, incomingCount: 2 }))).toBe(
+      "The modified block has 2 scenario(s) to the current spec's 5, and adds none."
+    );
+  });
+
+  it('caps the listing so a wholesale rewrite cannot flood the message', () => {
+    const message = describeScenarioBalance(
+      diff({ added: ['A', 'B', 'C', 'D', 'E'], currentCount: 1, incomingCount: 5 })
+    );
+    expect(message).toContain('adds 5 the spec does not have: "A", "B", "C" and 2 more.');
+    expect(message).not.toContain('"D"');
   });
 });

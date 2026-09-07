@@ -11,7 +11,8 @@ import path from 'path';
 import chalk from 'chalk';
 import {
   extractRequirementsSection,
-  findMissingCurrentScenarios,
+  diffScenarioNames,
+  describeScenarioBalance,
   foldRequirementName,
   parseDeltaSpec,
   normalizeRequirementName,
@@ -475,10 +476,10 @@ export async function buildUpdatedSpec(
         `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - header mismatch in content`
       );
     }
-    const missingScenarios = findMissingCurrentScenarios(currentBlock, mod);
-    if (missingScenarios.length > 0) {
+    const scenarioDiff = diffScenarioNames(currentBlock, mod);
+    if (scenarioDiff.missing.length > 0) {
       throw new Error(
-        `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - current spec contains scenario(s) not present in the modified block: ${missingScenarios.map(name => `"${name}"`).join(', ')}. Refresh the change spec before archiving to avoid dropping scenarios.`
+        `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - current spec contains scenario(s) not present in the modified block: ${scenarioDiff.missing.map(name => `"${name}"`).join(', ')}. ${describeScenarioBalance(scenarioDiff)} Refresh the change spec before archiving to avoid dropping scenarios.`
       );
     }
     // Identical content means the modification was already synced to the
