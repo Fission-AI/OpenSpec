@@ -562,10 +562,15 @@ describe('InitCommand', () => {
       ];
 
       for (const content of applyVariants) {
+        // The core profile has no `continue`, so the blocked-state handoff
+        // must be the CLI recovery in full, not a workflow this install lacks.
         expect(content).not.toContain('/opsx:continue');
+        expect(content).toContain('openspec status --change "<name>" --json');
+        expect(content).toContain('next `ready` artifact (not `skipped` or `blocked`)');
         expect(content).toContain(
-          'run `openspec status --change "<name>" --json` to see the next artifact'
+          'openspec instructions "<artifact-id>" --change "<name>" --json'
         );
+        expect(content).toContain('Keep the selected `--store <id>` on both commands');
       }
 
       const syncFiles = [
