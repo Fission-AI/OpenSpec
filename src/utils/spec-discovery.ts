@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
-import { compareCodePoints } from './compare.js';
+import { compareCodeUnits } from './compare.js';
 
 export interface DiscoveredSpec {
   /** Spec id relative to the specs root, forward-slash separated on every platform (e.g. "web" or "platform/session-layout"). */
@@ -70,9 +70,9 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
     }
   };
   await walk(specsRoot, []);
-  // Code-point comparison, not localeCompare, so the deterministic order the
+  // Code-unit comparison, not localeCompare, so the deterministic order the
   // docstring promises does not vary with the process's ICU locale.
-  return results.sort((a, b) => compareCodePoints(a.id, b.id));
+  return results.sort((a, b) => compareCodeUnits(a.id, b.id));
 }
 
 /**

@@ -228,8 +228,8 @@ describe('findOverlaps', () => {
     expect(overlaps[1].claimants.map((c) => c.changeId)).toEqual(['a-change', 'z-change']);
   });
 
-  it('orders non-ASCII names by code point, not by the process locale', () => {
-    // 'ä' (U+00E4) sorts after 'z' by code point but before it under most ICU
+  it('orders non-ASCII names by code unit, not by the process locale', () => {
+    // 'ä' (U+00E4) sorts after 'z' by code unit but before it under most ICU
     // collations, so a locale-sensitive sort would reorder these depending on
     // the machine the run happens on.
     const overlaps = findOverlaps(
