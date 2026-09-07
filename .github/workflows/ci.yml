@@ -194,7 +194,10 @@ jobs:
             echo "✅ flake.nix pnpmDeps hash is up to date"
             exit 0
           fi
-          HASH=$(sed -nE 's/.*hash = "(sha256-[^"]+)".*/\1/p' flake.nix | head -1)
+          # Scoped to the pnpmDeps block: a bare first-match would report some other
+          # FOD's hash if one is ever added above it.
+          HASH=$(sed -n '/pnpmDeps = /,/};/p' flake.nix \
+            | sed -nE 's/.*hash = "(sha256-[^"]+)".*/\1/p' | head -1)
           git diff flake.nix
           echo "::error file=flake.nix::Stale pnpmDeps hash. Set pnpmDeps.hash to $HASH and push."
           exit 1
