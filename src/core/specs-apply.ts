@@ -641,6 +641,30 @@ const INTERRUPTS_PARAGRAPH =
   /^ {0,3}(?:>|(?:[-*_][ \t]*){3,}$|(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)|[<|])/;
 
 /**
+ * A list item, spelled the way CommonMark spells one, with its marker and the
+ * space after it captured so a caller can measure the item's content column.
+ *
+ * Every marker, and only those. `+` is a list marker like `-` and `*`: a spec
+ * bulleted that way validates like any other, and naming only two of the three
+ * made every one of its scenario bullets unaccounted content, so such a
+ * capability could not be retired at all.
+ *
+ * The nine-digit cap is the other half of "only those": CommonMark stops an
+ * ordered marker at nine digits, so `1234567890.` opens a paragraph, not a
+ * list. It changes no verdict here, because a line this pattern rejects is
+ * weighed by the same rules either way; it is here so the audit and
+ * INTERRUPTS_PARAGRAPH cannot disagree about what a marker is. A line one of
+ * them calls a bullet and the other does not is read as both at once, and that
+ * disagreement is what a shared definition removes.
+ *
+ * Content after the marker is not required, so an empty `- ` still reads as
+ * the bullet it is rather than falling through to the leftovers. The captured
+ * group is the indent plus the marker plus its trailing space, which is the
+ * item's content column.
+ */
+const LIST_ITEM = /^(\s*(?:[-*+]|\d{1,9}[.)])\s+)/;
+
+/**
  * Drop up to `columns` visual columns of leading whitespace, so a line inside a
  * list item is classified by what it is *within* that item. A `## Retention`
  * indented under `100. Step` is a heading; measured against the file's left
@@ -837,7 +861,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // Any other line closes the item; a bullet opens the next one. The
       // content column is the marker's own indent plus the marker itself, so a
       // nested list and its own wrapped lines stay inside the item too.
-      const bullet = line.match(/^(\s*(?:[-*]|\d+[.)])\s+)\S/);
+      const bullet = line.match(LIST_ITEM);
       listContentIndent = bullet ? contentColumn(bullet[1]) : null;
       paragraphOpen = bullet !== null;
       if (/^ {0,3}####\s+Scenario:/i.test(line)) {
@@ -846,7 +870,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         bulletsSeen = false;
         continue;
       }
-      if (/^\s*(?:[-*]|\d+[.)])\s/.test(line)) {
+      if (bullet) {
         if (inScenarioBullets) {
           bulletsSeen = true;
           continue;

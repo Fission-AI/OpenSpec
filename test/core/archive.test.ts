@@ -4459,6 +4459,81 @@ The system SHALL do the thing differently.
       await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
     });
 
+    it('still retires a spec whose scenarios are bulleted with +', async () => {
+      // `+` is a list marker like `-` and `*`. Naming only two of the three
+      // made every bullet in such a spec unaccounted content, so the
+      // capability could not be retired at all - and `openspec validate
+      // --specs` passes the file without a word, so nothing said why.
+      const changeName = 'retire-plus-bulleted';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '+ **WHEN** a consumer imports the layer',
+        '+ **THEN** the layer resolves, wrapped at the column limit like every other',
+        '  paragraph in this file',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+    });
+
+    it('refuses an authored note that opens with a number too long to be a marker', async () => {
+      // `1234567890.` is past CommonMark's nine-digit cap, so it opens a
+      // paragraph rather than a list. Either reading refuses this note, since a
+      // bullet below the scenarios is the author's own too; the case is pinned
+      // so the shared marker definition cannot start deleting it.
+      const changeName = 'retire-long-number-note';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the layer resolves',
+        '',
+        '1234567890. Migration note: keep the escrow keys until the audit closes.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+    });
+
     it('still retires when a scenario bullet wraps without indenting the continuation', async () => {
       // Not every wrap indents. A lazy continuation is part of the bullet above
       // it the same way an indented one is, and inside a scenario's bullet run
