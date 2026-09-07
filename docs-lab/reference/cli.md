@@ -2118,6 +2118,8 @@ Supported shells: `zsh`, `bash`, `fish`, `powershell`. Every subcommand takes an
 | `install [shell]` | Write the script and configure your shell startup file. |
 | `uninstall [shell]` | Remove the script and the config block. |
 
+Installed with Nix, completions are already in place: the flake package ships the Bash, Fish, and Zsh scripts at the standard locations, so `install` is not needed ([Installation](../start/installation.md#nix)).
+
 ### openspec completion generate
 
 Prints the script and writes nothing.
