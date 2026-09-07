@@ -73,6 +73,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         takesValue: true,
         values: ['recent', 'name'],
       },
+      {
+        name: 'status',
+        description: 'Only list changes in this lifecycle state',
+        takesValue: true,
+        values: ['proposed', 'shipped'],
+      },
       COMMON_FLAGS.json,
       COMMON_FLAGS.store,
     ],
@@ -188,6 +194,34 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'json',
         description: 'Output as JSON (non-interactive)',
       },
+      COMMON_FLAGS.store,
+    ],
+  },
+  {
+    name: 'sync',
+    description: "Fold a change's spec deltas into the main specs without archiving it",
+    acceptsPositional: true,
+    positionalType: 'change-id',
+    positionals: [{ name: 'change-name', type: 'change-id', optional: true }],
+    flags: [
+      {
+        name: 'check',
+        description: 'Report shipped changes whose deltas are not in the main specs; write nothing',
+      },
+      {
+        name: 'ship',
+        description: 'Fold the named change, then mark it `status: shipped`',
+      },
+      {
+        name: 'yes',
+        short: 'y',
+        description: 'Sync even when the change still has incomplete tasks',
+      },
+      {
+        name: 'no-validate',
+        description: 'Skip validation (not recommended)',
+      },
+      COMMON_FLAGS.json,
       COMMON_FLAGS.store,
     ],
   },

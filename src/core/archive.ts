@@ -158,7 +158,12 @@ async function decideSpecOutcome(
   return built.counts.removed > 0 ? 'retire' : 'write';
 }
 
-async function listActiveChangeNames(changesDir: string): Promise<string[]> {
+/**
+ * Every change directory directly under `changes/`, excluding the archive.
+ * Exported so `openspec sync` enumerates the same set archive does - the two
+ * commands must never disagree about which changes are active.
+ */
+export async function listActiveChangeNames(changesDir: string): Promise<string[]> {
   try {
     const entries = await fs.readdir(changesDir, { withFileTypes: true });
     return entries
@@ -816,33 +821,55 @@ async function fingerprintSpecInputs(update: SpecUpdate): Promise<string> {
   return `${await fingerprintPath(update.source)}\n${await fingerprintPath(update.target)}`;
 }
 
-async function mutationTargetIdentity(mutation: SpecMutation): Promise<string> {
+async function specTargetIdentity(target: string): Promise<string> {
   try {
-    const stat = await fs.stat(mutation.update.target, { bigint: true });
+    const stat = await fs.stat(target, { bigint: true });
     return `${stat.dev}:${stat.ino}`;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      const parent = path.dirname(mutation.update.target);
+      const parent = path.dirname(target);
       const realParent = await fs.realpath(parent).catch(() => path.resolve(parent));
-      return `missing:${path.join(realParent, path.basename(mutation.update.target))}`;
+      return `missing:${path.join(realParent, path.basename(target))}`;
     }
     throw error;
   }
 }
 
-async function assertDistinctMutationTargets(mutations: SpecMutation[]): Promise<void> {
+/**
+ * Refuse a run in which two capability ids resolve to the SAME file.
+ *
+ * `resolveTrustedSpecPath` deliberately permits a capability directory to be a
+ * symlink (monorepos point one at another), so two ids aliasing one spec is a
+ * shape the trust model allows rather than an exotic accident. Writing both in
+ * sequence is last-writer-wins: one capability's fold is silently destroyed and
+ * the other's requirements are filed under the wrong name.
+ *
+ * Shared with `openspec sync`, which writes the same targets - the two commands
+ * must not differ on which trees they are willing to write.
+ */
+export async function assertDistinctSpecTargets(
+  entries: Array<{ id: string; target: string }>,
+  action: string
+): Promise<void> {
   const owners = new Map<string, string>();
-  for (const mutation of mutations) {
-    const identity = await mutationTargetIdentity(mutation);
+  for (const entry of entries) {
+    const identity = await specTargetIdentity(entry.target);
     const existing = owners.get(identity);
     if (existing !== undefined) {
       throw new Error(
-        `Spec updates for '${existing}' and '${mutation.update.id}' resolve to the same target ` +
-          `${identity}. Replace the capability alias or combine the deltas before archiving.`
+        `Spec updates for '${existing}' and '${entry.id}' resolve to the same target ` +
+          `${identity}. Replace the capability alias or combine the deltas before ${action}.`
       );
     }
-    owners.set(identity, mutation.update.id);
+    owners.set(identity, entry.id);
   }
+}
+
+async function assertDistinctMutationTargets(mutations: SpecMutation[]): Promise<void> {
+  await assertDistinctSpecTargets(
+    mutations.map(({ update }) => ({ id: update.id, target: update.target })),
+    'archiving'
+  );
 }
 
 async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnapshot[]> {
@@ -1050,6 +1077,66 @@ async function finalizeRetirementBackups(
   }
 }
 
+/**
+ * Whether a change carries spec deltas that must be validated before its specs
+ * are folded into `openspec/specs/`.
+ *
+ * A `spec.md` at the `specs/` root is never merged, so archiving a change that
+ * has one drops its content whether or not it carries delta headers (#1385).
+ * Its existence alone forces validation, which reports it and blocks the run. A
+ * directory named `spec.md` is a normal capability folder, so only a regular
+ * file counts.
+ *
+ * A change that declares `skip_specs` must not carry any file under `specs/` -
+ * validate reports that as a conflict, so this has to run the same check
+ * instead of skipping validation because the files happen to have no delta
+ * headers. A marker that cannot be honored (skip_specs mentioned but the
+ * metadata fails the shared shape, or names a schema that does not resolve)
+ * also forces validation, so every caller and validate always agree about the
+ * marker. Unreadable specs/ fails closed into validation too.
+ *
+ * An UNMARKED zero-delta change returns false - a gap that predates the marker,
+ * kept here so `openspec sync` inherits archive's exact answer rather than a
+ * stricter one of its own.
+ *
+ * Exported so `archive`, `sync`, and anything else that folds deltas ask one
+ * question rather than three that drift.
+ */
+export async function changeHasDeltaSpecsToValidate(changeDir: string): Promise<boolean> {
+  const changeSpecsDir = path.join(changeDir, 'specs');
+  const rootSpecStat = await fs.stat(path.join(changeSpecsDir, 'spec.md')).catch(() => null);
+  let hasDeltaSpecs = rootSpecStat?.isFile() === true;
+
+  if (!hasDeltaSpecs) {
+    const marker = readSkipSpecsMarker(changeDir);
+    if (marker.invalidReason) {
+      hasDeltaSpecs = true;
+    } else if (marker.declared) {
+      let specsDirHasFiles = true;
+      try {
+        specsDirHasFiles = await hasAnyFileUnder(changeSpecsDir);
+      } catch {
+        // fall through with true: let validation surface the conflict
+      }
+      hasDeltaSpecs = specsDirHasFiles;
+    }
+  }
+
+  for (const { specFile } of hasDeltaSpecs ? [] : await discoverSpecFiles(changeSpecsDir)) {
+    try {
+      const content = await fs.readFile(specFile, 'utf-8');
+      // Case-insensitive to match the delta parser, so a lowercase header
+      // routes through the same delta validation that validate runs.
+      if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/im.test(content)) {
+        hasDeltaSpecs = true;
+        break;
+      }
+    } catch {}
+  }
+
+  return hasDeltaSpecs;
+}
+
 export class ArchiveCommand {
   async execute(changeName?: string, options: ArchiveOptions = {}): Promise<void> {
     const json = !!options.json;
@@ -1217,50 +1304,7 @@ export class ArchiveCommand {
       }
 
       // Validate delta-formatted spec files under the change directory if present
-      const changeSpecsDir = path.join(changeDir, 'specs');
-      // A spec.md at the specs/ root is never merged, so archiving a change
-      // that has one drops its content whether or not it carries delta headers
-      // (#1385). Its existence alone must run validation, which reports it and
-      // blocks the archive. A directory named spec.md is a normal capability
-      // folder, so only a regular file counts.
-      const rootSpecStat = await fs.stat(path.join(changeSpecsDir, 'spec.md')).catch(() => null);
-      let hasDeltaSpecs = rootSpecStat?.isFile() === true;
-      // A change that declares skip_specs must not carry any file under
-      // specs/ — validate reports that as a conflict, so archive has to run
-      // the same check instead of skipping validation because the files
-      // happen to have no delta headers. A marker that cannot be honored
-      // (skip_specs mentioned but the metadata fails the shared shape, or
-      // names a schema that does not resolve) also
-      // forces validation, so archive and validate always agree about the
-      // marker. Unreadable specs/ fails closed into validation too. (An
-      // UNMARKED zero-delta change still archives with only non-blocking
-      // proposal warnings — a gap that predates the marker and is left
-      // unchanged here.)
-      if (!hasDeltaSpecs) {
-        const marker = readSkipSpecsMarker(changeDir);
-        if (marker.invalidReason) {
-          hasDeltaSpecs = true;
-        } else if (marker.declared) {
-          let specsDirHasFiles = true;
-          try {
-            specsDirHasFiles = await hasAnyFileUnder(changeSpecsDir);
-          } catch {
-            // fall through with true: let validation surface the conflict
-          }
-          hasDeltaSpecs = specsDirHasFiles;
-        }
-      }
-      for (const { specFile } of hasDeltaSpecs ? [] : await discoverSpecFiles(changeSpecsDir)) {
-        try {
-          const content = await fs.readFile(specFile, 'utf-8');
-          // Case-insensitive to match the delta parser, so a lowercase header
-          // routes through the same delta validation that validate runs.
-          if (/^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements/im.test(content)) {
-            hasDeltaSpecs = true;
-            break;
-          }
-        } catch {}
-      }
+      const hasDeltaSpecs = await changeHasDeltaSpecsToValidate(changeDir);
       if (hasDeltaSpecs) {
         // No mainSpecsDir here on purpose: the scenario-loss check standalone
         // validate runs (#1477) is the same one buildUpdatedSpec enforces a few

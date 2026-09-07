@@ -38,7 +38,9 @@ Terms are grouped by topic, then alphabetized within each group.
 
 **Archive.** The act of finishing a change. Its delta specs merge into the main specs, and the change folder moves to `openspec/changes/archive/YYYY-MM-DD-<name>/`. After archiving, your specs describe the new reality. See [Concepts](concepts.md#archive).
 
-**Sync.** Merging a change's delta specs into the main specs *without* archiving the change. Usually automatic (archive offers to do it), but available on its own as `/opsx:sync` for long-running changes. See [Commands](commands.md#opsxsync).
+**Sync.** Merging a change's delta specs into the main specs *without* archiving the change. Usually automatic (archive offers to do it). Available on its own two ways: `/opsx:sync`, where the agent does the merge ([Commands](commands.md#opsxsync)), and `openspec sync`, the deterministic CLI command ([CLI](cli.md#openspec-sync)).
+
+**Shipped / proposed.** A change may declare its lifecycle state as `status: proposed | shipped` in its `.openspec.yaml`. The field is optional and absent by default; no `status` means `proposed`. `openspec sync --check` gates on it — a change that claims to be shipped must have its deltas in the main specs — which makes the specs enforceable in CI without a check that is red for the whole life of every PR. See [OpenSpec on a Team](team-workflow.md#enforcing-it-in-ci).
 
 ## Workflow and commands
 
