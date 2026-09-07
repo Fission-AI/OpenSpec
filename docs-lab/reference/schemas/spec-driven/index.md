@@ -54,6 +54,8 @@ Establishes why the change is needed.
 The template the agent receives as the output format ([templates/proposal.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/proposal.md)):
 
 ```md
+# Proposal
+
 ## Why
 
 <!-- Explain the motivation for this change. What problem does this solve? Why now? -->
@@ -127,6 +129,8 @@ Defines what behavior changes, with one delta spec per capability the proposal l
 The template the agent receives as the output format ([templates/spec.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/spec.md)):
 
 ```md
+# Spec Delta
+
 ## Purpose
 <!-- New capabilities only: one or two sentences (50+ characters) on what this capability is for. Delete this section for an existing capability. -->
 
@@ -188,7 +192,7 @@ Format requirements:
 - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
 - Every requirement MUST have at least one scenario.
 
-New capabilities only: start the delta spec with a `## Purpose` section -
+New capabilities only: the delta spec's first section is `## Purpose` -
 one or two sentences (50+ characters, or `openspec validate --strict`
 reports it as too brief) describing what the capability is for. Archive
 copies it into the main spec it creates; without it the new main spec is
@@ -207,8 +211,10 @@ MODIFIED requirements workflow:
 Common pitfall: Using MODIFIED with partial content loses detail at archive time.
 If adding new concerns without changing existing behavior, use ADDED instead.
 
-Example (a new capability, so it opens with `## Purpose`):
+Example (a new capability, so its first section is `## Purpose`):
 ```
+# Spec Delta
+
 ## Purpose
 
 Lets users take their data out of the product in a portable format.
@@ -241,6 +247,8 @@ Explains how to implement the change. Drafted only when the change needs one.
 The template the agent receives as the output format ([templates/design.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/design.md)):
 
 ```md
+# Design
+
 ## Context
 
 <!-- Current state and constraints that shape the approach. See proposal.md for motivation - don't restate it -->
@@ -305,6 +313,8 @@ Breaks the implementation into checkable tasks. [apply](#apply) tracks progress 
 The template the agent receives as the output format ([templates/tasks.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/tasks.md)):
 
 ```md
+# Tasks
+
 ## 1. <!-- Task Group Name -->
 
 - [ ] 1.1 <!-- Task description -->
@@ -338,6 +348,8 @@ Guidelines:
 
 Example:
 ```
+# Tasks
+
 ## 1. Setup
 
 - [ ] 1.1 Create new module structure

@@ -521,7 +521,7 @@ Artifacts form a directed acyclic graph (DAG). Dependencies are **enablers**, no
   │  │  $ openspec instructions specs --change "add-auth" --json          │  │
   │  │                                                                    │  │
   │  │  {                                                                 │  │
-  │  │    "template": "# Spec Delta\n\n## ADDED Requirements...",         │  │
+  │  │    "template": "# Specification\n\n## ADDED Requirements...",      │  │
   │  │    "dependencies": [{"id": "proposal", "path": "...", "done": true}│  │
   │  │    "unlocks": ["tasks"]                                            │  │
   │  │  }                                                                 │  │
