@@ -13,7 +13,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 | **Personal worksets** | `workset create`, `workset list`, `workset open`, `workset remove` | Keep and open personal, local working views in your tool |
 | **Browsing** | `list`, `view`, `show` | Explore changes and specs |
 | **Validation** | `validate` | Check changes and specs for issues |
-| **Lifecycle** | `archive` | Finalize completed changes |
+| **Lifecycle** | `sync`, `archive` | Fold delta specs into the main specs, and finalize completed changes |
 | **Workflow** | `new change`, `status`, `instructions`, `templates`, `schemas` | Artifact-driven workflow support |
 | **Schemas** | `schema init`, `schema fork`, `schema validate`, `schema which` | Create and manage custom workflows |
 | **Config** | `config` | View and modify settings |
@@ -443,6 +443,7 @@ openspec list [options]
 | `--specs` | List specs instead of changes |
 | `--changes` | List changes (default) |
 | `--sort <order>` | Sort by `recent` (default) or `name` |
+| `--status <state>` | Only list changes in this lifecycle state: `proposed` or `shipped`. A change whose `.openspec.yaml` has no `status` counts as `proposed` |
 | `--json` | Output as JSON |
 
 **Examples:**
@@ -625,6 +626,102 @@ Validating add-dark-mode...
 ---
 
 ## Lifecycle Commands
+
+### `openspec sync`
+
+Fold a change's delta specs into the main specs, without archiving the change.
+
+```
+openspec sync [change-name] [options]
+```
+
+`archive` does two things at once: it folds a change's deltas into `openspec/specs/`
+and it moves the change folder. `sync` does only the first, so the specs can be
+brought up to date while the change is still open for review — and so CI can check
+that they are.
+
+**Arguments:**
+
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `change-name` | No | Change to sync. Omitted, `sync` acts on every change that declares `status: shipped` |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--check` | Report shipped changes whose deltas are not in the main specs and exit 1. Writes nothing |
+| `--ship` | Set `status: shipped` on the named change, then fold it — one command, one diff |
+| `-y, --yes` | Sync even when the change still has incomplete tasks |
+| `--no-validate` | Skip validation (not recommended) |
+| `--json` | Structured output for hooks and CI |
+| `--store <id>` | Use a registered store as the OpenSpec root |
+
+**The lifecycle field.** A change's `.openspec.yaml` may declare where it sits:
+
+```yaml
+schema: spec-driven
+status: shipped   # or: proposed
+```
+
+The field is optional and absent by default. A change with no `status` is
+`proposed`, which is what every change under `changes/` has always meant, so a
+project that never opts in is unaffected. Nothing writes the field on its own —
+not `openspec new change`, not `archive`.
+
+**The CI gate.** `openspec sync --check` asserts one property: *a change that
+claims to be shipped has its deltas in `specs/`*. A proposed change passes for
+free, so the check is green as its resting state and red only on a real mistake —
+unlike "is everything archived?", which is red for the entire life of every open
+PR. It reads only files on disk, so a pre-commit hook, a pre-push hook and CI run
+the same command and reach the same verdict.
+
+```bash
+# CI, pre-commit, pre-push — same command
+openspec sync --check
+```
+
+**Examples:**
+
+```bash
+# Fold one change's deltas now; the change stays where it is
+openspec sync add-rate-limit
+
+# Mark it shipped and fold it in a single commit
+openspec sync add-rate-limit --ship
+
+# Fold every change that declares status: shipped
+openspec sync
+
+# Gate: exits 1 if any shipped change has unfolded deltas
+openspec sync --check
+
+# Which changes have claimed to be shipped but aren't archived yet
+openspec list --status shipped
+```
+
+**What it does:**
+
+1. Validates the change's delta specs (unless `--no-validate`)
+2. Refuses a change with incomplete tasks, unless `--yes` — folding a change
+   nothing implements yet writes requirements into `specs/` that aren't true
+3. Validates every rebuilt spec before writing any of them, so a late failure
+   leaves the whole tree unchanged
+4. Writes the updated main specs. Nothing moves; nothing is deleted
+
+**What it deliberately does not do:**
+
+- **It never deletes a spec.** When a change's `REMOVED` entries take a
+  capability's last requirement, retiring that capability deletes its `spec.md`.
+  That stays with `openspec archive`, behind the `retire_capabilities` marker.
+  `sync` reports the case and points you there.
+- **It never checks archived changes.** Archived deltas are history, and later
+  changes supersede them. `--check` looks only at active changes that declare
+  `status: shipped` — a set that drains itself as those changes archive.
+
+**Syncing early does not change archiving.** Re-applying a delta that is already
+in the main specs is a no-op, so `openspec archive` afterwards reports
+`Specs already in sync` and moves the folder exactly as it always did.
 
 ### `openspec archive`
 

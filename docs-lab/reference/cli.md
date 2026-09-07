@@ -22,6 +22,7 @@
 | [`openspec show`](#openspec-show) | Print a change or spec, as markdown or JSON. |
 | [`openspec view`](#openspec-view) | One-screen dashboard of specs and changes. |
 | [`openspec validate`](#openspec-validate) | Check changes and specs for structural issues. |
+| [`openspec sync`](#openspec-sync) | Fold a change's delta specs into the main specs, without archiving it. |
 | [`openspec archive`](#openspec-archive) | Move a completed change to the archive and update the main specs. |
 
 **Workflows and schemas**
@@ -410,6 +411,7 @@ Rows come from `openspec/changes/` and `openspec/specs/` under the resolved root
 | `--specs` | List specs instead of changes. |
 | `--changes` | List changes. This is the default. |
 | `--sort <order>` | `recent` (last modified first) or `name`. Default: `recent`. Specs always sort by name. |
+| `--status <state>` | Only list changes in this lifecycle state: `proposed` or `shipped`. A change with no `status` in its `.openspec.yaml` counts as `proposed`. |
 | `--json` | Print JSON instead of the table. |
 | `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
 
@@ -866,6 +868,100 @@ exit $validationExit
 ```
 
 These custom views keep the full report's keys but omit clean items. They are neither complete full-v1 reports nor the versioned `--report findings` shape.
+
+## openspec sync
+
+Folds a change's delta specs into the main specs, without archiving the change.
+
+```bash
+openspec sync add-rate-limit          # fold one change now; nothing moves
+openspec sync add-rate-limit --ship   # mark it shipped and fold it, in one diff
+openspec sync                         # fold every change declaring status: shipped
+openspec sync --check                 # exit 1 if a shipped change has unfolded deltas
+```
+
+`archive` folds and moves in one step, so the fold can only happen at the moment the
+change is finished. `sync` separates them: the specs can be brought up to date while
+the change is still open, and CI can check that they are.
+
+**Arguments**
+
+| Argument | What it is |
+|---|---|
+| `change-name` | The change to sync. Omitted, every change declaring `status: shipped` |
+
+**Options**
+
+| Flag | Effect |
+|---|---|
+| `--check` | Report shipped changes with unfolded deltas and exit 1. Writes nothing. |
+| `--ship` | Set `status: shipped` on the named change, then fold it. |
+| `-y, --yes` | Sync even when the change has incomplete tasks. |
+| `--no-validate` | Skip validation. |
+| `--json` | Print a structured result instead of text. |
+| `--store <id>` | Use a registered store as the OpenSpec root. |
+
+**The lifecycle field**
+
+A change may declare where it sits, in its `.openspec.yaml`:
+
+```yaml
+schema: spec-driven
+status: shipped
+```
+
+Optional and absent by default. No `status` means `proposed`, which is what a change
+under `changes/` has always meant. Nothing writes the field on its own.
+
+**The gate**
+
+`openspec sync --check` asserts that a change claiming to be shipped has its deltas in
+`specs/`. A proposed change passes for free, so green is the resting state:
+
+```
+✓ 1 shipped change(s) are folded into the main specs.
+```
+
+and red names both the gap and the fix:
+
+```
+Sync check failed:
+
+  add-rate-limit
+    api: +1 not applied
+
+Run openspec sync to fold them, then commit the result.
+```
+
+It reads only files on disk — no VCS history, no timing — so a pre-commit hook, a
+pre-push hook and CI run the same command and agree.
+
+**Output**
+
+```
+Applying changes to openspec/specs/api/spec.md:
+  + 1 added
+Totals: + 1, ~ 0, - 0, → 0
+Specs updated successfully.
+```
+
+Running it again reports `Specs already in sync; no files changed.` — and so does
+`openspec archive` afterwards, because re-applying a folded delta is a no-op.
+
+**What it will not do**
+
+Sync never deletes a spec. When a change's `REMOVED` entries take a capability's last
+requirement, retiring it deletes the file, which stays with `openspec archive` behind
+the `retire_capabilities` marker. Sync reports the case and names archive instead.
+
+Sync also never examines archived changes: their deltas are history, superseded by
+whatever came after.
+
+**Exit codes**
+
+- `0`: the specs were folded, or `--check` found nothing wrong.
+- `1`: `--check` found an unfolded shipped change, validation failed, tasks were
+  incomplete, or the change was not found.
 
 ## openspec archive
 

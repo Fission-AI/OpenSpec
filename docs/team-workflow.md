@@ -55,6 +55,38 @@ Archiving folds a change's deltas into your main `openspec/specs/` and moves the
 
 Pick one and be consistent. Either way, `/opsx:archive` checks that tasks are complete and offers to sync first, so nothing merges half-finished by accident.
 
+## Enforcing it in CI
+
+The obvious CI check — "nothing is left unarchived" — doesn't work, because it's red for the whole life of every PR. An open change sits in `changes/`, unarchived, precisely because it isn't finished. A gate that is red as its resting state is one everyone learns to ignore.
+
+`openspec sync --check` is the check that works. It asks a different question: **does anything that claims to be shipped still have deltas missing from `specs/`?** A change that hasn't made that claim passes for free, so green is the resting state and red means a real mistake.
+
+```yaml
+# .github/workflows/specs.yml
+- run: npx openspec sync --check
+```
+
+The claim is one line in the change's `.openspec.yaml`:
+
+```yaml
+schema: spec-driven
+status: shipped
+```
+
+The everyday shape of it:
+
+1. Open the PR. The change is `proposed` (the default — nothing to write). The gate is green.
+2. When the work is done and reviewed, mark it shipped and fold its deltas in one step:
+   ```bash
+   openspec sync add-rate-limit --ship
+   ```
+   That sets `status: shipped` and writes the deltas into `specs/` in a single commit, so no intermediate commit claims a change shipped while the specs say otherwise.
+3. Merge. Archive whenever you like afterwards — re-applying a delta that's already folded is a no-op, so `openspec archive` behaves exactly as it always did.
+
+The check is a pure function of the files on disk, so the same command works as a pre-commit hook, a pre-push hook, and the CI gate, and all three agree.
+
+`openspec list --status shipped` shows which changes have made the claim but aren't archived yet.
+
 ## Two people, parallel changes
 
 Because changes are separate folders, they don't collide:
