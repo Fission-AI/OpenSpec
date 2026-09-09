@@ -19,6 +19,14 @@ import {
  * the guard has to live in the instructions themselves, in every workflow.
  */
 describe('project root guard', () => {
+  /** One bullet of the no-root branch table, from its anchor to the next. */
+  function branch(anchor: string): string {
+    const start = PROJECT_ROOT_GUARD.indexOf(anchor);
+    expect(start, `${anchor} is missing`).toBeGreaterThanOrEqual(0);
+    const next = PROJECT_ROOT_GUARD.indexOf('\n- ', start);
+    return PROJECT_ROOT_GUARD.slice(start, next === -1 ? undefined : next);
+  }
+
   // Both surfaces, rendered exactly as they ship.
   function renderedBodies(): Array<[string, string]> {
     return [
@@ -68,14 +76,49 @@ describe('project root guard', () => {
     expect(PROJECT_ROOT_GUARD).toContain('also exits non-zero, which is that answer rather than a broken CLI');
   });
 
-  it('hands the decision to the user instead of setting the project up', () => {
-    expect(PROJECT_ROOT_GUARD).toContain('stop before writing and ask the user how to proceed');
-    expect(PROJECT_ROOT_GUARD).toContain('drop OpenSpec for this request and help them directly');
-    expect(PROJECT_ROOT_GUARD).toContain('Do not run `openspec init` until they ask for it');
+  // #1645 asks for the workflow to get out of the way, not to interrogate the
+  // user: "if not exist it can go through the normal general propose not the
+  // openspec". So the two ways of arriving here get opposite answers, and both
+  // have to be pinned or the guard drifts back to one of them.
+  it('gets out of the way when it selected itself', () => {
+    const autoSelected = branch('**Auto-selected**');
+
+    expect(autoSelected).toContain('without the user naming OpenSpec');
+    expect(autoSelected).toContain('answer the request normally');
+    // The reported bug is being asked to choose a setup path for a project the
+    // user never said was an OpenSpec project.
+    expect(autoSelected).toContain('Do not ask them to set anything up');
+    expect(autoSelected).not.toContain('openspec init');
+    expect(autoSelected).not.toContain('--store <id>');
+  });
+
+  it('asks when the user named OpenSpec, this skill, or its command', () => {
+    const explicit = branch('**Explicit OpenSpec request**');
+
+    expect(explicit).toContain('named OpenSpec, named this skill, or ran its slash command');
+    expect(explicit).toContain('Stop before writing and ask how to proceed');
+    expect(explicit).toContain('`openspec init`');
+    expect(explicit).toContain('`--store <id>`');
+    expect(explicit).toContain('continue without OpenSpec');
+    expect(explicit).toContain('Wait for their answer');
+  });
+
+  // A slash command is an explicit invocation, so the ask branch is the one
+  // that applies there. The guard ships whole into command files, which is what
+  // keeps that branch reachable from a command surface.
+  it('carries the explicit branch into every deployed opsx command', () => {
+    for (const [label, body] of renderedBodies()) {
+      if (!label.startsWith('command ')) continue;
+      expect(body, label).toContain('**Explicit OpenSpec request**');
+      expect(body, label).toContain('Stop before writing and ask how to proceed');
+    }
+  });
+
+  it('never lets any branch create the root as a side effect', () => {
+    expect(PROJECT_ROOT_GUARD).toContain('In both branches, never create the root as a side effect');
+    expect(PROJECT_ROOT_GUARD).toContain('do not run `openspec init` until the user asks for it');
     expect(PROJECT_ROOT_GUARD).toContain('do not hand-create `openspec/` files');
-    expect(PROJECT_ROOT_GUARD).toContain(
-      'do not let a command create the root as a side effect'
-    );
+    expect(PROJECT_ROOT_GUARD).toContain('do not let a command create it');
   });
 
   // A guard printed after the workflow has already scaffolded a change is no

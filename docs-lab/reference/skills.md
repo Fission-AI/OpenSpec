@@ -39,7 +39,12 @@ The skills come in two sets:
 - **Core**: installed by default, the main planning loop.
 - **Optional**: installed only when you add them, via [Profiles](../customize/profiles.md).
 
-Every skill expects a project that already uses OpenSpec. Before its first step that writes anything, a skill confirms the resolved root and stops when there is none, then asks how to proceed: set this project up with `openspec init`, target a store you already have with `--store <id>`, or drop OpenSpec for that request. It waits for your answer, and never creates an `openspec/` directory on its own. The entries below describe what each skill does once a root is in place.
+Every skill expects a project that already uses OpenSpec. Before its first step that writes anything, a skill checks for a resolved root. What happens when there is none depends on how the skill was reached:
+
+- **Auto-selected**: your agent picked the skill on its own, without you naming OpenSpec. It drops OpenSpec and answers your request normally, the way it would with OpenSpec not installed.
+- **Explicit OpenSpec request**: you named OpenSpec, named the skill, or ran its command. It stops before writing and asks how to proceed: run `openspec init` here, target a store with `--store <id>`, or continue without OpenSpec. It waits for your answer.
+
+Commands are always the second case. No skill creates an `openspec/` directory on its own in either case. The entries below describe what each skill does once a root is in place.
 
 | Skill | Job | Type |
 |---|---|---|
