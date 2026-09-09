@@ -200,11 +200,11 @@ describe('store root selection for normal commands', () => {
       expect(result.stderr).toContain(`Using OpenSpec root: team-context (${storeRoot})`);
       expect(result.stdout).toContain("Created change 'add-billing'");
       expect(result.stdout).toContain(
-        path.join(storeRoot, 'openspec', 'changes', 'add-billing')
+        path.join(storeRoot, 'openspec', 'changes', 'proposed', 'add-billing')
       );
 
       expect(
-        fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'add-billing'))
+        fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'proposed', 'add-billing'))
       ).toBe(true);
       expectNoLocalOpenSpec();
     });
@@ -224,7 +224,7 @@ describe('store root selection for normal commands', () => {
       });
       expect(path.isAbsolute(json.change.path)).toBe(true);
       expect(json.change.path).toBe(
-        path.join(storeRoot, 'openspec', 'changes', 'add-billing')
+        path.join(storeRoot, 'openspec', 'changes', 'proposed', 'add-billing')
       );
       expectNoLocalOpenSpec();
     });

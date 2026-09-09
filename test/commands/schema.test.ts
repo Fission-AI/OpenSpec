@@ -481,7 +481,7 @@ artifacts:
       expect(created.exitCode).toBe(0);
       expect(
         fs.readFileSync(
-          path.join(tempDir, 'openspec', 'changes', 'uses-default', '.openspec.yaml'),
+          path.join(tempDir, 'openspec', 'changes', 'proposed', 'uses-default', '.openspec.yaml'),
           'utf-8'
         )
       ).toContain('schema: my-workflow');

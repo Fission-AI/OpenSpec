@@ -186,7 +186,7 @@ A change is a proposed modification to your system, packaged as a folder with ev
 ### Change Structure
 
 ```
-openspec/changes/add-dark-mode/
+openspec/changes/proposed/add-dark-mode/
 ├── proposal.md           # Why and what
 ├── design.md             # How (technical approach)
 ├── tasks.md              # Implementation checklist
@@ -200,6 +200,18 @@ Each change is self-contained. It has:
 - **Artifacts** — documents that capture intent, design, and tasks
 - **Delta specs** — specifications for what's being added, modified, or removed
 - **Metadata** — optional configuration for this specific change
+
+### Change Directories
+
+- **`changes/proposed/`**: New plans awaiting approval.
+- **`changes/approved/`**: Plans you have approved in conversation or selected for apply. Your agent moves the whole change folder here.
+- **`changes/archive/`**: Archived changes.
+
+Approving a plan can leave implementation for later. Existing flat `changes/<name>/` folders stay usable after an update; your agent moves one when you approve or apply it. Commands still accept the change name, such as `openspec status --change add-dark-mode`.
+
+Archive accepts approved changes and existing flat changes. It rejects changes still in `proposed/`.
+
+Scripts should use the resolved paths returned by `status --json`. Older CLI versions do not discover changes inside the new folders.
 
 ### Why Changes Are Folders
 
@@ -514,7 +526,7 @@ openspec/
 │   └── auth/
 │       └── spec.md ◄────────────────┐
 └── changes/                         │
-    └── add-2fa/                     │
+    └── approved/add-2fa/            │
         ├── proposal.md              │
         ├── design.md                │ merge
         ├── tasks.md                 │

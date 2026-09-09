@@ -90,6 +90,7 @@ describe('capstone persona journeys (6.1)', () => {
       appRepo,
       'openspec',
       'changes',
+      'proposed',
       'implement-invoice-immutability'
     );
     expect(fs.existsSync(changeDir)).toBe(true);
@@ -121,7 +122,7 @@ describe('capstone persona journeys (6.1)', () => {
       { cwd: codeRepo, env }
     );
     expect(created.exitCode).toBe(0);
-    const changeDir = path.join(storeRoot, 'openspec', 'changes', 'add-rate-limits');
+    const changeDir = path.join(storeRoot, 'openspec', 'changes', 'proposed', 'add-rate-limits');
     expect(fs.existsSync(changeDir)).toBe(true);
 
     const status = await runCLI(['status', '--change', 'add-rate-limits', '--json'], {
@@ -164,6 +165,9 @@ describe('capstone persona journeys (6.1)', () => {
     const writtenArtifacts = fs.readdirSync(changeDir).sort();
     expect(writtenArtifacts).toEqual(['.openspec.yaml', 'design.md', 'proposal.md', 'specs', 'tasks.md']);
 
+    const approvedDir = path.join(storeRoot, 'openspec', 'changes', 'approved', 'add-rate-limits');
+    fs.mkdirSync(path.dirname(approvedDir), { recursive: true });
+    fs.renameSync(changeDir, approvedDir);
     // Archive completes the lifecycle, still without --store.
     const archived = await runCLI(
       ['archive', 'add-rate-limits', '--yes', '--skip-specs', '--json'],
