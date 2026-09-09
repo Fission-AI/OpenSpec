@@ -65,6 +65,18 @@ Every command takes `-h, --help`. The bare `openspec` command also takes:
 - `-V, --version`: print the CLI version.
 - `--no-color`: disable colored output.
 
+**Workflow names**
+
+Workflow names are not CLI commands. `openspec propose` prints how to invoke that workflow and runs nothing, and the same holds for `explore`, `apply`, `sync`, and every other workflow name the CLI does not already use. `openspec new`, `openspec update`, and `openspec archive` are real commands and keep doing their own work.
+
+The answer is resolved for your project:
+
+- No workflow files here yet: run `openspec init`.
+- Workflows installed, but not this one: run `openspec config profile` to add it.
+- Installed: the spelling each configured tool answers to, such as `/opsx:propose`, `/opsx-propose`, `@opsx-propose`, or `/openspec-propose`. A tool that matches skills by description gets a plain-language request instead.
+
+When your tools spell it differently, every spelling is listed with the tools it serves.
+
 ## openspec init
 
 Initializes OpenSpec in a project.
