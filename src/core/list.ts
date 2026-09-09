@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { activeChangeNames, resolveChangeDir } from '../utils/change-directory.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { readFileSync, type Dirent } from 'fs';
 import { MarkdownParser } from './parsers/markdown-parser.js';
@@ -139,9 +140,8 @@ export class ListCommand {
       // Read the parent even for --archived: Windows can report ENOENT for
       // changes/archive when changes is a file, hiding a malformed root.
       const entries = await readChangeDirectoryEntries(changesDir);
-      const activeDirs = !archived || all ? entries
-        .filter(entry => entry.isDirectory() && entry.name !== 'archive')
-        .map(entry => ({ name: entry.name, parent: changesDir, archived: false })) : [];
+      const activeDirs = !archived || all ? activeChangeNames(changesDir)
+        .map(name => ({ name, parent: changesDir, archived: false })) : [];
       const archiveEntries = includeArchived ? await readChangeDirectoryEntries(archiveDir) : [];
       const archivedDirs = archiveEntries
         .filter(entry => entry.isDirectory() && !entry.name.startsWith('.'))
@@ -165,7 +165,8 @@ export class ListCommand {
       // is listed as what it is, so the nesting stops failing silently (#1846).
       const nestedFindings = await findNestedChanges(
         changesDir,
-        activeDirs.map((changeDir) => changeDir.name)
+        activeDirs.map((changeDir) => changeDir.name).filter((name) =>
+          entries.some((entry) => entry.isDirectory() && entry.name === name))
       );
       const nestedByName = new Map<string, NestedChangeFinding>(
         nestedFindings.map((finding) => [finding.name, finding])
@@ -173,7 +174,9 @@ export class ListCommand {
 
       for (const changeDir of changeDirs) {
         const progress = await getTaskProgressForChange(changeDir.parent, changeDir.name, targetPath);
-        const changePath = path.join(changeDir.parent, changeDir.name);
+        const changePath = changeDir.archived
+          ? path.join(changeDir.parent, changeDir.name)
+          : resolveChangeDir(changesDir, changeDir.name);
         const lastModified = await getLastModified(changePath, changeDir.archived);
         changes.push({
           name: changeDir.name,
