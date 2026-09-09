@@ -217,8 +217,6 @@ Run this inside each project to regenerate AI guidance and ensure the latest sla
 openspec update
 ```
 
-Existing change folders stay where they are. See [change directories](docs/concepts.md#change-directories) for the proposed/approved convention.
-
 ## Usage Notes
 
 **Model selection**: OpenSpec works best with high-reasoning models. We recommend Codex 5.5 and Opus 4.7 for both planning and implementation.
