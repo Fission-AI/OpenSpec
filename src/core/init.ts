@@ -861,6 +861,8 @@ export class InitCommand {
       openspecPath,
       path.join(openspecPath, 'specs'),
       path.join(openspecPath, 'changes'),
+      path.join(openspecPath, 'changes', 'proposed'),
+      path.join(openspecPath, 'changes', 'approved'),
       path.join(openspecPath, 'changes', 'archive'),
     ];
 

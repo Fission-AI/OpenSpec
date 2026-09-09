@@ -85,7 +85,7 @@ describe('declared store fallback (3.2)', () => {
     );
     expect(instructions.exitCode).toBe(0);
 
-    const changeDir = path.join(storeRoot, 'openspec', 'changes', 'billing-rework');
+    const changeDir = path.join(storeRoot, 'openspec', 'changes', 'proposed', 'billing-rework');
     fs.writeFileSync(
       path.join(changeDir, 'proposal.md'),
       '## Why\n\nBilling rework.\n\n## What Changes\n\n- **billing:** Rework billing\n'
@@ -112,6 +112,9 @@ describe('declared store fallback (3.2)', () => {
     });
     expect(show.exitCode).toBe(0);
 
+    const approvedDir = path.join(storeRoot, 'openspec', 'changes', 'approved', 'billing-rework');
+    fs.mkdirSync(path.dirname(approvedDir), { recursive: true });
+    fs.renameSync(changeDir, approvedDir);
     const archive = await runCLI(['archive', 'billing-rework', '--yes', '--json'], {
       cwd: pointerRepo,
       env,

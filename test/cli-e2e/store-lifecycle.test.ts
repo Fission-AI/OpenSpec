@@ -293,12 +293,23 @@ describe('standalone store lifecycle journey', () => {
     );
     expect(instructions.exitCode).toBe(0);
     expect(instructions.stdout).toContain(
-      path.join(canonical(storeRoot), 'openspec', 'changes', changeId, 'proposal.md')
+      path.join(canonical(storeRoot), 'openspec', 'changes', 'proposed', changeId, 'proposal.md')
     );
 
     // The test acts as the agent and writes the artifacts.
-    const changeDir = path.join(storeRoot, 'openspec', 'changes', changeId);
+    const changeDir = path.join(storeRoot, 'openspec', 'changes', 'proposed', changeId);
     await writeCompletedChangeArtifacts(changeDir, 'billing');
+
+    // The agent records approval with a filesystem move, not a CLI transition.
+    const approvedDir = path.join(storeRoot, 'openspec', 'changes', 'approved', changeId);
+    await fs.mkdir(path.dirname(approvedDir), { recursive: true });
+    await fs.rename(changeDir, approvedDir);
+    const apply = await runCLI(
+      ['instructions', 'apply', '--change', changeId, '--store', STORE_ID, '--json'],
+      { env: machineA, cwd: projectDir }
+    );
+    expect(apply.exitCode).toBe(0);
+    expect(JSON.parse(apply.stdout).contextFiles.proposal).toEqual([path.join(canonical(approvedDir), 'proposal.md')]);
 
     const validated = await runCLI(
       ['validate', changeId, '--store', STORE_ID],
@@ -412,11 +423,14 @@ describe('standalone store lifecycle journey', () => {
     );
     expect(instructions.exitCode).toBe(0);
     expect(instructions.stdout).toContain(
-      path.join(canonical(cloneRoot), 'openspec', 'changes', changeId, 'proposal.md')
+      path.join(canonical(cloneRoot), 'openspec', 'changes', 'proposed', changeId, 'proposal.md')
     );
 
-    const changeDir = path.join(cloneRoot, 'openspec', 'changes', changeId);
+    const changeDir = path.join(cloneRoot, 'openspec', 'changes', 'proposed', changeId);
     await writeCompletedChangeArtifacts(changeDir, 'invoicing');
+    const approvedDir = path.join(cloneRoot, 'openspec', 'changes', 'approved', changeId);
+    await fs.mkdir(path.dirname(approvedDir), { recursive: true });
+    await fs.rename(changeDir, approvedDir);
 
     const status = await runCLI(
       ['status', '--change', changeId, '--store', STORE_ID],

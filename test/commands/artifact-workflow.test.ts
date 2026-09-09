@@ -441,7 +441,7 @@ describe('artifact-workflow CLI commands', () => {
       const output = getOutput(result);
       expect(output).toContain("Created change 'my-new-feature'");
 
-      const changeDir = path.join(changesDir, 'my-new-feature');
+      const changeDir = path.join(changesDir, 'proposed', 'my-new-feature');
       const stat = await fs.stat(changeDir);
       expect(stat.isDirectory()).toBe(true);
 
@@ -483,7 +483,7 @@ apply:
       expect(result.exitCode).toBe(0);
 
       const metadata = await fs.readFile(
-        path.join(changesDir, 'no-spec-change', '.openspec.yaml'),
+        path.join(changesDir, 'proposed', 'no-spec-change', '.openspec.yaml'),
         'utf-8'
       );
       expect(metadata).toContain('skip_specs: true');
@@ -492,7 +492,7 @@ apply:
         ['validate', 'no-spec-change', '--type', 'change'],
         { cwd: tempDir }
       );
-      expect(validation.exitCode).toBe(0);
+      expect(validation.exitCode, getOutput(validation)).toBe(0);
     });
 
     it('does not mark spec-producing schemas that use Windows separators', async () => {
@@ -522,7 +522,7 @@ artifacts:
       const result = await runCLI(['new', 'change', changeName], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
 
-      const changeDir = path.join(changesDir, changeName);
+      const changeDir = path.join(changesDir, 'proposed', changeName);
       const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
       expect(metadata).not.toContain('skip_specs');
 
@@ -560,7 +560,7 @@ The system SHALL support the example behavior.
       expect(result.exitCode).toBe(1);
       const output = getOutput(result);
       expect(output).toContain('--initiative is no longer supported');
-      await expect(fs.stat(path.join(changesDir, 'linked-change'))).rejects.toMatchObject({
+      await expect(fs.stat(path.join(changesDir, 'proposed', 'linked-change'))).rejects.toMatchObject({
         code: 'ENOENT',
       });
     });
@@ -572,7 +572,7 @@ The system SHALL support the example behavior.
       expect(result.exitCode).toBe(1);
       const output = getOutput(result);
       expect(output).toContain('--areas is no longer supported');
-      await expect(fs.stat(path.join(changesDir, 'area-change'))).rejects.toMatchObject({
+      await expect(fs.stat(path.join(changesDir, 'proposed', 'area-change'))).rejects.toMatchObject({
         code: 'ENOENT',
       });
     });
@@ -585,7 +585,7 @@ The system SHALL support the example behavior.
       expect(result.exitCode).toBe(0);
 
       const metadata = await fs.readFile(
-        path.join(changesDir, 'goal-change', '.openspec.yaml'),
+        path.join(changesDir, 'proposed', 'goal-change', '.openspec.yaml'),
         'utf-8'
       );
       expect(metadata).toContain('schema: spec-driven');
@@ -601,7 +601,7 @@ The system SHALL support the example behavior.
       );
       expect(result.exitCode).toBe(0);
 
-      const readmePath = path.join(changesDir, 'described-feature', 'README.md');
+      const readmePath = path.join(changesDir, 'proposed', 'described-feature', 'README.md');
       const content = await fs.readFile(readmePath, 'utf-8');
       expect(content).toContain('described-feature');
       expect(content).toContain('This is a test feature');
@@ -1364,7 +1364,7 @@ operations:
         expect(result.exitCode).toBe(0);
 
         // Verify the change was created with spec-driven schema
-        const metadataPath = path.join(changesDir, 'test-change', '.openspec.yaml');
+        const metadataPath = path.join(changesDir, 'proposed', 'test-change', '.openspec.yaml');
         const metadata = await fs.readFile(metadataPath, 'utf-8');
         expect(metadata).toContain('schema: spec-driven');
       }, 60000);
@@ -1385,7 +1385,7 @@ operations:
         expect(result.exitCode).toBe(0);
 
         // Verify the change uses the CLI-specified schema
-        const metadataPath = path.join(changesDir, 'override-test', '.openspec.yaml');
+        const metadataPath = path.join(changesDir, 'proposed', 'override-test', '.openspec.yaml');
         const metadata = await fs.readFile(metadataPath, 'utf-8');
         expect(metadata).toContain('schema: spec-driven');
       }, 60000);

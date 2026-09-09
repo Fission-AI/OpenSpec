@@ -1,3 +1,4 @@
+import { resolveChangeDir } from './change-directory.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { Artifact, SchemaYaml } from '../core/artifact-graph/index.js';
@@ -171,7 +172,7 @@ export async function getTaskProgressDetailForChange(
   projectRoot: string,
   schemaGlobCache?: SchemaGlobCache
 ): Promise<TaskProgressDetail> {
-  const changeDir = path.join(changesDir, changeName);
+  const changeDir = resolveChangeDir(changesDir, changeName);
   const files = resolveTaskFilesForChange(changeDir, projectRoot, schemaGlobCache);
   const targets = files.length > 0 ? files : [path.join(changeDir, 'tasks.md')];
   const unreadable: string[] = [];
@@ -210,5 +211,4 @@ export function formatTaskStatus(progress: TaskProgress): string {
   if (progress.completed === progress.total) return '✓ Complete';
   return `${progress.completed}/${progress.total} tasks`;
 }
-
 
