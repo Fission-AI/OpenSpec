@@ -735,6 +735,18 @@ context: |
         expect(config?.context).toBe('from yaml');
       });
 
+      it.each(['context: [', 'context: 123\n'])(
+        'does not fall back to .yml when .yaml has invalid content: %s',
+        (yaml) => {
+          const configDir = path.join(tempDir, 'openspec');
+          fs.mkdirSync(configDir, { recursive: true });
+          fs.writeFileSync(path.join(configDir, 'config.yaml'), yaml);
+          fs.writeFileSync(path.join(configDir, 'config.yml'), 'context: from yml\n');
+
+          expect(readProjectConfig(tempDir)?.context).toBeUndefined();
+        }
+      );
+
       it('should use .yml when .yaml does not exist', () => {
         const configDir = path.join(tempDir, 'openspec');
         fs.mkdirSync(configDir, { recursive: true });
