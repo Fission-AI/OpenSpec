@@ -52,6 +52,22 @@ export const ProjectConfigSchema = z.object({
     .optional()
     .describe('Per-artifact rules, keyed by artifact ID'),
 
+  // Optional: schema-scoped context/rules overrides, keyed by schema name.
+  // A project can register multiple schemas (built-in plus forked/local
+  // ones); the `context`/`rules` fields above apply to all of them, and this
+  // is the only way to add context or rules that apply to just one schema.
+  // Layered on top of (additive to) the fields above, never a replacement.
+  schemas: z
+    .record(
+      z.string(), // schema name
+      z.object({
+        context: z.string().optional(),
+        rules: z.record(z.string(), z.array(z.string())).optional(),
+      })
+    )
+    .optional()
+    .describe('Schema-scoped context/rules overrides, keyed by schema name'),
+
   // Optional: per-operation advisory guidance, kept separate from artifact rules.
   operations: z
     .object({
@@ -90,6 +106,12 @@ export interface DeclarationEntry {
   id: string;
   /** Clone source rendered into onboarding fixes. */
   remote?: string;
+}
+
+/** Schema-scoped `context`/`rules` override; see `schemas` on ProjectConfigSchema. */
+export interface ScopedProjectConfig {
+  context?: string;
+  rules?: Record<string, string[]>;
 }
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
@@ -178,6 +200,105 @@ function parseOperations(raw: unknown): OperationsConfig | undefined {
   }
 
   return Object.keys(operations).length > 0 ? operations : undefined;
+}
+
+/**
+ * Parser for `schemas:` overrides: an object keyed by schema name, each
+ * value optionally carrying its own `context` string and `rules` map. Mirrors
+ * the resilient, warn-and-drop parsing used for the top-level `context` and
+ * `rules` fields (including the null-prototype guard on rule keys), just
+ * applied once per schema name.
+ */
+function parseScopedSchemas(raw: unknown): Record<string, ScopedProjectConfig> | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    console.warn(`Invalid 'schemas' field in config (must be object)`);
+    return undefined;
+  }
+
+  const parsedSchemas: Record<string, ScopedProjectConfig> = Object.create(null);
+  let hasValidSchemas = false;
+
+  for (const [schemaName, value] of Object.entries(raw)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      console.warn(
+        `Invalid 'schemas.${schemaName}' field in config (must be object), ignoring this schema's overrides`
+      );
+      continue;
+    }
+
+    const scopedRaw = value as Record<string, unknown>;
+    const unknownFields = Object.keys(scopedRaw).filter(
+      (field) => field !== 'context' && field !== 'rules'
+    );
+    if (unknownFields.length > 0) {
+      console.warn(
+        `Unknown field(s) in 'schemas.${schemaName}': ${unknownFields.join(', ')}. Supported fields: context, rules`
+      );
+    }
+
+    const scoped: ScopedProjectConfig = {};
+
+    if (scopedRaw.context !== undefined) {
+      const contextResult = z.string().safeParse(scopedRaw.context);
+      if (contextResult.success) {
+        const contextSize = Buffer.byteLength(contextResult.data, 'utf-8');
+        if (contextSize > MAX_CONTEXT_SIZE) {
+          console.warn(
+            `Context too large in 'schemas.${schemaName}.context' (${(contextSize / 1024).toFixed(1)}KB, limit: ${MAX_CONTEXT_SIZE / 1024}KB)`
+          );
+          console.warn(`Ignoring 'schemas.${schemaName}.context' field`);
+        } else {
+          scoped.context = contextResult.data;
+        }
+      } else {
+        console.warn(`Invalid 'schemas.${schemaName}.context' field in config (must be string)`);
+      }
+    }
+
+    if (scopedRaw.rules !== undefined) {
+      if (typeof scopedRaw.rules === 'object' && scopedRaw.rules !== null && !Array.isArray(scopedRaw.rules)) {
+        const parsedRules: Record<string, string[]> = Object.create(null);
+        let hasValidRules = false;
+
+        for (const [artifactId, rules] of Object.entries(scopedRaw.rules)) {
+          const rulesArrayResult = z.array(z.string()).safeParse(rules);
+
+          if (rulesArrayResult.success) {
+            const validRules = rulesArrayResult.data.filter((r) => r.length > 0);
+            if (validRules.length > 0) {
+              parsedRules[artifactId] = validRules;
+              hasValidRules = true;
+            }
+            if (validRules.length < rulesArrayResult.data.length) {
+              console.warn(
+                `Some rules for '${artifactId}' in 'schemas.${schemaName}.rules' are empty strings, ignoring them`
+              );
+            }
+          } else {
+            console.warn(
+              `Rules for '${artifactId}' in 'schemas.${schemaName}.rules' must be an array of strings, ignoring this artifact's rules`
+            );
+          }
+        }
+
+        if (hasValidRules) {
+          scoped.rules = parsedRules;
+        }
+      } else {
+        console.warn(`Invalid 'schemas.${schemaName}.rules' field in config (must be object)`);
+      }
+    }
+
+    if (scoped.context !== undefined || scoped.rules !== undefined) {
+      parsedSchemas[schemaName] = scoped;
+      hasValidSchemas = true;
+    }
+  }
+
+  return hasValidSchemas ? parsedSchemas : undefined;
 }
 
 /**
@@ -353,6 +474,11 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       }
     }
 
+    const schemas = parseScopedSchemas(raw.schemas);
+    if (schemas) {
+      config.schemas = schemas;
+    }
+
     const operations = parseOperations(raw.operations);
     if (operations) {
       config.operations = operations;
@@ -409,32 +535,86 @@ function configPathForWarnings(projectRoot: string): string {
 }
 
 /**
- * Validate artifact IDs in rules against the artifacts of every available
- * schema. The `rules:` map is global, but each change can use a different
- * schema, so a key is only unknown when it matches no artifact in ANY schema.
- * Returns warnings for keys that are unknown everywhere.
+ * Validate artifact IDs in rules against a set of valid artifact IDs.
+ * Returns warnings for keys that don't match.
+ *
+ * Called two ways:
+ * - Global `rules:` map: pass the union of artifact IDs across every
+ *   available schema (a key is only unknown when it matches no artifact in
+ *   ANY schema, since a change can use a different schema than the one
+ *   active when the warning is produced). Omit `schemaName`.
+ * - Schema-scoped `schemas.<name>.rules:` map: pass just that schema's own
+ *   artifact IDs and its name, since scoped rules are only ever applied
+ *   there - an unknown key can be reported precisely.
  *
  * @param rules - The rules object from config
- * @param validArtifactIds - Set of valid artifact IDs across all schemas
+ * @param validArtifactIds - Set of valid artifact IDs to check against
+ * @param schemaName - When set, the warning is worded for this one schema
+ *   instead of "any available schema"
  * @returns Array of warning messages for unknown artifact IDs
  */
 export function validateConfigRules(
   rules: Record<string, string[]>,
-  validArtifactIds: Set<string>
+  validArtifactIds: Set<string>,
+  schemaName?: string
 ): string[] {
   const warnings: string[] = [];
+  const scopeLabel = schemaName ? `schema '${schemaName}'` : 'any available schema';
 
   for (const artifactId of Object.keys(rules)) {
     if (!validArtifactIds.has(artifactId)) {
       const validIds = Array.from(validArtifactIds).sort().join(', ');
       warnings.push(
         `Unknown artifact ID in rules: "${artifactId}". ` +
-          `It matches no artifact in any available schema. Known artifact IDs: ${validIds}`
+          `It matches no artifact in ${scopeLabel}. Known artifact IDs: ${validIds}`
       );
     }
   }
 
   return warnings;
+}
+
+/**
+ * Effective project context for a schema: the project-level `context`
+ * followed by that schema's `schemas.<name>.context` override, if any. The
+ * global field keeps applying everywhere it already did - the override is
+ * additive, so existing single-schema projects are unaffected.
+ */
+export function resolveEffectiveContext(
+  projectConfig: ProjectConfig | null,
+  schemaName: string
+): string | undefined {
+  const globalContext = projectConfig?.context?.trim() || undefined;
+  const scopedContext = projectConfig?.schemas?.[schemaName]?.context?.trim() || undefined;
+
+  if (globalContext && scopedContext) {
+    return `${globalContext}\n\n${scopedContext}`;
+  }
+  return globalContext ?? scopedContext;
+}
+
+/**
+ * Effective rules for one artifact under a schema: the project-level
+ * `rules.<artifactId>` entries followed by that schema's
+ * `schemas.<name>.rules.<artifactId>` entries, if any. Additive for the same
+ * reason as `resolveEffectiveContext` - the global map still means "applies
+ * to this artifact everywhere".
+ */
+export function resolveEffectiveRules(
+  projectConfig: ProjectConfig | null,
+  schemaName: string,
+  artifactId: string
+): string[] | undefined {
+  const globalRules =
+    projectConfig?.rules && Object.hasOwn(projectConfig.rules, artifactId)
+      ? projectConfig.rules[artifactId]
+      : undefined;
+  const scopedRules = projectConfig?.schemas?.[schemaName]?.rules;
+  const scopedRulesForArtifact =
+    scopedRules && Object.hasOwn(scopedRules, artifactId) ? scopedRules[artifactId] : undefined;
+
+  const combined = [...(globalRules ?? []), ...(scopedRulesForArtifact ?? [])];
+  return combined.length > 0 ? combined : undefined;
 }
 
 /**
