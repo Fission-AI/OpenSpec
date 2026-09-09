@@ -27,7 +27,7 @@ The migration process is designed with preservation in mind:
 - **Active changes in `openspec/changes/`** — Completely preserved. You can continue them with OPSX commands.
 - **Archived changes** — Untouched. Your history remains intact.
 - **Main specs in `openspec/specs/`** — Untouched. These are your source of truth.
-- **Your content in CLAUDE.md, AGENTS.md, etc.** — Preserved. Only the OpenSpec marker blocks are removed; everything you wrote stays.
+- **Your content in root-level `CLAUDE.md`, `AGENTS.md`, etc.** — Preserved. Only the OpenSpec marker blocks are removed; everything outside those blocks stays.
 
 ### What Gets Removed
 
@@ -52,7 +52,7 @@ Only OpenSpec-managed files that are being replaced:
 
 The migration detects whichever tools you have configured and cleans up their legacy files.
 
-The removal list may seem long, but these are all files that OpenSpec originally created. Your own content is never deleted.
+Files listed for removal are deleted entirely, including any custom content. Back up that content before accepting cleanup. The check for `openspec/AGENTS.md` only tests whether the file exists; it does not inspect its contents.
 
 ### What Needs Your Attention
 
@@ -106,7 +106,7 @@ agents. This simplifies your setup while keeping everything working
 as before.
 
 Files to remove
-No user content to preserve:
+These files will be deleted entirely. Back up any custom content before proceeding:
   • .claude/commands/openspec/
   • openspec/AGENTS.md
 
