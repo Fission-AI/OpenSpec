@@ -719,6 +719,7 @@ Next steps:
       }
     }
   },
+  "overlaps": [],
   "version": "1.0",
   "root": {
     "path": "/Users/you/projects/my-app",
@@ -728,6 +729,32 @@ Next steps:
 ```
 
 `issues` entries carry a `level` of `ERROR`, `WARNING`, or `INFO`.
+
+**Cross-change overlap**
+
+When changes are in scope (`--changes` or `--all`), validate also reports requirements that more than one active change claims. Each change is checked against the current main specs, which neither change has landed in yet, so both are valid on their own until the first one archives.
+
+```text
+⚠ 1 requirement is claimed by more than one active change:
+  api: Request throttling (in the main spec)
+    add-caching MODIFIED, add-rate-limit MODIFIED
+Whichever of these archives second lands on a spec the first one changed; re-read it before archiving.
+```
+
+An entry names the spec, the requirement, and every change claiming it. Each claim carries its operation: `ADDED`, `MODIFIED`, `REMOVED`, `RENAMED_FROM`, or `RENAMED_TO`. The note after the requirement says whether the main specs hold it today, either `in the main spec` or `not in the main spec yet`.
+
+The report is advisory. Overlap is often deliberate, such as a stacked pair of changes worked in sequence. It never changes the exit code, and it makes no claim about which change is wrong.
+
+Under `--json` the same entries appear in an `overlaps` array:
+
+| Field | What it is |
+|---|---|
+| `specId` | The spec holding the requirement. |
+| `requirement` | The requirement name more than one change claims. |
+| `inMainSpec` | Whether the main specs hold that requirement today. |
+| `claimants` | One entry per claiming change, each with `changeId`, `operation`, and `requirement`. |
+
+The array is present, possibly empty, whenever changes are in scope. It is absent otherwise. `--report findings` returns its own document and carries no overlaps.
 
 **Exit codes**
 
