@@ -6,6 +6,7 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {
@@ -14,6 +15,8 @@ export function getFfChangeSkillTemplate(): SkillTemplate {
     instructions: `Fast-forward through artifact creation - generate everything needed to start implementation in one go.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
@@ -131,6 +134,8 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
     content: `Fast-forward through artifact creation - generate everything needed to start implementation.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The argument after \`/opsx:ff\` is the change name (kebab-case), OR a description of what the user wants to build.
 

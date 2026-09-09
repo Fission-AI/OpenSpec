@@ -6,6 +6,7 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {
@@ -14,6 +15,8 @@ export function getNewChangeSkillTemplate(): SkillTemplate {
     instructions: `Start a new change using the experimental artifact-driven approach.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
@@ -91,6 +94,8 @@ export function getOpsxNewCommandTemplate(): CommandTemplate {
     content: `Start a new change using the experimental artifact-driven approach.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The argument after \`/opsx:new\` is the change name (kebab-case), OR a description of what the user wants to build.
 
