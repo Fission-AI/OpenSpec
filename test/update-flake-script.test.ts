@@ -69,15 +69,18 @@ describe('update-flake.sh confines every hash rewrite to the pnpmDeps block', ()
 
     // Mirrors the script: read the current hash, stamp the placeholder, write
     // the calculated hash back.
-    const read = execFileSync(
-      'bash',
-      [
-        '-c',
-        `${BLOCK}\nsed -nE "$PNPM_DEPS_BLOCK"' s/.*hash = "(sha256-[^"]+)".*/\\1/p' "$1" | head -1`,
-        '_',
-        flake,
-      ],
-      { encoding: 'utf8' }
+    // `bash` runs inside the fixture directory and addresses the file by name:
+    // `sed -i` writes its temp file in the working directory and renames it
+    // into place, which fails with "Invalid cross-device link" on Windows when
+    // the repo (D:) and os.tmpdir() (C:) are different volumes.
+    const inFixture = (command: string): string =>
+      execFileSync('bash', ['-c', `${BLOCK}\n${command}`, '_', 'flake.nix'], {
+        cwd: dir,
+        encoding: 'utf8',
+      });
+
+    const read = inFixture(
+      `sed -nE "$PNPM_DEPS_BLOCK"' s/.*hash = "(sha256-[^"]+)".*/\\1/p' "$1" | head -1`
     ).trim();
 
     // The whole point: an unscoped read returns the first derivation's hash.
@@ -85,20 +88,14 @@ describe('update-flake.sh confines every hash rewrite to the pnpmDeps block', ()
     expect(read).not.toBe(other);
 
     const placeholder = 'sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
-    execFileSync('bash', [
-      '-c',
-      `${BLOCK}\nsed -i.bak "$PNPM_DEPS_BLOCK s|hash = \\"sha256-[^\\"]*\\"|hash = \\"${placeholder}\\"|" "$1"`,
-      '_',
-      flake,
-    ]);
+    inFixture(
+      `sed -i.bak "$PNPM_DEPS_BLOCK s|hash = \\"sha256-[^\\"]*\\"|hash = \\"${placeholder}\\"|" "$1"`
+    );
     expect(fs.readFileSync(flake, 'utf8').split(placeholder).length - 1).toBe(1);
 
-    execFileSync('bash', [
-      '-c',
-      `${BLOCK}\nsed -i.bak "$PNPM_DEPS_BLOCK s|hash = \\"${placeholder}\\"|hash = \\"${fresh}\\"|" "$1"`,
-      '_',
-      flake,
-    ]);
+    inFixture(
+      `sed -i.bak "$PNPM_DEPS_BLOCK s|hash = \\"${placeholder}\\"|hash = \\"${fresh}\\"|" "$1"`
+    );
 
     const updated = fs.readFileSync(flake, 'utf8');
     expect(updated).toContain(`hash = "${fresh}"`);
