@@ -673,7 +673,8 @@ Different AI tools use slightly different command syntax. Use the format that ma
 |--------------------------|----------------|---------------|
 | `.../commands/opsx/<id>.*` | `/opsx:propose`, `/opsx:apply` | Claude Code, Gemini CLI, Crush |
 | `.../opsx-<id>.*` | `/opsx-propose`, `/opsx-apply` | Cursor, Devin Desktop, Copilot (IDE), Trae, Oh My Pi |
-| none — skills only | `/openspec-propose`, `/openspec-apply-change` | CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, Zed Agent, shared `.agents` |
+| none — skills only | `/openspec-propose`, `/openspec-apply-change` | CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, Warp, Zed Agent, shared `.agents` |
+| none — Rovo Dev CLI | ask Rovo to use `openspec-propose` or `openspec-apply-change` | Rovo Dev CLI |
 | none — Kimi Code | `/skill:openspec-propose` | Kimi Code |
 | none — Codex CLI | `$openspec-propose` | Codex |
 
