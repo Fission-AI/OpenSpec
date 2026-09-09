@@ -97,7 +97,8 @@ describe('legacy repo-local change initiative metadata', () => {
     const json = parseJson(result);
     expect(json.initiative).toBeUndefined();
 
-    const metadata = readChangeMetadata(changeDir('fresh-change'), tempDir);
+    const metadata = readChangeMetadata(json.change.path, tempDir);
+    expect(metadata).toBeDefined();
     expect(metadata?.initiative).toBeUndefined();
   });
 
