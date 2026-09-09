@@ -144,8 +144,12 @@ function instruction(entry: InvocationEntry, lead: string): string {
 export function getWorkflowVerbGuidance(verb: string, projectPath: string): WorkflowVerbGuidance {
   const message = `'${verb}' is an OpenSpec workflow, not a CLI command. Workflows run inside your AI assistant.`;
   const tools = safeDetectTools(projectPath);
-  const installed = new Set(safeScanInstalledWorkflows(projectPath, tools));
+  const installedByTool = installedWorkflowsByTool(projectPath, tools);
+  const installed = new Set([...installedByTool.values()].flatMap((ids) => [...ids]));
   const delivery: Delivery = getGlobalConfig().delivery ?? 'both';
+  // Every detected tool, for the two branches where this workflow is installed
+  // nowhere: there the question is what the tool will answer to once it is
+  // added, which every detected tool can answer.
   const entries = invocationEntries(tools, delivery, verb);
 
   if (installed.size === 0) {
@@ -181,20 +185,28 @@ export function getWorkflowVerbGuidance(verb: string, projectPath: string): Work
     return { message, details: [notInstalled, instruction(entry, addIt)] };
   }
 
-  if (entries.length === 0) {
-    // Detected tools, but the delivery mode left none of them with an
-    // invocation to name. Stay syntax-neutral rather than invent one.
+  // Installed somewhere, so only the tools that actually hold it may be named.
+  // A tool detected from a bare directory has no artifact to invoke.
+  const installedEntries = invocationEntries(
+    tools.filter((tool) => installedByTool.get(tool.value)?.has(verb)),
+    delivery,
+    verb
+  );
+
+  if (installedEntries.length === 0) {
+    // The delivery mode left the holding tools with no invocation to name.
+    // Stay syntax-neutral rather than invent one.
     return {
       message,
       details: [`Fix: run 'openspec update' to regenerate this project's workflow files.`],
     };
   }
-  if (entries.length === 1) {
-    return { message, details: [instruction(entries[0], 'Fix:')] };
+  if (installedEntries.length === 1) {
+    return { message, details: [instruction(installedEntries[0], 'Fix:')] };
   }
   return {
     message,
-    details: ['Fix: use it in your assistant:', ...indent(entries)],
+    details: ['Fix: use it in your assistant:', ...indent(installedEntries)],
   };
 }
 
@@ -214,6 +226,25 @@ function safeDetectTools(projectPath: string): AIToolOption[] {
   } catch {
     return [];
   }
+}
+
+/**
+ * Which workflows each detected tool actually holds.
+ *
+ * The union answers whether OpenSpec has ever run here; it cannot answer who
+ * to name. A repo with `.claude/commands/opsx/explore.md` and a bare
+ * `.github/` has GitHub Copilot detected and no Copilot artifacts, so an
+ * answer built from the union advertised `/opsx-explore (GitHub Copilot)`, a
+ * command that does not exist. Scanning per tool keeps an installed workflow
+ * attributed to the tool that holds it.
+ */
+function installedWorkflowsByTool(
+  projectPath: string,
+  tools: AIToolOption[]
+): Map<string, ReadonlySet<string>> {
+  return new Map(
+    tools.map((tool) => [tool.value, new Set(safeScanInstalledWorkflows(projectPath, [tool]))])
+  );
 }
 
 function safeScanInstalledWorkflows(projectPath: string, tools: AIToolOption[]): string[] {

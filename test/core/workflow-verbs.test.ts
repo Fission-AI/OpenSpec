@@ -258,6 +258,51 @@ describe('workflow verbs typed at the CLI', () => {
     expect(guidance.details).toEqual(['Fix: run /opsx:explore in your assistant.']);
   });
 
+  it('does not advertise a tool that has no artifact for this workflow', async () => {
+    // alfred-openspec's regression on #1776. Installation was collected as a
+    // union across every detected tool, so a bare `.github/` directory made
+    // the answer advertise `/opsx-explore (GitHub Copilot)` next to the real
+    // Claude Code command, for a Copilot command that was never generated.
+    const projectDir = await makeProject();
+    await installCommand(projectDir, path.join('.claude', 'commands', 'opsx', 'explore.md'));
+    await fs.mkdir(path.join(projectDir, '.github'), { recursive: true });
+    await fs.writeFile(path.join(projectDir, '.github', 'copilot-instructions.md'), '# Copilot\n');
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual(['Fix: run /opsx:explore in your assistant.']);
+  });
+
+  it('still lists every tool that does hold the workflow', async () => {
+    // The other side of the same filter: attribution must not become
+    // exclusion. Two tools with the artifact are both named, and the third,
+    // detected from a bare directory, is not.
+    const projectDir = await makeProject();
+    await installCommand(projectDir, path.join('.claude', 'commands', 'opsx', 'explore.md'));
+    await installCommand(projectDir, path.join('.cursor', 'commands', 'opsx-explore.md'));
+    await fs.mkdir(path.join(projectDir, '.github'), { recursive: true });
+    await fs.writeFile(path.join(projectDir, '.github', 'copilot-instructions.md'), '# Copilot\n');
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual([
+      'Fix: use it in your assistant:',
+      '  /opsx:explore (Claude Code)',
+      '  /opsx-explore (Cursor)',
+    ]);
+  });
+
+  it('sends a tool with no artifact for this workflow to the profile picker', async () => {
+    // A workflow installed for no tool at all is still the profile answer, and
+    // the per-tool filter must not turn that into the update answer.
+    const projectDir = await makeProject();
+    await installCommand(projectDir, path.join('.claude', 'commands', 'opsx', 'explore.md'));
+
+    const guidance = getWorkflowVerbGuidance('verify', projectDir);
+
+    expect(guidance.details[0]).toBe('The verify workflow is not installed in this project.');
+  });
+
   it('spells the invocation as a skill when delivery is skills-only', async () => {
     const projectDir = await makeProject();
     await installSkill(projectDir, '.claude', 'openspec-explore');
