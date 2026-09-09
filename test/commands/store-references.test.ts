@@ -238,7 +238,7 @@ describe('store references in instructions (3.1)', () => {
     expect(fetchResult.stdout).toContain('Usage-based invoicing.');
 
     // The design lands in the app repo's own root, citing the store spec.
-    const changeDir = path.join(appRepo, 'openspec', 'changes', 'billing-rework');
+    const changeDir = path.join(appRepo, 'openspec', 'changes', 'proposed', 'billing-rework');
     fs.writeFileSync(
       path.join(changeDir, 'proposal.md'),
       '## Why\n\nDerives from team-context/billing (see referenced stores).\n\n## What Changes\n\n- **invoicing:** Rework invoicing\n'
