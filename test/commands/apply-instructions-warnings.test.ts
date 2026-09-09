@@ -193,6 +193,65 @@ describe('generateApplyInstructions warnings', () => {
 
     expect(instructions.state).toBe('ready');
     expect(instructions.warnings).toHaveLength(1);
+    // The remediation has to name this schema's own artifact. Hardcoding
+    // `specs` sent the agent to an artifact this schema does not declare, so
+    // the warning dead-ended at the step meant to resolve it.
+    expect(instructions.warnings?.[0]).toContain(
+      'openspec instructions contracts --change my-change'
+    );
+    expect(instructions.warnings?.[0]).not.toContain('openspec instructions specs');
+  });
+
+  it('falls back to a placeholder when a schema declares two spec artifacts', async () => {
+    // No single right answer, so the command must not pick one and present it
+    // as the step to run.
+    const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'twospec');
+    fs.mkdirSync(schemaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      [
+        'name: twospec',
+        'version: 1',
+        'artifacts:',
+        '  - id: proposal',
+        '    generates: proposal.md',
+        '    description: p',
+        '    template: proposal.md',
+        '  - id: contracts',
+        '    generates: "specs/**/*.md"',
+        '    description: c',
+        '    template: spec.md',
+        '    requires: [proposal]',
+        '  - id: schemas',
+        '    generates: "specs/**/*.yaml"',
+        '    description: s',
+        '    template: spec.md',
+        '    requires: [proposal]',
+        '  - id: tasks',
+        '    generates: tasks.md',
+        '    description: t',
+        '    template: tasks.md',
+        '    requires: [proposal]',
+        'apply:',
+        '  requires: [tasks]',
+        '  tracks: tasks.md',
+        '',
+      ].join('\n')
+    );
+    fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: twospec\n');
+    writeTasks();
+
+    const instructions = await generateApplyInstructions(tempDir, 'my-change');
+
+    expect(instructions.warnings).toHaveLength(1);
+    expect(instructions.warnings?.[0]).toContain(
+      'openspec instructions <artifact-id> --change my-change'
+    );
+    // Presence of the placeholder is not enough: naming either artifact as
+    // well would still be picking one, which is the thing there is no basis
+    // for here.
+    expect(instructions.warnings?.[0]).not.toContain('openspec instructions contracts');
+    expect(instructions.warnings?.[0]).not.toContain('openspec instructions schemas');
   });
 
   // The warning tells the author `openspec validate` fails on this change. If

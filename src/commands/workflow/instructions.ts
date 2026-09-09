@@ -458,9 +458,16 @@ function collectApplyWarnings(input: {
   if (hasDeltas) return [];
 
   const metadataPath = path.join(changeDir, METADATA_FILENAME);
+  // The command names the artifact this schema actually declares, never the
+  // literal `specs`. A schema whose spec-producing artifact is `contracts` was
+  // told to run `openspec instructions specs`, an artifact it does not have,
+  // so the warning dead-ended at the exact step meant to resolve it. With more
+  // than one such artifact there is no single right answer, so the id becomes
+  // a placeholder rather than a guess.
+  const specTarget = specArtifacts.length === 1 ? specArtifacts[0].id : '<artifact-id>';
   return [
     `This change has no delta specs and does not declare \`skip_specs: true\`, so \`openspec validate ${changeName}\` fails on it. ` +
-      `Write the delta specs before implementing (\`openspec instructions specs --change ${changeName}\`), ` +
+      `Write the delta specs before implementing (\`openspec instructions ${specTarget} --change ${changeName}\`), ` +
       `or add \`skip_specs: true\` to ${metadataPath} if this change really changes no specified behavior.`,
   ];
 }
