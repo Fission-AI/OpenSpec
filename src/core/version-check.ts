@@ -5,6 +5,7 @@ import path from 'path';
 import { createRequire } from 'module';
 import chalk from 'chalk';
 import { isCiEnvironment } from '../utils/ci.js';
+import { isTelemetryOptedOutByEnv } from '../telemetry/opt-out.js';
 import { getGlobalConfig } from './global-config.js';
 
 const require = createRequire(import.meta.url);
@@ -32,8 +33,7 @@ const SAFE_VERSION = /^\d{1,10}\.\d{1,10}\.\d{1,10}(?:-[0-9A-Za-z.-]{1,64})?(?:\
  */
 function isCheckEnabled(): boolean {
   if (process.env.OPENSPEC_NO_UPDATE_CHECK !== undefined) return false;
-  if (process.env.DO_NOT_TRACK === '1') return false;
-  if (process.env.OPENSPEC_TELEMETRY === '0') return false;
+  if (isTelemetryOptedOutByEnv()) return false;
   if (isCiEnvironment()) return false;
   if (process.env.NODE_ENV === 'test') return false;
   // Same config opt-out as telemetry (env remains the hard override above).
@@ -42,17 +42,31 @@ function isCheckEnabled(): boolean {
 }
 
 /**
- * The registry to ask: only the environment variable npm exports (under
- * `npm run`, or an explicit export). Deliberately not a `registry=` line from
- * any .npmrc — letting file contents choose the destination of an outbound
- * request is a flow worth avoiding for a convenience this small, and a project
- * file would travel with a cloned repository. Anyone on a private mirror can
- * export `npm_config_registry`, or turn the check off entirely.
+ * The registry to ask, from the environment variable npm exports. That value
+ * is *not* trustworthy: npm exports every config source it read, including a
+ * `registry=` line in a repository-local .npmrc that travels with a clone. So
+ * it is honored only over TLS — a cleartext hop would aim the request at a
+ * link-local or internal address and let anyone on the path choose the
+ * "newer version" answer — and canSelfUpgrade() additionally refuses to turn
+ * a non-default registry into an install prompt. Anyone on a private mirror
+ * can still export `npm_config_registry`, or turn the check off entirely.
  */
 export function registryUrl(): string {
   const configured = process.env.npm_config_registry?.trim();
-  const base = configured && /^https?:\/\//i.test(configured) ? configured : DEFAULT_REGISTRY;
+  const base = configured && /^https:\/\//i.test(configured) ? configured : DEFAULT_REGISTRY;
   return `${base.replace(/\/+$/, '')}/${PACKAGE_NAME}/latest`;
+}
+
+/**
+ * True when the check is talking to the public npm registry rather than
+ * whatever `npm_config_registry` named.
+ */
+function isDefaultRegistry(): boolean {
+  try {
+    return new URL(registryUrl()).origin === new URL(DEFAULT_REGISTRY).origin;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -174,10 +188,11 @@ function fetchLatestVersion(): Promise<string | null> {
             redirectsLeft -= 1;
             try {
               const next = new URL(location, target);
-              // Never follow a downgrade to plain http: a MITM on the reply
+              // Stay on the origin registryUrl() resolved and validated, and
+              // never leave TLS: one hostile reply must not be able to steer
+              // the request at another host, and a MITM on a cleartext hop
               // would control the "newer version" answer.
-              const downgrade = target.protocol === 'https:' && next.protocol === 'http:';
-              if (!downgrade && (next.protocol === 'http:' || next.protocol === 'https:')) {
+              if (next.protocol === 'https:' && next.origin === url.origin) {
                 send(next);
                 return;
               }
@@ -532,9 +547,15 @@ function loadSpawn(): typeof import('child_process').spawn {
  * that may not be the one on PATH, a project dependency belongs to that
  * project's package manager, an npx/dlx cache has nothing to upgrade, and a
  * source checkout is not an install at all.
+ *
+ * A non-default registry is also disqualifying. `npm install -g` resolves
+ * against whatever `npm_config_registry` says, which npm may have read from a
+ * cloned repository's .npmrc — so such a registry may still inform the check,
+ * but must never be the thing that offers to install a global package.
  */
 export function canSelfUpgrade(installDir: string | null, projectPath: string): boolean {
   if (!installDir) return false;
+  if (!isDefaultRegistry()) return false;
   if (isEphemeralRunnerInstall(installDir)) return false;
   // Both anchors matter: `openspec update ../other` from a project that owns
   // the CLI as a dependency is still a project-local install.
