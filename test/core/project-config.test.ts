@@ -1029,3 +1029,39 @@ rules:
     });
   });
 });
+
+describe('agent block', () => {
+  it('parses valid max_parallel_requests', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cfg-agent-'));
+    fs.mkdirSync(path.join(root, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nagent:\n  max_parallel_requests: 3\n'
+    );
+    const cfg = readProjectConfig(root);
+    expect(cfg?.agent).toEqual({ max_parallel_requests: 3 });
+  });
+
+  it('drops out-of-range max_parallel_requests with a warning', () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cfg-agent-'));
+    fs.mkdirSync(path.join(root, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nagent:\n  max_parallel_requests: 5\n'
+    );
+    const cfg = readProjectConfig(root);
+    expect(cfg?.agent).toBeUndefined();
+  });
+
+  it('collects 1 and 4 as valid bounds', () => {
+    for (const value of [1, 4]) {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), 'cfg-agent-'));
+      fs.mkdirSync(path.join(root, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(root, 'openspec', 'config.yaml'),
+        `schema: spec-driven\nagent:\n  max_parallel_requests: ${value}\n`
+      );
+      expect(readProjectConfig(root)?.agent).toEqual({ max_parallel_requests: value });
+    }
+  });
+});

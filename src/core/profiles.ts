@@ -29,6 +29,10 @@ export const ALL_WORKFLOWS = [
   'bulk-archive',
   'verify',
   'onboard',
+  // Skills-only workflow: registered in getSkillTemplates() but intentionally
+  // absent from getCommandTemplates() and the default 'core' profile. Installed
+  // only via a custom profile that explicitly selects it (opt-in, heavyweight).
+  'autonomous-apply',
 ] as const;
 
 export type WorkflowId = (typeof ALL_WORKFLOWS)[number];
