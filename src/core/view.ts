@@ -11,7 +11,10 @@ export class ViewCommand {
     
     if (!fs.existsSync(openspecDir)) {
       console.error(chalk.red('No openspec directory found'));
-      process.exit(1);
+      // exitCode, not exit(): exiting here skips commander's postAction hook,
+      // so the failure would never be reported or flushed.
+      process.exitCode = 1;
+      return;
     }
 
     console.log(chalk.bold('\nOpenSpec Dashboard\n'));

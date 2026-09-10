@@ -1,5 +1,6 @@
 import { createInterface } from 'node:readline';
 import type { Readable, Writable } from 'node:stream';
+import { loadPrompts } from './prompt-module.js';
 
 export type InteractiveOptions = {
   /**
@@ -99,7 +100,7 @@ export async function confirmPrompt(
     Boolean((input as { isTTY?: boolean }).isTTY) &&
     Boolean((output as { isTTY?: boolean }).isTTY);
   if (isTerminal) {
-    const { confirm } = await import('@inquirer/prompts');
+    const { confirm } = await loadPrompts();
     return confirm(prompt);
   }
   return readYesNo(prompt, input, output);

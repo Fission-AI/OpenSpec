@@ -28,6 +28,7 @@ import { METADATA_FILENAME, readRetireCapabilitiesMarker, readSkipSpecsMarker } 
 import { confirmPrompt, isNonInteractivePromptError } from '../utils/interactive.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { folderStyleNameProblem } from './id.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -2062,7 +2063,7 @@ export class ArchiveCommand {
     root: ResolvedOpenSpecRoot,
     options: ArchiveOptions
   ): Promise<string | null> {
-    const { select } = await import('@inquirer/prompts');
+    const { select } = await loadPrompts();
     const changeDirs = await listActiveChangeNames(changesDir);
 
     if (changeDirs.length === 0) {

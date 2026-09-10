@@ -11,6 +11,7 @@ import {
 import { ChangeCommand } from './change.js';
 import { SpecCommand } from './spec.js';
 import { nearestMatches } from '../utils/match.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -38,7 +39,7 @@ export class ShowCommand {
 
     if (!itemName) {
       if (interactive) {
-        const { select } = await import('@inquirer/prompts');
+        const { select } = await loadPrompts();
         const type = await select<ItemType>({
           message: 'What would you like to show?',
           choices: [
@@ -76,7 +77,7 @@ export class ShowCommand {
     options: ShowExecuteOptions,
     root: ResolvedOpenSpecRoot
   ): Promise<void> {
-    const { select } = await import('@inquirer/prompts');
+    const { select } = await loadPrompts();
     if (type === 'change') {
       const changes = await getActiveChangeIds(root.path);
       if (changes.length === 0) {

@@ -233,9 +233,52 @@ Open a discussion (for core design changes) or an issue before you open a PR, an
 <details>
 <summary><strong>Telemetry</strong></summary>
 
-OpenSpec collects anonymous usage stats.
+OpenSpec collects pseudonymous usage stats: a random id generated on your machine, plus the properties listed below. Automatically disabled in CI.
 
-We collect only command names and version to understand usage patterns. No arguments, paths, content, or PII. Automatically disabled in CI.
+**See exactly what would be sent, on your own machine:**
+
+```bash
+OPENSPEC_TELEMETRY_DEBUG=1 openspec list
+```
+
+That prints every event to stderr and sends nothing. It works even if you have opted out, and it does not create the id it shows you.
+
+**Everything collected:**
+
+| Property | Values |
+| --- | --- |
+| `command` | The command you ran, e.g. `archive`, `change:validate`. Never its arguments |
+| `version`, `version_code` | The OpenSpec version, and the same version as a sortable integer |
+| `outcome` | `success`, `user_error`, `internal_error`, `cancelled` |
+| `error_class` | The kind of failure, from a fixed list, e.g. `no_root`, `validation_failed`. Never the message |
+| `exit_code` | `0`, `1`, `130`, `other` |
+| `duration` | `<100`, `100-500`, `500-2000`, `2000-10000`, `10000+` milliseconds |
+| `previous_outcome`, `previous_command_same` | Whether your last run failed, and whether it was the same command |
+| `platform`, `node_major` | `darwin`/`linux`/`win32`; the Node major version |
+| `install_kind` | `global`, `npx`, `source`, `other` |
+| `invoker` | Which coding agent is running the command, from a fixed list, or `terminal`/`unknown` |
+| `stdout_tty`, `json_mode`, `prompted`, `first_run` | Booleans |
+| `profile`, `delivery` | Your install profile and delivery mode |
+| `tools_count` | How many AI tools are configured: `0`, `1`, `2-3`, `4+` |
+| `schema_source` | `package`, `project`, or `user` |
+| `store_in_use` | Whether this run resolved through a store rather than a local root. Never which one |
+| `changes` | How many active changes: `00`, `01-03`, `04-10`, `11-30`, `31+` |
+| `milestone`, `time_to_reach` | The first time you reach each of `install` (your first run), `init`, `propose` (`openspec new change`), `apply` (`openspec validate`), and `archive`, and how long it took |
+| `tool` | Each AI tool you have configured, reported once, as its own event carrying no run context and no run id |
+| `run_id`, `work_session_id` | Random ids correlating one run, and runs less than 30 minutes apart |
+| `surface` | Always `cli` |
+
+Every one of those has a fixed set of possible values. Anything else is dropped before the payload is built, so there is no field that could carry a name, path, or message.
+
+**Never collected:** command arguments, file paths, project names, change/spec/schema/artifact names, store ids or remotes, file contents, error messages, environment variable names or values, hostnames, usernames, git remotes, or IP addresses.
+
+**Stored on your machine** in the config file (`openspec config get telemetry` prints its path): the random id, the notice version, the time of your first run, the work-session id and last-activity time, which milestones and tools have been reported, and your previous run's outcome. Nothing is written at all if you have opted out.
+
+**No IP, no location.** Every event sets `$ip: null` and `$geoip_disable: true`, so the analytics backend records neither your address nor anything derived from it. Requests do reach a first-party endpoint that terminates TLS, which necessarily observes the connecting address in transit — those two flags are what the shipped code guarantees, and you can see them yourself with `OPENSPEC_TELEMETRY_DEBUG=1`.
+
+**Deletion:** open a [GitHub issue](https://github.com/Fission-AI/OpenSpec/issues/new) with the id from `openspec config get telemetry`, or send it privately through [GitHub Security Advisories](https://github.com/Fission-AI/OpenSpec/security/advisories/new) if you would rather not post it publicly. You do not have to ask us for anything, though: deleting the id from your config severs all future events from everything before it, immediately and on your own.
+
+The id identifies a configuration directory, not a person — a shared home directory means one id covers several people, so it is not a user count.
 
 **Opt-out (any one is enough):**
 - `openspec config set telemetry.enabled false` (global config; unset means on)

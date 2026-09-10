@@ -132,7 +132,7 @@ OpenSpec works best with high-reasoning models. The README recommends models lik
 
 ### Does OpenSpec collect data?
 
-It collects anonymous usage stats: command names and version only. No arguments, paths, content, or personal data, and it's off automatically in CI. Opt out with `export OPENSPEC_TELEMETRY=0` or `export DO_NOT_TRACK=1`.
+It collects pseudonymous usage stats: the command you ran, how it ended, and bounded run context such as OS and Node major. No arguments, paths, content, item names, or personal data, and it's off automatically in CI. Every property has a fixed set of possible values — see the full list in the README. Print exactly what would be sent with `OPENSPEC_TELEMETRY_DEBUG=1`. Opt out with `export OPENSPEC_TELEMETRY=0` or `export DO_NOT_TRACK=1`.
 
 ### How do I upgrade?
 

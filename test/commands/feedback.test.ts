@@ -413,9 +413,10 @@ describe('FeedbackCommand', () => {
         throw error;
       });
 
-      await expect(feedbackCommand.execute('Test')).rejects.toThrow(
-        'process.exit(1)'
-      );
+      // Exits by setting the code, not by exiting: exiting here would skip
+      // commander's postAction hook and drop the failure report.
+      await feedbackCommand.execute('Test');
+      expect(process.exitCode).toBe(1);
 
       // Should display the error from gh CLI
       expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -459,9 +460,8 @@ describe('FeedbackCommand', () => {
         throw error;
       });
 
-      await expect(
-        feedbackCommand.execute('gh could not add label bug report')
-      ).rejects.toThrow('process.exit(1)');
+      await feedbackCommand.execute('gh could not add label bug report');
+      expect(process.exitCode).toBe(1);
 
       expect(mockExecFileSync).toHaveBeenCalledTimes(1);
       expect(consoleLogSpy).not.toHaveBeenCalledWith(
@@ -556,9 +556,10 @@ describe('FeedbackCommand', () => {
         throw error;
       });
 
-      await expect(feedbackCommand.execute('Test')).rejects.toThrow(
-        'process.exit(4)'
-      );
+      // Exits by setting the code, not by exiting: exiting here would skip
+      // commander's postAction hook and drop the failure report.
+      await feedbackCommand.execute('Test');
+      expect(process.exitCode).toBe(4);
 
       expect(mockExecFileSync).toHaveBeenCalledTimes(2);
       expect(consoleErrorSpy).toHaveBeenCalledWith(

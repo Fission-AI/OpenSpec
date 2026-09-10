@@ -5,6 +5,7 @@
  * array in JSON mode.
  */
 import { StoreError, type StoreDiagnostic } from '../core/store/errors.js';
+import { markOutcome } from '../telemetry/cli-runtime.js';
 
 export function printJson(payload: unknown): void {
   console.log(JSON.stringify(payload, null, 2));
@@ -50,6 +51,11 @@ export function emitFailure(
   error: unknown,
   fallbackCode: string
 ): void {
+  // The other shared failure seam. Most commands set process.exitCode here
+  // rather than throwing to the CLI's catch, so without this the whole
+  // command layer's failures arrive unclassified and get filed as our bugs.
+  markOutcome(error);
+
   // Ctrl-C in a prompt is the user's choice, not an error: every
   // command group gets the Cancelled./130 convention through here.
   if (!json && isPromptCancellationError(error)) {

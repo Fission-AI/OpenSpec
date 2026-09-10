@@ -27,6 +27,7 @@ import {
   type SetupStoreInput,
 } from '../core/store/index.js';
 import { isInteractive } from '../utils/interactive.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 interface StoreSetupOptions {
   path?: string;
@@ -223,7 +224,7 @@ function formatPathForHuman(targetPath: string): string {
 }
 
 async function promptStoreId(): Promise<string> {
-  const { input } = await import('@inquirer/prompts');
+  const { input } = await loadPrompts();
 
   return input({
     message: 'Store name',
@@ -240,7 +241,7 @@ async function promptStoreId(): Promise<string> {
 }
 
 async function promptStorePath(id: string): Promise<string> {
-  const { input } = await import('@inquirer/prompts');
+  const { input } = await loadPrompts();
   // Suggest a visible, user-owned location — never the managed XDG data dir.
   const defaultPath = ['~', 'openspec', id].join('/');
 
@@ -303,7 +304,7 @@ async function confirmSetup(
   prepared: Awaited<ReturnType<typeof prepareStoreSetup>>,
   initGit: boolean
 ): Promise<void> {
-  const { confirm } = await import('@inquirer/prompts');
+  const { confirm } = await loadPrompts();
 
   console.log('');
   console.log('OpenSpec will create:');
@@ -344,7 +345,7 @@ async function confirmRemove(id: string, root: string, options: StoreRemoveOptio
     );
   }
 
-  const { confirm } = await import('@inquirer/prompts');
+  const { confirm } = await loadPrompts();
   const confirmed = await confirm({
     message: `Delete local store folder ${formatPathForHuman(root)}?`,
     default: false,
@@ -370,7 +371,7 @@ function isRegisterIdentityConfirmationError(error: unknown): boolean {
 }
 
 async function confirmRegisterConversion(error: unknown): Promise<void> {
-  const { confirm } = await import('@inquirer/prompts');
+  const { confirm } = await loadPrompts();
   const confirmed = await confirm({
     message: asErrorMessage(error),
     default: false,

@@ -25,6 +25,10 @@ import { OPENSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
 import { UpdateCommand } from '../core/update.js';
 import { asErrorMessage, isPromptCancellationError } from './shared-output.js';
+import { isTelemetryEnabled } from '../telemetry/index.js';
+import { finishAndFlush, getRunVersion, markFailure } from '../telemetry/cli-runtime.js';
+import { getConfigPath } from '../telemetry/config.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -216,10 +220,21 @@ export function registerConfigCommand(program: Command): void {
     .command('config')
     .description('View and modify global OpenSpec configuration')
     .option('--scope <scope>', 'Config scope (only "global" supported currently)')
-    .hook('preAction', (thisCommand) => {
+    .hook('preAction', async (thisCommand) => {
       const opts = thisCommand.opts();
       if (opts.scope && opts.scope !== 'global') {
         console.error('Error: Project-local config is not yet implemented');
+        // This guard must stop the command, so it exits rather than returning.
+        // The root preAction has already run, so the outcome is reported and
+        // flushed first — otherwise the run starts and never finishes.
+        markFailure('bad_usage');
+        await finishAndFlush({
+          command: 'config',
+          version: getRunVersion(),
+          exitCode: 1,
+          jsonMode: false,
+          minimal: true,
+        });
         process.exit(1);
       }
     });
@@ -278,6 +293,21 @@ export function registerConfigCommand(program: Command): void {
     .description('Get a specific value (raw, scriptable)')
     .action((key: string) => {
       const config = getGlobalConfig();
+
+      // `telemetry` on its own is the data-subject view: what is collected
+      // about this machine, and where it lives. Still one JSON document on
+      // stdout, so it stays scriptable; `telemetry.enabled` is unaffected.
+      if (key === 'telemetry') {
+        console.log(
+          JSON.stringify({
+            ...(config.telemetry ?? {}),
+            enabled: isTelemetryEnabled(),
+            configPath: getConfigPath(),
+          })
+        );
+        return;
+      }
+
       const value = getNestedValue(config as Record<string, unknown>, key);
 
       if (value === undefined) {
@@ -369,7 +399,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       if (!options.yes) {
-        const { confirm } = await import('@inquirer/prompts');
+        const { confirm } = await loadPrompts();
         let confirmed: boolean;
         try {
           confirmed = await confirm({
@@ -488,7 +518,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       // Interactive picker
-      const { select, checkbox, confirm } = await import('@inquirer/prompts');
+      const { select, checkbox, confirm } = await loadPrompts();
       const chalk = (await import('chalk')).default;
 
       try {

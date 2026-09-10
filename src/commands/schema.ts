@@ -16,6 +16,7 @@ import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schem
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
 import { resolveConfigFilePath } from '../core/project-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 /**
  * Schema source location type
@@ -1084,7 +1085,7 @@ export function registerSchemaCommand(program: Command): void {
 
         if (isInteractive) {
           // Interactive mode
-          const { input, checkbox, confirm } = await import('@inquirer/prompts');
+          const { input, checkbox, confirm } = await loadPrompts();
 
           description = await input({
             message: 'Schema description:',

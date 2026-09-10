@@ -3,8 +3,17 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
-import { isTelemetryEnabled, maybeShowTelemetryNotice, shutdown, trackCommand } from '../../src/telemetry/index.js';
-import { getTelemetryConfig } from '../../src/telemetry/config.js';
+import {
+  isTelemetryEnabled,
+  maybeShowTelemetryNotice,
+  resetEventCount,
+  resetState,
+  shutdown,
+  trackCommand,
+} from '../../src/telemetry/index.js';
+import { getTelemetryConfig, updateTelemetryConfig } from '../../src/telemetry/config.js';
+import { setRegistryChecks } from '../../src/telemetry/properties.js';
+import { resetRunId } from '../../src/telemetry/state.js';
 
 describe('telemetry/index', () => {
   let tempDir: string;
@@ -27,6 +36,13 @@ describe('telemetry/index', () => {
 
     // Clear all mocks
     vi.clearAllMocks();
+
+    // Module-level per-invocation state: a real CLI run starts fresh, so each
+    // test must too, or the event cap leaks across tests.
+    resetEventCount();
+    resetState();
+    resetRunId();
+    setRegistryChecks({ isCommand: () => true, isTool: () => true });
 
     // Notice is written to stderr so it never pollutes stdout (raw/JSON output)
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -185,10 +201,25 @@ describe('telemetry/index', () => {
       await maybeShowTelemetryNotice();
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('OpenSpec collects anonymous usage stats')
+        expect.stringContaining('OpenSpec collects pseudonymous usage stats')
       );
 
-      // noticeSeen is now persisted: a second run stays quiet.
+      // The notice version is now persisted: a second run stays quiet.
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('tells a user who saw the earlier scope what changed, once', async () => {
+      enableTelemetry();
+      // Someone who accepted the old disclosure: told, but about less.
+      await updateTelemetryConfig({ noticeSeen: true });
+
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('now also record whether a command succeeded')
+      );
+
       await maybeShowTelemetryNotice();
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
     });
@@ -207,7 +238,7 @@ describe('telemetry/index', () => {
       await maybeShowTelemetryNotice();
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('OpenSpec collects anonymous usage stats')
+        expect.stringContaining('OpenSpec collects pseudonymous usage stats')
       );
     });
   });
@@ -254,9 +285,15 @@ describe('telemetry/index', () => {
       expect(event.properties).toEqual({
         command: 'test',
         version: '1.0.0',
+        version_code: 1000000,
         surface: 'cli',
+        $geoip_disable: true,
+        run_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        work_session_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
         $ip: null,
       });
+      // The start event carries no run context: that lives on command_completed.
+      expect(event.properties.platform).toBeUndefined();
     });
 
     it('should bound the request with a timeout signal', async () => {

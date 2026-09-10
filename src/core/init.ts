@@ -85,6 +85,20 @@ import {
   findUnmanagedCloudFiles,
   listManagedCloudFiles,
 } from './github-copilot/cloud-agent.js';
+import { loadPrompts } from '../utils/prompt-module.js';
+
+/**
+ * The user declined the legacy cleanup. A cancellation, not an error: it
+ * carries the diagnostic code the telemetry classifier maps to `cancelled`,
+ * and the command's own handler prints nothing extra for it.
+ */
+export class InitCancelledError extends Error {
+  readonly diagnostic = { severity: 'error' as const, code: 'init_cancelled', message: 'Initialization cancelled.' };
+  constructor() {
+    super('Initialization cancelled.');
+    this.name = 'InitCancelledError';
+  }
+}
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -423,7 +437,7 @@ export class InitCommand {
     }
 
     if (this.canPromptInteractively()) {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirm } = await loadPrompts();
       const answer = await confirm({
         message:
           'Set up GitHub Copilot cloud coding-agent files? This is for the GitHub-hosted ' +
@@ -506,7 +520,7 @@ export class InitCommand {
     }
 
     // Interactive mode: prompt for confirmation
-    const { confirm } = await import('@inquirer/prompts');
+    const { confirm } = await loadPrompts();
     const shouldCleanup = await confirm({
       message: 'Upgrade and clean up legacy files?',
       default: true,
@@ -515,7 +529,10 @@ export class InitCommand {
     if (!shouldCleanup) {
       console.log(chalk.dim('Initialization cancelled.'));
       console.log(chalk.dim('Run with --force to skip this prompt, or manually remove legacy files.'));
-      process.exit(0);
+      // Declining is the user's choice, not a failure. Throwing a cancellation
+      // rather than exiting stops the command the same way while letting
+      // commander's postAction hook run.
+      throw new InitCancelledError();
     }
 
     await this.performImmediateLegacyCleanup(projectPath, detection);

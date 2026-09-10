@@ -19,6 +19,26 @@ export interface TelemetryConfig {
   anonymousId?: string;
   /** Whether the first-run telemetry notice has been shown. */
   noticeSeen?: boolean;
+  /**
+   * Which disclosure version the user has seen. An expansion of what is
+   * collected shows a notice naming what changed rather than resetting
+   * noticeSeen, which would discard the fact that they were told at all.
+   */
+  noticeVersion?: number;
+  /** ISO time of the first run with telemetry enabled. Never sent; only a bucket derived from it is. */
+  firstSeenAt?: string;
+  /** Random id shared by invocations less than 30 minutes apart. */
+  workSessionId?: string;
+  /** ISO time of the last invocation, for the work-session window. */
+  lastActivityAt?: string;
+  /** Milestones already reported, so each is sent at most once. */
+  milestones?: string[];
+  /** Registry tool ids already reported via tool_configured. */
+  reportedTools?: string[];
+  /** Outcome of the previous invocation, for retry visibility. */
+  previousOutcome?: string;
+  /** Command path of the previous invocation. Compared locally; never sent. */
+  previousCommand?: string;
 }
 
 // TypeScript interfaces

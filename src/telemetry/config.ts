@@ -136,11 +136,15 @@ export function getConfigPath(): string {
  * Read the global config file.
  * Returns an empty object if the file doesn't exist.
  */
-export async function readConfig(): Promise<GlobalConfig> {
+export async function readConfig(options: { persist?: boolean } = {}): Promise<GlobalConfig> {
   const configPath = getConfigPath();
   const read = await readConfigFile(configPath);
   const config = read.status === 'ok' ? read.config : {};
-  return migrateLegacyTelemetryConfig(configPath, config, read.status !== 'invalid');
+  // The one-time legacy migration writes. An inspection-only run must not,
+  // or reading what telemetry would send materializes the very id being
+  // inspected at a new path.
+  const persist = options.persist !== false && read.status !== 'invalid';
+  return migrateLegacyTelemetryConfig(configPath, config, persist);
 }
 
 /**
@@ -165,8 +169,10 @@ export async function writeConfig(updates: Partial<GlobalConfig>): Promise<void>
 /**
  * Get the telemetry config section.
  */
-export async function getTelemetryConfig(): Promise<TelemetryConfig> {
-  const config = await readConfig();
+export async function getTelemetryConfig(
+  options: { persist?: boolean } = {}
+): Promise<TelemetryConfig> {
+  const config = await readConfig(options);
   return config.telemetry ?? {};
 }
 

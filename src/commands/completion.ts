@@ -4,6 +4,7 @@ import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { detectShell, SupportedShell } from '../utils/shell-detection.js';
 import { CompletionProvider } from '../core/completions/completion-provider.js';
 import { getArchivedChangeIds } from '../utils/item-discovery.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 interface GenerateOptions {
   shell?: string;
@@ -212,7 +213,7 @@ export class CompletionCommand {
 
     // Prompt for confirmation unless --yes flag is provided
     if (!skipConfirmation) {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirm } = await loadPrompts();
 
       // Get shell-specific config file path
       const configPaths: Record<string, string> = {

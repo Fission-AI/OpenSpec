@@ -9,6 +9,8 @@ import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { loadPrompts } from '../utils/prompt-module.js';
+import { markCheckFailed } from '../telemetry/cli-runtime.js';
 
 const SPECS_DIR = 'openspec/specs';
 
@@ -106,7 +108,7 @@ export class SpecCommand {
       const canPrompt = isInteractive(options);
       const specIds = await getSpecIds(this.rootPath ?? process.cwd());
       if (canPrompt && specIds.length > 0) {
-        const { select } = await import('@inquirer/prompts');
+        const { select } = await loadPrompts();
         specId = await select({
           message: 'Select a spec to show',
           choices: specIds.map(id => ({ name: id, value: id })),
@@ -242,7 +244,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
           const canPrompt = isInteractive(options);
           const specIds = await getSpecIds();
           if (canPrompt && specIds.length > 0) {
-            const { select } = await import('@inquirer/prompts');
+            const { select } = await loadPrompts();
             specId = await select({
               message: 'Select a spec to validate',
               choices: specIds.map(id => ({ name: id, value: id })),
@@ -277,6 +279,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
             });
           }
         }
+        if (!report.valid) markCheckFailed();
         process.exitCode = report.valid ? 0 : 1;
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
