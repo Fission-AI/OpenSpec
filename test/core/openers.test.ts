@@ -71,6 +71,17 @@ describe('openers core', () => {
       expect(claude?.style).toBe('attach-dirs');
     });
 
+    it.each([{ args: [] }, { args: ['--model', 'custom model'] }])(
+      'replaces built-in args with $args without changing omitted fields',
+      ({ args }) => {
+        const builtin = findOpener([...BUILTIN_OPENERS], 'codex')!;
+        const table = mergeOpenerTable({ codex: { args } }, CONFIG_PATH);
+
+        expect(findOpener(table, 'codex')).toEqual({ ...builtin, args });
+        expect(builtin.args).toEqual(['--sandbox', 'workspace-write']);
+      }
+    );
+
     it('rejects an unknown style naming the two valid styles', () => {
       try {
         mergeOpenerTable({ vim: { style: 'tabs' } }, CONFIG_PATH);
