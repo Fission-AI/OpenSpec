@@ -205,9 +205,19 @@ describe('telemetry events', () => {
       await trackMilestone('init', '1.2.3');
       await shutdown();
 
+      await trackCompletion({
+        command: 'list',
+        version: '1.2.3',
+        outcome: 'success',
+        errorClass: 'none',
+        exitCode: 0,
+        durationMs: 5,
+      });
+
+      // Inspecting writes nothing at all — not the id, not the milestone
+      // claim, not the retry record.
       const telemetry = await getTelemetryConfig();
-      expect(telemetry.anonymousId).toBeUndefined();
-      expect(telemetry.milestones).toBeUndefined();
+      expect(telemetry).toEqual({});
 
       const printed = errorSpy.mock.calls.map((c) => String(c[0])).join('\n');
       expect(printed).toContain('00000000-0000-0000-0000-000000000000');

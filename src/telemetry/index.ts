@@ -341,7 +341,9 @@ export async function trackCompletion(input: {
       $ip: null,
     });
 
-    if (isTelemetryEnabled()) {
+    // Debug mode inspects; it never writes. That includes the retry record,
+    // not just the anonymous id.
+    if (isTelemetryEnabled() && !isDebugMode()) {
       await recordOutcome(input.command, input.outcome);
     }
   } catch {

@@ -50,6 +50,15 @@ import {
   type NewChangeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
+import {
+  beginRun,
+  finishAndFlush,
+  finishRun,
+  markFailure,
+  markMilestone,
+  markOutcome,
+  registerAllowlists,
+} from '../telemetry/cli-runtime.js';
 import { maybeShowCompletionTip } from '../core/completion-tip.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { isInteractive } from '../utils/interactive.js';
@@ -71,6 +80,9 @@ function failWithError(
   error: unknown,
   json?: { enabled: boolean | undefined; payload?: Record<string, unknown>; fallbackCode?: string }
 ): void {
+  // Every command's catch funnels through here, so classifying once covers a
+  // command that grows a new error path without touching that command.
+  markOutcome(error);
   // The agent contract: every --json failure leaves exactly one JSON
   // document on stdout (the command's null-shape plus a status array).
   if (json?.enabled) {
@@ -179,6 +191,8 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
     process.env.NO_COLOR = '1';
   }
 
+  beginRun();
+
   // Show first-run telemetry notice (if not seen). It's written to stderr, so it
   // never pollutes stdout — but --json runs still defer it (see isJsonRun) so the
   // very first invocation stays free of any incidental output on either stream.
@@ -186,12 +200,26 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
 
   // Track command execution (use actionCommand to get the actual subcommand)
   const commandPath = getCommandPath(actionCommand);
+  markMilestone(commandPath);
 
   await trackCommand(commandPath, version);
 });
 
 // Shutdown telemetry after command completes
 program.hook('postAction', async (_thisCommand, actionCommand) => {
+  // Before the completions tip: the tip writes to the screen and can throw,
+  // and the outcome must be recorded either way.
+  try {
+    await finishRun({
+      command: getCommandPath(actionCommand),
+      version,
+      exitCode: process.exitCode === undefined ? 0 : Number(process.exitCode),
+      jsonMode: isJsonRun(actionCommand),
+    });
+  } catch {
+    // Telemetry never breaks a command that already did its work.
+  }
+
   // Show the first-run shell-completions tip (on stderr, so piped stdout stays
   // clean). postAction, not preAction: the tip trails the command's own output
   // instead of pushing an error message or `init`'s setup summary down the
@@ -260,7 +288,10 @@ program
       await initCommand.execute(targetPath);
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -281,7 +312,10 @@ program
       await initCommand.execute('.');
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -346,7 +380,10 @@ program
       }
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -385,7 +422,10 @@ program
         payload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
         fallbackCode: 'list_error',
       });
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -407,7 +447,10 @@ program
       await viewCommand.execute(root.path);
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -491,7 +534,10 @@ program
       await archiveCommand.execute(changeName, options);
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -525,7 +571,10 @@ program
       await validateCommand.execute(itemName, options);
     } catch (error) {
       failWithError(error, { enabled: options?.json, fallbackCode: 'validate_error' });
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -556,7 +605,10 @@ program
       await showCommand.execute(itemName, options ?? {});
     } catch (error) {
       failWithError(error, { enabled: options?.json, fallbackCode: 'show_error' });
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -571,7 +623,10 @@ program
       await feedbackCommand.execute(message, options);
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -589,7 +644,10 @@ completionCmd
       await completionCommand.generate({ shell });
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -603,7 +661,10 @@ completionCmd
       await completionCommand.install({ shell, verbose: options?.verbose });
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -617,7 +678,10 @@ completionCmd
       await completionCommand.uninstall({ shell, yes: options?.yes });
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -660,7 +724,10 @@ program
         payload: options.all ? BATCH_STATUS_FAILURE_PAYLOAD : undefined,
         fallbackCode: 'change_error',
       });
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -685,7 +752,10 @@ program
       }
     } catch (error) {
       failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -700,7 +770,10 @@ program
       await templatesCommand(options);
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -720,7 +793,10 @@ program
         payload: { schemas: [], root: null },
         fallbackCode: 'schemas_error',
       });
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
@@ -745,15 +821,86 @@ newCmd
       await newChangeCommand(name, options);
     } catch (error) {
       failWithError(error);
-      process.exit(1);
+      // failWithError already set exitCode 1. Returning instead of exiting
+      // lets commander run postAction, which reports the failure and flushes;
+      // process.exit() here would drop both.
+      return;
     }
   });
 
 export { program };
 
-export function runCli(argv = process.argv): void {
-  program.parse(argv);
+/**
+ * Report a run that exits outside the normal hook path, then flush.
+ *
+ * `minimal` skips context collection: these paths are already exiting, and the
+ * outcome is the part that matters.
+ */
+function reportOutOfBandExit(command: string, exitCode: number): Promise<void> {
+  return finishAndFlush({ command, version, exitCode, jsonMode: false, minimal: true });
 }
+
+export function runCli(argv = process.argv): void {
+  // Teach the allowlist which command paths and tool ids are real, so the
+  // property contract can reject anything else without importing the registry.
+  registerAllowlists(program, AI_TOOLS.map((tool) => tool.value));
+
+  // Commander's own usage errors — unknown command, unknown option, missing
+  // argument, and a group invoked with no subcommand — call process.exit()
+  // before the preAction hook has run, so today they produce no telemetry at
+  // all. They are also the clearest signal that someone could not find the
+  // command they wanted, which is exactly what we want to see. exitOverride
+  // turns them into a throw we can report on before exiting ourselves.
+  program.exitOverride();
+  for (const command of collectCommands(program)) {
+    command.exitOverride();
+  }
+
+  try {
+    program.parse(argv);
+  } catch (error) {
+    const code = (error as { exitCode?: number }).exitCode ?? 1;
+    const commanderCode = (error as { code?: string }).code ?? '';
+
+    // --help and --version are not commands and are not failures.
+    if (commanderCode === 'commander.helpDisplayed' || commanderCode === 'commander.version') {
+      process.exitCode = code === 0 ? undefined : code;
+      return;
+    }
+
+    markFailure('bad_usage');
+    process.exitCode = code;
+    void reportOutOfBandExit('unknown', code);
+  }
+}
+
+/** Every registered command, depth-first. */
+function collectCommands(root: Command): Command[] {
+  const found: Command[] = [];
+  const walk = (command: Command): void => {
+    for (const child of command.commands) {
+      found.push(child);
+      walk(child);
+    }
+  };
+  walk(root);
+  return found;
+}
+
+/**
+ * An error escaping a command's own handling. Commander chains its hooks
+ * without a catch, so the rejection skips postAction and would otherwise land
+ * nowhere — making our own bugs the one failure class we never see.
+ */
+process.on('unhandledRejection', (reason) => {
+  markOutcome(reason);
+  process.exitCode = 1;
+  void reportOutOfBandExit('unknown', 1).finally(() => {
+    // Preserve the pre-existing behavior: Node printed this and exited 1.
+    console.error(reason);
+    process.exit(1);
+  });
+});
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runCli();
