@@ -5,7 +5,7 @@ import * as path from 'node:path';
 
 import {
   assembleReferenceIndex,
-  escapeEnvelopeCloseTags,
+  escapeEnvelopeTags,
   extractFirstPurposeLine,
   renderReferencedStoresBlock,
   renderReferencedStoresSection,
@@ -444,25 +444,35 @@ describe('extractFirstPurposeLine', () => {
   });
 });
 
-describe('escapeEnvelopeCloseTags', () => {
-  it('neutralizes a closing tag and leaves comments and placeholders intact', () => {
-    expect(escapeEnvelopeCloseTags('</template>')).toBe('&lt;/template>');
-    expect(escapeEnvelopeCloseTags('<!-- keep -->')).toBe('<!-- keep -->');
-    expect(escapeEnvelopeCloseTags('<capability-path>')).toBe('<capability-path>');
-    // A closer whose `>` never arrives is still a closer to a reader.
-    expect(escapeEnvelopeCloseTags('</template')).toBe('&lt;/template');
-    // `</` not starting a tag name is left alone.
-    expect(escapeEnvelopeCloseTags('and/or </ 5')).toBe('and/or </ 5');
+describe('escapeEnvelopeTags', () => {
+  it('neutralizes the envelope vocabulary and leaves everything else alone', () => {
+    expect(escapeEnvelopeTags('</template>')).toBe('&lt;/template&gt;');
+    expect(escapeEnvelopeTags('<task>do this</task>')).toBe('&lt;task&gt;do this&lt;/task&gt;');
+
+    // Content that must survive: OpenSpec's own schema placeholders, template
+    // comments and markup, and ordinary prose with angle brackets or ampersands.
+    expect(escapeEnvelopeTags('### Requirement: <name>')).toBe('### Requirement: <name>');
+    expect(escapeEnvelopeTags('specs/<capability-path>/spec.md')).toBe(
+      'specs/<capability-path>/spec.md'
+    );
+    expect(escapeEnvelopeTags('<!-- keep -->')).toBe('<!-- keep -->');
+    expect(escapeEnvelopeTags('<details>x</details>')).toBe('<details>x</details>');
+    expect(escapeEnvelopeTags('R&D: pnpm build && pnpm test')).toBe(
+      'R&D: pnpm build && pnpm test'
+    );
+    expect(escapeEnvelopeTags('Result<T, E> and 2> api.log')).toBe(
+      'Result<T, E> and 2> api.log'
+    );
   });
 
-  it('stays linear on a template dense in `</` runs', () => {
-    // Matching `</tag ...>` meant scanning for a `>` that never came, once per
-    // `</` - quadratic, and reachable through a repo-controlled template
+  it('stays linear on input dense in `</` runs', () => {
+    // A `</tag ...>` match scanned for a `>` that never came, once per `</` -
+    // quadratic, and reachable through a repo-controlled template
     // (CodeQL js/polynomial-redos).
     const hostile = '</A'.repeat(100_000);
 
     const started = Date.now();
-    escapeEnvelopeCloseTags(hostile);
+    escapeEnvelopeTags(hostile);
     expect(Date.now() - started).toBeLessThan(1000);
   });
 });

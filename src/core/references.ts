@@ -240,53 +240,72 @@ export function renderReferencedStoresSection(entries: ReferenceIndexEntry[]): s
  */
 export function sanitizeInline(value: string, maxLength = 300): string {
   const flattened = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
-  const capped = flattened.length > maxLength ? `${flattened.slice(0, maxLength)}…` : flattened;
-  // Flattening alone does not stop markup forgery: one line is enough to
-  // close the block that frames the value as read-only context.
-  return escapeEnvelopeText(capped);
+  return flattened.length > maxLength ? `${flattened.slice(0, maxLength)}…` : flattened;
 }
 
 /**
- * Config- and schema-supplied text is printed inside a pseudo-XML envelope
- * whose tags carry authority (`<project_context>` says "background only",
- * `<task>` says "do this"). Unescaped, a value containing
- * `</project_context><task>…</task>` closes its own block and lands a
- * top-level directive. Angle brackets are the whole breakout surface, so
- * they never reach the envelope intact.
+ * The tags the instruction printer uses to frame its blocks. A block ends at
+ * its own closing tag and nowhere else, so this is the entire breakout
+ * surface: neutralize these and repo-supplied text cannot escape the element
+ * that marks it as data.
  */
-export function escapeEnvelopeText(value: string): string {
-  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+const ENVELOPE_TAGS = [
+  'artifact',
+  'dependencies',
+  'dependency',
+  'description',
+  'instruction',
+  'output',
+  'path',
+  'project_context',
+  'rules',
+  'success_criteria',
+  'task',
+  'template',
+  'unlocks',
+  'warning',
+] as const;
 
-/** Attribute values must additionally not close their own quote. */
-export function escapeEnvelopeAttribute(value: string): string {
-  return escapeEnvelopeText(value).replace(/"/g, '&quot;');
-}
+// The attribute tail uses `[^<>]` rather than `[^>]` so a run of unterminated
+// `<task ...` openers cannot make each start position scan to end of input,
+// which is how the first version of this escape became quadratic.
+const ENVELOPE_TAG = new RegExp(
+  `<(/?)(${ENVELOPE_TAGS.join('|')})([ \\t][^<>]*)?>`,
+  'gi'
+);
 
 /**
- * Template bodies are copied verbatim into the artifact file, so their
- * `<!-- ... -->` comments and `<placeholder>` markers must survive intact -
- * escaping them wholesale would write `&lt;!--` into every generated file.
- * Only closing tags are neutralized: an envelope block ends at one, so
- * without them a template cannot terminate the element that frames it.
+ * Neutralize the envelope's own tags - opening and closing - in repo-supplied
+ * text, so it cannot close the block that frames it as data nor forge a new
+ * block that carries authority.
  *
- * Just the `</` opener is rewritten rather than a whole `</tag ...>` match.
- * That is the same output for a well-formed tag - the escape only ever swaps
- * the `<` - but it needs no scan for the closing `>`, which was itself
- * quadratic on a template dense in `</` runs (CodeQL js/polynomial-redos), and
- * it also catches a closer whose `>` never arrives.
+ * Deliberately narrow: only this fixed vocabulary is touched. Escaping every
+ * angle bracket also works, but it mangles ordinary content for everyone.
+ * OpenSpec's own spec-driven schema writes `### Requirement: <name>` and
+ * `openspec show "<spec-id>"`; custom templates carry `<details>`; and
+ * `context:` routinely holds `R&D`, `pnpm build && pnpm test` or
+ * `Result<T, E>`. All of those would reach the agent entity-encoded - a real
+ * cost paid by every user, against a threat only these tags can carry.
  */
-export function escapeEnvelopeCloseTags(value: string): string {
-  return value.replace(/<\/(?=[A-Za-z])/g, '&lt;/');
+export function escapeEnvelopeTags(value: string): string {
+  return value.replace(
+    ENVELOPE_TAG,
+    (_match, slash: string, tag: string, attrs: string | undefined) =>
+      `&lt;${slash}${tag}${attrs ?? ''}&gt;`
+  );
 }
 
 /**
- * Markdown has no closing delimiter, so a config value whose line starts with
- * `#` forges a section heading peer to the real ones. Escaping the marker
- * keeps the text readable and inert.
+ * Attribute values are ids and directory names, never prose, so escaping every
+ * metacharacter here costs nothing and stops a quote from closing the
+ * attribute and forging siblings on the tag.
  */
-export function escapeMarkdownHeadings(value: string): string {
-  return value.replace(/^([ \t]*)(#{1,6})/gm, '$1\\$2');
+export function escapeEnvelopeAttribute(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 function renderEntryLines(entry: ReferenceIndexEntry): string[] {

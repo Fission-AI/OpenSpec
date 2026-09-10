@@ -32,9 +32,7 @@ import {
 import {
   assembleReferenceIndex,
   escapeEnvelopeAttribute,
-  escapeEnvelopeCloseTags,
-  escapeEnvelopeText,
-  escapeMarkdownHeadings,
+  escapeEnvelopeTags,
   renderReferencedStoresBlock,
   renderReferencedStoresSection,
   sanitizeInline,
@@ -238,9 +236,9 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Task directive
   console.log('<task>');
   console.log(
-    `Create the ${escapeEnvelopeText(artifactId)} artifact for change "${escapeEnvelopeText(changeName)}".`
+    `Create the ${escapeEnvelopeTags(artifactId)} artifact for change "${escapeEnvelopeTags(changeName)}".`
   );
-  console.log(escapeEnvelopeText(description));
+  console.log(escapeEnvelopeTags(description));
   console.log('</task>');
   console.log();
 
@@ -248,7 +246,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   if (context) {
     console.log('<project_context>');
     console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
-    console.log(escapeEnvelopeText(context));
+    console.log(escapeEnvelopeTags(context));
     console.log('</project_context>');
     console.log();
   }
@@ -266,7 +264,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     for (const rule of rules) {
       // Flattened so a newline cannot forge a sibling bullet, but never
       // truncated: these are instructions an agent has to follow in full.
-      console.log(`- ${sanitizeInline(rule, Infinity)}`);
+      console.log(`- ${escapeEnvelopeTags(sanitizeInline(rule, Infinity))}`);
     }
     console.log('</rules>');
     console.log();
@@ -291,7 +289,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
       const fullPath = path.join(changeDir, dep.path);
       console.log(`<dependency id="${dep.id}" status="${status}">`);
       console.log(`  <path>${fullPath}</path>`);
-      console.log(`  <description>${escapeEnvelopeText(dep.description)}</description>`);
+      console.log(`  <description>${escapeEnvelopeTags(dep.description)}</description>`);
       console.log('</dependency>');
     }
     console.log('</dependencies>');
@@ -307,7 +305,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Instruction (guidance)
   if (instruction) {
     console.log('<instruction>');
-    console.log(escapeEnvelopeText(instruction.trim()));
+    console.log(escapeEnvelopeTags(instruction.trim()));
     console.log('</instruction>');
     console.log();
   }
@@ -318,7 +316,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Copied verbatim into the artifact file, so its `<!-- ... -->` comments and
   // `<placeholder>` markers must survive - only the envelope's own closing
   // tags are neutralized.
-  console.log(escapeEnvelopeCloseTags(template.trim()));
+  console.log(escapeEnvelopeTags(template.trim()));
   console.log('</template>');
   console.log();
 
@@ -834,7 +832,7 @@ function printOperationInputsText(inputs: {
     console.log('### Project Context (required instruction input)');
     // Markdown ends a section only by starting the next one, so a config value
     // whose line begins with `#` would forge a peer of the headings below it.
-    console.log(escapeMarkdownHeadings(inputs.context));
+    console.log(inputs.context);
     console.log();
   }
 
