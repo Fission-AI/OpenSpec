@@ -136,7 +136,7 @@ describe('update-change write gate (#1836)', () => {
       // A leading adverb ("Immediately revise the files ...") must not disarm
       // this - the verb does not have to be the bullet's first token.
       expect(rest, `${label}: no imperative edit bullet outside step 5`).not.toMatch(
-        /^\s*-\s*(?:\w+ly,?\s+)?(?:Revise|Edit|Update|Rewrite)\b/im
+        /^\s*-\s*(?:\w+ly,?\s+)?(?:Revise|Edit|Update|Rewrite|Modify|Amend|Patch|Replace)\b/im
       );
     }
   });
