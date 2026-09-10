@@ -202,26 +202,25 @@ describe('explore templates', () => {
   it('treats an explicit capture request as the write confirmation (#1828)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        'An explicit request to capture the exploration as a new change is itself that confirmation, covering the change and the artifacts the request names'
+        'An explicit request from the user to capture the exploration as a new change is itself that confirmation'
+      );
+      // Scoped to change artifacts, so the carve-out cannot reach the
+      // workflow configuration #1715 reported an agent editing.
+      expect(body, label).toContain(
+        'covering the change and the change artifacts that request names'
       );
     }
   });
 
-  it('resolves the capture carve-out in the guardrail that names `openspec new change` (#1828)', () => {
+  it('keeps the strict rule for a capture the agent proposed itself (#1828)', () => {
     for (const [label, body] of bodies) {
-      // The general rule must survive: an agent proposing the capture on its
-      // own initiative still owes the user a separate yes/no.
-      expect(body, label).toContain(
-        'including `openspec new change` or another command that writes files'
-      );
       expect(body, label).toContain(
         'That rule governs `openspec new change` whenever you are the one proposing the capture'
       );
+      // The guardrail points at the capture transition rather than restating
+      // the contract a third time, so the three sites cannot drift apart.
       expect(body, label).toContain(
-        'When the user explicitly asks you to capture the exploration as a new change, their request is the confirmation for scaffolding it and creating the artifacts the request names, so run the capture transition without asking again'
-      );
-      expect(body, label).toContain(
-        'ask before writing anything outside that scope'
+        "the user's own capture request is the exception, handled in the capture transition above"
       );
     }
   });
@@ -237,9 +236,42 @@ describe('explore templates', () => {
       expect(carveOut, label).toBeGreaterThanOrEqual(0);
       expect(scaffold, label).toBeGreaterThan(carveOut);
       expect(transition, label).toContain(
-        'It covers scaffolding the change and creating the artifacts the request names, and nothing else'
+        'creating the change artifacts the request names, and nothing else'
       );
-      expect(transition, label).toContain('Do not ask for a second confirmation');
+    }
+  });
+
+  // A yes to an offer the agent made looks identical to a user-initiated
+  // capture request at the point the decision is made, so the discriminator
+  // has to live in the branch, not only in the guardrail 190 lines below it.
+  it('carries the agent-proposed discriminator in the branch itself (#1828)', () => {
+    for (const [label, body] of bodies) {
+      const transition = newChangeTransition(body, label);
+
+      expect(transition, label).toContain(
+        'This holds only when the request is theirs'
+      );
+      expect(transition, label).toContain(
+        'a yes to an offer you made confirms only the scope your offer itself named'
+      );
+    }
+  });
+
+  // "Do not ask for a second confirmation" would have contradicted step 2,
+  // nine lines below it, which requires asking before expanding the capture.
+  // Narrow the licence to re-asking for what was already asked for.
+  it('does not license skipping the asks the capture steps still require (#1828)', () => {
+    for (const [label, body] of bodies) {
+      const transition = newChangeTransition(body, label);
+
+      expect(transition, label).toContain(
+        "Don't re-ask for what they already asked for; do ask before anything beyond it"
+      );
+      expect(transition, label).not.toContain('Do not ask for a second confirmation');
+      expect(transition, label).toContain('ask before expanding the capture');
+      expect(transition, label).toContain(
+        'Do not create an unrequested prerequisite unless the user approves'
+      );
     }
   });
 
@@ -247,17 +279,6 @@ describe('explore templates', () => {
   // survives only if everything outside the requested scope still stops.
   it('keeps the carve-out scoped to what the request named (#1828, #1715)', () => {
     for (const [label, body] of bodies) {
-      const transition = newChangeTransition(body, label);
-
-      // String containment alone cannot catch #1828's actual failure mode: a
-      // second, contradictory instruction added elsewhere. The capture branch
-      // is resolved only while it carries no confirmation gate of its own.
-      expect(transition, label).not.toContain('ask a direct yes/no question');
-      expect(transition, label).not.toContain(
-        "wait for the user's confirmation"
-      );
-      expect(transition, label).not.toContain('wait for explicit confirmation');
-
       expect(body, label).toContain(
         'Confirmation covers only the scope you described; ask again before expanding it'
       );
@@ -267,10 +288,83 @@ describe('explore templates', () => {
       expect(body, label).toContain(
         'Accepting an answer or a batch of recommendations is not permission to write'
       );
-      expect(transition, label).toContain(
-        'Do not create an unrequested prerequisite unless the user approves'
+      expect(body, label).toContain(
+        'creating or editing schemas, templates, or `openspec/config.yaml` is a change'
       );
-      expect(transition, label).toContain('ask before expanding the capture');
+    }
+  });
+
+  // #1828 was not a missing sentence. It was a second, contradictory sentence
+  // elsewhere in the same body, and no `toContain` assertion can see one of
+  // those: every pinned string stays present while the new sentence reverses
+  // it. So invert the check. Collect EVERY sentence that couples consent
+  // language to the capture topic and require each to be one the resolution
+  // sanctions, which surfaces a gate added anywhere in the body - Guardrails,
+  // "Planning a Change", either capture branch.
+  //
+  // Limits worth knowing: this is lexical. A sentence that reverses the
+  // resolution without using any consent word - redefining what counts as
+  // "requested", or suspending the carve-out on a condition - is invisible
+  // here and stays a review responsibility.
+  const CONSENT_WORDS =
+    /\b(confirm(?:ation|s|ed)?|yes\/no|approv(?:al|es|ed)|permission|consent)\b/i;
+  const CAPTURE_WORDS = /(openspec new change|scaffold|captur|write-capable|first write)/i;
+
+  const SANCTIONED_CONSENT = [
+    // The stance paragraph: the rule, then the carve-out.
+    /You MAY create or update OpenSpec change artifacts .* within a confirmed scope/,
+    /Before the first write-capable action, name the artifacts or files you would change/,
+    /An explicit request from the user to capture the exploration as a new change is itself that confirmation/,
+    // The capture branch: the carve-out and both of its fences.
+    /that request is the confirmation required above/,
+    /This holds only when the request is theirs/,
+    /a yes to an offer you made confirms only the scope your offer itself named/,
+    /Don't re-ask for what they already asked for/,
+    /Do not create an unrequested prerequisite unless the user approves/,
+    // The guardrail: the rule, and a pointer back to the branch.
+    /Before the first write-capable action—including `openspec new change`/,
+    /That rule governs `openspec new change` whenever you are the one proposing the capture/,
+  ];
+
+  // The `--store` reminder repeats on five steps and says "confirmed" only to
+  // mean "the store id you already resolved", which is not a consent rule.
+  const STORE_REMINDER =
+    /\(append the confirmed `--store "<id>"` only for a registered standalone store\)/g;
+
+  function consentSentences(body: string, requireCaptureTopic: boolean): string[] {
+    return body
+      .replace(STORE_REMINDER, '')
+      .split(/(?<=[.:;])\s+/)
+      .map((sentence) => sentence.replace(/\s+/g, ' ').trim())
+      .filter(
+        (sentence) =>
+          CONSENT_WORDS.test(sentence) &&
+          (!requireCaptureTopic || CAPTURE_WORDS.test(sentence))
+      );
+  }
+
+  it('couples consent to capture only where the resolution sanctions it (#1828)', () => {
+    for (const [label, body] of bodies) {
+      const unsanctioned = consentSentences(body, true).filter(
+        (sentence) => !SANCTIONED_CONSENT.some((allowed) => allowed.test(sentence))
+      );
+
+      expect(unsanctioned, `${label} must add no unsanctioned consent rule`).toEqual([]);
+    }
+  });
+
+  // Inside the capture branch, drop the topic filter entirely: a gate written
+  // there is about the capture whether or not it says so. Without this, a bare
+  // "get a fresh yes/no before running anything" inserted above step 1 reads as
+  // off-topic and reinstates #1828 with the suite green.
+  it('adds no confirmation gate of its own inside the capture branch (#1828)', () => {
+    for (const [label, body] of bodies) {
+      const unsanctioned = consentSentences(
+        newChangeTransition(body, label),
+        false
+      ).filter((sentence) => !SANCTIONED_CONSENT.some((allowed) => allowed.test(sentence)));
+
+      expect(unsanctioned, `${label} capture branch must carry no gate`).toEqual([]);
     }
   });
 
