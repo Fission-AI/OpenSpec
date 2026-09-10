@@ -77,6 +77,7 @@ import {
   writeSharedSkillTarget,
 } from './shared-skill-target.js';
 import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -902,7 +903,7 @@ export class UpdateCommand {
       console.log(chalk.yellow(legacyMigrationNotice(migration)));
 
       if (!this.force && isInteractive()) {
-        const { confirm } = await import('@inquirer/prompts');
+        const { confirm } = await loadPrompts();
         let shouldMigrate: boolean;
         try {
           shouldMigrate = await confirm({
@@ -1007,7 +1008,7 @@ export class UpdateCommand {
     }
 
     // Interactive mode: prompt for confirmation
-    const { confirm } = await import('@inquirer/prompts');
+    const { confirm } = await loadPrompts();
     const shouldCleanup = await confirm({
       message: 'Upgrade and clean up legacy files?',
       default: true,

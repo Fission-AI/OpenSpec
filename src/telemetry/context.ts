@@ -9,7 +9,7 @@
  * cheaply is omitted and the event is still sent. The outcome signal is the
  * point of the event; the context is decoration on it.
  */
-import { promises as fs } from 'fs';
+import { promises as fs, statSync } from 'fs';
 import path from 'path';
 import { getGlobalConfig } from '../core/global-config.js';
 import {
@@ -81,6 +81,57 @@ async function countEntries(dir: string): Promise<number | undefined> {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Nearest `openspec/` directory walking up from cwd.
+ *
+ * Deliberately not the CLI's real root resolution: that consults stores, can
+ * throw, and can prompt. Telemetry gets a bounded stat walk instead, and null
+ * when there is nothing local.
+ */
+export function findLocalRoot(from: string = process.cwd(), maxDepth = 24): string | null {
+  let dir = from;
+  for (let depth = 0; depth < maxDepth; depth += 1) {
+    const candidate = path.join(dir, 'openspec');
+    try {
+      if (statSync(candidate).isDirectory()) {
+        return candidate;
+      }
+    } catch {
+      // Not here; keep walking.
+    }
+    const parent = path.dirname(dir);
+    if (parent === dir) {
+      break;
+    }
+    dir = parent;
+  }
+  return null;
+}
+
+/**
+ * Where the active schema was loaded from.
+ *
+ * A schema the user forked lives in the project; the bundled one ships with
+ * the package. The schema's *name* is a directory the user named, so only the
+ * source is reported.
+ */
+export function detectSchemaSource(
+  localRoot: string | null
+): 'package' | 'project' | 'user' | undefined {
+  if (!localRoot) {
+    return undefined;
+  }
+  try {
+    const projectSchemas = path.join(localRoot, 'schemas');
+    if (statSync(projectSchemas).isDirectory()) {
+      return 'project';
+    }
+  } catch {
+    // No project schemas directory: the bundled schema is in use.
+  }
+  return 'package';
 }
 
 export interface RunContextInput {

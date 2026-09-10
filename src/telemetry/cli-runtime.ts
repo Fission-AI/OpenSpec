@@ -40,8 +40,19 @@ let pending: { outcome: Outcome; errorClass: ErrorClass } | null = null;
 let earnedMilestone: Milestone | null = null;
 
 /** Commands whose success is an activation milestone. */
+/**
+ * Commands whose success is an activation milestone.
+ *
+ * `propose` and `apply` are agent workflows, not CLI commands, so the CLI
+ * observes them through the commands an agent runs on their behalf:
+ * `new:change` creates the proposal, and `validate` is what an agent runs as
+ * it works the change. `install` is not a command at all — it is the run that
+ * mints the anonymous id, so it is emitted from the completion path.
+ */
 const MILESTONE_COMMANDS: Readonly<Record<string, Milestone>> = {
   init: 'init',
+  'new:change': 'propose',
+  validate: 'apply',
   archive: 'archive',
 };
 
@@ -52,6 +63,7 @@ export function beginRun(): void {
   earnedMilestone = null;
   promptedMs = 0;
   promptOpenedAt = null;
+  interactiveCapable = false;
 }
 
 /** Called around an interactive prompt so its wait never enters the duration. */
@@ -66,8 +78,24 @@ export function markPromptClosed(): void {
   }
 }
 
+/**
+ * True when this run either opened a prompt or could have.
+ *
+ * Both halves matter. The measured half excludes think time from the
+ * duration; the capability half is what latency analysis filters on, because
+ * a run that *could* have prompted is one whose timing is not comparable to an
+ * agent's — and agent runs, which never prompt, are the population whose
+ * latency we actually want to read.
+ */
 export function wasPrompted(): boolean {
-  return promptedMs > 0 || promptOpenedAt !== null;
+  return promptedMs > 0 || promptOpenedAt !== null || interactiveCapable;
+}
+
+let interactiveCapable = false;
+
+/** Record whether this run could prompt at all (both streams a terminal). */
+export function markInteractiveCapable(capable: boolean): void {
+  interactiveCapable = capable;
 }
 
 /**
@@ -197,6 +225,12 @@ export async function finishRun(input: CompletionInput): Promise<void> {
     durationMs,
     context,
   });
+
+  // The run that mints the anonymous id is the install: without it the
+  // activation funnel has no denominator.
+  if (isFirstRun()) {
+    await trackMilestone('install', input.version);
+  }
 
   if (outcome === 'success' && earnedMilestone) {
     await trackMilestone(earnedMilestone, input.version);

@@ -59,8 +59,20 @@ let anonymousId: string | null = null;
  * uncapped per-invocation count turns that into a burst of outbound requests
  * nobody asked for.
  */
-const MAX_EVENTS_PER_INVOCATION = 4;
+const MAX_EVENTS_PER_INVOCATION = 12;
 let eventsSent = 0;
+
+/**
+ * Whether another event would fit under the cap.
+ *
+ * One-shot events must consult this *before* claiming. A claim is persisted
+ * forever, so claiming and then hitting the cap would lose that milestone or
+ * tool permanently — the metric would silently under-report for the life of
+ * the install, which is worse than reporting it one run later.
+ */
+export function hasEventCapacity(): boolean {
+  return eventsSent < MAX_EVENTS_PER_INVOCATION;
+}
 
 /**
  * True when the user asked to see the payloads instead of sending them.
@@ -381,6 +393,9 @@ export async function trackMilestone(milestone: Milestone, version: string): Pro
     if (!state) {
       return;
     }
+    if (!hasEventCapacity()) {
+      return; // Claim nothing; the milestone is still unreported next run.
+    }
     const claim = await claimMilestone(milestone, state, new Date(), !isDebugMode());
     if (!claim) {
       return;
@@ -419,7 +434,13 @@ export async function trackConfiguredTools(toolIds: string[], version: string): 
     // Filter before claiming: an unlisted id would otherwise be marked
     // reported and produce an event whose only real property was stripped.
     const known = toolIds.filter((id) => isRegistryTool(id));
-    for (const tool of await claimUnreportedTools(known, state, !isDebugMode())) {
+    // Claim only as many as can actually be sent this run; the rest stay
+    // unreported and go out on a later invocation.
+    const room = MAX_EVENTS_PER_INVOCATION - eventsSent;
+    if (room <= 0) {
+      return;
+    }
+    for (const tool of await claimUnreportedTools(known.slice(0, room), state, !isDebugMode())) {
       sendEvent(state.anonymousId, 'tool_configured', {
         tool,
         version,

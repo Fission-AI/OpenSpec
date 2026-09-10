@@ -27,6 +27,7 @@ import { UpdateCommand } from '../core/update.js';
 import { asErrorMessage, isPromptCancellationError } from './shared-output.js';
 import { isTelemetryEnabled } from '../telemetry/index.js';
 import { getConfigPath } from '../telemetry/config.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -386,7 +387,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       if (!options.yes) {
-        const { confirm } = await import('@inquirer/prompts');
+        const { confirm } = await loadPrompts();
         let confirmed: boolean;
         try {
           confirmed = await confirm({
@@ -505,7 +506,7 @@ export function registerConfigCommand(program: Command): void {
       }
 
       // Interactive picker
-      const { select, checkbox, confirm } = await import('@inquirer/prompts');
+      const { select, checkbox, confirm } = await loadPrompts();
       const chalk = (await import('chalk')).default;
 
       try {

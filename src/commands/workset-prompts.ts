@@ -25,6 +25,7 @@ import {
   formatMemberRows,
   resolveMemberFlags,
 } from './workset-input.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 export interface ComposeInput {
   memberFlags: string[];
@@ -36,7 +37,7 @@ export async function composeInteractively(
   input: ComposeInput,
   table: OpenerDefinition[]
 ): Promise<Workset> {
-  const prompts = await import('@inquirer/prompts');
+  const prompts = await loadPrompts();
 
   console.log('[1/3] Name the workset');
   let name: string;
@@ -152,7 +153,7 @@ export async function composeInteractively(
 export async function promptToolFromChoices(
   available: OpenerChoice[]
 ): Promise<string> {
-  const { select } = await import('@inquirer/prompts');
+  const { select } = await loadPrompts();
   return select({
     message: 'Open with:',
     choices: available.map((choice) => ({
@@ -163,7 +164,7 @@ export async function promptToolFromChoices(
 }
 
 export async function promptOpenNow(label: string): Promise<boolean> {
-  const { confirm } = await import('@inquirer/prompts');
+  const { confirm } = await loadPrompts();
   return confirm({
     message: `Open it now in ${label}?`,
     default: true,
@@ -174,7 +175,7 @@ export async function promptOpenNow(label: string): Promise<boolean> {
 export async function confirmRemoveInteractively(
   workset: Workset
 ): Promise<boolean> {
-  const { confirm } = await import('@inquirer/prompts');
+  const { confirm } = await loadPrompts();
 
   console.log(`Workset '${workset.name}':`);
   for (const row of formatMemberRows(workset.members)) {

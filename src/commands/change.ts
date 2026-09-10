@@ -21,6 +21,7 @@ import {
   diffRequirementBlock,
   buildRenameMap,
 } from '../utils/requirement-diff.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 /**
  * True only when `target` is definitively absent. An EACCES or I/O failure
@@ -94,7 +95,7 @@ export class ChangeCommand {
       // Offer exactly the changes `show <name>` can resolve.
       const changes = await getActiveChangeIds(this.rootPath ?? process.cwd());
       if (canPrompt && changes.length > 0) {
-        const { select } = await import('@inquirer/prompts');
+        const { select } = await loadPrompts();
         const selected = await select({
           message: 'Select a change to show',
           choices: changes.map(id => ({ name: id, value: id })),
@@ -502,7 +503,7 @@ export class ChangeCommand {
       const canPrompt = isInteractive(options);
       const changes = await getActiveChangeIds();
       if (canPrompt && changes.length > 0) {
-        const { select } = await import('@inquirer/prompts');
+        const { select } = await loadPrompts();
         const selected = await select({
           message: 'Select a change to validate',
           choices: changes.map(id => ({ name: id, value: id })),

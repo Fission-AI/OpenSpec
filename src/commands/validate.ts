@@ -16,6 +16,7 @@ import { nearestMatches } from '../utils/match.js';
 import { promises as fs } from 'fs';
 import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -170,7 +171,7 @@ export class ValidateCommand {
   }
 
   private async runInteractiveSelector(root: ResolvedOpenSpecRoot, opts: { strict: boolean; json: boolean; concurrency?: string }): Promise<void> {
-    const { select } = await import('@inquirer/prompts');
+    const { select } = await loadPrompts();
     const choice = await select({
       message: 'What would you like to validate?',
       choices: [

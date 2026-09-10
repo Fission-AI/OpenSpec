@@ -161,11 +161,31 @@ describe('telemetry events', () => {
   });
 
   it('caps the events one invocation may send', async () => {
-    for (let i = 0; i < 10; i += 1) {
+    for (let i = 0; i < 40; i += 1) {
       await trackCommand('list', '1.2.3');
     }
     await shutdown();
-    expect(fetchSpy.mock.calls.length).toBeLessThanOrEqual(4);
+    expect(fetchSpy.mock.calls.length).toBeLessThanOrEqual(12);
+  });
+
+  it('never spends a one-shot claim it cannot send', async () => {
+    // Fill the cap with ordinary events, then try to claim a milestone.
+    for (let i = 0; i < 20; i += 1) {
+      await trackCommand('list', '1.2.3');
+    }
+    fetchSpy.mockClear();
+
+    await trackMilestone('archive', '1.2.3');
+    await trackConfiguredTools(['claude'], '1.2.3');
+    await shutdown();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    // Nothing was marked reported, so a later run still sends them. A claim
+    // persisted without its event would under-report for the life of the
+    // install.
+    const telemetry = await getTelemetryConfig();
+    expect(telemetry.milestones ?? []).not.toContain('archive');
+    expect(telemetry.reportedTools ?? []).not.toContain('claude');
   });
 
   describe('debug mode', () => {

@@ -6,6 +6,7 @@ import { createRequire } from 'module';
 import chalk from 'chalk';
 import { isCiEnvironment } from '../utils/ci.js';
 import { getGlobalConfig } from './global-config.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 const require = createRequire(import.meta.url);
 const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package.json');
@@ -681,7 +682,7 @@ function isPromptCancellation(error: unknown): boolean {
  * of silently doing nothing.
  */
 export async function offerCliUpgrade(latestVersion: string): Promise<UpgradeOutcome> {
-  const { confirm } = await import('@inquirer/prompts');
+  const { confirm } = await loadPrompts();
 
   let accepted = false;
   try {

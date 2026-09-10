@@ -50,10 +50,14 @@ import {
   type NewChangeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
+import { findLocalRoot, detectSchemaSource } from '../telemetry/context.js';
+import { getConfiguredTools } from '../core/shared/tool-detection.js';
+import { getGlobalConfig } from '../core/global-config.js';
 import {
   beginRun,
   finishAndFlush,
   finishRun,
+  markInteractiveCapable,
   markFailure,
   markMilestone,
   markOutcome,
@@ -210,11 +214,25 @@ program.hook('postAction', async (_thisCommand, actionCommand) => {
   // Before the completions tip: the tip writes to the screen and can throw,
   // and the outcome must be recorded either way.
   try {
+    // Resolved here rather than inside telemetry so the collector stays a pure
+    // function of its input, and so a failure resolving context cannot reach
+    // the command that already did its work.
+    const localRoot = findLocalRoot();
+    markInteractiveCapable(isInteractive() && Boolean(process.stdout.isTTY));
+
     await finishRun({
       command: getCommandPath(actionCommand),
       version,
       exitCode: process.exitCode === undefined ? 0 : Number(process.exitCode),
       jsonMode: isJsonRun(actionCommand),
+      projectRoot: localRoot,
+      installDir: getInstallDir(),
+      // No local root but a store configured means this run resolved through
+      // one. The store's id, remote, and path are never read, let alone sent.
+      storeInUse:
+        localRoot === null && Boolean(getGlobalConfig().defaultStore),
+      schemaSource: detectSchemaSource(localRoot),
+      toolIds: localRoot ? safeConfiguredTools(path.dirname(localRoot)) : undefined,
     });
   } catch {
     // Telemetry never breaks a command that already did its work.
@@ -829,6 +847,20 @@ newCmd
   });
 
 export { program };
+
+/**
+ * Configured tool ids, or undefined if detection is unavailable.
+ *
+ * Detection touches the filesystem, so it must never be the reason a command
+ * that already succeeded reports nothing.
+ */
+function safeConfiguredTools(projectPath: string): string[] | undefined {
+  try {
+    return getConfiguredTools(projectPath);
+  } catch {
+    return undefined;
+  }
+}
 
 /**
  * Report a run that exits outside the normal hook path, then flush.

@@ -85,6 +85,7 @@ import {
   findUnmanagedCloudFiles,
   listManagedCloudFiles,
 } from './github-copilot/cloud-agent.js';
+import { loadPrompts } from '../utils/prompt-module.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -423,7 +424,7 @@ export class InitCommand {
     }
 
     if (this.canPromptInteractively()) {
-      const { confirm } = await import('@inquirer/prompts');
+      const { confirm } = await loadPrompts();
       const answer = await confirm({
         message:
           'Set up GitHub Copilot cloud coding-agent files? This is for the GitHub-hosted ' +
@@ -506,7 +507,7 @@ export class InitCommand {
     }
 
     // Interactive mode: prompt for confirmation
-    const { confirm } = await import('@inquirer/prompts');
+    const { confirm } = await loadPrompts();
     const shouldCleanup = await confirm({
       message: 'Upgrade and clean up legacy files?',
       default: true,
