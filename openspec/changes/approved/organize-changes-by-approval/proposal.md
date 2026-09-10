@@ -26,13 +26,3 @@ Shared change directories mix ideas awaiting review with plans approved for impl
 ## Impact
 
 Change creation and discovery, planning-home resolution, commands that read or archive changes, generated workflow instructions, shell completion, and user documentation need consistent paths. No new dependency or metadata state machine is needed.
-
-Related upstream work: [#1683](https://github.com/Fission-AI/OpenSpec/issues/1683) proposes lifecycle metadata; its [implementation #1684](https://github.com/Fission-AI/OpenSpec/pull/1684) was closed unmerged. [#1818](https://github.com/Fission-AI/OpenSpec/issues/1818) proposes draft changes. This proposal uses the requested directory distinction and leaves shipped state and sync lifecycle changes outside its scope.
-
-## Contribution alignment
-
-The repository's [contribution guidance](../../../../README.md#contributing) asks for an OpenSpec proposal and alignment on intent before implementing new features. The user has authorized a minimal local implementation; upstream acceptance remains a separate decision. It must work across supported agents, schemas, platforms, and stores. Any eventual implementation PR should disclose the coding agent/model, include verified tests, and use conventional commit subjects.
-
-[#1684 was closed by its author](https://github.com/Fission-AI/OpenSpec/pull/1684#issuecomment-5568728429), who concluded that OpenSpec's coupling of specs and decision records did not fit their team's PR workflows. It was not a maintainer rejection of this proposed approval layout. In the [preceding design review](https://github.com/Fission-AI/OpenSpec/pull/1684#issuecomment-5427198908), the maintainer requested a smaller scope, opposed two lifecycle models, identified correctness/data-loss issues, and noted missing docs and agent workflow updates.
-
-That review explicitly directs layout work to [open PR #1367](https://github.com/Fission-AI/OpenSpec/pull/1367), which introduces nested domains and relocates archives. Before upstream submission, seek agreement on fixed approval directories and their relationship to #1367 and draft issue #1818. The proposed approach keeps existing archive semantics, avoids lifecycle configuration and bulk migration, and includes all generated workflow surfaces. These scope choices address review concerns; they do not imply maintainer acceptance.

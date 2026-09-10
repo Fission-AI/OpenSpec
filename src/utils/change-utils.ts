@@ -1,4 +1,4 @@
-import { changeStageDir, resolveChangeDir } from './change-directory.js';
+import { proposedChangesDir, resolveChangeDir } from './change-directory.js';
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
@@ -163,7 +163,7 @@ export async function createChange(
   // Build the change directory path
   const changesDir = options.changesDir ?? path.join(projectRoot, 'openspec', 'changes');
   const existingDir = resolveChangeDir(changesDir, name);
-  const changeDir = path.join(changeStageDir(changesDir, 'proposed'), name);
+  const changeDir = path.join(proposedChangesDir(changesDir), name);
 
   // Check if change already exists
   if (await FileSystemUtils.directoryExists(existingDir)) {
