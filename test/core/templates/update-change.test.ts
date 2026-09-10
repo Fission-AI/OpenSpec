@@ -11,18 +11,62 @@ const command = getOpsxUpdateCommandTemplate();
 
 // Both delivery surfaces must carry the same contract; every behavioral
 // assertion below runs against each body.
-// The one sentence in step 4 that is allowed to say "write" - it is what hands
-// every write to step 5.
-const SANCTIONED_WRITE_MENTION =
-  'do not write anything yet - step 5 owns every write';
-
 const bodies: Array<[string, string]> = [
   ['skill', skill.instructions],
   ['command', command.content],
 ];
 
-// Slice one numbered step out of a workflow body so an assertion about where a
-// rule lives cannot be satisfied by the same words appearing in another step.
+// The load-bearing sentence of step 4 and the whole of step 5 are pinned
+// verbatim. #1836 happened because a single verb ("Apply") in step 4 silently
+// re-answered a question step 5 had already answered, so any reword of either
+// passage has to come back through this test and re-argue the contract rather
+// than just regenerate a parity hash.
+const STEP_FOUR_DRAFT_RULE =
+  '   - Draft the requested edit in the conversation, not in files. Work out exactly what it changes; step 5 owns every write.';
+
+const STEP_FIVE = `5. **Confirm and apply, one artifact at a time**
+   - This step performs every artifact write in this workflow; no earlier step edits an artifact.
+   - Show each proposed revision and why - including the requested edit drafted in step 4. Write only after the user confirms.
+   - If the user rejects a revision, do not write it - leave that artifact unchanged.
+   - When a substantial rewrite is needed, get that artifact's rules and template first:
+     \`\`\`bash
+     openspec instructions "<artifact-id>" --change "<name>" --json
+     \`\`\`
+
+`;
+
+// Every mention of writing or applying allowed to live OUTSIDE step 5. Each is
+// a scope rule, a hand-off to another workflow, or the gate itself - none
+// authorizes a write here.
+const SANCTIONED_OUTSIDE_STEP_FIVE = [
+  'step 5 owns every write',
+  'Do NOT write to `resolvedOutputPath`',
+  '- Edit only the concrete files in `existingOutputPaths`; never write to a glob `resolvedOutputPath`.',
+  'Confirm every edit with the user before writing.',
+  '`/opsx:apply`',
+  'already applied',
+];
+
+// Synonyms matter as much as the original verb: "commit the edit", "overwrite
+// the artifact", "reapply it" all reintroduce #1836 while dodging a naive
+// /\bwrite\b/. No leading \b, so over-/re- prefixed forms are caught too.
+const WRITE_VERB =
+  /(?:over|re)?writ(?:e|es|ing|ten)\b|(?:re)?appl(?:y|ies|ied|ying)\b|\b(?:commit|commits|committing|save|saves|saving|persist|persists|persisting|flush|flushes|flushing|emit|emits|emitting)\b/i;
+
+// Verb-free ways to say the same thing: "perform the edit", "put it in place",
+// "carry it out", anything "to disk". Step 5 is the only passage entitled to
+// this vocabulary, and it is excluded before these run.
+const WRITE_PHRASE =
+  /\bperform(?:s|ed|ing)?\b|\bcarr(?:y|ies|ied|ying) out\b|\bin place\b|\bto disk\b/i;
+
+// An authorization needs no write verb at all - "do it now, without asking" is
+// enough. There is no legitimate use of this phrasing in this workflow.
+const CONSENT_BYPASS =
+  /without (?:asking|confirming|confirmation)|do not wait for confirmation|no confirmation (?:is )?(?:needed|required)/i;
+
+// Slice one region out of a workflow body so an assertion about where a rule
+// lives cannot be satisfied by the same words appearing somewhere else. The
+// label names the marker, so a renamed heading reports which one went missing.
 function section(
   body: string,
   startMarker: string,
@@ -31,10 +75,72 @@ function section(
 ): string {
   const start = body.indexOf(startMarker);
   const end = body.indexOf(endMarker, start + startMarker.length);
-  expect(start, label).toBeGreaterThanOrEqual(0);
-  expect(end, label).toBeGreaterThan(start);
+  expect(start, `${label}: missing marker ${startMarker}`).toBeGreaterThanOrEqual(0);
+  expect(end, `${label}: missing marker ${endMarker}`).toBeGreaterThan(start);
   return body.slice(start, end);
 }
+
+function stepFive(body: string, label: string): string {
+  return section(body, '5. **Confirm and apply', '6. **Point to the next step', `${label} step 5`);
+}
+
+// Regression for #1836: step 4 said "Apply the requested edit" while step 5 and
+// the guardrails said to write only after the user confirms. "Apply" is a write
+// verb in this very document - step 5 is titled "Confirm and apply" - so the
+// same `/opsx:update "the design now uses X"` either wrote immediately or
+// stopped and showed the revision first, depending on which passage the agent
+// weighed. Step 5 is the workflow's only gated write path, so its confirmation
+// guarantee was unenforceable whenever step 4 governed.
+describe('update-change write gate (#1836)', () => {
+  it('pins the step 4 draft rule and the whole of step 5', () => {
+    for (const [label, body] of bodies) {
+      const stepFour = section(
+        body,
+        '4. **Read and reconcile**',
+        '5. **Confirm and apply',
+        `${label} step 4`
+      );
+
+      expect(stepFour, `${label} step 4`).toContain(STEP_FOUR_DRAFT_RULE);
+      // Verbatim, because an exemption bolted onto the gate ("this does not
+      // apply to the requested edit") is invisible to any toContain check.
+      expect(stepFive(body, label), `${label} step 5`).toBe(STEP_FIVE);
+    }
+  });
+
+  it('keeps the whole-body confirmation guardrail', () => {
+    for (const [label, body] of bodies) {
+      // Deleting this one line used to break nothing.
+      expect(body, label).toContain('Confirm every edit with the user before writing.');
+    }
+  });
+
+  it('lets no passage outside step 5 authorize a write', () => {
+    for (const [label, body] of bodies) {
+      // Everything the agent reads except step 5 and the shared store preamble.
+      // #1836 lived in step 4, but a sentence in the intro, in step 3, in the
+      // Guardrails or in the Output section would govern the agent just as well
+      // while sitting outside any single-step slice.
+      let rest = body
+        .split(stepFive(body, label))
+        .join('\n')
+        .split(STORE_SELECTION_GUIDANCE)
+        .join('');
+      for (const sanctioned of SANCTIONED_OUTSIDE_STEP_FIVE) {
+        rest = rest.split(sanctioned).join('');
+      }
+
+      expect(rest, `${label}: only step 5 may instruct a write`).not.toMatch(WRITE_VERB);
+      expect(rest, `${label}: only step 5 may instruct a write`).not.toMatch(WRITE_PHRASE);
+      expect(rest, `${label}: nothing may waive the confirmation`).not.toMatch(CONSENT_BYPASS);
+      // A leading adverb ("Immediately revise the files ...") must not disarm
+      // this - the verb does not have to be the bullet's first token.
+      expect(rest, `${label}: no imperative edit bullet outside step 5`).not.toMatch(
+        /^\s*-\s*(?:\w+ly,?\s+)?(?:Revise|Edit|Update|Rewrite)\b/im
+      );
+    }
+  });
+});
 
 describe('update-change templates', () => {
   it('generates the expected skill and command shape (3.1)', () => {
@@ -116,56 +222,6 @@ describe('update-change templates', () => {
       expect(body, label).toContain(
         '`openspec instructions "<artifact-id>" --change "<name>" --json` explains how to create it'
       );
-    }
-  });
-
-  // Regression for #1836: step 4 said "Apply the requested edit" while step 5
-  // and the guardrails said to write only after the user confirms. "Apply" is a
-  // write verb in this very document - step 5 is titled "Confirm and apply" -
-  // so the same `/opsx:update "the design now uses X"` either wrote immediately
-  // or stopped and showed the revision first, depending on which passage the
-  // agent weighed. Step 4 now drafts; step 5 owns every write.
-  it('keeps step 4 read-only so step 5 owns every write (#1836)', () => {
-    for (const [label, body] of bodies) {
-      const stepFour = section(
-        body,
-        '4. **Read and reconcile**',
-        '5. **Confirm and apply',
-        label
-      );
-      const stepFive = section(
-        body,
-        '5. **Confirm and apply',
-        '6. **Point to the next step',
-        label
-      );
-
-      // Step 4 states the edit is drafted, not written.
-      expect(stepFour, label).toContain('Draft the requested edit');
-      expect(stepFour, label).toContain(SANCTIONED_WRITE_MENTION);
-
-      // Step 4 is declared write-free, so the ONLY write/apply words it may
-      // carry are the ones in the sentence handing writing to step 5. Strip
-      // that sanctioned sentence and nothing of the kind may remain. The match
-      // is case-insensitive on purpose: a lowercase `write the drafted edit
-      // now` is the dangerous regression, and a case-sensitive `\bWrite\b`
-      // would miss exactly that while tripping on harmless capitalized prose.
-      const residue = stepFour.replace(SANCTIONED_WRITE_MENTION, '');
-      expect(residue, label).not.toMatch(/\bwrit(e|es|ing|ten)\b/i);
-      expect(residue, label).not.toMatch(/\bappl(y|ies|ied|ying)\b/i);
-      expect(stepFour, label).not.toContain('make no edits');
-
-      // No bullet in step 4 may open with an imperative edit verb: "Revise the
-      // files ..." reads as the instruction to edit them, which is the shape
-      // this whole guard exists to keep out.
-      expect(stepFour, label).not.toMatch(/^\s*-\s*(Revise|Edit|Update|Rewrite)\b/m);
-
-      // Step 5 keeps the gate, and claims the writes explicitly.
-      expect(stepFive, label).toContain(
-        'This step performs every write in this workflow; nothing earlier writes to disk'
-      );
-      expect(stepFive, label).toContain('including the requested edit drafted in step 4');
-      expect(stepFive, label).toContain('Write only after the user confirms');
     }
   });
 

@@ -61,8 +61,8 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxProposeSkillTemplate: 'b7215583fefddae0127076465de9b3de9c230f2f1ea9ae6e4fb2a46fe510e8d6',
   getOpsxProposeCommandTemplate: 'f016c66c2b6115b459751154c76a6270e444d6aee31973bb7cb8c0e6d505fb98',
   getFeedbackSkillTemplate: 'dabeb5e825b9349abc8156c3e7b8608f27987912a6d9bf47ef29addde6138133',
-  getUpdateChangeSkillTemplate: 'bee31e5b8760c985a9750284f6031e0b1c31eb2e47deef2e9f68d7a9e2b9092c',
-  getOpsxUpdateCommandTemplate: 'c6560162b8051aba756d9971b510fc9db750a632be6a3cdf5e12ed60ae685709',
+  getUpdateChangeSkillTemplate: '968e4164ce38258fdab858bbe65ff3f2300b0174a9c35194dc6cacafe4626f61',
+  getOpsxUpdateCommandTemplate: 'fc3b2ba3977a63e9f7689fef2ba05bb788f909db312818a4844867aefa6837d5',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
@@ -77,7 +77,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-verify-change': 'af9be013dcbe8c6d8f6d9ab10c893fbd03f4c62933c384d82f63894dd0ceb84f',
   'openspec-onboard': 'f6f59476acaf5e4d65dbb180da4cef62432612f3cecf207d471a951295e2003a',
   'openspec-propose': '679d0f868bed23cfb34a8ecc6b4ba4ff7b88dd7dbaef91563423e98f194f988f',
-  'openspec-update-change': 'dbd4492c5ee34afa0e5456de282467b73ba28bf2adf4b74624ef210f18ed2871',
+  'openspec-update-change': '832fc53b29546f70dc5b70047864a118f2b84ad86456dcad835ce3e21094811f',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
