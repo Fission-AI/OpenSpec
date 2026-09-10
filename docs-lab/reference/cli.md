@@ -52,6 +52,7 @@ Your agent runs most of these during the workflow.
 |---|---|
 | [`openspec feedback`](#openspec-feedback) | Submit feedback about OpenSpec. |
 | [`openspec completion`](#openspec-completion) | Install or generate shell completions. |
+| [`man openspec`](#man-openspec) | Read the full command reference offline. |
 
 **Deprecated**
 
@@ -2181,6 +2182,26 @@ Removes the script and the marked config block. It asks before touching your con
 
 - `0`: script generated, installed, or removed. A cancelled uninstall also exits 0.
 - `1`: shell not supported or not detected, or an install or uninstall step failed.
+
+## man openspec
+
+The full command reference, offline.
+
+```bash
+man openspec
+```
+
+The page lists every command, its arguments, and its flags, plus exit codes, environment variables, the files OpenSpec reads, and examples. It is generated from the CLI itself at build time, so it always matches `openspec --help` for the version you have installed.
+
+`npm install -g` links the page into your man path, so `man openspec` works with no extra step. Other package managers ship the file without linking it. Point `man` at the copy next to the installed CLI:
+
+```bash
+man "$(dirname "$(readlink -f "$(command -v openspec)")")/../dist/man/openspec.1"
+```
+
+That resolves the `openspec` on your `PATH` back to the package it came from, so it works whichever manager installed it. If your `readlink` has no `-f` (older macOS), ask the manager for its global package directory instead, for example `man "$(pnpm root -g)/@fission-ai/openspec/dist/man/openspec.1"`.
+
+Windows has no `man`. Use `openspec --help` there.
 
 ## openspec change
 

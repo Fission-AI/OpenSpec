@@ -24,6 +24,15 @@ console.log('Compiling TypeScript...');
 try {
   runTsc(['--version']);
   runTsc();
+} catch (error) {
+  console.error('\n❌ Build failed!');
+  process.exit(1);
+}
+
+// Generated from the compiled program, so the manual always matches --help.
+console.log('Generating man page...');
+try {
+  execFileSync(process.execPath, ['scripts/generate-man.mjs'], { stdio: 'inherit' });
   console.log('\n✅ Build completed successfully!');
 } catch (error) {
   console.error('\n❌ Build failed!');

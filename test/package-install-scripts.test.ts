@@ -78,6 +78,13 @@ describe('npm source installation', () => {
       devDependencies: { typescript: pathToFileURL(compilerDir).href },
     }));
     fs.copyFileSync(path.join(repoRoot, 'build.js'), path.join(sourceDir, 'build.js'));
+    // build.js drives the generators too, so the fixture needs them on disk.
+    // They no-op here: this fixture compiles a package with no CLI.
+    fs.mkdirSync(path.join(sourceDir, 'scripts'));
+    fs.copyFileSync(
+      path.join(repoRoot, 'scripts', 'generate-man.mjs'),
+      path.join(sourceDir, 'scripts', 'generate-man.mjs')
+    );
     fs.writeFileSync(path.join(sourceDir, 'tsconfig.json'), JSON.stringify({
       compilerOptions: { rootDir: 'src', outDir: 'dist', declaration: true, types: [] },
       include: ['src'],
