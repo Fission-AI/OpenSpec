@@ -31,7 +31,7 @@ describe('sanitizeProperties', () => {
         outcome: 'success',
         error_class: 'none',
         exit_code: '0',
-        duration: '100-500',
+        duration: '2_100-500ms',
         stdout_tty: true,
         run_id: RUN_ID,
         $ip: null,
@@ -41,7 +41,7 @@ describe('sanitizeProperties', () => {
       outcome: 'success',
       error_class: 'none',
       exit_code: '0',
-      duration: '100-500',
+      duration: '2_100-500ms',
       stdout_tty: true,
       run_id: RUN_ID,
       $ip: null,
@@ -113,8 +113,8 @@ describe('event names', () => {
 
 describe('buckets', () => {
   it('buckets counts', () => {
-    expect(bucketCount(0)).toBe('0');
-    expect(bucketCount(3)).toBe('1-3');
+    expect(bucketCount(0)).toBe('00');
+    expect(bucketCount(3)).toBe('01-03');
     expect(bucketCount(11)).toBe('11-30');
     expect(bucketCount(3500)).toBe('31+');
   });
@@ -127,10 +127,10 @@ describe('buckets', () => {
   });
 
   it('buckets durations', () => {
-    expect(bucketDuration(0)).toBe('<100');
-    expect(bucketDuration(499)).toBe('100-500');
-    expect(bucketDuration(1999)).toBe('500-2000');
-    expect(bucketDuration(60_000)).toBe('10000+');
+    expect(bucketDuration(0)).toBe('1_under_100ms');
+    expect(bucketDuration(499)).toBe('2_100-500ms');
+    expect(bucketDuration(1999)).toBe('3_500ms-2s');
+    expect(bucketDuration(60_000)).toBe('5_over_10s');
   });
 
   it('buckets exit codes, including passed-through child codes', () => {
@@ -145,11 +145,11 @@ describe('buckets', () => {
 
   it('buckets time to reach a milestone', () => {
     const h = 3_600_000;
-    expect(bucketTimeToReach(0)).toBe('<1h');
-    expect(bucketTimeToReach(2 * h)).toBe('1-24h');
-    expect(bucketTimeToReach(72 * h)).toBe('1-7d');
-    expect(bucketTimeToReach(24 * h * 20)).toBe('8-30d');
-    expect(bucketTimeToReach(24 * h * 400)).toBe('31d+');
+    expect(bucketTimeToReach(0)).toBe('1_under_1h');
+    expect(bucketTimeToReach(2 * h)).toBe('2_1-24h');
+    expect(bucketTimeToReach(72 * h)).toBe('3_1-7d');
+    expect(bucketTimeToReach(24 * h * 20)).toBe('4_8-30d');
+    expect(bucketTimeToReach(24 * h * 400)).toBe('5_over_30d');
   });
 
   it('buckets node majors and platforms', () => {

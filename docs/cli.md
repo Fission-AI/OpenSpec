@@ -1183,7 +1183,10 @@ openspec config profile core
 ```
 
 **Telemetry opt-out:** `telemetry.enabled` defaults to on when unset (opt-out model).
-Set it to `false` to disable anonymous usage stats and the `openspec update` version check.
+Set it to `false` to disable pseudonymous usage stats and the `openspec update` version check.
+`OPENSPEC_TELEMETRY_DEBUG=1` prints every event that would be sent to stderr and sends nothing, so you can
+see exactly what is collected. `openspec config get telemetry` reports the current state, the anonymous id,
+and the file holding it.
 Environment variables take precedence over config: `OPENSPEC_TELEMETRY=0`, `DO_NOT_TRACK=1`,
 and a truthy `CI` value (e.g. `true`/`1`/`yes`) always disable telemetry regardless of the config value.
 

@@ -51,6 +51,7 @@ const CODE_MAP: Readonly<Record<string, ErrorClass>> = {
   store_remove_confirmation_required: 'not_interactive',
   workset_open_json_unsupported: 'not_interactive',
 
+  init_cancelled: 'cancelled',
   store_setup_cancelled: 'cancelled',
   store_register_cancelled: 'cancelled',
   store_remove_cancelled: 'cancelled',
@@ -161,9 +162,11 @@ export function classifyError(error: unknown): Classification {
         errorClass: mapped,
       };
     }
-    // A code we do not recognize tells us nothing safe, and the raw code never
-    // leaves this function.
-    return { outcome: 'internal_error', errorClass: 'other' };
+    // A code we do not recognize is a stale map, not a crash. Separating the
+    // two keeps `internal_error` meaning "our bug" rather than "our classifier
+    // fell behind", which is the distinction the metric exists for. The raw
+    // code never leaves this function either way.
+    return { outcome: 'user_error', errorClass: 'unclassified' };
   }
 
   const errno = readErrno(error);

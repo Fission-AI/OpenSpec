@@ -56,7 +56,7 @@ describe('collectRunContext', () => {
       env: {},
     });
 
-    expect(context.changes).toBe('1-3');
+    expect(context.changes).toBe('01-03');
     expect(context.tools_count).toBe('2-3');
     expect(context.store_in_use).toBe(true);
 

@@ -285,6 +285,7 @@ describe('telemetry/index', () => {
       expect(event.properties).toEqual({
         command: 'test',
         version: '1.0.0',
+        version_code: 1000000,
         surface: 'cli',
         run_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
         work_session_id: expect.stringMatching(/^[0-9a-f-]{36}$/),

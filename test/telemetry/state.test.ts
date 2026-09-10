@@ -80,7 +80,7 @@ describe('telemetry/state', () => {
     const state = await loadSessionState(start);
 
     const first = await claimMilestone('archive', state, new Date(start.getTime() + 30 * 60 * 1000));
-    expect(first).toEqual({ timeToReach: '<1h' });
+    expect(first).toEqual({ timeToReach: '1_under_1h' });
 
     const again = await claimMilestone('archive', state, new Date());
     expect(again).toBeNull();

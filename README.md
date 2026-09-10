@@ -248,7 +248,7 @@ That prints every event to stderr and sends nothing. It works even if you have o
 | Property | Values |
 | --- | --- |
 | `command` | The command you ran, e.g. `archive`, `change:validate`. Never its arguments |
-| `version` | The OpenSpec version |
+| `version`, `version_code` | The OpenSpec version, and the same version as a sortable integer |
 | `outcome` | `success`, `user_error`, `internal_error`, `cancelled` |
 | `error_class` | The kind of failure, from a fixed list, e.g. `no_root`, `validation_failed`. Never the message |
 | `exit_code` | `0`, `1`, `130`, `other` |
@@ -261,10 +261,10 @@ That prints every event to stderr and sends nothing. It works even if you have o
 | `profile`, `delivery` | Your install profile and delivery mode |
 | `tools_count` | How many AI tools are configured: `0`, `1`, `2-3`, `4+` |
 | `schema_source` | `package`, `project`, or `user` |
-| `store_in_use` | Whether a store is in use. Never which one |
+| `store_in_use` | Whether this run resolved through a store rather than a local root. Never which one |
 | `changes` | How many active changes: `0`, `1-3`, `4-10`, `11-30`, `31+` |
-| `milestone`, `time_to_reach` | The first time you complete `init`/`propose`/`apply`/`archive` |
-| `tool` | Each AI tool you have configured, reported once, with no other property attached |
+| `milestone`, `time_to_reach` | The first time you reach each of `install` (your first run), `init`, `propose` (`openspec new change`), `apply` (`openspec validate`), and `archive`, and how long it took |
+| `tool` | Each AI tool you have configured, reported once, as its own event carrying no run context and no run id |
 | `run_id`, `work_session_id` | Random ids correlating one run, and runs less than 30 minutes apart |
 | `surface` | Always `cli` |
 
@@ -274,7 +274,7 @@ Every one of those has a fixed set of possible values. Anything else is dropped 
 
 **Stored on your machine** in the config file (`openspec config get telemetry` prints its path): the random id, the notice version, the time of your first run, the work-session id and last-activity time, which milestones and tools have been reported, and your previous run's outcome. Nothing is written at all if you have opted out.
 
-**Retention and deletion:** raw events are retained for 12 months. To have yours deleted, send the id from `openspec config get telemetry` to <hi@openspec.dev>. Deleting the id from your config severs all future events from everything before it.
+**Retention and deletion:** raw events are retained for 12 months. To have yours deleted, open a [GitHub issue](https://github.com/Fission-AI/OpenSpec/issues/new) with the id from `openspec config get telemetry`, or send it privately through [GitHub Security Advisories](https://github.com/Fission-AI/OpenSpec/security/advisories/new) if you would rather not post it publicly. Deleting the id from your config severs all future events from everything before it, with no request needed.
 
 The id identifies a configuration directory, not a person — a shared home directory means one id covers several people, so it is not a user count.
 

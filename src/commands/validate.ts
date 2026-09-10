@@ -17,6 +17,7 @@ import { promises as fs } from 'fs';
 import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { loadPrompts } from '../utils/prompt-module.js';
+import { markCheckFailed } from '../telemetry/cli-runtime.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -283,6 +284,7 @@ export class ValidateCommand {
       const durationMs = Date.now() - start;
       this.printReport('change', id, report, durationMs, opts.json, root);
       // Non-zero exit if invalid (keeps enriched output test semantics)
+      if (!report.valid) markCheckFailed();
       process.exitCode = report.valid ? 0 : 1;
       return;
     }
@@ -291,6 +293,7 @@ export class ValidateCommand {
     const report = await validator.validateSpec(file);
     const durationMs = Date.now() - start;
     this.printReport('spec', id, report, durationMs, opts.json, root);
+    if (!report.valid) markCheckFailed();
     process.exitCode = report.valid ? 0 : 1;
   }
 
@@ -498,6 +501,8 @@ export class ValidateCommand {
       this.printBulkDetails(results, root);
     }
 
+    if (failed > 0) markCheckFailed();
+
     process.exitCode = failed > 0 ? 1 : 0;
   }
 
@@ -597,6 +602,7 @@ export class ValidateCommand {
 
     if (opts.findingsScope) {
       this.printFindingsReport({ items: results, summary, root: toRootOutput(root) }, opts.findingsScope, opts.json, root);
+      if (failed > 0) markCheckFailed();
       process.exitCode = failed > 0 ? 1 : 0;
       return;
     }
@@ -604,6 +610,7 @@ export class ValidateCommand {
     if (opts.json) {
       const out = { items: results, summary, version: '1.0', root: toRootOutput(root) };
       console.log(JSON.stringify(out, null, 2));
+      if (failed > 0) markCheckFailed();
       process.exitCode = failed > 0 ? 1 : 0;
       return;
     }
@@ -628,6 +635,7 @@ export class ValidateCommand {
       }
     }
     console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
+    if (failed > 0) markCheckFailed();
     process.exitCode = failed > 0 ? 1 : 0;
   }
 }

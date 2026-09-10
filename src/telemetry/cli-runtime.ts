@@ -56,7 +56,19 @@ const MILESTONE_COMMANDS: Readonly<Record<string, Milestone>> = {
   archive: 'archive',
 };
 
-export function beginRun(): void {
+/**
+ * The running CLI version, captured once so out-of-band reporters can send it
+ * without importing package.json — which would form a cycle back through the
+ * command modules that need to report.
+ */
+let runVersion = '0.0.0';
+
+export function getRunVersion(): string {
+  return runVersion;
+}
+
+export function beginRun(version = runVersion): void {
+  runVersion = version;
   startedAt = Date.now();
   completionSent = false;
   pending = null;
@@ -187,9 +199,13 @@ export async function finishRun(input: CompletionInput): Promise<void> {
     outcome = 'cancelled';
     errorClass = 'cancelled';
   } else if (failed) {
-    // A non-zero exit with no classification is a path we did not anticipate.
-    outcome = 'internal_error';
-    errorClass = 'other';
+    // A non-zero exit that reached no classifier. Recorded as `unclassified`
+    // rather than `internal_error`: the CLI has many paths that set an exit
+    // code without throwing, so presuming a bug here would drown the
+    // internal_error rate in ordinary user errors and make it useless for the
+    // one thing it exists to measure.
+    outcome = 'user_error';
+    errorClass = 'unclassified';
   } else {
     outcome = 'success';
     errorClass = 'none';

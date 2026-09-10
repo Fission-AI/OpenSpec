@@ -29,6 +29,7 @@ import {
   isEventName,
   isRegistryTool,
   sanitizeProperties,
+  versionCode,
   type ErrorClass,
   type EventName,
   type Milestone,
@@ -208,7 +209,7 @@ async function loadState(): Promise<SessionState | null> {
   }
 
   if (isDebugMode()) {
-    const existing = await getTelemetryConfig();
+    const existing = await getTelemetryConfig({ persist: false });
     cachedState = {
       anonymousId: existing.anonymousId ?? PLACEHOLDER_ID,
       workSessionId: existing.workSessionId ?? PLACEHOLDER_ID,
@@ -313,6 +314,7 @@ export async function trackCommand(commandName: string, version: string): Promis
     sendEvent(state.anonymousId, 'command_executed', {
       command: commandName,
       version,
+      version_code: versionCode(version),
       surface: 'cli',
       run_id: getRunId(),
       work_session_id: state.workSessionId,
@@ -357,8 +359,12 @@ export async function trackCompletion(input: {
     }
 
     sendEvent(state.anonymousId, 'command_completed', {
+      // Context first: a future context key sharing a name with an outcome
+      // field must never overwrite the reason this event exists.
+      ...(input.context ?? {}),
       command: input.command,
       version: input.version,
+      version_code: versionCode(input.version),
       surface: 'cli',
       run_id: getRunId(),
       work_session_id: state.workSessionId,
@@ -368,7 +374,6 @@ export async function trackCompletion(input: {
       duration: bucketDuration(input.durationMs),
       previous_outcome: state.previousOutcome,
       previous_command_same: state.previousCommand === input.command,
-      ...(input.context ?? {}),
       $ip: null,
     });
 
@@ -404,6 +409,7 @@ export async function trackMilestone(milestone: Milestone, version: string): Pro
     sendEvent(state.anonymousId, 'milestone_reached', {
       milestone,
       version,
+      version_code: versionCode(version),
       run_id: getRunId(),
       time_to_reach: claim.timeToReach,
       $ip: null,
@@ -416,10 +422,15 @@ export async function trackMilestone(milestone: Milestone, version: string): Pro
 /**
  * Report configured tools, once each.
  *
- * Deliberately carries no run context: the whole configured *set* alongside
- * platform, install kind, and counts in one row is what would single out an
- * unusual user. One context-free event per tool answers how much of the
- * userbase runs each assistant without ever assembling that combination.
+ * Carries no run context and no `run_id`. Keeping the run id here would have
+ * defeated the point: one join on it reassembles the full configured set
+ * beside platform, install kind, and counts — the row this split exists to
+ * avoid.
+ *
+ * The honest limit of the split: these events still share `distinct_id` with
+ * every other event, so a determined query can associate them. What it buys is
+ * that the set is never assembled *in one row*, and that the tools of a user
+ * who never triggers a completion event are never learned at all.
  */
 export async function trackConfiguredTools(toolIds: string[], version: string): Promise<void> {
   if (!isTelemetryEnabled() && !isDebugMode()) {
@@ -444,7 +455,7 @@ export async function trackConfiguredTools(toolIds: string[], version: string): 
       sendEvent(state.anonymousId, 'tool_configured', {
         tool,
         version,
-        run_id: getRunId(),
+        version_code: versionCode(version),
         $ip: null,
       });
     }
@@ -460,6 +471,13 @@ export async function maybeShowTelemetryNotice(
   options: { silent?: boolean } = {}
 ): Promise<void> {
   if (!isTelemetryEnabled()) {
+    return;
+  }
+
+  // Inspecting telemetry must not consume the first-run disclosure. Without
+  // this, a user whose very first command is a debug run never sees the notice
+  // on their first real one — the only run it exists for.
+  if (isDebugMode()) {
     return;
   }
 

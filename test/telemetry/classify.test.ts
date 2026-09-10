@@ -42,10 +42,12 @@ describe('classifyError', () => {
     expect(familiar.errorClass).toBe('store_error');
     expect(JSON.stringify(sanitizeProperties({ error_class: familiar.errorClass }))).not.toContain('jane');
 
-    // A code matching no map entry and no family prefix is ours to explain.
+    // A code matching no map entry and no family prefix means a stale
+    // classifier, not a crash — kept out of internal_error so that metric
+    // still means "our bug".
     const foreign = classifyError(withDiagnostic('quux_failed_for_/Users/jane/acme'));
-    expect(foreign.errorClass).toBe('other');
-    expect(foreign.outcome).toBe('internal_error');
+    expect(foreign.errorClass).toBe('unclassified');
+    expect(foreign.outcome).toBe('user_error');
     expect(JSON.stringify(sanitizeProperties({ error_class: foreign.errorClass }))).not.toContain('jane');
   });
 

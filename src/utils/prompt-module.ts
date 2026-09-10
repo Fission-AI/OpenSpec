@@ -34,9 +34,20 @@ function timed<T extends (...args: never[]) => Promise<unknown>>(fn: T): T {
  */
 export async function loadPrompts(): Promise<PromptModule> {
   const prompts = await import('@inquirer/prompts');
-  const wrapped = Object.create(prompts) as Record<string, unknown>;
+  // A plain copy, not Object.create(prompts): module namespace properties are
+  // non-writable, so assigning a wrapper over one through the prototype throws
+  // in strict mode.
+  const wrapped = { ...prompts } as Record<string, unknown>;
   for (const name of ['confirm', 'input', 'select', 'checkbox'] satisfies PromptName[]) {
-    const fn = prompts[name];
+    // Read defensively: a test double for this module exposes only the prompts
+    // that test needs, and reading an absent export off a mocked namespace
+    // throws rather than returning undefined.
+    let fn: unknown;
+    try {
+      fn = prompts[name];
+    } catch {
+      continue;
+    }
     if (typeof fn === 'function') {
       wrapped[name] = timed(fn as (...args: never[]) => Promise<unknown>);
     }

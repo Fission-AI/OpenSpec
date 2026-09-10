@@ -1,6 +1,7 @@
 import { execSync, execFileSync } from 'child_process';
 import { createRequire } from 'module';
 import os from 'os';
+import { markFailure } from '../telemetry/cli-runtime.js';
 
 const require = createRequire(import.meta.url);
 const MAX_TITLE_LENGTH = 72;
@@ -178,8 +179,11 @@ function reportGhFailure(error: any, title: string, body: string): void {
   console.log('Please submit your feedback manually:');
   console.log(manualUrl);
 
-  // Exit with the same code as gh CLI
-  process.exit(error.status ?? 1);
+  // exitCode, not exit(): exiting skips commander's postAction hook, so this
+  // failure would never be reported or flushed. The code is preserved exactly,
+  // including gh's own non-standard statuses.
+  markFailure('external_tool_failed');
+  process.exitCode = error.status ?? 1;
 }
 
 /**
@@ -263,8 +267,9 @@ function handleFallback(title: string, body: string, reason: 'missing' | 'unauth
     console.log('\nTo auto-submit in the future: gh auth login');
   }
 
-  // Exit with success code (fallback is successful)
-  process.exit(0);
+  // The manual fallback is a success. Left to exit naturally so the completion
+  // hook still runs.
+  process.exitCode = 0;
 }
 
 /**

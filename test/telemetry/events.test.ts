@@ -65,7 +65,7 @@ describe('telemetry events', () => {
       errorClass: 'archive_blocked',
       exitCode: 1,
       durationMs: 1500,
-      context: { platform: 'darwin', changes: '4-10' },
+      context: { platform: 'darwin', changes: '04-10' },
     });
     await shutdown();
 
@@ -76,11 +76,11 @@ describe('telemetry events', () => {
       outcome: 'user_error',
       error_class: 'archive_blocked',
       exit_code: '1',
-      duration: '500-2000',
+      duration: '3_500ms-2s',
       previous_outcome: 'none',
       previous_command_same: false,
       platform: 'darwin',
-      changes: '4-10',
+      changes: '04-10',
     });
   });
 
@@ -135,7 +135,7 @@ describe('telemetry events', () => {
     const events = sentEvents();
     const milestone = events.find((e) => e.event === 'milestone_reached');
     expect(milestone.properties.milestone).toBe('archive');
-    expect(milestone.properties.time_to_reach).toBe('<1h');
+    expect(milestone.properties.time_to_reach).toBe('1_under_1h');
 
     const tools = events.filter((e) => e.event === 'tool_configured');
     expect(tools.map((e) => e.properties.tool).sort()).toEqual(['claude', 'cursor']);

@@ -29,9 +29,15 @@ describe('telemetry disclosure parity', () => {
     expect(readme).toContain('OPENSPEC_TELEMETRY=0');
   });
 
-  it('states a retention period and a deletion path', () => {
+  it('states a retention period and a deletion path that exists', () => {
     expect(readme).toMatch(/retained for \d+ months/);
     expect(readme.toLowerCase()).toContain('deleted');
+    // A deletion route has to be one the project actually operates. An
+    // invented address is a worse privacy posture than none, and it would
+    // bounce silently.
+    const contacts = readme.match(/[\w.+-]+@[\w.-]+\.\w+/g) ?? [];
+    expect(contacts, 'README offers an email contact — confirm the mailbox exists').toEqual([]);
+    expect(readme).toContain('github.com/Fission-AI/OpenSpec/issues/new');
   });
 
   it('does not describe the data as anonymous', () => {
@@ -51,10 +57,29 @@ describe('telemetry disclosure parity', () => {
     expect(security).toContain('OPENSPEC_TELEMETRY_DEBUG=1');
   });
 
-  it('accounts for every event name', () => {
-    for (const event of EVENT_NAMES) {
-      expect(EVENT_NAMES).toContain(event);
+  it('keeps the FAQ and CLI reference from contradicting the disclosure', () => {
+    // Three documents describe telemetry. A parity test that reads two of them
+    // lets the third go stale, which is how the FAQ kept claiming "command
+    // names and version only" after that stopped being true.
+    for (const file of ['docs/faq.md', 'docs/cli.md']) {
+      const text = fs.readFileSync(path.join(repoRoot, file), 'utf-8');
+      expect(text, `${file} still calls the data anonymous`).not.toMatch(
+        /anonymous usage stats/i
+      );
+      expect(text, `${file} still claims only names and version`).not.toMatch(
+        /command names and version only/i
+      );
     }
-    expect(EVENT_NAMES).toHaveLength(4);
+  });
+
+  it('names every event it can send', () => {
+    // Not a tautology: the count is pinned so a new event forces a decision
+    // about disclosing it.
+    expect([...EVENT_NAMES].sort()).toEqual([
+      'command_completed',
+      'command_executed',
+      'milestone_reached',
+      'tool_configured',
+    ]);
   });
 });

@@ -1,5 +1,5 @@
 import { asStatus } from '../commands/shared-output.js';
-import { Command, Option } from 'commander';
+import { Command, CommanderError, Option } from 'commander';
 import { createRequire } from 'module';
 import ora from 'ora';
 import path from 'path';
@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { existsSync, promises as fs } from 'fs';
 import { AI_TOOLS, TOOL_ID_ALIASES } from '../core/config.js';
 import { UpdateCommand } from '../core/update.js';
+import { InitCancelledError } from '../core/init.js';
 import {
   getAvailableCliUpdate,
   displayCliUpdateNote,
@@ -49,7 +50,13 @@ import {
   type SchemasOptions,
   type NewChangeOptions,
 } from '../commands/workflow/index.js';
-import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
+import {
+  isDebugMode,
+  isTelemetryEnabled,
+  maybeShowTelemetryNotice,
+  trackCommand,
+  shutdown,
+} from '../telemetry/index.js';
 import { findLocalRoot, detectSchemaSource } from '../telemetry/context.js';
 import { getConfiguredTools } from '../core/shared/tool-detection.js';
 import { getGlobalConfig } from '../core/global-config.js';
@@ -130,7 +137,10 @@ export function getCommandPath(command: Command): string {
     current = current.parent;
   }
 
-  return names.join(':') || 'openspec';
+  // 'unknown', not 'openspec': the root has no action handler, and the
+  // allowlist is built from its children, so 'openspec' would fail closed and
+  // silently drop the property instead of reporting an unattributed run.
+  return names.join(':') || 'unknown';
 }
 
 /**
@@ -195,7 +205,7 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
     process.env.NO_COLOR = '1';
   }
 
-  beginRun();
+  beginRun(version);
 
   // Show first-run telemetry notice (if not seen). It's written to stderr, so it
   // never pollutes stdout — but --json runs still defer it (see isJsonRun) so the
@@ -217,6 +227,13 @@ program.hook('postAction', async (_thisCommand, actionCommand) => {
     // Resolved here rather than inside telemetry so the collector stays a pure
     // function of its input, and so a failure resolving context cannot reach
     // the command that already did its work.
+    // Resolving context touches the filesystem, so an opted-out user must not
+    // pay for it. Checked here rather than inside the collector so the cost is
+    // skipped, not just the send.
+    if (!isTelemetryEnabled() && !isDebugMode()) {
+      return;
+    }
+
     const localRoot = findLocalRoot();
     markInteractiveCapable(isInteractive() && Boolean(process.stdout.isTTY));
 
@@ -305,6 +322,13 @@ program
       });
       await initCommand.execute(targetPath);
     } catch (error) {
+      // Declining the legacy cleanup ends the command without an error banner:
+      // it was the user's answer, and it already printed its own message.
+      if (error instanceof InitCancelledError) {
+        markFailure('cancelled', 'cancelled');
+        process.exitCode = 0;
+        return;
+      }
       failWithError(error);
       // failWithError already set exitCode 1. Returning instead of exiting
       // lets commander run postAction, which reports the failure and flushes;
@@ -883,6 +907,10 @@ export function runCli(argv = process.argv): void {
   // all. They are also the clearest signal that someone could not find the
   // command they wanted, which is exactly what we want to see. exitOverride
   // turns them into a throw we can report on before exiting ourselves.
+  // Installed here, not at module scope: importing this module (the tests and
+  // any library consumer do) must not add a process-wide handler that exits.
+  installRejectionHandler();
+
   program.exitOverride();
   for (const command of collectCommands(program)) {
     command.exitOverride();
@@ -891,18 +919,32 @@ export function runCli(argv = process.argv): void {
   try {
     program.parse(argv);
   } catch (error) {
-    const code = (error as { exitCode?: number }).exitCode ?? 1;
-    const commanderCode = (error as { code?: string }).code ?? '';
+    // Only commander's own errors are usage errors. Anything else is a real
+    // crash during parsing: rethrowing keeps Node's message and stack, which
+    // swallowing would have hidden while also filing our bug as a user error.
+    if (!(error instanceof CommanderError)) {
+      throw error;
+    }
 
-    // --help and --version are not commands and are not failures.
-    if (commanderCode === 'commander.helpDisplayed' || commanderCode === 'commander.version') {
+    const code = error.exitCode ?? 1;
+
+    // Help and version are not commands and are not failures. `commander.help`
+    // covers `openspec help [cmd]`; the same code is raised with exit 1 when a
+    // group is invoked with no subcommand, which *is* a usage error.
+    const isHelpOrVersion =
+      error.code === 'commander.helpDisplayed' ||
+      error.code === 'commander.version' ||
+      (error.code === 'commander.help' && code === 0);
+    if (isHelpOrVersion) {
       process.exitCode = code === 0 ? undefined : code;
       return;
     }
 
     markFailure('bad_usage');
     process.exitCode = code;
-    void reportOutOfBandExit('unknown', code);
+    void reportOutOfBandExit('unknown', code).catch(() => {
+      // A telemetry failure must not change the exit code commander chose.
+    });
   }
 }
 
@@ -924,15 +966,18 @@ function collectCommands(root: Command): Command[] {
  * without a catch, so the rejection skips postAction and would otherwise land
  * nowhere — making our own bugs the one failure class we never see.
  */
-process.on('unhandledRejection', (reason) => {
-  markOutcome(reason);
-  process.exitCode = 1;
-  void reportOutOfBandExit('unknown', 1).finally(() => {
-    // Preserve the pre-existing behavior: Node printed this and exited 1.
+function installRejectionHandler(): void {
+  process.on('unhandledRejection', (reason) => {
+    markOutcome(reason);
+    process.exitCode = 1;
+    // Print first, then flush. Node printed this immediately, and delaying a
+    // crash message behind a network flush is a regression the user would feel.
     console.error(reason);
-    process.exit(1);
+    void reportOutOfBandExit('unknown', 1).finally(() => {
+      process.exit(1);
+    });
   });
-});
+}
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   runCli();

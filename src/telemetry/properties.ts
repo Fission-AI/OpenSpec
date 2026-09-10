@@ -1,10 +1,12 @@
 /**
  * The telemetry property contract.
  *
- * Every event name, property key, and property value is a member of a literal
- * list declared in this file. Nothing here is computed from a schema, a
- * catalog, or any other file a user can author — that is what makes the
- * guarantee checkable by reading one module.
+ * Every event name and property key is a member of a literal list declared in
+ * this file. Every property value is a member of such a list, a boolean, a
+ * bounded number, or a randomly generated id matched against a fixed pattern.
+ * Nothing here is computed from a schema, a catalog, or any other file a user
+ * can author — that is what makes the guarantee checkable by reading one
+ * module.
  *
  * The lists are enforced at send time by `sanitizeEvent`, not only asserted in
  * a test: a test passes vacuously for any code path it does not construct, so
@@ -57,6 +59,7 @@ export const ERROR_CLASSES = [
   'network_error',
   'already_exists',
   'internal_error',
+  'unclassified',
   'other',
 ] as const;
 export type ErrorClass = (typeof ERROR_CLASSES)[number];
@@ -65,10 +68,30 @@ export const PLATFORMS = ['darwin', 'linux', 'win32', 'other'] as const;
 export const INSTALL_KINDS = ['global', 'npx', 'source', 'other'] as const;
 export const SCHEMA_SOURCES = ['package', 'project', 'user'] as const;
 export const EXIT_CODES = ['0', '1', '130', 'other'] as const;
-export const COUNT_BUCKETS = ['0', '1-3', '4-10', '11-30', '31+'] as const;
+/**
+ * Bucket labels are ordered lexicographically wherever they are charted, so
+ * they are written to sort that way. Without this, a duration breakdown reads
+ * `100-500`, `10000+`, `2000-10000`, `500-2000`, `<100` — a histogram in
+ * scrambled order, which is worse than no histogram. Counts zero-pad; the
+ * ranges that mix units carry an ordinal prefix, since no padding rescues
+ * `<1h` against `31d+`.
+ */
+export const COUNT_BUCKETS = ['00', '01-03', '04-10', '11-30', '31+'] as const;
 export const TOOL_COUNT_BUCKETS = ['0', '1', '2-3', '4+'] as const;
-export const DURATION_BUCKETS = ['<100', '100-500', '500-2000', '2000-10000', '10000+'] as const;
-export const TIME_TO_REACH_BUCKETS = ['<1h', '1-24h', '1-7d', '8-30d', '31d+'] as const;
+export const DURATION_BUCKETS = [
+  '1_under_100ms',
+  '2_100-500ms',
+  '3_500ms-2s',
+  '4_2-10s',
+  '5_over_10s',
+] as const;
+export const TIME_TO_REACH_BUCKETS = [
+  '1_under_1h',
+  '2_1-24h',
+  '3_1-7d',
+  '4_8-30d',
+  '5_over_30d',
+] as const;
 export const MILESTONES = ['install', 'init', 'propose', 'apply', 'archive'] as const;
 export type Milestone = (typeof MILESTONES)[number];
 
@@ -103,6 +126,7 @@ const PROPERTY_VALUES = {
   // Identity and correlation
   command: 'command-list',
   version: 'free-version',
+  version_code: 'version-code',
   surface: ['cli'],
   run_id: 'uuid',
   work_session_id: 'uuid',
@@ -181,6 +205,15 @@ function isAllowedValue(key: PropertyKey, value: unknown): boolean {
       return typeof value === 'string' && UUID_PATTERN.test(value);
     case 'free-version':
       return typeof value === 'string' && VERSION_PATTERN.test(value);
+    case 'version-code':
+      // Bounded, not merely numeric: an unbounded integer would be a 53-bit
+      // channel through a contract that exists to have none.
+      return (
+        typeof value === 'number' &&
+        Number.isInteger(value) &&
+        value >= 0 &&
+        value < 1_000_000_000
+      );
     case 'null-only':
       return value === null;
     case 'command-list':
@@ -229,9 +262,9 @@ export function sanitizeProperties(
 
 /** Bucket a count into the fixed labels. */
 export function bucketCount(count: number): (typeof COUNT_BUCKETS)[number] {
-  if (count <= 0) return '0';
-  if (count <= 3) return '1-3';
-  if (count <= 10) return '4-10';
+  if (count <= 0) return '00';
+  if (count <= 3) return '01-03';
+  if (count <= 10) return '04-10';
   if (count <= 30) return '11-30';
   return '31+';
 }
@@ -244,11 +277,11 @@ export function bucketToolCount(count: number): (typeof TOOL_COUNT_BUCKETS)[numb
 }
 
 export function bucketDuration(ms: number): (typeof DURATION_BUCKETS)[number] {
-  if (ms < 100) return '<100';
-  if (ms < 500) return '100-500';
-  if (ms < 2000) return '500-2000';
-  if (ms < 10000) return '2000-10000';
-  return '10000+';
+  if (ms < 100) return '1_under_100ms';
+  if (ms < 500) return '2_100-500ms';
+  if (ms < 2000) return '3_500ms-2s';
+  if (ms < 10000) return '4_2-10s';
+  return '5_over_10s';
 }
 
 export function bucketExitCode(code: number | undefined): (typeof EXIT_CODES)[number] {
@@ -263,12 +296,26 @@ export function bucketExitCode(code: number | undefined): (typeof EXIT_CODES)[nu
 
 export function bucketTimeToReach(msSinceFirstSeen: number): (typeof TIME_TO_REACH_BUCKETS)[number] {
   const hours = msSinceFirstSeen / 3_600_000;
-  if (hours < 1) return '<1h';
-  if (hours < 24) return '1-24h';
+  if (hours < 1) return '1_under_1h';
+  if (hours < 24) return '2_1-24h';
   const days = hours / 24;
-  if (days < 8) return '1-7d';
-  if (days <= 30) return '8-30d';
-  return '31d+';
+  if (days < 8) return '3_1-7d';
+  if (days <= 30) return '4_8-30d';
+  return '5_over_30d';
+}
+
+/**
+ * A sortable integer for a semver string, so version-over-version charts order
+ * numerically. Lexicographically `1.10.0` sorts before `1.9.0`, which silently
+ * misreads every regression comparison.
+ */
+export function versionCode(version: string): number | undefined {
+  const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version);
+  if (!match) {
+    return undefined;
+  }
+  const [, major, minor, patch] = match;
+  return Number(major) * 1_000_000 + Number(minor) * 1_000 + Number(patch);
 }
 
 export function bucketNodeMajor(version: string): (typeof NODE_MAJORS)[number] {

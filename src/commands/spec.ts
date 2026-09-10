@@ -10,6 +10,7 @@ import { getSpecIds } from '../utils/item-discovery.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { loadPrompts } from '../utils/prompt-module.js';
+import { markCheckFailed } from '../telemetry/cli-runtime.js';
 
 const SPECS_DIR = 'openspec/specs';
 
@@ -278,6 +279,7 @@ export function registerSpecCommand(rootProgram: typeof program) {
             });
           }
         }
+        if (!report.valid) markCheckFailed();
         process.exitCode = report.valid ? 0 : 1;
       } catch (error) {
         console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
