@@ -68,6 +68,16 @@ describe('change directories', () => {
     expect(fs.existsSync(path.join(changes, 'proposed', 'example'))).toBe(true);
   });
 
+  it.each(['proposed', 'approved'])('preserves a task-only legacy change named %s', async name => {
+    const old = path.join(changes, name);
+    fs.mkdirSync(old, { recursive: true });
+    fs.writeFileSync(path.join(old, 'tasks.md'), '- [ ] Work\n');
+    expect(activeChangeNames(changes)).toEqual([name]);
+    expect(resolveChangeDir(changes, name)).toBe(old);
+    expect(await getTaskProgressForChange(changes, name, root)).toEqual({ total: 1, completed: 0 });
+    if (name === 'proposed') expect(() => proposedChangesDir(changes)).toThrow('Rename the existing change');
+  });
+
   it('resolves an alias to the same change without ambiguity', async () => {
     const { changeDir } = await createChange(root, 'example');
     fs.symlinkSync(changeDir, path.join(changes, 'example'), process.platform === 'win32' ? 'junction' : 'dir');
