@@ -1,3 +1,4 @@
+import { activeChangeNames, resolveChangeDir } from '../utils/change-directory.js';
 import { constants, createReadStream, promises as fs } from 'fs';
 import { createHash, randomUUID } from 'crypto';
 import path from 'path';
@@ -156,19 +157,6 @@ async function decideSpecOutcome(
   // A spec that was already requirement-less and lost nothing this run is still
   // the author's to fix, so it takes the same abort it has always produced.
   return built.counts.removed > 0 ? 'retire' : 'write';
-}
-
-async function listActiveChangeNames(changesDir: string): Promise<string[]> {
-  try {
-    const entries = await fs.readdir(changesDir, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isDirectory() && entry.name !== 'archive')
-      .map((entry) => entry.name)
-      .sort();
-  } catch (error) {
-    if (!isMissingPathError(error)) throw error;
-    return [];
-  }
 }
 
 export interface ArchiveOptions {
@@ -1152,7 +1140,10 @@ export class ArchiveCommand {
       throw new ArchiveBlockedError('archive_change_name_invalid', changeNameProblem);
     }
 
-    const changeDir = path.join(changesDir, changeName);
+    const changeDir = resolveChangeDir(changesDir, changeName);
+    if (path.dirname(changeDir) === path.join(changesDir, 'proposed')) {
+      throw new ArchiveBlockedError('archive_change_unapproved', `Change '${changeName}' is still proposed. Approve or apply it before archiving.`);
+    }
 
     // Verify change exists
     try {
@@ -1168,7 +1159,7 @@ export class ArchiveCommand {
       }
     } catch (error) {
       if (error instanceof ArchiveBlockedError) throw error;
-      const available = await listActiveChangeNames(changesDir);
+      const available = activeChangeNames(changesDir);
       throw new ArchiveBlockedError(
         'archive_change_not_found',
         available.length > 0
@@ -2063,7 +2054,7 @@ export class ArchiveCommand {
     options: ArchiveOptions
   ): Promise<string | null> {
     const { select } = await import('@inquirer/prompts');
-    const changeDirs = await listActiveChangeNames(changesDir);
+    const changeDirs = activeChangeNames(changesDir);
 
     if (changeDirs.length === 0) {
       console.log('No active changes found.');

@@ -56,7 +56,7 @@ AI:  Let me look at your styling setup...
 You: Yes, let's do it.
 
 You: /opsx:propose add-dark-mode
-AI:  Created openspec/changes/add-dark-mode/
+AI:  Created openspec/changes/proposed/add-dark-mode/
      ✓ proposal.md — why we're doing this, what's changing
      ✓ specs/       — requirements and scenarios
      ✓ design.md    — technical approach
@@ -64,7 +64,8 @@ AI:  Created openspec/changes/add-dark-mode/
      Ready for implementation!
 
 You: /opsx:apply
-AI:  Implementing tasks...
+AI:  Moved to openspec/changes/approved/add-dark-mode/
+     Implementing tasks...
      ✓ 1.1 Add theme context provider
      ✓ 1.2 Create toggle component
      ✓ 2.1 Add CSS variables

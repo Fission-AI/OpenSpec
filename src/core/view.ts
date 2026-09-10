@@ -1,3 +1,4 @@
+import { activeChangeNames } from '../utils/change-directory.js';
 import * as fs from 'fs';
 import * as path from 'path';
 import chalk from 'chalk';
@@ -94,22 +95,20 @@ export class ViewCommand {
     const active: Array<{ name: string; progress: { total: number; completed: number } }> = [];
     const completed: Array<{ name: string }> = [];
 
-    const entries = fs.readdirSync(changesDir, { withFileTypes: true });
+    const entries = activeChangeNames(changesDir);
 
-    for (const entry of entries) {
-      if (entry.isDirectory() && entry.name !== 'archive') {
-        const progress = await getTaskProgressForChange(changesDir, entry.name, path.dirname(openspecDir));
+    for (const name of entries) {
+      const progress = await getTaskProgressForChange(changesDir, name, path.dirname(openspecDir));
 
-        if (progress.total === 0) {
-          // No tasks defined yet - still in planning/draft phase
-          draft.push({ name: entry.name });
-        } else if (progress.completed === progress.total) {
-          // All tasks complete
-          completed.push({ name: entry.name });
-        } else {
-          // Has tasks but not all complete
-          active.push({ name: entry.name, progress });
-        }
+      if (progress.total === 0) {
+        // No tasks defined yet - still in planning/draft phase
+        draft.push({ name });
+      } else if (progress.completed === progress.total) {
+        // All tasks complete
+        completed.push({ name });
+      } else {
+        // Has tasks but not all complete
+        active.push({ name, progress });
       }
     }
 

@@ -1,3 +1,4 @@
+import { resolveChangeDir } from '../utils/change-directory.js';
 import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
@@ -273,7 +274,7 @@ export class ValidateCommand {
   private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
     const validator = new Validator(opts.strict);
     if (type === 'change') {
-      const changeDir = path.join(root.changesDir, id);
+      const changeDir = resolveChangeDir(root.changesDir, id);
       const start = Date.now();
       const report = await validator.validateChangeDeltaSpecs(changeDir, {
         mainSpecsDir: root.specsDir,
@@ -391,7 +392,7 @@ export class ValidateCommand {
     for (const id of changeIds) {
       queue.push(async () => {
         const start = Date.now();
-        const changeDir = path.join(root.changesDir, id);
+        const changeDir = resolveChangeDir(root.changesDir, id);
         const report = await validator.validateChangeDeltaSpecs(changeDir, {
           mainSpecsDir: root.specsDir,
           projectRoot: root.path,

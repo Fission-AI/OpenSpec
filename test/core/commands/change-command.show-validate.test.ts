@@ -112,7 +112,7 @@ describe('ChangeCommand.show/validate', () => {
       await fs.writeFile(path.join(tempRoot, 'proposal.md'), '# Outside the changes directory', 'utf-8');
       const traversal = path.join('..', '..');
 
-      await expect(cmd.show(traversal, { json: false })).rejects.toThrow(/not found at/);
+      await expect(cmd.show(traversal, { json: false })).rejects.toThrow(/Invalid change name/);
       await expect(cmd.show(traversal, { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
     });
 
@@ -160,7 +160,7 @@ describe('ChangeCommand.show/validate', () => {
       const nested = path.join('sample-change', 'specs');
       await fs.mkdir(path.join(tempRoot, 'openspec', 'changes', 'sample-change', 'specs'), { recursive: true });
 
-      await expect(cmd.show(nested, { json: false })).rejects.toThrow(/not found at/);
+      await expect(cmd.show(nested, { json: false })).rejects.toThrow(/Invalid change name/);
       await expect(cmd.show(nested, { json: false })).rejects.not.toThrow(/has no proposal\.md yet/);
     });
   });
@@ -186,6 +186,6 @@ describe('ChangeCommand.show/validate', () => {
   });
 
   it('validate rejects a traversing change name', async () => {
-    await expect(cmd.validate(path.join('..', '..', 'outside'))).rejects.toThrow(/not found at/u);
+    await expect(cmd.validate(path.join('..', '..', 'outside'))).rejects.toThrow(/Invalid change name/u);
   });
 });
