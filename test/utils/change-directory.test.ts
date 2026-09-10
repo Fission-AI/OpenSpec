@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { activeChangeNames, changeStageDir, resolveChangeDir } from '../../src/utils/change-directory.js';
+import { activeChangeNames, proposedChangesDir, resolveChangeDir } from '../../src/utils/change-directory.js';
 import { createChange } from '../../src/utils/change-utils.js';
 import { getTaskProgressForChange } from '../../src/utils/task-progress.js';
 import { ListCommand } from '../../src/core/list.js';
@@ -58,7 +58,7 @@ describe('change directories', () => {
     fs.writeFileSync(path.join(old, '.openspec.yaml'), 'schema: spec-driven\n');
     expect(activeChangeNames(changes)).toEqual(['proposed']);
     expect(resolveChangeDir(changes, 'proposed')).toBe(old);
-    expect(() => changeStageDir(changes, 'proposed')).toThrow('Rename the existing change');
+    expect(() => proposedChangesDir(changes)).toThrow('Rename the existing change');
   });
 
   it('never resolves a container as a change', async () => {
