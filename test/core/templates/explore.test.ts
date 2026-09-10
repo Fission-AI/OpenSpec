@@ -202,7 +202,7 @@ describe('explore templates', () => {
   it('treats an explicit capture request as the write confirmation (#1828)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        'An explicit request to capture the exploration as a new change is itself that confirmation, covering the change and the artifacts that request names'
+        'An explicit request to capture the exploration as a new change is itself that confirmation, covering the change and the artifacts the request names'
       );
     }
   });
@@ -248,6 +248,15 @@ describe('explore templates', () => {
   it('keeps the carve-out scoped to what the request named (#1828, #1715)', () => {
     for (const [label, body] of bodies) {
       const transition = newChangeTransition(body, label);
+
+      // String containment alone cannot catch #1828's actual failure mode: a
+      // second, contradictory instruction added elsewhere. The capture branch
+      // is resolved only while it carries no confirmation gate of its own.
+      expect(transition, label).not.toContain('ask a direct yes/no question');
+      expect(transition, label).not.toContain(
+        "wait for the user's confirmation"
+      );
+      expect(transition, label).not.toContain('wait for explicit confirmation');
 
       expect(body, label).toContain(
         'Confirmation covers only the scope you described; ask again before expanding it'
