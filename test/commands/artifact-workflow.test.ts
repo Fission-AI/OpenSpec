@@ -198,6 +198,17 @@ describe('artifact-workflow CLI commands', () => {
       expect(status.artifacts.find((artifact: any) => artifact.id === 'specs')?.status).toBe(
         'skipped'
       );
+      expect(status.artifactPaths.specs.existingOutputPaths).toEqual([]);
+      const instructionsResult = await runCLI(
+        ['instructions', 'specs', '--change', 'skip-specs-change', '--json'],
+        { cwd: tempDir }
+      );
+      expect(instructionsResult.exitCode).toBe(0);
+      expect(JSON.parse(instructionsResult.stdout)).toMatchObject({
+        skipped: true,
+        existingOutputPaths: [],
+        warning: expect.stringContaining('Do not create spec files'),
+      });
       await expect(fs.stat(path.join(changeDir, 'specs'))).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
@@ -308,6 +319,122 @@ describe('artifact-workflow CLI commands', () => {
   });
 
   describe('instructions command', () => {
+    it('keeps instructions available for missing companion outputs after a glob artifact is done', async () => {
+      const schemaName = 'companion-outputs';
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', schemaName);
+      const outputPath = 'reviews/*/notes.md';
+      const template = '# Review\n\n## Findings\n';
+      await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: ${schemaName}
+version: 1
+artifacts:
+  - id: brief
+    generates: brief.md
+    description: Review brief
+    template: brief.md
+    requires: []
+  - id: assessments
+    generates: ${outputPath}
+    description: Component assessments
+    template: review.md
+    instruction: Write an assessment for each affected component.
+    requires: [brief]
+  - id: signoff
+    generates: signoff.md
+    description: Review signoff
+    template: signoff.md
+    requires: [assessments]
+`
+      );
+      await fs.writeFile(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
+      await fs.writeFile(path.join(schemaDir, 'templates', 'review.md'), template);
+      await fs.writeFile(path.join(schemaDir, 'templates', 'signoff.md'), '# Signoff\n');
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: ${schemaName}
+context: Review both the API and UI components.
+rules:
+  assessments:
+    - Preserve existing findings when adding a companion assessment.
+`
+      );
+      const changeName = 'companion-review';
+      const changeDir = path.join(changesDir, changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), `schema: ${schemaName}\n`);
+      const briefPath = path.join(changeDir, 'brief.md');
+      await fs.writeFile(briefPath, '# Brief\nReview the API and UI.\n');
+      const apiPath = path.join(changeDir, 'reviews', 'api', 'notes.md');
+      const uiPath = path.join(changeDir, 'reviews', 'ui', 'notes.md');
+
+      async function readJson(args: string[]) {
+        const result = await runCLI([...args, '--change', changeName, '--json'], { cwd: tempDir });
+        expect(result.exitCode).toBe(0);
+        return JSON.parse(result.stdout);
+      }
+
+      const empty = await readJson(['status']);
+      expect(empty.artifacts).toMatchObject([
+        { id: 'brief', status: 'done' },
+        { id: 'assessments', status: 'ready' },
+        { id: 'signoff', status: 'blocked', missingDeps: ['assessments'] },
+      ]);
+      expect(empty.artifactPaths.assessments.existingOutputPaths).toEqual([]);
+
+      // Fixture writes simulate authored outputs; the CLI only reports their state.
+      const existingContent = '# Review\n\n## Findings\nKeep this API finding.\n';
+      await fs.mkdir(path.dirname(apiPath), { recursive: true });
+      await fs.writeFile(apiPath, existingContent);
+      const partial = await readJson(['status']);
+      expect(partial.artifacts).toMatchObject([
+        { id: 'brief', status: 'done' },
+        { id: 'assessments', status: 'done' },
+        { id: 'signoff', status: 'ready' },
+      ]);
+      expect(partial.artifactPaths.assessments.existingOutputPaths.map(canonical)).toEqual([
+        canonical(apiPath),
+      ]);
+      const instructions = await readJson(['instructions', 'assessments']);
+      expect(instructions).toMatchObject({
+        artifactId: 'assessments',
+        outputPath,
+        instruction: 'Write an assessment for each affected component.',
+        context: 'Review both the API and UI components.',
+        rules: ['Preserve existing findings when adding a companion assessment.'],
+        template,
+        dependencies: [{ id: 'brief', done: true, path: 'brief.md' }],
+      });
+      expect(canonical(instructions.changeDir)).toBe(canonical(changeDir));
+      expect(instructions.resolvedOutputPath).toBe(path.join(instructions.changeDir, outputPath));
+      expect(instructions.existingOutputPaths.map(canonical)).toEqual([canonical(apiPath)]);
+      expect(instructions.skipped).toBeUndefined();
+      await expect(fs.stat(uiPath)).rejects.toMatchObject({ code: 'ENOENT' });
+
+      await fs.mkdir(path.dirname(uiPath), { recursive: true });
+      await fs.writeFile(uiPath, '# Review\n\n## Findings\nNew UI finding.\n');
+      const expanded = await readJson(['status']);
+      expect(expanded.artifacts).toEqual(partial.artifacts);
+      expect(expanded.nextSteps).toEqual(partial.nextSteps);
+      expect(expanded.artifactPaths.assessments.existingOutputPaths.map(canonical)).toEqual(
+        [apiPath, uiPath].map(canonical).sort()
+      );
+      expect(await fs.readFile(apiPath, 'utf-8')).toBe(existingContent);
+      await expect(fs.stat(path.join(changeDir, 'signoff.md'))).rejects.toMatchObject({ code: 'ENOENT' });
+
+      await fs.unlink(briefPath);
+      const missingInput = await readJson(['status']);
+      expect(missingInput.artifacts.find((artifact: any) => artifact.id === 'assessments')).toMatchObject({
+        status: 'done',
+        requires: ['brief'],
+      });
+      const missingInputInstructions = await readJson(['instructions', 'assessments']);
+      expect(missingInputInstructions.dependencies).toMatchObject([
+        { id: 'brief', done: false, path: 'brief.md' },
+      ]);
+    });
+
     it('shows instructions for proposal on scaffolded change', async () => {
       // Create empty change directory (no proposal.md)
       const changeDir = path.join(changesDir, 'scaffolded-change');
