@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
 import { InstallationResult } from '../factory.js';
+import { shellSingleQuote } from './shell-quote.js';
 
 /**
  * Installer for Bash completion scripts.
@@ -115,10 +116,11 @@ export class BashInstaller {
    * @returns Configuration content
    */
   private generateBashrcConfig(completionsDir: string): string {
+    const quotedDir = shellSingleQuote(completionsDir);
     return [
       '# OpenSpec shell completions configuration',
-      `if [ -d "${completionsDir}" ]; then`,
-      `  for f in "${completionsDir}"/*; do`,
+      `if [ -d ${quotedDir} ]; then`,
+      `  for f in ${quotedDir}/*; do`,
       '    [ -f "$f" ] && . "$f"',
       '  done',
       'fi',

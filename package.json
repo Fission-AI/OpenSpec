@@ -81,10 +81,5 @@
     "ora": "^9.4.1",
     "yaml": "^2.8.3",
     "zod": "^4.4.3"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
   }
 }

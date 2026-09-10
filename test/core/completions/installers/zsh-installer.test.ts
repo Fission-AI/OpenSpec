@@ -314,7 +314,7 @@ describe('ZshInstaller', () => {
         try {
           const zshrcContent = await fs.readFile(zshrcPath, 'utf-8');
           // Verify the path is quoted in fpath
-          expect(zshrcContent).toContain(`fpath=("${path.dirname(result.installedPath!)}" $fpath)`);
+          expect(zshrcContent).toContain(`fpath=('${path.dirname(result.installedPath!)}' $fpath)`);
         } catch {
           // .zshrc might not exist if auto-config was disabled
         }
@@ -456,9 +456,23 @@ describe('ZshInstaller', () => {
       expect(content).toContain('# OPENSPEC:START');
       expect(content).toContain('# OPENSPEC:END');
       expect(content).toContain('# OpenSpec shell completions configuration');
-      expect(content).toContain(`fpath=("${completionsDir}" $fpath)`);
+      expect(content).toContain(`fpath=('${completionsDir}' $fpath)`);
       expect(content).toContain('autoload -Uz compinit');
       expect(content).toContain('compinit');
+    });
+
+    it('writes the completions dir as a single-quoted literal', async () => {
+      // See the bash installer test: an unescaped $(...) from XDG_DATA_HOME /
+      // HOME would otherwise become persistent shell-startup execution.
+      const hostileDir = "/tmp/x$(touch /tmp/pwned)`id`'quote";
+
+      expect(await installer.configureZshrc(hostileDir)).toBe(true);
+
+      const content = await fs.readFile(path.join(testHomeDir, '.zshrc'), 'utf-8');
+      expect(content).not.toContain('"/tmp/x$(touch');
+      expect(content).toContain(
+        "fpath=('/tmp/x$(touch /tmp/pwned)`id`'\\''quote' $fpath)"
+      );
     });
 
     it('should prepend markers and config when .zshrc exists without markers', async () => {
@@ -503,7 +517,7 @@ describe('ZshInstaller', () => {
 
       expect(content).toContain('# OPENSPEC:START');
       expect(content).toContain('# OPENSPEC:END');
-      expect(content).toContain(`fpath=("${completionsDir}" $fpath)`);
+      expect(content).toContain(`fpath=('${completionsDir}' $fpath)`);
       expect(content).not.toContain('# Old config');
       expect(content).not.toContain('/old/path');
       expect(content).toContain('# My custom config');
@@ -533,7 +547,7 @@ describe('ZshInstaller', () => {
       expect(content).toContain('# My zsh config');
       expect(content).toContain('export PATH="/custom/path:$PATH"');
       expect(content).toContain('alias ls="ls -G"');
-      expect(content).toContain(`fpath=("${completionsDir}" $fpath)`);
+      expect(content).toContain(`fpath=('${completionsDir}' $fpath)`);
       expect(content).not.toContain('# Old OpenSpec config');
     });
 

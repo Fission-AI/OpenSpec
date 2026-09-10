@@ -292,6 +292,25 @@ describe('BashInstaller', () => {
       expect(content).toContain(completionsDir);
     });
 
+    it('writes the completions dir as a single-quoted literal', async () => {
+      // completionsDir comes from XDG_DATA_HOME / HOME. Inside double quotes a
+      // $(...) in that value would run on every new shell, forever; single
+      // quotes suppress every expansion.
+      const hostileDir = "/tmp/x$(touch /tmp/pwned)`id`'quote";
+      const hostileInstaller = new BashInstaller(testHomeDir);
+
+      expect(await hostileInstaller.configureBashrc(hostileDir)).toBe(true);
+
+      const content = await fs.readFile(path.join(testHomeDir, '.bashrc'), 'utf-8');
+      expect(content).not.toContain('"/tmp/x$(touch');
+      expect(content).toContain(
+        "if [ -d '/tmp/x$(touch /tmp/pwned)`id`'\\''quote' ]; then"
+      );
+      expect(content).toContain(
+        "for f in '/tmp/x$(touch /tmp/pwned)`id`'\\''quote'/*; do"
+      );
+    });
+
     it('should prepend markers and config when .bashrc exists without markers', async () => {
       const bashrcPath = path.join(testHomeDir, '.bashrc');
       await fs.writeFile(bashrcPath, '# My custom bash config\nalias ll="ls -la"\n');

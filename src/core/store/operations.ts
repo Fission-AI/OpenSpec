@@ -36,6 +36,7 @@ import {
 } from './foundation.js';
 import { StoreError, type StoreDiagnostic, makeStoreDiagnostic } from './errors.js';
 import {
+  GIT_EXEC_OPTIONS,
   assertGitCommitIdentity,
   commitStoreFiles,
   gitDirectoryHasTrackedFiles,
@@ -291,12 +292,11 @@ async function findContainingGitRepositoryRoot(storeRoot: string): Promise<strin
   };
 
   try {
-    const { stdout } = await execFileAsync('git', [
-      '-C',
-      nearestParent,
-      'rev-parse',
-      '--show-toplevel',
-    ]);
+    const { stdout } = await execFileAsync(
+      'git',
+      ['-C', nearestParent, 'rev-parse', '--show-toplevel'],
+      GIT_EXEC_OPTIONS
+    );
     return gitRootContainsStore(stdout.trim());
   } catch {
     let current = nearestParent;

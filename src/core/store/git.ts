@@ -6,7 +6,28 @@ import { promisify } from 'node:util';
 import { StoreError } from './errors.js';
 
 const fs = nodeFs.promises;
-const execFileAsync = promisify(execFile);
+const rawExecFileAsync = promisify(execFile);
+
+/**
+ * Bounds every git subprocess. Without a timeout a wedged network mount, an
+ * fsmonitor daemon, or a credential/GPG prompt hangs the CLI forever; without a
+ * raised maxBuffer a very large dirty tree makes `git status --porcelain` throw
+ * ENOBUFS, which the probes below would otherwise report as "no git facts".
+ */
+export const GIT_EXEC_OPTIONS = {
+  encoding: 'utf8',
+  timeout: 15_000,
+  killSignal: 'SIGKILL',
+  maxBuffer: 16 * 1024 * 1024,
+} as const;
+
+function execFileAsync(
+  file: string,
+  args: string[],
+  options: { cwd?: string } = {}
+): Promise<{ stdout: string; stderr: string }> {
+  return rawExecFileAsync(file, args, { ...GIT_EXEC_OPTIONS, ...options });
+}
 
 /**
  * Git mechanics for stores: repository detection, setup-time init and
@@ -127,11 +148,41 @@ export async function commitStoreFiles(
   return true;
 }
 
+/**
+ * A probe that hit a resource limit rather than an ordinary Git answer: the
+ * command was killed by the timeout above, or its output exceeded maxBuffer.
+ * Both produce the same `null` as "not a repository", so without this the CLI
+ * would quietly stop reporting facts it is capable of reporting.
+ */
+function isProbeResourceFailure(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const { code, killed, signal } = error as {
+    code?: number | string;
+    killed?: boolean;
+    signal?: string | null;
+  };
+  return (
+    code === 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' ||
+    code === 'ETIMEDOUT' ||
+    (killed === true && signal === 'SIGKILL')
+  );
+}
+
 async function gitProbe(storeRoot: string, args: string[]): Promise<string | null> {
   try {
     const { stdout } = await execFileAsync('git', ['-C', storeRoot, ...args]);
     return stdout;
-  } catch {
+  } catch (error) {
+    // "git is absent" and "this is not a repository" are expected answers and
+    // stay silent; a probe that timed out or overflowed its buffer is a
+    // degraded result the user should know about, since callers cannot tell
+    // the two apart from the null alone.
+    if (isProbeResourceFailure(error)) {
+      process.emitWarning(
+        `git ${args.join(' ')} did not complete in ${storeRoot}; store Git facts are unavailable for this run.`,
+        'OpenSpecGitProbeWarning'
+      );
+    }
     return null;
   }
 }
