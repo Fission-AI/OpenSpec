@@ -2,15 +2,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { FileSystemUtils } from './file-system.js';
 
-export const CHANGE_STAGES = ['proposed', 'approved'];
+const CHANGE_STAGES = ['proposed', 'approved'];
 
 // Older projects can have a change with the same name as a new container.
 function isChange(dir: string): boolean {
   return ['.openspec.yaml', 'proposal.md'].some(file => fs.existsSync(path.join(dir, file)));
 }
 
-export function changeStageDir(changesDir: string, stage: string): string {
-  const dir = path.join(changesDir, stage);
+export function proposedChangesDir(changesDir: string): string {
+  const dir = path.join(changesDir, 'proposed');
   if (isChange(dir)) throw new Error(`Rename the existing change at ${dir} before using it as a change container.`);
   FileSystemUtils.assertPathWithin(changesDir, dir);
   return dir;
