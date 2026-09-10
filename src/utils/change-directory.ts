@@ -6,7 +6,7 @@ const CHANGE_STAGES = ['proposed', 'approved'];
 
 // Older projects can have a change with the same name as a new container.
 function isChange(dir: string): boolean {
-  return ['.openspec.yaml', 'proposal.md'].some(file => fs.existsSync(path.join(dir, file)));
+  return ['.openspec.yaml', 'proposal.md', 'tasks.md'].some(file => fs.existsSync(path.join(dir, file)));
 }
 
 export function proposedChangesDir(changesDir: string): string {
