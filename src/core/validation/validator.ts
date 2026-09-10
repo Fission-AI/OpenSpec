@@ -16,7 +16,8 @@ import {
   foldRequirementName,
   normalizeRequirementName,
   extractRequirementsSection,
-  findMissingCurrentScenarios,
+  diffScenarioNames,
+  describeScenarioBalance,
   type RequirementBlock,
 } from '../parsers/requirement-blocks.js';
 import {
@@ -625,15 +626,16 @@ export class Validator {
       if (renamedAway.has(key)) continue;
       const current = currentBlockFor(key);
       if (!current) continue;
-      const missing = findMissingCurrentScenarios(current, block);
-      if (missing.length === 0) continue;
+      const diff = diffScenarioNames(current, block);
+      if (diff.missing.length === 0) continue;
       issues.push({
         level: 'ERROR',
         path: entryPath,
         message:
           `MODIFIED "${block.name}" omits scenario(s) the current spec still has: ` +
-          `${missing.map(name => `"${name}"`).join(', ')}. ` +
-          'Copy them into the MODIFIED block (a MODIFIED requirement replaces the whole block, so archive refuses to drop them).',
+          `${diff.missing.map(name => `"${name}"`).join(', ')}. ` +
+          `${describeScenarioBalance(diff)} ` +
+          'Copy the omitted scenarios into the MODIFIED block (a MODIFIED requirement replaces the whole block, so archive refuses to drop them).',
       });
     }
     return issues;

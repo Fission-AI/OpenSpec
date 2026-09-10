@@ -392,37 +392,96 @@ interface ScenarioBlock {
   raw: string;
 }
 
+/** Both directions of the scenario-name comparison, plus the two totals. */
+export interface ScenarioNameDiff {
+  /** Names the current block has that the incoming block does not cover. */
+  missing: string[];
+  /** Names the incoming block introduces that the current block does not have. */
+  added: string[];
+  /** Level-4 headers in the current block. */
+  currentCount: number;
+  /** Level-4 headers in the incoming block. */
+  incomingCount: number;
+}
+
+/**
+ * Compare the scenario names of a current requirement block and an incoming
+ * (MODIFIED) one, in both directions.
+ *
+ * `missing` is the loss the guard exists to catch: a MODIFIED requirement
+ * replaces the whole block, so every name there would be dropped from the main
+ * spec. `added` and the two counts are reported alongside it, because they are
+ * the first thing a reader checks once it fires (#1697) - a block that omits
+ * two names and introduces two is shaped like a rename, one that omits two and
+ * introduces none is shaped like a truncation. Neither is proof, and intent is
+ * not recoverable from structure, so this decides nothing and only says what
+ * the two blocks contain.
+ */
+export function diffScenarioNames(
+  current: RequirementBlock,
+  incoming: RequirementBlock
+): ScenarioNameDiff {
+  const currentNames = parseScenarioBlocks(current.raw).map((scenario) => scenario.name);
+  const incomingNames = parseScenarioBlocks(incoming.raw).map((scenario) => scenario.name);
+
+  // Multiplicity-aware: a name present N times on one side and M times on the
+  // other leaves max(0, N - M) instances unmatched. Set membership would treat
+  // N>M as fully covered and let archive silently drop duplicates (residual
+  // #1246 / duplicate-scenario-name blind spot).
+  const unmatched = (names: readonly string[], against: readonly string[]): string[] => {
+    const remaining = new Map<string, number>();
+    for (const name of against) remaining.set(name, (remaining.get(name) ?? 0) + 1);
+
+    const out: string[] = [];
+    for (const name of names) {
+      const left = remaining.get(name) ?? 0;
+      if (left > 0) remaining.set(name, left - 1);
+      else out.push(name);
+    }
+    return out;
+  };
+
+  return {
+    missing: unmatched(currentNames, incomingNames),
+    added: unmatched(incomingNames, currentNames),
+    currentCount: currentNames.length,
+    incomingCount: incomingNames.length,
+  };
+}
+
 /**
  * Scenario names the current requirement block has and the incoming
  * (MODIFIED) block does not. A MODIFIED requirement replaces the whole block,
  * so every name reported here would be dropped from the main spec.
  *
- * Shared by archive (which refuses to apply the block) and validate (which
- * reports the same loss at authoring time, #1477), so the two cannot disagree
- * about what counts as a dropped scenario.
+ * The `missing` half of diffScenarioNames, which archive (refusing to apply
+ * the block) and validate (reporting the same loss at authoring time, #1477)
+ * both go through, so the two cannot disagree about what counts as a dropped
+ * scenario.
  */
 export function findMissingCurrentScenarios(current: RequirementBlock, incoming: RequirementBlock): string[] {
-  // Multiplicity-aware: a name present N times in current and M times in
-  // incoming means max(0, N - M) instances are missing. Set membership would
-  // treat N>M as fully covered and let archive silently drop duplicates
-  // (residual #1246 / duplicate-scenario-name blind spot).
-  const remainingIncoming = new Map<string, number>();
-  for (const scenario of parseScenarioBlocks(incoming.raw)) {
-    const name = scenario.name;
-    remainingIncoming.set(name, (remainingIncoming.get(name) ?? 0) + 1);
-  }
+  return diffScenarioNames(current, incoming).missing;
+}
 
-  const missing: string[] = [];
-  for (const scenario of parseScenarioBlocks(current.raw)) {
-    const name = scenario.name;
-    const remaining = remainingIncoming.get(name) ?? 0;
-    if (remaining > 0) {
-      remainingIncoming.set(name, remaining - 1);
-    } else {
-      missing.push(name);
-    }
+/** At most this many added names are listed before the rest are counted. */
+const MAX_LISTED_ADDED_SCENARIOS = 3;
+
+/**
+ * The one sentence archive and validate both append when the guard fires, so
+ * the counts a reader sees cannot differ between the two commands.
+ */
+export function describeScenarioBalance(diff: ScenarioNameDiff): string {
+  const scale = `The modified block has ${diff.incomingCount} scenario(s) to the current spec's ${diff.currentCount}`;
+  if (diff.added.length === 0) {
+    return `${scale}, and adds none.`;
   }
-  return missing;
+  const listed = diff.added
+    .slice(0, MAX_LISTED_ADDED_SCENARIOS)
+    .map((name) => `"${name}"`)
+    .join(', ');
+  const rest = diff.added.length - MAX_LISTED_ADDED_SCENARIOS;
+  const names = rest > 0 ? `${listed} and ${rest} more` : listed;
+  return `${scale}, and adds ${diff.added.length} the spec does not have: ${names}.`;
 }
 
 /**
