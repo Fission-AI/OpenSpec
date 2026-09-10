@@ -140,7 +140,7 @@ You: Yes.
 You: /opsx:propose rebuild-search-index-on-write
 ```
 
-Explore creates no artifacts and writes no code. It's a free, no-stakes conversation that turns a vague worry into a precise change, so the proposal that follows is sharp. Already know exactly what you want? Skip it and go straight to `/opsx:propose`. Full guide: [Explore First](explore.md).
+Explore never writes code, and writes nothing else unless you ask, or say yes when it offers. It's a free, no-stakes conversation that turns a vague worry into a precise change, so the proposal that follows is sharp. Already know exactly what you want? Skip it and go straight to `/opsx:propose`. Full guide: [Explore First](explore.md).
 
 ### Expanded/Full Workflow (custom selection)
 
@@ -493,7 +493,7 @@ AI:  Let me investigate your current setup and options...
      Your current stack suggests #1 or #2. What's your scale?
 ```
 
-Exploration clarifies thinking before you create artifacts.
+Exploration clarifies thinking before any code gets written.
 
 ### Verify Before Archiving
 
