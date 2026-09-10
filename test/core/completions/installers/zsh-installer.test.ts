@@ -475,6 +475,32 @@ describe('ZshInstaller', () => {
       );
     });
 
+    it('single-quotes the completions dir in the fallback instructions too', async () => {
+      // With auto-config off these lines are printed for the user to paste in,
+      // so an expansion left in them runs on every future shell start. The
+      // fpath line was previously bare - not even a double quote.
+      const originalEnv = process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+
+      try {
+        const hostileHome = path.join(testHomeDir, "x$(touch pwned)`id`'q");
+        const hostileInstaller = new ZshInstaller(hostileHome);
+
+        const result = await hostileInstaller.install('#compdef openspec\n');
+        const printed = result.instructions!.join('\n');
+
+        expect(printed).not.toMatch(/fpath=\([^']/);
+        expect(printed).toContain("fpath=('");
+        expect(printed).toContain("'\\''q");
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+        } else {
+          process.env.OPENSPEC_NO_AUTO_CONFIG = originalEnv;
+        }
+      }
+    });
+
     it('should prepend markers and config when .zshrc exists without markers', async () => {
       const zshrcPath = path.join(testHomeDir, '.zshrc');
       await fs.writeFile(zshrcPath, '# My custom zsh config\nalias ll="ls -la"\n');

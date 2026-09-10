@@ -311,6 +311,33 @@ describe('BashInstaller', () => {
       );
     });
 
+    it('single-quotes the completions dir in the fallback instructions too', async () => {
+      // With auto-config off these lines are printed for the user to paste
+      // into their own rc file, so an expansion left in them runs on every
+      // future shell start exactly as it would from the written block.
+      const originalEnv = process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+
+      try {
+        const hostileHome = path.join(testHomeDir, "x$(touch pwned)`id`'q");
+        const hostileInstaller = new BashInstaller(hostileHome);
+
+        const result = await hostileInstaller.install('#compdef openspec\n');
+        const printed = result.instructions!.join('\n');
+
+        expect(printed).not.toContain('"$(touch');
+        expect(printed).not.toMatch(/if \[ -d "/);
+        expect(printed).toContain("if [ -d '");
+        expect(printed).toContain("'\\''q");
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+        } else {
+          process.env.OPENSPEC_NO_AUTO_CONFIG = originalEnv;
+        }
+      }
+    });
+
     it('should prepend markers and config when .bashrc exists without markers', async () => {
       const bashrcPath = path.join(testHomeDir, '.bashrc');
       await fs.writeFile(bashrcPath, '# My custom bash config\nalias ll="ls -la"\n');

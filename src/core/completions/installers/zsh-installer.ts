@@ -378,7 +378,7 @@ export class ZshInstaller {
         'To enable completions, add the following to your ~/.zshrc file:',
         '',
         `  # Add completions directory to fpath`,
-        `  fpath=(${completionsDir} $fpath)`,
+        `  fpath=(${shellSingleQuote(completionsDir)} $fpath)`,
         '',
         '  # Initialize completion system',
         '  autoload -Uz compinit',
