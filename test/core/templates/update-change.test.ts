@@ -16,6 +16,16 @@ const bodies: Array<[string, string]> = [
   ['command', command.content],
 ];
 
+// Slice one numbered step out of a workflow body so an assertion about where a
+// rule lives cannot be satisfied by the same words appearing in another step.
+function section(body: string, startMarker: string, endMarker: string): string {
+  const start = body.indexOf(startMarker);
+  const end = body.indexOf(endMarker, start + startMarker.length);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  return body.slice(start, end);
+}
+
 describe('update-change templates', () => {
   it('generates the expected skill and command shape (3.1)', () => {
     expect(skill.name).toBe('openspec-update-change');
@@ -96,6 +106,38 @@ describe('update-change templates', () => {
       expect(body, label).toContain(
         '`openspec instructions "<artifact-id>" --change "<name>" --json` explains how to create it'
       );
+    }
+  });
+
+  // Regression for #1836: step 4 said "Apply the requested edit" while step 5
+  // and the guardrails said to write only after the user confirms. "Apply" is a
+  // write verb in this very document - step 5 is titled "Confirm and apply" -
+  // so the same `/opsx:update "the design now uses X"` either wrote immediately
+  // or stopped and showed the revision first, depending on which passage the
+  // agent weighed. Step 4 now drafts; step 5 owns every write.
+  it('keeps step 4 read-only so step 5 owns every write (#1836)', () => {
+    for (const [label, body] of bodies) {
+      const stepFour = section(body, '4. **Read and reconcile**', '5. **Confirm and apply');
+      const stepFive = section(body, '5. **Confirm and apply', '6. **Point to the next step');
+
+      // Step 4 states the edit is drafted, not written.
+      expect(stepFour, label).toContain('Draft the requested edit');
+      expect(stepFour, label).toContain(
+        'do not write anything yet - step 5 owns every write'
+      );
+
+      // No write verb may authorize a write inside step 4. "Apply"/"Write" are
+      // the words step 5 uses for the real thing.
+      expect(stepFour, label).not.toMatch(/\bAppl(y|ies|ied)\b/);
+      expect(stepFour, label).not.toMatch(/\bWrite\b/);
+      expect(stepFour, label).not.toContain('make no edits');
+
+      // Step 5 keeps the gate, and claims the writes explicitly.
+      expect(stepFive, label).toContain(
+        'This step performs every write in this workflow; nothing earlier writes to disk'
+      );
+      expect(stepFive, label).toContain('including the requested edit drafted in step 4');
+      expect(stepFive, label).toContain('Write only after the user confirms');
     }
   });
 
