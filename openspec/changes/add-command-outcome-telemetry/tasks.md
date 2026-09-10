@@ -1,32 +1,48 @@
 # Tasks
 
 ## 1. Property contract
-- [ ] 1.1 Add `src/telemetry/properties.ts` declaring the property allowlist, the error-class allowlist, the diagnostic-code→error-class map, and the count bucketer
-- [ ] 1.2 Add a test asserting every property a built event carries is on the allowlist
-- [ ] 1.3 Add a test asserting an unrecognized diagnostic code maps to `other` and the raw code never appears in the payload
+- [ ] 1.1 Add `src/telemetry/properties.ts`: the event-name, property-key, and value allowlists, the error-class union, the diagnostic-code map, and the bucketers — all literal declarations, never computed from a schema
+- [ ] 1.2 Enforce the allowlist immediately before serialization: drop unknown keys and out-of-set values, send the event regardless
+- [ ] 1.3 Test: a property key built from a schema, change, or store name is dropped and the event still sends
+- [ ] 1.4 Test: an unrecognized diagnostic code maps to `other` and never appears in the payload
 
-## 2. Session and outcome
-- [ ] 2.1 Generate a per-invocation `session_id` and attach it to every event
-- [ ] 2.2 Record the `preAction` start time; emit `command_completed` from `postAction` with outcome, error class, exit code, and duration
-- [ ] 2.3 Classify the failure in `failWithError`/`emitFailure` so `postAction` reads a class, not an error object
-- [ ] 2.4 Test: success, user error, internal error, and Ctrl-C each produce the expected outcome and error class
+## 2. Correlation and outcome
+- [ ] 2.1 Generate a per-invocation `run_id`; add `work_session_id` with a 30-minute reuse window
+- [ ] 2.2 Emit `command_completed` from `postAction` with outcome, error class, bucketed exit code, and bucketed duration excluding prompt-blocked time
+- [ ] 2.3 Classify in `failWithError`/`emitFailure` so `postAction` reads a class, not an error object; unclassified means `internal_error`
+- [ ] 2.4 Persist and attach `previous_outcome` and `previous_command_same`
+- [ ] 2.5 Test: success, user error, internal error, and Ctrl-C each produce the expected outcome and class
 
 ## 3. Outcome coverage
-- [ ] 3.1 Convert the `process.exit(1)` call sites in `src/cli/index.ts` to set `process.exitCode` and return
-- [ ] 3.2 Flush explicitly at any exit path that cannot return
-- [ ] 3.3 Test: a failing command emits exactly one `command_completed` and exits with the same code as before
+- [ ] 3.1 Convert the `process.exit()` call sites in `src/cli/index.ts`, `src/core/view.ts`, `src/core/init.ts`, `src/ui/welcome-screen.ts`, and `src/commands/feedback.ts` to set `process.exitCode` and return
+- [ ] 3.2 Intercept commander's usage errors so unknown commands and bare groups emit `bad_usage`, preserving commander's exit code
+- [ ] 3.3 Handle an escaped rejection as `internal_error` while preserving existing exit behavior
+- [ ] 3.4 Ensure a cancelled run never waits on a telemetry request
+- [ ] 3.5 Test: a failing command emits exactly one `command_completed` and exits with the same code as before; `--help` and `--version` emit none
 
 ## 4. Run context
-- [ ] 4.1 Collect the bounded context, membership-checking tool ids and omitting anything that throws
-- [ ] 4.2 Bucket change and spec counts from a single non-recursive directory read, discarding names
-- [ ] 4.3 Test: a user-named schema, store, and change never appear in any payload
+- [ ] 4.1 Collect the bounded context; count tools rather than naming them; derive `invoker` from a compile-time marker list without sending any env name or value
+- [ ] 4.2 Bucket the change count from a single non-recursive directory read, discarding names
+- [ ] 4.3 Cap the invocation at four events
+- [ ] 4.4 Test: a user-named schema, store, change, and tool set never appear in any payload
 
-## 5. Milestones
-- [ ] 5.1 Persist reached milestones and the install date in the telemetry config section
-- [ ] 5.2 Emit `milestone_reached` once per milestone on first success
-- [ ] 5.3 Test: the milestone fires once, never on failure, and never when telemetry is disabled
+## 5. Milestones and persisted state
+- [ ] 5.1 Persist the milestone set, first-seen year-month, work session, and previous outcome; write none of it when telemetry is disabled
+- [ ] 5.2 Emit `milestone_reached` once per milestone, with `version`, omitting `weeks_since_first_seen` for ids that predate the recorded month
+- [ ] 5.3 Test: the milestone fires once, never on failure, and an opted-out run leaves the config untouched
 
-## 6. Inspection and disclosure
-- [ ] 6.1 Add `OPENSPEC_TELEMETRY_DEBUG=1` — print each payload to stderr, send nothing
-- [ ] 6.2 Update `README.md`, `SECURITY.md`, and the environment-variable reference with the full property list and the debug flag
-- [ ] 6.3 Test: debug mode prints, sends nothing, and leaves `--json` stdout valid
+## 6. Inspection and controls
+- [ ] 6.1 Add `OPENSPEC_TELEMETRY_DEBUG=1` — print payloads to stderr, send nothing, work when opted out, never create an anonymous id
+- [ ] 6.2 Surface state through `openspec config get telemetry`: enabled, id, file path
+- [ ] 6.3 Test: debug mode prints, sends nothing, leaves `--json` stdout valid, and writes no config
+
+## 7. Disclosure
+- [ ] 7.1 Update `README.md`, `SECURITY.md`, and the environment-variable reference with every event, property, and persisted field, the retention period, the deletion contact, and the debug flag
+- [ ] 7.2 Replace unqualified "anonymous" with "pseudonymous" in the docs and the notice; state that the id identifies a config directory, not a person
+- [ ] 7.3 Record the narrowed "no environment" and "only command names and version" commitments in `CHANGELOG.md` under a `Privacy` heading
+- [ ] 7.4 Add `noticeVersion` and a one-line notice naming what changed for users who saw the earlier scope
+- [ ] 7.5 Test: an allowlisted property absent from the disclosure documents fails the build
+
+## 8. Ingest
+- [ ] 8.1 Confirm the `edge.openspec.dev` proxy does not log or forward client IPs; disable GeoIP enrichment on the telemetry project
+- [ ] 8.2 Publish the retention period and configure it in PostHog
