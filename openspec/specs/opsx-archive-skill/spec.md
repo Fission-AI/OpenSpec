@@ -82,6 +82,52 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **AND** stop without archiving if the sync fails or any capability does not verify
 - **AND** archive only after verification passes, or when the user explicitly chose to archive without syncing or to archive already-synced specs
 
+#### Scenario: Applicable ADDED delta whose main spec does not exist yet
+
+- **WHEN** agent compares a delta spec against its main spec at `openspec/specs/<capability-path>/spec.md`
+- **AND** that main spec does not exist yet
+- **AND** the delta has `## ADDED Requirements`
+- **AND** the delta has no `## MODIFIED Requirements` or `## RENAMED Requirements`
+- **THEN** count that capability as needing sync rather than as already synced
+- **AND** name it in the summary as a main spec the sync will create
+- **AND** never treat the missing main spec as nothing to apply
+- **AND** if the delta also has `## REMOVED Requirements`, warn that they will be ignored because there is no main spec to remove them from
+- **AND** create the main spec from only the delta's `## ADDED Requirements`
+
+#### Scenario: Unsupported delta operation whose main spec does not exist yet
+
+- **WHEN** a delta targets a capability whose main spec does not exist yet
+- **AND** the delta has `## MODIFIED Requirements` or `## RENAMED Requirements`
+- **THEN** report that only ADDED requirements can create a new main spec
+- **AND** mark the capability as sync-blocked without writing a main spec
+
+#### Scenario: Explicitly retired capability whose main spec is missing
+
+- **WHEN** a delta contains only `## REMOVED Requirements` and its main spec is missing
+- **AND** the change's `.openspec.yaml` declares `retire_capabilities: true`
+- **THEN** count that capability as already synced and report that it is already retired
+- **AND** warn that there is nothing left to remove and do not recreate the main spec
+- **AND** apply the same rule when verifying a completed sync, so retiring a capability does not block archiving
+
+#### Scenario: Nothing to put in a missing main spec without a declared retirement
+
+- **WHEN** a delta targets a capability whose main spec does not exist yet
+- **AND** the delta has no `## ADDED Requirements`
+- **AND** it is not a REMOVED-only delta with `retire_capabilities: true`
+- **THEN** report that no sync is possible
+- **AND** if the delta has only `## REMOVED Requirements`, warn that there is no main spec to remove them from and leave the main-spec tree unchanged
+- **AND** mark the capability as sync-blocked, since the verification pass would re-read the same missing spec
+
+#### Scenario: Sync-blocked capability during archive assessment
+
+- **WHEN** any capability is sync-blocked during the initial assessment
+- **THEN** assess the remaining capabilities and summarize the blockers before prompting
+- **AND** offer only "Archive without syncing" and "Cancel"
+- **AND** archive without writing main specs only if the user explicitly chooses "Archive without syncing"
+- **AND** stop without archiving if the user cancels
+- **AND** do not start any sync while a capability is blocked, even if other capabilities could sync
+- **AND** a failed sync or post-sync verification still stops without archiving; do not silently fall back to skipping sync
+
 #### Scenario: No delta specs
 
 - **WHEN** agent checks for delta specs
