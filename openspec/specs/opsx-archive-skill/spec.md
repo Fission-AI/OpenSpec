@@ -90,21 +90,31 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 
 ### Requirement: Archive Process
 
-The skill SHALL move the change to the archive folder with date prefix.
+The skill SHALL delegate the final move to `openspec archive "<name>" --skip-specs --yes --json`, using the same selected-root flags. Both single and bulk archive workflows SHALL retain their earlier confirmation and sync-verification steps, then use the CLI's archive lock and destination-collision handling.
 
 #### Scenario: Successful archive
 
-- **WHEN** archiving a change
-- **THEN** create `archive/` directory if it doesn't exist
-- **AND** generate target name as `YYYY-MM-DD-<change-name>` using current date, keeping the name as-is when it already starts with a `YYYY-MM-DD-` prefix
-- **AND** move entire change directory to archive location
+- **WHEN** the workflow's checks and any selected sync verification have completed
+- **THEN** run the archive CLI with `--skip-specs` to preserve the earlier sync or skip decision and avoid a second merge
+- **AND** use `--yes` for the confirmations already obtained by the workflow
+- **AND** let the CLI create the archive directory, derive the date-prefixed name, and move the entire change directory
+- **AND** require a zero exit status and an archive result for the selected change before reporting success
+- **AND** report the returned `archive.path` as the archive location
 - **AND** preserve `.openspec.yaml` file in archived change
 
 #### Scenario: Archive already exists
 
-- **WHEN** target archive directory already exists
+- **WHEN** the target archive directory exists when the CLI checks the destination, including one created after the workflow's earlier checks
 - **THEN** fail with error message
-- **AND** suggest renaming existing archive or using different date
+- **AND** leave the existing archive intact rather than nesting the change inside it
+- **AND** suggest resolving the collision or using a different change name before retrying
+
+#### Scenario: Archive command fails
+
+- **WHEN** the CLI exits nonzero or returns no archive result
+- **THEN** report its diagnostics without claiming success or falling back to a shell move
+- **AND** do not bypass CLI validation to complete the move
+- **AND** in a bulk archive, record that change as failed and continue with the remaining confirmed changes
 
 ### Requirement: Skill Output
 
@@ -113,7 +123,8 @@ The skill SHALL provide clear feedback about the archive operation.
 #### Scenario: Archive complete with sync
 
 - **WHEN** archive completes after syncing specs
-- **THEN** display summary:
+- **THEN** preserve the earlier verified sync outcome even though the final `--skip-specs` invocation reports `archive.specsUpdated` as false
+- **AND** display summary:
   - Specs synced (from `/opsx:sync` output)
   - Change archived to location
   - Schema that was used

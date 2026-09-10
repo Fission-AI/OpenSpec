@@ -199,12 +199,24 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    c. **Perform the archive**:
 
-      Target name: use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<name>` (same rule as `openspec archive`).
-
+      After that change's sync verification succeeds (or it has no included
+      deltas to sync), run the CLI with the same selected-root flags:
       ```bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
+      openspec archive "<name>" --skip-specs --yes --json
       ```
+      The CLI handles the archive lock and destination-collision checks.
+      `--yes` carries the batch confirmation already obtained in step 7.
+      `--skip-specs` prevents a second merge, including accidentally applying
+      `excludedDeltas` that this batch deliberately left unsynced.
+
+      Require a zero exit status and an `archive` result for this change before
+      recording success. On failure, record the diagnostics and continue with the
+      remaining confirmed changes. Do not fall back to a shell move or bypass
+      validation; an existing archive must remain intact.
+
+      The CLI derives `<target-name>`: it keeps the change name when it already starts with a `YYYY-MM-DD-` prefix; otherwise it prepends the current date. Record the returned `archive.path`.
+      Preserve the earlier per-delta sync outcomes; `archive.specsUpdated` is
+      false for this move-only invocation, not evidence that inline sync was skipped.
 
    d. **Track outcome** for each change:
       - Success: archived successfully
