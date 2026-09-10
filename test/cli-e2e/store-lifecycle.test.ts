@@ -309,7 +309,7 @@ describe('standalone store lifecycle journey', () => {
       { env: machineA, cwd: projectDir }
     );
     expect(apply.exitCode).toBe(0);
-    expect(JSON.parse(apply.stdout).contextFiles.proposal).toEqual([path.join(canonical(approvedDir), 'proposal.md')]);
+    expect(JSON.parse(apply.stdout).contextFiles.proposal.map(canonical)).toEqual([canonical(path.join(approvedDir, 'proposal.md'))]);
 
     const validated = await runCLI(
       ['validate', changeId, '--store', STORE_ID],
