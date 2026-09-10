@@ -1,6 +1,6 @@
 ## Context
 
-New changes belong in proposed; user approval or apply moves them into approved. Existing flat changes stay readable. See proposal.md for upstream discussion and contribution guidance.
+New changes belong in proposed; user approval or apply moves them into approved. Existing flat changes stay readable.
 
 ## Goals / Non-Goals
 
@@ -19,4 +19,4 @@ Bare names can collide across directories after a merge; report the conflicting 
 
 ## Migration Plan
 
-No migration. Ship lookup, creation, and workflow instructions together. The user authorized this local implementation; reconcile with #1367 and #1818 before proposing it upstream.
+No migration. Ship lookup, creation, and workflow instructions together.
