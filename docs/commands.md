@@ -342,7 +342,7 @@ Revise a change's existing planning artifacts and keep them coherent with one an
 **What it does:**
 
 - Reads the change's artifacts via `openspec status --change <name> --json`
-- Applies your requested revision, or reviews the artifacts for contradictions if you didn't name one
+- Drafts your requested revision, or reviews the artifacts for contradictions if you didn't name one
 - Reconciles the other existing artifacts in any direction (a design edit may ripple back to the proposal)
 - Confirms every edit with you before writing, one artifact at a time
 - Ends by recommending the next step: `/opsx:continue` (artifacts missing), `/opsx:apply` (carry a revised plan into code), or `/opsx:archive` (all done)
