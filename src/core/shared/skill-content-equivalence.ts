@@ -14,8 +14,12 @@ function normalizeGeneratedSkill(content: string): string {
   const frontmatter = normalized.match(/^---\n[\s\S]*?\n---(?:\n|$)/)?.[0];
   if (!frontmatter) return normalized;
 
+  // `[ \t]` rather than `\s` so a leading/trailing whitespace run can never
+  // cross a newline: an `m`-anchored `\s*` re-scans from every line start,
+  // which is quadratic on a whitespace-heavy frontmatter. YAML indentation is
+  // spaces and tabs only, so matching is unchanged.
   const versionLine =
-    /^(\s*generatedBy:\s*)(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"'#]+))\s*$/m;
+    /^([ \t]*generatedBy:[ \t]*)(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"'#]+))[ \t]*$/m;
   const normalizedFrontmatter = frontmatter.replace(
     versionLine,
     (

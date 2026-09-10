@@ -248,10 +248,14 @@ jobs:
           changed_changesets="$(git diff --name-only --diff-filter=ACMRT origin/main...HEAD -- '.changeset/*.md' ':!.changeset/README.md')"
           if [[ -n "$changed_changesets" ]]; then
             echo "has_changesets=true" >> "$GITHUB_OUTPUT"
+            # Run-unique delimiter: the value is a list of PR-authored paths, so a
+            # fixed "EOF" would let a crafted path close the block early and append
+            # its own key=value outputs.
+            delim="EOF_$(openssl rand -hex 16)"
             {
-              echo "files<<EOF"
+              echo "files<<$delim"
               echo "$changed_changesets"
-              echo "EOF"
+              echo "$delim"
             } >> "$GITHUB_OUTPUT"
           else
             echo "has_changesets=false" >> "$GITHUB_OUTPUT"

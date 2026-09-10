@@ -18,6 +18,7 @@ import {
   CommandAdapterRegistry,
 } from './command-generation/index.js';
 import {
+  getToolSkillStatus,
   getToolVersionStatus,
   getSkillTemplates,
   getCommandContents,
@@ -96,6 +97,15 @@ type LegacyUpgradeResult = {
    */
   skippedSharedSkillTools?: string[];
 };
+
+/**
+ * Checkout artifacts that are not real content drift: a UTF-8 BOM and the CRLF
+ * line endings a Windows clone with `core.autocrlf` reintroduces on every
+ * checkout of committed generated files.
+ */
+function normalizeGeneratedFile(content: string): string {
+  return content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+}
 
 /**
  * Options for the update command.
@@ -234,9 +244,16 @@ export class UpdateCommand {
       delivery,
       configuredTools
     );
+    const toolsWithDriftedSkills = this.findToolsWithDriftedSkills(
+      resolvedProjectPath,
+      configuredTools,
+      delivery,
+      (toolId) => legacyWorkflowOverrides[toolId] ?? desiredWorkflows
+    );
     const toolsToUpdateSet = new Set<string>([
       ...toolsNeedingVersionUpdate,
       ...toolsNeedingConfigSync,
+      ...toolsWithDriftedSkills,
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
@@ -261,7 +278,12 @@ export class UpdateCommand {
     } else if (toolsToUpdateSet.size === 0) {
       console.log('No additional refresh needed after legacy migration.');
     } else {
-      this.displayUpdatePlan([...toolsToUpdateSet], statusByTool, toolsUpToDate);
+      this.displayUpdatePlan(
+        [...toolsToUpdateSet],
+        statusByTool,
+        toolsUpToDate,
+        new Set(toolsWithDriftedSkills)
+      );
     }
     console.log();
 
@@ -563,6 +585,53 @@ export class UpdateCommand {
   }
 
   /**
+   * Tools whose SKILL.md bodies no longer match what this CLI generates.
+   *
+   * Skill freshness was decided solely by the `generatedBy:` line, so a body
+   * edited after generation — a "helpful" PR touching `.claude/skills/**`, a
+   * dotfile sync, another agent — left `update` reporting the install healthy.
+   * Command files never had that gap: `areCommandFilesUpToDate` content-
+   * compares them, and the same comparison belongs on the higher-authority
+   * surface. A missing skill file is left to the profile-sync check, which
+   * already knows what a partial install means.
+   */
+  private findToolsWithDriftedSkills(
+    projectPath: string,
+    toolIds: string[],
+    delivery: Delivery,
+    workflowsForTool: (toolId: string) => readonly (typeof ALL_WORKFLOWS)[number][]
+  ): string[] {
+    return toolIds.filter((toolId) => {
+      const tool = AI_TOOLS.find((t) => t.value === toolId);
+      if (!tool || !toolSupportsSkills(tool)) return false;
+      if (!shouldGenerateSkillsForTool(tool.value, delivery)) return false;
+      // A shared skills root is generated with its owner's transformer, so
+      // only the owner may compare it. getToolSkillStatus settles ownership.
+      if (!getToolSkillStatus(projectPath, tool.value).configured) return false;
+
+      const skillsDir = resolveToolSkillsDir(projectPath, tool);
+      const transformer = getTransformerForTool(
+        tool.value,
+        delivery,
+        resolveCommandSurfaceCapability(tool.value),
+        resolveCommandInvocation(tool.value)
+      );
+
+      return getSkillTemplates(workflowsForTool(toolId)).some(({ template, dirName }) => {
+        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+        if (!fs.existsSync(skillFile)) return false;
+        try {
+          const existing = fs.readFileSync(skillFile, 'utf-8');
+          const generated = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+          return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
+        } catch {
+          return true;
+        }
+      });
+    });
+  }
+
+  /**
    * Display message when all tools are up to date.
    */
   private displayUpToDateMessage(toolStatuses: ToolVersionStatus[]): void {
@@ -579,13 +648,19 @@ export class UpdateCommand {
   private displayUpdatePlan(
     toolsToUpdate: string[],
     statusByTool: Map<string, ToolVersionStatus>,
-    upToDate: ToolVersionStatus[]
+    upToDate: ToolVersionStatus[],
+    driftedSkills: ReadonlySet<string> = new Set()
   ): void {
     const updates = toolsToUpdate.map((toolId) => {
       const status = statusByTool.get(toolId);
       if (status?.needsUpdate) {
         const fromVersion = status.generatedByVersion ?? 'unknown';
         return `${status.toolId} (${fromVersion} → ${OPENSPEC_VERSION})`;
+      }
+      // Say why: a user who edited a SKILL.md on purpose is owed the reason
+      // their edit is about to be overwritten.
+      if (driftedSkills.has(toolId)) {
+        return `${toolId} (skill files differ from the generated content)`;
       }
       return `${toolId} (config sync)`;
     });

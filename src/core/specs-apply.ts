@@ -55,7 +55,11 @@ function isLexicallyWithin(allowedDirectory: string, targetPath: string): boolea
   );
 }
 
-function resolveTrustedSpecPath(specsRoot: string, specPath: string): {
+function resolveTrustedSpecPath(
+  specsRoot: string,
+  specPath: string,
+  projectRoot?: string
+): {
   root: string;
   file: string;
 } {
@@ -78,6 +82,17 @@ function resolveTrustedSpecPath(specsRoot: string, specPath: string): {
     // Freeze their canonical location as the trust root so later swaps are
     // rejected while a nested spec.md link still cannot escape.
     const root = FileSystemUtils.canonicalizeExistingPath(path.dirname(specPath));
+    // An external capability link is deliberate and supported (see
+    // assertDiscoveredSpecPath), so it is not refused here. What was wrong is
+    // that the write was silent: the CLI reported the in-project path while
+    // writing somewhere else entirely, so a link swapped underneath a repo
+    // left nothing on screen to notice. Name the real destination instead.
+    if (projectRoot && !isLexicallyWithin(FileSystemUtils.canonicalizeExistingPath(projectRoot), root)) {
+      process.emitWarning(
+        `Capability '${path.basename(specPath)}' links outside the project; writing to ${root}`,
+        'OpenSpecExternalSpecWrite'
+      );
+    }
     const file = path.join(root, path.basename(specPath));
     FileSystemUtils.assertPathWithin(root, file);
     return { root, file };
@@ -110,7 +125,14 @@ export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): 
   for (const { id, specFile } of discovered) {
     const targetFile = path.join(mainSpecsDir, ...id.split('/'), 'spec.md');
     const source = resolveTrustedSpecPath(changeSpecsDir, specFile);
-    const target = resolveTrustedSpecPath(mainSpecsDir, targetFile);
+    // Main specs always live at `<project root>/openspec/specs`, so the
+    // project root is the grandparent - a linked capability directory may not
+    // leave it.
+    const target = resolveTrustedSpecPath(
+      mainSpecsDir,
+      targetFile,
+      path.dirname(path.dirname(mainSpecsDir))
+    );
 
     // Check if target exists
     let exists = false;
@@ -1188,14 +1210,34 @@ export async function writeUpdatedSpec(
 /** Blank out `<!-- ... -->` spans, preserving line count so indices stay aligned. */
 function maskHtmlComments(content: string): string {
   const blank = (text: string) => text.replace(/[^\n]/g, ' ');
-  // `--!>` is a comment terminator as well as `-->`.
-  const masked = content.replace(/<!--[\s\S]*?--!?>/g, blank);
-  // A comment that is never closed runs to end of file, so everything after it
-  // is commented out too. Without this an unterminated `<!--` above a
-  // `## Purpose` left the commented-out header looking real (#1413).
-  const unterminated = masked.indexOf('<!--');
-  if (unterminated === -1) return masked;
-  return masked.slice(0, unterminated) + blank(masked.slice(unterminated));
+  // Linear scan: every character is visited once. A `/<!--[\s\S]*?--!?>/g`
+  // replace re-scans to end of file from every `<!--`, which is quadratic on a
+  // spec dense in comment openers.
+  let out = '';
+  let index = 0;
+  for (;;) {
+    const open = content.indexOf('<!--', index);
+    if (open === -1) return out + content.slice(index);
+    out += content.slice(index, open);
+    // `--!>` is a comment terminator as well as `-->`.
+    let close = -1;
+    for (let i = open + 4; i < content.length; i++) {
+      if (content.startsWith('-->', i)) {
+        close = i + 3;
+        break;
+      }
+      if (content.startsWith('--!>', i)) {
+        close = i + 4;
+        break;
+      }
+    }
+    // A comment that is never closed runs to end of file, so everything after
+    // it is commented out too. Without this an unterminated `<!--` above a
+    // `## Purpose` left the commented-out header looking real (#1413).
+    if (close === -1) return out + blank(content.slice(open));
+    out += blank(content.slice(open, close));
+    index = close;
+  }
 }
 
 /**

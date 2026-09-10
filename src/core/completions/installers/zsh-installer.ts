@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
 import { InstallationResult } from '../factory.js';
+import { shellSingleQuote } from './shell-quote.js';
 
 /**
  * Installer for Zsh completion scripts.
@@ -119,7 +120,7 @@ export class ZshInstaller {
   private generateZshrcConfig(completionsDir: string): string {
     return [
       '# OpenSpec shell completions configuration',
-      `fpath=("${completionsDir}" $fpath)`,
+      `fpath=(${shellSingleQuote(completionsDir)} $fpath)`,
       'autoload -Uz compinit',
       'compinit',
     ].join('\n');
@@ -377,7 +378,7 @@ export class ZshInstaller {
         'To enable completions, add the following to your ~/.zshrc file:',
         '',
         `  # Add completions directory to fpath`,
-        `  fpath=(${completionsDir} $fpath)`,
+        `  fpath=(${shellSingleQuote(completionsDir)} $fpath)`,
         '',
         '  # Initialize completion system',
         '  autoload -Uz compinit',

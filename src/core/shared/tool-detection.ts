@@ -281,10 +281,18 @@ export function extractGeneratedByVersion(skillFilePath: string): string | null 
     //   version: "1.0"
     //   generatedBy: "0.23.0"
     // ---
-    const generatedByMatch = content.match(/^\s*generatedBy:\s*["']?([^"'\n]+)["']?\s*$/m);
+    // Scanned per line, and with `[ \t]` rather than `\s`, so the leading
+    // whitespace run can never cross a newline. A single `m`-anchored `\s*`
+    // over the whole file re-scans it from every line start, which is
+    // quadratic on a whitespace-heavy SKILL.md.
+    for (const line of content.split(/\r\n?|\n/)) {
+      const generatedByMatch = line.match(
+        /^[ \t]*generatedBy:[ \t]*["']?([^"'\n]+)["']?[ \t]*$/
+      );
 
-    if (generatedByMatch && generatedByMatch[1]) {
-      return generatedByMatch[1].trim();
+      if (generatedByMatch && generatedByMatch[1]) {
+        return generatedByMatch[1].trim();
+      }
     }
 
     return null;

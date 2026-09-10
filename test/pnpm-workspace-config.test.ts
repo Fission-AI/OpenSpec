@@ -23,7 +23,6 @@ describe('pnpm workspace configuration', () => {
       .map((key) => key.slice('esbuild@'.length));
 
     expect(workspace.packages).toEqual(['.']);
-    expect(packageJson.pnpm.onlyBuiltDependencies).toEqual(['esbuild']);
     expect(esbuildVersions).toHaveLength(1);
     expect(workspace.allowBuilds).toEqual({
       [`esbuild@${esbuildVersions[0]}`]: true,
@@ -31,8 +30,9 @@ describe('pnpm workspace configuration', () => {
     // Overrides are declared once, in pnpm-workspace.yaml. A `pnpm.overrides` block
     // in package.json replaces that list rather than merging with it, and Dependabot
     // rewrites plain-name entries there when it bumps the same package — so a mirrored
-    // copy silently displaces the pins that patch advisories.
-    expect(packageJson.pnpm.overrides).toBeUndefined();
+    // copy silently displaces the pins that patch advisories. Keeping the whole `pnpm`
+    // block out of package.json denies Dependabot the block to write into.
+    expect(packageJson.pnpm).toBeUndefined();
     expect(workspace.overrides).toEqual(lockfile.overrides);
   });
 
@@ -45,13 +45,12 @@ describe('pnpm workspace configuration', () => {
       .map((key) => key.slice('esbuild@'.length));
 
     expect(workspace.packages).toEqual(['.']);
-    expect(packageJson.pnpm.onlyBuiltDependencies).toEqual(['esbuild']);
     expect(esbuildVersions).toHaveLength(1);
     expect(workspace.allowBuilds).toEqual({
       [`esbuild@${esbuildVersions[0]}`]: true,
     });
     // Single-sourced in website/pnpm-workspace.yaml, for the reason above.
-    expect(packageJson.pnpm.overrides).toBeUndefined();
+    expect(packageJson.pnpm).toBeUndefined();
     expect(workspace.overrides).toEqual(lockfile.overrides);
   });
 

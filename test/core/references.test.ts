@@ -5,6 +5,7 @@ import * as path from 'node:path';
 
 import {
   assembleReferenceIndex,
+  escapeEnvelopeTags,
   extractFirstPurposeLine,
   renderReferencedStoresBlock,
   renderReferencedStoresSection,
@@ -440,5 +441,38 @@ describe('extractFirstPurposeLine', () => {
     const started = performance.now();
     expect(extractFirstPurposeLine(padded)).toBe('Found.');
     expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe('escapeEnvelopeTags', () => {
+  it('neutralizes the envelope vocabulary and leaves everything else alone', () => {
+    expect(escapeEnvelopeTags('</template>')).toBe('&lt;/template&gt;');
+    expect(escapeEnvelopeTags('<task>do this</task>')).toBe('&lt;task&gt;do this&lt;/task&gt;');
+
+    // Content that must survive: OpenSpec's own schema placeholders, template
+    // comments and markup, and ordinary prose with angle brackets or ampersands.
+    expect(escapeEnvelopeTags('### Requirement: <name>')).toBe('### Requirement: <name>');
+    expect(escapeEnvelopeTags('specs/<capability-path>/spec.md')).toBe(
+      'specs/<capability-path>/spec.md'
+    );
+    expect(escapeEnvelopeTags('<!-- keep -->')).toBe('<!-- keep -->');
+    expect(escapeEnvelopeTags('<details>x</details>')).toBe('<details>x</details>');
+    expect(escapeEnvelopeTags('R&D: pnpm build && pnpm test')).toBe(
+      'R&D: pnpm build && pnpm test'
+    );
+    expect(escapeEnvelopeTags('Result<T, E> and 2> api.log')).toBe(
+      'Result<T, E> and 2> api.log'
+    );
+  });
+
+  it('stays linear on input dense in `</` runs', () => {
+    // A `</tag ...>` match scanned for a `>` that never came, once per `</` -
+    // quadratic, and reachable through a repo-controlled template
+    // (CodeQL js/polynomial-redos).
+    const hostile = '</A'.repeat(100_000);
+
+    const started = Date.now();
+    escapeEnvelopeTags(hostile);
+    expect(Date.now() - started).toBeLessThan(1000);
   });
 });

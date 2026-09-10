@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
 import { InstallationResult } from '../factory.js';
+import { shellSingleQuote } from './shell-quote.js';
 
 /**
  * Installer for Bash completion scripts.
@@ -115,10 +116,11 @@ export class BashInstaller {
    * @returns Configuration content
    */
   private generateBashrcConfig(completionsDir: string): string {
+    const quotedDir = shellSingleQuote(completionsDir);
     return [
       '# OpenSpec shell completions configuration',
-      `if [ -d "${completionsDir}" ]; then`,
-      `  for f in "${completionsDir}"/*; do`,
+      `if [ -d ${quotedDir} ]; then`,
+      `  for f in ${quotedDir}/*; do`,
       '    [ -f "$f" ] && . "$f"',
       '  done',
       'fi',
@@ -328,14 +330,19 @@ export class BashInstaller {
   private generateInstructions(installedPath: string): string[] {
     const completionsDir = path.dirname(installedPath);
 
+    // Quoted exactly like the auto-configured block: these lines are printed
+    // for the user to paste into their own rc file, so an expansion left in
+    // them runs on every future shell start.
+    const quotedDir = shellSingleQuote(completionsDir);
+
     return [
       'Completion script installed successfully.',
       '',
       'To enable completions, add the following to your ~/.bashrc file:',
       '',
       `  # Source OpenSpec completions`,
-      `  if [ -d "${completionsDir}" ]; then`,
-      `    for f in "${completionsDir}"/*; do`,
+      `  if [ -d ${quotedDir} ]; then`,
+      `    for f in ${quotedDir}/*; do`,
       '      [ -f "$f" ] && . "$f"',
       '    done',
       '  fi',
