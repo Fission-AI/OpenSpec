@@ -9,7 +9,7 @@
 - [ ] 2.1 Detect dependency cycles and fail validation with deterministic errors
 - [ ] 2.2 Detect missing `dependsOn` targets (referenced change ID does not exist) and detect changes transitively blocked by unresolved/cyclic dependency paths
 - [ ] 2.3 Add overlap warnings for active changes that touch the same capability/spec areas
-- [ ] 2.4 Emit advisory warnings for unmatched `requires` markers when no provider exists in active history
+- [ ] 2.4 Emit advisory warnings for unmatched `requires` markers when no active or archived provider evidence exists; require explicit change-level evidence before archived providers suppress the warning
 - [ ] 2.5 Add tests for cycle, missing dependency, overlap warning, and unmatched `requires` cases
 
 ## 3. Sequencing Commands
