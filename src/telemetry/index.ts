@@ -75,6 +75,17 @@ export function isDebugMode(): boolean {
 /** Test seam: forget the per-invocation event count. */
 export function resetEventCount(): void {
   eventsSent = 0;
+  exitWasCancelled = false;
+}
+
+/**
+ * True when this run ended in cancellation, so the flush must not wait.
+ */
+let exitWasCancelled = false;
+
+/** Mark this run as cancelled, so shutdown() returns without awaiting. */
+export function markCancelledExit(): void {
+  exitWasCancelled = true;
 }
 
 /**
@@ -320,6 +331,13 @@ export async function trackCompletion(input: {
     return;
   }
 
+  // Ctrl-C is the user asking the process to stop: the event goes out, but the
+  // flush must never hold the exit for it. Set here rather than in the CLI
+  // wiring so every caller of this function gets the rule.
+  if (input.outcome === 'cancelled') {
+    markCancelledExit();
+  }
+
   try {
     const state = await loadState();
     if (!state) {
@@ -464,6 +482,15 @@ export async function maybeShowTelemetryNotice(
  * Call this before CLI exit.
  */
 export async function shutdown(): Promise<void> {
+  // Ctrl-C is the user asking the process to stop. Holding it open for up to
+  // the request timeout while they press Ctrl-C again is a worse outcome than
+  // a lossy cancellation metric — and the ratio is all that metric is used
+  // for. The request is already in flight; it lands or it does not.
+  if (exitWasCancelled) {
+    pendingEvents.clear();
+    return;
+  }
+
   if (pendingEvents.size === 0) {
     return;
   }

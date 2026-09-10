@@ -245,3 +245,53 @@ describe('telemetry events', () => {
     });
   });
 });
+
+describe('cancellation', () => {
+  let tempDir: string;
+  let originalEnv: NodeJS.ProcessEnv;
+  let fetchSpy: ReturnType<typeof vi.spyOn<typeof globalThis, 'fetch'>>;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-cancel-'));
+    process.env.XDG_CONFIG_HOME = tempDir;
+    process.env.HOME = tempDir;
+    process.env.USERPROFILE = tempDir;
+    delete process.env.OPENSPEC_TELEMETRY;
+    delete process.env.DO_NOT_TRACK;
+    delete process.env.CI;
+    delete process.env.OPENSPEC_TELEMETRY_DEBUG;
+    resetEventCount();
+    resetState();
+    resetRunId();
+    setRegistryChecks({ isCommand: () => true, isTool: () => true });
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    vi.restoreAllMocks();
+  });
+
+  it('does not wait on the flush when the user pressed Ctrl-C', async () => {
+    // A request that never settles: if shutdown awaited it, this test would
+    // hang rather than fail, so the assertion is the timing itself.
+    fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () => new Promise<Response>(() => {})
+    );
+
+    await trackCompletion({
+      command: 'archive',
+      version: '1.2.3',
+      outcome: 'cancelled',
+      errorClass: 'cancelled',
+      exitCode: 130,
+      durationMs: 20,
+    });
+
+    const startedAt = Date.now();
+    await shutdown();
+    expect(Date.now() - startedAt).toBeLessThan(100);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+  });
+});
