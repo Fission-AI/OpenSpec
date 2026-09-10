@@ -4,7 +4,12 @@ import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { gitHasUncommittedChanges } from '../../../src/core/store/git.js';
+import {
+  GIT_EXEC_OPTIONS,
+  GIT_WRITE_EXEC_OPTIONS,
+  gitHasUncommittedChanges,
+  isProbeResourceFailure,
+} from '../../../src/core/store/git.js';
 
 /**
  * `git status --porcelain` in a repo with a very large dirty tree used to blow
@@ -20,10 +25,14 @@ describe('store git probe output limits', () => {
     execFileSync('git', ['init', '-q'], { cwd: repoRoot });
 
     // Untracked directories collapse to one porcelain line, so the files have
-    // to sit at the repo root. ~250 chars per name × 6000 files ≈ 1.5 MB.
-    const name = 'f'.repeat(240);
+    // to sit at the repo root. 125 chars per name × 12000 files ≈ 1.5 MB of
+    // porcelain output. Names are kept short deliberately: a longer basename
+    // would push the absolute path past Windows' 260-char MAX_PATH, which
+    // neither `fs.writeFile` nor `git status` tolerates without opt-in
+    // long-path support.
+    const name = 'f'.repeat(120);
     await Promise.all(
-      Array.from({ length: 6000 }, (_, i) =>
+      Array.from({ length: 12_000 }, (_, i) =>
         fs.writeFile(path.join(repoRoot, `${name}${String(i).padStart(5, '0')}`), '')
       )
     );
@@ -44,4 +53,67 @@ describe('store git probe output limits', () => {
 
     await expect(gitHasUncommittedChanges(repoRoot)).resolves.toBe(true);
   }, 60_000);
+});
+
+/**
+ * The timeout half of the same hardening. Actually wedging a git subprocess for
+ * 15 seconds is not something a suite can afford, so the classifier that turns
+ * a timed-out probe into a warning (rather than a silent "no git facts") is
+ * pinned directly against the error shapes Node produces.
+ */
+describe('store git probe resource-failure classification', () => {
+  it('bounds every probe with a timeout and a hard kill', () => {
+    expect(GIT_EXEC_OPTIONS.timeout).toBe(15_000);
+    expect(GIT_EXEC_OPTIONS.killSignal).toBe('SIGKILL');
+  });
+
+  it('never hard-kills a write, and gives it room for a signing prompt', () => {
+    // git traps SIGTERM to remove .git/index.lock on its way out. A signal it
+    // cannot catch leaves that lock behind, and every later git command in the
+    // user's store then fails with "Another git process seems to be running" -
+    // including the best-effort unstage that runs when a commit fails.
+    expect('killSignal' in GIT_WRITE_EXEC_OPTIONS).toBe(false);
+    // A signed commit can legitimately sit waiting on pinentry or a hardware
+    // key, so the write budget is far longer than a probe's.
+    expect(GIT_WRITE_EXEC_OPTIONS.timeout).toBeGreaterThanOrEqual(120_000);
+  });
+
+  it('classifies a timed-out or overflowing probe as a resource failure', () => {
+    // `child_process` reports a timeout kill either as ETIMEDOUT or, once the
+    // kill lands, as killed + the signal it sent.
+    expect(isProbeResourceFailure(Object.assign(new Error('spawn'), { code: 'ETIMEDOUT' }))).toBe(
+      true
+    );
+    expect(
+      isProbeResourceFailure(
+        Object.assign(new Error('killed'), { killed: true, signal: 'SIGKILL' })
+      )
+    ).toBe(true);
+    expect(
+      isProbeResourceFailure(
+        Object.assign(new Error('stdout maxBuffer length exceeded'), {
+          code: 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER',
+        })
+      )
+    ).toBe(true);
+  });
+
+  it('leaves ordinary git answers unclassified', () => {
+    // "not a repository" (128) and "git is absent" (ENOENT) are answers, not
+    // degraded runs, and must stay silent.
+    expect(isProbeResourceFailure(Object.assign(new Error('not a repo'), { code: 128 }))).toBe(
+      false
+    );
+    expect(isProbeResourceFailure(Object.assign(new Error('no git'), { code: 'ENOENT' }))).toBe(
+      false
+    );
+    // A SIGTERM from the user's own shell is not this hardening's business.
+    expect(
+      isProbeResourceFailure(
+        Object.assign(new Error('interrupted'), { killed: true, signal: 'SIGTERM' })
+      )
+    ).toBe(false);
+    expect(isProbeResourceFailure(null)).toBe(false);
+    expect(isProbeResourceFailure('ETIMEDOUT')).toBe(false);
+  });
 });

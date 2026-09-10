@@ -48,6 +48,12 @@ describe('update detects a tampered SKILL.md', () => {
     process.env.CODEX_HOME = path.join(testDir, 'codex-home');
     process.env.HOME = path.join(testDir, 'home');
     process.env.USERPROFILE = path.join(testDir, 'home');
+    // The global *config* accessor is mocked above, the global *data* dir is
+    // not - and on win32 that resolves through APPDATA/LOCALAPPDATA, so
+    // without these a Windows run would write into the developer's real
+    // %LOCALAPPDATA%\openspec\.
+    process.env.APPDATA = path.join(testDir, 'appdata');
+    process.env.LOCALAPPDATA = path.join(testDir, 'localappdata');
     await fs.mkdir(path.join(testDir, 'openspec'), { recursive: true });
     mockState.config = { featureFlags: {}, profile: 'core', delivery: 'both' };
     vi.restoreAllMocks();

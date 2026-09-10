@@ -8,9 +8,11 @@ import { isLegacyCodexSkillEquivalentToCurrent } from '../../../src/core/shared/
 
 /**
  * Both scans used an `m`-anchored `^\s*`, where `\s` crosses newlines, so the
- * engine re-scanned the whole whitespace run from every line start. A hostile
- * (or merely malformed) SKILL.md of a few tens of KB froze `openspec update`
- * for minutes. These bound the work instead of asserting an exact time.
+ * engine re-scanned the whole whitespace run from every line start - work
+ * quadratic in the size of the run, so a hostile (or merely malformed)
+ * SKILL.md of a few hundred KB stalled `openspec update` for many seconds and
+ * a larger one for minutes. These bound the work instead of asserting an
+ * exact time.
  */
 describe('generatedBy scanning is not super-linear', () => {
   let tempDir: string;
@@ -27,8 +29,11 @@ describe('generatedBy scanning is not super-linear', () => {
   // engine retries the whole whitespace run from every line start.
   it('gives up on a whitespace-heavy skill file quickly', () => {
     const skillFile = path.join(tempDir, 'SKILL.md');
-    // 63 KB of ` \n`: 3.6s on the old regex, and it grows ~n^1.8 from there.
-    fs.writeFileSync(skillFile, ' \n'.repeat(32_000));
+    // 250 KB of ` \n`. The old scan is quadratic in the length of the
+    // whitespace run, so this size leaves a reverted implementation tens of
+    // times over the bound below rather than the ~2x a smaller input gave;
+    // the linear scan is unaffected by the size.
+    fs.writeFileSync(skillFile, ' \n'.repeat(128_000));
 
     const start = Date.now();
     const version = extractGeneratedByVersion(skillFile);
@@ -39,8 +44,9 @@ describe('generatedBy scanning is not super-linear', () => {
   });
 
   it('compares a whitespace-heavy legacy frontmatter quickly', () => {
-    // 63 KB of whitespace frontmatter: 2.8s on the old regex.
-    const content = `---\n${' \n'.repeat(32_000)}---\nbody\n`;
+    // 250 KB of whitespace frontmatter, quadratic on the old regex for the
+    // same reason as above.
+    const content = `---\n${' \n'.repeat(128_000)}---\nbody\n`;
 
     const start = Date.now();
     const equivalent = isLegacyCodexSkillEquivalentToCurrent(content, content);

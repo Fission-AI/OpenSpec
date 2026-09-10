@@ -192,21 +192,24 @@ describe('worksets core', () => {
     });
 
     it('treats Object.prototype names as absent, not existing', () => {
-      // `constructor`, `toString` and friends are valid kebab ids, so a plain
-      // `state.worksets[name] !== undefined` membership test found them on the
-      // prototype and reported a workset that was never added.
+      // `constructor` is the ONLY own property of Object.prototype that is
+      // also a valid kebab id (`toString`/`valueOf`/`hasOwnProperty` are
+      // camelCase and `__proto__` has underscores, so `isKebabId` - and
+      // therefore `validateWorksetName` and the state parser - rejects them
+      // all; lowercasing them, as this loop used to, makes them ordinary
+      // names that were never on the prototype and so tested nothing).
+      // A plain `state.worksets[name] !== undefined` membership test found
+      // `constructor` on the prototype and reported a workset never added.
       const empty: WorksetsState = { version: 1, worksets: {} };
+      const name = 'constructor';
 
-      for (const name of ['constructor', 'tostring', 'valueof']) {
-        expect(getWorkset(empty, name)).toBeNull();
-        expect(() => withoutWorkset(empty, name)).toThrow();
+      expect(getWorkset(empty, name)).toBeNull();
+      expect(() => withoutWorkset(empty, name)).toThrow();
 
-        const added = withWorkset(empty, { name, members: [memberA()] });
-        expect(listWorksets(added).map((workset) => workset.name)).toEqual([
-          name,
-        ]);
-        expect(listWorksets(withoutWorkset(added, name))).toEqual([]);
-      }
+      const added = withWorkset(empty, { name, members: [memberA()] });
+      expect(listWorksets(added).map((workset) => workset.name)).toEqual([name]);
+      expect(getWorkset(added, name)?.members).toHaveLength(1);
+      expect(listWorksets(withoutWorkset(added, name))).toEqual([]);
     });
 
     it('rejects duplicate names with a remove fix', () => {

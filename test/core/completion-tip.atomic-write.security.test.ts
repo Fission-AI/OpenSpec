@@ -43,11 +43,19 @@ describe('core/completion-tip atomic write', () => {
     async () => {
       const configPath = getGlobalConfigPath();
 
-      await maybeShowCompletionTip();
+      // Pinned: under a hardened umask the old default-mode write would also
+      // land on 0600 and the mode assertion below would prove nothing.
+      const previousUmask = process.umask(0o022);
+      try {
+        await maybeShowCompletionTip();
+      } finally {
+        process.umask(previousUmask);
+      }
 
       expect(JSON.parse(fs.readFileSync(configPath, 'utf-8')).completionTipSeen).toBe(true);
       expect(fs.statSync(configPath).mode & 0o777).toBe(0o600);
-      expect(fs.existsSync(`${configPath}.${process.pid}.tmp`)).toBe(false);
+      // Cheap leftover guard rather than a regression witness: the old writer
+      // renamed its predictable temp file away too.
       expect(fs.readdirSync(path.dirname(configPath)).filter((n) => n.endsWith('.tmp'))).toEqual([]);
     }
   );

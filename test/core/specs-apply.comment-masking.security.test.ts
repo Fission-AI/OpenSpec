@@ -8,8 +8,8 @@ import { buildUpdatedSpec, findSpecUpdates } from '../../src/core/specs-apply.js
 /**
  * `## Purpose` extraction masked HTML comments with `/<!--[\s\S]*?--!?>/g`,
  * which re-scans to end of file from every `<!--`. A delta spec dense in
- * comment openers made `openspec archive` quadratic: 80 KB took over a second
- * per pass, 1 MB took over two minutes. The `--!>` terminator and the
+ * comment openers therefore made `openspec archive` quadratic in the size of
+ * the document, and masking runs once per document. The `--!>` terminator and the
  * "unterminated comment runs to EOF" rule (#1413) stay covered by the archive
  * suite; this only bounds the work.
  */
@@ -43,9 +43,10 @@ describe('spec comment masking is linear', () => {
         '- **WHEN** the change is archived',
         '- **THEN** the spec is updated',
         '',
-        // 195 KB of comment openers: ~4.6s per masking pass on the old
-        // regex, and masking runs once per document.
-        '<!--'.repeat(50_000),
+        // 391 KB of comment openers. Sized so a reverted (quadratic) masking
+        // pass lands an order of magnitude over the bound below rather than
+        // the ~2.5x a half-size input gave; the linear scan is unaffected.
+        '<!--'.repeat(100_000),
         '',
       ].join('\n')
     );
