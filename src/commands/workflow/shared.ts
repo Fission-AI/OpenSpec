@@ -47,6 +47,14 @@ export interface ApplyInstructions {
   }>;
   state: 'blocked' | 'all_done' | 'ready';
   missingArtifacts?: string[];
+  /**
+   * Everything still to build before apply can run, in build order - the
+   * transitive closure of the schema's `apply.requires`, so it can be longer
+   * than `missingArtifacts`, which stops at the first hop apply blocks on.
+   */
+  missingPrerequisites?: string[];
+  /** Non-blocking problems with the change, reported alongside the instruction. */
+  warnings?: string[];
   instruction: string;
   /** Referenced-store index (read-only upstream context; omitted when none declared) */
   references?: ReferenceIndexEntry[];

@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
 import { InitCommand } from '../../src/core/init.js';
 import { getConfiguredToolsForProfileSync } from '../../src/core/profile-sync-drift.js';
+import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import type { GlobalConfig } from '../../src/core/global-config.js';
@@ -1260,6 +1261,40 @@ metadata:
       expect(skillContent).not.toContain('/opsx-');
     });
 
+    it.each(['both', 'commands'] as const)(
+      'should discover and refresh SourceCraft Code Assistant commands with delivery=%s',
+      async (delivery) => {
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+        const commandsDir = path.join(testDir, '.codeassistant', 'commands');
+        await fs.mkdir(commandsDir, { recursive: true });
+        await fs.writeFile(path.join(commandsDir, 'opsx-apply.md'), 'old command content');
+        const skillFile = path.join(testDir, '.codeassistant', 'skills', 'openspec-apply-change', 'SKILL.md');
+        if (delivery === 'both') {
+          await fs.mkdir(path.dirname(skillFile), { recursive: true });
+          await fs.writeFile(skillFile, 'old skill content');
+        }
+
+        await updateCommand.execute(testDir);
+
+        const commandContent = await fs.readFile(path.join(commandsDir, 'opsx-apply.md'), 'utf-8');
+        expect(commandContent).toMatch(/^---\ndescription: /);
+        expect(commandContent).toContain('/opsx-archive');
+        expect(commandContent).not.toContain('/opsx:');
+        expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-propose.md'))).toBe(true);
+
+        expect(await FileSystemUtils.fileExists(skillFile)).toBe(delivery === 'both');
+        if (delivery === 'both') {
+          const skillContent = await fs.readFile(skillFile, 'utf-8');
+          expect(skillContent).toContain('/opsx-archive');
+          expect(skillContent).not.toContain('/opsx:');
+        }
+
+        const consoleSpy = vi.spyOn(console, 'log');
+        await updateCommand.execute(testDir);
+        expect(consoleSpy.mock.calls.flat().map(String).some((entry) => entry.includes('up to date'))).toBe(true);
+      }
+    );
+
     it('should update command files when tool is configured via commands-only delivery without skills', async () => {
       setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
       const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
@@ -1947,7 +1982,12 @@ metadata:
       consoleSpy.mockRestore();
     });
 
-    it('should suggest an IDE restart for IDE-resident tools', async () => {
+    it.each([
+      ['both', 'commands'],
+      ['commands', 'commands'],
+      ['skills', 'skills'],
+    ] as const)('should name the generated IDE surface with %s delivery', async (delivery, surface) => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery });
       const skillsDir = path.join(testDir, '.cursor', 'skills');
       await fs.mkdir(path.join(skillsDir, 'openspec-explore'), {
         recursive: true,
@@ -1962,10 +2002,63 @@ metadata:
       await updateCommand.execute(testDir);
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Restart your IDE')
+        expect.stringContaining(`Restart your IDE to refresh ${surface}.`)
       );
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.cursor', 'commands', 'opsx-explore.md')
+      )).toBe(delivery !== 'skills');
+      expect(await FileSystemUtils.fileExists(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md')
+      )).toBe(delivery !== 'commands');
+
+      consoleSpy.mockClear();
+      await updateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('up to date'));
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Restart your IDE'));
 
       consoleSpy.mockRestore();
+    });
+
+    it.each(['both', 'commands', 'skills'] as const)(
+      'should describe removal-only IDE updates with %s delivery',
+      async (delivery) => {
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+        await new InitCommand({ tools: 'cursor', force: true }).execute(testDir);
+        setMockConfig({ featureFlags: {}, profile: 'custom', workflows: [], delivery });
+        const consoleSpy = vi.spyOn(console, 'log');
+
+        await updateCommand.execute(testDir);
+
+        expect(await FileSystemUtils.fileExists(
+          path.join(testDir, '.cursor', 'commands', 'opsx-explore.md')
+        )).toBe(false);
+        expect(await FileSystemUtils.fileExists(
+          path.join(testDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md')
+        )).toBe(false);
+        const surface = delivery === 'skills' ? 'skills' : 'commands';
+        expect(consoleSpy).toHaveBeenCalledWith(
+          expect.stringContaining(`Restart your IDE to refresh ${surface}.`)
+        );
+        expect(consoleSpy).not.toHaveBeenCalledWith(
+          expect.stringContaining('Restart your IDE for the new')
+        );
+      }
+    );
+
+    it('should not suggest an IDE restart when only a CLI tool needs updating', async () => {
+      await new InitCommand({ tools: 'claude,cursor', force: true }).execute(testDir);
+      await fs.writeFile(
+        path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Updated: Claude Code'));
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Updated: Cursor'));
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Restart your IDE'));
     });
   });
 
@@ -2570,7 +2663,13 @@ ${OPENSPEC_MARKERS.end}
       expect(menuLines).toHaveLength(1);
       expect(menuLines[0]).toContain('/opsx-propose');
       expect(logCalls.some((entry) => entry.includes('/opsx:propose'))).toBe(false);
-      expect(logCalls.some((entry) => entry.includes('Restart your IDE'))).toBe(true);
+      // The hint names what was generated, the same sentence init prints, rather
+      // than update's older generic "changes".
+      expect(
+        logCalls.some((entry) =>
+          entry.includes('Restart your IDE to refresh commands.')
+        )
+      ).toBe(true);
     });
 
     it('should preserve legacy Codex prompts when a configured Codex tool lacks the replacement workflow', async () => {
@@ -3322,6 +3421,104 @@ More user content after markers.
       consoleSpy.mockRestore();
     });
 
+    it('should name the workflows the core profile leaves out (#1076)', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      // The up-to-date path is where a user chasing a missing command lands:
+      // troubleshooting tells them to run `openspec update` first.
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      const note = calls.find(call => call.includes('more workflows are available'));
+      expect(note).toBeTruthy();
+      for (const workflow of ['new', 'continue', 'ff', 'bulk-archive', 'verify', 'onboard']) {
+        expect(note).toContain(workflow);
+      }
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not repeat the profile pointer when the missing-core note already gave it', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      expect(calls.some(call => call.includes('Your custom profile is missing'))).toBe(true);
+      expect(calls.some(call => call.includes('more workflows are available'))).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not advertise missing workflows when the profile installs all of them', async () => {
+      setMockConfig({
+        featureFlags: {},
+        profile: 'custom',
+        delivery: 'both',
+        workflows: [...ALL_WORKFLOWS],
+      });
+
+      const initCommand = new InitCommand({ tools: 'claude', force: true });
+      await initCommand.execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      expect(calls.some(call => call.includes('more workflows are available'))).toBe(false);
+      expect(calls.some(call => call.includes('more workflow is available'))).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
+    it('should not advertise missing workflows when no tool can receive one', async () => {
+      // A project set up for a skills-only tool, then switched to
+      // delivery=commands: the tool stays configured but can receive nothing,
+      // so adding workflows would write nothing and the pointer would send the
+      // user the wrong way. `update` prints its delivery correction instead.
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'both' });
+
+      const initCommand = new InitCommand({ tools: 'kimi', force: true });
+      await initCommand.execute(testDir);
+
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await updateCommand.execute(testDir);
+
+      const calls = consoleSpy.mock.calls.map(call =>
+        call.map(arg => String(arg)).join(' ')
+      );
+      // Proves the run got as far as the notes rather than bailing earlier
+      expect(calls.some(call => call.includes('No skills or commands remain for'))).toBe(true);
+      expect(calls.some(call => call.includes('more workflows are available'))).toBe(false);
+
+      consoleSpy.mockRestore();
+    });
+
     it('should respect skills-only delivery setting', async () => {
       setMockConfig({
         featureFlags: {},
@@ -3365,6 +3562,34 @@ More user content after markers.
       expect(updateSkillContent).not.toContain('/opsx-');
       expect(updateSkillContent).toContain('/openspec-');
     });
+
+    it.each(['skills', 'commands'] as const)(
+      'should switch SourceCraft Code Assistant to delivery=%s without deleting custom files',
+      async (delivery) => {
+        await new InitCommand({ tools: 'codeassistant', force: true }).execute(testDir);
+        const toolDir = path.join(testDir, '.codeassistant');
+        const customCommand = path.join(toolDir, 'commands', 'opsx-custom.md');
+        const customSkill = path.join(toolDir, 'skills', 'custom-review', 'SKILL.md');
+        await fs.mkdir(path.dirname(customSkill), { recursive: true });
+        await fs.writeFile(customCommand, 'custom command');
+        await fs.writeFile(customSkill, 'custom skill');
+
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+        await updateCommand.execute(testDir);
+
+        expect(await FileSystemUtils.fileExists(path.join(toolDir, 'commands', 'opsx-apply.md'))).toBe(delivery === 'commands');
+        const skillFile = path.join(toolDir, 'skills', 'openspec-apply-change', 'SKILL.md');
+        expect(await FileSystemUtils.fileExists(skillFile)).toBe(delivery === 'skills');
+        if (delivery === 'skills') {
+          const skillContent = await fs.readFile(skillFile, 'utf-8');
+          expect(skillContent).toContain('the openspec-archive-change skill');
+          expect(skillContent).not.toContain('/openspec-');
+          expect(skillContent).not.toContain('/opsx-');
+        }
+        expect(await fs.readFile(customCommand, 'utf-8')).toBe('custom command');
+        expect(await fs.readFile(customSkill, 'utf-8')).toBe('custom skill');
+      }
+    );
 
     it('should respect commands-only delivery setting', async () => {
       setMockConfig({
