@@ -192,6 +192,79 @@ describe('explore templates', () => {
     }
   });
 
+  // Regression for #1828: the #1715 write-confirmation rule named
+  // `openspec new change` as something that needs a separate yes/no, while
+  // the capture branch told the agent to transition "seamlessly" into
+  // running it. Both readings were defensible, so the same request either
+  // wrote files immediately or stopped and asked. The rule now resolves the
+  // conflict in one direction: an explicit capture request IS the
+  // confirmation, for the scope that request names.
+  it('treats an explicit capture request as the write confirmation (#1828)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'An explicit request to capture the exploration as a new change is itself that confirmation, covering the change and the artifacts that request names'
+      );
+    }
+  });
+
+  it('resolves the capture carve-out in the guardrail that names `openspec new change` (#1828)', () => {
+    for (const [label, body] of bodies) {
+      // The general rule must survive: an agent proposing the capture on its
+      // own initiative still owes the user a separate yes/no.
+      expect(body, label).toContain(
+        'including `openspec new change` or another command that writes files'
+      );
+      expect(body, label).toContain(
+        'That rule governs `openspec new change` whenever you are the one proposing the capture'
+      );
+      expect(body, label).toContain(
+        'When the user explicitly asks you to capture the exploration as a new change, their request is the confirmation for scaffolding it and creating the artifacts the request names, so run the capture transition without asking again'
+      );
+      expect(body, label).toContain(
+        'ask before writing anything outside that scope'
+      );
+    }
+  });
+
+  it('states the carve-out at the head of the capture branch, before the scaffold step (#1828)', () => {
+    for (const [label, body] of bodies) {
+      const transition = newChangeTransition(body, label);
+      const carveOut = transition.indexOf(
+        'that request is the confirmation required above'
+      );
+      const scaffold = transition.indexOf('1. Run `openspec new change "<name>"`');
+
+      expect(carveOut, label).toBeGreaterThanOrEqual(0);
+      expect(scaffold, label).toBeGreaterThan(carveOut);
+      expect(transition, label).toContain(
+        'It covers scaffolding the change and creating the artifacts the request names, and nothing else'
+      );
+      expect(transition, label).toContain('Do not ask for a second confirmation');
+    }
+  });
+
+  // The carve-out must not become a blanket write permit: #1715's guarantee
+  // survives only if everything outside the requested scope still stops.
+  it('keeps the carve-out scoped to what the request named (#1828, #1715)', () => {
+    for (const [label, body] of bodies) {
+      const transition = newChangeTransition(body, label);
+
+      expect(body, label).toContain(
+        'Confirmation covers only the scope you described; ask again before expanding it'
+      );
+      expect(body, label).toContain(
+        'Answering design or clarifying questions is never consent to write'
+      );
+      expect(body, label).toContain(
+        'Accepting an answer or a batch of recommendations is not permission to write'
+      );
+      expect(transition, label).toContain(
+        'Do not create an unrequested prerequisite unless the user approves'
+      );
+      expect(transition, label).toContain('ask before expanding the capture');
+    }
+  });
+
   it('scaffolds a new change before capturing exploration artifacts (#668, #720)', () => {
     for (const [label, body] of bodies) {
       const transition = newChangeTransition(body, label);
