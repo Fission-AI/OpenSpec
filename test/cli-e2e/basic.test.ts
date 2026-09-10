@@ -2,7 +2,9 @@ import { afterAll, describe, it, expect } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
+import { execFileSync } from 'node:child_process';
 import { runCLI, cliProjectRoot } from '../helpers/run-cli.js';
+import { isolatedGitEnv } from '../helpers/store-git.js';
 import { AI_TOOLS } from '../../src/core/config.js';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
 import { createOpenSpecRoot } from '../helpers/openspec-fixtures.js';
@@ -39,6 +41,37 @@ afterAll(async () => {
 });
 
 describe('openspec CLI e2e basics', () => {
+  it('preserves initialized directories through a Git clone without listing anchors as work', async () => {
+    const base = await fs.mkdtemp(path.join(tmpdir(), 'openspec-init-clone-'));
+    tempRoots.push(base);
+    const projectDir = path.join(base, 'project');
+    const cloneDir = path.join(base, 'clone');
+    await fs.mkdir(projectDir);
+    const env = {
+      ...isolatedGitEnv(base),
+      XDG_CONFIG_HOME: path.join(base, 'config'),
+      XDG_DATA_HOME: path.join(base, 'data'),
+    };
+    const initialized = await runCLI(['init', '--tools', 'none'], { cwd: projectDir, env });
+    expect(initialized.exitCode).toBe(0);
+
+    const gitOptions = { cwd: projectDir, env: { ...process.env, ...env }, stdio: 'pipe' as const };
+    execFileSync('git', ['init'], gitOptions);
+    execFileSync('git', ['add', 'openspec'], gitOptions);
+    execFileSync('git', ['commit', '-m', 'Initialize OpenSpec'], gitOptions);
+    execFileSync('git', ['clone', '--no-local', projectDir, cloneDir], gitOptions);
+
+    expect(await fs.readdir(path.join(cloneDir, 'openspec', 'specs'))).toEqual(['.gitkeep']);
+    expect(await fs.readdir(path.join(cloneDir, 'openspec', 'changes'))).toEqual(['archive']);
+    expect(await fs.readdir(path.join(cloneDir, 'openspec', 'changes', 'archive'))).toEqual(['.gitkeep']);
+    const changes = await runCLI(['list', '--json'], { cwd: cloneDir, env });
+    expectJsonOnlyOutput(changes);
+    expect(JSON.parse(changes.stdout).changes).toEqual([]);
+    const specs = await runCLI(['list', '--specs'], { cwd: cloneDir, env });
+    expect(specs.exitCode).toBe(0);
+    expect(specs.stdout).toContain('No specs found.');
+  });
+
   it('shows help output', async () => {
     const result = await runCLI(['--help']);
     expect(result.exitCode).toBe(0);
@@ -84,6 +117,40 @@ describe('openspec CLI e2e basics', () => {
     const projectDir = await prepareFixture('tmp-init');
     const result = await runCLI(['list', '--json'], { cwd: projectDir });
     expectJsonOnlyOutput(result);
+  });
+
+  describe('legacy change list compatibility', () => {
+    it.each([
+      { args: [], output: 'c1\n' },
+      { args: ['--long'], output: 'c1: Test Change [deltas 1]\n' },
+    ])('preserves text output with $args and warns on stderr', async ({ args, output }) => {
+      const projectDir = await prepareFixture('tmp-init');
+      const result = await runCLI(['change', 'list', ...args], { cwd: projectDir });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe(output);
+      expect(result.stderr).toContain('Warning: "openspec change list" is deprecated. Use "openspec list".');
+    });
+
+    it('preserves JSON output and warns on stderr', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const result = await runCLI(['change', 'list', '--json'], { cwd: projectDir });
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout)).toEqual([
+        { id: 'c1', title: 'Test Change', deltaCount: 1, taskStatus: { total: 0, completed: 0 } },
+      ]);
+      expect(result.stderr).toContain('Warning: "openspec change list" is deprecated. Use "openspec list".');
+    });
+
+    it('rejects the unsupported --all option', async () => {
+      const projectDir = await prepareFixture('tmp-init');
+      const result = await runCLI(['change', 'list', '--all'], { cwd: projectDir });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain("error: unknown option '--all'");
+    });
   });
 
   it('keeps schemas --json free of spinner output', async () => {
