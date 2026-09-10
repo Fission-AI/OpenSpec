@@ -89,8 +89,18 @@ After merge (auto or manual), the workflow SHALL run `git worktree remove .claud
 
 ### Requirement: Configuration Support
 
-The OpenSpec project configuration schema SHALL accept an optional `agent` block with an optional integer `max_parallel_requests` field in `[1,4]`, defaulting to 2.
+The OpenSpec project configuration schema SHALL accept an optional `agent` block with an optional integer `max_parallel_requests` field in `[1,4]`, defaulting to 2. The key name SHALL be identical in the Zod schema, the skill text, and all install documentation.
 
 #### Scenario: Schema validation
 `openspec/config.yaml` containing `agent: { max_parallel_requests: 5 }` SHALL produce a validation warning and SHALL cause the workflow to fall back to 2 (with console note). Valid values 1–4 SHALL be accepted and respected.
+
+### Requirement: Opt-In Installation Profile
+
+The `autonomous-apply` workflow SHALL be registered in `ALL_WORKFLOWS` but SHALL NOT be part of the default `core` profile; users SHALL select it explicitly via a `custom` profile in the global OpenSpec config.
+
+#### Scenario: Default init does not install
+`openspec init --tools claude` with the default `core` profile SHALL NOT create `openspec-autonomous-apply/SKILL.md`.
+
+#### Scenario: Custom profile installs
+`openspec init --tools claude` with `profile: custom` and `workflows` containing `autonomous-apply` SHALL create `openspec-autonomous-apply/SKILL.md` under the tool's skills directory.
 
