@@ -42,28 +42,42 @@ function isCheckEnabled(): boolean {
 }
 
 /**
- * The registry to ask, from the environment variable npm exports. That value
- * is *not* trustworthy: npm exports every config source it read, including a
- * `registry=` line in a repository-local .npmrc that travels with a clone. So
- * it is honored only over TLS — a cleartext hop would aim the request at a
- * link-local or internal address and let anyone on the path choose the
- * "newer version" answer — and canSelfUpgrade() additionally refuses to turn
- * a non-default registry into an install prompt. Anyone on a private mirror
- * can still export `npm_config_registry`, or turn the check off entirely.
+ * The configured registry, if npm exported one. Not trustworthy: npm exports
+ * every config source it read, including a `registry=` line in a
+ * repository-local .npmrc that travels with a clone.
  */
-export function registryUrl(): string {
+function configuredRegistry(): string | undefined {
   const configured = process.env.npm_config_registry?.trim();
-  const base = configured && /^https:\/\//i.test(configured) ? configured : DEFAULT_REGISTRY;
+  return configured ? configured : undefined;
+}
+
+/**
+ * The registry to ask. A configured registry is honored only over TLS: a
+ * cleartext hop would aim the request at a link-local or internal address and
+ * let anyone on the path choose the "newer version" answer.
+ *
+ * A rejected registry disables the check rather than falling back to public
+ * npm. Falling back would send a request an organization on an internal mirror
+ * deliberately avoided, and would then report a version resolved against a
+ * registry the eventual `npm install -g` does not use.
+ */
+export function registryUrl(): string | null {
+  const configured = configuredRegistry();
+  if (configured && !/^https:\/\//i.test(configured)) return null;
+  const base = configured ?? DEFAULT_REGISTRY;
   return `${base.replace(/\/+$/, '')}/${PACKAGE_NAME}/latest`;
 }
 
 /**
- * True when the check is talking to the public npm registry rather than
- * whatever `npm_config_registry` named.
+ * True when the check is talking to the public npm registry. Read from the raw
+ * env var, not from registryUrl(), so a registry that was rejected above still
+ * disqualifies a self-upgrade instead of looking like the default.
  */
 function isDefaultRegistry(): boolean {
+  const configured = configuredRegistry();
+  if (!configured) return true;
   try {
-    return new URL(registryUrl()).origin === new URL(DEFAULT_REGISTRY).origin;
+    return new URL(configured).origin === new URL(DEFAULT_REGISTRY).origin;
   } catch {
     return false;
   }
@@ -154,7 +168,12 @@ function fetchLatestVersion(): Promise<string | null> {
 
     let url: URL;
     try {
-      url = new URL(registryUrl());
+      const resolved = registryUrl();
+      if (resolved === null) {
+        resolve(null);
+        return;
+      }
+      url = new URL(resolved);
     } catch {
       resolve(null);
       return;
@@ -188,11 +207,13 @@ function fetchLatestVersion(): Promise<string | null> {
             redirectsLeft -= 1;
             try {
               const next = new URL(location, target);
-              // Stay on the origin registryUrl() resolved and validated, and
-              // never leave TLS: one hostile reply must not be able to steer
-              // the request at another host, and a MITM on a cleartext hop
-              // would control the "newer version" answer.
-              if (next.protocol === 'https:' && next.origin === url.origin) {
+              // Cross-host is allowed - that is the whole point of following a
+              // redirect for a mirror or corporate front-end - but never off
+              // TLS: a MITM on a cleartext hop would control the "newer
+              // version" answer, and the reply cannot install anything on its
+              // own (canSelfUpgrade refuses a non-default registry, and the
+              // version is re-validated against a strict pattern).
+              if (next.protocol === 'https:') {
                 send(next);
                 return;
               }

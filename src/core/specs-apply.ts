@@ -82,14 +82,15 @@ function resolveTrustedSpecPath(
     // Freeze their canonical location as the trust root so later swaps are
     // rejected while a nested spec.md link still cannot escape.
     const root = FileSystemUtils.canonicalizeExistingPath(path.dirname(specPath));
-    // A monorepo link stays inside the project. A capability directory that
-    // links out of it is not an OpenSpec-managed artifact, so writing through
-    // it is refused - matching retireSpec, which already refuses to delete an
-    // external target.
-    if (projectRoot) {
-      FileSystemUtils.assertPathWithin(
-        FileSystemUtils.canonicalizeExistingPath(projectRoot),
-        root
+    // An external capability link is deliberate and supported (see
+    // assertDiscoveredSpecPath), so it is not refused here. What was wrong is
+    // that the write was silent: the CLI reported the in-project path while
+    // writing somewhere else entirely, so a link swapped underneath a repo
+    // left nothing on screen to notice. Name the real destination instead.
+    if (projectRoot && !isLexicallyWithin(FileSystemUtils.canonicalizeExistingPath(projectRoot), root)) {
+      process.emitWarning(
+        `Capability '${path.basename(specPath)}' links outside the project; writing to ${root}`,
+        'OpenSpecExternalSpecWrite'
       );
     }
     const file = path.join(root, path.basename(specPath));

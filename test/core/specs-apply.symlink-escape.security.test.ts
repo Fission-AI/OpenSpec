@@ -8,12 +8,13 @@ import { findSpecUpdates } from '../../src/core/specs-apply.js';
 const itWithSymlinks = it.skipIf(process.platform === 'win32');
 
 /**
- * A capability directory may be a link within the project (monorepo layout),
- * but a link that leaves the project let a hostile repo make `openspec archive`
- * write attacker-controlled markdown to `<external-dir>/spec.md` while printing
- * the in-project path.
+ * A capability directory may deliberately be a link out of the project
+ * (monorepo layout - see assertDiscoveredSpecPath), so the write is allowed.
+ * What was wrong is that it was silent: `openspec archive` reported the
+ * in-project path while writing somewhere else entirely, so a link swapped
+ * underneath a repo left nothing on screen to notice.
  */
-describe('a linked capability directory cannot leave the project', () => {
+describe('a linked capability directory outside the project', () => {
   let tempDir: string;
   let projectDir: string;
   let changeDir: string;
@@ -49,13 +50,27 @@ describe('a linked capability directory cannot leave the project', () => {
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  itWithSymlinks('refuses a capability directory linked outside the project root', async () => {
+  itWithSymlinks('names the real destination when the link leaves the project', async () => {
     await fs.symlink(outsideDir, path.join(mainSpecsDir, 'widgets'));
 
-    await expect(findSpecUpdates(changeDir, mainSpecsDir)).rejects.toThrow(
-      'Path is outside the allowed directory'
-    );
-    await expect(fs.readdir(outsideDir)).resolves.toEqual([]);
+    const warnings: string[] = [];
+    const onWarning = (warning: Error) => warnings.push(warning.message);
+    process.on('warning', onWarning);
+
+    let update;
+    try {
+      [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+      // process.emitWarning dispatches on the next tick.
+      await new Promise((resolve) => setImmediate(resolve));
+    } finally {
+      process.off('warning', onWarning);
+    }
+
+    const realOutside = await fs.realpath(outsideDir);
+    // The write still happens - an external capability link is supported.
+    expect(update.target).toBe(path.join(realOutside, 'spec.md'));
+    // But it is announced, with the path actually being written.
+    expect(warnings.some((message) => message.includes(realOutside))).toBe(true);
   });
 
   itWithSymlinks('still allows a capability directory linked within the project', async () => {

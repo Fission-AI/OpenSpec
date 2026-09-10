@@ -9,15 +9,30 @@ const fs = nodeFs.promises;
 const rawExecFileAsync = promisify(execFile);
 
 /**
- * Bounds every git subprocess. Without a timeout a wedged network mount, an
+ * Bounds every read-only git probe. Without a timeout a wedged network mount, an
  * fsmonitor daemon, or a credential/GPG prompt hangs the CLI forever; without a
  * raised maxBuffer a very large dirty tree makes `git status --porcelain` throw
  * ENOBUFS, which the probes below would otherwise report as "no git facts".
+ * A probe writes nothing, so a hard kill is safe.
  */
 export const GIT_EXEC_OPTIONS = {
   encoding: 'utf8',
   timeout: 15_000,
   killSignal: 'SIGKILL',
+  maxBuffer: 16 * 1024 * 1024,
+} as const;
+
+/**
+ * Writes get their own bounds, and deliberately NOT SIGKILL: git traps SIGTERM
+ * to remove `.git/index.lock` on its way out, and a signal it cannot catch
+ * leaves that lock behind - every later git command in the user's store then
+ * fails with "Another git process seems to be running", including the
+ * best-effort unstage below. The timeout is also far longer, because a signed
+ * commit can legitimately sit waiting on pinentry or a hardware key.
+ */
+export const GIT_WRITE_EXEC_OPTIONS = {
+  encoding: 'utf8',
+  timeout: 120_000,
   maxBuffer: 16 * 1024 * 1024,
 } as const;
 
@@ -27,6 +42,14 @@ function execFileAsync(
   options: { cwd?: string } = {}
 ): Promise<{ stdout: string; stderr: string }> {
   return rawExecFileAsync(file, args, { ...GIT_EXEC_OPTIONS, ...options });
+}
+
+/** Same as execFileAsync, for commands that modify the user's repository. */
+function execGitWrite(
+  args: string[],
+  options: { cwd?: string } = {}
+): Promise<{ stdout: string; stderr: string }> {
+  return rawExecFileAsync('git', args, { ...GIT_WRITE_EXEC_OPTIONS, ...options });
 }
 
 /**
@@ -60,7 +83,7 @@ export async function initGitRepository(storeRoot: string): Promise<boolean> {
   }
 
   try {
-    await execFileAsync('git', ['init'], { cwd: storeRoot });
+    await execGitWrite(['init'], { cwd: storeRoot });
   } catch (error) {
     throw new StoreError(
       `Failed to initialize Git repository: ${error instanceof Error ? error.message : String(error)}`,
@@ -122,16 +145,15 @@ export async function commitStoreFiles(
   }
 
   try {
-    await execFileAsync('git', ['add', '--', ...pathspecs], { cwd: storeRoot });
-    await execFileAsync(
-      'git',
+    await execGitWrite(['add', '--', ...pathspecs], { cwd: storeRoot });
+    await execGitWrite(
       ['commit', '-m', `Initialize OpenSpec store ${id}`, '--', ...pathspecs],
       { cwd: storeRoot }
     );
   } catch (error) {
     // Best-effort unstage so a failed commit (gpg signing, hooks) does not
     // leave setup's files in the user's index after rollback deletes them.
-    await execFileAsync('git', ['rm', '--cached', '-r', '-f', '-q', '--', ...pathspecs], {
+    await execGitWrite(['rm', '--cached', '-r', '-f', '-q', '--', ...pathspecs], {
       cwd: storeRoot,
     }).catch(() => undefined);
 
@@ -154,7 +176,7 @@ export async function commitStoreFiles(
  * Both produce the same `null` as "not a repository", so without this the CLI
  * would quietly stop reporting facts it is capable of reporting.
  */
-function isProbeResourceFailure(error: unknown): boolean {
+export function isProbeResourceFailure(error: unknown): boolean {
   if (typeof error !== 'object' || error === null) return false;
   const { code, killed, signal } = error as {
     code?: number | string;

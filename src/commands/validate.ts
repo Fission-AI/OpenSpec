@@ -275,7 +275,16 @@ export class ValidateCommand {
     // `--type` skips the membership check above, so the name still has to be
     // guarded before it is joined onto a directory. `show` already rejects a
     // traversing id.
-    const nameProblem = folderStyleNameProblem(id, type === 'change' ? 'Change name' : 'Spec id');
+    //
+    // Spec ids are nested (`specs/<area>/<capability>/spec.md`, #1353), so the
+    // guard runs per segment - rejecting the whole id for containing a `/`
+    // would break every nested capability, including the hint that
+    // `validate --specs` prints. Change names are flat, so they keep the
+    // whole-value check.
+    const nameProblem =
+      type === 'change'
+        ? folderStyleNameProblem(id, 'Change name')
+        : (id.split('/').map((segment) => folderStyleNameProblem(segment, 'Spec id')).find(Boolean) ?? null);
     if (nameProblem) {
       if (opts.json) {
         console.log(

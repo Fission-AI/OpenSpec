@@ -189,10 +189,11 @@ describe('getAvailableCliUpdate', () => {
     expect(requests[1].url).toBe('/elsewhere/@fission-ai/openspec/latest');
   });
 
-  it('refuses a redirect that leaves the registry origin', async () => {
-    // One hostile or compromised reply must not be able to point the request
-    // at any address the machine can reach.
-    // A second local server stands in for the attacker's host, so proving the
+  it('refuses a redirect that leaves TLS', async () => {
+    // Cross-host is allowed on purpose - mirrors and corporate front-ends
+    // redirect, and the check would be permanently dead for them otherwise.
+    // Leaving TLS is not: a MITM on a cleartext hop would choose the answer.
+    // A second local server stands in for the redirect target, so proving the
     // hop was refused costs no real network traffic.
     let elsewhereHits = 0;
     const elsewhere = http.createServer((_req, res) => {
@@ -205,9 +206,9 @@ describe('getAvailableCliUpdate', () => {
 
     try {
       for (const location of [
-        `https://127.0.0.1:${elsewherePort}/@fission-ai/openspec/latest`,
         // The cleartext metadata service the hostile-.npmrc path aims for.
         'http://169.254.169.254/latest/meta-data/',
+        'http://127.0.0.1:1/@fission-ai/openspec/latest',
       ]) {
         requests = [];
         respond = (res) => {
@@ -383,9 +384,10 @@ describe('getAvailableCliUpdate', () => {
     }
   });
 
-  it('falls back to the public registry when the override is not an https URL', () => {
-    // Asserted on the URL rather than by calling: the fallback would send a
-    // real request to npmjs.org, which no test should depend on.
+  it('disables the check when the override is not an https URL', () => {
+    // Not a fallback to public npm: an organization on an internal mirror
+    // deliberately avoided that request, and a version resolved against a
+    // registry the eventual `npm install -g` does not use is worse than none.
     // No '   ' case: a blank value falls through to ~/.npmrc, and this test
     // must not depend on whatever the machine has configured there.
     for (const bogus of [
@@ -400,8 +402,11 @@ describe('getAvailableCliUpdate', () => {
       'HTTP://registry.npmjs.org/',
     ]) {
       process.env.npm_config_registry = bogus;
-      expect(registryUrl()).toBe('https://registry.npmjs.org/@fission-ai/openspec/latest');
+      expect(registryUrl()).toBeNull();
     }
+
+    delete process.env.npm_config_registry;
+    expect(registryUrl()).toBe('https://registry.npmjs.org/@fission-ai/openspec/latest');
 
     process.env.npm_config_registry = 'https://npm.internal.example.com/';
     expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
