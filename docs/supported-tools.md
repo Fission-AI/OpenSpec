@@ -40,6 +40,10 @@ way it loads the file OpenSpec wrote. Find your tool's command path in the
 So `/opsx:propose` is `/opsx-propose` in Cursor, `@opsx-propose` in Amazon Q, and
 `$openspec-propose` in Codex.
 
+Codex CLI and the Codex IDE extension accept the `$openspec-propose` form. In the
+Codex desktop app, select `openspec-propose` from the Skills sidebar instead;
+Codex does not generate an `/opsx-*` command file.
+
 Two things vary independently, which is why the rows do not collapse:
 
 - **The name.** Rows 1–2 differ only in how the file names the command, and the
