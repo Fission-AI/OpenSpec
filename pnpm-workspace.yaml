@@ -22,3 +22,7 @@ overrides:
   # (transitive via postcss). Remove once transitive nanoid is >=3.3.17
   # (check: pnpm why nanoid).
   nanoid@<3.3.17: '>=3.3.17 <4'
+  # GHSA-px8p-9vwx-vf98 — fflate `unzipSync` infinite loop on malformed ZIP64.
+  # Dev-only (transitive via @vitest/ui); never in the published CLI. Remove once
+  # transitive fflate is >=0.8.3 (check: pnpm why fflate).
+  fflate@<0.8.3: '>=0.8.3 <0.9'
