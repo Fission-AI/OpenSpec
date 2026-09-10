@@ -146,6 +146,7 @@ describe('transformToSkillReferences', () => {
       ['archive', '/openspec-archive-change'],
       ['bulk-archive', '/openspec-bulk-archive-change'],
       ['verify', '/openspec-verify-change'],
+      ['review', '/openspec-review'],
       ['onboard', '/openspec-onboard'],
       ['propose', '/openspec-propose'],
     ];

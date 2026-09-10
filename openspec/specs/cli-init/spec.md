@@ -184,18 +184,30 @@ The command SHALL generate Agent Skills for selected AI tools.
 #### Scenario: Generating skills for a tool
 
 - **WHEN** a tool is selected during initialization
-- **THEN** create 9 skill directories under `.<tool>/skills/`:
+- **THEN** create one skill directory under `.<tool>/skills/` for each workflow in the effective workflow selection, drawn from:
+  - `openspec-propose/SKILL.md`
   - `openspec-explore/SKILL.md`
   - `openspec-new-change/SKILL.md`
   - `openspec-continue-change/SKILL.md`
   - `openspec-apply-change/SKILL.md`
+  - `openspec-update-change/SKILL.md`
   - `openspec-ff-change/SKILL.md`
-  - `openspec-verify-change/SKILL.md`
   - `openspec-sync-specs/SKILL.md`
   - `openspec-archive-change/SKILL.md`
   - `openspec-bulk-archive-change/SKILL.md`
+  - `openspec-verify-change/SKILL.md`
+  - `openspec-review/SKILL.md`
+  - `openspec-onboard/SKILL.md`
+- **AND** the default core selection covers `propose`, `explore`, `apply`, `update`, `sync`, and `archive`; every other workflow in the list is opt-in through `openspec config`
 - **AND** each SKILL.md SHALL contain YAML frontmatter with name and description
 - **AND** each SKILL.md SHALL contain the skill instructions
+
+#### Scenario: Review skill installed for a selected workflow set
+
+- **GIVEN** the effective workflow selection includes `review`
+- **WHEN** a tool is selected during initialization
+- **THEN** the generated skill set includes `openspec-review/SKILL.md`
+- **AND** when the effective workflow selection does not include `review` (for example the default core profile), the `openspec-review` skill is not generated
 
 ### Requirement: Slash Command Generation
 
@@ -204,16 +216,21 @@ The command SHALL generate opsx slash commands only for selected tools that have
 #### Scenario: Generating slash commands for a tool with a registered adapter
 
 - **WHEN** a tool with a registered command adapter is selected during initialization
-- **THEN** create 9 slash command files using the tool's command adapter:
+- **THEN** create one slash command file per workflow in the effective workflow selection, using the tool's command adapter, drawn from:
+  - `/opsx:propose`
   - `/opsx:explore`
   - `/opsx:new`
   - `/opsx:continue`
   - `/opsx:apply`
+  - `/opsx:update`
   - `/opsx:ff`
-  - `/opsx:verify`
   - `/opsx:sync`
   - `/opsx:archive`
   - `/opsx:bulk-archive`
+  - `/opsx:verify`
+  - `/opsx:review`
+  - `/opsx:onboard`
+- **AND** the default core selection covers `propose`, `explore`, `apply`, `update`, `sync`, and `archive`; every other workflow in the list is opt-in through `openspec config`
 - **AND** use tool-specific path conventions (e.g., `.claude/commands/opsx/` for Claude)
 - **AND** include tool-specific frontmatter format
 
