@@ -16,6 +16,7 @@ import { nearestMatches } from '../utils/match.js';
 import { promises as fs } from 'fs';
 import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { folderStyleNameProblem } from '../core/id.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -271,6 +272,25 @@ export class ValidateCommand {
   }
 
   private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
+    // `--type` skips the membership check above, so the name still has to be
+    // guarded before it is joined onto a directory. `show` already rejects a
+    // traversing id.
+    const nameProblem = folderStyleNameProblem(id, type === 'change' ? 'Change name' : 'Spec id');
+    if (nameProblem) {
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            { status: [{ severity: 'error', code: 'invalid_item', message: nameProblem }] },
+            null,
+            2
+          )
+        );
+      } else {
+        console.error(nameProblem);
+      }
+      process.exitCode = 1;
+      return;
+    }
     const validator = new Validator(opts.strict);
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
