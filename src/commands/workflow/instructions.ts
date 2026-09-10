@@ -31,8 +31,13 @@ import {
 } from '../../core/root-selection.js';
 import {
   assembleReferenceIndex,
+  escapeEnvelopeAttribute,
+  escapeEnvelopeCloseTags,
+  escapeEnvelopeText,
+  escapeMarkdownHeadings,
   renderReferencedStoresBlock,
   renderReferencedStoresSection,
+  sanitizeInline,
   type ReferenceIndexEntry,
 } from '../../core/references.js';
 import { readRegistrySnapshot } from '../../core/store/registry.js';
@@ -198,8 +203,14 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     unlocks,
   } = instructions;
 
-  // Opening tag
-  console.log(`<artifact id="${artifactId}" change="${changeName}" schema="${schemaName}">`);
+  // Opening tag. The change name is a directory name read from disk, and the
+  // read path rejects only separators and NUL - a quote in it would otherwise
+  // close the attribute and forge siblings on this tag.
+  console.log(
+    `<artifact id="${escapeEnvelopeAttribute(artifactId)}"` +
+      ` change="${escapeEnvelopeAttribute(changeName)}"` +
+      ` schema="${escapeEnvelopeAttribute(schemaName)}">`
+  );
   console.log();
 
   // Artifacts skipped via skip_specs get no creation directive: emitting the
@@ -226,8 +237,10 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 
   // Task directive
   console.log('<task>');
-  console.log(`Create the ${artifactId} artifact for change "${changeName}".`);
-  console.log(description);
+  console.log(
+    `Create the ${escapeEnvelopeText(artifactId)} artifact for change "${escapeEnvelopeText(changeName)}".`
+  );
+  console.log(escapeEnvelopeText(description));
   console.log('</task>');
   console.log();
 
@@ -235,7 +248,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   if (context) {
     console.log('<project_context>');
     console.log('<!-- This is background information for you. Do NOT include this in your output. -->');
-    console.log(context);
+    console.log(escapeEnvelopeText(context));
     console.log('</project_context>');
     console.log();
   }
@@ -251,7 +264,9 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     console.log('<rules>');
     console.log('<!-- These are constraints for you to follow. Do NOT include this in your output. -->');
     for (const rule of rules) {
-      console.log(`- ${rule}`);
+      // Flattened so a newline cannot forge a sibling bullet, but never
+      // truncated: these are instructions an agent has to follow in full.
+      console.log(`- ${sanitizeInline(rule, Infinity)}`);
     }
     console.log('</rules>');
     console.log();
@@ -276,7 +291,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
       const fullPath = path.join(changeDir, dep.path);
       console.log(`<dependency id="${dep.id}" status="${status}">`);
       console.log(`  <path>${fullPath}</path>`);
-      console.log(`  <description>${dep.description}</description>`);
+      console.log(`  <description>${escapeEnvelopeText(dep.description)}</description>`);
       console.log('</dependency>');
     }
     console.log('</dependencies>');
@@ -292,7 +307,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Instruction (guidance)
   if (instruction) {
     console.log('<instruction>');
-    console.log(instruction.trim());
+    console.log(escapeEnvelopeText(instruction.trim()));
     console.log('</instruction>');
     console.log();
   }
@@ -300,7 +315,10 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   // Template
   console.log('<template>');
   console.log('<!-- Use this as the structure for your output file. Fill in the sections. -->');
-  console.log(template.trim());
+  // Copied verbatim into the artifact file, so its `<!-- ... -->` comments and
+  // `<placeholder>` markers must survive - only the envelope's own closing
+  // tags are neutralized.
+  console.log(escapeEnvelopeCloseTags(template.trim()));
   console.log('</template>');
   console.log();
 
@@ -814,14 +832,16 @@ function printOperationInputsText(inputs: {
 }): void {
   if (inputs.context) {
     console.log('### Project Context (required instruction input)');
-    console.log(inputs.context);
+    // Markdown ends a section only by starting the next one, so a config value
+    // whose line begins with `#` would forge a peer of the headings below it.
+    console.log(escapeMarkdownHeadings(inputs.context));
     console.log();
   }
 
   if (inputs.operationGuidance && inputs.operationGuidance.length > 0) {
     console.log('### Operation Guidance (advisory)');
     for (const guidance of inputs.operationGuidance) {
-      console.log(`- ${guidance}`);
+      console.log(`- ${sanitizeInline(guidance, Infinity)}`);
     }
     console.log();
   }

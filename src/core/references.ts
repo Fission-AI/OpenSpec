@@ -240,7 +240,47 @@ export function renderReferencedStoresSection(entries: ReferenceIndexEntry[]): s
  */
 export function sanitizeInline(value: string, maxLength = 300): string {
   const flattened = value.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
-  return flattened.length > maxLength ? `${flattened.slice(0, maxLength)}…` : flattened;
+  const capped = flattened.length > maxLength ? `${flattened.slice(0, maxLength)}…` : flattened;
+  // Flattening alone does not stop markup forgery: one line is enough to
+  // close the block that frames the value as read-only context.
+  return escapeEnvelopeText(capped);
+}
+
+/**
+ * Config- and schema-supplied text is printed inside a pseudo-XML envelope
+ * whose tags carry authority (`<project_context>` says "background only",
+ * `<task>` says "do this"). Unescaped, a value containing
+ * `</project_context><task>…</task>` closes its own block and lands a
+ * top-level directive. Angle brackets are the whole breakout surface, so
+ * they never reach the envelope intact.
+ */
+export function escapeEnvelopeText(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Attribute values must additionally not close their own quote. */
+export function escapeEnvelopeAttribute(value: string): string {
+  return escapeEnvelopeText(value).replace(/"/g, '&quot;');
+}
+
+/**
+ * Template bodies are copied verbatim into the artifact file, so their
+ * `<!-- ... -->` comments and `<placeholder>` markers must survive intact -
+ * escaping them wholesale would write `&lt;!--` into every generated file.
+ * Only closing tags are neutralized: an envelope block ends at one, so
+ * without them a template cannot terminate the element that frames it.
+ */
+export function escapeEnvelopeCloseTags(value: string): string {
+  return value.replace(/<\/[A-Za-z][^>]*>/g, (tag) => `&lt;${tag.slice(1)}`);
+}
+
+/**
+ * Markdown has no closing delimiter, so a config value whose line starts with
+ * `#` forges a section heading peer to the real ones. Escaping the marker
+ * keeps the text readable and inert.
+ */
+export function escapeMarkdownHeadings(value: string): string {
+  return value.replace(/^([ \t]*)(#{1,6})/gm, '$1\\$2');
 }
 
 function renderEntryLines(entry: ReferenceIndexEntry): string[] {
