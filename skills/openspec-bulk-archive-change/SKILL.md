@@ -201,6 +201,10 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
       Target name: use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<name>` (same rule as `openspec archive`).
 
+      **Check if target already exists:**
+      - If yes: record this change as Failed with `Archive directory already exists`, leave `changeRoot` where it is, and continue with the remaining changes
+      - If no: move `changeRoot` to the archive directory
+
       ```bash
       mkdir -p "<planningHome.changesDir>/archive"
       mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"

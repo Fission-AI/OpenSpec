@@ -203,6 +203,10 @@ ${STORE_SELECTION_GUIDANCE}
 
       Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
 
+      **Check if target already exists:**
+      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, and continue with the remaining changes
+      - If no: move \`changeRoot\` to the archive directory
+
       \`\`\`bash
       mkdir -p "<planningHome.changesDir>/archive"
       mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
@@ -542,6 +546,10 @@ ${STORE_SELECTION_GUIDANCE}
    c. **Perform the archive**:
 
       Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
+
+      **Check if target already exists:**
+      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, and continue with the remaining changes
+      - If no: move \`changeRoot\` to the archive directory
 
       \`\`\`bash
       mkdir -p "<planningHome.changesDir>/archive"
