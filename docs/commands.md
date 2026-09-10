@@ -78,7 +78,7 @@ AI:  Created openspec/changes/add-dark-mode/
 
 ### `/opsx:explore`
 
-> **Start here when you're unsure.** Explore is a no-stakes thinking partner: it reads your codebase, compares options, and sharpens a fuzzy idea into a concrete plan before any change exists. It ships in the default profile. For the full case and more examples, see the [Explore First](explore.md) guide.
+> **Start here when you're unsure.** Explore is a no-stakes thinking partner: it reads your codebase, compares options, and sharpens a fuzzy idea into a concrete plan before any code gets written. It ships in the default profile. For the full case and more examples, see the [Explore First](explore.md) guide.
 
 Think through ideas, investigate problems, and clarify requirements before committing to a change.
 
@@ -97,6 +97,7 @@ Think through ideas, investigate problems, and clarify requirements before commi
 - Investigates the codebase to answer questions
 - Compares options and approaches
 - Creates visual diagrams to clarify thinking
+- Captures the exploration when you ask, or when you say yes to its offer: scaffolds a change with `openspec new change` and writes the planning artifacts you name, or updates an existing change's artifacts
 - Can transition to `/opsx:propose` (default) or `/opsx:new` (expanded workflow) when insights crystallize
 
 **Example:**
@@ -119,14 +120,20 @@ AI:  Let me investigate your current auth setup...
 
      Your API already has CORS configured. Which direction interests you?
 
-You: Let's go with JWT. Can we start a change for that?
+You: Let's go with JWT.
 
-AI:  Ready when you are. Run /opsx:propose add-jwt-auth to begin.
+AI:  That's a decision worth keeping. Want me to start a change for it?
+
+You: Yes.
+
+AI:  Started openspec/changes/add-jwt-auth/ - change metadata only, no
+     artifacts yet. Say the word and I'll write the proposal, specs,
+     and tasks from what we just worked out.
 ```
 
 **Tips:**
 - Use when requirements are unclear or you need to investigate
-- No artifacts are created during exploration
+- It never writes code, and writes nothing else unless you ask, or say yes when it offers
 - Good for comparing multiple approaches before deciding
 - Can read files and search the codebase
 

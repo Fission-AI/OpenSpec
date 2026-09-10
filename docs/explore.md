@@ -1,6 +1,6 @@
 # Explore First
 
-**`/opsx:explore` is your thinking partner. Reach for it whenever you have a problem but not yet a plan.** It investigates your codebase, weighs options with you, and clarifies what you actually want, all before a single artifact or line of code is created. When the picture is clear, it hands off to `/opsx:propose`.
+**`/opsx:explore` is your thinking partner. Reach for it whenever you have a problem but not yet a plan.** It investigates your codebase, weighs options with you, and clarifies what you actually want, all before a line of code is written. When the picture is clear, it hands off to `/opsx:propose`.
 
 If you take one habit from these docs, take this one: **when you're not sure, explore before you propose.**
 
@@ -27,14 +27,16 @@ Explore is a **conversation**, not a generator.
 - Compare options and name the tradeoffs of each.
 - Draw diagrams to make a design legible.
 - Help you narrow a vague idea into a concrete, buildable scope.
+- Capture the exploration when you ask, or when you accept its offer: it scaffolds the change with `openspec new change` and writes the planning artifacts you named, or updates an existing change's artifacts.
 - Transition to `/opsx:propose` when you're ready.
 
 **It does not:**
-- Create a change folder.
-- Write any artifacts (no proposal, specs, design, or tasks).
-- Write or modify code.
+- Write or modify code. Explore never writes code, on any path, capture included.
+- Design or edit your schemas or templates. Shaping those is a change, not thinking.
+- Start a change or write an artifact on its own. It writes nothing unless you ask, or say yes when it offers, and then only what you agreed to.
+- Push you toward capturing. It offers when the thinking crystallizes; you decide.
 
-That's the point. Exploring costs you nothing and commits you to nothing. You can explore three dead ends, learn something from each, and only then propose the path that survived.
+That's the point. Exploring costs you nothing and commits you to nothing until you say so. You can explore three dead ends, learn something from each, and only then propose the path that survived.
 
 ## It's already installed
 
@@ -95,6 +97,10 @@ explore  ──►  propose  ──►  apply  ──►  archive
 
 You can say it in plain language ("let's turn this into a change") or run `/opsx:propose <name>` directly. Either way, the exploration you just did becomes the foundation of the proposal, not throwaway chat.
 
+You can also ask explore to capture the change itself, without leaving the conversation: "start a change for this" scaffolds the folder, and "write the proposal too" writes exactly the artifacts you named. Scaffolding also lays down the change's own metadata, and fills in anything your project is missing at the top level (`openspec/specs/`, `openspec/changes/archive/`, a `config.yaml`).
+
+That's the same destination as handing off, with one difference: propose writes the whole set your schema requires to reach implementation, while capture writes only what you named.
+
 If you use the expanded command set, explore can hand off to `/opsx:new` instead, for step-by-step artifact creation. See [Workflows](workflows.md).
 
 ## Tips for a good exploration
@@ -107,7 +113,7 @@ If you use the expanded command set, explore can hand off to `/opsx:new` instead
 
 ## The honest tradeoffs
 
-**What you gain:** explore catches wrong turns at the cheapest possible moment, before any artifact exists. It's especially powerful in unfamiliar code, where the AI's ability to read and summarize the system saves you an afternoon of spelunking.
+**What you gain:** explore catches wrong turns at the cheapest possible moment, before you've committed to anything. It's especially powerful in unfamiliar code, where the AI's ability to read and summarize the system saves you an afternoon of spelunking.
 
 **What it costs:** a little patience. Explore is a conversation, so it's slower than firing off `/opsx:propose` and hoping. For work you genuinely understand already, that extra step is pure overhead, and you should skip it.
 

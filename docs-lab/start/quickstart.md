@@ -27,7 +27,7 @@ Think the idea through with your agent before you ask for a plan. In your AI cha
 /openspec-explore how rate limiting should work in this app
 ```
 
-Explore is a thinking mode. The agent investigates your codebase, asks the questions that matter, sketches options, and challenges assumptions. It writes no code and no files. The output is a sharper idea.
+Explore is a thinking mode. The agent investigates your codebase, asks the questions that matter, sketches options, and challenges assumptions. It never writes code. It writes nothing else unless you ask it to capture what you decided, or say yes when it offers. The output is a sharper idea.
 
 Stay here as long as the problem needs. When the shape feels right, hand it off:
 
