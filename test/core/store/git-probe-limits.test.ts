@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { promises as fs } from 'node:fs';
+import { promises as fs, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -30,13 +30,14 @@ describe('store git probe output limits', () => {
     // would push the absolute path past Windows' 260-char MAX_PATH, which
     // neither `fs.writeFile` nor `git status` tolerates without opt-in
     // long-path support.
+    // Written synchronously, one at a time: 12000 concurrent fs.writeFile
+    // handles exhaust the file-descriptor limit (EMFILE) on the macOS and
+    // Windows runners.
     const name = 'f'.repeat(120);
-    await Promise.all(
-      Array.from({ length: 12_000 }, (_, i) =>
-        fs.writeFile(path.join(repoRoot, `${name}${String(i).padStart(5, '0')}`), '')
-      )
-    );
-  }, 120_000);
+    for (let i = 0; i < 12_000; i += 1) {
+      writeFileSync(path.join(repoRoot, `${name}${String(i).padStart(5, '0')}`), '');
+    }
+  }, 180_000);
 
   afterAll(async () => {
     await fs.rm(repoRoot, { recursive: true, force: true });
