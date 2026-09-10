@@ -35,6 +35,7 @@ import {
   type Outcome,
 } from './properties.js';
 import {
+  NOTICE_VERSION,
   claimMilestone,
   claimUnreportedTools,
   getRunId,
@@ -425,7 +426,14 @@ export async function maybeShowTelemetryNotice(
 
   try {
     const config = await getTelemetryConfig();
-    if (config.noticeSeen) {
+
+    // Versioned rather than reset: resetting noticeSeen would discard the fact
+    // that the user was told at all, and show the same generic sentence to
+    // someone who already read it, which teaches them to ignore it. A version
+    // distinguishes "never told" from "told about an earlier scope", and lets
+    // the message say what actually changed.
+    const seenVersion = config.noticeVersion ?? (config.noticeSeen ? 1 : 0);
+    if (seenVersion >= NOTICE_VERSION) {
       return;
     }
 
@@ -438,12 +446,14 @@ export async function maybeShowTelemetryNotice(
 
     // Display notice on stderr, not stdout: stdout is reserved for command
     // output (raw passthrough text, JSON, etc.) and must stay parser/pipe-safe.
+    // It is a notice, never a prompt: nothing is asked and nothing blocks.
     console.error(
-      'Note: OpenSpec collects anonymous usage stats. Opt out: OPENSPEC_TELEMETRY=0 or openspec config set telemetry.enabled false'
+      seenVersion === 0
+        ? 'Note: OpenSpec collects pseudonymous usage stats (command, outcome, and basic run context). See them with OPENSPEC_TELEMETRY_DEBUG=1. Opt out: OPENSPEC_TELEMETRY=0 or openspec config set telemetry.enabled false'
+        : 'Note: OpenSpec usage stats now also record whether a command succeeded, plus basic run context (OS, Node major). See them with OPENSPEC_TELEMETRY_DEBUG=1. Opt out: OPENSPEC_TELEMETRY=0 or openspec config set telemetry.enabled false'
     );
 
-    // Mark as seen
-    await updateTelemetryConfig({ noticeSeen: true });
+    await updateTelemetryConfig({ noticeSeen: true, noticeVersion: NOTICE_VERSION });
   } catch {
     // Silent failure - telemetry should never break CLI
   }

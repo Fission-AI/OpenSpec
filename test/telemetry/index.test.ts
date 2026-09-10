@@ -11,7 +11,7 @@ import {
   shutdown,
   trackCommand,
 } from '../../src/telemetry/index.js';
-import { getTelemetryConfig } from '../../src/telemetry/config.js';
+import { getTelemetryConfig, updateTelemetryConfig } from '../../src/telemetry/config.js';
 import { setRegistryChecks } from '../../src/telemetry/properties.js';
 import { resetRunId } from '../../src/telemetry/state.js';
 
@@ -201,10 +201,25 @@ describe('telemetry/index', () => {
       await maybeShowTelemetryNotice();
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('OpenSpec collects anonymous usage stats')
+        expect.stringContaining('OpenSpec collects pseudonymous usage stats')
       );
 
-      // noticeSeen is now persisted: a second run stays quiet.
+      // The notice version is now persisted: a second run stays quiet.
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('tells a user who saw the earlier scope what changed, once', async () => {
+      enableTelemetry();
+      // Someone who accepted the old disclosure: told, but about less.
+      await updateTelemetryConfig({ noticeSeen: true });
+
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('now also record whether a command succeeded')
+      );
+
       await maybeShowTelemetryNotice();
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
     });
@@ -223,7 +238,7 @@ describe('telemetry/index', () => {
       await maybeShowTelemetryNotice();
       expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        expect.stringContaining('OpenSpec collects anonymous usage stats')
+        expect.stringContaining('OpenSpec collects pseudonymous usage stats')
       );
     });
   });

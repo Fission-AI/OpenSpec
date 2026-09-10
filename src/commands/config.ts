@@ -25,6 +25,8 @@ import { OPENSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
 import { UpdateCommand } from '../core/update.js';
 import { asErrorMessage, isPromptCancellationError } from './shared-output.js';
+import { isTelemetryEnabled } from '../telemetry/index.js';
+import { getConfigPath } from '../telemetry/config.js';
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -278,6 +280,21 @@ export function registerConfigCommand(program: Command): void {
     .description('Get a specific value (raw, scriptable)')
     .action((key: string) => {
       const config = getGlobalConfig();
+
+      // `telemetry` on its own is the data-subject view: what is collected
+      // about this machine, and where it lives. Still one JSON document on
+      // stdout, so it stays scriptable; `telemetry.enabled` is unaffected.
+      if (key === 'telemetry') {
+        console.log(
+          JSON.stringify({
+            ...(config.telemetry ?? {}),
+            enabled: isTelemetryEnabled(),
+            configPath: getConfigPath(),
+          })
+        );
+        return;
+      }
+
       const value = getNestedValue(config as Record<string, unknown>, key);
 
       if (value === undefined) {
