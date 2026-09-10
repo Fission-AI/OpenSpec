@@ -243,7 +243,6 @@ program.hook('postAction', async (_thisCommand, actionCommand) => {
       exitCode: process.exitCode === undefined ? 0 : Number(process.exitCode),
       jsonMode: isJsonRun(actionCommand),
       projectRoot: localRoot,
-      installDir: getInstallDir(),
       // No local root but a store configured means this run resolved through
       // one. The store's id, remote, and path are never read, let alone sent.
       storeInUse:

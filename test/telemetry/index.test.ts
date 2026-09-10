@@ -287,6 +287,7 @@ describe('telemetry/index', () => {
         version: '1.0.0',
         version_code: 1000000,
         surface: 'cli',
+        $geoip_disable: true,
         run_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
         work_session_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
         $ip: null,

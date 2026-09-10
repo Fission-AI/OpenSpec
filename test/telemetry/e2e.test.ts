@@ -102,7 +102,7 @@ describe('telemetry end to end', () => {
     expect(serialized).not.toContain('acme-billing-rewrite');
     expect(serialized).not.toContain(home);
     // The count is still reported, as a bucket.
-    expect(events.find((e) => e.event === 'command_completed')?.properties.changes).toBe('01-03');
+    expect(events.find((e) => e.event === 'command_completed')?.properties.changes).toBe('01-10');
     fs.rmSync(named, { recursive: true, force: true });
   });
 

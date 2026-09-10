@@ -251,7 +251,9 @@ Only the outcome label and the previous command name SHALL be stored, and the na
 ### Requirement: Bounded run context
 The system SHALL attach run context to `command_completed`. Every context property SHALL satisfy the bounded property contract.
 
-The context SHALL be limited to: `platform` (`darwin`, `linux`, `win32`, `other`), `node_major` (a label from a fixed list of supported majors, `other` otherwise), `install_kind` (`global`, `npx`, `source`, `other`), `invoker`, `stdout_tty` (boolean), `json_mode` (boolean), `prompted` (boolean), `profile`, `delivery`, `tools_count` (bucket), `schema_source` (`package`, `project`, `user`), `store_in_use` (boolean), `changes` (bucket), and `first_run` (boolean).
+The context SHALL be limited to: `platform` (`darwin`, `linux`, `win32`, `other`), `node_major` (a label from a fixed list of supported majors, `other` otherwise), `invoker`, `json_mode` (boolean), `prompted` (boolean), `profile`, `delivery`, `tools_count` (bucket), `schema_source` (`package`, `project`, `user`), `store_in_use` (boolean), `changes` (bucket), and `first_run` (boolean).
+
+Context SHALL be kept to what a decision actually turns on. Each property is a bit of entropy in a row that already carries a persistent id, and bits accumulate into a fingerprint whether or not any single one looks harmful. A property nobody would act on is not neutral — it is cost with no return, and it SHALL be removed rather than kept for completeness.
 
 `tools_count` SHALL be a bucket label from `0`, `1`, `2-3`, `4+`. The identities of the configured tools SHALL NOT appear on a per-run event. The registry holds tens of tools, so a set drawn from it carries more than enough entropy to make an off-the-mode user unique when joined with the rest of the context — which is the whole risk, since it would attach a real-world identity to the anonymous id rather than merely linking sessions.
 
@@ -263,7 +265,7 @@ Prompts SHALL be loaded through a single seam so the timing is applied once rath
 
 `first_run` SHALL be true only on the invocation during which the anonymous id is generated. It is not per-project.
 
-Count buckets SHALL use the fixed labels `00`, `01-03`, `04-10`, `11-30`, `31+`.
+Count buckets SHALL use the fixed labels `00`, `01-10`, `11+`. A finer count is the highest-entropy value in the event and it drifts as a project grows, so a sequence of them traces a recognizable trajectory; empty, working, and heavy is the whole of what a decision here needs.
 
 Bucket labels SHALL be written so they sort in their natural order under a lexicographic sort, because that is how they are ordered wherever they are charted. A scrambled histogram is worse than no histogram.
 
@@ -450,7 +452,9 @@ The system SHALL expose the telemetry state through `openspec config get telemet
 
 Deleting the anonymous id from the global config SHALL be sufficient to sever all future events from all prior ones, and the disclosure SHALL say so.
 
-The public disclosure SHALL state the retention period for raw events and SHALL name a contact for a deletion request, stating that a request is made by sending the anonymous id.
+The public disclosure SHALL name a route for a deletion request that the project actually operates, stating that a request is made by sending the anonymous id, and SHALL lead with the fact that deleting the id locally severs all future events from all prior ones without asking anyone.
+
+The disclosure SHALL NOT publish a retention period until one is configured in the analytics backend. An unset retention published as fact is the same defect as an unmonitored contact address: a promise the system cannot keep, which costs more trust than saying nothing would.
 
 The disclosure SHALL describe the data as pseudonymous rather than anonymous. A persistent random identifier combined with device characteristics is pseudonymous personal data; describing it as anonymous overstates the guarantee, and the overstatement is what a reader would hold against every other claim on the page.
 
@@ -465,17 +469,22 @@ The disclosure SHALL state that the anonymous id identifies a configuration dire
 - **THEN** the next event uses a newly generated id unrelated to the previous one
 
 ### Requirement: Ingest handling of network-level identifiers
-The telemetry ingest proxy SHALL NOT log, store, or forward client IP addresses, and the public disclosure SHALL state this alongside the `$ip: null` claim.
+Every event SHALL set `$ip: null` and `$geoip_disable: true`, so neither the connecting address nor anything derived from it is recorded.
 
-Events are sent to a first-party reverse proxy that terminates TLS, so it observes every client address regardless of the payload. `$ip: null` governs what the analytics backend records, not what our own infrastructure sees, and the current disclosure claims more than the code alone can deliver.
+The disclosure SHALL describe only what the shipped code guarantees. Events reach a first-party endpoint that terminates TLS, so it necessarily observes the connecting address in transit, and no payload flag changes that. Claiming the proxy does not log addresses would be asserting an infrastructure fact a reader cannot verify and this repository cannot enforce — so the disclosure SHALL state the two flags and the transit caveat instead.
 
-Server-side GeoIP enrichment SHALL be disabled for the telemetry project, so no property is derived from the connecting address.
+The ingest proxy SHOULD additionally be configured not to log client addresses. That is an operational commitment, not a property of this code, and the disclosure SHALL NOT present it as one.
 
 Event timestamps SHALL be UTC and SHALL carry no local UTC offset, which combined with the rest of the context would locate the user.
 
-#### Scenario: Proxy receives an event
-- **WHEN** the ingest proxy receives a telemetry event
-- **THEN** it does not record the client address in any log or forwarded payload
+#### Scenario: Every event suppresses address and location
+- **WHEN** the system sends any telemetry event
+- **THEN** the payload carries `$ip: null` and `$geoip_disable: true`
+
+#### Scenario: The disclosure does not claim an infrastructure fact
+- **WHEN** the disclosure describes IP handling
+- **THEN** it states the two payload flags and that the endpoint sees the address in transit
+- **AND** does not assert that the proxy keeps no logs
 
 #### Scenario: No derived location
 - **WHEN** an event is stored
@@ -484,7 +493,7 @@ Event timestamps SHALL be UTC and SHALL carry no local UTC offset, which combine
 ### Requirement: Public disclosure parity
 The public disclosure SHALL enumerate every event, every property, and every persisted field the system uses. A change that adds, removes, or renames any of these SHALL update the disclosure in the same change.
 
-The disclosure lives in `README.md`, `SECURITY.md`, and the environment-variable reference. Each SHALL state the full property list, the opt-out mechanisms, the retention period, and `OPENSPEC_TELEMETRY_DEBUG=1` as the way to verify the list locally.
+The disclosure lives in `README.md`, `SECURITY.md`, and the environment-variable reference. Each SHALL state the full property list, the opt-out mechanisms, the deletion route, and `OPENSPEC_TELEMETRY_DEBUG=1` as the way to verify the list locally.
 
 The property allowlist constant SHALL be the source the disclosure is checked against, and a test SHALL fail when a property exists in the allowlist that is absent from the disclosure documents. An unenforced documentation requirement decays within two releases.
 
@@ -523,6 +532,7 @@ Every event name, property key, and property value SHALL satisfy the bounded pro
 #### Scenario: IP address exclusion
 - **WHEN** the system sends a telemetry event
 - **THEN** the event explicitly sets `$ip: null` to prevent IP tracking
+- **AND** sets `$geoip_disable: true` so no location is derived from the connecting address
 
 #### Scenario: Named item in a command
 - **WHEN** a user runs `openspec archive acme-billing-rewrite`

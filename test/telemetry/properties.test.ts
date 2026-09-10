@@ -32,7 +32,6 @@ describe('sanitizeProperties', () => {
         error_class: 'none',
         exit_code: '0',
         duration: '2_100-500ms',
-        stdout_tty: true,
         run_id: RUN_ID,
         $ip: null,
       })
@@ -42,7 +41,6 @@ describe('sanitizeProperties', () => {
       error_class: 'none',
       exit_code: '0',
       duration: '2_100-500ms',
-      stdout_tty: true,
       run_id: RUN_ID,
       $ip: null,
     });
@@ -99,8 +97,11 @@ describe('sanitizeProperties', () => {
     expect(sanitizeProperties({ run_id: '/Users/jane/project' })).toEqual({});
   });
 
-  it('accepts only null for $ip', () => {
+  it('accepts only null for $ip, and only true for the geoip switch', () => {
     expect(sanitizeProperties({ $ip: '203.0.113.4' })).toEqual({});
+    expect(sanitizeProperties({ $geoip_disable: true })).toEqual({ $geoip_disable: true });
+    // Never false: the switch exists to be on.
+    expect(sanitizeProperties({ $geoip_disable: false })).toEqual({});
   });
 });
 
@@ -114,9 +115,9 @@ describe('event names', () => {
 describe('buckets', () => {
   it('buckets counts', () => {
     expect(bucketCount(0)).toBe('00');
-    expect(bucketCount(3)).toBe('01-03');
-    expect(bucketCount(11)).toBe('11-30');
-    expect(bucketCount(3500)).toBe('31+');
+    expect(bucketCount(3)).toBe('01-10');
+    expect(bucketCount(11)).toBe('11+');
+    expect(bucketCount(3500)).toBe('11+');
   });
 
   it('buckets tool counts', () => {

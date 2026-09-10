@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { detectInvoker, detectInstallKind, collectRunContext } from '../../src/telemetry/context.js';
+import { detectInvoker, collectRunContext } from '../../src/telemetry/context.js';
 import { sanitizeProperties, setRegistryChecks } from '../../src/telemetry/properties.js';
 
 setRegistryChecks({ isCommand: () => true, isTool: () => true });
@@ -26,17 +26,6 @@ describe('detectInvoker', () => {
   });
 });
 
-describe('detectInstallKind', () => {
-  it('recognizes npx', () => {
-    expect(detectInstallKind('/Users/j/.npm/_npx/abc/node_modules/openspec', {})).toBe('npx');
-    expect(detectInstallKind(null, { npm_command: 'exec' })).toBe('npx');
-  });
-
-  it('falls back to global', () => {
-    expect(detectInstallKind('/usr/local/lib/node_modules/openspec', {})).toBe('global');
-  });
-});
-
 describe('collectRunContext', () => {
   it('buckets the change count and keeps no names', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-ctx-'));
@@ -56,7 +45,7 @@ describe('collectRunContext', () => {
       env: {},
     });
 
-    expect(context.changes).toBe('01-03');
+    expect(context.changes).toBe('01-10');
     expect(context.tools_count).toBe('2-3');
     expect(context.store_in_use).toBe(true);
 

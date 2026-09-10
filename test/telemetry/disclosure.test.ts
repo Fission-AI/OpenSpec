@@ -15,9 +15,11 @@ describe('telemetry disclosure parity', () => {
   const readme = fs.readFileSync(path.join(repoRoot, 'README.md'), 'utf-8');
 
   it('documents every property that can be sent', () => {
-    // Correlation ids and the IP suppression are documented as a group rather
-    // than one row each; everything else must be named.
-    const undocumented = PROPERTY_KEYS.filter((key) => key !== '$ip').filter(
+    // The `$`-prefixed keys are transport switches that turn collection OFF
+    // ($ip: null, $geoip_disable: true), not data about the user; they are
+    // described in prose rather than as table rows. Everything else must be
+    // named.
+    const undocumented = PROPERTY_KEYS.filter((key) => !key.startsWith('$')).filter(
       (key) => !readme.includes(`\`${key}\``)
     );
     expect(undocumented).toEqual([]);
@@ -29,9 +31,13 @@ describe('telemetry disclosure parity', () => {
     expect(readme).toContain('OPENSPEC_TELEMETRY=0');
   });
 
-  it('states a retention period and a deletion path that exists', () => {
-    expect(readme).toMatch(/retained for \d+ months/);
-    expect(readme.toLowerCase()).toContain('deleted');
+  it('states a deletion path that exists, and claims no retention it has not set', () => {
+    expect(readme.toLowerCase()).toContain('deleting the id');
+    // No retention promise until one is actually configured in the backend.
+    // A published period nobody set is a claim the code cannot keep.
+    expect(readme, 'README promises a retention period — confirm it is configured').not.toMatch(
+      /retained for \d+ months/
+    );
     // A deletion route has to be one the project actually operates. An
     // invented address is a worse privacy posture than none, and it would
     // bounce silently.

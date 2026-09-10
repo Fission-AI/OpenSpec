@@ -49,25 +49,6 @@ export function detectInvoker(
 }
 
 /**
- * How this copy of the CLI was installed. `npx` runs out of a cache directory,
- * a clone runs out of a checkout, and everything else is treated as a global
- * install — the distinction only informs whether upgrade advice is reachable.
- */
-export function detectInstallKind(
-  installDir: string | null,
-  env: NodeJS.ProcessEnv = process.env
-): 'global' | 'npx' | 'source' | 'other' {
-  if (env.npm_command === 'exec' || env.npm_lifecycle_event === 'npx') return 'npx';
-  if (!installDir) return 'other';
-  const normalized = installDir.replace(/\\/g, '/');
-  if (normalized.includes('/_npx/')) return 'npx';
-  // A checkout has the sources next to the build output; a published install
-  // ships dist/ alone.
-  if (normalized.endsWith('/src') || normalized.includes('/OpenSpec/')) return 'source';
-  return 'global';
-}
-
-/**
  * Count entries in one directory without recursing and without keeping the
  * names. The names are change and spec ids — user-authored text that must not
  * survive past this function.
@@ -136,7 +117,6 @@ export function detectSchemaSource(
 
 export interface RunContextInput {
   projectRoot?: string | null;
-  installDir?: string | null;
   stdoutIsTty: boolean;
   jsonMode: boolean;
   prompted: boolean;
@@ -154,9 +134,7 @@ export async function collectRunContext(
   const context: Record<string, unknown> = {
     platform: bucketPlatform(process.platform),
     node_major: bucketNodeMajor(process.versions.node),
-    install_kind: detectInstallKind(input.installDir ?? null, env),
     invoker: detectInvoker(env, input.stdoutIsTty),
-    stdout_tty: input.stdoutIsTty,
     json_mode: input.jsonMode,
     prompted: input.prompted,
     first_run: input.firstRun,

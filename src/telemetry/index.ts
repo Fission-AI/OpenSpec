@@ -319,6 +319,10 @@ export async function trackCommand(commandName: string, version: string): Promis
       run_id: getRunId(),
       work_session_id: state.workSessionId,
       $ip: null, // Explicitly disable IP tracking
+      // Location is never derived from the connecting address either. The
+      // payload asks for this so the guarantee lives in code we ship, not
+      // only in a proxy configuration a reader cannot inspect.
+      $geoip_disable: true,
     });
   } catch {
     // Silent failure - telemetry should never break CLI
@@ -375,6 +379,7 @@ export async function trackCompletion(input: {
       previous_outcome: state.previousOutcome,
       previous_command_same: state.previousCommand === input.command,
       $ip: null,
+      $geoip_disable: true,
     });
 
     // Debug mode inspects; it never writes. That includes the retry record,
@@ -413,6 +418,7 @@ export async function trackMilestone(milestone: Milestone, version: string): Pro
       run_id: getRunId(),
       time_to_reach: claim.timeToReach,
       $ip: null,
+      $geoip_disable: true,
     });
   } catch {
     // Silent failure - telemetry should never break CLI
@@ -457,6 +463,7 @@ export async function trackConfiguredTools(toolIds: string[], version: string): 
         version,
         version_code: versionCode(version),
         $ip: null,
+        $geoip_disable: true,
       });
     }
   } catch {
