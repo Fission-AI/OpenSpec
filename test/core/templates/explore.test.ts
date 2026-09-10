@@ -207,7 +207,7 @@ describe('explore templates', () => {
       // Scoped to change artifacts, so the carve-out cannot reach the
       // workflow configuration #1715 reported an agent editing.
       expect(body, label).toContain(
-        'covering the change and the change artifacts that request names'
+        'covering the change and the change artifacts the request names'
       );
     }
   });
