@@ -58,7 +58,7 @@ Revise a change's existing planning artifacts and keep them coherent. Never edit
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Draft the requested edit. Work out exactly what it changes, but do not write anything yet - step 5 owns every write. Then check every other existing artifact against the drafted edit - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Revise only files that already exist (`existingOutputPaths`). Do NOT create artifacts that don't exist yet, and do NOT invent new files under a glob artifact - note them and point the user to `/openspec-continue-change` to create them.
+   - Propose revisions only to files that already exist (`existingOutputPaths`). Do NOT create artifacts that don't exist yet, and do NOT invent new files under a glob artifact - note them and point the user to `/openspec-continue-change` to create them.
    - If the change is already coherent, say so and propose no revisions.
 
 5. **Confirm and apply, one artifact at a time**

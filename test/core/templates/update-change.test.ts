@@ -11,6 +11,11 @@ const command = getOpsxUpdateCommandTemplate();
 
 // Both delivery surfaces must carry the same contract; every behavioral
 // assertion below runs against each body.
+// The one sentence in step 4 that is allowed to say "write" - it is what hands
+// every write to step 5.
+const SANCTIONED_WRITE_MENTION =
+  'do not write anything yet - step 5 owns every write';
+
 const bodies: Array<[string, string]> = [
   ['skill', skill.instructions],
   ['command', command.content],
@@ -18,11 +23,16 @@ const bodies: Array<[string, string]> = [
 
 // Slice one numbered step out of a workflow body so an assertion about where a
 // rule lives cannot be satisfied by the same words appearing in another step.
-function section(body: string, startMarker: string, endMarker: string): string {
+function section(
+  body: string,
+  startMarker: string,
+  endMarker: string,
+  label: string
+): string {
   const start = body.indexOf(startMarker);
   const end = body.indexOf(endMarker, start + startMarker.length);
-  expect(start).toBeGreaterThanOrEqual(0);
-  expect(end).toBeGreaterThan(start);
+  expect(start, label).toBeGreaterThanOrEqual(0);
+  expect(end, label).toBeGreaterThan(start);
   return body.slice(start, end);
 }
 
@@ -117,20 +127,38 @@ describe('update-change templates', () => {
   // agent weighed. Step 4 now drafts; step 5 owns every write.
   it('keeps step 4 read-only so step 5 owns every write (#1836)', () => {
     for (const [label, body] of bodies) {
-      const stepFour = section(body, '4. **Read and reconcile**', '5. **Confirm and apply');
-      const stepFive = section(body, '5. **Confirm and apply', '6. **Point to the next step');
+      const stepFour = section(
+        body,
+        '4. **Read and reconcile**',
+        '5. **Confirm and apply',
+        label
+      );
+      const stepFive = section(
+        body,
+        '5. **Confirm and apply',
+        '6. **Point to the next step',
+        label
+      );
 
       // Step 4 states the edit is drafted, not written.
       expect(stepFour, label).toContain('Draft the requested edit');
-      expect(stepFour, label).toContain(
-        'do not write anything yet - step 5 owns every write'
-      );
+      expect(stepFour, label).toContain(SANCTIONED_WRITE_MENTION);
 
-      // No write verb may authorize a write inside step 4. "Apply"/"Write" are
-      // the words step 5 uses for the real thing.
-      expect(stepFour, label).not.toMatch(/\bAppl(y|ies|ied)\b/);
-      expect(stepFour, label).not.toMatch(/\bWrite\b/);
+      // Step 4 is declared write-free, so the ONLY write/apply words it may
+      // carry are the ones in the sentence handing writing to step 5. Strip
+      // that sanctioned sentence and nothing of the kind may remain. The match
+      // is case-insensitive on purpose: a lowercase `write the drafted edit
+      // now` is the dangerous regression, and a case-sensitive `\bWrite\b`
+      // would miss exactly that while tripping on harmless capitalized prose.
+      const residue = stepFour.replace(SANCTIONED_WRITE_MENTION, '');
+      expect(residue, label).not.toMatch(/\bwrit(e|es|ing|ten)\b/i);
+      expect(residue, label).not.toMatch(/\bappl(y|ies|ied|ying)\b/i);
       expect(stepFour, label).not.toContain('make no edits');
+
+      // No bullet in step 4 may open with an imperative edit verb: "Revise the
+      // files ..." reads as the instruction to edit them, which is the shape
+      // this whole guard exists to keep out.
+      expect(stepFour, label).not.toMatch(/^\s*-\s*(Revise|Edit|Update|Rewrite)\b/m);
 
       // Step 5 keeps the gate, and claims the writes explicitly.
       expect(stepFive, label).toContain(
