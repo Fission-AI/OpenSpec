@@ -191,6 +191,24 @@ describe('worksets core', () => {
       expect(listWorksets(removed)).toEqual([]);
     });
 
+    it('treats Object.prototype names as absent, not existing', () => {
+      // `constructor`, `toString` and friends are valid kebab ids, so a plain
+      // `state.worksets[name] !== undefined` membership test found them on the
+      // prototype and reported a workset that was never added.
+      const empty: WorksetsState = { version: 1, worksets: {} };
+
+      for (const name of ['constructor', 'tostring', 'valueof']) {
+        expect(getWorkset(empty, name)).toBeNull();
+        expect(() => withoutWorkset(empty, name)).toThrow();
+
+        const added = withWorkset(empty, { name, members: [memberA()] });
+        expect(listWorksets(added).map((workset) => workset.name)).toEqual([
+          name,
+        ]);
+        expect(listWorksets(withoutWorkset(added, name))).toEqual([]);
+      }
+    });
+
     it('rejects duplicate names with a remove fix', () => {
       const state = withWorkset(
         { version: 1, worksets: {} },
