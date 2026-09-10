@@ -65,7 +65,7 @@ describe('telemetry events', () => {
       errorClass: 'archive_blocked',
       exitCode: 1,
       durationMs: 1500,
-      context: { platform: 'darwin', changes: '01-10' },
+      context: { platform: 'darwin', changes: '04-10' },
     });
     await shutdown();
 
@@ -80,7 +80,7 @@ describe('telemetry events', () => {
       previous_outcome: 'none',
       previous_command_same: false,
       platform: 'darwin',
-      changes: '01-10',
+      changes: '04-10',
     });
   });
 

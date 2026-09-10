@@ -115,9 +115,9 @@ describe('event names', () => {
 describe('buckets', () => {
   it('buckets counts', () => {
     expect(bucketCount(0)).toBe('00');
-    expect(bucketCount(3)).toBe('01-10');
-    expect(bucketCount(11)).toBe('11+');
-    expect(bucketCount(3500)).toBe('11+');
+    expect(bucketCount(3)).toBe('01-03');
+    expect(bucketCount(11)).toBe('11-30');
+    expect(bucketCount(3500)).toBe('31+');
   });
 
   it('buckets tool counts', () => {

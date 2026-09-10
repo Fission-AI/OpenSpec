@@ -115,8 +115,27 @@ export function detectSchemaSource(
   return 'package';
 }
 
+/**
+ * How this copy of the CLI was installed. `npx` runs out of a cache directory,
+ * a clone runs out of a checkout, and everything else is a global install.
+ * Answers whether upgrade advice is reachable, and how much of the userbase
+ * is trying the tool through `npx` rather than installing it.
+ */
+export function detectInstallKind(
+  installDir: string | null,
+  env: NodeJS.ProcessEnv = process.env
+): 'global' | 'npx' | 'source' | 'other' {
+  if (env.npm_command === 'exec' || env.npm_lifecycle_event === 'npx') return 'npx';
+  if (!installDir) return 'other';
+  const normalized = installDir.replace(/\\/g, '/');
+  if (normalized.includes('/_npx/')) return 'npx';
+  if (normalized.endsWith('/src') || normalized.includes('/OpenSpec/')) return 'source';
+  return 'global';
+}
+
 export interface RunContextInput {
   projectRoot?: string | null;
+  installDir?: string | null;
   stdoutIsTty: boolean;
   jsonMode: boolean;
   prompted: boolean;
@@ -134,7 +153,9 @@ export async function collectRunContext(
   const context: Record<string, unknown> = {
     platform: bucketPlatform(process.platform),
     node_major: bucketNodeMajor(process.versions.node),
+    install_kind: detectInstallKind(input.installDir ?? null, env),
     invoker: detectInvoker(env, input.stdoutIsTty),
+    stdout_tty: input.stdoutIsTty,
     json_mode: input.jsonMode,
     prompted: input.prompted,
     first_run: input.firstRun,

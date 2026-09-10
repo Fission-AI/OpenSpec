@@ -251,7 +251,7 @@ Only the outcome label and the previous command name SHALL be stored, and the na
 ### Requirement: Bounded run context
 The system SHALL attach run context to `command_completed`. Every context property SHALL satisfy the bounded property contract.
 
-The context SHALL be limited to: `platform` (`darwin`, `linux`, `win32`, `other`), `node_major` (a label from a fixed list of supported majors, `other` otherwise), `invoker`, `json_mode` (boolean), `prompted` (boolean), `profile`, `delivery`, `tools_count` (bucket), `schema_source` (`package`, `project`, `user`), `store_in_use` (boolean), `changes` (bucket), and `first_run` (boolean).
+The context SHALL be limited to: `platform` (`darwin`, `linux`, `win32`, `other`), `node_major` (a label from a fixed list of supported majors, `other` otherwise), `install_kind` (`global`, `npx`, `source`, `other`), `invoker`, `stdout_tty` (boolean), `json_mode` (boolean), `prompted` (boolean), `profile`, `delivery`, `tools_count` (bucket), `schema_source` (`package`, `project`, `user`), `store_in_use` (boolean), `changes` (bucket), and `first_run` (boolean).
 
 Context SHALL be kept to what a decision actually turns on. Each property is a bit of entropy in a row that already carries a persistent id, and bits accumulate into a fingerprint whether or not any single one looks harmful. A property nobody would act on is not neutral — it is cost with no return, and it SHALL be removed rather than kept for completeness.
 
@@ -265,7 +265,7 @@ Prompts SHALL be loaded through a single seam so the timing is applied once rath
 
 `first_run` SHALL be true only on the invocation during which the anonymous id is generated. It is not per-project.
 
-Count buckets SHALL use the fixed labels `00`, `01-10`, `11+`. A finer count is the highest-entropy value in the event and it drifts as a project grows, so a sequence of them traces a recognizable trajectory; empty, working, and heavy is the whole of what a decision here needs.
+Count buckets SHALL use the fixed labels `00`, `01-03`, `04-10`, `11-30`, `31+`.
 
 Bucket labels SHALL be written so they sort in their natural order under a lexicographic sort, because that is how they are ordered wherever they are charted. A scrambled histogram is worse than no histogram.
 

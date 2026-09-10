@@ -168,6 +168,7 @@ export interface CompletionInput {
   exitCode: number | undefined;
   jsonMode: boolean;
   projectRoot?: string | null;
+  installDir?: string | null;
   storeInUse?: boolean;
   schemaSource?: 'package' | 'project' | 'user';
   toolIds?: string[];
@@ -217,6 +218,7 @@ export async function finishRun(input: CompletionInput): Promise<void> {
     try {
       context = await collectRunContext({
         projectRoot: input.projectRoot,
+        installDir: input.installDir,
         stdoutIsTty: Boolean(process.stdout.isTTY),
         jsonMode: input.jsonMode,
         prompted: wasPrompted(),

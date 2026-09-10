@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { execFileSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -54,7 +54,8 @@ describe('telemetry end to end', () => {
   beforeAll(() => {
     home = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-e2e-tel-'));
     fs.mkdirSync(path.join(home, 'proj'), { recursive: true });
-    execFileSync('npm', ['run', 'build'], { cwd: repoRoot, stdio: 'ignore' });
+    // No build here: the suite already runs against a built dist/, and building
+    // inside a hook blows the hook timeout on CI.
   });
 
   afterAll(() => fs.rmSync(home, { recursive: true, force: true }));
@@ -102,7 +103,7 @@ describe('telemetry end to end', () => {
     expect(serialized).not.toContain('acme-billing-rewrite');
     expect(serialized).not.toContain(home);
     // The count is still reported, as a bucket.
-    expect(events.find((e) => e.event === 'command_completed')?.properties.changes).toBe('01-10');
+    expect(events.find((e) => e.event === 'command_completed')?.properties.changes).toBe('01-03');
     fs.rmSync(named, { recursive: true, force: true });
   });
 

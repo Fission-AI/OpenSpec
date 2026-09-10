@@ -65,6 +65,7 @@ export const ERROR_CLASSES = [
 export type ErrorClass = (typeof ERROR_CLASSES)[number];
 
 export const PLATFORMS = ['darwin', 'linux', 'win32', 'other'] as const;
+export const INSTALL_KINDS = ['global', 'npx', 'source', 'other'] as const;
 export const SCHEMA_SOURCES = ['package', 'project', 'user'] as const;
 export const EXIT_CODES = ['0', '1', '130', 'other'] as const;
 /**
@@ -75,7 +76,7 @@ export const EXIT_CODES = ['0', '1', '130', 'other'] as const;
  * ranges that mix units carry an ordinal prefix, since no padding rescues
  * `<1h` against `31d+`.
  */
-export const COUNT_BUCKETS = ['00', '01-10', '11+'] as const;
+export const COUNT_BUCKETS = ['00', '01-03', '04-10', '11-30', '31+'] as const;
 export const TOOL_COUNT_BUCKETS = ['0', '1', '2-3', '4+'] as const;
 export const DURATION_BUCKETS = [
   '1_under_100ms',
@@ -143,7 +144,9 @@ const PROPERTY_VALUES = {
   // Run context
   platform: PLATFORMS,
   node_major: NODE_MAJORS,
+  install_kind: INSTALL_KINDS,
   invoker: INVOKERS,
+  stdout_tty: 'boolean',
   json_mode: 'boolean',
   prompted: 'boolean',
   first_run: 'boolean',
@@ -262,15 +265,16 @@ export function sanitizeProperties(
 
 /** Bucket a count into the fixed labels. */
 /**
- * Three buckets, not five. A finer count is the highest-entropy field in the
- * event and it drifts as a project grows, so a sequence of them traces a
- * recognizable trajectory. Empty / working / heavy is all any decision here
- * has ever needed.
+ * Bucketed, never exact: the count separates a trial from real use, which is
+ * the question it exists for, and the exact number would say more about the
+ * project than any decision needs.
  */
 export function bucketCount(count: number): (typeof COUNT_BUCKETS)[number] {
   if (count <= 0) return '00';
-  if (count <= 10) return '01-10';
-  return '11+';
+  if (count <= 3) return '01-03';
+  if (count <= 10) return '04-10';
+  if (count <= 30) return '11-30';
+  return '31+';
 }
 
 export function bucketToolCount(count: number): (typeof TOOL_COUNT_BUCKETS)[number] {

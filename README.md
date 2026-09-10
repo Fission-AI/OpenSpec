@@ -255,13 +255,14 @@ That prints every event to stderr and sends nothing. It works even if you have o
 | `duration` | `<100`, `100-500`, `500-2000`, `2000-10000`, `10000+` milliseconds |
 | `previous_outcome`, `previous_command_same` | Whether your last run failed, and whether it was the same command |
 | `platform`, `node_major` | `darwin`/`linux`/`win32`; the Node major version |
+| `install_kind` | `global`, `npx`, `source`, `other` |
 | `invoker` | Which coding agent is running the command, from a fixed list, or `terminal`/`unknown` |
-| `json_mode`, `prompted`, `first_run` | Booleans |
+| `stdout_tty`, `json_mode`, `prompted`, `first_run` | Booleans |
 | `profile`, `delivery` | Your install profile and delivery mode |
 | `tools_count` | How many AI tools are configured: `0`, `1`, `2-3`, `4+` |
 | `schema_source` | `package`, `project`, or `user` |
 | `store_in_use` | Whether this run resolved through a store rather than a local root. Never which one |
-| `changes` | Whether the project has no active changes, a few, or many: `00`, `01-10`, `11+` |
+| `changes` | How many active changes: `00`, `01-03`, `04-10`, `11-30`, `31+` |
 | `milestone`, `time_to_reach` | The first time you reach each of `install` (your first run), `init`, `propose` (`openspec new change`), `apply` (`openspec validate`), and `archive`, and how long it took |
 | `tool` | Each AI tool you have configured, reported once, as its own event carrying no run context and no run id |
 | `run_id`, `work_session_id` | Random ids correlating one run, and runs less than 30 minutes apart |
