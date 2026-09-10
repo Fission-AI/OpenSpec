@@ -73,7 +73,7 @@ describe('change directories', () => {
     fs.mkdirSync(old, { recursive: true });
     fs.writeFileSync(path.join(old, 'tasks.md'), '- [ ] Work\n');
     expect(activeChangeNames(changes)).toEqual([name]);
-    expect(resolveChangeDir(changes, name)).toBe(old);
+    expect(fs.realpathSync.native(resolveChangeDir(changes, name))).toBe(fs.realpathSync.native(old));
     expect(await getTaskProgressForChange(changes, name, root)).toEqual({ total: 1, completed: 0 });
     if (name === 'proposed') expect(() => proposedChangesDir(changes)).toThrow('Rename the existing change');
   });
