@@ -34,11 +34,24 @@ The system SHALL send a `command_completed` event after every command finishes, 
 
 `outcome` SHALL be one of: `success`, `user_error`, `internal_error`, `cancelled`.
 
+`exit_code` SHALL be a bucket label from the fixed list `0`, `1`, `130`, `other`. It SHALL NOT be the raw process exit code, because several commands pass a child process's code through unchanged — `workset open` returns the launched editor's code (including `128 + signal`), `feedback` returns `gh`'s status, and `update` returns the re-spawned CLI's code. A raw code would therefore be an unbounded value and would violate the bounded property contract.
+
+A command that fails a check it was asked to perform — a failing `validate`, an `archive` blocked by incomplete tasks — SHALL be recorded as `user_error`, never `internal_error`. Failing a check is a routine outcome of the command working correctly.
+
 `duration_ms` SHALL be the whole number of milliseconds between the start of the `preAction` hook and the start of the `postAction` hook. It SHALL NOT be a wall-clock timestamp.
 
 #### Scenario: Successful command
 - **WHEN** a command completes with exit code 0
-- **THEN** the system sends `command_completed` with `outcome: "success"`, `error_class: "none"`, and `exit_code: 0`
+- **THEN** the system sends `command_completed` with `outcome: "success"`, `error_class: "none"`, and `exit_code: "0"`
+
+#### Scenario: Exit code passed through from a child process
+- **WHEN** `openspec workset open` exits with the launched editor's code of 137
+- **THEN** the event carries `exit_code: "other"`
+- **AND** no property carries the value 137
+
+#### Scenario: Failing validation is not an internal error
+- **WHEN** `openspec validate` runs correctly and reports the change is invalid
+- **THEN** the event carries `outcome: "user_error"` and `error_class: "validation_failed"`
 
 #### Scenario: Failed command
 - **WHEN** a command fails and sets a non-zero exit code
@@ -61,7 +74,33 @@ The system SHALL classify a failure into an `error_class` drawn from a compile-t
 
 Where a failure carries a diagnostic `code` (as `StoreError` and `RootSelectionError` do), the system SHALL map that code through the allowlist and SHALL NOT send the code through unchecked, because a diagnostic code is not guaranteed to be free of user-authored text.
 
-The allowlist SHALL cover at minimum: `none`, `no_project`, `item_not_found`, `ambiguous_item`, `unknown_subcommand`, `validation_failed`, `archive_blocked`, `store_error`, `schema_invalid`, `parse_error`, `metadata_invalid`, `prompt_non_interactive`, `cancelled`, `permission_denied`, `network_error`, `already_exists`, `other`.
+The allowlist SHALL cover at minimum these classes, which correspond to the failure families the CLI actually has:
+
+| Class | Covers |
+| --- | --- |
+| `none` | Success |
+| `cancelled` | Ctrl-C at a prompt, a declined confirmation |
+| `not_interactive` | A prompt was needed but stdin/stdout is not a terminal, or `--json` was passed. Distinct from `cancelled`: the user was never asked |
+| `no_root` | No OpenSpec root resolved, no registered store, unhealthy or mismatched store root |
+| `item_not_found` | A named change, spec, workset, or store does not exist |
+| `ambiguous_item` | A name matched more than one item |
+| `schema_not_found` | A schema, artifact, or template could not be resolved |
+| `schema_invalid` | A schema failed its own validation |
+| `bad_usage` | Bad flags or arguments, including commander's own usage errors |
+| `unknown_subcommand` | A group was given an operand it does not recognize |
+| `validation_failed` | Content failed validation — a routine outcome, not an exception |
+| `archive_blocked` | Archive refused a precondition: incomplete tasks, existing target, failed spec validation |
+| `concurrent_modification` | The working tree changed underneath a command mid-operation |
+| `store_error` | Store registration, metadata, identity, or path failures |
+| `git_error` | Store git init, identity, commit, or remote failures |
+| `fs_error` | Permission denied, path outside the allowed directory, not writable, not a directory |
+| `parse_error` | A markdown or YAML document could not be parsed |
+| `metadata_invalid` | Change metadata was missing or malformed |
+| `external_tool_failed` | A launched editor, agent, or the `gh` CLI failed |
+| `network_error` | An outbound request failed |
+| `already_exists` | A create operation found its target already present |
+| `internal_error` | An error that escaped a command's own handling |
+| `other` | Anything unmapped |
 
 #### Scenario: Known diagnostic code
 - **WHEN** a command fails with diagnostic code `unknown_item`
@@ -79,7 +118,15 @@ The allowlist SHALL cover at minimum: `none`, `no_project`, `item_not_found`, `a
 ### Requirement: Outcome coverage across exit paths
 Every command exit path that a user can reach SHALL produce exactly one `command_completed` event before the process exits.
 
-A command that fails SHALL set `process.exitCode` and return rather than calling `process.exit()`, so that commander's `postAction` hook runs. Where a call site genuinely cannot return, it SHALL flush telemetry explicitly before exiting.
+Three families of exit currently bypass commander's `postAction` hook, and all three SHALL be covered:
+
+1. **Action handlers that call `process.exit()`.** These SHALL set `process.exitCode` and return instead, so the hook runs. This covers the seventeen `process.exit(1)` sites in `src/cli/index.ts`, the `process.exit(1)` in `src/core/view.ts` and the `config` group guard, and the `process.exit(0)` success paths in `src/core/init.ts`, `src/ui/welcome-screen.ts`, and `src/commands/feedback.ts`.
+2. **Commander's own usage errors.** Unknown option, unknown command, missing argument, excess arguments, and a group invoked with no subcommand all exit before the `preAction` hook runs, so today they produce no event at all. The system SHALL intercept these and emit `command_completed` with `error_class: "bad_usage"` before exiting with the code commander chose.
+3. **A rejected action promise.** Commander chains hooks without a `catch`, so a throw that escapes a command's own handler skips `postAction` and becomes an unhandled rejection. The system SHALL install a handler that emits `command_completed` with `outcome: "internal_error"` and then preserves the existing exit behavior.
+
+Telemetry flushing is asynchronous, so the system SHALL NOT rely on a `process.on('exit')` handler, which cannot await.
+
+`--help` and `--version` SHALL NOT emit a `command_completed` event.
 
 #### Scenario: Failing command reaches the completion hook
 - **WHEN** a command fails
@@ -93,6 +140,24 @@ A command that fails SHALL set `process.exitCode` and return rather than calling
 #### Scenario: Unavoidable early exit
 - **WHEN** a call site must call `process.exit()` and cannot return
 - **THEN** it awaits the telemetry flush before exiting
+
+#### Scenario: Unknown command
+- **WHEN** a user runs `openspec proposal` and commander rejects it as an unknown command
+- **THEN** the system sends `command_completed` with `error_class: "bad_usage"`
+- **AND** the process still exits with the code commander chose
+
+#### Scenario: Group invoked with no subcommand
+- **WHEN** a user runs `openspec spec` with no subcommand and commander prints help and exits 1
+- **THEN** the system sends `command_completed` with `error_class: "bad_usage"`
+
+#### Scenario: Help and version are not commands
+- **WHEN** a user runs `openspec --help` or `openspec --version`
+- **THEN** no `command_completed` event is sent
+
+#### Scenario: Error escaping a command handler
+- **WHEN** an action handler rejects with an error its own catch does not cover
+- **THEN** the system sends `command_completed` with `outcome: "internal_error"`
+- **AND** the process exits as it did before this change
 
 #### Scenario: No duplicate events
 - **WHEN** a command both sets an exit code and returns normally

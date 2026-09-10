@@ -54,10 +54,12 @@ artifact ids (a schema is a directory the user names — `openspec schema fork`
 makes that a normal workflow), store ids, store remotes, store paths, change
 ids, spec ids, and `featureFlags` keys.
 
-**Outcome coverage.** `process.exit()` call sites that currently skip
-`postAction` are converted to set `process.exitCode` and return, so a failed run
-is recorded like any other. Paths that genuinely cannot return get an explicit
-flush.
+**Outcome coverage.** Three families of exit skip the hook today and all three
+get closed: the `process.exit()` call sites (converted to set `process.exitCode`
+and return), commander's own usage errors (unknown command, unknown flag, a group
+run with no subcommand — these exit *before* `preAction`, so they are invisible
+today, and they are exactly the "user typed the wrong thing" signal we want most),
+and errors that escape a command's own handler.
 
 **Four milestone events** derived from the existing `anonymousId`: first
 successful `init`, `propose`, `apply`, and `archive`. These give the activation
