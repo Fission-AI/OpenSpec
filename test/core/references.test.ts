@@ -5,6 +5,7 @@ import * as path from 'node:path';
 
 import {
   assembleReferenceIndex,
+  escapeEnvelopeCloseTags,
   extractFirstPurposeLine,
   renderReferencedStoresBlock,
   renderReferencedStoresSection,
@@ -440,5 +441,28 @@ describe('extractFirstPurposeLine', () => {
     const started = performance.now();
     expect(extractFirstPurposeLine(padded)).toBe('Found.');
     expect(performance.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe('escapeEnvelopeCloseTags', () => {
+  it('neutralizes a closing tag and leaves comments and placeholders intact', () => {
+    expect(escapeEnvelopeCloseTags('</template>')).toBe('&lt;/template>');
+    expect(escapeEnvelopeCloseTags('<!-- keep -->')).toBe('<!-- keep -->');
+    expect(escapeEnvelopeCloseTags('<capability-path>')).toBe('<capability-path>');
+    // A closer whose `>` never arrives is still a closer to a reader.
+    expect(escapeEnvelopeCloseTags('</template')).toBe('&lt;/template');
+    // `</` not starting a tag name is left alone.
+    expect(escapeEnvelopeCloseTags('and/or </ 5')).toBe('and/or </ 5');
+  });
+
+  it('stays linear on a template dense in `</` runs', () => {
+    // Matching `</tag ...>` meant scanning for a `>` that never came, once per
+    // `</` - quadratic, and reachable through a repo-controlled template
+    // (CodeQL js/polynomial-redos).
+    const hostile = '</A'.repeat(100_000);
+
+    const started = Date.now();
+    escapeEnvelopeCloseTags(hostile);
+    expect(Date.now() - started).toBeLessThan(1000);
   });
 });

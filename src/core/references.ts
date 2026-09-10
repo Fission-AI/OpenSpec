@@ -269,9 +269,15 @@ export function escapeEnvelopeAttribute(value: string): string {
  * escaping them wholesale would write `&lt;!--` into every generated file.
  * Only closing tags are neutralized: an envelope block ends at one, so
  * without them a template cannot terminate the element that frames it.
+ *
+ * Just the `</` opener is rewritten rather than a whole `</tag ...>` match.
+ * That is the same output for a well-formed tag - the escape only ever swaps
+ * the `<` - but it needs no scan for the closing `>`, which was itself
+ * quadratic on a template dense in `</` runs (CodeQL js/polynomial-redos), and
+ * it also catches a closer whose `>` never arrives.
  */
 export function escapeEnvelopeCloseTags(value: string): string {
-  return value.replace(/<\/[A-Za-z][^>]*>/g, (tag) => `&lt;${tag.slice(1)}`);
+  return value.replace(/<\/(?=[A-Za-z])/g, '&lt;/');
 }
 
 /**
