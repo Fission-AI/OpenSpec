@@ -52,7 +52,7 @@ The system SHALL send a `command_completed` event after every command finishes, 
 
 `exit_code` SHALL be a bucket label from the fixed list `0`, `1`, `130`, `other`. It SHALL NOT be the raw process exit code, because several commands pass a child process's code through unchanged — `workset open` returns the launched editor's code (including `128 + signal`), `feedback` returns `gh`'s status, and `update` returns the re-spawned CLI's code. A raw code would be an unbounded value.
 
-`duration` SHALL be a bucket label from the fixed list `<100`, `100-500`, `500-2000`, `2000-10000`, `10000+`, measured in milliseconds from the start of the `preAction` hook, excluding any time the process spent blocked on an interactive prompt.
+`duration` SHALL be a bucket label from the fixed list `1_under_100ms`, `2_100-500ms`, `3_500ms-2s`, `4_2-10s`, `5_over_10s`, measured in milliseconds from the start of the `preAction` hook, excluding any time the process spent blocked on an interactive prompt.
 
 Raw millisecond durations SHALL NOT be sent. Full-resolution timings profile the machine's performance, leak repo scale past the count buckets, and — on interactive commands — record human response times, which are a behavioral biometric. Excluding prompt-blocked time is also what makes the measurement mean anything: `init`, `archive`, and `config` all prompt, so an unexcluded duration measures how long someone read a menu.
 
@@ -77,7 +77,7 @@ A command that fails a check it was asked to perform — a failing `validate`, a
 
 #### Scenario: Time spent at a prompt is excluded
 - **WHEN** a command waits four minutes for a user to answer a confirmation prompt and then finishes in 300ms of work
-- **THEN** the event carries `duration: "100-500"`
+- **THEN** the event carries `duration: "2_100-500ms"`
 
 #### Scenario: Unregistered command name
 - **WHEN** the resolved command path is not a member of the registered command list
@@ -88,7 +88,9 @@ A command that fails a check it was asked to perform — a failing `validate`, a
 - **THEN** the event carries `error_class: "item_not_found"` and no part of the message
 
 ### Requirement: Bounded error classification
-The system SHALL classify a failure into an `error_class` drawn from a compile-time allowlist declared as a literal string union in source. A failure whose class cannot be determined SHALL be recorded as `error_class: "other"` with `outcome: "internal_error"`, never `user_error`. A failure we did not anticipate is our problem until shown otherwise, and biasing the other way would make the `internal_error` rate structurally under-report the exact thing it exists to surface.
+The system SHALL classify a failure into an `error_class` drawn from a compile-time allowlist declared as a literal string union in source. A failure that reaches this classifier and cannot be identified SHALL be recorded as `error_class: "other"` with `outcome: "internal_error"`. A failure that never reaches a classifier at all — a non-zero exit set without a throw, of which the CLI has many — SHALL be recorded as `error_class: "unclassified"` with `outcome: "user_error"`.
+
+The distinction is what keeps `internal_error` meaning "our bug". An error object we failed to recognize is ours to explain; a command that simply set an exit code is not evidence of anything, and counting it as a bug would drown the metric that exists to find real ones.
 
 Where a failure carries a diagnostic `code` (as `StoreError` and `RootSelectionError` do), the system SHALL map that code through the allowlist and SHALL NOT send the code through unchecked, because a diagnostic code is not guaranteed to be free of user-authored text.
 
@@ -117,6 +119,7 @@ The allowlist SHALL cover at minimum these classes, which correspond to the fail
 | `external_tool_failed` | A launched editor, agent, or the `gh` CLI failed |
 | `network_error` | An outbound request failed |
 | `already_exists` | A create operation found its target already present |
+| `unclassified` | A non-zero exit that reached no classifier, or a diagnostic code the map does not know. Recorded as a user error: the CLI has many paths that set an exit code without throwing, and presuming a bug there would drown the `internal_error` rate |
 | `internal_error` | An error that escaped a command's own handling |
 | `other` | Anything unmapped |
 
@@ -125,9 +128,13 @@ The allowlist SHALL cover at minimum these classes, which correspond to the fail
 - **THEN** the event carries the mapped `error_class: "item_not_found"`
 
 #### Scenario: Unrecognized diagnostic code
-- **WHEN** a command fails with a diagnostic code that is not in the allowlist
-- **THEN** the event carries `error_class: "other"`
+- **WHEN** a command fails with a diagnostic code the map does not know
+- **THEN** the event carries `error_class: "unclassified"`
 - **AND** the raw code is not sent
+
+#### Scenario: Exit code set without a throw
+- **WHEN** a command sets a non-zero exit code without throwing and without classifying
+- **THEN** the event carries `error_class: "unclassified"` and `outcome: "user_error"`
 
 #### Scenario: Unclassified error
 - **WHEN** a command fails with a plain `Error` carrying no diagnostic
@@ -227,7 +234,7 @@ The system SHALL persist the outcome and command of the previous invocation in t
 
 Whether a user recovers from a failure is the most actionable maintainer signal available, and it is not otherwise computable: a funnel cannot express "same command, previously failed, now succeeded" without raw queries.
 
-Only the outcome label and a boolean SHALL be stored. The previous command name SHALL be compared locally and SHALL NOT be sent.
+Only the outcome label and the previous command name SHALL be stored, and the name SHALL be compared locally and never sent — the event carries a boolean, not the name.
 
 #### Scenario: Successful retry
 - **WHEN** a user runs a command that fails, then runs the same command again and it succeeds
@@ -250,11 +257,15 @@ The context SHALL be limited to: `platform` (`darwin`, `linux`, `win32`, `other`
 
 `invoker` SHALL be a label from a fixed list of known coding-agent environments, `terminal` when none matches and stdout is a terminal, and `unknown` otherwise. It SHALL be derived by testing for the presence of a compile-time list of environment markers. No environment variable name or value SHALL be sent, and an unrecognized marker SHALL collapse to `unknown`. The markers probed SHALL be named in the public disclosure.
 
-`prompted` SHALL be true when the invocation opened any interactive prompt.
+`prompted` SHALL be true when the invocation opened any interactive prompt, or could have — both streams a terminal and interactivity not disabled. The measured half excludes think time from the duration; the capability half is what latency analysis filters on, since a run that could have prompted is not comparable to an agent's.
+
+Prompts SHALL be loaded through a single seam so the timing is applied once rather than at each call site, which is how it would rot.
 
 `first_run` SHALL be true only on the invocation during which the anonymous id is generated. It is not per-project.
 
-Count buckets SHALL use the fixed labels `0`, `1-3`, `4-10`, `11-30`, `31+`.
+Count buckets SHALL use the fixed labels `00`, `01-03`, `04-10`, `11-30`, `31+`.
+
+Bucket labels SHALL be written so they sort in their natural order under a lexicographic sort, because that is how they are ordered wherever they are charted. A scrambled histogram is worse than no histogram.
 
 Collecting run context SHALL NOT add filesystem traversal beyond a single non-recursive directory read per counted collection. Any context value that cannot be read cheaply or throws SHALL be omitted, and the event SHALL still be sent.
 
@@ -293,11 +304,13 @@ Collecting run context SHALL NOT add filesystem traversal beyond a single non-re
 ### Requirement: Activation milestone events
 The system SHALL send a `milestone_reached` event the first time a user reaches each of `install`, `init`, `propose`, `apply`, and `archive`, carrying `milestone`, `version`, `run_id`, and `time_to_reach`.
 
+`propose` and `apply` are agent workflows, not CLI commands, so the CLI SHALL observe them through the commands run on their behalf: `new change` for `propose`, and `validate` for `apply`. A milestone that no command can reach is not a funnel step.
+
 `install` SHALL be recorded on the invocation that generates the anonymous id. Without it the activation funnel has no denominator. The remaining milestones SHALL be recorded on first successful completion of the corresponding command.
 
 A milestone SHALL be recorded at most once per anonymous id. The set of milestones already reached SHALL be persisted in the global config under the telemetry section.
 
-`time_to_reach` SHALL use the fixed labels `<1h`, `1-24h`, `1-7d`, `8-30d`, `31d+`, computed from a date recorded when the anonymous id is first generated.
+`time_to_reach` SHALL use the fixed labels `1_under_1h`, `2_1-24h`, `3_1-7d`, `4_8-30d`, `5_over_30d`, computed from a date recorded when the anonymous id is first generated.
 
 The sub-day buckets are deliberate. Whether a user reaches their first archived change in one sitting or on the fourth day is the difference between a tool that lands and one that needs a second attempt, and it is the activation question an investor asks by name. A coarser first bucket makes the two indistinguishable.
 
@@ -343,14 +356,21 @@ The public disclosure SHALL enumerate every field persisted for telemetry and SH
 - **THEN** every telemetry field it holds is one the disclosure names
 
 ### Requirement: Event volume cap
-The system SHALL send at most four events per CLI invocation. Where more would be produced, the excess SHALL be dropped rather than queued.
+The system SHALL cap the events one CLI invocation may send. Where more would be produced, the excess SHALL be dropped rather than queued.
+
+A one-shot event — a milestone, a tool report — SHALL check the remaining budget *before* claiming. A claim is persisted permanently, so claiming and then hitting the cap would lose that milestone for the life of the install; leaving it unclaimed sends it one run later instead.
 
 An agent harness can invoke the CLI dozens of times inside one task. An uncapped per-invocation event count turns that into a burst of outbound requests the user never asked for.
 
 #### Scenario: Invocation producing many events
-- **WHEN** an invocation would produce more than four events
-- **THEN** only the first four are sent
+- **WHEN** an invocation would produce more events than the cap allows
+- **THEN** the excess are dropped
 - **AND** the command completes normally
+
+#### Scenario: One-shot event that does not fit
+- **WHEN** a milestone or tool report cannot be sent because the cap is reached
+- **THEN** it is not marked as reported
+- **AND** it is sent on a later invocation
 
 ### Requirement: Telemetry never interrupts the user
 Telemetry SHALL be silent and non-blocking. It SHALL NOT prompt the user, SHALL NOT ask for input, SHALL NOT block or delay command execution, and SHALL NOT write to stdout.
@@ -376,7 +396,9 @@ Requests SHALL remain fire-and-forget and time-bounded, and a failure SHALL rema
 ### Requirement: Assistant adoption tracking
 The system SHALL send a `tool_configured` event once per configured tool id per anonymous id, carrying only `tool` (an id checked for membership in the `AI_TOOLS` registry), `version`, and `run_id`.
 
-The event SHALL carry no run context. Sending tool identities on every `command_completed` would put the full configured *set* in one row alongside platform, install kind, and counts, which is enough to make an unusual user unique. Emitting one event per tool, decoupled from context, answers how many users have each assistant configured without ever assembling that combination.
+The event SHALL carry no run context and no `run_id`. Sending tool identities on every `command_completed` would put the full configured *set* in one row alongside platform, install kind, and counts, which is enough to make an unusual user unique; keeping the run id here would let a single join rebuild that same row.
+
+The limit of this split SHALL be stated rather than overclaimed: these events still share `distinct_id` with every other event, so a determined query can associate them. What it buys is that the set is never assembled in one row, and that the tools of a user who never completes a command are never learned.
 
 The set of tools already reported SHALL be persisted in the telemetry config section, on the same terms as milestones.
 

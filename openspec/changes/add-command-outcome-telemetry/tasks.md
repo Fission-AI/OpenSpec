@@ -14,12 +14,12 @@
 - [x] 2.5 Test: success, user error, internal error, and Ctrl-C each produce the expected outcome and class
 
 ## 3. Outcome coverage
-- [x] 3.1 Convert the `process.exit()` call sites in `src/cli/index.ts`, `src/core/view.ts`, `src/core/init.ts`, `src/ui/welcome-screen.ts`, and `src/commands/feedback.ts` to set `process.exitCode` and return
+- [x] 3.1 Convert the `process.exit()` call sites in `src/cli/index.ts`, `src/core/view.ts`, `src/core/init.ts`, `src/commands/feedback.ts`, and the `config` group guard to set `process.exitCode` and return, or to report and flush where they cannot
 - [x] 3.2 Intercept commander's usage errors so unknown commands and bare groups emit `bad_usage`, preserving commander's exit code
 - [x] 3.3 Handle an escaped rejection as `internal_error` while preserving existing exit behavior
 - [x] 3.4 Ensure a cancelled run never waits on a telemetry request
 - [x] 3.5 Assert no telemetry path prompts, blocks, or writes to stdout
-- [x] 3.6 Test: a failing command emits exactly one `command_completed` and exits with the same code as before; `--help` and `--version` emit none
+- [x] 3.6 Test end to end against the built binary: one `command_completed` per invocation, `--help`/`--version` emit none, exit codes unchanged
 
 ## 4. Run context
 - [x] 4.1 Collect the bounded context; count tools rather than naming them; derive `invoker` from a compile-time marker list without sending any env name or value
@@ -49,3 +49,7 @@
 ## 8. Ingest
 - [ ] 8.1 Confirm the `edge.openspec.dev` proxy does not log or forward client IPs; disable GeoIP enrichment on the telemetry project
 - [ ] 8.2 Publish the retention period and configure it in PostHog
+
+## 9. Known gaps
+- [ ] 9.1 `src/ui/welcome-screen.ts` exits 0 from inside a keypress handler on Ctrl-C, so that cancellation is not reported. Undercounts `cancelled` on the welcome screen only.
+- [ ] 9.2 `store_in_use` and `install_kind` are heuristics: a project with both a local root and a store reports `store_in_use: false`, and a checkout outside a recognizable path reports `install_kind: other`. Directionally right, not exact.
