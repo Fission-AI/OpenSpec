@@ -3,8 +3,17 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 
-import { isTelemetryEnabled, maybeShowTelemetryNotice, shutdown, trackCommand } from '../../src/telemetry/index.js';
+import {
+  isTelemetryEnabled,
+  maybeShowTelemetryNotice,
+  resetEventCount,
+  resetState,
+  shutdown,
+  trackCommand,
+} from '../../src/telemetry/index.js';
 import { getTelemetryConfig } from '../../src/telemetry/config.js';
+import { setRegistryChecks } from '../../src/telemetry/properties.js';
+import { resetRunId } from '../../src/telemetry/state.js';
 
 describe('telemetry/index', () => {
   let tempDir: string;
@@ -27,6 +36,13 @@ describe('telemetry/index', () => {
 
     // Clear all mocks
     vi.clearAllMocks();
+
+    // Module-level per-invocation state: a real CLI run starts fresh, so each
+    // test must too, or the event cap leaks across tests.
+    resetEventCount();
+    resetState();
+    resetRunId();
+    setRegistryChecks({ isCommand: () => true, isTool: () => true });
 
     // Notice is written to stderr so it never pollutes stdout (raw/JSON output)
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -255,8 +271,12 @@ describe('telemetry/index', () => {
         command: 'test',
         version: '1.0.0',
         surface: 'cli',
+        run_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        work_session_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
         $ip: null,
       });
+      // The start event carries no run context: that lives on command_completed.
+      expect(event.properties.platform).toBeUndefined();
     });
 
     it('should bound the request with a timeout signal', async () => {

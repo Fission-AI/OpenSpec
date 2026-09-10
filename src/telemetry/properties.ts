@@ -192,6 +192,11 @@ function isAllowedValue(key: PropertyKey, value: unknown): boolean {
   }
 }
 
+/** Whether a tool id is in the registry, for callers that must skip rather than strip. */
+export function isRegistryTool(value: string): boolean {
+  return registry.isTool(value);
+}
+
 export function isEventName(value: string): value is EventName {
   return (EVENT_NAMES as readonly string[]).includes(value);
 }

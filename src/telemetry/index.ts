@@ -23,6 +23,25 @@ import { randomUUID } from 'crypto';
 import { getGlobalConfig } from '../core/global-config.js';
 import { isCiEnvironment } from '../utils/ci.js';
 import { getTelemetryConfig, updateTelemetryConfig } from './config.js';
+import {
+  bucketDuration,
+  bucketExitCode,
+  isEventName,
+  isRegistryTool,
+  sanitizeProperties,
+  type ErrorClass,
+  type EventName,
+  type Milestone,
+  type Outcome,
+} from './properties.js';
+import {
+  claimMilestone,
+  claimUnreportedTools,
+  getRunId,
+  loadSessionState,
+  recordOutcome,
+  type SessionState,
+} from './state.js';
 
 // PostHog API key - public key for client-side analytics
 // This is safe to embed as it only allows sending events, not reading data
@@ -32,6 +51,30 @@ const POSTHOG_HOST = 'https://edge.openspec.dev';
 const TELEMETRY_REQUEST_TIMEOUT_MS = 1000;
 
 let anonymousId: string | null = null;
+
+/**
+ * Events already sent this invocation, against the per-invocation cap. An
+ * agent harness can invoke this CLI dozens of times inside one task; an
+ * uncapped per-invocation count turns that into a burst of outbound requests
+ * nobody asked for.
+ */
+const MAX_EVENTS_PER_INVOCATION = 4;
+let eventsSent = 0;
+
+/**
+ * True when the user asked to see the payloads instead of sending them.
+ * Deliberately independent of whether telemetry is enabled: the person most
+ * likely to want this is someone who already opted out and is deciding whether
+ * to opt back in.
+ */
+export function isDebugMode(): boolean {
+  return process.env.OPENSPEC_TELEMETRY_DEBUG === '1';
+}
+
+/** Test seam: forget the per-invocation event count. */
+export function resetEventCount(): void {
+  eventsSent = 0;
+}
 
 /**
  * Requests started by trackCommand and not yet settled, so shutdown can
@@ -121,10 +164,85 @@ export async function getOrCreateAnonymousId(): Promise<string> {
 }
 
 /**
+ * Placeholder shown in debug mode for an id that does not exist yet. Shaped
+ * like a UUID so the printed payload is the real thing structurally.
+ */
+const PLACEHOLDER_ID = '00000000-0000-0000-0000-000000000000';
+
+let cachedState: SessionState | null = null;
+
+/**
+ * Load the persisted state, or synthesize a read-only one in debug mode.
+ *
+ * Debug mode must not generate or persist an anonymous id: inspecting what
+ * telemetry would send cannot be the act that creates the identifier being
+ * inspected.
+ */
+async function loadState(): Promise<SessionState | null> {
+  if (cachedState) {
+    return cachedState;
+  }
+
+  if (isDebugMode()) {
+    const existing = await getTelemetryConfig();
+    cachedState = {
+      anonymousId: existing.anonymousId ?? PLACEHOLDER_ID,
+      workSessionId: existing.workSessionId ?? PLACEHOLDER_ID,
+      firstRun: existing.anonymousId === undefined,
+      firstSeenAt: existing.firstSeenAt,
+      previousOutcome: (existing.previousOutcome as Outcome | undefined) ?? 'none',
+      previousCommand: existing.previousCommand,
+      milestones: existing.milestones ?? [],
+      reportedTools: existing.reportedTools ?? [],
+    };
+    return cachedState;
+  }
+
+  if (!isTelemetryEnabled()) {
+    return null;
+  }
+
+  cachedState = await loadSessionState();
+  return cachedState;
+}
+
+/** Test seam: forget the cached state. */
+export function resetState(): void {
+  cachedState = null;
+}
+
+/** Whether this invocation is the user's first ever. */
+export function isFirstRun(): boolean {
+  return cachedState?.firstRun ?? false;
+}
+
+/**
  * Send one capture event to PostHog's batch endpoint. Fire-and-forget:
  * bounded by the request timeout, never throws, never retries.
  */
-function sendEvent(distinctId: string, event: string, properties: Record<string, unknown>): void {
+function sendEvent(distinctId: string, event: EventName, properties: Record<string, unknown>): void {
+  // The allowlist is the authority here, not at the call sites: a builder the
+  // tests never construct still cannot ship a key or value off the list.
+  const clean = sanitizeProperties(properties);
+
+  if (!isEventName(event)) {
+    return;
+  }
+
+  if (eventsSent >= MAX_EVENTS_PER_INVOCATION) {
+    return;
+  }
+  eventsSent += 1;
+
+  if (isDebugMode()) {
+    // stderr, never stdout: stdout carries command output and must stay
+    // parser-safe even while someone is inspecting telemetry.
+    console.error(
+      `[openspec telemetry] ${JSON.stringify({ event, distinct_id: distinctId, properties: clean })}`
+    );
+    return;
+  }
+
   const body = JSON.stringify({
     api_key: POSTHOG_API_KEY,
     batch: [
@@ -132,7 +250,9 @@ function sendEvent(distinctId: string, event: string, properties: Record<string,
         type: 'capture',
         event,
         distinct_id: distinctId,
-        properties,
+        properties: clean,
+        // UTC with no local offset: an offset combined with the rest of the
+        // context would locate the user.
         timestamp: new Date().toISOString(),
       },
     ],
@@ -156,19 +276,136 @@ function sendEvent(distinctId: string, event: string, properties: Record<string,
  * @param version - The OpenSpec version
  */
 export async function trackCommand(commandName: string, version: string): Promise<void> {
-  if (!isTelemetryEnabled()) {
+  if (!isTelemetryEnabled() && !isDebugMode()) {
     return;
   }
 
   try {
-    const userId = await getOrCreateAnonymousId();
+    const state = await loadState();
+    if (!state) {
+      return;
+    }
 
-    sendEvent(userId, 'command_executed', {
+    sendEvent(state.anonymousId, 'command_executed', {
       command: commandName,
-      version: version,
+      version,
       surface: 'cli',
+      run_id: getRunId(),
+      work_session_id: state.workSessionId,
       $ip: null, // Explicitly disable IP tracking
     });
+  } catch {
+    // Silent failure - telemetry should never break CLI
+  }
+}
+
+/**
+ * Record how a command ended.
+ *
+ * Sent from the postAction hook, from the interception of commander's own
+ * usage errors, and from the unhandled-rejection handler — the three families
+ * of exit that would otherwise leave a failure invisible.
+ */
+export async function trackCompletion(input: {
+  command: string;
+  version: string;
+  outcome: Outcome;
+  errorClass: ErrorClass;
+  exitCode: number | undefined;
+  durationMs: number;
+  context?: Record<string, unknown>;
+}): Promise<void> {
+  if (!isTelemetryEnabled() && !isDebugMode()) {
+    return;
+  }
+
+  try {
+    const state = await loadState();
+    if (!state) {
+      return;
+    }
+
+    sendEvent(state.anonymousId, 'command_completed', {
+      command: input.command,
+      version: input.version,
+      surface: 'cli',
+      run_id: getRunId(),
+      work_session_id: state.workSessionId,
+      outcome: input.outcome,
+      error_class: input.errorClass,
+      exit_code: bucketExitCode(input.exitCode),
+      duration: bucketDuration(input.durationMs),
+      previous_outcome: state.previousOutcome,
+      previous_command_same: state.previousCommand === input.command,
+      ...(input.context ?? {}),
+      $ip: null,
+    });
+
+    if (isTelemetryEnabled()) {
+      await recordOutcome(input.command, input.outcome);
+    }
+  } catch {
+    // Silent failure - telemetry should never break CLI
+  }
+}
+
+/** Send a milestone the first time it is reached. */
+export async function trackMilestone(milestone: Milestone, version: string): Promise<void> {
+  if (!isTelemetryEnabled() && !isDebugMode()) {
+    return;
+  }
+
+  try {
+    const state = await loadState();
+    if (!state) {
+      return;
+    }
+    const claim = await claimMilestone(milestone, state, new Date(), !isDebugMode());
+    if (!claim) {
+      return;
+    }
+
+    sendEvent(state.anonymousId, 'milestone_reached', {
+      milestone,
+      version,
+      run_id: getRunId(),
+      time_to_reach: claim.timeToReach,
+      $ip: null,
+    });
+  } catch {
+    // Silent failure - telemetry should never break CLI
+  }
+}
+
+/**
+ * Report configured tools, once each.
+ *
+ * Deliberately carries no run context: the whole configured *set* alongside
+ * platform, install kind, and counts in one row is what would single out an
+ * unusual user. One context-free event per tool answers how much of the
+ * userbase runs each assistant without ever assembling that combination.
+ */
+export async function trackConfiguredTools(toolIds: string[], version: string): Promise<void> {
+  if (!isTelemetryEnabled() && !isDebugMode()) {
+    return;
+  }
+
+  try {
+    const state = await loadState();
+    if (!state) {
+      return;
+    }
+    // Filter before claiming: an unlisted id would otherwise be marked
+    // reported and produce an event whose only real property was stripped.
+    const known = toolIds.filter((id) => isRegistryTool(id));
+    for (const tool of await claimUnreportedTools(known, state, !isDebugMode())) {
+      sendEvent(state.anonymousId, 'tool_configured', {
+        tool,
+        version,
+        run_id: getRunId(),
+        $ip: null,
+      });
+    }
   } catch {
     // Silent failure - telemetry should never break CLI
   }

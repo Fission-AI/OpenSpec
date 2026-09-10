@@ -115,7 +115,8 @@ export async function recordOutcome(command: string, outcome: Outcome): Promise<
 export async function claimMilestone(
   milestone: Milestone,
   state: SessionState,
-  now: Date = new Date()
+  now: Date = new Date(),
+  persist = true
 ): Promise<{ timeToReach: (typeof TIME_TO_REACH_BUCKETS)[number] | undefined } | null> {
   if (state.milestones.includes(milestone)) {
     return null;
@@ -123,7 +124,11 @@ export async function claimMilestone(
 
   const milestones = [...state.milestones, milestone];
   state.milestones = milestones;
-  await updateTelemetryConfig({ milestones });
+  // Inspecting what would be sent must not spend the one-shot claim, or the
+  // real event would never fire on a later run.
+  if (persist) {
+    await updateTelemetryConfig({ milestones });
+  }
 
   // An id minted before this change has no recorded first-seen time. Omitting
   // the bucket is honest; sending the lowest one would fabricate a wave of
@@ -138,7 +143,8 @@ export async function claimMilestone(
 /** Registry tool ids not yet reported. Claims them so each is sent once. */
 export async function claimUnreportedTools(
   toolIds: string[],
-  state: SessionState
+  state: SessionState,
+  persist = true
 ): Promise<string[]> {
   const unreported = toolIds.filter((id) => !state.reportedTools.includes(id));
   if (unreported.length === 0) {
@@ -146,6 +152,8 @@ export async function claimUnreportedTools(
   }
   const reportedTools = [...state.reportedTools, ...unreported];
   state.reportedTools = reportedTools;
-  await updateTelemetryConfig({ reportedTools });
+  if (persist) {
+    await updateTelemetryConfig({ reportedTools });
+  }
   return unreported;
 }
