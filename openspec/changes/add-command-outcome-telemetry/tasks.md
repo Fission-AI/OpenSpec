@@ -18,7 +18,8 @@
 - [ ] 3.2 Intercept commander's usage errors so unknown commands and bare groups emit `bad_usage`, preserving commander's exit code
 - [ ] 3.3 Handle an escaped rejection as `internal_error` while preserving existing exit behavior
 - [ ] 3.4 Ensure a cancelled run never waits on a telemetry request
-- [ ] 3.5 Test: a failing command emits exactly one `command_completed` and exits with the same code as before; `--help` and `--version` emit none
+- [ ] 3.5 Assert no telemetry path prompts, blocks, or writes to stdout
+- [ ] 3.6 Test: a failing command emits exactly one `command_completed` and exits with the same code as before; `--help` and `--version` emit none
 
 ## 4. Run context
 - [ ] 4.1 Collect the bounded context; count tools rather than naming them; derive `invoker` from a compile-time marker list without sending any env name or value
@@ -27,9 +28,11 @@
 - [ ] 4.4 Test: a user-named schema, store, change, and tool set never appear in any payload
 
 ## 5. Milestones and persisted state
-- [ ] 5.1 Persist the milestone set, first-seen year-month, work session, and previous outcome; write none of it when telemetry is disabled
-- [ ] 5.2 Emit `milestone_reached` once per milestone, with `version`, omitting `weeks_since_first_seen` for ids that predate the recorded month
-- [ ] 5.3 Test: the milestone fires once, never on failure, and an opted-out run leaves the config untouched
+- [ ] 5.1 Persist the milestone set, first-seen time, reported tool set, work session, and previous outcome; write none of it when telemetry is disabled
+- [ ] 5.2 Emit `milestone_reached` once per milestone with `version` and `time_to_reach`, omitting the bucket for ids that predate the recorded time
+- [ ] 5.3 Emit `tool_configured` once per registry tool id, carrying no run context
+- [ ] 5.4 Test: the milestone fires once, never on failure, and an opted-out run leaves the config untouched
+- [ ] 5.5 Test: `tool_configured` fires once per tool and carries no context property
 
 ## 6. Inspection and controls
 - [ ] 6.1 Add `OPENSPEC_TELEMETRY_DEBUG=1` — print payloads to stderr, send nothing, work when opted out, never create an anonymous id

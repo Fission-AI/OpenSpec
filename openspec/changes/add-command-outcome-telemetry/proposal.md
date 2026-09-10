@@ -53,11 +53,21 @@ came from, and a bucketed change count.
 
 Deliberately excluded, each for a stated reason: schema, artifact, change, spec,
 and store names, because they are user-authored text; store remotes and paths,
-because they identify an organization; **tool identities**, because a set drawn
-from a registry of dozens carries enough entropy to make an unusual user unique
-once joined with the rest of the context; and **raw millisecond durations**,
-because they profile the machine and, at an interactive prompt, record human
-response times.
+because they identify an organization; and **raw millisecond durations**, because
+they profile the machine and, at an interactive prompt, record human response
+times.
+
+**Which assistant people use, without the fingerprint.** Tool identity ships as a
+separate `tool_configured` event — once per tool per user, carrying no run
+context at all. That answers how much of the userbase runs Cursor or Claude Code
+while never assembling the configured *set* alongside platform, install kind, and
+counts in one row, which is the combination that would single out an unusual
+user. The `invoker` enum complements it by recording which agent is actually
+driving a given run.
+
+**Telemetry never interrupts.** No prompts, ever. It does not block the command,
+does not delay exit beyond the existing 1-second timeout, and never writes to
+stdout. The one-line first-run disclosure is a notice on stderr, not a question.
 
 **Outcome coverage** for all three families of exit that skip the hooks today,
 including commander's own usage errors — which are invisible now and are exactly
@@ -105,7 +115,7 @@ old notice get a one-line notice naming what changed, once.
 
 ## Impact
 
-- Affected specs: `telemetry` (ADDED: 13 requirements; MODIFIED: 3)
+- Affected specs: `telemetry` (ADDED: 15 requirements; MODIFIED: 3)
 - Affected code: `src/telemetry/`, `src/cli/index.ts`, `src/commands/shared-output.ts`, `src/commands/config.ts`
 - Affected docs: `README.md`, `SECURITY.md`, `CHANGELOG.md`, `docs-lab/reference/configuration/environment-variables.md`
 - Affected infrastructure: the `edge.openspec.dev` ingest proxy (IP logging, GeoIP)

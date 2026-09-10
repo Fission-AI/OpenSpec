@@ -291,17 +291,21 @@ Collecting run context SHALL NOT add filesystem traversal beyond a single non-re
 - **THEN** it performs a single non-recursive directory read and discards the entry names, keeping only the bucketed count
 
 ### Requirement: Activation milestone events
-The system SHALL send a `milestone_reached` event the first time a user reaches each of `install`, `init`, `propose`, `apply`, and `archive`, carrying `milestone`, `version`, `run_id`, and `weeks_since_first_seen`.
+The system SHALL send a `milestone_reached` event the first time a user reaches each of `install`, `init`, `propose`, `apply`, and `archive`, carrying `milestone`, `version`, `run_id`, and `time_to_reach`.
 
 `install` SHALL be recorded on the invocation that generates the anonymous id. Without it the activation funnel has no denominator. The remaining milestones SHALL be recorded on first successful completion of the corresponding command.
 
 A milestone SHALL be recorded at most once per anonymous id. The set of milestones already reached SHALL be persisted in the global config under the telemetry section.
 
-`weeks_since_first_seen` SHALL use the fixed labels `0-7d`, `8-30d`, `31-90d`, `91d+`, computed from a **year and month** recorded when the anonymous id is first generated. A finer bucket would defeat itself: a `0` or `1` day bucket, combined with the server's own receipt time, pins the install to a specific date, which is the strongest available join key against a public announcement that an organization adopted the tool.
+`time_to_reach` SHALL use the fixed labels `<1h`, `1-24h`, `1-7d`, `8-30d`, `31d+`, computed from a date recorded when the anonymous id is first generated.
+
+The sub-day buckets are deliberate. Whether a user reaches their first archived change in one sitting or on the fourth day is the difference between a tool that lands and one that needs a second attempt, and it is the activation question an investor asks by name. A coarser first bucket makes the two indistinguishable.
+
+The residual risk is stated rather than hidden: a `<1h` milestone, combined with the server's own receipt time, dates that user's first run to within the hour. This is accepted because the run context no longer carries a fingerprint to join it against — tool identities are decoupled, durations and exit codes are bucketed — so the value dates a cohort rather than identifying a person. The recorded date SHALL NOT be sent directly, only the bucket.
 
 The recorded date is the first run with telemetry enabled, not the install. It SHALL be named accordingly and SHALL NOT be described as an install date.
 
-Where an anonymous id predates the recorded date, `weeks_since_first_seen` SHALL be omitted rather than sent as the lowest bucket, which would fabricate a wave of instant activations across the existing userbase.
+Where an anonymous id predates the recorded date, `time_to_reach` SHALL be omitted rather than sent as the lowest bucket, which would fabricate a wave of instant activations across the existing userbase.
 
 #### Scenario: First successful archive
 - **WHEN** a user archives a change successfully for the first time
@@ -317,16 +321,16 @@ Where an anonymous id predates the recorded date, `weeks_since_first_seen` SHALL
 
 #### Scenario: Existing user with no recorded date
 - **WHEN** a user whose anonymous id predates this change reaches a milestone
-- **THEN** the event omits `weeks_since_first_seen`
+- **THEN** the event omits `time_to_reach`
 
 #### Scenario: Milestones respect opt-out
 - **WHEN** telemetry is disabled
 - **THEN** no milestone is sent and no milestone state is written to config
 
 ### Requirement: Bounded persisted telemetry state
-State the system persists for telemetry SHALL be limited to enum labels, counters, booleans, coarse dates, and randomly generated identifiers. It SHALL NOT include command arguments, item names, paths, hashes of paths, or any other user-authored value.
+State the system persists for telemetry SHALL be limited to enum labels, counters, booleans, timestamps, and randomly generated identifiers. A persisted timestamp SHALL NOT be sent; only a bucket derived from it may be. It SHALL NOT include command arguments, item names, paths, hashes of paths, or any other user-authored value.
 
-No telemetry state SHALL be written to disk when telemetry is disabled. This covers the anonymous id, the work session id and its activity time, the milestone set, the first-seen month, and the previous-outcome record.
+No telemetry state SHALL be written to disk when telemetry is disabled. This covers the anonymous id, the work session id and its activity time, the milestone set, the first-seen time, the reported tool set, and the previous-outcome record.
 
 The public disclosure SHALL enumerate every field persisted for telemetry and SHALL state where the file lives.
 
@@ -347,6 +351,51 @@ An agent harness can invoke the CLI dozens of times inside one task. An uncapped
 - **WHEN** an invocation would produce more than four events
 - **THEN** only the first four are sent
 - **AND** the command completes normally
+
+### Requirement: Telemetry never interrupts the user
+Telemetry SHALL be silent and non-blocking. It SHALL NOT prompt the user, SHALL NOT ask for input, SHALL NOT block or delay command execution, and SHALL NOT write to stdout.
+
+No telemetry decision SHALL ever be put to the user interactively. Consent is expressed through the documented opt-out mechanisms, which work offline and without a prompt. A CLI that stops to ask about analytics is a CLI that interrupts an agent mid-task.
+
+The one-line first-run disclosure is a notice on stderr, not a prompt: it asks nothing, blocks nothing, and the command proceeds regardless.
+
+Requests SHALL remain fire-and-forget and time-bounded, and a failure SHALL remain silent.
+
+#### Scenario: Telemetry never asks
+- **WHEN** any telemetry code path runs
+- **THEN** no prompt is displayed and no input is read
+
+#### Scenario: Command is not delayed
+- **WHEN** the telemetry endpoint is slow or unreachable
+- **THEN** the command runs and exits without waiting beyond the request timeout
+
+#### Scenario: stdout stays clean
+- **WHEN** telemetry emits anything at all
+- **THEN** it is written to stderr, never stdout
+
+### Requirement: Assistant adoption tracking
+The system SHALL send a `tool_configured` event once per configured tool id per anonymous id, carrying only `tool` (an id checked for membership in the `AI_TOOLS` registry), `version`, and `run_id`.
+
+The event SHALL carry no run context. Sending tool identities on every `command_completed` would put the full configured *set* in one row alongside platform, install kind, and counts, which is enough to make an unusual user unique. Emitting one event per tool, decoupled from context, answers how many users have each assistant configured without ever assembling that combination.
+
+The set of tools already reported SHALL be persisted in the telemetry config section, on the same terms as milestones.
+
+#### Scenario: Tool configured
+- **WHEN** a user has Cursor configured and no `tool_configured` event has been sent for it
+- **THEN** the system sends `tool_configured` with `tool: "cursor"`
+- **AND** the event carries no platform, install kind, count, or other run context
+
+#### Scenario: Reported once
+- **WHEN** the same user runs another command
+- **THEN** no further `tool_configured` event is sent for that tool
+
+#### Scenario: Tool added later
+- **WHEN** a user configures an additional tool
+- **THEN** a `tool_configured` event is sent for the new tool only
+
+#### Scenario: Unregistered tool id
+- **WHEN** a configured tool id is not a member of the `AI_TOOLS` registry
+- **THEN** no event is sent for it
 
 ### Requirement: Local telemetry inspection
 The system SHALL print every event it would send to stderr and send nothing when `OPENSPEC_TELEMETRY_DEBUG` is set to `1`. The printed form SHALL be the exact payload, so a user can verify what is collected without trusting the documentation.
