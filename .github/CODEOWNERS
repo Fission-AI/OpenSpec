@@ -1,2 +1,5 @@
 # Default code ownership
 * @Fission-AI/openspec-maintainers
+
+# docs-lab requires final review from the docs owner
+/docs-lab/ @TabishB
