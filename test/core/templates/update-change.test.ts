@@ -118,4 +118,34 @@ describe('update-change templates', () => {
       expect(newRecommendation, label).toBeGreaterThan(newAvailabilityCheck);
     }
   });
+
+  // Regression for #1836: step 4 said "Apply the requested edit" while step 5
+  // said "Write only after the user confirms". "Apply" reads as a write verb in
+  // this document - step 5 is itself titled "Confirm and apply" - so the same
+  // request either wrote immediately or showed the revision first, depending on
+  // which passage the agent weighed. Step 5 is the only write path; step 4
+  // drafts.
+  it('keeps step 4 non-writing so step 5 owns the only write (#1836)', () => {
+    for (const [label, body] of bodies) {
+      const start = body.indexOf('4. **Read and reconcile**');
+      const end = body.indexOf('5. **Confirm and apply, one artifact at a time**');
+
+      expect(start, label).toBeGreaterThanOrEqual(0);
+      expect(end, label).toBeGreaterThan(start);
+
+      const step = body.slice(start, end);
+      expect(step, label).toContain('Draft the requested edit.');
+      expect(step, label).not.toContain('Apply the requested edit');
+    }
+  });
+
+  it('orders the draft before the confirmed write (#1836)', () => {
+    for (const [label, body] of bodies) {
+      const draft = body.indexOf('Draft the requested edit.');
+      const confirmedWrite = body.indexOf('Write only after the user confirms.');
+
+      expect(draft, label).toBeGreaterThanOrEqual(0);
+      expect(confirmedWrite, label).toBeGreaterThan(draft);
+    }
+  });
 });
