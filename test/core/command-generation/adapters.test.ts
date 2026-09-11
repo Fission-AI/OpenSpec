@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import path from 'path';
 import { amazonQAdapter } from '../../../src/core/command-generation/adapters/amazon-q.js';
 import { antigravityAdapter } from '../../../src/core/command-generation/adapters/antigravity.js';
+import { atomcodeAdapter } from '../../../src/core/command-generation/adapters/atomcode.js';
 import { auggieAdapter } from '../../../src/core/command-generation/adapters/auggie.js';
 import { bobAdapter } from '../../../src/core/command-generation/adapters/bob.js';
 import { claudeAdapter } from '../../../src/core/command-generation/adapters/claude.js';
@@ -253,6 +254,94 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('description: "Enter explore mode for thinking"');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('atomcodeAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(atomcodeAdapter.toolId).toBe('atomcode');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = atomcodeAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.atomcode', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file paths for different commands', () => {
+      expect(atomcodeAdapter.getFilePath('new')).toBe(path.join('.atomcode', 'commands', 'opsx-new.md'));
+      expect(atomcodeAdapter.getFilePath('bulk-archive')).toBe(path.join('.atomcode', 'commands', 'opsx-bulk-archive.md'));
+    });
+
+    it.each(getCommandContents())('should register $id with its invocation name and declared arguments', (content) => {
+      const output = atomcodeAdapter.formatFile(content);
+      const frontmatter = parseYaml(output.match(/^---\n([\s\S]*?)\n---/)![1]);
+      const acceptsInput = /^\*\*Input\*\*:/m.test(content.body);
+
+      expect(frontmatter).toEqual({
+        name: `opsx-${content.id}`,
+        description: content.description,
+        args: acceptsInput ? 'optional' : 'none',
+      });
+      // AtomCode's custom-command loader reads these two values literally: it
+      // scans for `key:` and takes the rest of the line verbatim, with no YAML
+      // unquoting. `args` is then matched against the exact strings "required"
+      // and "optional", so a quoted `args: "optional"` falls through to
+      // ArgsRequirement::None and silently drops every argument. `name` and
+      // `args` must therefore stay unquoted -- do not route them through the
+      // shared escapeYamlValue helper, which always double-quotes.
+      expect(output).toContain(`\nname: opsx-${content.id}\n`);
+      expect(output).toContain(`\nargs: ${acceptsInput ? 'optional' : 'none'}\n`);
+      expect(output).toContain(content.body);
+      // $ARGUMENTS is only worth shipping where the workflow reads it.
+      expect(output.includes('**Provided arguments**: $ARGUMENTS')).toBe(acceptsInput);
+    });
+
+    it('should preserve invocation arguments for every workflow that accepts them', () => {
+      const commandsWithoutArguments = getCommandContents()
+        .filter((content) => {
+          const output = generateCommand(content, atomcodeAdapter).fileContent;
+          return !output.includes('**Provided arguments**: $ARGUMENTS');
+        })
+        .map((content) => content.id);
+
+      // Onboarding is deliberately interactive and has no invocation input, so
+      // it ships `args: none` and AtomCode runs it straight from the slash menu.
+      // This list is a tripwire for a new workflow that accidentally drops args.
+      expect(commandsWithoutArguments).toEqual(['onboard']);
+    });
+
+    it('should keep name and args literal when the description needs quoting', () => {
+      // A description containing ": " cannot be a YAML plain scalar, so it gets
+      // quoted. That must not leak into name/args, which AtomCode reads literally.
+      const content: CommandContent = {
+        ...sampleContent,
+        description: 'Create a change: proposal, specs, and tasks',
+        body: '**Input**: A change name.\n\nDo the work.',
+      };
+
+      const output = atomcodeAdapter.formatFile(content);
+
+      expect(output).toContain(`\nname: opsx-${content.id}\n`);
+      expect(output).toContain('\nargs: optional\n');
+      // Still valid YAML for frontmatter consumers, and round-trips exactly.
+      expect(parseYaml(output.match(/^---\n([\s\S]*?)\n---/)![1])).toEqual({
+        name: `opsx-${content.id}`,
+        description: content.description,
+        args: 'optional',
+      });
+    });
+
+    it('should leave command reference rewriting to the shared generator', () => {
+      const content: CommandContent = {
+        ...sampleContent,
+        body: 'Run /opsx:apply to implement. Then /opsx:archive when done.',
+      };
+
+      expect(atomcodeAdapter.formatFile(content)).toContain(content.body);
+      const generated = generateCommand(content, atomcodeAdapter);
+      expect(generated.fileContent).toContain('/opsx-apply');
+      expect(generated.fileContent).toContain('/opsx-archive');
+      expect(generated.fileContent).not.toContain('/opsx:');
     });
   });
 
@@ -1133,7 +1222,7 @@ describe('command-generation/adapters', () => {
     it('All adapters use path.join for paths', () => {
       // Verify all adapters produce valid paths
       const adapters = [
-        amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, clineAdapter,
+        amazonQAdapter, antigravityAdapter, atomcodeAdapter, auggieAdapter, bobAdapter, clineAdapter,
         codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
         iflowAdapter, kilocodeAdapter, kiroAdapter, lingmaAdapter, ohMyPiAdapter,

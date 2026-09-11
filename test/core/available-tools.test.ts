@@ -485,6 +485,16 @@ describe('available-tools', () => {
       expect(toolValues).not.toContain('codeartsagent');
     });
 
+    it('should detect AtomCode when .atomcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.atomcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const atomcode = tools.find((t) => t.value === 'atomcode');
+      expect(atomcode).toBeDefined();
+      expect(atomcode?.name).toBe('AtomCode');
+      expect(atomcode?.skillsDir).toBe('.atomcode');
+    });
+
     it('should detect ZCode when .zcode directory exists', async () => {
       await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
 
