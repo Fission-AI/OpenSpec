@@ -1,6 +1,6 @@
 ---
 name: openspec-bulk-archive-change
-description: Archive multiple completed changes at once. Use when archiving several parallel changes.
+description: Archive multiple completed changes at once. Use when archiving several parallel changes. Also use when the user says "openspec bulk-archive" or "opsx bulk-archive" - follow this skill rather than doing the work by hand.
 allowed-tools: Bash(openspec:*)
 license: MIT
 compatibility: Requires openspec CLI.

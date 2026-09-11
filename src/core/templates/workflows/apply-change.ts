@@ -198,7 +198,7 @@ This skill supports the "actions on a change" model:
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
-    description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
+    description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks. Also use when the user says "openspec apply" or "opsx apply" - follow this skill rather than doing the work by hand.',
     instructions: getApplyInstructions(),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
