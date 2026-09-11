@@ -186,5 +186,80 @@ Regular text that should be ignored
       expect(logOutput.some(line => line.includes('partial') && line.includes('1/3 tasks'))).toBe(true);
       expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);
     });
+
+    describe('a namespace folder holding nested changes (#1846)', () => {
+      async function seedNestedChange(): Promise<string> {
+        const changesDir = path.join(tempDir, 'openspec', 'changes');
+        await fs.mkdir(path.join(changesDir, 'mobile', 'refresh-token'), { recursive: true });
+        await fs.writeFile(
+          path.join(changesDir, 'mobile', 'refresh-token', 'tasks.md'),
+          '- [ ] Not done\n'
+        );
+        await fs.mkdir(path.join(changesDir, 'add-auth'), { recursive: true });
+        await fs.writeFile(path.join(changesDir, 'add-auth', 'tasks.md'), '- [x] Done\n');
+        return changesDir;
+      }
+
+      it('is listed as "not a change" instead of a task-less change', async () => {
+        await seedNestedChange();
+
+        await new ListCommand().execute(tempDir);
+
+        expect(
+          logOutput.some(line => line.includes('mobile') && line.includes('not a change'))
+        ).toBe(true);
+        expect(
+          logOutput.some(line => line.includes('mobile') && line.includes('No tasks'))
+        ).toBe(false);
+      });
+
+      it('explains the nesting and how to fix it', async () => {
+        await seedNestedChange();
+
+        await new ListCommand().execute(tempDir);
+
+        const warning = logOutput.find(line => line.startsWith('Warning:'));
+        expect(warning).toBeDefined();
+        expect(warning).toContain('openspec/changes/mobile/refresh-token/');
+        expect(warning).toContain('mobile-refresh-token');
+      });
+
+      it('still lists the real changes around it', async () => {
+        await seedNestedChange();
+
+        await new ListCommand().execute(tempDir);
+
+        expect(
+          logOutput.some(line => line.includes('add-auth') && line.includes('Complete'))
+        ).toBe(true);
+      });
+
+      it('reports the nesting in --json without changing the entry shape', async () => {
+        await seedNestedChange();
+
+        await new ListCommand().execute(tempDir, 'changes', { json: true });
+
+        const payload = JSON.parse(logOutput.join('\n'));
+        expect(payload.warnings).toEqual([
+          expect.objectContaining({
+            code: 'nested_change_directory',
+            name: 'mobile',
+            nested: ['mobile/refresh-token'],
+          }),
+        ]);
+        const entry = payload.changes.find((c: { name: string }) => c.name === 'mobile');
+        expect(entry).toMatchObject({ name: 'mobile', nested: ['mobile/refresh-token'] });
+        expect(payload.changes.find((c: { name: string }) => c.name === 'add-auth')).not.toHaveProperty('nested');
+      });
+
+      it('omits warnings from --json when nothing is nested', async () => {
+        const changesDir = path.join(tempDir, 'openspec', 'changes');
+        await fs.mkdir(path.join(changesDir, 'add-auth'), { recursive: true });
+
+        await new ListCommand().execute(tempDir, 'changes', { json: true });
+
+        expect(JSON.parse(logOutput.join('\n'))).not.toHaveProperty('warnings');
+      });
+    });
   });
 });

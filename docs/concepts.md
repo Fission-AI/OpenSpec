@@ -201,6 +201,12 @@ Each change is self-contained. It has:
 - **Delta specs** — specifications for what's being added, modified, or removed
 - **Metadata** — optional configuration for this specific change
 
+### Change Folders Are Flat
+
+A change is a directory **directly** under `changes/`, named in kebab-case. Unlike specs, which can be nested by domain (`specs/identity/user-auth/spec.md`), changes cannot be grouped into namespace folders: `changes/mobile/refresh-token/` is not a change OpenSpec can see. Fold the grouping into the name instead — `changes/mobile-refresh-token/`.
+
+If a namespace folder already exists, `openspec list` flags it as `not a change` and `openspec archive` refuses it, so the nested work is never archived under the wrong name.
+
 ### Why Changes Are Folders
 
 Packaging a change as a folder has several benefits:

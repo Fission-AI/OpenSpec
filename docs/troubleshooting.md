@@ -74,6 +74,17 @@ openspec list                    # see active changes
 
 Also confirm you're in the right project directory.
 
+### "X is not a change: it is a folder wrapping ..."
+
+A change directory was created inside a grouping folder, such as `openspec/changes/mobile/refresh-token/`. Changes live directly under `changes/`; only specs can be nested by domain. OpenSpec cannot see the nested directory, and would otherwise treat the folder around it as an empty change.
+
+Move it up and fold the grouping into the name:
+
+```bash
+mv openspec/changes/mobile/refresh-token openspec/changes/mobile-refresh-token
+rmdir openspec/changes/mobile
+```
+
 ### "No artifacts ready"
 
 Every artifact is either already created or blocked waiting on a dependency. See what's blocking:

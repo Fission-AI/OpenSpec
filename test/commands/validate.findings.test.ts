@@ -257,6 +257,61 @@ describe('validate findings reports', () => {
     }
   });
 
+  describe('a namespace folder holding nested changes (#1846)', () => {
+    async function seedNamespaceFolder(): Promise<void> {
+      await write('openspec/changes/mobile/refresh-token/proposal.md', '# Refresh token\n');
+      await write('openspec/changes/mobile/refresh-token/specs/example/spec.md', delta());
+    }
+
+    it('reports the nesting instead of a missing delta, in the bulk sweep', async () => {
+      await seedNamespaceFolder();
+
+      const { document } = await json({ changes: true });
+
+      const item = document.items.find((entry: { id: string }) => entry.id === 'mobile');
+      expect(item.valid).toBe(false);
+      expect(item.issues).toEqual([
+        {
+          level: 'ERROR',
+          path: 'file',
+          message: expect.stringContaining('"mobile" is not a change'),
+        },
+      ]);
+      expect(JSON.stringify(item.issues)).not.toContain('at least one delta');
+    });
+
+    it('reports the same thing when the change is validated by name', async () => {
+      await seedNamespaceFolder();
+
+      const result = await run({}, 'mobile');
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr.join('\n')).toContain('"mobile" is not a change');
+      expect(result.stderr.join('\n')).not.toContain('at least one delta');
+    });
+
+    it('replaces the delta-authoring next steps with the flat-layout fix', async () => {
+      await seedNamespaceFolder();
+
+      const result = await run({}, 'mobile');
+
+      const output = result.stderr.join('\n');
+      expect(output).toContain('Move each nested change directly under openspec/changes/');
+      expect(output).not.toContain('ADDED/MODIFIED/REMOVED/RENAMED Requirements');
+    });
+
+    it('leaves an ordinary change with delta specs untouched', async () => {
+      await write('openspec/changes/add-auth/specs/example/spec.md', delta());
+
+      const { document } = await json({ changes: true });
+
+      expect(document.items.find((entry: { id: string }) => entry.id === 'add-auth')).toMatchObject({
+        valid: true,
+        issues: [],
+      });
+    });
+  });
+
   it('projects whole records in input order without modifying the full report', () => {
     const issue = { level: 'INFO' as const, path: path.join('nested', 'spec.md'), message: 'Informational', line: 7 };
     const clean = { id: 'clean', type: 'change' as const, valid: true, issues: [], durationMs: 1 };
