@@ -10,18 +10,29 @@
 - [ ] 1.3 Re-export it from `src/core/templates/skill-templates.ts:21` beside the
       existing skill export
 
-## 2. Rewrite the feedback skill to draft rather than interrogate
+## 2. Rewrite the feedback skill to refine, then draft
 
 - [ ] 2.1 Replace the skill instructions in
-      `src/core/templates/workflows/feedback.ts` with the drafting flow: observe
-      first, ask only what cannot be inferred, show one complete draft, submit on
-      one confirmation
-- [ ] 2.2 Make the drafted fields the issue forms' fields, per type, in the forms'
+      `src/core/templates/workflows/feedback.ts`: find the observable facts
+      first and never ask for one of them; put the user's judgements to them —
+      what the report is really asking for, who it affects, what it excludes,
+      whether the reported problem is the problem or a symptom — each with a
+      recommended answer; order by dependency; stop when nothing material is
+      unsettled; then one complete draft, submitted on one confirmation
+- [ ] 2.2 Give it a way to skip refinement entirely when the report is already
+      unambiguous. A skill that manufactures questions for a typo teaches users to
+      stop invoking it
+- [ ] 2.3 Make the drafted fields the issue forms' fields, per type, in the forms'
       order
-- [ ] 2.3 Teach it `openspec feedback --type` and when to choose each type
-- [ ] 2.4 Keep the anonymization rules and the show-draft-before-submitting
+- [ ] 2.4 Teach it `openspec feedback --type` and when to choose each type
+- [ ] 2.5 Keep the anonymization rules and the show-draft-before-submitting
       guardrail from the current template — they are contract, not style
-- [ ] 2.5 Change the template's `name` from `feedback` to `openspec-feedback`
+- [ ] 2.6 Write it in the current style rather than the template's original: state
+      why something matters instead of stacking capitalised MUSTs, phrase
+      instructions positively rather than as prohibitions, and cut anything not
+      pulling its weight. The whole skill has to fit one SKILL.md — see design.md,
+      "One file, no reference layer"
+- [ ] 2.7 Change the template's `name` from `feedback` to `openspec-feedback`
       (`src/core/templates/workflows/feedback.ts:11`). The frontmatter `name:` in
       the generated SKILL.md comes from this field
       (`src/core/shared/skill-generation.ts:142`), and every other registered

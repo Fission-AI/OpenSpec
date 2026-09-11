@@ -157,7 +157,11 @@ The pre-filled URL offered by the manual fallback SHALL target the repository's 
 
 The system SHALL install a `feedback` workflow — a skill and a slash command — as part of the core profile, so that `openspec init` and `openspec update` deliver it without the user selecting it. The skill SHALL guide an agent through drafting and submitting a report.
 
-The skill SHALL draft rather than interrogate. It SHALL fill in from the conversation and the environment everything it can observe — the task in progress, the failing command and its output, the OpenSpec version, the platform, and the agent and model — and SHALL ask the user only for what it cannot infer. It SHALL present one complete draft rather than a sequence of questions.
+The skill SHALL find facts rather than ask for them. Everything observable from the conversation or the environment — the task in progress, the failing command and its output, the OpenSpec version, the platform, and the agent and model — SHALL be filled in by the skill, and SHALL NOT be put to the user as a question.
+
+The skill SHALL refine the report with the user before drafting it, because a report that arrives already scoped is the labour it saves later. It SHALL put to the user the judgements only the user holds — what the report is really asking for, who it affects, what it deliberately excludes, and whether a reported problem is the problem or a symptom — and SHALL carry a recommended answer with each, so that agreement costs a word. It SHALL order questions by dependency, never asking one whose answer depends on a question still open.
+
+Refinement SHALL end when nothing material is left unsettled, rather than at a fixed number of questions: a one-line typo report and a half-formed feature idea do not need the same conversation. The skill SHALL then present one complete draft and submit only on confirmation.
 
 The drafted fields SHALL be the fields of the issue form matching the report type, so that a report filed by the skill and a report filed through the form read the same.
 
@@ -176,12 +180,24 @@ The drafted fields SHALL be the fields of the issue form matching the report typ
 - **THEN** the feedback skill and its slash command are installed alongside the other core workflows
 - **AND** a project on a custom profile is told the workflow is available rather than having it added silently
 
-#### Scenario: Drafting without interrogation
+#### Scenario: Facts are found, not asked for
 
-- **WHEN** the agent has the version, the platform, the failing command, and the model available from the conversation or the environment
+- **WHEN** the version, the platform, the failing command, and the model are available from the conversation or the environment
 - **THEN** the agent fills those fields itself
-- **AND** asks the user only for what it cannot observe
-- **AND** shows a single complete draft rather than asking the fields one at a time
+- **AND** does not put any of them to the user as a question
+
+#### Scenario: Refining before drafting
+
+- **WHEN** the user reports a problem whose scope, audience, or intended outcome is unsettled
+- **THEN** the agent puts those judgements to the user before drafting
+- **AND** carries a recommended answer with each one
+- **AND** asks nothing whose answer depends on a question still open
+- **AND** proceeds to the draft once nothing material is left unsettled
+
+#### Scenario: A report that needs no refining
+
+- **WHEN** the report is already unambiguous, such as a typo or a one-line reproduction
+- **THEN** the agent drafts it without manufacturing questions to ask
 
 #### Scenario: Context enrichment
 

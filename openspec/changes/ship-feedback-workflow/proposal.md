@@ -43,11 +43,16 @@ who just hit it, and the agent that watched it happen — are the two we equip l
   module exports a skill template and no `getOpsx*CommandTemplate`. Without one it
   is a skills-only workflow that `profile-sync-drift` reports as drift forever
   under `delivery: 'both'`.
-- **Rewrite the skill to draft, not interrogate.** It already has the
-  conversation, the failing command, the version and the platform. It fills those
-  in itself, asks only for what it genuinely cannot infer, shows one complete
-  draft, and submits on a single confirmation. Its fields are the bug form's
-  fields, so a skill-filed issue and a form-filed issue read the same.
+- **Rewrite the skill to refine the report, then draft it.** Two different jobs
+  that the current template conflates. Facts are the skill's to find — the
+  conversation, the failing command, the version, the platform — and it should
+  never ask for one of those. Judgements are the user's, and those are worth
+  asking about: what the report is really asking for, who it affects, what it
+  deliberately leaves out. A report that arrives already scoped is the labour this
+  saves later, so the skill converges on one with the user before it drafts
+  anything, then shows one complete draft and submits on a single confirmation.
+  Its fields are the form's fields, so a skill-filed issue and a form-filed issue
+  read the same.
 - **`openspec feedback --type bug|feature|feedback`.** Each type emits the body
   the matching form asks for and requests the labels that form applies — `bug,
   needs-triage`, `enhancement, needs-triage`, or `feedback` — so a CLI-filed
@@ -79,8 +84,9 @@ and costs a removal plus a new file.
 
 - `cli-feedback`: `--type` and its effect on title, body, and label; the manual fallback URL
   targeting the issue form with prefilled fields; the feedback skill requirement
-  amended to draft rather than interrogate, and stated as installed rather than
-  merely specified.
+  amended to refine before drafting — facts found rather than asked for, the
+  user's judgements put to them with a recommendation — and stated as installed
+  rather than merely specified.
 
 ## Depends on
 

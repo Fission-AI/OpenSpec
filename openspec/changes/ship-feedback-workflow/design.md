@@ -31,8 +31,10 @@ below.
 
 **Goals**
 
-- A user who says "file that as an issue" gets a well-formed issue, without
-  reading anything and without being interviewed.
+- A user who says "file that as an issue" gets a well-scoped issue, without
+  reading anything first.
+- The issue arrives needing less work from a maintainer than it would have. That
+  is the point: refinement at filing time is labour not spent in triage later.
 - A skill-filed issue and a form-filed issue carry the same fields, so triage
   reads one shape.
 - `openspec feedback` with no flags behaves exactly as it does today.
@@ -46,6 +48,13 @@ below.
   (`cli-feedback` — "Feedback always works").
 - Reading the issue forms at runtime. The CLI never fetches or parses
   `.github/`; see "Coupling to the forms" below.
+- Refinement in the CLI. Deciding which question matters next, given what the
+  user just said, is the whole value and it needs a model. A fixed question list
+  in `feedback.ts` would ask a crash and a papercut the same five things and
+  could not tell a vague answer from a usable one. The CLI keeps the
+  deterministic half — validating `--type`, assembling the body, matching the
+  form's fields and labels, building the fallback URL — and the skill keeps the
+  judgement.
 
 ## Decisions
 
@@ -146,6 +155,84 @@ test asserts that the ids it hard-codes are exactly the ids present in
 repository rather than silently emptying a field for users. If an id ever does go
 stale in a released version, GitHub ignores unknown prefill parameters: the user
 gets the right form with one field blank, not an error.
+
+### What the skill asks, and what it must never ask
+
+The current template's flow is "review the conversation, draft, show it." #1834
+sharpens that to "draft, not interrogate," and taken literally that forbids the
+thing most worth doing: helping the user work out what they are actually asking
+for. A vague issue filed instantly is not cheaper than a good one filed a minute
+later — it is the same work, moved to a maintainer and made harder by the missing
+context. So the skill refines first, and the contract is about *which* things it
+may put to the user.
+
+The split is facts versus judgements.
+
+**Facts are the skill's job.** The OpenSpec version, the platform, the failing
+command and its output, the agent and model, what the user was doing — all
+observable. Asking for any of them is the interrogation failure mode, and it is
+the one users actually resent. This is the half of #1834's "draft, not
+interrogate" that survives intact, and it is stated as a prohibition in the spec
+because it is the one place a hard line is right.
+
+**Judgements are the user's.** What the report is really asking for, who it
+affects, what it deliberately excludes, whether the reported problem is the
+problem or a symptom of one. These cannot be inferred, and they are exactly the
+questions whose absence costs a maintainer a round trip later. Scope is the
+highest-value one: *what should this not do* settles more downstream argument than
+any reproduction detail.
+
+Two mechanics are worth borrowing rather than inventing, from Matt Pocock's
+`grilling` skill, which does this well:
+
+- **Each question carries a recommended answer.** Agreement then costs a word, and
+  a user who disagrees is arguing with a concrete proposal instead of composing
+  one. This is also how OpenSpec's own `explore` already works — its shared
+  `PLANNING_GUIDANCE` says to "state your preferred option and why it fits."
+- **Dependency ordering.** Never ask a question whose answer depends on one still
+  open; settle the blocking decision, then the details it unlocks. `explore`
+  already says "Follow dependencies"; grilling makes it the whole selection rule.
+
+Grilling asks the entire unblocked frontier in a numbered round; `explore` asks
+one focused question at a time. The spec deliberately picks neither. Cadence is
+the kind of thing that should improve without a spec change, and the right answer
+probably differs between a bug report and a feature idea. What the spec fixes is
+the ordering rule and the recommendation, which are the parts that make the
+conversation short.
+
+**Termination is by exhaustion, not by count.** Grilling refuses a question cap on
+purpose, and it is right to: some reports need one question and some need ten.
+What the spec requires instead is that the skill stop when nothing material is
+unsettled — and, just as importantly, that it be able to ask *nothing at all*. A
+skill that manufactures three questions for a typo report teaches users to stop
+invoking it, which costs more than any single badly-scoped issue.
+
+### One file, no reference layer
+
+Current skill-authoring practice — Anthropic's `skill-creator`, and Pocock's
+skills, whose SKILL.md files run 7 to 140 lines — is progressive disclosure: a
+short SKILL.md that points at sibling reference files loaded only when needed.
+
+**OpenSpec cannot do that today.** `generateSkillContent`
+(`src/core/shared/skill-generation.ts:132`) returns a single string, and every
+adapter writes exactly one `SKILL.md` per skill directory. There is no mechanism
+for a sibling file — adding one would touch the generator, every adapter's file
+layout, `tool-detection.ts`'s existence checks, the `skills/` mirror, and the
+parity hashes. That is its own proposal, and this change should not smuggle it in.
+
+So the whole skill has to fit one file, which makes leanness a constraint rather
+than a preference. Two consequences for how it is written, both drawn from the
+same current practice:
+
+- **Explain why instead of stacking capitalised MUSTs.** The existing template has
+  seven in a row under "Guardrails." `skill-creator` calls that a yellow flag and
+  asks for the reasoning instead, so the model can generalise to the case nobody
+  wrote down. The genuine invariants — show the draft, get confirmation, anonymise
+  — stay imperative; the rest becomes explanation.
+- **Phrase instructions positively.** Pocock's `writing-for-agents` puts it well:
+  steering by prohibition drags the forbidden behaviour into context and makes it
+  *more* available. "Fill the version in yourself" beats "DO NOT ask for the
+  version."
 
 ### The skill's own `name` has to change, even though the workflow id does not
 
