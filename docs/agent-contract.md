@@ -47,7 +47,9 @@ deliberately remains the compatibility bare array documented in §4.13:
 ## 4. Command JSON shapes
 
 ### 4.1 `list --json`
-`{ "changes": [ { "name", "completedTasks", "totalTasks", "lastModified", "status": "no-tasks"|"complete"|"in-progress" } ], "root": RootOutput }` — note the per-change `status` is a string enum here. `--specs`: `{ "specs": [ { "id", "requirementCount" } ], "root" }`.
+`{ "changes": [ { "name", "completedTasks", "totalTasks", "lastModified", "status": "no-tasks"|"complete"|"in-progress", "nested"?: ["<area>/<name>", ...] } ], "warnings"?: [ { "code", "name", "nested", "message" } ], "root": RootOutput }` — note the per-change `status` is a string enum here. `--specs`: `{ "specs": [ { "id", "requirementCount" } ], "root" }`.
+
+`warnings` (omitted when empty) reports directories under `changes/` that are not changes. Today the only code is `nested_change_directory`: a namespace folder wrapping change directories, which OpenSpec cannot address because a change is always a directory directly under `changes/`. The same entry carries `nested` on the listed change, whose `status` is then meaningless. Do not treat such an entry as a change; report the message and leave the directories alone.
 
 ### 4.2 `show <item> --json`
 Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id", "title", "overview", "requirementCount", "requirements": [...], "metadata": { "version", "format", "sourcePath"? }, "root" }`.
