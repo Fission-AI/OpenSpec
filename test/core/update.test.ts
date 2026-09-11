@@ -3619,9 +3619,13 @@ More user content after markers.
         const skillFile = path.join(toolDir, 'skills', 'openspec-apply-change', 'SKILL.md');
         expect(await FileSystemUtils.fileExists(skillFile)).toBe(delivery === 'skills');
         if (delivery === 'skills') {
+          // No command files are written, so skill bodies must invoke skills by
+          // name. Grok registers a user-invocable skill as `/<skill-name>`.
           const skillContent = await fs.readFile(skillFile, 'utf-8');
           expect(skillContent).toContain('/openspec-archive-change');
           expect(skillContent).not.toContain('/opsx:');
+          expect(skillContent).not.toContain('/opsx-');
+          expect(await FileSystemUtils.fileExists(path.join(toolDir, 'commands', 'opsx-propose.md'))).toBe(false);
         }
         // Grok's own project config and the user's hand-written command and
         // skill are never OpenSpec's to touch.
