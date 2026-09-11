@@ -181,6 +181,31 @@ jobs:
       - name: Setup Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@908b263ff629f4cc17666315b7fd3ec127c6244d # v14
 
+      # Run the update script before `nix build`, not after. The script recomputes
+      # the pnpmDeps hash from pnpm-lock.yaml and rewrites flake.nix in place, so a
+      # stale hash is reported here as the exact value to paste. Built first, the
+      # same staleness surfaces as pnpm's ERR_PNPM_NO_OFFLINE_TARBALL — which names
+      # a missing tarball, not the hash — and the script never runs to say otherwise.
+      # Every root lockfile change needs this value, and Dependabot cannot produce it.
+      - name: Verify pnpmDeps hash matches the lockfile
+        run: |
+          bash scripts/update-flake.sh
+          if git diff --quiet flake.nix; then
+            echo "✅ flake.nix pnpmDeps hash is up to date"
+            exit 0
+          fi
+          # Scoped to the pnpmDeps block: a bare first-match would report some other
+          # FOD's hash if one is ever added above it.
+          HASH=$(sed -n '/pnpmDeps = /,/};/p' flake.nix \
+            | sed -nE 's/.*hash = "(sha256-[^"]+)".*/\1/p' | head -1)
+          git diff flake.nix
+          echo "::error file=flake.nix::Stale pnpmDeps hash. Set pnpmDeps.hash to $HASH and push."
+          exit 1
+
+      - name: Restore flake.nix
+        if: always()
+        run: git checkout -- flake.nix || true
+
       - name: Build with Nix
         run: nix build
 
@@ -205,25 +230,6 @@ jobs:
             exit 1
           fi
           echo "✅ Binary execution successful"
-
-      - name: Validate update script
-        run: |
-          echo "Testing update-flake.sh script..."
-          bash scripts/update-flake.sh
-          echo "✅ Update script executed successfully"
-
-      - name: Check flake.nix modifications
-        run: |
-          if git diff --quiet flake.nix; then
-            echo "ℹ️  flake.nix unchanged (hash already up-to-date)"
-          else
-            echo "✅ flake.nix was updated by script"
-            git diff flake.nix
-          fi
-
-      - name: Restore flake.nix
-        if: always()
-        run: git checkout -- flake.nix || true
 
   validate-changesets:
     name: Validate Release Tracking
@@ -260,7 +266,7 @@ jobs:
         if: steps.changed-changesets.outputs.has_changesets == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '20.19.0'
+          node-version: '24'
           cache: 'pnpm'
 
       - name: Install dependencies

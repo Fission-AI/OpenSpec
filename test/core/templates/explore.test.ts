@@ -49,6 +49,67 @@ function fencedBlockLines(body: string): Array<[number, string]> {
 }
 
 describe('explore templates', () => {
+  it('guides planning without forcing an interview on open-ended exploration (#1017)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('When the user is planning a change');
+      expect(body, label).toContain('For open-ended discussion, follow the conversation');
+      expect(body, label).toContain('Stop asking when the user has enough clarity');
+      expect(body, label).toContain('Let them pause, pivot, or defer a decision');
+      expect(body, label).not.toContain('Relentless Interview Mode');
+    }
+  });
+
+  it('investigates repository facts before asking while acknowledging missing evidence (#1017)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('Before asking a factual question, follow the context discovery below');
+      expect(body, label).toContain('relevant OpenSpec artifacts, source, tests, docs, and configuration');
+      expect(body, label).toContain('Do not ask the user to repeat facts you can verify');
+      expect(body, label).toContain('If evidence is missing, conflicting, or inaccessible');
+      expect(body, label).toContain('ask only for the clarification needed to proceed');
+    }
+  });
+
+  it('resolves blocking decisions first and revisits dependent assumptions (#1017)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('Resolve the next blocking decision before its dependent details');
+      expect(body, label).toContain('Revisit downstream assumptions when an earlier answer changes');
+      expect(body, label).toContain('Skip branches that do not matter to this goal');
+    }
+  });
+
+  it('asks one focused question and recommends only when evidence supports a choice (#1017)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('Ask one focused question at a time');
+      expect(body, label).toContain('Batch questions only if the user asks for a batch');
+      expect(body, label).toContain('explain why it matters and which decision it unlocks');
+      expect(body, label).toContain('When evidence supports a recommendation');
+      expect(body, label).toContain('Do not invent intent, priorities, or external constraints');
+    }
+  });
+
+  it('keeps decisions in the conversation without accepting defaults or authorizing writes (#1017)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('Track decisions in the conversation');
+      expect(body, label).toContain('Separate confirmed decisions from proposed defaults and unresolved questions');
+      expect(body, label).toContain('Silence is not acceptance');
+      expect(body, label).toContain('Accepting an answer or a batch of recommendations is not permission to write');
+      expect(body, label).toContain('Keep file-write confirmation separate from discovery questions');
+    }
+  });
+
+  it('delivers the same planning guidance exactly once in both templates (#1017)', () => {
+    const sections = bodies.map(([label, body]) => {
+      const heading = '## Planning a Change';
+      expect(occurrenceCount(body, heading), label).toBe(1);
+      const start = body.indexOf(heading);
+      const end = body.indexOf('\n---', start);
+      expect(end, label).toBeGreaterThan(start);
+      return body.slice(start, end);
+    });
+
+    expect(sections[0]).toBe(sections[1]);
+  });
+
   // Regression for #696: explore never loaded the project's declared
   // context, so it reasoned without the tech stack, conventions, and
   // rules every artifact-creating workflow already receives.

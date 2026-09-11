@@ -5,6 +5,7 @@ import { SpecSchema, ChangeSchema, Spec, Change } from '../schemas/index.js';
 import { MarkdownParser } from '../parsers/markdown-parser.js';
 import { ChangeParser } from '../parsers/change-parser.js';
 import { ValidationReport, ValidationIssue, ValidationLevel } from './types.js';
+import { findSpecUpdates, buildUpdatedSpec } from '../specs-apply.js';
 import {
   MIN_PURPOSE_LENGTH,
   MAX_REQUIREMENT_TEXT_LENGTH,
@@ -151,9 +152,10 @@ export class Validator {
    * - No duplicates within sections; no cross-section conflicts per spec
    *
    * When `options.mainSpecsDir` is given, MODIFIED blocks are also checked
-   * against the current main specs for the scenario loss archive refuses to
-   * apply (#1477). When `options.projectRoot` is given, the schema's tracked
-   * task files are checked for ambiguous numbering (#1520). Omitting either
+   * against the current main specs for scenario loss (#1477), and merge
+   * conflicts are reported as INFO without changing the verdict (#1112).
+   * When `options.projectRoot` is given, the schema's tracked task files are
+   * checked for ambiguous numbering (#1520). Omitting either
    * option keeps existing library and archive callers behaving as before.
    */
   async validateChangeDeltaSpecs(
@@ -394,6 +396,23 @@ export class Validator {
             });
           }
         }
+      }
+
+      // Reuse archive's merge builder to report conflicts with the main specs.
+      // Keep structural errors and scenario loss in their existing diagnostics.
+      if (options.mainSpecsDir) {
+        issues.push(
+          ...(await this.findArchiveBlockers(changeDir, options.mainSpecsDir, [
+            ...issues.filter((issue) => issue.level === 'ERROR').map((issue) => issue.path),
+            // Collected in the loop above but not turned into issues until
+            // after this try block, so they are invisible to the filter. A
+            // delta with no parsed sections has nothing for the merge to
+            // apply, which it reports as a failure of its own - on top of the
+            // error that actually names the mistake.
+            ...missingHeaderSpecs,
+            ...emptySectionSpecs.map((spec) => spec.path),
+          ]))
+        );
       }
     } catch (error) {
       // A missing specs dir (or a stray `specs` file) means no deltas;
@@ -777,6 +796,70 @@ export class Validator {
     const fileName = parts[parts.length - 1] ?? '';
     const dotIndex = fileName.lastIndexOf('.');
     return dotIndex > 0 ? fileName.slice(0, dotIndex) : fileName;
+  }
+
+  /**
+   * Dry-run archive's merge builder without writing its result. Reusing the
+   * builder preserves its already-synced delta rules instead of duplicating them.
+   * INFO leaves the verdict unchanged: a missing target can be a typo or a
+   * requirement introduced by a sibling change that has not archived yet.
+   * This does not run archive's later merged-spec validation or retirement checks.
+   */
+  private async findArchiveBlockers(
+    changeDir: string,
+    mainSpecsDir: string,
+    alreadyReportedPaths: string[]
+  ): Promise<ValidationIssue[]> {
+    const alreadyReported = new Set(alreadyReportedPaths);
+    // Only ever reaches a generated skeleton's placeholder Purpose, which this
+    // dry run discards.
+    const changeName = path.basename(changeDir);
+    const issues: ValidationIssue[] = [];
+
+    let updates: Awaited<ReturnType<typeof findSpecUpdates>>;
+    try {
+      updates = await findSpecUpdates(changeDir, mainSpecsDir);
+    } catch (error) {
+      // An incomplete advisory check must not discard the validation report.
+      // Source discovery already ran above; archive retains its own path guards.
+      return [{
+        level: 'INFO',
+        path: 'specs',
+        message: `Could not check archive merge conflicts: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      }];
+    }
+
+    for (const update of updates) {
+      // discoverSpecFiles builds both this id and the entryPath the checks
+      // above report under, from the same walk.
+      const entryPath = FileSystemUtils.toPosixPath(`${update.id}/spec.md`);
+      // A delta those checks already rejected would be reported twice, the
+      // second time in archive's wording rather than the wording that names
+      // the actual mistake.
+      if (alreadyReported.has(entryPath)) continue;
+
+      try {
+        await buildUpdatedSpec(update, changeName, { silent: true });
+      } catch (error) {
+        // Only the thrown preconditions, which carry no errno. A filesystem
+        // error says nothing about whether the delta applies, and `validate
+        // --all` reads six changes at once, so a transient EMFILE would report
+        // a collision that is not there - the same reason the scenario-loss
+        // check above reads only the codes that mean the file is unusable.
+        if ((error as NodeJS.ErrnoException)?.code !== undefined) continue;
+        issues.push({
+          level: 'INFO',
+          path: entryPath,
+          message: `Archive would refuse this delta: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        });
+      }
+    }
+
+    return issues;
   }
 
   private createReport(issues: ValidationIssue[]): ValidationReport {
