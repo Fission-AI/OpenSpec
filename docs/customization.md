@@ -270,6 +270,13 @@ List artifacts in the order you want them written. `requires` decides what is
 possible; the order of the `artifacts:` list decides what comes first when
 several artifacts are ready at once.
 
+The `apply` block says when a change is ready to implement: `apply.requires`
+lists artifact ids that must exist first, and `apply.tracks` names the file
+whose checkboxes track progress. Each `apply.requires` id must be an artifact
+in this schema, and `apply.tracks` must be written exactly as one artifact's
+`generates` (a glob is repeated as-is). `openspec schema validate` reports
+either mistake, and a schema that has one does not load.
+
 ### Templates
 
 Templates are markdown files that guide the AI. They're injected into the prompt when creating that artifact.

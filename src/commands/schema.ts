@@ -227,8 +227,8 @@ function validateSchema(
     }
   }
 
-  // Dependency graph validation is already done by parseSchema
-  // (it throws on cycles and invalid references)
+  // Dependency graph validation is already done by parseSchema (it throws on
+  // cycles, invalid references, and an apply block naming no artifact)
   if (verbose) {
     console.log('  Dependency graph validation passed (via parseSchema)');
   }
