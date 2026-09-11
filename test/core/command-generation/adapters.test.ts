@@ -1180,9 +1180,12 @@ describe('command-generation/adapters', () => {
     // The file stem is what Grok registers, so it has to survive Grok's own
     // name rules, which its loader applies to commands and skills alike:
     // lowercase [a-z0-9-], no leading or trailing hyphen, no `--`, and at most
-    // 64 characters. A stem that fails them is dropped rather than corrected.
+    // 64 characters. Grok normalizes a stem that breaks the character rules,
+    // so the risk is a silently renamed command rather than a rejected one.
     it('names every command with a stem Grok accepts verbatim', () => {
-      for (const { id } of getCommandContents()) {
+      const contents = getCommandContents();
+      expect(contents.length).toBeGreaterThan(0);
+      for (const { id } of contents) {
         const stem = path.basename(grokAdapter.getFilePath(id), '.md');
         expect(stem).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
         expect(stem.length).toBeLessThanOrEqual(64);

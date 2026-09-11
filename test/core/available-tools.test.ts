@@ -543,6 +543,10 @@ describe('available-tools', () => {
       const grokTool = tools.find((t) => t.value === 'grok');
       expect(grokTool?.name).toBe('Grok Build');
       expect(grokTool?.skillsDir).toBe('.grok');
+      // `available` gates the workset tool picker. The cli-e2e `--tools` list
+      // derives its expectation from AI_TOOLS itself, so it cancels out when
+      // this flag flips and nothing else would notice Grok disappearing.
+      expect(grokTool?.available).toBe(true);
       // Grok is a CLI: it picks up new command and skill files without an
       // editor restart, so no restart hint should be offered (#1067).
       expect(grokTool?.requiresIdeRestart).toBeUndefined();

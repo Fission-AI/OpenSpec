@@ -20,10 +20,17 @@
  *   the command, which keeps the generated name identical to the one
  *   advertised in skills, docs, and the getting-started hint.
  *
- * Grok also reads `.agents/`, `.claude/`, and `.cursor/` command directories
- * for vendor compatibility. Those receive `opsx/<id>.md` from their own
- * adapters, which Grok's flat scan skips, so a project configured for both
- * Grok and Claude Code registers each command exactly once.
+ * Grok also scans `.agents/`, `.claude/`, and `.cursor/` for skills and
+ * commands. Nothing writes `.agents/commands/`, and Claude Code nests its
+ * commands under `opsx/`, which the flat scan skips — but Cursor writes them
+ * flat as `opsx-<id>.md`, and every one of those roots can hold an identical
+ * `skills/openspec-<name>/SKILL.md`. So a project configured for Grok alongside
+ * Cursor or Claude Code can present Grok with the same name from two roots.
+ * The copies differ only in the frontmatter each tool needs, so whichever one
+ * Grok resolves to runs the same workflow. OpenSpec writes `.grok/`
+ * unconditionally rather than trying to predict that resolution: the user may
+ * drop the other tool at any time, and a missing `.grok/` tree would then
+ * leave Grok with nothing.
  */
 
 import path from 'path';
