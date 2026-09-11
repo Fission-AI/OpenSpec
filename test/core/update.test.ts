@@ -2782,11 +2782,12 @@ ${OPENSPEC_MARKERS.end}
         'old'
       );
 
-      // Create legacy slash command directory
+      // Create legacy slash command directory holding a command OpenSpec wrote.
+      // Only those files are removed; any other file here is the user's.
       const legacyCommandDir = path.join(testDir, '.claude', 'commands', 'openspec');
       await fs.mkdir(legacyCommandDir, { recursive: true });
       await fs.writeFile(
-        path.join(legacyCommandDir, 'old-command.md'),
+        path.join(legacyCommandDir, 'proposal.md'),
         'old command'
       );
 

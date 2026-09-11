@@ -131,7 +131,7 @@ Needs your attention
 
 **What happens when you say yes:**
 
-1. Legacy slash command directories are removed
+1. Legacy slash command files are removed, and their folder too once nothing else is left in it (anything you added there is kept)
 2. OpenSpec markers are stripped from `CLAUDE.md`, `AGENTS.md`, etc. (your content stays)
 3. `openspec/AGENTS.md` is deleted
 4. New skills are installed in `.claude/skills/`

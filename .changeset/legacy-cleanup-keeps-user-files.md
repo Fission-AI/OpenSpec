@@ -1,0 +1,5 @@
+---
+'@fission-ai/openspec': patch
+---
+
+Stop legacy cleanup deleting the user's own files. The six pre-skills tools that kept their commands in a `<tool>/commands/openspec/` folder (Claude Code, CodeBuddy, Qoder, Lingma, Crush and Gemini CLI) had that whole folder removed recursively whenever it existed, so a command the user kept there, such as a team review checklist, was deleted along with OpenSpec's files, and the summary named only the folder. Because `openspec init` cleans up automatically when there is no TTY, an agent or CI running plain `openspec init` did this without `--force` and without a prompt, and `openspec update --force` did the same. Cleanup now deletes only the files OpenSpec wrote there (`proposal`, `apply` and `archive`), removes the folder only once nothing else is left in it, and lists each thing it kept. A folder holding nothing OpenSpec wrote is no longer reported as legacy at all. A folder holding only OpenSpec's files, or nothing, is still removed exactly as before, with the same summary line.

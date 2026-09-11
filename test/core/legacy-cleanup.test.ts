@@ -1162,6 +1162,7 @@ ${OPENSPEC_MARKERS.end}`);
       expect(LEGACY_SLASH_COMMAND_PATHS['claude']).toEqual({
         type: 'directory',
         path: '.claude/commands/openspec',
+        managedFileNames: ['proposal.md', 'apply.md', 'archive.md'],
       });
 
       expect(LEGACY_SLASH_COMMAND_PATHS['cursor']).toEqual({

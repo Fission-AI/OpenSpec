@@ -26,19 +26,27 @@ export const LEGACY_CONFIG_FILES = [
   'QWEN.md',
 ] as const;
 
+/** The three commands the old SlashCommandRegistry wrote into each directory. */
+const LEGACY_DIRECTORY_COMMAND_FILES = ['proposal.md', 'apply.md', 'archive.md'] as const;
+
 /**
  * Legacy slash command patterns from the old SlashCommandRegistry.
  * These map toolId to the path pattern where legacy commands were created.
  * Some tools used a directory structure, others used individual files.
  */
 export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPattern> = {
-  // Directory-based: .tooldir/commands/openspec/ or .tooldir/commands/openspec/*.md
-  'claude': { type: 'directory', path: '.claude/commands/openspec' },
-  'codebuddy': { type: 'directory', path: '.codebuddy/commands/openspec' },
-  'qoder': { type: 'directory', path: '.qoder/commands/openspec' },
-  'lingma': { type: 'directory', path: '.lingma/commands/openspec' },
-  'crush': { type: 'directory', path: '.crush/commands/openspec' },
-  'gemini': { type: 'directory', path: '.gemini/commands/openspec' },
+  // Directory-based: .tooldir/commands/openspec/. Each entry names the files
+  // OpenSpec wrote there, because users keep their own commands in the same
+  // folder: only those files are deleted, and the folder only once it is empty.
+  'claude': { type: 'directory', path: '.claude/commands/openspec', managedFileNames: LEGACY_DIRECTORY_COMMAND_FILES },
+  'codebuddy': { type: 'directory', path: '.codebuddy/commands/openspec', managedFileNames: LEGACY_DIRECTORY_COMMAND_FILES },
+  'qoder': { type: 'directory', path: '.qoder/commands/openspec', managedFileNames: LEGACY_DIRECTORY_COMMAND_FILES },
+  // Lingma support arrived after the opsx rename and has always written to
+  // `.lingma/commands/opsx/`, so OpenSpec never put a file here: only an empty
+  // leftover folder is removed.
+  'lingma': { type: 'directory', path: '.lingma/commands/openspec', managedFileNames: [] },
+  'crush': { type: 'directory', path: '.crush/commands/openspec', managedFileNames: LEGACY_DIRECTORY_COMMAND_FILES },
+  'gemini': { type: 'directory', path: '.gemini/commands/openspec', managedFileNames: ['proposal.toml', 'apply.toml', 'archive.toml'] },
 
   // File-based: individual openspec-*.md files in a commands/workflows/prompts folder
   'cursor': { type: 'files', pattern: '.cursor/commands/openspec-*.md' },
@@ -110,6 +118,8 @@ export const LEGACY_GLOBAL_SLASH_COMMAND_PATHS: Record<string, LegacyGlobalPromp
 export interface LegacySlashCommandPattern {
   type: 'directory' | 'files';
   path?: string; // For directory type
+  /** For directory type: the only files in `path` that OpenSpec wrote. */
+  managedFileNames?: readonly string[];
   pattern?: string | string[]; // For files type (glob pattern or array of patterns)
 }
 
@@ -320,8 +330,20 @@ export async function detectLegacySlashCommands(
   for (const pattern of Object.values(LEGACY_SLASH_COMMAND_PATHS)) {
     if (pattern.type === 'directory' && pattern.path) {
       const dirPath = FileSystemUtils.joinPath(projectPath, pattern.path);
-      if (await FileSystemUtils.directoryExists(dirPath)) {
+      if (!(await FileSystemUtils.directoryExists(dirPath))) {
+        continue;
+      }
+      const entries = await readLegacyCommandDir(dirPath, pattern.managedFileNames ?? []);
+      if (!entries) {
+        continue;
+      }
+      if (entries.others.length === 0) {
+        // Only OpenSpec's own files, or nothing: the whole folder can go.
         directories.push(pattern.path);
+      } else {
+        // The folder also holds the user's files, so report OpenSpec's files
+        // one by one; cleanup deletes those and leaves the folder in place.
+        files.push(...entries.managed.map((name) => `${pattern.path}/${name}`));
       }
     } else if (pattern.type === 'files' && pattern.pattern) {
       const patterns = Array.isArray(pattern.pattern) ? pattern.pattern : [pattern.pattern];
@@ -333,6 +355,76 @@ export async function detectLegacySlashCommands(
   }
 
   return { directories, files };
+}
+
+/**
+ * Splits a legacy command directory's entries into the files OpenSpec wrote
+ * there and everything else, sorted. Only a regular file with a managed name
+ * counts as OpenSpec's; a folder or link carrying one of those names is the
+ * user's. Subdirectories are listed with a trailing '/'. Returns undefined when
+ * the directory cannot be read.
+ */
+async function readLegacyCommandDir(
+  dirPath: string,
+  managedFileNames: readonly string[]
+): Promise<{ managed: string[]; others: string[] } | undefined> {
+  let entries;
+  try {
+    entries = await fs.readdir(dirPath, { withFileTypes: true });
+  } catch {
+    return undefined;
+  }
+
+  const managed: string[] = [];
+  const others: string[] = [];
+  for (const entry of entries) {
+    if (entry.isFile() && managedFileNames.includes(entry.name)) {
+      managed.push(entry.name);
+    } else {
+      others.push(entry.isDirectory() ? `${entry.name}/` : entry.name);
+    }
+  }
+  return { managed: managed.sort(), others: others.sort() };
+}
+
+/**
+ * The legacy command directory, and its tool, that a repo-local path is one of
+ * OpenSpec's own files in.
+ */
+function legacyCommandDirForFile(file: string): { toolId: string; dir: string } | undefined {
+  const normalizedFile = normalizePathForMatch(file);
+  for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
+    if (pattern.type !== 'directory' || !pattern.path) continue;
+    const dir = pattern.path;
+    if (pattern.managedFileNames?.some((name) => normalizedFile === `${dir}/${name}`)) {
+      return { toolId, dir };
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Removes a legacy command directory once OpenSpec's files are gone from it,
+ * or records what is left in it as kept. Never recursive: whatever remains was
+ * not written by OpenSpec. Returns true when the directory was removed.
+ */
+async function settleLegacyCommandDir(
+  projectPath: string,
+  dirPath: string,
+  result: CleanupResult
+): Promise<boolean> {
+  const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
+  const remaining = await readLegacyCommandDir(fullPath, []);
+  if (!remaining) {
+    return false;
+  }
+  if (remaining.others.length === 0) {
+    await fs.rmdir(fullPath);
+    result.deletedDirs.push(dirPath);
+    return true;
+  }
+  result.keptFiles!.push(...remaining.others.map((name) => `${dirPath}/${name}`));
+  return false;
 }
 
 /**
@@ -506,6 +598,8 @@ export interface CleanupResult {
   modifiedFiles: string[];
   /** Directories that were deleted */
   deletedDirs: string[];
+  /** Entries left in a legacy command directory because OpenSpec did not write them */
+  keptFiles?: string[];
   /** Whether project.md exists and needs manual migration */
   projectMdNeedsMigration: boolean;
   /** Error messages if any operations failed */
@@ -529,6 +623,7 @@ export async function cleanupLegacyArtifacts(
     deletedFileReplacementLabels: {},
     modifiedFiles: [],
     deletedDirs: [],
+    keptFiles: [],
     projectMdNeedsMigration: detection.hasProjectMd,
     errors: [],
   };
@@ -548,25 +643,51 @@ export async function cleanupLegacyArtifacts(
     }
   }
 
-  // Delete legacy slash command directories (these are 100% OpenSpec-managed)
+  // Delete legacy slash command directories: only the files OpenSpec wrote,
+  // then the directory once it is empty. Detection reports a directory only
+  // when it holds nothing else, but a file the user added since is still kept.
   for (const dirPath of detection.slashCommandDirs) {
     const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
     try {
-      await fs.rm(fullPath, { recursive: true, force: true });
-      result.deletedDirs.push(dirPath);
+      const managedFileNames = legacyManagedFileNamesForDir(dirPath);
+      const entries = await readLegacyCommandDir(fullPath, managedFileNames);
+      if (!entries) {
+        continue;
+      }
+      for (const name of entries.managed) {
+        await fs.unlink(path.join(fullPath, name));
+      }
+      if (!(await settleLegacyCommandDir(projectPath, dirPath, result))) {
+        result.deletedFiles.push(...entries.managed.map((name) => `${dirPath}/${name}`));
+      }
     } catch (error: any) {
       result.errors.push(`Failed to delete directory ${dirPath}: ${error.message}`);
     }
   }
 
   // Delete legacy slash command files (these are 100% OpenSpec-managed)
+  const partlyCleanedDirs = new Set<string>();
   for (const filePath of detection.slashCommandFiles) {
     const fullPath = FileSystemUtils.joinPath(projectPath, filePath);
     try {
       await fs.unlink(fullPath);
       result.deletedFiles.push(filePath);
+      const commandDir = legacyCommandDirForFile(filePath);
+      if (commandDir) {
+        partlyCleanedDirs.add(commandDir.dir);
+      }
     } catch (error: any) {
       result.errors.push(`Failed to delete ${filePath}: ${error.message}`);
+    }
+  }
+
+  // A legacy command directory that also held the user's files was cleaned
+  // file by file above; record what was left in it.
+  for (const dirPath of partlyCleanedDirs) {
+    try {
+      await settleLegacyCommandDir(projectPath, dirPath, result);
+    } catch (error: any) {
+      result.errors.push(`Failed to delete directory ${dirPath}: ${error.message}`);
     }
   }
 
@@ -621,7 +742,14 @@ export async function cleanupLegacyArtifacts(
 export function formatCleanupSummary(result: CleanupResult): string {
   const lines: string[] = [];
 
-  if (result.deletedFiles.length > 0 || result.deletedDirs.length > 0 || result.modifiedFiles.length > 0) {
+  const keptFiles = result.keptFiles ?? [];
+
+  if (
+    result.deletedFiles.length > 0 ||
+    result.deletedDirs.length > 0 ||
+    result.modifiedFiles.length > 0 ||
+    keptFiles.length > 0
+  ) {
     lines.push('Cleaned up legacy files:');
 
     for (const file of result.deletedFiles) {
@@ -635,6 +763,10 @@ export function formatCleanupSummary(result: CleanupResult): string {
 
     for (const dir of result.deletedDirs) {
       lines.push(`  ✓ Removed ${dir}/ (replaced by OpenSpec skills and commands)`);
+    }
+
+    for (const entry of keptFiles) {
+      lines.push(`  • Kept ${entry} (not created by OpenSpec)`);
     }
 
     for (const file of result.modifiedFiles) {
@@ -832,8 +964,24 @@ function legacyToolIdForDir(dir: string): string | undefined {
   return undefined;
 }
 
+/** The files OpenSpec wrote into a repo-local legacy slash-command directory. */
+function legacyManagedFileNamesForDir(dir: string): readonly string[] {
+  const normalizedDir = normalizePathForMatch(dir);
+  for (const pattern of Object.values(LEGACY_SLASH_COMMAND_PATHS)) {
+    if (pattern.type === 'directory' && pattern.path === normalizedDir) {
+      return pattern.managedFileNames ?? [];
+    }
+  }
+  return [];
+}
+
 /** The tool that owns a repo-local legacy slash-command file, if any. */
 function legacyToolIdForFile(file: string): string | undefined {
+  // A file from a directory-based tool, reported because the directory also
+  // holds the user's own files.
+  const commandDir = legacyCommandDirForFile(file);
+  if (commandDir) return commandDir.toolId;
+
   // Normalize to forward slashes so the glob patterns match on Windows too.
   const normalizedFile = normalizePathForMatch(file);
   for (const [toolId, pattern] of Object.entries(LEGACY_SLASH_COMMAND_PATHS)) {
