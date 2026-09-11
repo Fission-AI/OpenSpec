@@ -5,7 +5,10 @@ import { resolveArtifactOutputs, resolveSchema } from '../core/artifact-graph/in
 import { resolveSchemaForChange } from './change-metadata.js';
 
 /**
- * A Markdown task line: a `-`/`*` bullet carrying a `[ ]` or `[x]` checkbox.
+ * A Markdown task line: a list item carrying a `[ ]` or `[x]` checkbox, under
+ * any CommonMark list marker - `-`, `*`, `+`, or an ordered `1.` / `1)` of up
+ * to nine digits. Reading only `-` and `*` left an unchecked `1. [ ]` or
+ * `+ [ ]` task out of every count, so archive reported "✓ Complete" over it.
  *
  * Leading whitespace is allowed so nested sub-tasks count like their parents.
  * Anchoring at column 0 made `  - [ ] 1.1.1 ...` invisible to progress, to the
@@ -20,7 +23,7 @@ import { resolveSchemaForChange } from './change-metadata.js';
  * Deliberately unanchored at the end: `.` does not match `\r`, so writing the
  * description group as `(.*)$` would reject every line of a CRLF tasks.md.
  */
-const TASK_LINE_PATTERN = /^\s*[-*]\s*\[([\sxX])\]\s*(.*)/;
+const TASK_LINE_PATTERN = /^\s*(?:[-*+]|\d{1,9}[.)])\s*\[([\sxX])\]\s*(.*)/;
 
 export interface ParsedTask {
   /** Checkbox state: `[x]`/`[X]` is done, anything else is not. */
