@@ -412,6 +412,17 @@ export async function buildUpdatedSpec(
     if (nameToBlock.has(to)) {
       throw new Error(`${specName} RENAMED failed for header "### Requirement: ${r.to}" - target already exists`);
     }
+    // A target that differs from another requirement only in case or interior
+    // whitespace would leave two copies of one requirement. The source itself
+    // is exempt, so a case-only rename of a requirement stays allowed.
+    const targetNearMiss = [...nameToBlock.keys()].find(
+      (k) => k !== from && foldRequirementName(k) === foldRequirementName(to)
+    );
+    if (targetNearMiss !== undefined) {
+      throw new Error(
+        `${specName} RENAMED failed for header "### Requirement: ${r.to}" - "### Requirement: ${nameToBlock.get(targetNearMiss)!.name}" already exists and differs only in case or spacing; choose a distinct name`
+      );
+    }
     const block = nameToBlock.get(from)!;
     const newHeader = `### Requirement: ${to}`;
     const rawLines = block.raw.split('\n');
@@ -504,6 +515,17 @@ export async function buildUpdatedSpec(
         continue;
       }
       throw new Error(`${specName} ADDED failed for header "### Requirement: ${add.name}" - already exists`);
+    }
+    // A name that differs from an existing requirement only in case or
+    // interior whitespace is that requirement written again: adding it would
+    // leave two contradicting copies in the spec. Like the exact check above,
+    // this compares against the spec as it stands after the earlier operations,
+    // so a variant of a requirement this delta removed or renamed away is fine.
+    const nearMiss = [...nameToBlock.keys()].find((k) => foldRequirementName(k) === foldRequirementName(key));
+    if (nearMiss !== undefined) {
+      throw new Error(
+        `${specName} ADDED failed for header "### Requirement: ${add.name}" - "### Requirement: ${nameToBlock.get(nearMiss)!.name}" already exists and differs only in case or spacing; use MODIFIED with that exact header to change it, or choose a distinct name`
+      );
     }
     nameToBlock.set(key, add);
     addedApplied++;
