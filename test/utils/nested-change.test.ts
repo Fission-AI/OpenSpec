@@ -73,6 +73,17 @@ describe('nested change detection (#1846)', () => {
       });
     });
 
+    it('recognises a nested change that has only delta specs', async () => {
+      // A nested change is always hand-made (`new change` rejects a separator),
+      // and "mkdir the tree, write the deltas first" is how someone gets here.
+      await write(path.join('mobile', 'refresh-token', 'specs', 'auth', 'spec.md'));
+
+      expect(await findNestedChangesIn(changesDir, 'mobile')).toEqual({
+        name: 'mobile',
+        nested: ['mobile/refresh-token'],
+      });
+    });
+
     it('uses forward slashes on every platform', async () => {
       await write(path.join('mobile', 'refresh-token', 'proposal.md'));
 
@@ -105,6 +116,42 @@ describe('nested change detection (#1846)', () => {
       await fs.mkdir(path.join(changesDir, 'add-auth'), { recursive: true });
 
       expect(await findNestedChangesIn(changesDir, 'add-auth')).toBeUndefined();
+    });
+
+    it('ignores a change whose root artifacts live in a subdirectory', async () => {
+      // A custom schema may generate every root artifact into a subdirectory
+      // (`generates: rfc/proposal.md`). Created by hand, such a change has no
+      // .openspec.yaml, so without the delta-specs signal it would read as a
+      // namespace folder wrapping a change called "rfc".
+      await write(path.join('hand-made', 'rfc', 'proposal.md'));
+      await write(path.join('hand-made', 'rfc', 'tasks.md'));
+      await write(path.join('hand-made', 'specs', 'auth', 'spec.md'));
+
+      expect(await findNestedChangesIn(changesDir, 'hand-made')).toBeUndefined();
+    });
+
+    it('ignores a change that holds any file of its own', async () => {
+      // Content at the change root - an artifact under a name this module does
+      // not know, a note - means it is a change, whatever sits below it.
+      await write(path.join('hand-made', 'notes.md'));
+      await write(path.join('hand-made', 'sub', 'proposal.md'));
+
+      expect(await findNestedChangesIn(changesDir, 'hand-made')).toBeUndefined();
+    });
+
+    it('never reports the archive directory', async () => {
+      // `change show archive` reaches this without the reserved-name guard the
+      // other lookups apply; every dated archive entry would be offered up for
+      // renaming into an active change.
+      await write(path.join('archive', '2026-01-01-old', 'proposal.md'));
+
+      expect(await findNestedChangesIn(changesDir, 'archive')).toBeUndefined();
+    });
+
+    it('ignores a hidden directory under changes/', async () => {
+      await write(path.join('.trash', 'refresh-token', 'proposal.md'));
+
+      expect(await findNestedChangesIn(changesDir, '.trash')).toBeUndefined();
     });
 
     it('ignores a directory that does not exist', async () => {
