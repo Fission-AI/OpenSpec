@@ -2153,15 +2153,26 @@ New feature description.
       const archiveName = `${formatLocalDate()}-${changeName}`;
       const claimPath = archiveClaimPath(archiveName);
       const realLstat = fs.lstat.bind(fs);
+      // Match the claim by file name rather than by full path. The command
+      // stats the resolved real path, so a literal comparison against the
+      // temp-dir path misses on macOS (/var -> /private/var) and on Windows
+      // short paths, leaving the mock inert and the regression unexercised.
+      let maskedDeviceIds = 0;
       onTestFinished(() => vi.restoreAllMocks());
       vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
         const stats = await realLstat(target, options as any);
-        if (String(target) !== claimPath) return stats;
+        if (path.basename(String(target)) !== '.openspec-archive.lock') {
+          return stats;
+        }
+        maskedDeviceIds += 1;
         return { ...stats, dev: 0n };
       });
 
       await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
 
+      // Guards the assertion below: without this the test passes even when the
+      // mock never intercepts, which is how it originally went vacuous.
+      expect(maskedDeviceIds).toBeGreaterThan(0);
       await expect(fs.access(claimPath)).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
