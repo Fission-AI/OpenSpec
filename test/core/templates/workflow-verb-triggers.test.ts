@@ -43,13 +43,15 @@ const NATURAL_VERB_BY_WORKFLOW: Record<string, string> = {
  */
 const DELIBERATE_CLI_PHRASE_CLAIMS: Record<string, string> = {
   'openspec archive':
-    'the archive workflow syncs specs before archiving; the bare CLI command does not, so an agent asked to archive should run the workflow',
+    'both archive and merge delta specs, but the workflow confirms with the user and verifies the merge capability-by-capability before anything moves, where the bare command does it in one shot; an agent asked to archive should take the checked path',
   'openspec archive all':
+    'same, for several changes at once (bulk-archive)',
+  'openspec archive these changes':
     'same, for several changes at once (bulk-archive)',
   'openspec new change':
     'the new-change workflow runs this exact CLI command as its first step, then continues with the artifacts',
   'openspec update change':
-    'distinct from `openspec update`, which the update-change description explicitly disclaims',
+    'distinct from `openspec update`, which the update-change description redirects to the CLI command',
 };
 
 const CLI_ENTRYPOINT = fileURLToPath(
