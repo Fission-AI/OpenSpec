@@ -7,6 +7,7 @@ Listed projects are maintained independently. Inclusion does not imply official 
 ## Projects and resources
 
 - **[OpenSpec UI](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: A standalone web dashboard and VS Code extension for browsing OpenSpec changes, archives, specs, and tasks.
+- **[openspec-guard](https://github.com/guillaume-flambard/openspec-guard)**: CLI and GitHub Action that reports which OpenSpec scenarios are covered by a Vitest or Jest test, without running the tests.
 
 ## Add your project
 
