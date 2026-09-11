@@ -175,12 +175,47 @@ export function getGlobalConfig(): GlobalConfig {
 }
 
 /**
- * Saves the global configuration to disk.
- * Creates the config directory if it doesn't exist.
+ * Whether the global config file exists but cannot be read or parsed.
+ *
+ * getGlobalConfig() answers with defaults for such a file so that reads keep
+ * working, but those defaults are not the user's settings: saving them back
+ * would erase everything the file holds, and the file may contain an opt-out
+ * such as `telemetry.enabled: false` that the defaults do not.
  */
-export function saveGlobalConfig(config: GlobalConfig): void {
+export function isGlobalConfigUnreadable(): boolean {
+  const configPath = getGlobalConfigPath();
+  if (!fs.existsSync(configPath)) {
+    return false;
+  }
+
+  try {
+    JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+export interface SaveGlobalConfigOptions {
+  /** Overwrite a config file that cannot be parsed. Only a reset should. */
+  replaceUnreadable?: boolean;
+}
+
+/**
+ * Saves the global configuration to disk.
+ * Creates the config directory if it doesn't exist. Refuses to overwrite an
+ * existing file it cannot parse unless `replaceUnreadable` is set.
+ */
+export function saveGlobalConfig(config: GlobalConfig, options: SaveGlobalConfigOptions = {}): void {
   const configDir = getGlobalConfigDir();
   const configPath = getGlobalConfigPath();
+
+  if (!options.replaceUnreadable && isGlobalConfigUnreadable()) {
+    throw new Error(
+      `Refusing to overwrite ${configPath}: it could not be parsed, so saving would replace every setting in it. ` +
+      'Fix it with "openspec config edit", or reset it with "openspec config reset --all".'
+    );
+  }
 
   // Create directory if it doesn't exist
   if (!fs.existsSync(configDir)) {

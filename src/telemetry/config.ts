@@ -150,6 +150,12 @@ export async function readConfig(): Promise<GlobalConfig> {
 export async function writeConfig(updates: Partial<GlobalConfig>): Promise<void> {
   const configPath = getConfigPath();
 
+  // Never write over a file that did not parse: the merge below would start
+  // from an empty object and replace every setting in it with these updates.
+  if ((await readConfigFile(configPath)).status === 'invalid') {
+    throw new Error(`Refusing to overwrite ${configPath}: it could not be parsed`);
+  }
+
   // Read existing config and merge
   const existing = await readConfig();
   const merged = { ...existing, ...updates };

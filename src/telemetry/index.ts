@@ -20,7 +20,7 @@
  * versions and broke installs (#1390).
  */
 import { randomUUID } from 'crypto';
-import { getGlobalConfig } from '../core/global-config.js';
+import { getGlobalConfig, isGlobalConfigUnreadable } from '../core/global-config.js';
 import { isCiEnvironment } from '../utils/ci.js';
 import { getTelemetryConfig, updateTelemetryConfig } from './config.js';
 
@@ -68,7 +68,8 @@ async function safeTelemetryFetch(url: string, options: RequestInit): Promise<Re
  * 2. DO_NOT_TRACK=1 → disabled
  * 3. CI set to a truthy/on value → disabled (same rule as version-check)
  * 4. global config telemetry.enabled === false → disabled
- * 5. otherwise enabled (unset config means on; opt-out model)
+ * 5. global config file exists but cannot be parsed → disabled
+ * 6. otherwise enabled (unset config means on; opt-out model)
  *
  * Kept synchronous so call sites need not become async. Reads config via
  * sync getGlobalConfig() rather than async getTelemetryConfig().
@@ -91,6 +92,12 @@ export function isTelemetryEnabled(): boolean {
 
   // Global config opt-out (env/CI remain hard overrides above)
   if (getGlobalConfig().telemetry?.enabled === false) {
+    return false;
+  }
+
+  // A config file that cannot be parsed reads as defaults, which carry no
+  // opt-out, but the file itself may hold one. Unknown is not consent.
+  if (isGlobalConfigUnreadable()) {
     return false;
   }
 

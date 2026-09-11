@@ -302,6 +302,32 @@ describe('getAvailableCliUpdate', () => {
     }
   });
 
+  it('sends nothing when the global config cannot be parsed', async () => {
+    const xdgHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-vc-unparseable-'));
+    const previousXdg = process.env.XDG_CONFIG_HOME;
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    try {
+      process.env.XDG_CONFIG_HOME = xdgHome;
+      const configDir = path.join(xdgHome, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      // A hand-edit typo can hide the opt-out the file holds.
+      fs.writeFileSync(
+        path.join(configDir, 'config.json'),
+        '{\n  "telemetry": {\n    "enabled": false\n  },\n}\n'
+      );
+
+      await expect(getAvailableCliUpdate()).resolves.toBeNull();
+      expect(requests).toHaveLength(0);
+    } finally {
+      if (previousXdg === undefined) {
+        delete process.env.XDG_CONFIG_HOME;
+      } else {
+        process.env.XDG_CONFIG_HOME = previousXdg;
+      }
+      fs.rmSync(xdgHome, { recursive: true, force: true });
+    }
+  });
+
   it('still runs when CI is explicitly switched off', async () => {
     for (const value of ['false', '0', 'no', '']) {
       process.env.CI = value;
