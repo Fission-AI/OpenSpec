@@ -1,0 +1,5 @@
+---
+'@fission-ai/openspec': patch
+---
+
+Make `openspec show --json --deltas-only` report the deltas archive applies. `ChangeParser`, which backs `show --json`, the `change list` delta counts and archive's proposal warnings, read delta specs with its own section lookup instead of `parseDeltaSpec`, the reader archive uses, and the two disagreed. A REMOVED written in the bullet form (`` - `### Requirement: X` ``) was invisible to it, so it fell back to the proposal's "What Changes" prose and reported an invented MODIFIED while archive deleted the requirement; a repeated section header was read only once; and a RENAMED line written with `*` or `+` was dropped. The inspection command OpenSpec's own error text recommends therefore misreported a deletion. `ChangeParser` now derives every operation from `parseDeltaSpec`, and a change that has delta spec files is described by them alone, so proposal prose is never reported as a structured delta. Requirement text and scenarios are read exactly as before, header-form deltas produce the same output, and a change with no delta spec files still falls back to the "What Changes" bullets.
