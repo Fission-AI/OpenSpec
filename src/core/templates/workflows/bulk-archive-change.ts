@@ -10,7 +10,7 @@ import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-bulk-archive-change',
-    description: 'Archive multiple completed changes at once. Use when archiving several parallel changes.',
+    description: 'Archive multiple completed changes at once. Use when archiving several parallel changes. Also use for a plural archive request - "openspec bulk-archive", "opsx bulk-archive", "openspec archive all", or "openspec archive these changes".',
     instructions: `Archive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.

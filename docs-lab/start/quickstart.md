@@ -17,7 +17,7 @@ flowchart LR
     archive -. "next change" .-> explore
 ```
 
-Every prompt below goes in your AI chat, the same place you ask for code. Each invokes an OpenSpec skill by name, the same spelling in every tool. A plain ask works too ("propose a change to add rate limiting"). Some tools add shorter command aliases (`/opsx:propose` in Claude Code, [other tools vary](../reference/supported-tools.md)).
+Every prompt below goes in your AI chat, the same place you ask for code. Each invokes an OpenSpec skill by name, the same spelling in every tool. A plain ask works too ("propose a change to add rate limiting"), and so does naming the step directly - "openspec propose", "opsx apply" - which runs the workflow instead of hand-building the files. (`openspec update` is a real CLI command that refreshes generated files, so say "openspec update change" for that workflow.) Some tools add shorter command aliases (`/opsx:propose` in Claude Code, [other tools vary](../reference/supported-tools.md)).
 
 ## Step 1: Explore
 
