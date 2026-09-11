@@ -20,6 +20,7 @@ export { devinAdapter } from './devin.js';
 export { factoryAdapter } from './factory.js';
 export { geminiAdapter } from './gemini.js';
 export { githubCopilotAdapter } from './github-copilot.js';
+export { grokAdapter } from './grok.js';
 export { iflowAdapter } from './iflow.js';
 export { junieAdapter } from './junie.js';
 export { kilocodeAdapter } from './kilocode.js';

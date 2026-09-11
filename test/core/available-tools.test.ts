@@ -533,6 +533,25 @@ describe('available-tools', () => {
       expect(ohMyPiTool?.skillsDir).toBe('.omp');
     });
 
+    it('should detect Grok Build when .grok directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.grok'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('grok');
+
+      const grokTool = tools.find((t) => t.value === 'grok');
+      expect(grokTool?.name).toBe('Grok Build');
+      expect(grokTool?.skillsDir).toBe('.grok');
+      // `available` gates the workset tool picker. The cli-e2e `--tools` list
+      // derives its expectation from AI_TOOLS itself, so it cancels out when
+      // this flag flips and nothing else would notice Grok disappearing.
+      expect(grokTool?.available).toBe(true);
+      // Grok is a CLI: it picks up new command and skill files without an
+      // editor restart, so no restart hint should be offered (#1067).
+      expect(grokTool?.requiresIdeRestart).toBeUndefined();
+    });
+
     it('should detect SourceCraft Code Assistant when .codeassistant directory exists', async () => {
       await fs.mkdir(path.join(testDir, '.codeassistant'), { recursive: true });
 

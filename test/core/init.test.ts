@@ -1540,6 +1540,47 @@ describe('InitCommand', () => {
       expect(content).not.toContain('/opsx-');
     });
 
+    it('should generate Grok skills and flat commands', async () => {
+      const initCommand = new InitCommand({ tools: 'grok', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.grok', 'skills', 'openspec-propose', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+
+      // Grok scans `.grok/commands/` without recursion, so the command file
+      // must sit directly in it — a nested `opsx/` directory is not
+      // namespaced, it is skipped, and the user gets no commands at all.
+      const cmdFile = path.join(testDir, '.grok', 'commands', 'opsx-propose.md');
+      expect(await fileExists(cmdFile)).toBe(true);
+      expect(await fileExists(path.join(testDir, '.grok', 'commands', 'opsx'))).toBe(false);
+
+      const content = await fs.readFile(cmdFile, 'utf-8');
+      expect(content).toMatch(/^---\ndescription: "/);
+      // The filename names the command, so bodies must advertise the hyphen form.
+      expect(content).toContain('/opsx-');
+      expect(content).not.toContain('/opsx:');
+    });
+
+    it('should advertise the hyphen form in Grok skills and the getting-started hint', async () => {
+      const initCommand = new InitCommand({ tools: 'grok', force: true });
+      await initCommand.execute(testDir);
+
+      const skillContent = await fs.readFile(
+        path.join(testDir, '.grok', 'skills', 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(skillContent).toContain('/opsx-');
+      expect(skillContent).not.toContain('/opsx:');
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+        .flat()
+        .map(String);
+      const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
+      expect(startHint).toBeTruthy();
+      expect(startHint).toContain('/opsx-propose');
+      expect(startHint).not.toContain('/opsx:propose');
+    });
+
     it('should generate Continue prompt files', async () => {
       const initCommand = new InitCommand({ tools: 'continue', force: true });
       await initCommand.execute(testDir);
