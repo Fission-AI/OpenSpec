@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { ListCommand } from '../../src/core/list.js';
+import { runCLI } from '../helpers/run-cli.js';
 
 describe('ListCommand', () => {
   let tempDir: string;
@@ -186,5 +187,88 @@ Regular text that should be ignored
       expect(logOutput.some(line => line.includes('partial') && line.includes('1/3 tasks'))).toBe(true);
       expect(logOutput.some(line => line.includes('no-tasks') && line.includes('No tasks'))).toBe(true);
     });
+  });
+
+  describe('entries that cannot be stat-ed', () => {
+    // Emacs drops a `.#<file>` lock symlink, pointing at a nonexistent target,
+    // next to every file with unsaved edits. One such entry used to fail the
+    // whole listing with ENOENT, so `list --json` reported zero changes.
+    async function writeChange(name: string): Promise<string> {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', name);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n- [ ] Task 2\n');
+      return changeDir;
+    }
+
+    async function listJson(): Promise<Array<{ name: string; completedTasks: number; totalTasks: number }>> {
+      await new ListCommand().execute(tempDir, 'changes', { json: true });
+      return JSON.parse(logOutput.join('\n')).changes;
+    }
+
+    it.skipIf(process.platform === 'win32')('lists every change while a dangling symlink sits inside one', async () => {
+      const changeDir = await writeChange('locked-change');
+      await writeChange('other-change');
+      await fs.symlink('user@host.4242:1789000000', path.join(changeDir, '.#tasks.md'));
+
+      const changes = await listJson();
+
+      expect(changes.map(change => change.name).sort()).toEqual(['locked-change', 'other-change']);
+      expect(changes.find(change => change.name === 'locked-change')).toMatchObject({
+        completedTasks: 1,
+        totalTasks: 2,
+      });
+    });
+
+    it.skipIf(process.platform === 'win32')('lists a change holding a dangling symlink in a nested directory', async () => {
+      const changeDir = await writeChange('nested-lock');
+      await fs.mkdir(path.join(changeDir, 'specs', 'billing'), { recursive: true });
+      await fs.symlink('missing-target', path.join(changeDir, 'specs', 'billing', '.#spec.md'));
+
+      expect((await listJson()).map(change => change.name)).toEqual(['nested-lock']);
+    });
+
+    it.skipIf(process.platform === 'win32')('lists a change holding a symlink loop', async () => {
+      const changeDir = await writeChange('loop-change');
+      await fs.symlink('loop-b', path.join(changeDir, 'loop-a'));
+      await fs.symlink('loop-a', path.join(changeDir, 'loop-b'));
+
+      expect((await listJson()).map(change => change.name)).toEqual(['loop-change']);
+    });
+
+    it.skipIf(process.platform === 'win32')('still lists and dates a change holding a valid symlink', async () => {
+      const changeDir = await writeChange('linked-change');
+      const target = path.join(changeDir, 'notes.md');
+      await fs.writeFile(target, 'notes\n');
+      const future = new Date('2099-01-01T00:00:00.000Z');
+      await fs.utimes(target, future, future);
+      await fs.symlink('notes.md', path.join(changeDir, 'notes-link.md'));
+
+      await new ListCommand().execute(tempDir, 'changes', { json: true });
+      const [change] = JSON.parse(logOutput.join('\n')).changes;
+
+      expect(change.lastModified).toBe(future.toISOString());
+    });
+
+    it.skipIf(process.platform === 'win32')('keeps list --json working end to end', async () => {
+      const changeDir = await writeChange('cli-change');
+      await fs.mkdir(path.join(tempDir, 'openspec', 'specs'), { recursive: true });
+      await fs.symlink('user@host.4242:1789000000', path.join(changeDir, '.#tasks.md'));
+      const home = path.join(tempDir, 'home');
+      await fs.mkdir(home, { recursive: true });
+
+      const result = await runCLI(['list', '--json'], {
+        cwd: tempDir,
+        env: {
+          HOME: home,
+          XDG_CONFIG_HOME: path.join(home, '.config'),
+          XDG_DATA_HOME: path.join(home, '.local', 'share'),
+        },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(JSON.parse(result.stdout).changes.map((change: { name: string }) => change.name)).toEqual([
+        'cli-change',
+      ]);
+    }, 60_000);
   });
 });
