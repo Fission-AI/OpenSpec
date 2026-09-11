@@ -281,13 +281,37 @@ describe('command-generation/adapters', () => {
         description: content.description,
         args: 'optional',
       });
-      // AtomCode's custom-command loader takes these values literally.
-      // Quoting either breaks dispatch.
+      // AtomCode's custom-command loader reads these two values literally: it
+      // scans for `key:` and takes the rest of the line verbatim, with no YAML
+      // unquoting. `args` is then matched against the exact strings "required"
+      // and "optional", so a quoted `args: "optional"` falls through to
+      // ArgsRequirement::None and silently drops every argument. `name` and
+      // `args` must therefore stay unquoted -- do not route them through the
+      // shared escapeYamlValue helper, which always double-quotes.
       expect(output).toContain(`\nname: opsx-${content.id}\n`);
       expect(output).toContain('\nargs: optional\n');
-      expect(output).toContain(`\ndescription: ${content.description}\n`);
       expect(output).toContain(content.body);
       expect(output).toContain('**Provided arguments**: $ARGUMENTS');
+    });
+
+    it('should keep name and args literal when the description needs quoting', () => {
+      // A description containing ": " cannot be a YAML plain scalar, so it gets
+      // quoted. That must not leak into name/args, which AtomCode reads literally.
+      const content: CommandContent = {
+        ...sampleContent,
+        description: 'Create a change: proposal, specs, and tasks',
+      };
+
+      const output = atomcodeAdapter.formatFile(content);
+
+      expect(output).toContain(`\nname: opsx-${content.id}\n`);
+      expect(output).toContain('\nargs: optional\n');
+      // Still valid YAML for frontmatter consumers, and round-trips exactly.
+      expect(parseYaml(output.match(/^---\n([\s\S]*?)\n---/)![1])).toEqual({
+        name: `opsx-${content.id}`,
+        description: content.description,
+        args: 'optional',
+      });
     });
 
     it('should leave command reference rewriting to the shared generator', () => {
