@@ -28,6 +28,10 @@ import { METADATA_FILENAME, readRetireCapabilitiesMarker, readSkipSpecsMarker } 
 import { confirmPrompt, isNonInteractivePromptError } from '../utils/interactive.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { folderStyleNameProblem } from './id.js';
+import {
+  describeNestedChange,
+  findNestedChangesIn,
+} from '../utils/nested-change.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -1174,6 +1178,19 @@ export class ArchiveCommand {
         available.length > 0
           ? `Change '${changeName}' not found. Available changes: ${available.join(', ')}`
           : `Change '${changeName}' not found. No active changes exist in this root.`
+      );
+    }
+
+    // Archiving a namespace folder moves an active, unfinished change into the
+    // archive under a name nobody will look for, and never applies its deltas.
+    // That is silent data loss, so it is refused outright rather than warned
+    // about (#1846).
+    const nested = await findNestedChangesIn(changesDir, changeName);
+    if (nested) {
+      throw new ArchiveBlockedError(
+        'archive_change_is_namespace_folder',
+        `Cannot archive '${changeName}': ${describeNestedChange(nested)}`,
+        `Rename openspec/changes/${nested.nested[0]}/ to a flat change directory, then archive it.`
       );
     }
 

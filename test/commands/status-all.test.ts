@@ -218,6 +218,51 @@ describe('status --all', () => {
     expect(result.stdout).toContain('2/4 artifacts complete');
   });
 
+  describe('a namespace folder holding nested changes (#1846)', () => {
+    async function seedNamespaceFolder(): Promise<void> {
+      const nested = path.join(changesDir, 'mobile', 'refresh-token');
+      await fs.mkdir(nested, { recursive: true });
+      await fs.writeFile(path.join(nested, 'proposal.md'), '## Why\nNested.\n');
+    }
+
+    it('reports the nesting instead of an artifact plan for work that is not there', async () => {
+      await createTestChange('good-change');
+      await seedNamespaceFolder();
+
+      const result = await runCLI(['status', '--all'], { cwd: tempDir });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain('✗ mobile:');
+      expect(result.stdout).toContain('"mobile" is not a change');
+      expect(result.stdout).not.toContain('Change: mobile');
+      // The sweep continues past it.
+      expect(result.stdout).toContain('Change: good-change');
+    });
+
+    it('carries the diagnostic in --json in place, preserving the envelope', async () => {
+      await createTestChange('good-change');
+      await seedNamespaceFolder();
+
+      const result = await runCLI(['status', '--all', '--json'], { cwd: tempDir });
+
+      expect(result.exitCode).toBe(1);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.changes.map((c: { changeName: string }) => c.changeName)).toEqual([
+        'good-change',
+        'mobile',
+      ]);
+      const entry = payload.changes.find((c: { changeName: string }) => c.changeName === 'mobile');
+      expect(entry).not.toHaveProperty('artifacts');
+      expect(entry.status).toEqual([
+        expect.objectContaining({
+          severity: 'error',
+          code: 'change_error',
+          message: expect.stringContaining('"mobile" is not a change'),
+        }),
+      ]);
+    });
+  });
+
   describe('--schema interaction', () => {
     /** Writes a minimal project-local schema so an override is distinguishable from the default. */
     async function createProjectSchema(schemaName: string): Promise<void> {
