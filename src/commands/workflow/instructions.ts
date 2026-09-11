@@ -17,6 +17,7 @@ import {
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
 import { isSpecsArtifactPath } from '../../core/artifact-graph/outputs.js';
+import { findUnreadDeltaFiles } from '../../utils/spec-discovery.js';
 import {
   getChangeDir,
   resolveCurrentPlanningHomeSync,
@@ -436,14 +437,18 @@ function collectMissingPrerequisites(input: {
  * reached tasks yet, the missing specs are the next step rather than a warning.
  * Schemas that declare no spec-producing artifact carry `skip_specs` from
  * creation, so this never fires on them.
+ *
+ * A delta file the merge path never reads (specs/<capability>.md, a note
+ * beside spec.md) still satisfies the specs glob, so it reads as written here
+ * while validate rejects it and archive would drop it. Each one is named.
  */
-function collectApplyWarnings(input: {
+async function collectApplyWarnings(input: {
   state: ApplyInstructions['state'];
   schema: { artifacts: { id: string; generates: string }[] };
   changeDir: string;
   changeName: string;
   skippedArtifacts?: Set<string>;
-}): string[] {
+}): Promise<string[]> {
   const { state, schema, changeDir, changeName, skippedArtifacts } = input;
   if (state === 'blocked') return [];
 
@@ -452,10 +457,15 @@ function collectApplyWarnings(input: {
   );
   if (specArtifacts.length === 0) return [];
   if (specArtifacts.some((artifact) => skippedArtifacts?.has(artifact.id))) return [];
+  const warnings = (await findUnreadDeltaFiles(path.join(changeDir, 'specs'))).map(
+    (file) =>
+      `specs/${file.path} is not a capability's spec.md, so \`openspec validate ${changeName}\` rejects it and archive never merges it. ` +
+      `Move its requirements into specs/${file.expected}.`
+  );
   const hasDeltas = specArtifacts.some(
     (artifact) => resolveArtifactOutputs(changeDir, artifact.generates).length > 0
   );
-  if (hasDeltas) return [];
+  if (hasDeltas) return warnings;
 
   const metadataPath = path.join(changeDir, METADATA_FILENAME);
   // The command names the artifact this schema actually declares, never the
@@ -466,6 +476,7 @@ function collectApplyWarnings(input: {
   // a placeholder rather than a guess.
   const specTarget = specArtifacts.length === 1 ? specArtifacts[0].id : '<artifact-id>';
   return [
+    ...warnings,
     `This change has no delta specs and does not declare \`skip_specs: true\`, so \`openspec validate ${changeName}\` fails on it. ` +
       `Write the delta specs before implementing (\`openspec instructions ${specTarget} --change ${changeName}\`), ` +
       `or add \`skip_specs: true\` to ${metadataPath} if this change really changes no specified behavior.`,
@@ -608,7 +619,7 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
-  const warnings = collectApplyWarnings({
+  const warnings = await collectApplyWarnings({
     state,
     schema,
     changeDir,
