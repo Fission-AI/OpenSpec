@@ -26,8 +26,23 @@ const HEADER_LINE = /^#{1,6}\s/;
  * as a scenario, so the delta counter must too (parity). The delta/loss path
  * reuses this exact constant via `scenarioHeaderAt` in requirement-blocks.ts;
  * keep both paths on it rather than reintroducing a separate `Scenario:` regex.
+ * A header alone is not yet a scenario on either path: see hasScenarioBody.
  */
 export const SCENARIO_HEADER = /^####\s+/;
+
+/** A header at scenario level or above (`#` to `####`): where a scenario body ends. */
+const SCENARIO_BODY_END = /^#{1,4}\s/;
+
+/**
+ * Whether a scenario's body has content. The spec path
+ * (`MarkdownParser.parseScenarios`) drops a scenario whose body is empty, so
+ * the delta counter must too (parity): otherwise `validate` accepts a
+ * requirement whose only scenario is a bare header, and archive rejects it when
+ * it validates the rebuilt spec.
+ */
+export function hasScenarioBody(body: string): boolean {
+  return body.trim().length > 0;
+}
 
 /**
  * The one predicate for normative-keyword detection. Matches `SHALL` or `MUST`
@@ -88,15 +103,31 @@ export function extractRequirementText(headerTitle: string, bodyLines: string[])
 
 /**
  * Count the real scenarios in a requirement block: `#### ` headers on non-fenced
- * lines. A `#### Scenario:` that lives inside a fenced example is not a real
- * scenario and is not counted.
+ * lines whose body has content. A `#### Scenario:` that lives inside a fenced
+ * example is not a real scenario and is not counted.
  */
 export function countScenarios(bodyLines: string[]): number {
+  return readScenarioBodies(bodyLines).filter(hasScenarioBody).length;
+}
+
+/** Count the `#### ` headers in a requirement block that have no body under them. */
+export function countEmptyScenarios(bodyLines: string[]): number {
+  return readScenarioBodies(bodyLines).filter((body) => !hasScenarioBody(body)).length;
+}
+
+/**
+ * The body of each scenario in a requirement block. A body runs to the next
+ * non-fenced header of level 4 or above, the boundary the spec path uses, so a
+ * fenced block or a deeper `#####` header is part of it.
+ */
+function readScenarioBodies(bodyLines: string[]): string[] {
   const mask = buildCodeFenceMask(bodyLines);
-  let count = 0;
+  const bodies: string[] = [];
   for (let i = 0; i < bodyLines.length; i++) {
-    if (mask[i]) continue;
-    if (SCENARIO_HEADER.test(bodyLines[i])) count++;
+    if (mask[i] || !SCENARIO_HEADER.test(bodyLines[i])) continue;
+    let end = i + 1;
+    while (end < bodyLines.length && (mask[end] || !SCENARIO_BODY_END.test(bodyLines[end]))) end++;
+    bodies.push(bodyLines.slice(i + 1, end).join('\n'));
   }
-  return count;
+  return bodies;
 }

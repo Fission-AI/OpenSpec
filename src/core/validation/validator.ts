@@ -23,6 +23,7 @@ import {
   extractRequirementBody as extractRequirementBodyShared,
   containsShallOrMust as containsShallOrMustShared,
   countScenarios as countScenariosShared,
+  countEmptyScenarios,
 } from '../parsers/requirement-text.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
@@ -271,7 +272,7 @@ export class Validator {
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must include at least one scenario` });
+            issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must include at least one scenario${this.emptyScenarioHint(block.raw)}` });
           }
         }
 
@@ -306,7 +307,7 @@ export class Validator {
           }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
-            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must include at least one scenario` });
+            issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must include at least one scenario${this.emptyScenarioHint(block.raw)}` });
           }
         }
 
@@ -927,6 +928,16 @@ export class Validator {
     // Fence-aware count via the shared reader: a `#### Scenario:` inside a fenced
     // example is not a real scenario. Drop the header line (index 0).
     return countScenariosShared(blockRaw.split('\n').slice(1));
+  }
+
+  /**
+   * Why a requirement with a visible scenario header still has no scenario:
+   * the header has no body, and the spec path archive validates against does
+   * not count it. Empty when the block has no bare scenario header.
+   */
+  private emptyScenarioHint(blockRaw: string): string {
+    if (countEmptyScenarios(blockRaw.split('\n').slice(1)) === 0) return '';
+    return ' (a scenario header with no body under it does not count; add its steps, e.g. "- **WHEN** ..." and "- **THEN** ...")';
   }
 
   private formatSectionList(sections: string[]): string {
