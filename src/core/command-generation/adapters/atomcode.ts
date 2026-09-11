@@ -9,6 +9,9 @@ import path from 'path';
 import { stringify } from 'yaml';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
+/** A workflow declares its invocation input with an `**Input**:` heading. */
+const INPUT_HEADING = /^\*\*Input\*\*:/m;
+
 /**
  * AtomCode adapter for command generation.
  * File path: .atomcode/commands/opsx-<id>.md
@@ -16,8 +19,13 @@ import type { CommandContent, ToolCommandAdapter } from '../types.js';
  *
  * AtomCode's custom-command parser reads name and args literally without YAML
  * unquoting, so these controlled identifiers must stay unquoted.
- * The command name matches the filename. Optional arguments let users supply
- * a change name or request, or invoke the workflow without one and be prompted.
+ * The command name matches the filename.
+ *
+ * `args` mirrors what the workflow actually accepts. AtomCode executes an
+ * `args: none` command straight from the slash menu, while `optional` completes
+ * to `/name ` and waits for a second Enter. Advertising arguments a workflow
+ * never reads would cost every user that extra keystroke, so only workflows
+ * carrying an `**Input**:` contract declare `optional` and receive $ARGUMENTS.
  */
 export const atomcodeAdapter: ToolCommandAdapter = {
   toolId: 'atomcode',
@@ -30,13 +38,13 @@ export const atomcodeAdapter: ToolCommandAdapter = {
     // Keep ordinary descriptions plain for the literal custom-command parser,
     // while keeping special values valid YAML for frontmatter consumers.
     const description = stringify({ description: content.description }, { lineWidth: 0, blockQuote: false });
+    const acceptsInput = INPUT_HEADING.test(content.body);
+    const argumentsBlock = acceptsInput ? '\n**Provided arguments**: $ARGUMENTS\n' : '';
     return `---
 name: opsx-${content.id}
-${description}args: optional
+${description}args: ${acceptsInput ? 'optional' : 'none'}
 ---
-
-**Provided arguments**: $ARGUMENTS
-
+${argumentsBlock}
 ${content.body}
 `;
   },

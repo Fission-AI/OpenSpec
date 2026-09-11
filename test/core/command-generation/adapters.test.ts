@@ -272,14 +272,15 @@ describe('command-generation/adapters', () => {
       expect(atomcodeAdapter.getFilePath('bulk-archive')).toBe(path.join('.atomcode', 'commands', 'opsx-bulk-archive.md'));
     });
 
-    it.each(getCommandContents())('should register $id with its invocation name and optional arguments', (content) => {
+    it.each(getCommandContents())('should register $id with its invocation name and declared arguments', (content) => {
       const output = atomcodeAdapter.formatFile(content);
       const frontmatter = parseYaml(output.match(/^---\n([\s\S]*?)\n---/)![1]);
+      const acceptsInput = /^\*\*Input\*\*:/m.test(content.body);
 
       expect(frontmatter).toEqual({
         name: `opsx-${content.id}`,
         description: content.description,
-        args: 'optional',
+        args: acceptsInput ? 'optional' : 'none',
       });
       // AtomCode's custom-command loader reads these two values literally: it
       // scans for `key:` and takes the rest of the line verbatim, with no YAML
@@ -289,9 +290,24 @@ describe('command-generation/adapters', () => {
       // `args` must therefore stay unquoted -- do not route them through the
       // shared escapeYamlValue helper, which always double-quotes.
       expect(output).toContain(`\nname: opsx-${content.id}\n`);
-      expect(output).toContain('\nargs: optional\n');
+      expect(output).toContain(`\nargs: ${acceptsInput ? 'optional' : 'none'}\n`);
       expect(output).toContain(content.body);
-      expect(output).toContain('**Provided arguments**: $ARGUMENTS');
+      // $ARGUMENTS is only worth shipping where the workflow reads it.
+      expect(output.includes('**Provided arguments**: $ARGUMENTS')).toBe(acceptsInput);
+    });
+
+    it('should preserve invocation arguments for every workflow that accepts them', () => {
+      const commandsWithoutArguments = getCommandContents()
+        .filter((content) => {
+          const output = generateCommand(content, atomcodeAdapter).fileContent;
+          return !output.includes('**Provided arguments**: $ARGUMENTS');
+        })
+        .map((content) => content.id);
+
+      // Onboarding is deliberately interactive and has no invocation input, so
+      // it ships `args: none` and AtomCode runs it straight from the slash menu.
+      // This list is a tripwire for a new workflow that accidentally drops args.
+      expect(commandsWithoutArguments).toEqual(['onboard']);
     });
 
     it('should keep name and args literal when the description needs quoting', () => {
@@ -300,6 +316,7 @@ describe('command-generation/adapters', () => {
       const content: CommandContent = {
         ...sampleContent,
         description: 'Create a change: proposal, specs, and tasks',
+        body: '**Input**: A change name.\n\nDo the work.',
       };
 
       const output = atomcodeAdapter.formatFile(content);
