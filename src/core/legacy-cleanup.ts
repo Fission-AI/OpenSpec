@@ -748,10 +748,10 @@ export function formatDetectionSummary(detection: LegacyDetectionResult): string
   lines.push('as before.');
   lines.push('');
 
-  // Section 1: Files to remove (no user content to preserve)
+  // Section 1: Files to remove entirely
   if (removals.length > 0) {
     lines.push(chalk.bold('Files to remove'));
-    lines.push(chalk.dim('No user content to preserve:'));
+    lines.push(chalk.dim('These files will be deleted entirely. Back up any custom content before proceeding:'));
     for (const { path } of removals) {
       lines.push(`  • ${path}`);
     }
