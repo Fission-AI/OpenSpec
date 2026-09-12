@@ -39,7 +39,11 @@ export interface GetRegisteredStoreInput extends ResolveRegisteredStoreInput {
 export interface UnregisterStoreInput extends StorePathOptions {
   id: string;
   expectedBackend?: StoreGitBackendConfig;
-  beforeCommit?: (entry: RegisteredStoreEntry) => Promise<void>;
+  /** Runs under the registry lock, with the registrations that will remain. */
+  beforeCommit?: (
+    entry: RegisteredStoreEntry,
+    remaining: RegisteredStoreEntry[]
+  ) => Promise<void>;
 }
 
 export type ListRegisteredStoresOptions = StorePathOptions;
@@ -414,7 +418,11 @@ export async function unregisterStoreRegistration(
         ...result.removed,
         storeRoot: getStoreRootForBackend(result.removed.backend),
       };
-      await input.beforeCommit?.(removedEntry);
+      const remaining = listStoreRegistryEntries(result.next).map((entry) => ({
+        ...entry,
+        storeRoot: getStoreRootForBackend(entry.backend),
+      }));
+      await input.beforeCommit?.(removedEntry, remaining);
       removed = result.removed;
       return result.next;
     },
