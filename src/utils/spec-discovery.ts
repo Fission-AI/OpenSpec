@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
+import { parseDeltaSpec } from '../core/parsers/requirement-blocks.js';
 
 export interface DiscoveredSpec {
   /** Spec id relative to the specs root, forward-slash separated on every platform (e.g. "web" or "platform/session-layout"). */
@@ -73,6 +74,64 @@ export async function discoverSpecFiles(specsRoot: string): Promise<DiscoveredSp
   // process's ICU locale, so ordering could vary by OS/CI. Code-point ordering
   // guarantees the deterministic output the docstring promises.
   return results.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+}
+
+export interface UnreadDeltaFile {
+  /** File path relative to the specs root, forward-slash separated. */
+  path: string;
+  /** The spec.md the merge path reads for it, relative to the specs root. */
+  expected: string;
+}
+
+/**
+ * Markdown files under a change's specs/ that carry delta sections but are not
+ * a capability's `spec.md`, so discoverSpecFiles, and with it validate and
+ * archive, never reads them: `specs/user-auth.md`, or `specs/user-auth/delta.md`
+ * beside or instead of the capability's spec.md. The artifact graph's
+ * recursive specs/ markdown glob does match them, so status and apply report
+ * the specs as written while archive has nothing to merge. A `spec.md` at the
+ * specs/ root has its own check (#1385) and is not repeated here. Notes with
+ * no delta section are not deltas and are not reported. The walk matches
+ * discoverSpecFiles: dot entries are skipped, symlinked directories are not
+ * followed, and a dangling link is skipped. A missing root yields an empty
+ * list; any other read failure is thrown. Results are sorted by path.
+ */
+export async function findUnreadDeltaFiles(specsRoot: string): Promise<UnreadDeltaFile[]> {
+  const results: UnreadDeltaFile[] = [];
+  const walk = async (dir: string, segments: string[]): Promise<void> => {
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch (err: any) {
+      if (err?.code === 'ENOENT' || err?.code === 'ENOTDIR') return;
+      throw err;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue;
+      if (entry.isDirectory()) {
+        await walk(path.join(dir, entry.name), [...segments, entry.name]);
+        continue;
+      }
+      if (!entry.isFile() && !entry.isSymbolicLink()) continue;
+      if (entry.name === 'spec.md' || !entry.name.toLowerCase().endsWith('.md')) continue;
+      const filePath = path.join(dir, entry.name);
+      let content: string;
+      try {
+        if (entry.isSymbolicLink() && !(await fs.stat(filePath)).isFile()) continue;
+        content = await fs.readFile(filePath, 'utf-8');
+      } catch (err: any) {
+        // A dangling link is not content; anything else fails loudly.
+        if (err?.code === 'ENOENT') continue;
+        throw err;
+      }
+      if (!Object.values(parseDeltaSpec(content).sectionPresence).some(Boolean)) continue;
+      const capability =
+        segments.length > 0 ? segments.join('/') : entry.name.slice(0, -'.md'.length);
+      results.push({ path: [...segments, entry.name].join('/'), expected: `${capability}/spec.md` });
+    }
+  };
+  await walk(specsRoot, []);
+  return results.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
 }
 
 /**

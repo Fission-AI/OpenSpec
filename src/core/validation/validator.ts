@@ -26,7 +26,7 @@ import {
 } from '../parsers/requirement-text.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { discoverSpecFiles, hasAnyFileUnder } from '../../utils/spec-discovery.js';
+import { discoverSpecFiles, findUnreadDeltaFiles, hasAnyFileUnder } from '../../utils/spec-discovery.js';
 import {
   METADATA_FILENAME,
   readSkipSpecsMarker,
@@ -426,6 +426,18 @@ export class Validator {
       }
     }
 
+    // The same drop happens to delta sections in any other file the merge
+    // path does not read (specs/<capability>.md, a note beside spec.md),
+    // while the artifact graph's specs/**/*.md glob counts it as written.
+    const unreadDeltaFiles = await findUnreadDeltaFiles(specsDir);
+    for (const file of unreadDeltaFiles) {
+      issues.push({
+        level: 'ERROR',
+        path: file.path,
+        message: `Delta spec found at specs/${file.path}. Delta specs must be a spec.md inside a capability folder — this file is ignored when the change is applied or archived. Move its requirements into specs/${file.expected}.`,
+      });
+    }
+
     for (const { path: specPath, sections } of emptySectionSpecs) {
       issues.push({
         level: 'ERROR',
@@ -467,10 +479,10 @@ export class Validator {
       issues.push({ level: 'ERROR', path: 'file', message: VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_CONFLICT });
     }
 
-    // The root-level error already names the file and the fix; adding "No
-    // deltas found" on top would contradict it, since the deltas are sitting in
-    // the file just reported.
-    if (totalDeltas === 0 && !hasRootLevelSpec) {
+    // The root-level and unread-file errors already name the file and the fix;
+    // adding "No deltas found" on top would contradict them, since the deltas
+    // are sitting in the files just reported.
+    if (totalDeltas === 0 && !hasRootLevelSpec && unreadDeltaFiles.length === 0) {
       if (skipSpecs && !specsDirHasFiles) {
         issues.push({ level: 'INFO', path: 'file', message: VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_ACCEPTED });
       } else if (!skipSpecs) {
