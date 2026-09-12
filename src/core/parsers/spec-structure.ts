@@ -1,4 +1,5 @@
 import { buildCodeFenceMask } from './code-fence.js';
+import { normalizeRequirementName } from './requirement-blocks.js';
 
 const REQUIREMENTS_SECTION_HEADER = /^##\s+Requirements\s*$/i;
 const TOP_LEVEL_SECTION_HEADER = /^##\s+/;
@@ -73,7 +74,9 @@ export function findMainSpecStructureIssues(content: string): MainSpecStructureI
       continue;
     }
 
-    const requirementName = requirementMatch[1].trim();
+    // The same name every other reader uses, so a closed heading
+    // (`### Requirement: Foo ###`) duplicates `### Requirement: Foo`.
+    const requirementName = normalizeRequirementName(requirementMatch[1]);
     const previousLine = requirementLines.get(requirementName);
     if (previousLine !== undefined) {
       issues.push({
