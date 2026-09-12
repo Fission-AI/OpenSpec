@@ -203,9 +203,11 @@ export class BashInstaller {
       // Remove lines between markers (inclusive)
       lines.splice(startIndex, endIndex - startIndex + 1);
 
-      // Remove trailing empty lines
-      while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
-        lines.pop();
+      // Install puts the block at the top of the file followed by one blank
+      // separator line; drop that line too so the file reads as it did before.
+      // Everything else, including the file's final newline, is left as is.
+      if (startIndex === 0 && lines.length > 0 && lines[0].trim() === '') {
+        lines.shift();
       }
 
       // Write back
