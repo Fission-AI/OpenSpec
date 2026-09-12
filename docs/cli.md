@@ -1325,7 +1325,7 @@ suppress that tip entirely.
 | `OPENSPEC_TELEMETRY` | Set to `0` to disable telemetry and the `openspec update` version check (overrides `telemetry.enabled` in global config) |
 | `DO_NOT_TRACK` | Set to `1` to disable telemetry and the `openspec update` version check (standard DNT signal; overrides config) |
 | `OPENSPEC_CONCURRENCY` | Default concurrency for bulk validation (default: 6) |
-| `EDITOR` or `VISUAL` | Editor for `openspec config edit` |
+| `EDITOR` or `VISUAL` | Editor command for `openspec config edit`; may include arguments, e.g. `code --wait` (`EDITOR` wins when both are set) |
 | `NO_COLOR` | Disable color output when set |
 | `OPENSPEC_NO_ANIMATION` | Disable the `openspec init` welcome animation when set |
 | `OPENSPEC_NO_COMPLETIONS` | Set to `1` to suppress the one-time tip about shell completions |

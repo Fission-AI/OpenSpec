@@ -1,0 +1,5 @@
+---
+'@fission-ai/openspec': patch
+---
+
+Let `openspec config edit` run an `EDITOR` or `VISUAL` that carries arguments. The whole value was passed to `spawn` as the program name with `shell: false`, so common settings such as `code --wait`, `subl -w` or `emacsclient -t` failed with `spawn code --wait ENOENT`, and because that error was never caught the command died with a raw Node stack trace. The value is now run the way git runs its editor, through `sh -c '<editor> "$@"'` with the config path passed as a separate argument the shell never re-parses, and through `cmd.exe` on Windows, where `.cmd` shims such as `code.cmd` are also found. A value that is itself the absolute path of an existing file is still run directly, so an unquoted editor path containing spaces keeps working. An editor that cannot be started, exits non-zero or is killed is now reported as a one-line error naming the editor, with a hint when the command was not found, and the command exits 1 instead of throwing. `EDITOR` still takes precedence over `VISUAL`, and the file is still validated after the editor closes.

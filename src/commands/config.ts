@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {
@@ -25,6 +25,60 @@ import { OPENSPEC_DIR_NAME } from '../core/config.js';
 import { hasProjectConfigDrift } from '../core/profile-sync-drift.js';
 import { UpdateCommand } from '../core/update.js';
 import { asErrorMessage, isPromptCancellationError } from './shared-output.js';
+
+type EditorOutcome =
+  | { code: number | null; signal: NodeJS.Signals | null }
+  | { error: Error };
+
+/**
+ * Starts the user's editor on `filePath`.
+ *
+ * EDITOR and VISUAL hold a command line, not a program name: `code --wait`
+ * and `"/path with spaces/subl" -w` are both ordinary values. Like git, hand
+ * the value to the shell and pass the file as a positional argument
+ * (`sh -c '<editor> "$@"' <editor> <file>`), so the value is parsed with the
+ * usual shell rules while the file path is never re-parsed. On Windows the
+ * value goes to cmd.exe, which also finds `.cmd` shims such as `code.cmd`;
+ * the path is double-quoted there, and Windows paths cannot contain `"`.
+ * A value that is itself the absolute path of an existing file is still run
+ * directly, so an unquoted editor path with spaces keeps working.
+ */
+function spawnEditor(editor: string, filePath: string): ChildProcess {
+  if (path.isAbsolute(editor) && fs.existsSync(editor)) {
+    return spawn(editor, [filePath], { stdio: 'inherit', shell: false });
+  }
+  if (process.platform === 'win32') {
+    return spawn(`${editor} "${filePath}"`, { stdio: 'inherit', shell: true });
+  }
+  return spawn('sh', ['-c', `${editor} "$@"`, editor, filePath], { stdio: 'inherit' });
+}
+
+/** Runs the editor on `filePath` and resolves once it has closed or failed to start. */
+function runEditor(editor: string, filePath: string): Promise<EditorOutcome> {
+  return new Promise((resolve) => {
+    try {
+      const child = spawnEditor(editor, filePath);
+      child.once('error', (error) => resolve({ error }));
+      child.once('close', (code, signal) => resolve({ code, signal }));
+    } catch (error) {
+      resolve({ error: error instanceof Error ? error : new Error(String(error)) });
+    }
+  });
+}
+
+function reportEditorFailure(editor: string, outcome: EditorOutcome): void {
+  if ('error' in outcome) {
+    console.error(`Error: Could not start editor "${editor}": ${outcome.error.message}`);
+  } else if (outcome.signal) {
+    console.error(`Error: Editor "${editor}" was terminated by ${outcome.signal}`);
+  } else {
+    console.error(`Error: Editor "${editor}" exited with code ${outcome.code}`);
+  }
+  // 127 (sh) and 9009 (cmd.exe) mean the command itself was not found.
+  if ('error' in outcome || outcome.code === 127 || outcome.code === 9009) {
+    console.error('Set EDITOR or VISUAL to an installed editor command, for example: export EDITOR="code --wait"');
+  }
+}
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
 
@@ -417,24 +471,13 @@ export function registerConfigCommand(program: Command): void {
         saveGlobalConfig({ ...DEFAULT_CONFIG });
       }
 
-      // Spawn editor and wait for it to close
-      // Avoid shell parsing to correctly handle paths with spaces in both
-      // the editor path and config path
-      const child = spawn(editor, [configPath], {
-        stdio: 'inherit',
-        shell: false,
-      });
-
-      await new Promise<void>((resolve, reject) => {
-        child.on('close', (code) => {
-          if (code === 0) {
-            resolve();
-          } else {
-            reject(new Error(`Editor exited with code ${code}`));
-          }
-        });
-        child.on('error', reject);
-      });
+      // Wait for the editor to close; a failure is reported, never thrown.
+      const outcome = await runEditor(editor, configPath);
+      if ('error' in outcome || outcome.code !== 0) {
+        reportEditorFailure(editor, outcome);
+        process.exitCode = 1;
+        return;
+      }
 
       try {
         const rawConfig = fs.readFileSync(configPath, 'utf-8');
