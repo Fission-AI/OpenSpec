@@ -254,6 +254,8 @@ openspec store setup [id] [options]
 
 Non-interactive runs (`--json`, scripts, agents) must pass both the store id and `--path`. In an interactive terminal, setup prompts for the location with an editable suggestion in a visible, user-owned place (for example `~/openspec/<id>`); it never defaults to OpenSpec's managed data directory.
 
+Setup refuses a `--path` inside another Git repository, because initializing the store there would nest one repository in another. `--no-init-git` creates no repository, so it skips that check: use it to keep a store at `~/openspec/<id>` when your home directory is itself a Git repository, such as a dotfiles repo.
+
 Examples:
 
 ```bash
