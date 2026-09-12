@@ -28,6 +28,17 @@ function isMissingPathError(error: unknown): boolean {
   );
 }
 
+/**
+ * An entry that cannot be dated because it no longer resolves: it was removed
+ * after `readdir` listed it, or it is a symlink whose target is missing (an
+ * Emacs `.#file` lock) or that loops back on itself.
+ */
+function isUnresolvableEntryError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === 'ENOENT' || code === 'ELOOP';
+}
+
 async function readChangeDirectoryEntries(changesDir: string): Promise<Dirent[]> {
   try {
     return await fs.readdir(changesDir, { withFileTypes: true });
@@ -48,13 +59,18 @@ async function getLastModified(dirPath: string): Promise<Date> {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(fullPath);
-      } else {
-        const stat = await fs.stat(fullPath);
-        if (latest === null || stat.mtime > latest) {
-          latest = stat.mtime;
+      try {
+        if (entry.isDirectory()) {
+          await walk(fullPath);
+        } else {
+          const stat = await fs.stat(fullPath);
+          if (latest === null || stat.mtime > latest) {
+            latest = stat.mtime;
+          }
         }
+      } catch (error) {
+        // Skip the one entry rather than fail the listing of every change.
+        if (!isUnresolvableEntryError(error)) throw error;
       }
     }
   }
