@@ -306,7 +306,8 @@ openspec store remove <id> [--yes] [--json]
 `remove` shows the exact folder before deleting in an interactive terminal.
 Agents, scripts, and JSON callers must pass `--yes` to confirm deletion.
 OpenSpec refuses to delete a folder that does not contain matching
-store metadata.
+store metadata, or one that contains another registered store (for example
+a store vendored as a Git submodule); unregister or remove that store first.
 
 ### `openspec store list`
 
