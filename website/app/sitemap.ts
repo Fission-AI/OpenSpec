@@ -7,18 +7,11 @@ export const revalidate = false;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = siteUrl.replace(/\/$/, '');
-  const docs = source.getPages().map((page) => ({
+  // `/` redirects to /docs, so the docs pages are the whole sitemap; the
+  // docs index gets top priority.
+  return source.getPages().map((page) => ({
     url: `${base}${page.url}`,
     changeFrequency: 'weekly' as const,
-    priority: 0.7,
+    priority: page.url === '/docs' ? 1 : 0.7,
   }));
-
-  return [
-    {
-      url: `${base}/`,
-      changeFrequency: 'weekly',
-      priority: 1,
-    },
-    ...docs,
-  ];
 }

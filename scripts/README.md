@@ -67,10 +67,6 @@ against fabricated input — see `test/core/templates/parity-hash-shared.test.ts
 A test that ran this script for real would rewrite the repository's own parity
 test file mid-suite.
 
-## postinstall.js
-
-Post-installation script that runs after package installation.
-
 ## pack-version-check.mjs
 
 Validates package version consistency before publishing.

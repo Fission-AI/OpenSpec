@@ -2,6 +2,7 @@ import path from 'path';
 import * as fs from 'fs';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { resolveCommandSurfaceCapability } from './command-surface.js';
 
 const TARGET_MARKER = '.openspec-target';
 
@@ -25,7 +26,7 @@ export function readSharedSkillTarget(
 }
 
 /** Whether a tool still has an allowlisted managed skill under an old root. */
-function hasLegacySkills(projectPath: string, tool: AIToolOption): boolean {
+export function hasLegacySkills(projectPath: string, tool: AIToolOption): boolean {
   return (tool.legacySkillsDirs ?? []).some((root) => {
     const skillsDir = path.join(projectPath, root, 'skills');
     return OPENSPEC_SKILL_NAMES.some((skillName) => {
@@ -73,6 +74,60 @@ function hasCurrentSkills(projectPath: string, skillsDir: string): boolean {
       return false;
     }
   });
+}
+
+/**
+ * Chooses the one selected tool that may render each physical skills root.
+ * Command files are not part of this arbitration: tools that share a skills
+ * root can still write their own command surface elsewhere under that root.
+ *
+ * Existing compatible owners win. On a new root, prefer a skills-native
+ * renderer over an adapter-backed renderer because its references remain
+ * usable by every consumer of the shared tree. Codex is the best fresh owner
+ * because its renderer includes both Codex and generic skill invocation forms.
+ */
+export function resolveSharedSkillWriters(
+  projectPath: string,
+  tools: AIToolOption[]
+): Set<string> {
+  const byRoot = new Map<string, AIToolOption[]>();
+  const writers = new Set<string>();
+
+  for (const tool of tools) {
+    if (!tool.skillsDir) continue;
+    const group = byRoot.get(tool.skillsDir) ?? [];
+    group.push(tool);
+    byRoot.set(tool.skillsDir, group);
+  }
+
+  for (const [root, unsortedGroup] of byRoot) {
+    const group = [...unsortedGroup].sort(
+      (left, right) => AI_TOOLS.indexOf(left) - AI_TOOLS.indexOf(right)
+    );
+    if (group.length === 1) {
+      writers.add(group[0].value);
+      continue;
+    }
+
+    const skillsNative = group.filter(
+      (tool) => resolveCommandSurfaceCapability(tool.value) !== 'adapter-backed'
+    );
+    const preferredPool = skillsNative.length > 0 ? skillsNative : group;
+    const marked = readSharedSkillTarget(projectPath, root);
+    const inferred = inferSharedSkillTarget(projectPath, root);
+    const owner =
+      preferredPool.find((tool) => tool.value === marked) ??
+      preferredPool.find((tool) => tool.value === inferred) ??
+      (hasCurrentSkills(projectPath, root)
+        ? preferredPool.find((tool) => tool.value === 'agents')
+        : undefined) ??
+      preferredPool.find((tool) => tool.value === 'codex') ??
+      preferredPool[0];
+
+    writers.add(owner.value);
+  }
+
+  return writers;
 }
 
 /**

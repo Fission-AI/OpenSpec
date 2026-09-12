@@ -332,4 +332,32 @@ complete -c openspec -a 'init'
     });
   });
 
+
+  describe('isInstalled', () => {
+    // Drives the first-run completions tip: a false positive silences a hint
+    // the user needs, a false negative nags someone who is already set up.
+    async function installPath(): Promise<string> {
+      return installer.getInstallationPath();
+    }
+
+    it('is false when nothing is installed', async () => {
+      expect(await installer.isInstalled()).toBe(false);
+    });
+
+    it('is true once the completion script exists', async () => {
+      const target = await installPath();
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, '# completions');
+
+      expect(await installer.isInstalled()).toBe(true);
+    });
+
+    it('is false when a directory sits at the install path', async () => {
+      const target = await installPath();
+      await fs.mkdir(target, { recursive: true });
+
+      expect(await installer.isInstalled()).toBe(false);
+    });
+  });
+
 });

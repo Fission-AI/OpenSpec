@@ -111,6 +111,36 @@ describe('parseDeltaSpec', () => {
     const result = parseDeltaSpec(content);
     expect(result.removed).toEqual(['Actually removed']);
     expect(result.renamed).toEqual([{ from: 'Old name', to: 'New name' }]);
+    // Bullet form carries no body, so there is no block to keep.
+    expect(result.removedBlocks).toEqual([]);
+  });
+
+  it('keeps the Reason and Migration body of a header-form REMOVED requirement', () => {
+    const content = [
+      '## REMOVED Requirements',
+      '',
+      '### Requirement: Session management',
+      '',
+      '**Reason**: Sessions moved to the token service.',
+      '',
+      '**Migration**: Callers switch to `POST /tokens`.',
+      '',
+      '### Requirement: Legacy cookie',
+      '',
+      '**Reason**: Unused.',
+      '',
+    ].join('\n');
+
+    const result = parseDeltaSpec(content);
+    expect(result.removed).toEqual(['Session management', 'Legacy cookie']);
+    expect(result.removedBlocks.map((b) => b.name)).toEqual([
+      'Session management',
+      'Legacy cookie',
+    ]);
+    expect(result.removedBlocks[0].raw).toContain('Sessions moved to the token service.');
+    expect(result.removedBlocks[0].raw).toContain('Callers switch to `POST /tokens`.');
+    // Each block stops at the next requirement header.
+    expect(result.removedBlocks[0].raw).not.toContain('Legacy cookie');
   });
 });
 

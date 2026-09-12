@@ -50,15 +50,33 @@ The CLI SHALL offer to set the newly created schema as the project default.
 #### Scenario: Set as default interactively
 - **WHEN** user runs `openspec schema init my-workflow` in interactive mode
 - **AND** user confirms setting as default
-- **THEN** system updates `openspec/config.yaml` with `defaultSchema: my-workflow`
+- **THEN** system updates an existing `openspec/config.yaml` or `openspec/config.yml` in place with `schema: my-workflow`
+- **AND** removes the legacy `defaultSchema` key when updating an existing configuration
+- **AND** creates `openspec/config.yaml` when neither configuration file exists
 
 #### Scenario: Set as default via flag
 - **WHEN** user runs `openspec schema init my-workflow --default`
-- **THEN** system creates schema and updates `openspec/config.yaml` with `defaultSchema: my-workflow`
+- **THEN** system creates the schema and updates an existing `openspec/config.yaml` or `openspec/config.yml` in place with `schema: my-workflow`
+- **AND** removes the legacy `defaultSchema` key when updating an existing configuration
+- **AND** creates `openspec/config.yaml` when neither configuration file exists
 
 #### Scenario: Skip setting default
 - **WHEN** user runs `openspec schema init my-workflow --no-default`
 - **THEN** system creates schema without modifying `openspec/config.yaml`
+
+#### Scenario: Invalid config prevents schema creation
+- **GIVEN** `openspec/config.yaml` or `openspec/config.yml` is invalid YAML, is not a YAML object, is not a regular file, or is not writable
+- **WHEN** user runs `openspec schema init my-workflow --default`
+- **THEN** the command exits with a non-zero status
+- **AND** does not create `openspec/schemas/my-workflow/`
+- **AND** leaves the config byte-for-byte unchanged
+
+#### Scenario: Config failure preserves a schema during forced replacement
+- **GIVEN** `openspec/schemas/my-workflow/` already contains user-authored files
+- **AND** the project config cannot be validated or atomically replaced
+- **WHEN** user runs `openspec schema init my-workflow --force --default`
+- **THEN** the command exits with a non-zero status
+- **AND** restores the existing schema and config byte-for-byte
 
 ### Requirement: Schema init outputs JSON format
 The CLI SHALL support `--json` flag for machine-readable output.
@@ -92,4 +110,3 @@ The CLI SHALL validate all requested artifact IDs before replacing an existing p
 - **WHEN** the user runs `schema init` with `--force` and only valid artifact IDs
 - **THEN** the command replaces the existing schema with the newly generated schema
 - **AND** reports successful creation
-

@@ -7,13 +7,35 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 
+const PLANNING_GUIDANCE = `## Planning a Change
+
+When the user is planning a change, guide them toward shared understanding with focused discovery questions. For open-ended discussion, follow the conversation without imposing an interview or a required output.
+
+Before asking a factual question, follow the context discovery below and inspect relevant OpenSpec artifacts, source, tests, docs, and configuration. Do not ask the user to repeat facts you can verify. Summarize relevant findings without reproducing private context or rules. If evidence is missing, conflicting, or inaccessible, state that limitation and ask only for the clarification needed to proceed.
+
+- **Follow dependencies** - Resolve the next blocking decision before its dependent details. For example, clarify the user's outcome and scope before choosing an API or data model. Revisit downstream assumptions when an earlier answer changes. Skip branches that do not matter to this goal.
+- **Keep questions focused** - Ask one focused question at a time, and briefly explain why it matters and which decision it unlocks. Batch questions only if the user asks for a batch; keep them small and group related decisions.
+- **Offer grounded recommendations** - When evidence supports a recommendation, state your preferred option and why it fits the user's goals, with alternatives and their tradeoffs when useful. Do not invent intent, priorities, or external constraints: ask the user when only they can answer. Avoid a fixed question format.
+- **Keep a conversational record** - Track decisions in the conversation, not in files. Separate confirmed decisions from proposed defaults and unresolved questions. Silence is not acceptance. Accepting an answer or a batch of recommendations is not permission to write. Keep file-write confirmation separate from discovery questions and follow the guardrails below.
+
+Stop asking when the user has enough clarity. Let them pause, pivot, or defer a decision; do not exhaust every branch or force a proposal.
+
+For example, after inspecting the relevant code:
+
+\`\`\`text
+The CLI already uses SQLite and has no remote service. Is sharing state
+across devices in scope? That determines whether local storage is enough.
+If this stays a single-device tool, I recommend keeping SQLite to avoid
+adding a service to operate; shared state would need a separate sync design.
+\`\`\``;
+
 export function getExploreSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-explore',
     description: 'Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.',
     instructions: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing. For a new change, scaffold it first as described below.
+**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, investigate the codebase, and run read-only commands or tools without confirmation, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create or update OpenSpec change artifacts (proposals, designs, specs) within a confirmed scope—that's capturing thinking, not implementing. Answering design or clarifying questions is never consent to write. Before the first write-capable action, name the artifacts or files you would change and what you would do, ask a direct yes/no question, and wait for the user's confirmation in a separate message. Confirmation covers only the scope you described; ask again before expanding it. For a new change, scaffold it first as described below.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
@@ -29,6 +51,10 @@ ${STORE_SELECTION_GUIDANCE}
 - **Adaptive** - Follow interesting threads, pivot when new information emerges
 - **Patient** - Don't rush to conclusions, let the shape of the problem emerge
 - **Grounded** - Explore the actual codebase when relevant, don't just theorize
+
+---
+
+${PLANNING_GUIDANCE}
 
 ---
 
@@ -56,21 +82,24 @@ Depending on what the user brings, you might:
 
 **Visualize**
 \`\`\`
-┌─────────────────────────────────────────┐
-│     Use ASCII diagrams liberally        │
-├─────────────────────────────────────────┤
-│                                         │
-│      ┌────────┐         ┌────────┐      │
-│      │ State  │────────▶│ State  │      │
-│      │   A    │         │   B    │      │
-│      └────────┘         └────────┘      │
-│                                         │
-│   System diagrams, state machines,      │
-│   data flows, architecture sketches,    │
-│   dependency graphs, comparison tables  │
-│                                         │
-└─────────────────────────────────────────┘
++------------------------------------------+
+|     Use ASCII diagrams liberally         |
++------------------------------------------+
+|                                          |
+|   [State A] -------> [State B]           |
+|       |                                  |
+|       v                                  |
+|   [State C]                              |
+|                                          |
+|   System diagrams, state machines,       |
+|   data flows, architecture sketches,     |
+|   dependency graphs, comparison tables   |
+|                                          |
++------------------------------------------+
 \`\`\`
+
+**Draw with plain ASCII only** — borders \`+\` \`-\` \`|\`, arrows \`-->\` \`<--\` \`^\` \`v\`, markers \`*\` \`x\`.
+Unicode diagram glyphs can render at different widths across terminals, fonts, and locales, so padded boxes and aligned tables can drift. Keep every diagram character ASCII.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
@@ -94,6 +123,14 @@ This tells you:
 - If there are active changes
 - Their names, schemas, and status
 - What the user might be working on
+
+That is the *change* list - work in flight. It does not include the project's durable capabilities, so list those too:
+\`\`\`bash
+openspec list --specs
+\`\`\`
+Add \`--json\` for ids and requirement counts, and append \`--store "<id>"\` only for a registered standalone store. This is the inventory of what the project already claims to do, and \`openspec list\` on its own never shows it. To look at one, run \`openspec show "<spec-id>" --type spec --json --no-scenarios\` (same \`--store\` rule) - it returns that capability's purpose and requirement texts without pulling the whole spec file into context, and \`--type spec\` stops a change of the same name from making it ambiguous.
+
+The filtered read is only an overview. Before deciding what is already covered or what should change, read each relevant spec in full, including scenarios, with \`openspec show "<spec-id>" --type spec\` (same \`--store\` rule).
 
 Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
 - \`context\`: project background - tech stack, conventions, constraints
@@ -172,17 +209,17 @@ User: I'm thinking about adding real-time collaboration
 You: Real-time collab is a big space. Let me think about this...
 
       COLLABORATION SPECTRUM
-      ════════════════════════════════════════════
+      ============================================
 
       Awareness          Coordination         Sync
-          │                   │                 │
-          ▼                   ▼                 ▼
-      ┌────────┐         ┌────────┐        ┌────────┐
-      │Presence│         │Cursors │        │  CRDT  │
-      │  "3    │         │ Multi  │        │Conflict│
-      │online" │         │ select │        │  free  │
-      └────────┘         └────────┘        └────────┘
-          │                   │                 │
+          |                   |                 |
+          v                   v                 v
+      +--------+         +--------+        +--------+
+      |Presence|         |Cursors |        |  CRDT  |
+      |  "3    |         | Multi  |        |Conflict|
+      |online" |         | select |        |  free  |
+      +--------+         +--------+        +--------+
+          |                   |                 |
        trivial            moderate           complex
 
       Where's your head at?
@@ -194,27 +231,27 @@ User: The auth system is a mess
 
 You: [reads codebase]
 
-     ┌─────────────────────────────────────────────┐
-     │              CURRENT AUTH FLOW              │
-     └─────────────────────────────────────────────┘
-                        │
-          ┌─────────────┼─────────────┐
-          ▼             ▼             ▼
-     ┌─────────┐  ┌─────────┐  ┌─────────┐
-     │ Google  │  │  GitHub │  │  Email  │
-     │  OAuth  │  │  OAuth  │  │  Magic  │
-     └────┬────┘  └────┬────┘  └────┬────┘
-          │             │             │
-          └─────────────┼─────────────┘
-                        ▼
-                  ┌───────────┐
-                  │  Session  │
-                  └─────┬─────┘
-                        │
-                        ▼
-                  ┌───────────┐
-                  │   Perms   │
-                  └───────────┘
+     +---------------------------------------------+
+     |              CURRENT AUTH FLOW              |
+     +---------------------------------------------+
+                        |
+          +-------------+-------------+
+          v             v             v
+     +---------+  +---------+  +---------+
+     | Google  |  |  GitHub |  |  Email  |
+     |  OAuth  |  |  OAuth  |  |  Magic  |
+     +----+----+  +----+----+  +----+----+
+          |             |             |
+          +-------------+-------------+
+                        v
+                  +-----------+
+                  |  Session  |
+                  +-----+-----+
+                        |
+                        v
+                  +-----------+
+                  |   Perms   |
+                  +-----------+
 
      I see three tangles. Which one's burning?
 \`\`\`
@@ -246,19 +283,19 @@ User: A CLI tool that tracks local dev environments
 
 You: That changes everything.
 
-     ┌─────────────────────────────────────────────────┐
-     │          CLI TOOL DATA STORAGE                  │
-     └─────────────────────────────────────────────────┘
+     +-------------------------------------------------+
+     |          CLI TOOL DATA STORAGE                  |
+     +-------------------------------------------------+
 
      Key constraints:
-     • No daemon running
-     • Must work offline
-     • Single user
+     - No daemon running
+     - Must work offline
+     - Single user
 
                   SQLite          Postgres
-     Deployment   embedded ✓      needs server ✗
-     Offline      yes ✓           no ✗
-     Single file  yes ✓           no ✗
+     Deployment   embedded        needs server
+     Offline      yes             no
+     Single file  yes             no
 
      SQLite. Not even close.
 
@@ -298,11 +335,11 @@ But this summary is optional. Sometimes the thinking IS the value.
 
 ## Guardrails
 
-- **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
+- **Don't implement** - Never write code or implement features. Workflow configuration counts too: creating or editing schemas, templates, or \`openspec/config.yaml\` is a change, not thinking. Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it
+- **Don't auto-capture** - Offer to save insights, don't just do it. Read-only commands and tools need no confirmation. Before the first write-capable action—including \`openspec new change\` or another command that writes files—name the artifacts or files and proposed changes, ask a direct yes/no question, and wait for explicit confirmation in a separate user message. That confirmation covers only the described scope; ask again before expanding it. Answers to design or clarifying questions are never consent to write.
 - **Don't manually scaffold changes** - Never create a new change directory under \`openspec/changes/\` by hand. Always use \`openspec new change "<name>"\` (with \`--store <id>\` when applicable) so required metadata such as \`.openspec.yaml\` is created before writing artifacts.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
@@ -321,7 +358,7 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'explore', 'experimental', 'thinking'],
     content: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, and investigate the codebase, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create OpenSpec artifacts (proposals, designs, specs) if the user asks—that's capturing thinking, not implementing. For a new change, scaffold it first as described below.
+**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, investigate the codebase, and run read-only commands or tools without confirmation, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create or update OpenSpec change artifacts (proposals, designs, specs) within a confirmed scope—that's capturing thinking, not implementing. Answering design or clarifying questions is never consent to write. Before the first write-capable action, name the artifacts or files you would change and what you would do, ask a direct yes/no question, and wait for the user's confirmation in a separate message. Confirmation covers only the scope you described; ask again before expanding it. For a new change, scaffold it first as described below.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
@@ -344,6 +381,10 @@ ${STORE_SELECTION_GUIDANCE}
 - **Adaptive** - Follow interesting threads, pivot when new information emerges
 - **Patient** - Don't rush to conclusions, let the shape of the problem emerge
 - **Grounded** - Explore the actual codebase when relevant, don't just theorize
+
+---
+
+${PLANNING_GUIDANCE}
 
 ---
 
@@ -371,21 +412,24 @@ Depending on what the user brings, you might:
 
 **Visualize**
 \`\`\`
-┌─────────────────────────────────────────┐
-│     Use ASCII diagrams liberally        │
-├─────────────────────────────────────────┤
-│                                         │
-│      ┌────────┐         ┌────────┐      │
-│      │ State  │────────▶│ State  │      │
-│      │   A    │         │   B    │      │
-│      └────────┘         └────────┘      │
-│                                         │
-│   System diagrams, state machines,      │
-│   data flows, architecture sketches,    │
-│   dependency graphs, comparison tables  │
-│                                         │
-└─────────────────────────────────────────┘
++------------------------------------------+
+|     Use ASCII diagrams liberally         |
++------------------------------------------+
+|                                          |
+|   [State A] -------> [State B]           |
+|       |                                  |
+|       v                                  |
+|   [State C]                              |
+|                                          |
+|   System diagrams, state machines,       |
+|   data flows, architecture sketches,     |
+|   dependency graphs, comparison tables   |
+|                                          |
++------------------------------------------+
 \`\`\`
+
+**Draw with plain ASCII only** — borders \`+\` \`-\` \`|\`, arrows \`-->\` \`<--\` \`^\` \`v\`, markers \`*\` \`x\`.
+Unicode diagram glyphs can render at different widths across terminals, fonts, and locales, so padded boxes and aligned tables can drift. Keep every diagram character ASCII.
 
 **Surface risks and unknowns**
 - Identify what could go wrong
@@ -409,6 +453,14 @@ This tells you:
 - If there are active changes
 - Their names, schemas, and status
 - What the user might be working on
+
+That is the *change* list - work in flight. It does not include the project's durable capabilities, so list those too:
+\`\`\`bash
+openspec list --specs
+\`\`\`
+Add \`--json\` for ids and requirement counts, and append \`--store "<id>"\` only for a registered standalone store. This is the inventory of what the project already claims to do, and \`openspec list\` on its own never shows it. To look at one, run \`openspec show "<spec-id>" --type spec --json --no-scenarios\` (same \`--store\` rule) - it returns that capability's purpose and requirement texts without pulling the whole spec file into context, and \`--type spec\` stops a change of the same name from making it ambiguous.
+
+The filtered read is only an overview. Before deciding what is already covered or what should change, read each relevant spec in full, including scenarios, with \`openspec show "<spec-id>" --type spec\` (same \`--store\` rule).
 
 Then read the project's own context from the resolved root - \`<root.path>/openspec/config.yaml\` (or \`config.yml\`). Use the \`root.path\` returned above, and skip this if neither file exists:
 - \`context\`: project background - tech stack, conventions, constraints
@@ -495,11 +547,11 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 
 ## Guardrails
 
-- **Don't implement** - Never write code or implement features. Creating OpenSpec artifacts is fine, writing application code is not.
+- **Don't implement** - Never write code or implement features. Workflow configuration counts too: creating or editing schemas, templates, or \`openspec/config.yaml\` is a change, not thinking. Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it
+- **Don't auto-capture** - Offer to save insights, don't just do it. Read-only commands and tools need no confirmation. Before the first write-capable action—including \`openspec new change\` or another command that writes files—name the artifacts or files and proposed changes, ask a direct yes/no question, and wait for explicit confirmation in a separate user message. That confirmation covers only the described scope; ask again before expanding it. Answers to design or clarifying questions are never consent to write.
 - **Don't manually scaffold changes** - Never create a new change directory under \`openspec/changes/\` by hand. Always use \`openspec new change "<name>"\` (with \`--store <id>\` when applicable) so required metadata such as \`.openspec.yaml\` is created before writing artifacts.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality

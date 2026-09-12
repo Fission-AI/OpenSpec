@@ -56,6 +56,12 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   'factory': { type: 'files', pattern: '.factory/commands/openspec-*.md' },
   'opencode': { type: 'files', pattern: ['.opencode/command/opsx-*.md', '.opencode/command/openspec-*.md'] },
   'continue': { type: 'files', pattern: '.continue/prompts/openspec-*.prompt' },
+  // Scoped to the pre-opsx filenames under Antigravity's former `.agent` root.
+  // The current `.agents/workflows/opsx-*.md` files postdate that rename, and
+  // the `.agent` copies of them are relocated by LEGACY_TOOL_ROOTS, which
+  // preserves a customized file instead of deleting it. These patterns are
+  // matched in every project, so a shared root like `.agents` is not listed:
+  // OpenSpec never wrote `openspec-*` files there, and a user might have.
   'antigravity': { type: 'files', pattern: '.agent/workflows/openspec-*.md' },
   'iflow': { type: 'files', pattern: '.iflow/commands/openspec-*.md' },
   'qwen': { type: 'files', pattern: ['.qwen/commands/opsx-*.toml', '.qwen/commands/openspec-*.toml'] },

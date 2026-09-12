@@ -3,7 +3,11 @@ import * as path from 'node:path';
 import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
 import { ArtifactGraph } from './graph.js';
 import { detectCompleted } from './state.js';
-import { resolveArtifactOutputPath, resolveArtifactOutputs } from './outputs.js';
+import {
+  isSpecsArtifactPath,
+  resolveArtifactOutputPath,
+  resolveArtifactOutputs,
+} from './outputs.js';
 import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
@@ -285,12 +289,7 @@ export function loadChangeContext(
   const skippedArtifacts = new Set<string>();
   if (metadata?.skip_specs) {
     for (const artifact of graph.getAllArtifacts()) {
-      // A schema may write generates as './specs/...' - the globs treat that
-      // identically to 'specs/...', so the skip set must too, or validate
-      // would honor the marker while instructions tell the agent to create
-      // the very files the conflict gate polices.
-      const generates = artifact.generates.replace(/^(?:\.\/)+/, '');
-      if (generates.startsWith('specs/') && !completed.has(artifact.id)) {
+      if (isSpecsArtifactPath(artifact.generates) && !completed.has(artifact.id)) {
         completed.add(artifact.id);
         skippedArtifacts.add(artifact.id);
       }

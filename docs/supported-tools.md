@@ -33,7 +33,7 @@ way it loads the file OpenSpec wrote. Find your tool's command path in the
 | `.../opsx-<id>.*` — the filename is the command | `/opsx-<id>` | Every other tool with generated command files, except Amazon Q and Devin |
 | `.devin/workflows/opsx-<id>.md` — read by only one of Devin's two agents | `/opsx-<id>` on Devin Desktop, `/openspec-<skill>` on Devin Local | Devin Desktop\*\*\*\* |
 | `.amazonq/prompts/opsx-<id>.md` — a prompt, not a command | `@opsx-<id>` | Amazon Q Developer |
-| none — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, shared `.agents` |
+| none — skills only | `/openspec-<skill>` | CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, Zed Agent, shared `.agents` |
 | none — Kimi Code | `/skill:openspec-<skill>` | Kimi Code |
 | none — Codex CLI | `$openspec-<skill>` | Codex ([`/openspec-<skill>` is not recognized](https://github.com/openai/codex/issues/11817)) |
 
@@ -96,11 +96,13 @@ to read the hint.
 | Oh My Pi (`oh-my-pi`) | `.omp/skills/openspec-*/SKILL.md` | `.omp/commands/opsx-<id>.md` |
 | OpenCode (`opencode`) | `.opencode/skills/openspec-*/SKILL.md` | `.opencode/commands/opsx-<id>.md` |
 | Pi (`pi`) | `.pi/skills/openspec-*/SKILL.md` | `.pi/prompts/opsx-<id>.md` |
+| SourceCraft Code Assistant for VS Code (`codeassistant`) | `.codeassistant/skills/openspec-*/SKILL.md` | `.codeassistant/commands/opsx-<id>.md` |
 | Qoder (`qoder`) | `.qoder/skills/openspec-*/SKILL.md` | `.qoder/commands/opsx/<id>.md` |
 | Qwen Code (`qwen`) | `.qwen/skills/openspec-*/SKILL.md` | `.qwen/commands/opsx-<id>.md` |
 | [Rovo Dev CLI](https://support.atlassian.com/rovo/docs/use-rovo-dev-cli/) (`rovodev`) | `.rovodev/skills/openspec-*/SKILL.md` | Not generated. Rovo has no slash-command surface — it matches skills automatically or by prompt (e.g. "use the openspec-propose skill"); `/skills` only manages them. Generated content references skills by name, never as `/openspec-*` commands. |
 | [Zoo Code](https://github.com/Zoo-Code-Org/Zoo-Code) (`roocode`) | `.roo/skills/openspec-*/SKILL.md` | `.roo/commands/opsx-<id>.md` |
 | Trae (`trae`) | `.trae/skills/openspec-*/SKILL.md` | `.trae/commands/opsx-<id>.md` |
+| [Zed Agent](https://zed.dev/docs/ai/skills) (`zed`) | `.agents/skills/openspec-*/SKILL.md` | Not generated (skills-only; use `/openspec-*` or `@openspec-*`) |
 | ZCode (`zcode`) | `.zcode/skills/openspec-*/SKILL.md` | `.zcode/commands/opsx/<id>.md` |
 | Shared `.agents` skills (`agents`) | `.agents/skills/openspec-*/SKILL.md` | Not generated (no command adapter; use skill-based `/openspec-*` invocations) |
 
@@ -109,6 +111,10 @@ to read the hint.
 \*\*\* Hermes loads skills from `~/.hermes/skills/` by default. To use project-local OpenSpec skills, add the project `.hermes/skills/` directory to `skills.external_dirs` in `~/.hermes/config.yaml`; Hermes then exposes skills with user-facing slash invocations such as `/openspec-propose`.
 
 \*\*\*\* Windsurf was [rebranded to Devin Desktop](https://docs.devin.ai/desktop/devin-desktop-faq) on June 2, 2026, and its config directory moved: `.devin/` is the preferred read + write location, `.windsurf/` a legacy read-only fallback. OpenSpec follows the rename — the tool id is `devin`, and `--tools windsurf` still resolves to it so existing setup scripts keep working. A project still holding OpenSpec files in `.windsurf/` is offered the move on the next `openspec update`; declining leaves them in place, and files you wrote yourself are never touched. Workflows are invoked by filename, so `.devin/workflows/opsx-apply.md` is `/opsx-apply`. The [Devin Local agent does not support workflows](https://docs.devin.ai/desktop/devin-local) — only skills, and it does not read `.windsurf/` at all — so whenever OpenSpec writes Devin skills it keeps their bodies, and the getting-started hint, on `/openspec-*` skill invocations, which work on both agents. Under commands-only delivery no skills are written and both fall back to `/opsx-*`.
+
+SourceCraft Code Assistant support targets its VS Code extension. Its [custom commands](https://sourcecraft.dev/portal/docs/en/code-assistant/operations/agent/slash-commands) and [skills](https://sourcecraft.dev/portal/docs/ru/code-assistant/operations/agent/skills) are available only in VS Code. This integration does not configure SourceCraft web or JetBrains.
+
+With skills-only delivery, ask Code Assistant to use the `openspec-propose` skill with your idea. Skills activate through request matching; OpenSpec does not generate `/openspec-*` commands for this tool.
 
 MiniMax Code is a global skills-only integration. OpenSpec writes only its
 `openspec-*` directories under `~/.minimax/skills/`; it does not create
@@ -146,8 +152,8 @@ shared root many agent tools read, instead of a tool-specific directory.
 | Your tool isn't listed yet but reads `.agents/skills` | `agents` |
 
 Selecting it alongside a tool-specific ID is fine; each normally writes to its
-own root. Codex is the exception because it uses the same canonical `.agents`
-root. If both `codex` and `agents` are selected, OpenSpec keeps one
+own root. Codex and Zed Agent are the exceptions because they use the same canonical
+`.agents` root. If Codex is selected with Zed or `agents`, OpenSpec keeps one
 Codex-led tree. Its handoffs name both `$openspec-*` for Codex and
 `/openspec-*` for other agents, so `--tools all` and existing multi-agent
 setups keep working without two writers overwriting the same files.
@@ -169,10 +175,17 @@ Two things to know:
   If your root `AGENTS.md` still carries OpenSpec marker blocks from an older
   version, `openspec update` strips them — see the [Migration Guide](migration-guide.md).
 
-Because `.agents/skills/` is shared, it is worth knowing what OpenSpec claims there:
+Zed support here is for the built-in Zed Agent. Zed External Agents and Terminal
+Threads use their own integrations. Agent Skills require
+[Zed v1.4.2](https://github.com/zed-industries/zed/releases/tag/v1.4.2) or newer.
+Project-local skills are unavailable in an untrusted worktree until you
+[grant trust](https://zed.dev/docs/worktree-trust).
+
+Because `.agents/skills/` is shared by Codex, Zed Agent, and the vendor-neutral target,
+it is worth knowing what OpenSpec claims there:
 it writes, refreshes, and removes only the `openspec-*` skill directories for your
-selected workflows, plus an `.openspec-target` marker that records whether Codex
-or the vendor-neutral target rendered that shared tree. Anything else in that
+selected workflows, plus an `.openspec-target` marker that records whether Codex,
+Zed Agent, or the vendor-neutral target rendered that shared tree. Anything else in that
 directory is left alone. Treat the `openspec-*` names and marker as OpenSpec's —
 edits inside them are replaced on the next `openspec update`, the same as for
 every other tool.
@@ -207,7 +220,7 @@ openspec init --tools none
 openspec init --profile core
 ```
 
-**Available tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `avian`, `bob`, `claude`, `cline`, `command-code`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zcode`, `agents`
+**Available tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `avian`, `bob`, `claude`, `cline`, `command-code`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `codeassistant`, `trae`, `zed`, `zcode`, `agents`
 
 ## Workflow-Dependent Installation
 

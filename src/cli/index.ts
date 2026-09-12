@@ -35,6 +35,7 @@ import { registerContextCommand } from '../commands/context.js';
 import { registerWorksetCommand } from '../commands/workset.js';
 import {
   statusCommand,
+  BATCH_STATUS_FAILURE_PAYLOAD,
   instructionsCommand,
   applyInstructionsCommand,
   archiveInstructionsCommand,
@@ -49,6 +50,7 @@ import {
   type NewChangeOptions,
 } from '../commands/workflow/index.js';
 import { maybeShowTelemetryNotice, trackCommand, shutdown } from '../telemetry/index.js';
+import { maybeShowCompletionTip } from '../core/completion-tip.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { isInteractive } from '../utils/interactive.js';
 
@@ -136,6 +138,29 @@ export function isJsonRun(command: Command): boolean {
   );
 }
 
+/**
+ * True for the commands that exist to serve shell completions: the user-facing
+ * `openspec completion ...` group and the hidden `__complete` resolver that
+ * generated completion scripts call on every Tab press. Tipping either about
+ * completions is noise, and `__complete` would burn the one-shot tip invisibly.
+ */
+export function isCompletionRun(commandPath: string): boolean {
+  return commandPath.split(':')[0] === 'completion' || commandPath === '__complete';
+}
+
+/**
+ * True when the first-run completions tip must be deferred rather than shown.
+ *
+ * Deferring keeps the tip unconsumed, so it still reaches the user on a later
+ * run that can actually carry it. All three cases are runs nobody would read a
+ * hint from: JSON output, the completion machinery itself, and a stderr that is
+ * not a terminal — pipes and the agent-driven runs that dominate this CLI's
+ * usage would otherwise burn the user's one-shot tip into a log nobody opens.
+ */
+export function shouldDeferCompletionTip(command: Command, stderrIsTty: boolean): boolean {
+  return isJsonRun(command) || isCompletionRun(getCommandPath(command)) || !stderrIsTty;
+}
+
 program
   .name('openspec')
   .description('AI-native system for spec-driven development')
@@ -154,18 +179,34 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
     process.env.NO_COLOR = '1';
   }
 
-  // Show first-run telemetry notice (if not seen). Suppress it whenever the run
-  // asked for JSON so stdout stays a single valid JSON document (see isJsonRun).
+  // Show first-run telemetry notice (if not seen). It's written to stderr, so it
+  // never pollutes stdout — but --json runs still defer it (see isJsonRun) so the
+  // very first invocation stays free of any incidental output on either stream.
   await maybeShowTelemetryNotice({ silent: isJsonRun(actionCommand) });
 
   // Track command execution (use actionCommand to get the actual subcommand)
   const commandPath = getCommandPath(actionCommand);
+
   await trackCommand(commandPath, version);
 });
 
 // Shutdown telemetry after command completes
-program.hook('postAction', async () => {
-  await shutdown();
+program.hook('postAction', async (_thisCommand, actionCommand) => {
+  // Show the first-run shell-completions tip (on stderr, so piped stdout stays
+  // clean). postAction, not preAction: the tip trails the command's own output
+  // instead of pushing an error message or `init`'s setup summary down the
+  // screen. Deferred — not consumed — whenever nobody would read it: JSON runs,
+  // `openspec completion ...`, and a stderr that is not a terminal (agents and
+  // pipes would otherwise silently burn the user's one-shot tip).
+  try {
+    await maybeShowCompletionTip({
+      silent: shouldDeferCompletionTip(actionCommand, Boolean(process.stderr.isTTY)),
+    });
+  } finally {
+    // The flush runs even if the hint throws: parse() is synchronous, so a
+    // rejection here has no catch anywhere above it.
+    await shutdown();
+  }
 });
 
 const availableToolIds = AI_TOOLS
@@ -180,12 +221,13 @@ program
   .command('init [path]')
   .description('Initialize OpenSpec in your project')
   .option('--tools <tools>', toolsOptionDescription)
+  .option('--language <language>', 'Write new OpenSpec artifacts in this language')
   .option('--force', 'Auto-cleanup legacy files without prompting')
   .option('--profile <profile>', 'Override global config profile (core or custom)')
   .option('--no-animation', 'Show a static welcome screen instead of the animated one')
   .option('--copilot-cloud', 'Set up GitHub Copilot cloud coding-agent files without prompting')
   .option('--no-copilot-cloud', 'Skip GitHub Copilot cloud coding-agent files without prompting')
-  .action(async (targetPath = '.', options?: { tools?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean }) => {
+  .action(async (targetPath = '.', options?: { tools?: string; language?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean }) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -209,6 +251,7 @@ program
       const { InitCommand } = await import('../core/init.js');
       const initCommand = new InitCommand({
         tools: options?.tools,
+        language: options?.language,
         force: options?.force,
         profile: options?.profile,
         animation: options?.animation,
@@ -384,8 +427,9 @@ changeCmd
   .option('--json', 'Output as JSON')
   .option('--deltas-only', 'Show only deltas (JSON only)')
   .option('--requirements-only', 'Alias for --deltas-only (deprecated)')
+  .option('--diff', 'Show per-requirement diffs for delta specs')
   .option('--no-interactive', 'Disable interactive prompts')
-  .action(async (changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; noInteractive?: boolean }) => {
+  .action(async (changeName?: string, options?: { json?: boolean; requirementsOnly?: boolean; deltasOnly?: boolean; diff?: boolean; noInteractive?: boolean }) => {
     try {
       const changeCommand = new ChangeCommand();
       await changeCommand.show(changeName, options);
@@ -420,10 +464,12 @@ changeCmd
   .action(async (changeName?: string, options?: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
     try {
       const changeCommand = new ChangeCommand();
+      // validate() already sets process.exitCode, and Node honours it at
+      // natural exit. Calling process.exit() here would skip commander's
+      // postAction hook — the same trap called out for `update` below — which
+      // kills the telemetry flush and the first-run completions tip on what is
+      // a routine outcome, not an error: a change that fails validation.
       await changeCommand.validate(changeName, options);
-      if (typeof process.exitCode === 'number' && process.exitCode !== 0) {
-        process.exit(process.exitCode);
-      }
     } catch (error) {
       console.error(`Error: ${(error as Error).message}`);
       process.exitCode = 1;
@@ -465,6 +511,7 @@ program
   .option('--changes', 'Validate all changes')
   .option('--specs', 'Validate all specs')
   .option('--archived', 'Validate that archived changes have all tasks completed (for pre-commit linting)')
+  .option('--report <full|findings>', 'Select bulk report content: full|findings; combine with --json for JSON')
   .option('--type <type>', 'Specify item type when ambiguous: change|spec')
   .option('--strict', 'Enable strict validation mode')
   .option('--json', 'Output validation results as JSON')
@@ -472,7 +519,7 @@ program
   .option('--no-interactive', 'Disable interactive prompts')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
   .addOption(hiddenStorePathOption())
-  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; archived?: boolean; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string; store?: string; storePath?: string }) => {
+  .action(async (itemName?: string, options?: { all?: boolean; changes?: boolean; specs?: boolean; archived?: boolean; report?: string; type?: string; strict?: boolean; json?: boolean; noInteractive?: boolean; concurrency?: string; store?: string; storePath?: string }) => {
     try {
       const validateCommand = new ValidateCommand();
       await validateCommand.execute(itemName, options);
@@ -492,6 +539,7 @@ program
   // change-only flags
   .option('--deltas-only', 'Show only deltas (JSON only, change)')
   .option('--requirements-only', 'Alias for --deltas-only (deprecated, change)')
+  .option('--diff', 'Show per-requirement diffs for delta specs (change)')
   // spec-only flags
   .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
   .option('--no-scenarios', 'JSON only: Exclude scenario content')
@@ -596,6 +644,7 @@ program
   .command('status')
   .description('Display artifact completion status for a change')
   .option('--change <id>', 'Change name to show status for')
+  .option('--all', 'Show status for all active changes')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)
@@ -604,7 +653,13 @@ program
     try {
       await statusCommand(options);
     } catch (error) {
-      failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
+      failWithError(error, {
+        enabled: options.json,
+        // The batch null-shape; the single-change failure shape is
+        // pre-existing contract and stays payload-free.
+        payload: options.all ? BATCH_STATUS_FAILURE_PAYLOAD : undefined,
+        fallbackCode: 'change_error',
+      });
       process.exit(1);
     }
   });

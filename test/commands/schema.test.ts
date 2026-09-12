@@ -3,12 +3,49 @@ import { Command } from 'commander';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { runCLI } from '../helpers/run-cli.js';
 
-async function runSchemaCommand(args: string[]): Promise<void> {
-  const { registerSchemaCommand } = await import('../../src/commands/schema.js');
+async function runSchemaCommand(
+  args: string[],
+  schemaModule?: typeof import('../../src/commands/schema.js')
+): Promise<void> {
+  const { registerSchemaCommand } =
+    schemaModule ?? (await import('../../src/commands/schema.js'));
   const program = new Command();
   registerSchemaCommand(program);
   await program.parseAsync(['node', 'openspec', 'schema', ...args]);
+}
+
+function snapshotTree(root: string): Array<{ path: string; type: string; content?: string }> | null {
+  if (!fs.existsSync(root)) return null;
+
+  const entries: Array<{ path: string; type: string; content?: string }> = [];
+  const walk = (current: string, relative: string): void => {
+    for (const entry of fs
+      .readdirSync(current, { withFileTypes: true })
+      .sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolutePath = path.join(current, entry.name);
+      const relativePath = relative ? `${relative}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        entries.push({ path: relativePath, type: 'directory' });
+        walk(absolutePath, relativePath);
+      } else if (entry.isFile()) {
+        entries.push({
+          path: relativePath,
+          type: 'file',
+          content: fs.readFileSync(absolutePath).toString('base64'),
+        });
+      } else {
+        entries.push({
+          path: relativePath,
+          type: 'other',
+          content: fs.readlinkSync(absolutePath),
+        });
+      }
+    }
+  };
+  walk(root, '');
+  return entries;
 }
 
 describe('schema command', () => {
@@ -387,6 +424,297 @@ artifacts:
   });
 
   describe('schema init', () => {
+    const failureModes = [
+      { label: 'new schema', force: false },
+      { label: 'forced replacement', force: true },
+    ];
+
+    function prepareSchemaForFailure(force: boolean): {
+      schemaDir: string;
+      before: ReturnType<typeof snapshotTree>;
+    } {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'my-workflow');
+      if (force) {
+        fs.mkdirSync(path.join(schemaDir, 'nested'), { recursive: true });
+        fs.writeFileSync(path.join(schemaDir, 'schema.yaml'), 'original schema bytes\n');
+        fs.writeFileSync(path.join(schemaDir, 'nested', 'keep.bin'), Buffer.from([0, 1, 255]));
+      }
+      return { schemaDir, before: snapshotTree(schemaDir) };
+    }
+
+    async function runDefaultInit(
+      force: boolean,
+      schemaModule?: typeof import('../../src/commands/schema.js')
+    ): Promise<void> {
+      await runSchemaCommand(
+        [
+          'init',
+          'my-workflow',
+          ...(force ? ['--force'] : []),
+          '--artifacts',
+          'proposal,specs,tasks',
+          '--default',
+          '--json',
+        ],
+        schemaModule
+      );
+    }
+
+    it('uses the configured default in the next new change command', async () => {
+      const initialized = await runCLI(
+        [
+          'schema',
+          'init',
+          'my-workflow',
+          '--artifacts',
+          'proposal,specs,tasks',
+          '--default',
+          '--json',
+        ],
+        { cwd: tempDir }
+      );
+      expect(initialized.exitCode).toBe(0);
+
+      const created = await runCLI(['new', 'change', 'uses-default', '--json'], {
+        cwd: tempDir,
+      });
+      expect(created.exitCode).toBe(0);
+      expect(
+        fs.readFileSync(
+          path.join(tempDir, 'openspec', 'changes', 'uses-default', '.openspec.yaml'),
+          'utf-8'
+        )
+      ).toContain('schema: my-workflow');
+    });
+
+    describe.each(failureModes)('$label with --default', ({ force }) => {
+      it('preserves the schema and invalid YAML config byte-for-byte', async () => {
+        const { schemaDir, before } = prepareSchemaForFailure(force);
+        const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+        const configBytes = Buffer.from('schema: [unterminated\n');
+        fs.writeFileSync(configPath, configBytes);
+
+        await runDefaultInit(force);
+
+        expect(process.exitCode).toBe(1);
+        expect(snapshotTree(schemaDir)).toEqual(before);
+        expect(fs.readFileSync(configPath)).toEqual(configBytes);
+      });
+
+      it('preserves the schema and scalar YAML config byte-for-byte', async () => {
+        const { schemaDir, before } = prepareSchemaForFailure(force);
+        const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+        const configBytes = Buffer.from('not-an-object\n');
+        fs.writeFileSync(configPath, configBytes);
+
+        await runDefaultInit(force);
+
+        expect(process.exitCode).toBe(1);
+        expect(snapshotTree(schemaDir)).toEqual(before);
+        expect(fs.readFileSync(configPath)).toEqual(configBytes);
+      });
+
+      it('preserves the schema when the config path is a directory', async () => {
+        const { schemaDir, before } = prepareSchemaForFailure(force);
+        const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+        fs.mkdirSync(configPath);
+        fs.writeFileSync(path.join(configPath, 'keep.txt'), 'keep me');
+
+        await runDefaultInit(force);
+
+        expect(process.exitCode).toBe(1);
+        expect(snapshotTree(schemaDir)).toEqual(before);
+        expect(snapshotTree(configPath)).toEqual([
+          {
+            path: 'keep.txt',
+            type: 'file',
+            content: Buffer.from('keep me').toString('base64'),
+          },
+        ]);
+      });
+
+      it('preserves the schema and read-only config byte-for-byte', async () => {
+        if (process.platform === 'win32') return;
+
+        const { schemaDir, before } = prepareSchemaForFailure(force);
+        const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+        const configBytes = Buffer.from('schema: existing\n');
+        fs.writeFileSync(configPath, configBytes, { mode: 0o444 });
+
+        try {
+          await runDefaultInit(force);
+
+          expect(process.exitCode).toBe(1);
+          expect(snapshotTree(schemaDir)).toEqual(before);
+          expect(fs.readFileSync(configPath)).toEqual(configBytes);
+        } finally {
+          fs.chmodSync(configPath, 0o644);
+        }
+      });
+
+      it('preserves the schema and an external config symlink target', async () => {
+        if (process.platform === 'win32') return;
+
+        const { schemaDir, before } = prepareSchemaForFailure(force);
+        const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-schema-config-'));
+        const outsideConfig = path.join(outsideDir, 'config.yaml');
+        const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+        const configBytes = Buffer.from('schema: untouched\n');
+        fs.writeFileSync(outsideConfig, configBytes);
+        fs.symlinkSync(outsideConfig, configPath, 'file');
+
+        try {
+          await runDefaultInit(force);
+
+          expect(process.exitCode).toBe(1);
+          expect(snapshotTree(schemaDir)).toEqual(before);
+          expect(fs.readFileSync(outsideConfig)).toEqual(configBytes);
+          expect(fs.lstatSync(configPath).isSymbolicLink()).toBe(true);
+        } finally {
+          fs.rmSync(outsideDir, { recursive: true, force: true });
+        }
+      });
+    });
+
+    it('rolls back a forced schema replacement when installing the config fails', async () => {
+      const { schemaDir, before } = prepareSchemaForFailure(true);
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      const configBytes = Buffer.from('schema: existing\ncontext: keep me\n');
+      fs.writeFileSync(configPath, configBytes);
+      const schemaModule = await import('../../src/commands/schema.js');
+      const { schemaInitFileOperations } = schemaModule;
+      const renameSync = schemaInitFileOperations.renameSync;
+      const renameCalls: Array<[string, string]> = [];
+      schemaInitFileOperations.renameSync = (source, destination) => {
+        renameCalls.push([String(source), String(destination)]);
+        if (String(source).includes('.schema-init-config-')) {
+          throw new Error('simulated config install failure');
+        }
+        renameSync(source, destination);
+      };
+
+      try {
+        await runDefaultInit(true, schemaModule);
+      } finally {
+        schemaInitFileOperations.renameSync = renameSync;
+      }
+
+      expect(process.exitCode).toBe(1);
+      expect(renameCalls[3]).toEqual([
+        expect.stringContaining('.schema-init-config-'),
+        expect.stringMatching(/[/\\]openspec[/\\]config\.yaml$/),
+      ]);
+      expect(snapshotTree(schemaDir)).toEqual(before);
+      expect(fs.readFileSync(configPath)).toEqual(configBytes);
+    });
+
+    it('makes the new schema the one the config loader resolves when --default is given', async () => {
+      const { readProjectConfig } = await import('../../src/core/project-config.js');
+
+      await runSchemaCommand([
+        'init',
+        'my-workflow',
+        '--artifacts',
+        'proposal,specs,tasks',
+        '--default',
+        '--json',
+      ]);
+
+      expect(process.exitCode).toBeUndefined();
+      // Asserted through the loader, not the raw YAML: --default's whole job is
+      // that the next `new change` picks the schema up, and the key it has to
+      // write to make that happen is the one readProjectConfig looks at (#1708).
+      expect(readProjectConfig(tempDir)?.schema).toBe('my-workflow');
+    });
+
+    it('keeps the rest of an existing config when --default rewrites it', async () => {
+      const { readProjectConfig } = await import('../../src/core/project-config.js');
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      fs.writeFileSync(configPath, 'schema: spec-driven\ncontext: keep me\n');
+
+      await runSchemaCommand([
+        'init',
+        'my-workflow',
+        '--artifacts',
+        'proposal,specs,tasks',
+        '--default',
+        '--json',
+      ]);
+
+      const config = readProjectConfig(tempDir);
+      expect(config?.schema).toBe('my-workflow');
+      expect(config?.context).toBe('keep me');
+    });
+
+    it('updates config.yml in place without hiding its settings behind a new config.yaml', async () => {
+      const { readProjectConfig } = await import('../../src/core/project-config.js');
+      const configPath = path.join(tempDir, 'openspec', 'config.yml');
+      fs.writeFileSync(
+        configPath,
+        '# project context\nschema: spec-driven\ncontext: keep me\n'
+      );
+
+      await runSchemaCommand([
+        'init',
+        'my-workflow',
+        '--artifacts',
+        'proposal,specs,tasks',
+        '--default',
+        '--json',
+      ]);
+
+      expect(fs.existsSync(path.join(tempDir, 'openspec', 'config.yaml'))).toBe(false);
+      expect(fs.readFileSync(configPath, 'utf-8')).toContain('# project context');
+      expect(readProjectConfig(tempDir)).toMatchObject({
+        schema: 'my-workflow',
+        context: 'keep me',
+      });
+    });
+
+    it('does not set the default through a config symlink outside the project', async () => {
+      const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-schema-config-'));
+      const outsideConfig = path.join(outsideDir, 'config.yaml');
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      fs.writeFileSync(outsideConfig, 'schema: untouched\n');
+      fs.symlinkSync(outsideConfig, configPath, 'file');
+
+      try {
+        await runSchemaCommand([
+          'init',
+          'my-workflow',
+          '--artifacts',
+          'proposal,specs,tasks',
+          '--default',
+          '--json',
+        ]);
+
+        expect(process.exitCode).toBe(1);
+        expect(fs.readFileSync(outsideConfig, 'utf-8')).toBe('schema: untouched\n');
+      } finally {
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+      }
+    });
+
+    it('clears the dead defaultSchema key a previous run left behind', async () => {
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      fs.writeFileSync(configPath, 'defaultSchema: stale-workflow\n');
+
+      await runSchemaCommand([
+        'init',
+        'my-workflow',
+        '--artifacts',
+        'proposal,specs,tasks',
+        '--default',
+        '--json',
+      ]);
+
+      // Both keys present would leave the file naming two different defaults,
+      // one of which does nothing.
+      const written = fs.readFileSync(configPath, 'utf-8');
+      expect(written).toContain('schema: my-workflow');
+      expect(written).not.toContain('defaultSchema');
+    });
+
     it('should preserve an existing schema when forced init rejects an artifact', async () => {
       const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'tdd-driven');
       const schemaPath = path.join(schemaDir, 'schema.yaml');
@@ -526,6 +854,53 @@ artifacts:
       expect(schema.artifacts[1].requires).toEqual(['proposal']);
       expect(schema.artifacts[2].requires).toEqual(['specs']);
       expect(schema.artifacts[3].requires).toEqual(['design']);
+    });
+
+    it('excludes init staging/backup temp dirs from schema discovery', async () => {
+      // `schema init` stages into `.init-staging-<rand>` and moves an existing
+      // schema aside to `<name>.init-backup-<pid>-<ts>`. Both live inside the
+      // schemas dir, and the backup deliberately outlives the run when its
+      // cleanup is blocked, so discovery must never surface either as a real
+      // schema. Mirrors the equivalent guard for `schema fork`.
+      const validSchema = [
+        'name: real-schema',
+        'version: 1',
+        'description: a real project schema',
+        'artifacts:',
+        '  - id: proposal',
+        '    generates: proposal.md',
+        '    description: The proposal',
+        '    template: proposal.md',
+        '    requires: []',
+        '',
+      ].join('\n');
+      const schemasDir = path.join(tempDir, 'openspec', 'schemas');
+      const realSchema = path.join(schemasDir, 'real-schema');
+      fs.mkdirSync(realSchema, { recursive: true });
+      fs.writeFileSync(path.join(realSchema, 'schema.yaml'), validSchema);
+
+      for (const tempName of [
+        '.init-staging-abc123',
+        'real-schema.init-backup-999-1700000000000',
+      ]) {
+        const dir = path.join(schemasDir, tempName);
+        fs.mkdirSync(dir, { recursive: true });
+        // Give them a valid-looking schema.yaml so only the name filter can
+        // exclude them (not a missing file).
+        fs.writeFileSync(path.join(dir, 'schema.yaml'), validSchema);
+      }
+
+      const { listSchemas, listSchemasWithInfo } = await import(
+        '../../src/core/artifact-graph/resolver.js'
+      );
+
+      const names = listSchemas(tempDir);
+      expect(names).toContain('real-schema');
+      expect(names.some((n) => n.includes('.init-'))).toBe(false);
+
+      const infoNames = listSchemasWithInfo(tempDir).map((s) => s.name);
+      expect(infoNames).toContain('real-schema');
+      expect(infoNames.some((n) => n.includes('.init-'))).toBe(false);
     });
   });
 

@@ -27,7 +27,7 @@ If you think something sits on the boundary, report it and we'll work it out tog
 
 ## Published package contents
 
-The `openspec` npm package publishes `dist/`, `bin/`, `schemas/`, and `scripts/postinstall.js`. Build and test tooling (vite, rollup, vitest, eslint, and their transitive dependencies) is not published. Scanners that read `pnpm-lock.yaml` without separating dependency scope will report advisories for packages that never reach an installed copy of OpenSpec.
+The `openspec` npm package publishes `dist/`, `bin/`, and `schemas/`. Build and test tooling (vite, rollup, vitest, eslint, and their transitive dependencies) is not published. Scanners that read `pnpm-lock.yaml` without separating dependency scope will report advisories for packages that never reach an installed copy of OpenSpec.
 
 You do not have to take that on trust — install the package and look:
 
@@ -42,7 +42,7 @@ ls node_modules | grep -E '^(vite|rollup|vitest|eslint|js-yaml|minimatch)$'   # 
 
 | Surface | Behavior |
 | --- | --- |
-| Install script | `scripts/postinstall.js` prints one line suggesting shell completions. It makes no network request, writes no files, and runs no shell. Completions are opt-in via `openspec completion install`. |
+| Install scripts | The package ships no `preinstall`, `install`, or `postinstall` script, so installing it from the npm registry runs no code from OpenSpec. (`prepare` is still declared; npm runs it only for git and local-directory installs, where it builds from source.) Shell completions are opt-in via `openspec completion install`; the CLI prints a one-line tip about them on its first run. |
 | Running other programs | Every call that goes through a shell uses a fixed literal (`which gh`, `gh auth status`). Anything carrying your input — issue text, editor paths, workset commands, the path passed to `openspec update` — uses an argument array, never string interpolation into a shell. On Windows, `.cmd` shims are launched through `cross-spawn`, which escapes arguments rather than concatenating them. |
 | Installing software | `openspec update` can run `npm install -g @fission-ai/openspec@latest` and then re-run `openspec update` with the upgraded CLI. It does this only after you answer yes to a prompt, only for the OpenSpec package itself, only when npm owns the install, and never in CI or a non-interactive shell. A global install lives outside your project, so it runs with your permissions there and executes whatever lifecycle scripts the published package ships. It then reads the installed binary's version back rather than assuming the upgrade took. Decline and it prints the command for you to run yourself. |
 | Telemetry | Command name, OpenSpec version, and a locally generated random UUID. No file paths, no file contents, no environment, no hostname, and IP capture is explicitly disabled. Opt out with `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1`; it is off in CI automatically. |

@@ -13,12 +13,14 @@ import { getGlobalConfig } from '../global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
 import {
   isSharedSkillTargetActive,
+  hasLegacySkills,
   readSharedSkillTarget,
   reconcileSharedSkillTargets,
 } from '../shared-skill-target.js';
 import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
+  resolveCommandSurfaceCapability,
 } from '../command-surface.js';
 import {
   getSkillCapableTools,
@@ -359,7 +361,38 @@ export function getToolVersionStatus(
     }
   }
 
-  const needsUpdate = configured && (generatedByVersion === null || generatedByVersion !== currentVersion);
+  // 3. A version marker in a skill file only proves the SKILL files came from
+  //    this CLI. It says nothing about the command files written beside them,
+  //    which a user may have hand-edited or a partial write may have truncated.
+  //    Without this, `update` answered "all tools up to date" while a damaged
+  //    command file sat on disk, repairable only by knowing to pass --force.
+  //    The content comparison already exists; it was simply never consulted
+  //    once a skill file supplied a version.
+  //
+  //    Scoped to tools that have BOTH, so the commands-only path above keeps
+  //    its exact behaviour, and skipped when the delivery mode generates no
+  //    commands for this tool - there would be nothing to compare against, and
+  //    `areCommandFilesUpToDate` reports an empty command set as "not current".
+  let commandsDrifted = false;
+  if (skillConfigured && commandConfigured) {
+    let generatesCommands = true;
+    try {
+      generatesCommands = shouldGenerateCommandsForTool(
+        toolId,
+        getGlobalConfig().delivery ?? 'both'
+      );
+    } catch {
+      generatesCommands = true;
+    }
+    commandsDrifted =
+      generatesCommands && !areCommandFilesUpToDate(projectRoot, toolId, options);
+  }
+
+  const needsUpdate =
+    configured &&
+    (generatedByVersion === null ||
+      generatedByVersion !== currentVersion ||
+      commandsDrifted);
 
   return {
     toolId,
@@ -380,6 +413,10 @@ export function getConfiguredTools(projectRoot: string): string[] {
       return (
         getToolSkillStatus(projectRoot, t.value).configured ||
         toolHasAnyConfiguredCommand(projectRoot, t.value) ||
+        (
+          resolveCommandSurfaceCapability(t.value) === 'adapter-backed' &&
+          hasLegacySkills(projectRoot, t)
+        ) ||
         (Boolean(t.skillsDir) &&
           readSharedSkillTarget(projectRoot, t.skillsDir!) === t.value)
       );
@@ -391,7 +428,16 @@ export function getConfiguredTools(projectRoot: string): string[] {
     ).map((tool) => tool.value)
   );
   return configured
-    .filter((tool) => tool.globalSkillsDir || activeProjectTools.has(tool.value))
+    .filter(
+      (tool) =>
+        tool.globalSkillsDir ||
+        toolHasAnyConfiguredCommand(projectRoot, tool.value) ||
+        (
+          resolveCommandSurfaceCapability(tool.value) === 'adapter-backed' &&
+          hasLegacySkills(projectRoot, tool)
+        ) ||
+        activeProjectTools.has(tool.value)
+    )
     .map((tool) => tool.value);
 }
 

@@ -12,6 +12,7 @@ The system SHALL provide an `openspec feedback` command that creates a GitHub Is
 
 - **WHEN** user executes `openspec feedback "Great tool!"`
 - **THEN** the system executes `gh issue create` with title "Feedback: Great tool!"
+- **AND** the issue body includes "Great tool!" under a Summary heading
 - **AND** the issue is created in the openspec repository
 - **AND** the issue has the `feedback` label
 - **AND** the system displays the created issue URL
@@ -36,8 +37,16 @@ The system SHALL provide an `openspec feedback` command that creates a GitHub Is
 
 - **WHEN** user executes `openspec feedback "Title here" --body "Detailed description..."`
 - **THEN** the system creates a GitHub Issue with the specified title
-- **AND** the issue body contains the detailed description
+- **AND** the issue body contains the message under a Summary heading
+- **AND** the issue body contains the detailed description under a Details heading
 - **AND** the issue body includes metadata (OpenSpec version, platform, timestamp)
+
+#### Scenario: Long or multiline feedback message
+
+- **WHEN** user executes `openspec feedback` with a long or multiline message
+- **THEN** the issue title is a single whitespace-normalized line of at most 72 characters
+- **AND** an ellipsis indicates when the title was shortened
+- **AND** the complete message is preserved in the issue body
 
 ### Requirement: GitHub CLI dependency
 
@@ -200,4 +209,3 @@ The system SHALL provide shell completions for the feedback command.
 
 - **WHEN** user types `openspec feedback "msg" --<TAB>`
 - **THEN** the shell suggests available flags (`--body`)
-

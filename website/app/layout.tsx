@@ -14,12 +14,12 @@ const description =
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: `${appName} — Agree first, then build confidently`,
-    template: `%s — ${appName}`,
+    default: `${appName} | Agree first, then build confidently`,
+    template: `%s | ${appName}`,
   },
   description,
   openGraph: {
-    title: `${appName} — Agree first, then build confidently`,
+    title: `${appName} | Agree first, then build confidently`,
     description,
     siteName: appName,
     type: 'website',
