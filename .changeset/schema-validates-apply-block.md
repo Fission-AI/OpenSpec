@@ -1,0 +1,5 @@
+---
+'@fission-ai/openspec': patch
+---
+
+Reject a schema whose `apply` block names an artifact that does not exist. `parseSchema` checked every artifact's `requires` but never `apply.requires` or `apply.tracks`, so `openspec schema validate` passed a schema with a one-character typo in either, and the typo only surfaced at run time, silently: apply skipped an unknown `apply.requires` id, so `apply.requires: [desgin]` turned the apply gate off and told the agent "Proceed with implementation" with only a proposal written, while an `apply.tracks` path no artifact generates blocked apply for good behind a remedy that printed a literal `<artifact>` placeholder, as `openspec list` quietly counted a different file. Both are now schema errors, raised wherever the schema is loaded, that name the bad value and the artifacts the schema does declare. `apply.tracks` must equal an artifact's `generates` exactly, glob or not, because that is how the tracked-tasks lookups already select the artifact. Every built-in schema, and any schema whose apply block already named its own artifacts, parses as before.
