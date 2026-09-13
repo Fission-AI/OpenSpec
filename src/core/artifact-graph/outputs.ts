@@ -7,7 +7,7 @@ import { FileSystemUtils } from '../../utils/file-system.js';
  * Checks if a path contains glob pattern characters.
  */
 export function isGlobPattern(pattern: string): boolean {
-  return pattern.includes('*') || pattern.includes('?') || pattern.includes('[');
+  return fg.isDynamicPattern(pattern);
 }
 
 /**
