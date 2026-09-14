@@ -178,7 +178,8 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    a. **Sync included delta specs**:
       - Run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge) only for changes with entries in `includedDeltas`, passing only the included delta paths and explicitly instructing it to ignore that change's `excludedDeltas`. Wait for it to finish.
-      - If the sync reports any stop or blocking condition, treat the sync as failed. Stop processing that change immediately. Do not perform the post-sync content comparison and do not move its `changeRoot`; leave the change intact.
+      - If the sync reports any stop or blocking condition, treat the sync as failed. Stop processing that change immediately. Before continuing to the next change, record this change's outcome as Failed in the batch results, including the sync blocking/error condition.
+      - Do not perform the post-sync content comparison and do not move its `changeRoot`; leave the change intact.
       - For conflicts, apply in resolved order.
       - Pass that change's fetched specs-rule snapshot into inline sync; inline
         sync must reuse it without fetching instructions again
