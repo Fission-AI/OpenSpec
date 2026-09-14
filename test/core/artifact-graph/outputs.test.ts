@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fg from 'fast-glob';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -42,6 +43,11 @@ describe('artifact-graph/outputs', () => {
     ['specs/[ab].md', true],
     ['review-{api,ui}.md', true],
     ['file-{1..3}.md', true],
+    ['report-{draft}-{api,ui}.md', true],
+    ['report-{draft}-{1..3}.md', true],
+    ['report-{draft,{api,ui}}.md', true],
+    ['report-{{draft},api}.md', true],
+    ['report-{draft}-{final}.md', false],
     ['@(proposal|design).md', true],
     ['+(proposal|design).md', true],
     ['!(proposal|design).md', true],
@@ -112,6 +118,8 @@ describe('artifact-graph/outputs', () => {
     'content/{safe,linked}/review.md',
     'content/@(safe|linked)/review.md',
     String.raw`content\{safe,linked}\review.md`,
+    '{content/safe,content/linked/deep}/review.md',
+    '{content/{safe,linked/deep},other}/review.md',
   ])('confines directory pattern %s even without matching files', (pattern) => {
     const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-outside-'));
     fs.mkdirSync(path.join(tempDir, 'content', 'safe'), { recursive: true });
@@ -124,6 +132,42 @@ describe('artifact-graph/outputs', () => {
     } finally {
       fs.rmSync(outsideDir, { recursive: true, force: true });
     }
+  });
+
+  it.each([false, true])('rejects brace-expanded parent traversal before globbing (file exists: %s)', (exists) => {
+    const outsideDir = fs.mkdtempSync(path.join(path.dirname(tempDir), 'openspec-outside-'));
+    const pattern = `{safe,../${path.basename(outsideDir)}}/review.md`;
+    if (exists) fs.writeFileSync(path.join(outsideDir, 'review.md'), 'private');
+    const glob = vi.spyOn(fg, 'sync');
+    try {
+      expect(() => resolveArtifactOutputs(tempDir, pattern)).toThrow(
+        /outside the allowed directory/u
+      );
+      expect(glob).not.toHaveBeenCalled();
+    } finally {
+      glob.mockRestore();
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    'report-{draft}-{api,ui}.md',
+    'report-{draft}-{{api},ui}.md',
+  ])('resolves later and nested brace expansions in %s', (pattern) => {
+    const filePath = path.join(tempDir,
+      pattern.includes('{{api}') ? 'report-{draft}-{api}.md' : 'report-{draft}-api.md');
+    fs.writeFileSync(filePath, 'content');
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual([canonical(filePath)]);
+  });
+
+  it.each([
+    '{content/safe,other/deep}/review.md',
+    String.raw`{content\safe,other\deep}\review.md`,
+  ])('resolves confined cross-directory braces in %s', (pattern) => {
+    const filePath = path.join(tempDir, 'content', 'safe', 'review.md');
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, 'content');
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual([canonical(filePath)]);
   });
 
   it('resolves single-star nested globs to concrete files', () => {
