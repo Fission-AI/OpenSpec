@@ -178,6 +178,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    a. **Sync included delta specs**:
       - Run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge) only for changes with entries in `includedDeltas`, passing only the included delta paths and explicitly instructing it to ignore that change's `excludedDeltas`. Wait for it to finish.
+      - If the sync reports any stop or blocking condition, treat the sync as failed. Stop processing that change immediately. Do not perform the post-sync content comparison and do not move its `changeRoot`; leave the change intact.
       - For conflicts, apply in resolved order.
       - Pass that change's fetched specs-rule snapshot into inline sync; inline
         sync must reuse it without fetching instructions again
@@ -192,7 +193,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Verify that main specs are updated:
         - ADDED requirements present
         - MODIFIED requirements carrying scenario and description changes named in the delta, with their other scenarios intact
-        - REMOVED requirements gone — and where this sync retired a capability (removed its last requirement, leaving `## Requirements` empty), its main spec deleted rather than left empty; a spec the sync deliberately kept and reported is also a match
+        - REMOVED requirements gone — and where this sync retired a capability (removed its last requirement, leaving `## Requirements` empty), its main spec deleted rather than left empty.
         - RENAMED requirements present under the new name and absent under the old one
       - Do not verify delta specs in `excludedDeltas`; they are intentionally left unsynced.
       - If sync failed or any capability does not match verification, report what differs and fail/skip moving that change's `changeRoot` — do not archive that change. `changeRoot` remains intact.
