@@ -2,4 +2,4 @@
 '@fission-ai/openspec': patch
 ---
 
-Fix artifact output resolution to recognize brace expansion and extglob patterns.
+Fix artifact output resolution to recognize brace expansion and extglob patterns while preserving literal output filenames.

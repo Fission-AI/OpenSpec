@@ -43,6 +43,17 @@ describe('artifact-graph/outputs', () => {
     ['review-{api,ui}.md', true],
     ['file-{1..3}.md', true],
     ['@(proposal|design).md', true],
+    ['+(proposal|design).md', true],
+    ['!(proposal|design).md', true],
+    ['*(proposal|design).md', true],
+    ['?(proposal|design).md', true],
+    ['!*.md', true],
+    ['file[.md', true],
+    [String.raw`specs\review-{api,ui}.md`, true],
+    ['!review.md', false],
+    ['(proposal|design).md', false],
+    [String.raw`specs\auth\spec.md`, false],
+    ['review-{api}.md', false],
     ['proposal.md', false],
     ['specs/auth/spec.md', false],
   ])('classifies glob pattern %s as %s', (pattern, expected) => {
@@ -63,6 +74,56 @@ describe('artifact-graph/outputs', () => {
 
     expect(resolveArtifactOutputs(tempDir, 'proposal.md')).toEqual([]);
     expect(artifactOutputExists(tempDir, 'proposal.md')).toBe(false);
+  });
+
+  it('resolves a literal filename with a leading exclamation mark', () => {
+    const filePath = path.join(tempDir, '!review.md');
+    fs.writeFileSync(filePath, 'content');
+
+    expect(resolveArtifactOutputs(tempDir, '!review.md')).toEqual([canonical(filePath)]);
+    expect(artifactOutputExists(tempDir, '!review.md')).toBe(true);
+  });
+
+  it.skipIf(process.platform === 'win32').each([
+    '(proposal|design).md',
+    String.raw`foo\bar.md`,
+  ])('preserves the literal filename %s', (filename) => {
+    const filePath = path.join(tempDir, filename);
+    fs.writeFileSync(filePath, 'content');
+    fs.writeFileSync(path.join(tempDir, 'proposal.md'), 'other');
+    fs.mkdirSync(path.join(tempDir, 'foo'));
+    fs.writeFileSync(path.join(tempDir, 'foo', 'bar.md'), 'other');
+
+    expect(resolveArtifactOutputs(tempDir, filename)).toEqual([canonical(filePath)]);
+  });
+
+  it('resolves a negative extglob to files outside its alternatives', () => {
+    const notesPath = path.join(tempDir, 'notes.md');
+    for (const filename of ['proposal.md', 'design.md', 'notes.md']) {
+      fs.writeFileSync(path.join(tempDir, filename), 'content');
+    }
+
+    expect(resolveArtifactOutputs(tempDir, '!(proposal|design).md')).toEqual([
+      canonical(notesPath),
+    ]);
+  });
+
+  it.each([
+    'content/{safe,linked}/review.md',
+    'content/@(safe|linked)/review.md',
+    String.raw`content\{safe,linked}\review.md`,
+  ])('confines directory pattern %s even without matching files', (pattern) => {
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-outside-'));
+    fs.mkdirSync(path.join(tempDir, 'content', 'safe'), { recursive: true });
+    fs.symlinkSync(outsideDir, path.join(tempDir, 'content', 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir');
+    try {
+      expect(() => resolveArtifactOutputs(tempDir, pattern)).toThrow(
+        /outside the allowed directory/u
+      );
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
   });
 
   it('resolves single-star nested globs to concrete files', () => {
@@ -139,15 +200,15 @@ describe('artifact-graph/outputs', () => {
     expect(artifactOutputExists(tempDir, 'file-{1..3}.md')).toBe(true);
   });
 
-  it('supports extglob patterns', () => {
+  it.each(['@(proposal|design).md', '+(proposal|design).md'])('supports extglob %s', (pattern) => {
     const proposalPath = path.join(tempDir, 'proposal.md');
     fs.writeFileSync(proposalPath, 'content');
     fs.writeFileSync(path.join(tempDir, 'readme.md'), 'content');
 
-    expect(resolveArtifactOutputs(tempDir, '@(proposal|design).md')).toEqual([
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual([
       canonical(proposalPath),
     ]);
-    expect(artifactOutputExists(tempDir, '@(proposal|design).md')).toBe(true);
+    expect(artifactOutputExists(tempDir, pattern)).toBe(true);
   });
 
   it('returns an empty list when dynamic brace or extglob pattern has no matches', () => {

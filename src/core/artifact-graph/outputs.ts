@@ -3,11 +3,28 @@ import * as path from 'node:path';
 import fg from 'fast-glob';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
+const EXTGLOB_RE = /[!*+?@]\([^(]*\)/u;
+const BRACE_EXPANSION_SEPARATORS_RE = /,|\.\./u;
+
+function hasBraceExpansion(pattern: string): boolean {
+  const openingBraceIndex = pattern.indexOf('{');
+  if (openingBraceIndex === -1) return false;
+  const closingBraceIndex = pattern.indexOf('}', openingBraceIndex + 1);
+  if (closingBraceIndex === -1) return false;
+  return BRACE_EXPANSION_SEPARATORS_RE.test(
+    pattern.slice(openingBraceIndex, closingBraceIndex)
+  );
+}
+
 /**
- * Checks if a path contains glob pattern characters.
+ * Recognizes artifact globs while preserving literal output filenames.
  */
 export function isGlobPattern(pattern: string): boolean {
-  return fg.isDynamicPattern(pattern);
+  // Keep the original wildcard rules and add fast-glob's brace/extglob checks.
+  // Its full dynamic predicate also reinterprets literal !, parentheses, and backslashes.
+  const normalized = FileSystemUtils.toPosixPath(pattern);
+  return normalized.includes('*') || normalized.includes('?') || normalized.includes('[')
+    || EXTGLOB_RE.test(normalized) || hasBraceExpansion(normalized);
 }
 
 /**
