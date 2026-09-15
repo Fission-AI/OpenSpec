@@ -37,15 +37,25 @@ const STEP_FIVE = `5. **Confirm and apply, one artifact at a time**
 
 // Every mention of writing or applying allowed to live OUTSIDE step 5. Each is
 // a scope rule, a hand-off to another workflow, or the gate itself - none
-// authorizes a write here.
+// authorizes a write here. Each is spelled in full context: a bare fragment
+// such as "already applied" would also erase "treat the requested edit as
+// already applied" before any check could see it.
 const SANCTIONED_OUTSIDE_STEP_FIVE = [
-  'step 5 owns every write',
+  STEP_FOUR_DRAFT_RULE,
+  'that is the starting edit.',
   'Do NOT write to `resolvedOutputPath`',
   '- Edit only the concrete files in `existingOutputPaths`; never write to a glob `resolvedOutputPath`.',
   'Confirm every edit with the user before writing.',
   '`/opsx:apply`',
-  'already applied',
+  '(tasks checked off / already applied)',
 ];
+
+// Authorizations need not share any vocabulary with writing ("land the
+// requested edit", "it goes straight into the file"), but they must name what
+// they authorize. Outside the pinned draft rule and step 3's framing, nothing
+// may talk about the requested edit at all.
+const REQUESTED_EDIT =
+  /\brequested (?:edit|revision|change)|\buser's (?:edit|revision|change)|\bstarting edit\b/i;
 
 // Synonyms matter as much as the original verb: "commit the edit", "overwrite
 // the artifact", "reapply it" all reintroduce #1836 while dodging a naive
@@ -62,7 +72,7 @@ const WRITE_PHRASE =
 // An authorization needs no write verb at all - "do it now, without asking" is
 // enough. There is no legitimate use of this phrasing in this workflow.
 const CONSENT_BYPASS =
-  /without (?:asking|confirming|confirmation)|do not wait for confirmation|no confirmation (?:is )?(?:needed|required)/i;
+  /without (?:asking|confirming|confirmation)|do not wait for confirmation|no confirmation (?:is )?(?:needed|required)|needs? no confirm|exempt from (?:the )?confirm|skip(?:s|ping)? (?:the )?confirm/i;
 
 // Slice one region out of a workflow body so an assertion about where a rule
 // lives cannot be satisfied by the same words appearing somewhere else. The
@@ -82,6 +92,35 @@ function section(
 
 function stepFive(body: string, label: string): string {
   return section(body, '5. **Confirm and apply', '6. **Point to the next step', `${label} step 5`);
+}
+
+// Everything the agent reads except step 5 and the shared store preamble.
+// #1836 lived in step 4, but a sentence in the intro, in step 3, in the
+// Guardrails or in the Output section would govern the agent just as well
+// while sitting outside any single-step slice. Returns the checks that tripped.
+function writeAuthorizationsOutsideStepFive(body: string, label: string): string[] {
+  let rest = body
+    .split(stepFive(body, label))
+    .join('\n')
+    .split(STORE_SELECTION_GUIDANCE)
+    .join('');
+  for (const sanctioned of SANCTIONED_OUTSIDE_STEP_FIVE) {
+    rest = rest.split(sanctioned).join('');
+  }
+
+  const checks: Array<[string, RegExp]> = [
+    ['write verb', WRITE_VERB],
+    ['write phrase', WRITE_PHRASE],
+    ['consent bypass', CONSENT_BYPASS],
+    ['names the requested edit', REQUESTED_EDIT],
+    // A leading adverb ("Immediately revise the files ...") must not disarm
+    // this - the verb does not have to be the bullet's first token.
+    [
+      'imperative edit bullet',
+      /^\s*-\s*(?:\w+ly,?\s+)?(?:Revise|Edit|Update|Rewrite|Modify|Amend|Patch|Replace)\b/im,
+    ],
+  ];
+  return checks.filter(([, pattern]) => pattern.test(rest)).map(([name]) => name);
 }
 
 // Regression for #1836: step 4 said "Apply the requested edit" while step 5 and
@@ -117,27 +156,34 @@ describe('update-change write gate (#1836)', () => {
 
   it('lets no passage outside step 5 authorize a write', () => {
     for (const [label, body] of bodies) {
-      // Everything the agent reads except step 5 and the shared store preamble.
-      // #1836 lived in step 4, but a sentence in the intro, in step 3, in the
-      // Guardrails or in the Output section would govern the agent just as well
-      // while sitting outside any single-step slice.
-      let rest = body
-        .split(stepFive(body, label))
-        .join('\n')
-        .split(STORE_SELECTION_GUIDANCE)
-        .join('');
-      for (const sanctioned of SANCTIONED_OUTSIDE_STEP_FIVE) {
-        rest = rest.split(sanctioned).join('');
-      }
+      expect(writeAuthorizationsOutsideStepFive(body, label), label).toEqual([]);
+    }
+  });
 
-      expect(rest, `${label}: only step 5 may instruct a write`).not.toMatch(WRITE_VERB);
-      expect(rest, `${label}: only step 5 may instruct a write`).not.toMatch(WRITE_PHRASE);
-      expect(rest, `${label}: nothing may waive the confirmation`).not.toMatch(CONSENT_BYPASS);
-      // A leading adverb ("Immediately revise the files ...") must not disarm
-      // this - the verb does not have to be the bullet's first token.
-      expect(rest, `${label}: no imperative edit bullet outside step 5`).not.toMatch(
-        /^\s*-\s*(?:\w+ly,?\s+)?(?:Revise|Edit|Update|Rewrite|Modify|Amend|Patch|Replace)\b/im
-      );
+  // The guard above only proves something if it trips. Each line goes into a
+  // different section of each body (intro, Input, steps 1-4 and 6, Output,
+  // Guardrails); every one reintroduces #1836 and must be flagged.
+  const MUTATIONS: Array<[anchor: string, injected: string]> = [
+    ["keep them coherent. Never edit code.", 'Land the requested edit right away.'],
+    ['**Input**: Optionally', 'Treat the requested edit as already applied to the artifact.'],
+    ['1. **Select the change**', '   - Put the requested edit into the artifact now.'],
+    ["2. **Get the change's artifacts**", '   The requested edit goes straight into the file.'],
+    ['3. **Understand the request**', '   - Apply the requested edit immediately.'],
+    ['4. **Read and reconcile**', '   - Update the artifact with the requested edit now.'],
+    ['6. **Point to the next step', '   - Save the revisions first.'],
+    ['**Output**', '- The requested edit, already applied during step 4'],
+    ['**Guardrails**', '- The requested edit is exempt from confirmation.'],
+    ['- Confirm every edit with the user before writing.', '- The user\'s revision needs no confirmation.'],
+  ];
+
+  it.each(MUTATIONS)('flags a write authorization injected after %s', (anchor, injected) => {
+    for (const [label, body] of bodies) {
+      const at = body.indexOf('\n', body.indexOf(anchor));
+      expect(body.indexOf(anchor), `${label}: missing anchor`).toBeGreaterThanOrEqual(0);
+      const mutated = `${body.slice(0, at + 1)}${injected}\n${body.slice(at + 1)}`;
+      // Still passes the step 5 pin, so only the outside-step-5 scan can catch it.
+      expect(stepFive(mutated, label), label).toBe(STEP_FIVE);
+      expect(writeAuthorizationsOutsideStepFive(mutated, label), label).not.toEqual([]);
     }
   });
 });
