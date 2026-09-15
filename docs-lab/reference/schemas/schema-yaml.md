@@ -198,12 +198,16 @@ apply:
 - Field types and required fields
 - Relative paths
 - Artifact IDs, dependencies, and cycles
+- `apply.requires` IDs: each must be an artifact in the schema
 - Template files
+
+A schema with an unknown `apply.requires` ID doesn't load, so every command that uses it reports the error.
+
+Validation warns, without failing, when `apply.tracks` doesn't match any artifact's `generates`. Apply still reads that file, but `openspec list` and `openspec status` count `tasks.md` instead.
 
 Validation doesn't catch these mistakes:
 
 | Mistake | What happens |
 |---|---|
 | A field is misspelled, such as `instrution` | OpenSpec ignores it. Validation doesn't report the typo. |
-| `apply.requires` names an unknown artifact ID | Validation doesn't report the unknown ID. |
 | `name` differs from the schema directory | Validation passes. OpenSpec still uses the directory name for lookup. |
