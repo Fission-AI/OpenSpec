@@ -113,6 +113,35 @@ describe('parseDeltaSpec (RENAMED pairing)', () => {
     );
     expect(plan.unpairedRenames).toEqual([]);
   });
+
+  it('never pairs a FROM in one RENAMED header copy with a TO in another', () => {
+    const plan = parseDeltaSpec(
+      [
+        '## RENAMED Requirements',
+        '',
+        '- FROM: `### Requirement: Late Fees`',
+        '',
+        '## RENAMED Requirements',
+        '',
+        '- TO: `### Requirement: Overdue Penalties`',
+      ].join('\n')
+    );
+    expect(plan.renamed).toEqual([]);
+    expect(plan.unpairedRenames).toEqual([
+      { side: 'FROM', name: 'Late Fees', line: 3 },
+      { side: 'TO', name: 'Overdue Penalties', line: 7 },
+    ]);
+  });
+
+  it('reports unpaired lines written with `*` or `+` bullets', () => {
+    const plan = renamed(
+      '* FROM: `### Requirement: Late Fees`',
+      '+ FROM: `### Requirement: Invoice Generation`',
+      '* TO: `### Requirement: Overdue Penalties`'
+    );
+    expect(plan.renamed).toEqual([{ from: 'Invoice Generation', to: 'Overdue Penalties' }]);
+    expect(plan.unpairedRenames).toEqual([{ side: 'FROM', name: 'Late Fees', line: 3 }]);
+  });
 });
 
 describe('buildUpdatedSpec (RENAMED pairing)', () => {
