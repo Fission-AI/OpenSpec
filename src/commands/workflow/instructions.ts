@@ -830,8 +830,8 @@ function printOperationInputsText(inputs: {
 }): void {
   if (inputs.context) {
     console.log('### Project Context (required instruction input)');
-    // Markdown ends a section only by starting the next one, so a config value
-    // whose line begins with `#` would forge a peer of the headings below it.
+    // Printed verbatim on purpose. Escaping a leading `#` would also fire inside
+    // fenced code (`# install deps`), so heading forgery is not guarded here.
     console.log(inputs.context);
     console.log();
   }
