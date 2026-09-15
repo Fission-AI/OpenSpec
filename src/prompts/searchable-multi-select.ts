@@ -142,10 +142,9 @@ async function createSearchableMultiSelect(): Promise<
       // `@inquirer/core` types only `name` and `ctrl`; readline emits more.
       const event = key as typeof key & { sequence?: string; meta?: boolean };
       if (event.ctrl || event.meta) return;
-      // A multi-character sequence is either a paste or an escape sequence
-      // (arrows, function keys). Escape sequences carry control characters, so
-      // requiring every character to be printable admits the paste and drops
-      // the rest — tab, escape and delete included.
+      // Requiring every character to be printable drops escape sequences
+      // (arrows, function keys), tab, escape and delete. readline splits a
+      // paste into one key per character, so a pasted space still toggles.
       const typed =
         typeof event.sequence === 'string' && isPrintable(event.sequence)
           ? event.sequence

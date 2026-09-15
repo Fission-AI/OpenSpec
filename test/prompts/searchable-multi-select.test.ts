@@ -96,6 +96,19 @@ function typeSearch(text: string) {
   }
 }
 
+/** Key events exactly as Node's readline emits them for raw terminal input. */
+async function readlineKeys(input: string): Promise<Record<string, unknown>[]> {
+  const readline = await import('node:readline');
+  const { PassThrough } = await import('node:stream');
+  const stream = new PassThrough();
+  readline.emitKeypressEvents(stream);
+  const keys: Record<string, unknown>[] = [];
+  stream.on('keypress', (_char: string, key: Record<string, unknown>) => keys.push(key));
+  stream.write(input);
+  await new Promise((resolve) => setImmediate(resolve));
+  return keys;
+}
+
 function getSearchText(): string {
   return (state[0] as string) ?? '';
 }
@@ -420,7 +433,23 @@ describe('searchable-multi-select keybindings', () => {
       expect(visibleNames()).toEqual(['Claude Code']);
     });
 
-    it('should match a multi-word name once a space can reach the search box', async () => {
+    it('should accept punctuation delivered by a real readline keypress stream', async () => {
+      await setup(searchChoices);
+      for (const key of await readlineKeys('amazon-q')) keypressHandler!(key);
+      expect(getSearchText()).toBe('amazon-q');
+      for (const key of await readlineKeys('\u007f'.repeat(8) + '.agents')) keypressHandler!(key);
+      expect(getSearchText()).toBe('.agents');
+    });
+
+    it('should still toggle, not type, on a space inside text readline delivers', async () => {
+      // readline splits a paste into one keypress per character, so a pasted
+      // space arrives as the space key. Multi-word search is not reachable.
+      await setup(searchChoices);
+      for (const key of await readlineKeys('claude code')) keypressHandler!(key);
+      expect(getSearchText()).toBe('claudecode');
+    });
+
+    it('should match a multi-word name if a single sequence carries the space', async () => {
       await setup(searchChoices);
       if (!keypressHandler) throw new Error('No keypress handler registered');
       keypressHandler({ sequence: 'claude code' });
