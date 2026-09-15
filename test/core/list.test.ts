@@ -249,6 +249,24 @@ Regular text that should be ignored
       expect(change.lastModified).toBe(future.toISOString());
     });
 
+    // Permissions are not enforced on Windows or for root.
+    it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+      'still fails on a permission error rather than hiding it',
+      async () => {
+        const changeDir = await writeChange('locked-dir');
+        const unreadable = path.join(changeDir, 'specs');
+        await fs.mkdir(unreadable);
+        await fs.chmod(unreadable, 0o000);
+        try {
+          await expect(new ListCommand().execute(tempDir, 'changes', { json: true })).rejects.toMatchObject({
+            code: 'EACCES',
+          });
+        } finally {
+          await fs.chmod(unreadable, 0o755);
+        }
+      }
+    );
+
     it.skipIf(process.platform === 'win32')('keeps list --json working end to end', async () => {
       const changeDir = await writeChange('cli-change');
       await fs.mkdir(path.join(tempDir, 'openspec', 'specs'), { recursive: true });
