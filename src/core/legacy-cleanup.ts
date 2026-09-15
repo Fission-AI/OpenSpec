@@ -680,11 +680,19 @@ export async function cleanupLegacyArtifacts(
       if (!entries) {
         continue;
       }
+      const deleted: string[] = [];
       for (const name of entries.managed) {
-        await fs.unlink(path.join(fullPath, name));
+        const filePath = path.join(fullPath, name);
+        // Check again just before deleting: the file may have been replaced
+        // with the user's own since the scan. A kept file is reported below.
+        if (!(await isGeneratedLegacyCommand(filePath))) {
+          continue;
+        }
+        await fs.unlink(filePath);
+        deleted.push(name);
       }
       if (!(await settleLegacyCommandDir(projectPath, dirPath, result))) {
-        result.deletedFiles.push(...entries.managed.map((name) => `${dirPath}/${name}`));
+        result.deletedFiles.push(...deleted.map((name) => `${dirPath}/${name}`));
       }
     } catch (error: any) {
       result.errors.push(`Failed to delete directory ${dirPath}: ${error.message}`);

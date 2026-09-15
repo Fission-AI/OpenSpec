@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
@@ -254,6 +254,39 @@ describe('legacy command directories and the files users keep in them', () => {
     const result = await cleanupLegacyArtifacts(testDir, detection);
 
     expect(await fs.readFile(inProject(CLAUDE_DIR, 'proposal.md'), 'utf-8')).toBe('my own proposal command\n');
+    expect(await exists(inProject(CLAUDE_DIR, 'apply.md'))).toBe(false);
+    expect(result.deletedFiles).not.toContain(`${CLAUDE_DIR}/proposal.md`);
+    expect(result.deletedDirs).not.toContain(CLAUDE_DIR);
+    expect(result.keptFiles).toContain(`${CLAUDE_DIR}/proposal.md`);
+  });
+
+  it('keeps proposal.md when the user replaces it after cleanup has scanned the folder', async () => {
+    await writeFiles(CLAUDE_DIR, CLAUDE_FILES);
+    const detection = await detectLegacyArtifacts(testDir);
+    expect(detection.slashCommandDirs).toContain(CLAUDE_DIR);
+    const proposalPath = inProject(CLAUDE_DIR, 'proposal.md');
+
+    // Swap in the user's file right after cleanup's own directory scan has
+    // read the generated one, so only a check just before the unlink catches it.
+    const realReadFile = fs.readFile.bind(fs);
+    let replaced = false;
+    const spy = vi.spyOn(fs, 'readFile').mockImplementation((async (file: any, options?: any) => {
+      const content = await realReadFile(file, options);
+      if (!replaced && file === proposalPath) {
+        replaced = true;
+        await fs.writeFile(proposalPath, 'my own proposal command\n');
+      }
+      return content;
+    }) as typeof fs.readFile);
+    let result;
+    try {
+      result = await cleanupLegacyArtifacts(testDir, detection);
+    } finally {
+      spy.mockRestore();
+    }
+
+    expect(replaced).toBe(true);
+    expect(await fs.readFile(proposalPath, 'utf-8')).toBe('my own proposal command\n');
     expect(await exists(inProject(CLAUDE_DIR, 'apply.md'))).toBe(false);
     expect(result.deletedFiles).not.toContain(`${CLAUDE_DIR}/proposal.md`);
     expect(result.deletedDirs).not.toContain(CLAUDE_DIR);
