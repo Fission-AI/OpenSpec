@@ -130,6 +130,33 @@ describe('nested change detection (#1846)', () => {
       expect(await findNestedChangesIn(changesDir, 'hand-made')).toBeUndefined();
     });
 
+    it('ignores a subdirectory-rooted change before it has any delta specs', async () => {
+      // Same custom schema, earlier in the change's life: only the proposal
+      // exists, so neither the root markers nor specs/ can vouch for it. The
+      // project's schema can - the file sits exactly where it generates.
+      const projectRoot = path.dirname(path.dirname(changesDir));
+      const schemaDir = path.join(projectRoot, 'openspec', 'schemas', 'rfc-flow');
+      await fs.mkdir(schemaDir, { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        [
+          'name: rfc-flow',
+          'version: 1',
+          'artifacts:',
+          '  - id: proposal',
+          '    generates: rfc/proposal.md',
+          '    description: Proposal',
+          '    template: proposal.md',
+          '    requires: []',
+          '',
+        ].join('\n')
+      );
+      await fs.writeFile(path.join(projectRoot, 'openspec', 'config.yaml'), 'schema: rfc-flow\n');
+      await write(path.join('hand-made', 'rfc', 'proposal.md'));
+
+      expect(await findNestedChangesIn(changesDir, 'hand-made')).toBeUndefined();
+    });
+
     it('ignores a change that holds any file of its own', async () => {
       // Content at the change root - an artifact under a name this module does
       // not know, a note - means it is a change, whatever sits below it.

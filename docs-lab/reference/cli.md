@@ -449,6 +449,13 @@ Specs:
 
 An empty listing prints `No active changes found.` or `No specs found.` and still exits 0.
 
+A change is a directory directly under `openspec/changes/`. Unlike specs, changes cannot be nested in a namespace folder. A folder like `changes/mobile/` that only wraps a change (`changes/mobile/refresh-token/`) is listed with the status `not a change`, followed by a warning that names the nested directories. `--json` marks that entry with a `nested` array and adds a top-level `warnings` array. `show`, `status`, `validate` and `archive` refuse the folder with the same message. To fix it, move the change up and fold the namespace into its name:
+
+```bash
+mv openspec/changes/mobile/refresh-token openspec/changes/mobile-refresh-token
+rmdir openspec/changes/mobile
+```
+
 **Exit codes**
 
 - `0`: listing printed, even when empty.

@@ -1,6 +1,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
-import { METADATA_FILENAME } from './change-metadata.js';
+import { artifactOutputExists } from '../core/artifact-graph/outputs.js';
+import { resolveSchema } from '../core/artifact-graph/resolver.js';
+import { METADATA_FILENAME, resolveSchemaForChange } from './change-metadata.js';
 import { hasAnyFileUnder } from './spec-discovery.js';
 
 /**
@@ -72,9 +74,26 @@ async function hasChangeRootMarker(dir: string): Promise<boolean> {
  * delta specs still live under `specs/`, so it is recognised as the change it
  * is. `specs/**\/*.md` is fixed by the delta format itself, not by the schema.
  */
-async function looksLikeChange(dir: string): Promise<boolean> {
+async function looksLikeChange(dir: string, projectRoot: string): Promise<boolean> {
   if (await hasChangeRootMarker(dir)) return true;
-  return hasAnyFileUnder(path.join(dir, DELTA_SPECS_DIR)).catch(() => false);
+  if (await hasAnyFileUnder(path.join(dir, DELTA_SPECS_DIR)).catch(() => false)) return true;
+  return hasSchemaOutput(dir, projectRoot);
+}
+
+/**
+ * Whether `dir` already holds a file exactly where the schema it resolves to
+ * would generate one - the signal `openspec status` itself uses to call an
+ * artifact done. It covers the subdirectory-rooted custom schema before any
+ * delta spec exists, when neither other signal can. A schema that cannot be
+ * resolved gives no signal, which leaves the other two in charge.
+ */
+function hasSchemaOutput(dir: string, projectRoot: string): boolean {
+  try {
+    const schema = resolveSchema(resolveSchemaForChange(dir, undefined, projectRoot), projectRoot);
+    return schema.artifacts.some((artifact) => artifactOutputExists(dir, artifact.generates));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -114,17 +133,18 @@ async function collectNested(
   dir: string,
   prefix: string,
   depth: number,
-  found: string[]
+  found: string[],
+  projectRoot: string
 ): Promise<void> {
   if (depth > MAX_NESTING_DEPTH) return;
   for (const child of await readSubdirectories(dir)) {
     const childPath = path.join(dir, child);
     const id = `${prefix}/${child}`;
-    if (await looksLikeChange(childPath)) {
+    if (await looksLikeChange(childPath, projectRoot)) {
       found.push(id);
       continue;
     }
-    await collectNested(childPath, id, depth + 1, found);
+    await collectNested(childPath, id, depth + 1, found, projectRoot);
   }
 }
 
@@ -144,10 +164,12 @@ export async function findNestedChangesIn(
   // `validate` already exclude it; `change show` does not.
   if (name === 'archive' || name.startsWith('.')) return undefined;
   const dir = path.join(changesDir, name);
-  if (await looksLikeChange(dir)) return undefined;
+  // changes/ is always <root>/openspec/changes, for project and store roots.
+  const projectRoot = path.resolve(changesDir, '..', '..');
+  if (await looksLikeChange(dir, projectRoot)) return undefined;
   if (await hasOwnFile(dir)) return undefined;
   const nested: string[] = [];
-  await collectNested(dir, name, 1, nested);
+  await collectNested(dir, name, 1, nested, projectRoot);
   if (nested.length === 0) return undefined;
   return { name, nested: nested.sort() };
 }
