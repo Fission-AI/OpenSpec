@@ -40,14 +40,16 @@ import { resolveSchemaForChange } from './change-metadata.js';
  * give: `- [A](https://example.com)` and `- [1](./one)` are a link bullet and
  * a reference-link bullet, not tasks, yet their label is a single token and
  * would match. So the closing bracket may not be followed by `(` or `[`, the
- * only two characters that continue Markdown link syntax. Nothing that used to
- * count is lost: a checkbox is followed by its description or by end of line,
- * and `- [x]done` still parses.
+ * only two characters that continue Markdown link syntax. A checkbox is
+ * followed by its description or by end of line, and `- [x]done` still parses.
+ * The one exception is a whitespace-only box: `- [ ](...)` and `- [ ][...]`
+ * matched the strict pattern as unfinished tasks, so they still count. The guard
+ * may drop only lines that could never hide open work.
  *
  * Deliberately unanchored at the end: `.` does not match `\r`, so writing the
  * description group as `(.*)$` would reject every line of a CRLF tasks.md.
  */
-const TASK_LINE_PATTERN = /^\s*[-*]\s*\[\s*([^\]\s]?)\s*\](?![([])\s*(.*)/;
+const TASK_LINE_PATTERN = /^\s*[-*]\s*\[(?:\s*([^\]\s]?)\s*\](?![([])|\s+\])\s*(.*)/;
 
 export interface ParsedTask {
   /** Checkbox state: `[x]`/`[X]` is done, every other marker (and none) is not. */
@@ -72,7 +74,7 @@ export function parseTaskLines(content: string): ParsedTask[] {
   for (const line of content.split('\n')) {
     const match = line.match(TASK_LINE_PATTERN);
     if (match) {
-      tasks.push({ done: match[1].toLowerCase() === 'x', description: match[2].trim() });
+      tasks.push({ done: (match[1] ?? '').toLowerCase() === 'x', description: match[2].trim() });
     }
   }
 

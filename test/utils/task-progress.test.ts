@@ -338,6 +338,18 @@ describe('parseTaskLines', () => {
     ]);
   });
 
+  it('still counts an empty box followed by link syntax, as the strict pattern did (#1761)', () => {
+    // The link guard must not tighten what the pre-#1761 pattern accepted:
+    // `- [ ](...)` and `- [ ][...]` matched it as unfinished tasks, and a line
+    // dropped here is one archive stops warning about.
+    const tasks = parseTaskLines('- [ ](optional) 1.1 Open\n- [ ][ref] 1.2 Open\n');
+
+    expect(tasks).toEqual([
+      { done: false, description: '(optional) 1.1 Open' },
+      { done: false, description: '[ref] 1.2 Open' },
+    ]);
+  });
+
   it('reads a link inside a task description as description, not as a marker (#1761)', () => {
     const tasks = parseTaskLines('- [ ] 1.1 See [the doc](./doc.md)\n');
 
