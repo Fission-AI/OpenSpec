@@ -134,6 +134,39 @@ describe('parseDeltaSpec (requirements outside delta sections)', () => {
 
     expect(plan.orphanedRequirements).toEqual([]);
   });
+
+  it('reports a requirement under a header the reader does not match exactly', () => {
+    // The reader folds only case, so a doubled space is not a delta section to
+    // it. Treating the header as one here would drop the block silently again.
+    const plan = parseDeltaSpec(
+      ['## ADDED  Requirements', '### Requirement: Spaced', 'a'].join('\n')
+    );
+
+    expect(plan.added).toEqual([]);
+    expect(plan.orphanedRequirements).toEqual([
+      { name: 'Spaced', section: 'ADDED  Requirements', line: 2 },
+    ]);
+  });
+
+  it('does not report requirements under a repeated delta header', () => {
+    const plan = parseDeltaSpec(
+      [
+        '## ADDED Requirements',
+        '### Requirement: First',
+        'a',
+        '',
+        '## Notes',
+        'prose only',
+        '',
+        '## ADDED Requirements',
+        '### Requirement: Second',
+        'b',
+      ].join('\n')
+    );
+
+    expect(plan.added.map((b) => b.name)).toEqual(['First', 'Second']);
+    expect(plan.orphanedRequirements).toEqual([]);
+  });
 });
 
 describe('buildUpdatedSpec (requirements outside delta sections)', () => {
