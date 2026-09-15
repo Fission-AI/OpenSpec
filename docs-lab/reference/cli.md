@@ -71,9 +71,12 @@ Workflow names are not CLI commands. `openspec propose` prints how to invoke tha
 
 The answer is resolved for your project:
 
-- No workflow files here yet: run `openspec init`.
-- Workflows installed, but not this one: run `openspec config profile` to add it.
+- No workflow files here yet: run `openspec init`. If your profile leaves the workflow out, run `openspec config profile` first.
 - Installed: the spelling each configured tool answers to, such as `/opsx:propose`, `/opsx-propose`, `@opsx-propose`, or `/openspec-propose`. A tool that matches skills by description gets a plain-language request instead.
+- Not in your profile: run `openspec config profile` to add it.
+- In your profile, but this project's files do not match your global config yet: run `openspec update`. If your delivery setting gives the project's tools no files, set delivery to `both` first.
+
+A spelling is named only for a tool that will answer to it. When no tool is detected, the answer stops at the setup step.
 
 When your tools spell it differently, every spelling is listed with the tools it serves.
 

@@ -77,7 +77,7 @@ export interface WorkflowReference {
  * @param delivery - The effective delivery mode
  * @param canonicalCommand - The canonical reference to rewrite, e.g. `/opsx:propose`
  * @returns The tool's spelling, or undefined when the delivery mode leaves
- *          that tool with neither commands nor skills — it has nothing to
+ *          that tool with neither commands nor skills: it has nothing to
  *          point at, so callers must not invent an invocation for it.
  */
 export function resolveWorkflowReference(

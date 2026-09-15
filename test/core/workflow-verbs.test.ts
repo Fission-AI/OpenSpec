@@ -86,14 +86,41 @@ describe('workflow verbs typed at the CLI', () => {
     }
   });
 
-  it('points at init when the project has no OpenSpec tools', async () => {
+  it('points at init and invents no invocation when no tool is detected', async () => {
+    // alfred-openspec's regression on #1776. With no tool detected there is no
+    // spelling to report: after init, Amazon Q answers to `@opsx-*`, Copilot to
+    // `/opsx-*`, Rovo Dev to a request. `/opsx:propose` is only Claude's.
     const projectDir = await makeProject();
 
     const guidance = getWorkflowVerbGuidance('propose', projectDir);
 
     expect(guidance.message).toContain("'propose' is an OpenSpec workflow, not a CLI command");
+    expect(guidance.details).toEqual(["Fix: run 'openspec init' to install the workflows."]);
+  });
+
+  it('invents no invocation when the detected tool gets nothing under the delivery', async () => {
+    // Kimi Code has no command surface, so commands-only delivery would give it
+    // neither commands nor skills after init.
+    const projectDir = await makeProject();
+    await fs.mkdir(path.join(projectDir, '.kimi-code'), { recursive: true });
+    await writeGlobalConfig({ delivery: 'commands' });
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual(["Fix: run 'openspec init' to install the workflows."]);
+  });
+
+  it('sends init to the profile first when the profile leaves the workflow out', async () => {
+    // init installs the profile, and the core profile has no verify, so
+    // "init, then run /opsx:verify" would name a command init never writes.
+    const projectDir = await makeProject();
+    await fs.mkdir(path.join(projectDir, '.claude'), { recursive: true });
+
+    const guidance = getWorkflowVerbGuidance('verify', projectDir);
+
     expect(guidance.details).toEqual([
-      "Fix: run 'openspec init' to install the workflows, then run /opsx:propose in your assistant.",
+      'The verify workflow is not in your profile.',
+      "Fix: run 'openspec config profile' to add it, then 'openspec init' to install it.",
     ]);
   });
 
@@ -156,7 +183,7 @@ describe('workflow verbs typed at the CLI', () => {
 
   it('points at the profile picker when the workflow is not installed', async () => {
     const projectDir = await makeProject();
-    await installSkill(projectDir, '.claude', 'openspec-propose');
+    await installCommand(projectDir, path.join('.claude', 'commands', 'opsx', 'propose.md'));
 
     const guidance = getWorkflowVerbGuidance('verify', projectDir);
 
@@ -202,7 +229,7 @@ describe('workflow verbs typed at the CLI', () => {
   it("uses a tool's own prompt-library prefix", async () => {
     const projectDir = await makeProject();
     // Amazon Q loads these files into its prompt library, invoked with `@`.
-    await installSkill(projectDir, '.amazonq', 'openspec-explore');
+    await installCommand(projectDir, path.join('.amazonq', 'prompts', 'opsx-explore.md'));
 
     const guidance = getWorkflowVerbGuidance('explore', projectDir);
 
@@ -235,23 +262,58 @@ describe('workflow verbs typed at the CLI', () => {
     ]);
   });
 
-  it('sends the user to update when the delivery mode leaves a tool nothing to invoke', async () => {
+  it('sends the user to the delivery setting when update would leave a tool nothing', async () => {
+    // alfred-openspec's regression on #1776. Kimi Code has no command surface,
+    // so under commands-only delivery `openspec update` removes its skill and
+    // generates nothing, then says to set delivery to both. Promising that
+    // update regenerates the workflow was false.
     const projectDir = await makeProject();
-    // Kimi Code has no command surface at all, so commands-only delivery
-    // generates neither commands nor skills for it.
     await installSkill(projectDir, '.kimi-code', 'openspec-explore');
     await writeGlobalConfig({ delivery: 'commands' });
 
     const guidance = getWorkflowVerbGuidance('explore', projectDir);
 
     expect(guidance.details).toEqual([
-      "Fix: run 'openspec update' to regenerate this project's workflow files.",
+      "Delivery is set to 'commands', which gives Kimi Code no workflow files.",
+      "Fix: run 'openspec config set delivery both', then 'openspec update'.",
+    ]);
+  });
+
+  it('routes delivery drift to update instead of naming a file that does not exist', async () => {
+    // alfred-openspec's regression on #1776. Global delivery says skills, but
+    // the project still holds only the command file, so `/openspec-explore`
+    // does not exist yet. update is what makes it exist.
+    const projectDir = await makeProject();
+    await installCommand(projectDir, path.join('.claude', 'commands', 'opsx', 'explore.md'));
+    await writeGlobalConfig({ delivery: 'skills' });
+
+    const guidance = getWorkflowVerbGuidance('explore', projectDir);
+
+    expect(guidance.details).toEqual([
+      'This project does not match your global OpenSpec config yet.',
+      "Fix: run 'openspec update' to apply it, then run /openspec-explore in your assistant.",
+    ]);
+  });
+
+  it('sends a workflow the profile already selects to update, not the profile picker', async () => {
+    // alfred-openspec's regression on #1776. verify is already in the global
+    // profile; opening `config profile` again changes nothing. update installs it.
+    const projectDir = await makeProject();
+    await installCommand(projectDir, path.join('.claude', 'commands', 'opsx', 'propose.md'));
+    await installSkill(projectDir, '.claude', 'openspec-propose');
+    await writeGlobalConfig({ profile: 'custom', workflows: ['propose', 'verify'] });
+
+    const guidance = getWorkflowVerbGuidance('verify', projectDir);
+
+    expect(guidance.details).toEqual([
+      'This project does not match your global OpenSpec config yet.',
+      "Fix: run 'openspec update' to apply it, then run /opsx:verify in your assistant.",
     ]);
   });
 
   it("names the tool's own invocation when the workflow is installed", async () => {
     const projectDir = await makeProject();
-    await installSkill(projectDir, '.claude', 'openspec-explore');
+    await installCommand(projectDir, path.join('.claude', 'commands', 'opsx', 'explore.md'));
 
     const guidance = getWorkflowVerbGuidance('explore', projectDir);
 
