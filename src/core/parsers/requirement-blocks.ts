@@ -191,25 +191,37 @@ export function parseDeltaSpec(content: string): DeltaPlan {
   const lines = normalized.split('\n');
   const fenceMask = buildCodeFenceMask(lines);
   const sections = splitTopLevelSections(lines, fenceMask);
-  const addedLookup = getSectionCaseInsensitive(sections, 'ADDED Requirements');
-  const modifiedLookup = getSectionCaseInsensitive(sections, 'MODIFIED Requirements');
-  const removedLookup = getSectionCaseInsensitive(sections, 'REMOVED Requirements');
-  const renamedLookup = getSectionCaseInsensitive(sections, 'RENAMED Requirements');
+  const addedLookup = getSectionsCaseInsensitive(sections, 'ADDED Requirements');
+  const modifiedLookup = getSectionsCaseInsensitive(sections, 'MODIFIED Requirements');
+  const removedLookup = getSectionsCaseInsensitive(sections, 'REMOVED Requirements');
+  const renamedLookup = getSectionsCaseInsensitive(sections, 'RENAMED Requirements');
   const skippedHeaders: SkippedHeader[] = [];
-  const added = parseRequirementBlocksFromSection(addedLookup.body, {
-    section: addedLookup.title,
-    bodyStartLine: addedLookup.bodyStartLine,
-    sink: skippedHeaders,
-  });
-  const modified = parseRequirementBlocksFromSection(modifiedLookup.body, {
-    section: modifiedLookup.title,
-    bodyStartLine: modifiedLookup.bodyStartLine,
-    sink: skippedHeaders,
-  });
-  const removedNames = parseRemovedNames(removedLookup.body);
-  const removedBlocks = parseRequirementBlocksFromSection(removedLookup.body);
+  const added = addedLookup.bodies.flatMap((body) =>
+    parseRequirementBlocksFromSection(body, {
+      section: addedLookup.title,
+      bodyStartLine: body.bodyStartLine,
+      sink: skippedHeaders,
+    })
+  );
+  const modified = modifiedLookup.bodies.flatMap((body) =>
+    parseRequirementBlocksFromSection(body, {
+      section: modifiedLookup.title,
+      bodyStartLine: body.bodyStartLine,
+      sink: skippedHeaders,
+    })
+  );
+  const removedNames = removedLookup.bodies.flatMap((body) => parseRemovedNames(body));
+  const removedBlocks = removedLookup.bodies.flatMap((body) =>
+    parseRequirementBlocksFromSection(body)
+  );
+  // Pairs are read per section, so a FROM in one copy of the header can never
+  // pair with a TO in another: a FROM left pending at the end of one copy is
+  // reported as unpaired rather than carried into the next.
   const unpairedRenames: UnpairedRename[] = [];
-  const renamedPairs = parseRenamedPairs(renamedLookup.body, unpairedRenames);
+  const renamedPairs = renamedLookup.bodies.flatMap((body) =>
+    parseRenamedPairs(body, unpairedRenames)
+  );
+  unpairedRenames.sort((a, b) => a.line - b.line);
   skippedHeaders.sort((a, b) => a.line - b.line);
   return {
     added,
@@ -228,8 +240,22 @@ export function parseDeltaSpec(content: string): DeltaPlan {
   };
 }
 
-function splitTopLevelSections(lines: string[], fenceMask: boolean[]): Record<string, SectionBody> {
-  const result: Record<string, SectionBody> = {};
+/** One `## ` section of a delta file, in the order it was written. */
+interface DeltaSection {
+  title: string;
+  body: SectionBody;
+}
+
+/**
+ * Every `## ` section, as a LIST rather than a title-keyed record.
+ *
+ * Keying by title silently dropped a repeated header: a delta that wrote
+ * `## ADDED Requirements` twice kept only the last body, so every requirement
+ * under the first copy was discarded before any validation or merge rule could
+ * see it. A list keeps each occurrence, and the lookup below merges them.
+ */
+function splitTopLevelSections(lines: string[], fenceMask: boolean[]): DeltaSection[] {
+  const sections: DeltaSection[] = [];
   const indices: Array<{ title: string; index: number }> = [];
   for (let i = 0; i < lines.length; i++) {
     if (fenceMask[i]) continue;
@@ -242,28 +268,43 @@ function splitTopLevelSections(lines: string[], fenceMask: boolean[]): Record<st
     const current = indices[i];
     const next = indices[i + 1];
     const end = next ? next.index : lines.length;
-    result[current.title] = {
-      lines: lines.slice(current.index + 1, end),
-      fenceMask: fenceMask.slice(current.index + 1, end),
-      bodyStartLine: current.index + 2,
-    };
+    sections.push({
+      title: current.title,
+      body: {
+        lines: lines.slice(current.index + 1, end),
+        fenceMask: fenceMask.slice(current.index + 1, end),
+        bodyStartLine: current.index + 2,
+      },
+    });
   }
-  return result;
+  return sections;
 }
 
-const EMPTY_SECTION_BODY: SectionBody = { lines: [], fenceMask: [], bodyStartLine: 0 };
-
-function getSectionCaseInsensitive(
-  sections: Record<string, SectionBody>,
+/**
+ * Every section body whose title folds to `desired`, in document order.
+ *
+ * Returning all of them - rather than the first match - is what makes a
+ * repeated header (`## ADDED Requirements` twice) and a case variant
+ * (`## ADDED Requirements` + `## Added Requirements`) both apply in full. Each
+ * body keeps its own `bodyStartLine`, so reported line numbers stay correct for
+ * the copy the header actually came from.
+ *
+ * `title` is the first spelling the author used, which is what diagnostics quote.
+ */
+function getSectionsCaseInsensitive(
+  sections: DeltaSection[],
   desired: string
-): { title: string; body: SectionBody; bodyStartLine: number; found: boolean } {
+): { title: string; bodies: SectionBody[]; found: boolean } {
   const target = desired.toLowerCase();
-  for (const [title, body] of Object.entries(sections)) {
-    if (title.toLowerCase() === target) {
-      return { title, body, bodyStartLine: body.bodyStartLine, found: true };
-    }
+  const matches = sections.filter((section) => section.title.toLowerCase() === target);
+  if (matches.length === 0) {
+    return { title: desired, bodies: [], found: false };
   }
-  return { title: desired, body: EMPTY_SECTION_BODY, bodyStartLine: 0, found: false };
+  return {
+    title: matches[0].title,
+    bodies: matches.map((section) => section.body),
+    found: true,
+  };
 }
 
 function parseRequirementBlocksFromSection(
@@ -310,6 +351,13 @@ function parseRequirementBlocksFromSection(
   return blocks;
 }
 
+/**
+ * Requirement names listed in `## REMOVED Requirements`, in document order.
+ *
+ * Two spellings are accepted: a plain `### Requirement:` header, and a bullet
+ * carrying one. Every CommonMark bullet marker counts for the second form -
+ * see the pattern below for why that matters.
+ */
 function parseRemovedNames(sectionBody: SectionBody): string[] {
   const { lines, fenceMask } = sectionBody;
   if (lines.length === 0) return [];
@@ -322,8 +370,11 @@ function parseRemovedNames(sectionBody: SectionBody): string[] {
       names.push(normalizeRequirementName(m[1]));
       continue;
     }
-    // Also support bullet list of headers
-    const bullet = line.match(/^\s*-\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
+    // Also support bullet list of headers. Every CommonMark bullet marker
+    // counts: `*` and `+` open a list exactly as `-` does, so accepting only
+    // `-` turned a removal written with either of them into a silent no-op -
+    // archive reported success while the requirement stayed in the spec.
+    const bullet = line.match(/^\s*[-*+]\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
     if (bullet) {
       names.push(normalizeRequirementName(bullet[1]));
     }
@@ -347,6 +398,10 @@ function parseRemovedNames(sectionBody: SectionBody): string[] {
  * let interleaved lines (`FROM a`, `FROM b`, `TO x`, `TO y`) pair b with x -
  * renaming a requirement the author never named, under a name meant for a
  * different one. Callers refuse the delta instead of guessing.
+ *
+ * The bullet is optional, and every CommonMark bullet marker is accepted: a
+ * rename written with `*` or `+` used to match nothing at all, so the rename
+ * silently never happened while archive still reported success.
  */
 function parseRenamedPairs(
   sectionBody: SectionBody,
@@ -362,8 +417,11 @@ function parseRenamedPairs(
   for (let i = 0; i < lines.length; i++) {
     if (fenceMask[i]) continue;
     const line = lines[i];
-    const fromMatch = line.match(/^\s*-?\s*FROM:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
-    const toMatch = line.match(/^\s*-?\s*TO:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
+    // The bullet stays optional, and any CommonMark marker is accepted: a rename
+    // written with `*` or `+` used to match nothing at all, so the rename never
+    // happened while archive still reported success.
+    const fromMatch = line.match(/^\s*[-*+]?\s*FROM:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
+    const toMatch = line.match(/^\s*[-*+]?\s*TO:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
     if (fromMatch) {
       if (pending) drop('FROM', pending.name, pending.line);
       pending = { name: normalizeRequirementName(fromMatch[1]), line: bodyStartLine + i };
