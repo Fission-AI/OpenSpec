@@ -115,11 +115,29 @@ describe('explore documentation', () => {
   const USER_TRIGGER = /\b(you ask|accept its offer|say yes)\b/i;
   const NAMED_SCOPE = /\bartifacts you name(d)?\b/i;
   const UNPROMPTED = /\b(automatically|on its own|without (asking|confirmation)|(every|all) (planning )?artifacts)\b/i;
+  const NEGATION = /\b(not|never|no|doesn't|don't|won't)\b/i;
+
+  // An unprompted claim about explore writing, checked clause by clause so
+  // "does not automatically capture" passes and "automatically captures every
+  // artifact, but never writes code" still fails. Only lines naming explore or
+  // capture count: /opsx:ff legitimately "creates all planning artifacts".
+  function claimsUnpromptedWrite(line: string): boolean {
+    if (!/\b(explore|captur)/i.test(line)) return false;
+    return line.split(/[.,;:!?]|\bbut\b/i).some((clause) => {
+      const match = UNPROMPTED.exec(clause);
+      return (
+        match !== null &&
+        /\b(captur|creat|edit|writ|scaffold)/i.test(clause) &&
+        !NEGATION.test(clause.slice(0, match.index))
+      );
+    });
+  }
 
   for (const page of ['docs/explore.md', 'docs/commands.md']) {
     it(`${page} still documents the user-requested capture contract (#1833)`, () => {
       const content = fs.readFileSync(path.join(REPO_ROOT, ...page.split('/')), 'utf-8');
-      const captureLines = content.split(/\r?\n/).filter((line) => /\bcaptur/i.test(line));
+      const lines = content.split(/\r?\n/);
+      const captureLines = lines.filter((line) => /\bcaptur/i.test(line));
 
       expect(
         captureLines.some(
@@ -131,7 +149,7 @@ describe('explore documentation', () => {
           'name. See #1833.'
       ).toBe(true);
 
-      const unprompted = captureLines.filter((line) => UNPROMPTED.test(line));
+      const unprompted = lines.filter(claimsUnpromptedWrite);
       expect(
         unprompted,
         `${page} describes capture as happening unprompted or wholesale. It ` +
