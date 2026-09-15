@@ -25,8 +25,11 @@ export interface TaskCheckboxIssue {
  * item rather than special-cased, because a file whose only list-shaped line is
  * a horizontal rule still has zero tasks — the warning stays true, it just
  * points at an odd line.
+ *
+ * An ordered marker runs at most nine digits, as CommonMark and the scenario
+ * bullet pattern in `specs-apply.ts` both require.
  */
-const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+\S/;
+const LIST_ITEM = /^\s*(?:[-*+]|\d{1,9}[.)])\s+\S/;
 
 /**
  * The indent at which a top-level line stops being content and becomes an
@@ -185,7 +188,11 @@ function findFirstListItemLine(content: string): number | undefined {
  * it would name the wrong line.
  */
 function skipFrontMatter(lines: readonly string[]): number {
-  if (lines.length === 0 || !FRONT_MATTER.test(lines[0].trimEnd())) return 0;
+  // A UTF-8 BOM, prepended by Windows editors and PowerShell redirects, would
+  // otherwise hide the opener and expose a `tags:` list to the scan.
+  if (lines.length === 0 || !FRONT_MATTER.test(lines[0].replace(/^﻿/, '').trimEnd())) {
+    return 0;
+  }
 
   for (let index = 1; index < lines.length; index++) {
     if (FRONT_MATTER.test(lines[index].trimEnd())) return index + 1;

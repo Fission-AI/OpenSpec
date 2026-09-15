@@ -158,6 +158,22 @@ describe('findMissingTaskCheckboxIssues', () => {
     ).toEqual([{ line: 3, message: expect.any(String) }]);
   });
 
+  it('skips front matter behind a UTF-8 byte order mark', () => {
+    // Windows editors and PowerShell redirects prepend a BOM. Without stripping
+    // it the opener never matched, and the `tags:` list failed `--strict`.
+    expect(
+      findInSingleFile(['﻿---', 'tags:', '  - planning', '---', '', 'Nothing planned yet.', ''].join('\n'))
+    ).toEqual([]);
+  });
+
+  it('does not read a number longer than nine digits as a list marker', () => {
+    // CommonMark caps an ordered marker at nine digits, as specs-apply does.
+    expect(findInSingleFile('1234567890. is a year range, not a task\n')).toEqual([]);
+    expect(findInSingleFile('123456789. still a list item\n')).toEqual([
+      { line: 1, message: expect.any(String) },
+    ]);
+  });
+
   it('skips HTML comments without hiding the line that follows them', () => {
     expect(
       findInSingleFile(['<!--', '- a retired task', '-->', '', 'Nothing planned yet.', ''].join('\n'))
