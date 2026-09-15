@@ -204,6 +204,32 @@ describe('ChangeParser reads deltas the way archive applies them', () => {
       { spec: 'billing', operation: 'MODIFIED', description: 'updates billing requirements' },
     ]);
   });
+
+  it('still reads the proposal prose for a legacy change whose spec files carry no delta section', async () => {
+    // Pre-delta changes kept a full future-state spec under specs/ and listed
+    // their operations in What Changes. No delta section, so nothing for the
+    // delta reader to contradict: the prose stays the description.
+    const change = await parseChange(
+      [
+        '# billing',
+        '',
+        '## Purpose',
+        'Billing covers invoices and the fees charged on late payment.',
+        '',
+        '## Requirements',
+        '### Requirement: Late Fees',
+        'The system SHALL apply a late fee to invoices overdue by 30 days.',
+        '',
+        '#### Scenario: Thirty days overdue',
+        '- **WHEN** an invoice is 30 days overdue',
+        '- **THEN** a late fee is applied',
+        '',
+      ].join('\n')
+    );
+    expect(change.deltas).toEqual([
+      { spec: 'billing', operation: 'MODIFIED', description: 'updates billing requirements' },
+    ]);
+  });
 });
 
 const SEED = [

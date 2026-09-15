@@ -1,6 +1,6 @@
 import { MarkdownParser, Section } from './markdown-parser.js';
 import { buildCodeFenceMask } from './requirement-text.js';
-import { parseDeltaSpec, type RequirementBlock } from './requirement-blocks.js';
+import { parseDeltaSpec, type DeltaPlan, type RequirementBlock } from './requirement-blocks.js';
 import { Change, Delta, DeltaOperation, Requirement } from '../schemas/index.js';
 import path from 'path';
 import { promises as fs } from 'fs';
@@ -39,15 +39,16 @@ export class ChangeParser extends MarkdownParser {
       throw new Error('Change must have a What Changes section');
     }
 
-    // Delta spec files, when the change has any, are the only source of
-    // structured deltas, even when they hold no entry archive can apply.
-    // Falling back to the "What Changes" prose then reported operations that
-    // never happen: a bullet-form REMOVED showed up as an invented MODIFIED.
-    // The prose (simple format) is read only for a change with no delta specs.
+    // Delta spec files that carry a delta section are the only source of
+    // structured deltas, even when those sections hold no entry archive can
+    // apply. Falling back to the "What Changes" prose then reported operations
+    // that never happen: a bullet-form REMOVED showed up as an invented
+    // MODIFIED. The prose (simple format) is still read when no spec file
+    // carries a delta section at all: a change with no spec files, or a legacy
+    // change whose specs/ hold full future-state specs.
     const specFiles = await discoverSpecFiles(path.join(this.changeDir, 'specs'));
-    const deltas = specFiles.length > 0
-      ? await this.parseDeltaSpecs(specFiles)
-      : this.parseDeltas(whatChanges);
+    const { deltas: specDeltas, hasDeltaSections } = await this.parseDeltaSpecs(specFiles);
+    const deltas = hasDeltaSections ? specDeltas : this.parseDeltas(whatChanges);
 
     return {
       name,
@@ -63,21 +64,25 @@ export class ChangeParser extends MarkdownParser {
 
   // The spec files come from discoverSpecFiles, which walks specs/ recursively
   // so nested layouts like specs/<area>/<capability>/spec.md are parsed too (#1353)
-  private async parseDeltaSpecs(specFiles: DiscoveredSpec[]): Promise<Delta[]> {
+  private async parseDeltaSpecs(
+    specFiles: DiscoveredSpec[]
+  ): Promise<{ deltas: Delta[]; hasDeltaSections: boolean }> {
     const deltas: Delta[] = [];
+    let hasDeltaSections = false;
 
     for (const { id, specFile } of specFiles) {
       try {
         const content = await fs.readFile(specFile, 'utf-8');
-        const specDeltas = this.parseSpecDeltas(id, content);
-        deltas.push(...specDeltas);
+        const plan = parseDeltaSpec(content);
+        if (Object.values(plan.sectionPresence).some(Boolean)) hasDeltaSections = true;
+        deltas.push(...this.parseSpecDeltas(id, plan));
       } catch (error) {
         // Spec file might not be readable, which is okay
         continue;
       }
     }
 
-    return deltas;
+    return { deltas, hasDeltaSections };
   }
 
   /**
@@ -110,9 +115,8 @@ export class ChangeParser extends MarkdownParser {
    * a repeated section header was read only once, and a RENAMED line written
    * with `*` or `+` was dropped.
    */
-  private parseSpecDeltas(specName: string, content: string): Delta[] {
+  private parseSpecDeltas(specName: string, plan: DeltaPlan): Delta[] {
     const deltas: Delta[] = [];
-    const plan = parseDeltaSpec(content);
 
     // Parse ADDED requirements
     this.toRequirements(plan.added).forEach(req => {
