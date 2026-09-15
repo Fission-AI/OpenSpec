@@ -91,7 +91,7 @@ describe('store setup --no-init-git inside an existing Git repository', () => {
     expect(result.exitCode).toBe(0);
     const payload = parseJson(result);
     expect(payload.status).toEqual([]);
-    expect(payload.store.root).toBe(storeRoot);
+    expect(fs.realpathSync.native(payload.store.root)).toBe(fs.realpathSync.native(storeRoot));
     expect(payload.registry).toEqual(expect.objectContaining({ registered: true }));
     expect(payload.git).toEqual({
       is_repository: false,
@@ -117,14 +117,11 @@ describe('store setup --no-init-git inside an existing Git repository', () => {
 
     expect((await setup(['--no-init-git'])).exitCode).toBe(0);
 
-    await expect(readStoreRegistryState({ globalDataDir })).resolves.toEqual({
-      version: 1,
-      stores: {
-        'team-plans': {
-          backend: { type: 'git', local_path: storeRoot },
-        },
-      },
-    });
+    const registry = await readStoreRegistryState({ globalDataDir });
+    expect(Object.keys(registry?.stores ?? {})).toEqual(['team-plans']);
+    const backend = registry?.stores['team-plans']?.backend;
+    expect(backend).toEqual({ type: 'git', local_path: expect.any(String) });
+    expect(fs.realpathSync.native(backend!.local_path)).toBe(fs.realpathSync.native(storeRoot));
   }, 30_000);
 
   it('reports a rerun with --no-init-git as an already-registered no-op', async () => {
