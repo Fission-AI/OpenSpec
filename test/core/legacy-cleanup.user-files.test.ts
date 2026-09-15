@@ -11,6 +11,7 @@ import {
   omitToolLegacyArtifacts,
   LEGACY_SLASH_COMMAND_PATHS,
 } from '../../src/core/legacy-cleanup.js';
+import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import { runCLI } from '../helpers/run-cli.js';
 
 /**
@@ -51,11 +52,16 @@ describe('legacy command directories and the files users keep in them', () => {
   const inProject = (dir: string, ...names: string[]) => path.join(testDir, dir, ...names);
   const exists = (filePath: string) => fs.access(filePath).then(() => true, () => false);
 
+  // A file named like a legacy command gets the markers every legacy command
+  // was written with; any other file is plain user content.
+  const generatedContent = (name: string) => `${OPENSPEC_MARKERS.start}\ncontent of ${name}\n${OPENSPEC_MARKERS.end}\n`;
+  const isCommandName = (name: string) => /^(proposal|apply|archive)\.(md|toml)$/.test(name);
+
   async function writeFiles(dir: string, names: readonly string[]): Promise<void> {
     for (const name of names) {
       const filePath = inProject(dir, name);
       await fs.mkdir(path.dirname(filePath), { recursive: true });
-      await fs.writeFile(filePath, `content of ${name}`);
+      await fs.writeFile(filePath, isCommandName(name) ? generatedContent(name) : `content of ${name}`);
     }
   }
 
@@ -209,6 +215,69 @@ describe('legacy command directories and the files users keep in them', () => {
 
     expect(await exists(inProject(CLAUDE_DIR, 'proposal.md'))).toBe(true);
   });
+
+  it('keeps a user-authored file that only shares a legacy command name', async () => {
+    await fs.mkdir(inProject(CLAUDE_DIR), { recursive: true });
+    await fs.writeFile(inProject(CLAUDE_DIR, 'proposal.md'), 'my own proposal command\n');
+
+    const detection = await detectLegacyArtifacts(testDir);
+    expect(detection.slashCommandDirs).not.toContain(CLAUDE_DIR);
+    expect(detection.hasLegacyArtifacts).toBe(false);
+    await cleanupLegacyArtifacts(testDir, detection);
+
+    expect(await fs.readFile(inProject(CLAUDE_DIR, 'proposal.md'), 'utf-8')).toBe('my own proposal command\n');
+  });
+
+  it('keeps a same-named user file beside OpenSpec files and deletes only the generated ones', async () => {
+    await writeFiles(CLAUDE_DIR, ['apply.md', 'archive.md']);
+    await fs.writeFile(inProject(CLAUDE_DIR, 'proposal.md'), 'my own proposal command\n');
+
+    const detection = await detectLegacyArtifacts(testDir);
+    expect(detection.slashCommandDirs).not.toContain(CLAUDE_DIR);
+    expect(formatDetectionSummary(detection)).not.toContain(`${CLAUDE_DIR}/proposal.md`);
+    const result = await cleanupLegacyArtifacts(testDir, detection);
+
+    expect(await fs.readFile(inProject(CLAUDE_DIR, 'proposal.md'), 'utf-8')).toBe('my own proposal command\n');
+    expect(await exists(inProject(CLAUDE_DIR, 'apply.md'))).toBe(false);
+    expect(result.keptFiles).toEqual([`${CLAUDE_DIR}/proposal.md`]);
+  });
+
+  it.each([
+    ['a folder of only OpenSpec files', [] as string[]],
+    ['a folder that also holds user files', ['team-review.md']],
+  ])('keeps proposal.md when the user replaces it between detection and cleanup (%s)', async (_label, extra) => {
+    await writeFiles(CLAUDE_DIR, [...CLAUDE_FILES, ...extra]);
+    const detection = await detectLegacyArtifacts(testDir);
+
+    // e.g. while the interactive upgrade prompt was waiting
+    await fs.writeFile(inProject(CLAUDE_DIR, 'proposal.md'), 'my own proposal command\n');
+    const result = await cleanupLegacyArtifacts(testDir, detection);
+
+    expect(await fs.readFile(inProject(CLAUDE_DIR, 'proposal.md'), 'utf-8')).toBe('my own proposal command\n');
+    expect(await exists(inProject(CLAUDE_DIR, 'apply.md'))).toBe(false);
+    expect(result.deletedFiles).not.toContain(`${CLAUDE_DIR}/proposal.md`);
+    expect(result.deletedDirs).not.toContain(CLAUDE_DIR);
+    expect(result.keptFiles).toContain(`${CLAUDE_DIR}/proposal.md`);
+  });
+
+  // Creating symlinks on Windows needs elevated rights.
+  it.skipIf(process.platform === 'win32')('never follows a symlinked legacy command folder', async () => {
+    const shared = path.join(testDir, 'shared-commands');
+    await fs.mkdir(shared, { recursive: true });
+    for (const name of CLAUDE_FILES) {
+      await fs.writeFile(path.join(shared, name), generatedContent(name));
+    }
+    await fs.mkdir(inProject('.claude/commands'), { recursive: true });
+    await fs.symlink(shared, inProject(CLAUDE_DIR), 'dir');
+
+    const detection = await detectLegacyArtifacts(testDir);
+    expect(detection.slashCommandDirs).not.toContain(CLAUDE_DIR);
+    expect(detection.slashCommandFiles.filter((file) => file.startsWith(CLAUDE_DIR))).toEqual([]);
+    await cleanupLegacyArtifacts(testDir, detection);
+
+    expect((await fs.readdir(shared)).sort()).toEqual(CLAUDE_FILES);
+    expect((await fs.lstat(inProject(CLAUDE_DIR))).isSymbolicLink()).toBe(true);
+  });
 });
 
 describe('openspec init with a legacy command folder', () => {
@@ -230,7 +299,10 @@ describe('openspec init with a legacy command folder', () => {
     await fs.mkdir(home, { recursive: true });
     await fs.mkdir(dir, { recursive: true });
     for (const name of CLAUDE_FILES) {
-      await fs.writeFile(path.join(dir, name), `---\nname: OpenSpec: ${name}\n---\nold\n`);
+      await fs.writeFile(
+        path.join(dir, name),
+        `---\nname: OpenSpec: ${name}\n---\n${OPENSPEC_MARKERS.start}\nold\n${OPENSPEC_MARKERS.end}\n`
+      );
     }
     if (withUserFile) {
       await fs.writeFile(path.join(dir, 'team-review.md'), '---\ndescription: my team review checklist\n---\nReview carefully.\n');

@@ -359,10 +359,12 @@ export async function detectLegacySlashCommands(
 
 /**
  * Splits a legacy command directory's entries into the files OpenSpec wrote
- * there and everything else, sorted. Only a regular file with a managed name
- * counts as OpenSpec's; a folder or link carrying one of those names is the
- * user's. Subdirectories are listed with a trailing '/'. Returns undefined when
- * the directory cannot be read.
+ * there and everything else, sorted. A file counts as OpenSpec's only when it
+ * is a regular file with a managed name whose content still carries the
+ * OpenSpec markers every legacy command was written with; a folder, a link, or
+ * a same-named file the user wrote is the user's. Subdirectories are listed
+ * with a trailing '/'. Returns undefined when the directory cannot be read or
+ * is itself a symlink, which is never followed.
  */
 async function readLegacyCommandDir(
   dirPath: string,
@@ -370,6 +372,9 @@ async function readLegacyCommandDir(
 ): Promise<{ managed: string[]; others: string[] } | undefined> {
   let entries;
   try {
+    if ((await fs.lstat(dirPath)).isSymbolicLink()) {
+      return undefined;
+    }
     entries = await fs.readdir(dirPath, { withFileTypes: true });
   } catch {
     return undefined;
@@ -378,7 +383,11 @@ async function readLegacyCommandDir(
   const managed: string[] = [];
   const others: string[] = [];
   for (const entry of entries) {
-    if (entry.isFile() && managedFileNames.includes(entry.name)) {
+    if (
+      entry.isFile() &&
+      managedFileNames.includes(entry.name) &&
+      (await isGeneratedLegacyCommand(path.join(dirPath, entry.name)))
+    ) {
       managed.push(entry.name);
     } else {
       others.push(entry.isDirectory() ? `${entry.name}/` : entry.name);
@@ -425,6 +434,23 @@ async function settleLegacyCommandDir(
   }
   result.keptFiles!.push(...remaining.others.map((name) => `${dirPath}/${name}`));
   return false;
+}
+
+/**
+ * Whether a file is a legacy command OpenSpec generated: a regular file (not a
+ * link) whose content carries the OpenSpec markers. Every legacy slash command
+ * was written with them, and OpenSpec refused to update one that lost them, so
+ * a same-named file without them is the user's.
+ */
+async function isGeneratedLegacyCommand(filePath: string): Promise<boolean> {
+  try {
+    if (!(await fs.lstat(filePath)).isFile()) {
+      return false;
+    }
+    return hasOpenSpecMarkers(await fs.readFile(filePath, 'utf-8'));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -670,12 +696,17 @@ export async function cleanupLegacyArtifacts(
   for (const filePath of detection.slashCommandFiles) {
     const fullPath = FileSystemUtils.joinPath(projectPath, filePath);
     try {
-      await fs.unlink(fullPath);
-      result.deletedFiles.push(filePath);
       const commandDir = legacyCommandDirForFile(filePath);
       if (commandDir) {
         partlyCleanedDirs.add(commandDir.dir);
+        // Check again just before deleting: the file may have been replaced
+        // with the user's own since detection. A kept file is reported below.
+        if (!(await isGeneratedLegacyCommand(fullPath))) {
+          continue;
+        }
       }
+      await fs.unlink(fullPath);
+      result.deletedFiles.push(filePath);
     } catch (error: any) {
       result.errors.push(`Failed to delete ${filePath}: ${error.message}`);
     }

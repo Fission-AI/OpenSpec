@@ -2788,7 +2788,7 @@ ${OPENSPEC_MARKERS.end}
       await fs.mkdir(legacyCommandDir, { recursive: true });
       await fs.writeFile(
         path.join(legacyCommandDir, 'proposal.md'),
-        'old command'
+        '<!-- OPENSPEC:START -->\nold command\n<!-- OPENSPEC:END -->\n'
       );
 
       const consoleSpy = vi.spyOn(console, 'log');
@@ -2938,7 +2938,7 @@ More user content after markers.
       await fs.mkdir(legacyCommandDir, { recursive: true });
       await fs.writeFile(
         path.join(legacyCommandDir, 'proposal.md'),
-        'old command content'
+        '<!-- OPENSPEC:START -->\nold command content\n<!-- OPENSPEC:END -->\n'
       );
 
       const consoleSpy = vi.spyOn(console, 'log');
@@ -2989,7 +2989,7 @@ More user content after markers.
       await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
       await fs.writeFile(
         path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
-        'content'
+        '<!-- OPENSPEC:START -->\ncontent\n<!-- OPENSPEC:END -->\n'
       );
 
       await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
@@ -3061,7 +3061,7 @@ More user content after markers.
       await fs.mkdir(legacyCommandDir, { recursive: true });
       await fs.writeFile(
         path.join(legacyCommandDir, 'proposal.md'),
-        'old command'
+        '<!-- OPENSPEC:START -->\nold command\n<!-- OPENSPEC:END -->\n'
       );
 
       const consoleSpy = vi.spyOn(console, 'log');
@@ -3105,7 +3105,7 @@ More user content after markers.
       await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
       await fs.writeFile(
         path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
-        'content'
+        '<!-- OPENSPEC:START -->\ncontent\n<!-- OPENSPEC:END -->\n'
       );
 
       await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
@@ -3149,7 +3149,7 @@ More user content after markers.
       await fs.mkdir(legacyCommandDir, { recursive: true });
       await fs.writeFile(
         path.join(legacyCommandDir, 'proposal.md'),
-        'old command content'
+        '<!-- OPENSPEC:START -->\nold command content\n<!-- OPENSPEC:END -->\n'
       );
 
       const consoleSpy = vi.spyOn(console, 'log');
@@ -3196,7 +3196,7 @@ More user content after markers.
       await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
       await fs.writeFile(
         path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
-        'content'
+        '<!-- OPENSPEC:START -->\ncontent\n<!-- OPENSPEC:END -->\n'
       );
 
       // Create update command with force option
@@ -3228,7 +3228,7 @@ More user content after markers.
       await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
       await fs.writeFile(
         path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
-        'content'
+        '<!-- OPENSPEC:START -->\ncontent\n<!-- OPENSPEC:END -->\n'
       );
 
       // Create update command with force option
@@ -3253,7 +3253,7 @@ More user content after markers.
       await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
       await fs.writeFile(
         path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
-        'content'
+        '<!-- OPENSPEC:START -->\ncontent\n<!-- OPENSPEC:END -->\n'
       );
 
       const forceUpdateCommand = new UpdateCommand({ force: true });
