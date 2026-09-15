@@ -76,6 +76,22 @@ describe('project root guard', () => {
     expect(PROJECT_ROOT_GUARD).toContain('also exits non-zero, which is that answer rather than a broken CLI');
   });
 
+  // A store-only project whose `store:` line names a store this machine has not
+  // registered (a teammate's fresh clone) also reports `root: null`, with
+  // `unknown_store` or `no_registered_stores`. A stale global `defaultStore`
+  // reports the same codes in unrelated repositories, so only the message
+  // prefix pinned in test/core/root-selection.test.ts tells them apart. Treating
+  // that project as uninitialized would silently drop OpenSpec, or offer
+  // `openspec init`, in a project that is already set up.
+  it('does not mistake an unregistered declared store for an uninitialized project', () => {
+    expect(PROJECT_ROOT_GUARD).toContain('starts with `Declared in`');
+    expect(PROJECT_ROOT_GUARD).toContain('Do not treat it as uninitialized and skip the branches below');
+    expect(PROJECT_ROOT_GUARD).toContain("show the user that error's `message` and `fix`");
+    expect(PROJECT_ROOT_GUARD.indexOf('starts with `Declared in`')).toBeLessThan(
+      PROJECT_ROOT_GUARD.indexOf('**Auto-selected**')
+    );
+  });
+
   // #1645 asks for the workflow to get out of the way, not to interrogate the
   // user: "if not exist it can go through the normal general propose not the
   // openspec". So the two ways of arriving here get opposite answers, and both

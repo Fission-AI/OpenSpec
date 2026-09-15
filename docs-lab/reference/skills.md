@@ -44,7 +44,7 @@ Every skill expects a project that already uses OpenSpec. Before its first step 
 - **Auto-selected**: your agent picked the skill on its own, without you naming OpenSpec. It drops OpenSpec and answers your request normally, the way it would with OpenSpec not installed.
 - **Explicit OpenSpec request**: you named OpenSpec, named the skill, or ran its command. It stops before writing and asks how to proceed: run `openspec init` here, target a store with `--store <id>`, or continue without OpenSpec. It waits for your answer.
 
-Commands are always the second case. No skill creates an `openspec/` directory on its own in either case. The entries below describe what each skill does once a root is in place.
+Commands are always the second case. A project whose `openspec/config.yaml` names a store this machine has not registered is not treated as uninitialized: the skill stops and shows the store error with its fix. No skill creates an `openspec/` directory on its own in either case. The entries below describe what each skill does once a root is in place.
 
 | Skill | Job | Type |
 |---|---|---|
