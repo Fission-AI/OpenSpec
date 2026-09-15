@@ -14,7 +14,7 @@ function readYaml(relativePath: string): Record<string, any> {
 }
 
 describe('pnpm workspace configuration', () => {
-  it('keeps root build approval and security overrides compatible across pnpm versions', () => {
+  it('keeps root build approval aligned and security overrides single-sourced', () => {
     const packageJson = readJson('package.json');
     const lockfile = readYaml('pnpm-lock.yaml');
     const workspace = readYaml('pnpm-workspace.yaml');
@@ -28,7 +28,11 @@ describe('pnpm workspace configuration', () => {
     expect(workspace.allowBuilds).toEqual({
       [`esbuild@${esbuildVersions[0]}`]: true,
     });
-    expect(workspace.overrides).toEqual(packageJson.pnpm.overrides);
+    // Overrides are declared once, in pnpm-workspace.yaml. A `pnpm.overrides` block
+    // in package.json replaces that list rather than merging with it, and Dependabot
+    // rewrites plain-name entries there when it bumps the same package — so a mirrored
+    // copy silently displaces the pins that patch advisories.
+    expect(packageJson.pnpm.overrides).toBeUndefined();
     expect(workspace.overrides).toEqual(lockfile.overrides);
   });
 
@@ -46,7 +50,8 @@ describe('pnpm workspace configuration', () => {
     expect(workspace.allowBuilds).toEqual({
       [`esbuild@${esbuildVersions[0]}`]: true,
     });
-    expect(workspace.overrides).toEqual(packageJson.pnpm.overrides);
+    // Single-sourced in website/pnpm-workspace.yaml, for the reason above.
+    expect(packageJson.pnpm.overrides).toBeUndefined();
     expect(workspace.overrides).toEqual(lockfile.overrides);
   });
 
