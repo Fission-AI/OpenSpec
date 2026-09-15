@@ -192,6 +192,105 @@ describe('config edit', () => {
 
     expect(process.exitCode).toBeUndefined();
   }, T);
+
+  it('never hands the value to a shell', async () => {
+    process.env.EDITOR = fixture.nodeEditor('--wait', ';', '&&', '|', '$HOME', '`id`');
+
+    await runConfigCommand(['edit']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(editorArgs()).toEqual(['--wait', ';', '&&', '|', '$HOME', '`id`', fixture.configPath]);
+  }, T);
+
+  it('reports an unterminated quote without starting anything', async () => {
+    process.env.EDITOR = `"${process.execPath} --wait`;
+
+    await runConfigCommand(['edit']);
+
+    expect(process.exitCode).toBe(1);
+    expect(errors()).toContain('unterminated quote');
+    expect(fs.existsSync(fixture.logPath)).toBe(false);
+  }, T);
+
+  it('shows the install hint for a missing editor', async () => {
+    process.env.EDITOR = MISSING_EDITOR;
+
+    await runConfigCommand(['edit']);
+
+    expect(errors()).toContain('Set EDITOR or VISUAL to an installed editor command');
+  }, T);
+
+  it.skipIf(process.platform === 'win32')('runs a single-quoted editor path with spaces', async () => {
+    process.env.EDITOR = `'${process.execPath}' '${path.join(fixture.editorDir, 'editor.cjs')}' -w`;
+
+    await runConfigCommand(['edit']);
+
+    expect(process.exitCode).toBeUndefined();
+    expect(editorArgs()).toEqual(['-w', fixture.configPath]);
+  }, T);
+
+  it.skipIf(process.platform === 'win32')('omits the install hint when the editor exists but cannot run', async () => {
+    const editor = path.join(fixture.editorDir, 'not executable');
+    fs.writeFileSync(editor, '#!/bin/sh\n', { mode: 0o644 });
+    process.env.EDITOR = `"${editor}" --wait`;
+
+    await runConfigCommand(['edit']);
+
+    expect(process.exitCode).toBe(1);
+    expect(errors()).toContain('Could not start editor');
+    expect(errors()).not.toContain('Set EDITOR or VISUAL to an installed editor command');
+  }, T);
+});
+
+describe('splitEditorCommand', () => {
+  let split: typeof import('../../src/commands/config.js').splitEditorCommand;
+
+  beforeAll(async () => {
+    ({ splitEditorCommand: split } = await import('../../src/commands/config.js'));
+  }, 60_000);
+
+  it('splits a command and its arguments', () => {
+    expect(split('code --wait', 'darwin')).toEqual(['code', '--wait']);
+    expect(split('  emacsclient   -t  ', 'linux')).toEqual(['emacsclient', '-t']);
+  });
+
+  it('keeps a double-quoted path with spaces as one word', () => {
+    expect(split('"/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code" --wait', 'darwin')).toEqual([
+      '/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code',
+      '--wait',
+    ]);
+  });
+
+  it('honors single quotes and backslash escapes on POSIX', () => {
+    expect(split("'/opt/Sublime Text/subl' -w", 'linux')).toEqual(['/opt/Sublime Text/subl', '-w']);
+    expect(split('/opt/Sublime\\ Text/subl -w', 'linux')).toEqual(['/opt/Sublime Text/subl', '-w']);
+    expect(split('"a \\" b" "c\\d"', 'linux')).toEqual(['a " b', 'c\\d']);
+  });
+
+  it('keeps Windows backslashes and single quotes literal', () => {
+    expect(split('"C:\\Program Files\\Microsoft VS Code\\bin\\code.cmd" --wait', 'win32')).toEqual([
+      'C:\\Program Files\\Microsoft VS Code\\bin\\code.cmd',
+      '--wait',
+    ]);
+    expect(split("C:\\Users\\O'Brien\\npp.exe -multiInst", 'win32')).toEqual([
+      "C:\\Users\\O'Brien\\npp.exe",
+      '-multiInst',
+    ]);
+  });
+
+  it('treats shell metacharacters as plain text', () => {
+    expect(split('vim; rm -rf ~ $(id) `id` | cat', 'linux')).toEqual(['vim;', 'rm', '-rf', '~', '$(id)', '`id`', '|', 'cat']);
+  });
+
+  it('keeps an empty quoted argument', () => {
+    expect(split('ed ""', 'linux')).toEqual(['ed', '']);
+  });
+
+  it('returns null for an unterminated quote and nothing for a blank value', () => {
+    expect(split('"code --wait', 'darwin')).toBeNull();
+    expect(split("'code", 'linux')).toBeNull();
+    expect(split('   ', 'linux')).toEqual([]);
+  });
 });
 
 describe('openspec config edit (end to end)', () => {

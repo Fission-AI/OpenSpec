@@ -350,7 +350,11 @@ Without `--all` it exits 1 and prints the usage line.
 openspec config edit
 ```
 
-Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated. Invalid JSON or an invalid config exits 1. With no editor configured it exits 1:
+Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated. Invalid JSON or an invalid config exits 1.
+
+The editor value may carry arguments and quoted paths, for example `code --wait` or `"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl" -w`. It is split into words without a shell, so `$VAR`, `~` and `;` are passed through literally. An editor that cannot start, or exits non-zero, prints a one-line error and exits 1.
+
+With no editor configured it exits 1:
 
 ```
 Error: No editor configured

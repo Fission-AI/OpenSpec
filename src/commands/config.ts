@@ -1,6 +1,7 @@
 import { Command } from 'commander';
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess, spawn as nodeSpawn } from 'node:child_process';
 import * as fs from 'node:fs';
+import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import {
   getGlobalConfigPath,
@@ -30,27 +31,94 @@ type EditorOutcome =
   | { code: number | null; signal: NodeJS.Signals | null }
   | { error: Error };
 
+// cross-spawn finds `.cmd` shims such as `code.cmd` on Windows and escapes each
+// argument for cmd.exe; elsewhere it is plain spawn. Loaded lazily so other
+// commands skip its module graph.
+let cachedSpawn: typeof nodeSpawn | undefined;
+function loadSpawn(): typeof nodeSpawn {
+  if (cachedSpawn === undefined) {
+    cachedSpawn = createRequire(import.meta.url)('cross-spawn') as typeof nodeSpawn;
+  }
+  return cachedSpawn;
+}
+
 /**
- * Starts the user's editor on `filePath`.
+ * Splits an EDITOR or VISUAL value into a program and its arguments without
+ * running a shell, so `;`, `|`, `$VAR`, `~` and backticks are plain characters.
+ * Double quotes group words. On POSIX, single quotes group words too and a
+ * backslash escapes the next character (inside double quotes only `"` and `\`).
+ * On Windows a backslash is a path separator and a single quote is a plain
+ * character. Returns null when a quote is left open.
+ */
+export function splitEditorCommand(value: string, platform: NodeJS.Platform = process.platform): string[] | null {
+  const posix = platform !== 'win32';
+  const words: string[] = [];
+  let word = '';
+  let inWord = false;
+  let quote: '"' | "'" | null = null;
+
+  for (let i = 0; i < value.length; i++) {
+    const ch = value[i];
+    if (quote === "'") {
+      if (ch === "'") quote = null;
+      else word += ch;
+      continue;
+    }
+    if (posix && ch === '\\' && i + 1 < value.length) {
+      const next = value[i + 1];
+      if (quote === '"' && next !== '"' && next !== '\\') {
+        word += ch;
+      } else {
+        word += next;
+        i++;
+      }
+      inWord = true;
+      continue;
+    }
+    if (quote === '"') {
+      if (ch === '"') quote = null;
+      else word += ch;
+      continue;
+    }
+    if (ch === '"' || (posix && ch === "'")) {
+      quote = ch;
+      inWord = true;
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      if (inWord) words.push(word);
+      word = '';
+      inWord = false;
+      continue;
+    }
+    word += ch;
+    inWord = true;
+  }
+
+  if (quote) return null;
+  if (inWord) words.push(word);
+  return words;
+}
+
+/**
+ * Starts the user's editor on `filePath`, never through a shell.
  *
  * EDITOR and VISUAL hold a command line, not a program name: `code --wait`
- * and `"/path with spaces/subl" -w` are both ordinary values. Like git, hand
- * the value to the shell and pass the file as a positional argument
- * (`sh -c '<editor> "$@"' <editor> <file>`), so the value is parsed with the
- * usual shell rules while the file path is never re-parsed. On Windows the
- * value goes to cmd.exe, which also finds `.cmd` shims such as `code.cmd`;
- * the path is double-quoted there, and Windows paths cannot contain `"`.
- * A value that is itself the absolute path of an existing file is still run
- * directly, so an unquoted editor path with spaces keeps working.
+ * and `"/path with spaces/subl" -w` are both ordinary values, so the value is
+ * split into words and the file path is appended as its own argument. A value
+ * that is itself the absolute path of an existing file is run as-is, so an
+ * unquoted editor path with spaces keeps working.
  */
 function spawnEditor(editor: string, filePath: string): ChildProcess {
-  if (path.isAbsolute(editor) && fs.existsSync(editor)) {
-    return spawn(editor, [filePath], { stdio: 'inherit', shell: false });
+  const words = path.isAbsolute(editor) && fs.existsSync(editor) ? [editor] : splitEditorCommand(editor);
+  if (words === null) {
+    throw new Error('the value has an unterminated quote');
   }
-  if (process.platform === 'win32') {
-    return spawn(`${editor} "${filePath}"`, { stdio: 'inherit', shell: true });
+  if (words.length === 0) {
+    throw new Error('the value is blank');
   }
-  return spawn('sh', ['-c', `${editor} "$@"`, editor, filePath], { stdio: 'inherit' });
+  const [program, ...args] = words;
+  return loadSpawn()(program, [...args, filePath], { stdio: 'inherit', shell: false });
 }
 
 /** Runs the editor on `filePath` and resolves once it has closed or failed to start. */
@@ -74,8 +142,8 @@ function reportEditorFailure(editor: string, outcome: EditorOutcome): void {
   } else {
     console.error(`Error: Editor "${editor}" exited with code ${outcome.code}`);
   }
-  // 127 (sh) and 9009 (cmd.exe) mean the command itself was not found.
-  if ('error' in outcome || outcome.code === 127 || outcome.code === 9009) {
+  // Only a missing program earns the hint: EACCES or EPERM means it exists.
+  if ('error' in outcome && (outcome.error as NodeJS.ErrnoException).code === 'ENOENT') {
     console.error('Set EDITOR or VISUAL to an installed editor command, for example: export EDITOR="code --wait"');
   }
 }
