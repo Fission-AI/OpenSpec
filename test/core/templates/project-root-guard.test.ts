@@ -156,7 +156,11 @@ describe('project root guard', () => {
       const guardStart = body.indexOf(PROJECT_ROOT_GUARD);
       expect(guardStart, label).toBeGreaterThanOrEqual(0);
 
-      const beforeGuard = body.slice(0, guardStart);
+      // A skill's YAML frontmatter is metadata a host reads to pick the skill,
+      // not instructions the agent runs, so a description may quote a command
+      // name without running it. Only the body after the frontmatter is guarded.
+      const frontmatter = /^---\n[\s\S]*?\n---\n/.exec(body)?.[0] ?? '';
+      const beforeGuard = body.slice(frontmatter.length, guardStart);
       for (const marker of writeMarkers) {
         expect(beforeGuard, `${label} runs "${marker}" before the project check`).not.toContain(
           marker
