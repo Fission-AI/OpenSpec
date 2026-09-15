@@ -89,7 +89,7 @@ function resolveTrustedSpecPath(
     // left nothing on screen to notice. Name the real destination instead.
     if (projectRoot && !isLexicallyWithin(FileSystemUtils.canonicalizeExistingPath(projectRoot), root)) {
       process.emitWarning(
-        `Capability '${path.basename(specPath)}' links outside the project; writing to ${root}`,
+        `Capability '${path.basename(path.dirname(specPath))}' links outside the project; writing to ${root}`,
         'OpenSpecExternalSpecWrite'
       );
     }

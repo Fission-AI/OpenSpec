@@ -329,6 +329,14 @@ describe('BashInstaller', () => {
         expect(printed).not.toMatch(/if \[ -d "/);
         expect(printed).toContain("if [ -d '");
         expect(printed).toContain("'\\''q");
+
+        // The full lines, with the platform's own separators, so a path that
+        // loses or rewrites them fails here and not in a user's shell.
+        const expectedDir = path.join(hostileHome, '.local', 'share', 'bash-completion', 'completions');
+        expect(path.dirname(result.installedPath!)).toBe(expectedDir);
+        const quotedDir = `'${expectedDir.replace(/'/g, "'\\''")}'`;
+        expect(result.instructions).toContain(`  if [ -d ${quotedDir} ]; then`);
+        expect(result.instructions).toContain(`    for f in ${quotedDir}/*; do`);
       } finally {
         if (originalEnv === undefined) {
           delete process.env.OPENSPEC_NO_AUTO_CONFIG;

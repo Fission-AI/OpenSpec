@@ -492,6 +492,12 @@ describe('ZshInstaller', () => {
         expect(printed).not.toMatch(/fpath=\([^']/);
         expect(printed).toContain("fpath=('");
         expect(printed).toContain("'\\''q");
+
+        // The full line, with the platform's own separators.
+        const expectedDir = path.join(hostileHome, '.zsh', 'completions');
+        expect(path.dirname(result.installedPath!)).toBe(expectedDir);
+        const quotedDir = `'${expectedDir.replace(/'/g, "'\\''")}'`;
+        expect(result.instructions).toContain(`  fpath=(${quotedDir} $fpath)`);
       } finally {
         if (originalEnv === undefined) {
           delete process.env.OPENSPEC_NO_AUTO_CONFIG;
