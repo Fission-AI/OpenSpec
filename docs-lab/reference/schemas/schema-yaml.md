@@ -138,9 +138,12 @@ Apply stays blocked if that file is missing or contains no checkbox with task te
 - [ ] Pending task
 - [x] Completed task
 * [X] Completed task
++ [ ] Pending task
+1. [ ] Pending task
+2) [x] Completed task
 ```
 
-Leading spaces are allowed. The [tasks.md section of the spec-driven page](spec-driven/index.md#tasksmd) defines the stricter format produced by the default schema.
+Any Markdown list marker works: `-`, `*`, `+`, or a number of up to nine digits followed by `.` or `)`. Leading spaces are allowed. The [tasks.md section of the spec-driven page](spec-driven/index.md#tasksmd) defines the stricter format produced by the default schema.
 
 The tracked file drives the apply state:
 
