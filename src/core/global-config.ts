@@ -180,6 +180,29 @@ export function getGlobalConfig(): GlobalConfig {
 }
 
 /**
+ * Whether a parsed JSON root can serve as a global config object.
+ *
+ * Valid JSON that is not a plain object (`null`, an array, a string, a number,
+ * a boolean) still reads as defaults, so it is just as unsafe to save over as
+ * a file that did not parse at all. Every reader and writer of the global
+ * config shares this one predicate so they cannot drift apart.
+ */
+export function isConfigRootObject(parsed: unknown): boolean {
+  return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+}
+
+/**
+ * The one-line, actionable refusal every global-config writer reports when it
+ * declines to overwrite a file it could not read.
+ */
+export function unreadableGlobalConfigMessage(configPath: string): string {
+  return (
+    `Refusing to overwrite ${configPath}: it could not be parsed, so saving would replace every setting in it. ` +
+    'Fix it with "openspec config edit", or reset it with "openspec config reset --all".'
+  );
+}
+
+/**
  * Whether the global config file exists but cannot be read or parsed.
  *
  * getGlobalConfig() answers with defaults for such a file so that reads keep
@@ -194,10 +217,7 @@ export function isGlobalConfigUnreadable(): boolean {
   }
 
   try {
-    const parsed: unknown = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    // Valid JSON that is not an object (`null`, an array) also reads as
-    // defaults, so it is just as unsafe to save over.
-    return typeof parsed !== 'object' || parsed === null || Array.isArray(parsed);
+    return !isConfigRootObject(JSON.parse(fs.readFileSync(configPath, 'utf-8')));
   } catch {
     return true;
   }
@@ -218,10 +238,7 @@ export function saveGlobalConfig(config: GlobalConfig, options: SaveGlobalConfig
   const configPath = getGlobalConfigPath();
 
   if (!options.replaceUnreadable && isGlobalConfigUnreadable()) {
-    throw new Error(
-      `Refusing to overwrite ${configPath}: it could not be parsed, so saving would replace every setting in it. ` +
-      'Fix it with "openspec config edit", or reset it with "openspec config reset --all".'
-    );
+    throw new Error(unreadableGlobalConfigMessage(configPath));
   }
 
   // Create directory if it doesn't exist

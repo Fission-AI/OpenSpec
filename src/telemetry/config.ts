@@ -9,6 +9,8 @@ import {
   GLOBAL_CONFIG_DIR_NAME,
   GLOBAL_CONFIG_FILE_NAME,
   getGlobalConfigDir,
+  isConfigRootObject,
+  unreadableGlobalConfigMessage,
   type TelemetryConfig,
 } from '../core/global-config.js';
 
@@ -40,7 +42,14 @@ function getLegacyConfigPath(): string {
 async function readConfigFile(configPath: string): Promise<ConfigReadResult> {
   try {
     const content = await fs.readFile(configPath, 'utf-8');
-    return { status: 'ok', config: JSON.parse(content) as GlobalConfig };
+    const parsed: unknown = JSON.parse(content);
+    // Valid JSON that is not an object carries no settings to merge into, and
+    // spreading it would replace the file (a string even spreads to numeric
+    // character keys). Same predicate the rest of the CLI refuses to save over.
+    if (!isConfigRootObject(parsed)) {
+      return { status: 'invalid', config: {} };
+    }
+    return { status: 'ok', config: parsed as GlobalConfig };
   } catch (error: unknown) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       return { status: 'missing' };
@@ -153,7 +162,7 @@ export async function writeConfig(updates: Partial<GlobalConfig>): Promise<void>
   // Never write over a file that did not parse: the merge below would start
   // from an empty object and replace every setting in it with these updates.
   if ((await readConfigFile(configPath)).status === 'invalid') {
-    throw new Error(`Refusing to overwrite ${configPath}: it could not be parsed`);
+    throw new Error(unreadableGlobalConfigMessage(configPath));
   }
 
   // Read existing config and merge

@@ -302,7 +302,7 @@ Pass --allow-unknown to bypass this check.
 Error: Invalid configuration - delivery: Invalid option: expected one of "both"|"skills"|"commands"
 ```
 
-If the config file exists but is not valid JSON, `config set`, `config unset` and `config profile` exit 1 and leave the file unchanged. Fix it with `openspec config edit`, or replace it with `openspec config reset --all`:
+If the config file exists but does not hold a JSON object, whether because it is not valid JSON at all or because its root is something else such as `null` or an array, `config set`, `config unset` and `config profile` exit 1 and leave the file unchanged. Fix it with `openspec config edit`, or replace it with `openspec config reset --all`:
 
 ```
 Error: /home/you/.config/openspec/config.json could not be parsed, so it was left unchanged.
