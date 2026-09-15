@@ -62,17 +62,23 @@ describe('a store named specs or changes at ~/openspec/<id>', () => {
     return storeRoot;
   }
 
+  function canonical(targetPath: string): string {
+    return fs.realpathSync.native(targetPath);
+  }
+
+  /** The resolved root from `list --json`, with its path canonicalized. */
   async function rootFrom(cwd: string): Promise<any> {
     const result = await runCLI(['list', '--json'], { cwd, env });
     expect(result.exitCode).toBe(0);
-    return parseJson(result).root;
+    const root = parseJson(result).root;
+    return { ...root, path: canonical(root.path) };
   }
 
   it('control: a store named team-plans resolves as the global default', async () => {
     const storeRoot = await setupDefaultStore('team-plans');
 
     expect(await rootFrom(workDir)).toEqual({
-      path: storeRoot,
+      path: canonical(storeRoot),
       source: 'global_default',
       store_id: 'team-plans',
     });
@@ -84,7 +90,7 @@ describe('a store named specs or changes at ~/openspec/<id>', () => {
       const storeRoot = await setupDefaultStore(id);
 
       expect(await rootFrom(workDir)).toEqual({
-        path: storeRoot,
+        path: canonical(storeRoot),
         source: 'global_default',
         store_id: id,
       });
@@ -110,7 +116,7 @@ describe('a store named specs or changes at ~/openspec/<id>', () => {
     const storeRoot = await setupDefaultStore('specs');
 
     expect(await rootFrom(path.join(storeRoot, 'openspec', 'changes'))).toEqual({
-      path: storeRoot,
+      path: canonical(storeRoot),
       source: 'nearest',
     });
   }, 60_000);
@@ -119,15 +125,32 @@ describe('a store named specs or changes at ~/openspec/<id>', () => {
     await setupDefaultStore('team-plans');
     createOpenSpecRoot(home);
 
-    expect(await rootFrom(workDir)).toEqual({ path: home, source: 'nearest' });
+    expect(await rootFrom(workDir)).toEqual({ path: canonical(home), source: 'nearest' });
   }, 60_000);
 
   it('keeps $HOME a root when its changes/ is real planning, even beside a store named specs', async () => {
     await setupDefaultStore('specs');
     fs.mkdirSync(path.join(home, 'openspec', 'changes'), { recursive: true });
 
-    expect(await rootFrom(workDir)).toEqual({ path: home, source: 'nearest' });
+    expect(await rootFrom(workDir)).toEqual({ path: canonical(home), source: 'nearest' });
   }, 60_000);
+
+  // Creating a directory symlink needs elevated rights on Windows.
+  it.skipIf(process.platform === 'win32')(
+    'resolves the same canonical store root from a symlinked alias of the home tree',
+    async () => {
+      const storeRoot = await setupDefaultStore('specs');
+      const alias = path.join(tempDir, 'home-alias');
+      fs.symlinkSync(home, alias, 'dir');
+
+      expect(await rootFrom(path.join(alias, 'src', 'web-app'))).toEqual({
+        path: canonical(storeRoot),
+        source: 'global_default',
+        store_id: 'specs',
+      });
+    },
+    60_000
+  );
 });
 
 describe('classifyOpenSpecDir planning shape', () => {
