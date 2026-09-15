@@ -77,6 +77,18 @@ describe('an unparseable global config', () => {
     expect(isGlobalConfigUnreadable()).toBe(true);
   });
 
+  it('warns about it once, however many times it is read', async () => {
+    const { getGlobalConfig } = await import('../../src/core/global-config.js');
+    fs.writeFileSync(configPath, TYPO);
+
+    getGlobalConfig();
+    getGlobalConfig();
+    getGlobalConfig();
+
+    const warnings = consoleErrorSpy.mock.calls.filter((call) => String(call[0]).includes('Invalid JSON'));
+    expect(warnings).toHaveLength(1);
+  });
+
   it.each(['null\n', '[]\n', '"core"\n'])('treats valid JSON that is not an object (%j) as unreadable', async (content) => {
     const { isGlobalConfigUnreadable, saveGlobalConfig } = await import('../../src/core/global-config.js');
     fs.writeFileSync(configPath, content);
@@ -265,6 +277,7 @@ describe('an unparseable global config', () => {
     });
 
     expect(read()).toBe(TYPO);
-    expect(result.stderr).toContain('Invalid JSON');
+    // Telemetry and the command each read the config; the warning prints once.
+    expect(result.stderr.match(/Invalid JSON/g)).toHaveLength(1);
   }, 120_000);
 });

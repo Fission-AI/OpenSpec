@@ -129,6 +129,10 @@ export function getGlobalConfigPath(): string {
   return path.join(getGlobalConfigDir(), GLOBAL_CONFIG_FILE_NAME);
 }
 
+// Config paths already warned about. One command reads the config several
+// times (telemetry, the update check, the command itself); warn once.
+const warnedInvalidJsonPaths = new Set<string>();
+
 /**
  * Loads the global configuration from disk.
  * Returns default configuration if file doesn't exist or is invalid.
@@ -167,7 +171,8 @@ export function getGlobalConfig(): GlobalConfig {
     return merged;
   } catch (error) {
     // Log warning for parse errors, but not for missing files
-    if (error instanceof SyntaxError) {
+    if (error instanceof SyntaxError && !warnedInvalidJsonPaths.has(configPath)) {
+      warnedInvalidJsonPaths.add(configPath);
       console.error(`Warning: Invalid JSON in ${configPath}, using defaults`);
     }
     return { ...DEFAULT_CONFIG };
