@@ -237,8 +237,8 @@ function validateSchema(
     console.log('  Dependency graph validation passed (via parseSchema)');
   }
 
-  // An unmatched apply.tracks still loads (apply reads the path as written),
-  // so it is a warning, not an error.
+  // An apply.tracks value that matches no generates value exactly still loads
+  // (apply reads the path as written), so it is a warning, not an error.
   const tracksWarning = findApplyTracksWarning(schema);
   if (tracksWarning) {
     issues.push({ level: 'warning', path: 'apply.tracks', message: tracksWarning });

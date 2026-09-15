@@ -203,7 +203,7 @@ apply:
 
 A schema with an unknown `apply.requires` ID doesn't load, so every command that uses it reports the error.
 
-Validation warns, without failing, when `apply.tracks` doesn't match any artifact's `generates`. Apply still reads that file, but `openspec list` and `openspec status` count `tasks.md` instead.
+Validation warns, without failing, when `apply.tracks` isn't exactly equal to some artifact's `generates` value. OpenSpec finds the tracked artifact by comparing those two strings, so anything else leaves it unable to tell which artifact's progress the file belongs to. That includes a typo like `task.md`, and also `tracks: tasks/main.md` against `generates: tasks/*.md`, where the glob does produce the file but the strings still differ. Apply keeps reading the file either way, but `openspec list` and `openspec status` count `tasks.md` instead.
 
 Validation doesn't catch these mistakes:
 
