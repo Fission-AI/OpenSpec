@@ -160,6 +160,20 @@ describe('artifact-graph/outputs', () => {
     expect(resolveArtifactOutputs(tempDir, pattern)).toEqual([canonical(filePath)]);
   });
 
+  it('resolves a brace range after a literal brace group', () => {
+    const filenames = [1, 2, 3, 4].map((index) => `report-{draft}-${index}.md`);
+    for (const filename of filenames) {
+      fs.writeFileSync(path.join(tempDir, filename), 'content');
+    }
+    fs.writeFileSync(path.join(tempDir, 'report-draft-1.md'), 'other');
+
+    const pattern = 'report-{draft}-{1..3}.md';
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual(
+      filenames.slice(0, 3).map((filename) => canonical(path.join(tempDir, filename)))
+    );
+    expect(artifactOutputExists(tempDir, pattern)).toBe(true);
+  });
+
   it.each([
     '{content/safe,other/deep}/review.md',
     String.raw`{content\safe,other\deep}\review.md`,
