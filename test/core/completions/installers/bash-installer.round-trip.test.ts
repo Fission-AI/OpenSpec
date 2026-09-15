@@ -100,6 +100,22 @@ describe('BashInstaller .bashrc round trip', () => {
     expect(await fs.readFile(bashrcPath, 'utf-8')).toBe('export PATH="$HOME/bin:$PATH"\nalias ll="ls -la"\n');
   });
 
+  it('keeps user content written directly after a top-of-file block', async () => {
+    // The user deleted the separator line, so nothing blank follows the block.
+    await fs.writeFile(
+      bashrcPath,
+      '# OPENSPEC:START\n# OpenSpec shell completions configuration\n# OPENSPEC:END\nalias ll="ls -la"\n\nexport EDITOR=vim\n'
+    );
+
+    expect(await installer.removeBashrcConfig()).toBe(true);
+    expect(await fs.readFile(bashrcPath, 'utf-8')).toBe('alias ll="ls -la"\n\nexport EDITOR=vim\n');
+  });
+
+  it('restores a CRLF file with no final newline byte for byte', async () => {
+    const original = 'export PATH="$HOME/bin:$PATH"\r\nalias ll="ls -la"';
+    expect(await roundTrip(original)).toBe(original);
+  });
+
   it('restores .bashrc through install() and uninstall()', async () => {
     const original = 'export PATH="$HOME/bin:$PATH"\nalias ll="ls -la"\n';
     await fs.writeFile(bashrcPath, original);
