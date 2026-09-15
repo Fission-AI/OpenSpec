@@ -268,9 +268,11 @@ const ENVELOPE_TAGS = [
 
 // The attribute tail uses `[^<>]` rather than `[^>]` so a run of unterminated
 // `<task ...` openers cannot make each start position scan to end of input,
-// which is how the first version of this escape became quadratic.
+// which is how the first version of this escape became quadratic. The separator
+// is `\s`, not a space or tab: XML allows a line break before `>` or an
+// attribute, so a multiline repo value could otherwise split a tag past this.
 const ENVELOPE_TAG = new RegExp(
-  `<(/?)(${ENVELOPE_TAGS.join('|')})([ \\t][^<>]*)?>`,
+  `<(/?)(${ENVELOPE_TAGS.join('|')})(\\s[^<>]*)?>`,
   'gi'
 );
 
