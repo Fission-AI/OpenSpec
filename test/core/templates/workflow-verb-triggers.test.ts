@@ -1,8 +1,9 @@
-import type { Command } from 'commander';
+import { Command, Help } from 'commander';
 import { describe, expect, it } from 'vitest';
 import { parse as parseYaml } from 'yaml';
 
 import { program } from '../../../src/cli/index.js';
+import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
 import {
   generateSkillContent,
   getSkillTemplates,
@@ -73,7 +74,13 @@ const DELIBERATE_PHRASE_SHADOWING: Record<string, string> = {
  * them. Importing `program` does not parse argv (see runCli).
  */
 function collectCommandNames(command: Command, into = new Set<string>()): Set<string> {
+  const visible = new Set(new Help().visibleCommands(command));
   for (const sub of command.commands) {
+    // A hidden command named after a workflow is a verb hint (#1776): it only
+    // tells the user to run that workflow in their assistant, so a skill
+    // claiming the same phrase sends them to the same place. Visible commands,
+    // and hidden commands that are not workflow names, are still guarded.
+    if (!visible.has(sub) && (ALL_WORKFLOWS as readonly string[]).includes(sub.name())) continue;
     into.add(sub.name());
     for (const alias of sub.aliases()) into.add(alias);
     collectCommandNames(sub, into);
@@ -132,6 +139,17 @@ describe('workflow verb triggers', () => {
     for (const delegated of ['spec', 'config', 'schema', 'store', 'doctor', 'context', 'workset']) {
       expect(names, `delegated CLI command "${delegated}" is missing`).toContain(delegated);
     }
+  });
+
+  it('ignores hidden workflow-verb hints but still guards every other command', () => {
+    const cli = new Command('openspec');
+    cli.command('explore', { hidden: true });
+    cli.command('propose');
+    cli.command('legacy-thing', { hidden: true });
+    const names = collectCommandNames(cli);
+    expect(names).not.toContain('explore');
+    expect(names).toContain('propose');
+    expect(names).toContain('legacy-thing');
   });
 
   it('claims a real CLI command only on purpose', () => {
