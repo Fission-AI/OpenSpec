@@ -222,9 +222,10 @@ describe('findMissingTaskCheckboxIssues', () => {
   });
 
   it('reports a list of unrecognised checkbox markers, which count as no task', () => {
-    // `- [~] ...` is not a checkbox the parser recognises today, so the change
-    // really does count zero tasks and the warning is the only signal.
-    expect(findInSingleFile('- [~] 1.1 in progress\n')).toEqual([
+    // `- [ab] ...` looks like a checkbox, but a marker longer than one
+    // character is not one the task parser recognises, so the change really
+    // does count zero tasks and the warning is the only signal.
+    expect(findInSingleFile('- [ab] 1.1 in progress\n')).toEqual([
       { line: 1, message: expect.any(String) },
     ]);
   });
