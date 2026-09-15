@@ -10,6 +10,14 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 FLAKE_FILE="$PROJECT_ROOT/flake.nix"
 PACKAGE_JSON="$PROJECT_ROOT/package.json"
 
+# Every hash read and every hash rewrite below is confined to this sed address
+# range. flake.nix holds one fixed-output derivation today, so an unscoped
+# `hash = "sha256-..."` happens to hit the right line; the moment a second FOD
+# is added, an unscoped script would stamp the placeholder over both, extract
+# whichever mismatch Nix reported first, and write pnpmDeps' hash into the
+# other derivation. Scoping is what keeps that from being a silent corruption.
+PNPM_DEPS_BLOCK='/pnpmDeps = /,/};/'
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -49,15 +57,21 @@ fi
 echo -e "${BLUE}🔧 Current pnpm-lock.yaml:${NC} $(stat -c%y "$PROJECT_ROOT/pnpm-lock.yaml" 2>/dev/null || stat -f%Sm "$PROJECT_ROOT/pnpm-lock.yaml")"
 echo ""
 
-# Get current hash from flake.nix
-CURRENT_HASH=$(sed -nE 's/.*hash = "(sha256-[^"]+)".*/\1/p' "$FLAKE_FILE" | head -1)
+# Get current pnpmDeps hash from flake.nix
+CURRENT_HASH=$(sed -nE "$PNPM_DEPS_BLOCK"' s/.*hash = "(sha256-[^"]+)".*/\1/p' "$FLAKE_FILE" | head -1)
+if [ -z "$CURRENT_HASH" ]; then
+  echo -e "${RED}❌ Error: no pnpmDeps hash found in flake.nix${NC}"
+  echo -e "   Looked for 'hash = \"sha256-...\"' inside the 'pnpmDeps = ... };' block."
+  echo -e "   Nothing was modified."
+  exit 1
+fi
 echo -e "${BLUE}📌 Current hash:${NC} $CURRENT_HASH"
 echo ""
 
 # Set placeholder hash to trigger error
 echo -e "${YELLOW}⏳ Setting placeholder hash to calculate correct value...${NC}"
 PLACEHOLDER="sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
-sed "${SED_INPLACE[@]}" "s|hash = \"sha256-[^\"]*\"|hash = \"$PLACEHOLDER\"|" "$FLAKE_FILE"
+sed "${SED_INPLACE[@]}" "$PNPM_DEPS_BLOCK s|hash = \"sha256-[^\"]*\"|hash = \"$PLACEHOLDER\"|" "$FLAKE_FILE"
 
 # Try to build and capture the correct hash
 echo -e "${BLUE}🔨 Building to determine correct hash (expected to fail)...${NC}"
@@ -77,7 +91,7 @@ if [ -z "$CORRECT_HASH" ]; then
   echo "$BUILD_OUTPUT"
   echo ""
   echo -e "${YELLOW}Restoring original hash...${NC}"
-  sed "${SED_INPLACE[@]}" "s|hash = \"$PLACEHOLDER\"|hash = \"$CURRENT_HASH\"|" "$FLAKE_FILE"
+  sed "${SED_INPLACE[@]}" "$PNPM_DEPS_BLOCK s|hash = \"$PLACEHOLDER\"|hash = \"$CURRENT_HASH\"|" "$FLAKE_FILE"
   exit 1
 fi
 
@@ -87,14 +101,14 @@ echo ""
 # Check if hash changed
 if [ "$CURRENT_HASH" = "$CORRECT_HASH" ]; then
   echo -e "${GREEN}✓ Hash is already up-to-date!${NC}"
-  sed "${SED_INPLACE[@]}" "s|hash = \"$PLACEHOLDER\"|hash = \"$CORRECT_HASH\"|" "$FLAKE_FILE"
+  sed "${SED_INPLACE[@]}" "$PNPM_DEPS_BLOCK s|hash = \"$PLACEHOLDER\"|hash = \"$CORRECT_HASH\"|" "$FLAKE_FILE"
   echo ""
   echo -e "${BLUE}ℹ️  No changes needed. Your flake is in sync with pnpm-lock.yaml${NC}"
   exit 0
 fi
 
 echo -e "${YELLOW}🔄 Updating hash in flake.nix...${NC}"
-sed "${SED_INPLACE[@]}" "s|hash = \"$PLACEHOLDER\"|hash = \"$CORRECT_HASH\"|" "$FLAKE_FILE"
+sed "${SED_INPLACE[@]}" "$PNPM_DEPS_BLOCK s|hash = \"$PLACEHOLDER\"|hash = \"$CORRECT_HASH\"|" "$FLAKE_FILE"
 
 # Verify the build works
 echo -e "${BLUE}🔍 Verifying build with new hash...${NC}"
