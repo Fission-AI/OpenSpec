@@ -128,6 +128,16 @@ describe('workflow verb triggers', () => {
     }
   );
 
+  it.each(Object.keys(NATURAL_VERB_BY_WORKFLOW))(
+    '%s does not append the generic "doing the work by hand" clause',
+    workflowId => {
+      // Removed on purpose: it told the agent to follow the skill instead of
+      // doing the work, which contradicts explore being a stance rather than
+      // a workflow. The trigger sentence alone is the routing signal.
+      expect(descriptionOf(workflowId).toLowerCase()).not.toContain('doing the work by hand');
+    }
+  );
+
   it('sees the CLI commands registered outside the entrypoint', () => {
     // Without this the collision test would pass vacuously, and it pins the
     // blind spot that scanning src/cli/index.ts for `.command('…')` had: these

@@ -38,7 +38,7 @@ import {
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: 'dfdf9946a31df7ecf0556fb2cf9bdeba5cf2deb6c62a97e899a422fd658d1855',
+  getExploreSkillTemplate: 'd82302d1920ad3a83b19ffd46bf0d4d6c6de203f9641af7955591d8f1e7921c4',
   getNewChangeSkillTemplate: '6d65453e7567c3277dd1eb69bd5f77c2d19c485cbdbd26d6723f4d8779cc21a7',
   getContinueChangeSkillTemplate: 'c36513c1d2e96073aa1469746faee81ffd70706cd10f8b3db1ee9058c9f7c911',
   getApplyChangeSkillTemplate: 'dc1d041dd7460553395c8c38f5801a150b00b3a986fbb666be4d10802465c2d2',
@@ -66,7 +66,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '16ce157678837a4ea252bacd7721d66dffa0d3e7acc9dae8c2de69372cb9d259',
+  'openspec-explore': '7ddc475b6e9787df3506d514e8f1c0e8cc572fa1e6ca923e517a98f3489f08ba',
   'openspec-new-change': 'a3834973960ce51cfe916fb8823dd2fd152418aea7fc350598db6dc6952c3a72',
   'openspec-continue-change': '034cf94773f0030a5c22a098f9221ef19c8d17249e9ae45f456dabf9e2d0a005',
   'openspec-apply-change': 'ac678931f705085fbf42bfc61f0ee3d47cf84408bc527f9f210b1ba2e69571f0',
