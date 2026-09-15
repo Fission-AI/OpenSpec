@@ -562,7 +562,10 @@ export class ChangeCommand {
 
   private extractTitle(content: string, changeName: string): string {
     const match = content.match(/^#\s+(?:Change:\s+)?(.+)$/im);
-    return match ? match[1].trim() : changeName;
+    const title = match?.[1].trim();
+    // The packaged template opens every proposal with a bare `# Proposal`,
+    // which names the document rather than the change.
+    return title && title.toLowerCase() !== 'proposal' ? title : changeName;
   }
 
   private printNextSteps(issues: Array<{ message: string }> = []): void {
