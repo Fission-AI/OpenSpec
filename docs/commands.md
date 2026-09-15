@@ -122,13 +122,13 @@ AI:  Let me investigate your current auth setup...
 
 You: Let's go with JWT.
 
-AI:  That's a decision worth keeping. Want me to start a change for it?
+AI:  That's a decision worth keeping. Want me to start a change called
+     add-jwt-auth? Just the change folder, nothing else yet.
 
 You: Yes.
 
-AI:  Started openspec/changes/add-jwt-auth/ - change metadata only, no
-     artifacts yet. Say the word and I'll write the proposal, specs,
-     and tasks from what we just worked out.
+AI:  Started openspec/changes/add-jwt-auth/. Say the word and I'll
+     write the proposal, specs, and tasks from what we just worked out.
 ```
 
 **Tips:**

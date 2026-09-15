@@ -33,7 +33,7 @@ Explore is a **conversation**, not a generator.
 **It does not:**
 - Write or modify code. Explore never writes code, on any path, capture included.
 - Design or edit your schemas or templates. Shaping those is a change, not thinking.
-- Start a change or write an artifact on its own. It writes nothing unless you ask, or say yes when it offers, and then only what you agreed to.
+- Start a change or write an artifact on its own. It writes nothing unless you ask, or say yes when it offers, and then only what you agreed to, plus the setup files starting a change needs (see below).
 - Push you toward capturing. It offers when the thinking crystallizes; you decide.
 
 That's the point. Exploring costs you nothing and commits you to nothing until you say so. You can explore three dead ends, learn something from each, and only then propose the path that survived.
@@ -99,7 +99,7 @@ You can say it in plain language ("let's turn this into a change") or run `/opsx
 
 You can also ask explore to capture the change itself, without leaving the conversation: "start a change for this" scaffolds the folder, and "write the proposal too" writes exactly the artifacts you named. Scaffolding also lays down the change's own metadata, and fills in anything your project is missing at the top level (`openspec/specs/`, `openspec/changes/archive/`, a `config.yaml`).
 
-That's the same destination as handing off, with one difference: propose writes the whole set your schema requires to reach implementation, while capture writes only what you named.
+That's the same destination as handing off, with one difference: propose writes the whole set your schema requires to reach implementation, while capture writes only the artifacts you named.
 
 If you use the expanded command set, explore can hand off to `/opsx:new` instead, for step-by-step artifact creation. See [Workflows](workflows.md).
 

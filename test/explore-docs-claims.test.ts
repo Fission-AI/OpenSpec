@@ -103,16 +103,44 @@ describe('explore documentation', () => {
     ).toEqual([]);
   });
 
-  it('still documents the capture path on the explore guide (#1833)', () => {
-    // A forbidden-phrase list cannot tell "the correction was deleted" from
-    // "this page never mentioned capture". Pin the concept on the one page
-    // whose whole job is explaining what explore does. Concept, not phrasing:
-    // how the page words it is review's call, not this test's.
-    const guide = fs.readFileSync(path.join(REPO_ROOT, 'docs', 'explore.md'), 'utf-8');
-    expect(
-      guide,
-      'docs/explore.md should still describe capture - the change explore ' +
-        'writes when you ask it to. See #1833.'
-    ).toMatch(/captur\w*/i);
-  });
+  // A forbidden-phrase list cannot tell "the correction was deleted" from
+  // "this page never mentioned capture", and a bare /captur/ match passes on
+  // "explore automatically captures every artifact". So pin the contract, not
+  // the word, on the two pages that describe capture in full: some capture
+  // line names the user's trigger, the `openspec new change` path, and the
+  // named-artifacts scope; no capture line claims explore does it unprompted
+  // or wholesale; and the page keeps the never-writes-code guarantee.
+  // Wording stays review's call: the user trigger covers both "when you ask"
+  // and a yes to explore's offer, which is true before and after #1832.
+  const USER_TRIGGER = /\b(you ask|accept its offer|say yes)\b/i;
+  const NAMED_SCOPE = /\bartifacts you name(d)?\b/i;
+  const UNPROMPTED = /\b(automatically|on its own|without (asking|confirmation)|(every|all) (planning )?artifacts)\b/i;
+
+  for (const page of ['docs/explore.md', 'docs/commands.md']) {
+    it(`${page} still documents the user-requested capture contract (#1833)`, () => {
+      const content = fs.readFileSync(path.join(REPO_ROOT, ...page.split('/')), 'utf-8');
+      const captureLines = content.split(/\r?\n/).filter((line) => /\bcaptur/i.test(line));
+
+      expect(
+        captureLines.some(
+          (line) =>
+            USER_TRIGGER.test(line) && /openspec new change/.test(line) && NAMED_SCOPE.test(line)
+        ),
+        `${page} should describe capture as something explore does when you ask ` +
+          'or say yes to its offer: `openspec new change` plus the artifacts you ' +
+          'name. See #1833.'
+      ).toBe(true);
+
+      const unprompted = captureLines.filter((line) => UNPROMPTED.test(line));
+      expect(
+        unprompted,
+        `${page} describes capture as happening unprompted or wholesale. It ` +
+          'writes only what the user asked for or agreed to.'
+      ).toEqual([]);
+
+      expect(content, `${page} should keep the never-writes-code guarantee.`).toMatch(
+        /never writes code/i
+      );
+    });
+  }
 });
