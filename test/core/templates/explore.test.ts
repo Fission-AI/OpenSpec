@@ -1,10 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  getExploreSkillTemplate,
-  getOpsxExploreCommandTemplate,
-} from '../../../src/core/templates/skill-templates.js';
-import {
   getSkillReferenceTransformer,
   transformCommandInvocations,
   transformToCodexCompatibleSkillReferences,
@@ -16,9 +12,19 @@ import {
   getInvocationForAdapter,
 } from '../../../src/core/command-generation/invocation.js';
 import { AI_TOOLS } from '../../../src/core/config.js';
+import {
+  generateSkillContent,
+  getCommandContents,
+  getCommandTemplates,
+  getSkillTemplates,
+} from '../../../src/core/shared/skill-generation.js';
+import { generateCommands } from '../../../src/core/command-generation/generator.js';
+import { getProfileWorkflows } from '../../../src/core/profiles.js';
 
-const skill = getExploreSkillTemplate();
-const command = getOpsxExploreCommandTemplate();
+// Bodies as generated with every workflow installed. Profile-dependent
+// handoffs are covered separately below.
+const skill = getSkillTemplates().find(e => e.workflowId === 'explore')!.template;
+const command = getCommandTemplates().find(e => e.id === 'explore')!.template;
 
 // Both delivery surfaces must carry the same contract; every behavioral
 // assertion below runs against each body.
@@ -579,6 +585,85 @@ describe('explore capture path names where the work continues (#869)', () => {
       expect(transition, label).toContain(
         'Capturing artifacts is never permission to implement them'
       );
+    }
+  });
+});
+
+// A custom profile can install explore without propose or apply. Explore must
+// then not name a handoff to a workflow that was never generated; the agent
+// would be sent to a command nobody answers to. Checked through the same
+// registries init and update call, on both delivery surfaces.
+describe('explore handoffs follow the installed workflow set (#869)', () => {
+  const PROFILES: Array<[string, string[], Array<'propose' | 'apply'>]> = [
+    ['explore only', ['explore'], ['propose', 'apply']],
+    ['explore + propose without apply', ['explore', 'propose'], ['apply']],
+  ];
+
+  function exploreSkillBody(workflows: string[]): string {
+    const entry = getSkillTemplates(workflows).find(e => e.workflowId === 'explore');
+    expect(entry).toBeDefined();
+    return entry!.template.instructions;
+  }
+
+  function exploreCommandBody(workflows: string[]): string {
+    const entry = getCommandContents(workflows).find(e => e.id === 'explore');
+    expect(entry).toBeDefined();
+    return entry!.body;
+  }
+
+  it.each(PROFILES)('%s: generated skills never name a missing workflow', (_name, workflows, missing) => {
+    const body = exploreSkillBody(workflows);
+    for (const tool of AI_TOOLS) {
+      const content = generateSkillContent(
+        getSkillTemplates(workflows).find(e => e.workflowId === 'explore')!.template,
+        'TEST',
+        getSkillReferenceTransformer(tool.value)
+      );
+      for (const id of missing) {
+        const skillName = id === 'propose' ? 'openspec-propose' : 'openspec-apply-change';
+        expect(content, `${tool.value} ${id}`).not.toContain(skillName);
+      }
+    }
+    for (const id of missing) {
+      expect(body).not.toContain(`/opsx:${id}`);
+      expect(transformToCodexCompatibleSkillReferences(body)).not.toMatch(
+        new RegExp(`openspec-${id}`)
+      );
+    }
+    expect(body).not.toContain('[[opsx:');
+  });
+
+  it.each(PROFILES)('%s: generated commands never name a missing workflow', (_name, workflows, missing) => {
+    const contents = getCommandContents(workflows);
+    for (const adapter of CommandAdapterRegistry.getAll()) {
+      const invocation = getInvocationForAdapter(adapter);
+      const explore = generateCommands(contents, adapter).find(c =>
+        c.fileContent.includes('Enter explore mode')
+      );
+      expect(explore, adapter.toolId).toBeDefined();
+      for (const id of missing) {
+        expect(explore!.fileContent, `${adapter.toolId} ${id}`).not.toContain(
+          formatCommandInvocation(invocation, id)
+        );
+        expect(explore!.fileContent, `${adapter.toolId} ${id}`).not.toContain(`/opsx:${id}`);
+      }
+      expect(explore!.fileContent, adapter.toolId).not.toContain('[[opsx:');
+    }
+    expect(exploreCommandBody(workflows)).not.toContain('[[opsx:');
+  });
+
+  it.each(PROFILES)('%s: explore still names a way forward', (_name, workflows) => {
+    for (const body of [exploreSkillBody(workflows), exploreCommandBody(workflows)]) {
+      expect(body).toContain('Capturing artifacts is never permission to implement them');
+      expect(body).toContain('The work happens from that change, never from explore mode');
+    }
+  });
+
+  it('keeps both named handoffs when propose and apply are installed (core profile)', () => {
+    const core = getProfileWorkflows('core');
+    for (const body of [exploreSkillBody([...core]), exploreCommandBody([...core])]) {
+      expect(body).toContain('point them at `/opsx:propose`');
+      expect(body).toContain('`/opsx:apply` implements the change once tasks exist');
     }
   });
 });
