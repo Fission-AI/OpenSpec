@@ -114,7 +114,7 @@ apply:
     const blocked = JSON.parse(await cli(['instructions', 'apply', '--change', 'original', '--json', ...flags]));
     expect(blocked.state).toBe('blocked');
     expect(blocked.instruction).not.toContain('openspec-continue-change');
-    expect(blocked.instruction).toContain('Complete the missing planning artifacts');
+    expect(blocked.instruction).toContain(`openspec status --change original`);
     const blockedText = await cli(['instructions', 'apply', '--change', 'original', ...flags]);
     expect(blockedText).not.toContain('openspec-continue-change');
     const status = JSON.parse(await cli(['status', '--change', 'original', '--json', ...flags]));
@@ -177,8 +177,8 @@ apply:
     expect(blocked.progress).toEqual({ total, complete: 0, remaining: total });
     expect(blocked.tasks).toEqual([]);
     expect(blocked.instruction).not.toContain('openspec-continue-change');
-    expect(blocked.instruction).toContain('implementation/checklist.md');
-    expect(blocked.instruction).toContain('existing planning artifacts');
+    expect(blocked.instruction).toContain('checklist.md');
+    expect(blocked.instruction).toContain('openspec status --change tracking');
     expect(await cli(['instructions', 'apply', '--change', 'tracking'])).not.toContain('openspec-continue-change');
     if (content === undefined) {
       await expect(fs.stat(trackingPath)).rejects.toMatchObject({ code: 'ENOENT' });
