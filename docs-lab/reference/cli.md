@@ -302,6 +302,15 @@ Pass --allow-unknown to bypass this check.
 Error: Invalid configuration - delivery: Invalid option: expected one of "both"|"skills"|"commands"
 ```
 
+If the config file exists but is not valid JSON, `config set`, `config unset` and `config profile` exit 1 and leave the file unchanged. Fix it with `openspec config edit`, or replace it with `openspec config reset --all`:
+
+```
+Error: /home/you/.config/openspec/config.json could not be parsed, so it was left unchanged.
+Fix it with "openspec config edit", or reset it with "openspec config reset --all".
+```
+
+Until it is fixed, telemetry and the update check stay off.
+
 ### openspec config unset
 
 ```bash
@@ -314,7 +323,7 @@ Removes the key so the default applies again. Keys with built-in defaults always
 Unset delivery (reverted to default)
 ```
 
-A key with no value at all prints `Key "featureFlags.nothere" was not set`. Both cases exit 0.
+A key with no value at all prints `Key "featureFlags.nothere" was not set`. Both cases exit 0. A config file that cannot be parsed exits 1 instead, as for `config set`.
 
 ### openspec config reset
 
