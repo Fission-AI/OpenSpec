@@ -77,6 +77,15 @@ describe('an unparseable global config', () => {
     expect(isGlobalConfigUnreadable()).toBe(true);
   });
 
+  it.each(['null\n', '[]\n', '"core"\n'])('treats valid JSON that is not an object (%j) as unreadable', async (content) => {
+    const { isGlobalConfigUnreadable, saveGlobalConfig } = await import('../../src/core/global-config.js');
+    fs.writeFileSync(configPath, content);
+
+    expect(isGlobalConfigUnreadable()).toBe(true);
+    expect(() => saveGlobalConfig({ profile: 'core' })).toThrow(/Refusing to overwrite/);
+    expect(read()).toBe(content);
+  });
+
   describe('saveGlobalConfig', () => {
     it('refuses to overwrite it, names the file and the fix, and leaves it byte-identical', async () => {
       const { saveGlobalConfig } = await import('../../src/core/global-config.js');

@@ -189,8 +189,10 @@ export function isGlobalConfigUnreadable(): boolean {
   }
 
   try {
-    JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    return false;
+    const parsed: unknown = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    // Valid JSON that is not an object (`null`, an array) also reads as
+    // defaults, so it is just as unsafe to save over.
+    return typeof parsed !== 'object' || parsed === null || Array.isArray(parsed);
   } catch {
     return true;
   }
