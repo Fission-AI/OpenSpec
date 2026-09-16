@@ -331,7 +331,9 @@ function parseProjectConfig(
     const content = readFileSync(configPath, 'utf-8');
     const raw = parseYaml(content);
 
-    if (!raw || typeof raw !== 'object') {
+    // `typeof [] === 'object'`: a top-level sequence has no config fields, so
+    // without this it would parse to an empty config with no problem reported.
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
       report({ kind: 'parse', level: 'error', path: 'file', message: `openspec/config.yaml is not a valid YAML object` });
       return { configPath, config: null };
     }

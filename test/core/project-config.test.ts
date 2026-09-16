@@ -1155,6 +1155,21 @@ operations:
       ]);
     });
 
+    it('reports a top-level YAML sequence as a parse problem instead of an empty config', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(path.join(configDir, 'config.yaml'), ['- schema: spec-driven', ''].join('\n'));
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.config).toBeNull();
+      expect(inspection.problems).toEqual([
+        { kind: 'parse', level: 'error', path: 'file', message: expect.stringContaining('not a valid YAML object') },
+      ]);
+      expect(readProjectConfig(tempDir)).toBeNull();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('not a valid YAML object'));
+    });
+
     it('returns an empty problem list for a healthy config', () => {
       const configDir = path.join(tempDir, 'openspec');
       fs.mkdirSync(configDir, { recursive: true });
