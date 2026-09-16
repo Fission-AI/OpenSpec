@@ -129,6 +129,10 @@ export function getGlobalConfigPath(): string {
   return path.join(getGlobalConfigDir(), GLOBAL_CONFIG_FILE_NAME);
 }
 
+// Config paths already warned about. One command reads the config several
+// times (telemetry, the update check, the command itself); warn once.
+const warnedInvalidJsonPaths = new Set<string>();
+
 /**
  * Loads the global configuration from disk.
  * Returns default configuration if file doesn't exist or is invalid.
@@ -144,6 +148,14 @@ export function getGlobalConfig(): GlobalConfig {
 
     const content = fs.readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(content);
+
+    // A root that is not a plain object carries no settings, and spreading it
+    // would leak its shape into the result: a string contributes numeric
+    // character keys. Answer with plain defaults, as for a file that did not
+    // parse at all. Same predicate the writers refuse to save over.
+    if (!isConfigRootObject(parsed)) {
+      return { ...DEFAULT_CONFIG };
+    }
 
     // Merge with defaults (loaded values take precedence)
     const merged: GlobalConfig = {
@@ -167,7 +179,8 @@ export function getGlobalConfig(): GlobalConfig {
     return merged;
   } catch (error) {
     // Log warning for parse errors, but not for missing files
-    if (error instanceof SyntaxError) {
+    if (error instanceof SyntaxError && !warnedInvalidJsonPaths.has(configPath)) {
+      warnedInvalidJsonPaths.add(configPath);
       console.error(`Warning: Invalid JSON in ${configPath}, using defaults`);
     }
     return { ...DEFAULT_CONFIG };
@@ -175,12 +188,66 @@ export function getGlobalConfig(): GlobalConfig {
 }
 
 /**
- * Saves the global configuration to disk.
- * Creates the config directory if it doesn't exist.
+ * Whether a parsed JSON root can serve as a global config object.
+ *
+ * Valid JSON that is not a plain object (`null`, an array, a string, a number,
+ * a boolean) still reads as defaults, so it is just as unsafe to save over as
+ * a file that did not parse at all. Every reader and writer of the global
+ * config shares this one predicate so they cannot drift apart.
  */
-export function saveGlobalConfig(config: GlobalConfig): void {
+export function isConfigRootObject(parsed: unknown): boolean {
+  return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed);
+}
+
+/**
+ * The one-line, actionable refusal every global-config writer reports when it
+ * declines to overwrite a file it could not read.
+ */
+export function unreadableGlobalConfigMessage(configPath: string): string {
+  return (
+    `Refusing to overwrite ${configPath}: it could not be parsed, so saving would replace every setting in it. ` +
+    'Fix it with "openspec config edit", or reset it with "openspec config reset --all".'
+  );
+}
+
+/**
+ * Whether the global config file exists but cannot be read or parsed.
+ *
+ * getGlobalConfig() answers with defaults for such a file so that reads keep
+ * working, but those defaults are not the user's settings: saving them back
+ * would erase everything the file holds, and the file may contain an opt-out
+ * such as `telemetry.enabled: false` that the defaults do not.
+ */
+export function isGlobalConfigUnreadable(): boolean {
+  const configPath = getGlobalConfigPath();
+  if (!fs.existsSync(configPath)) {
+    return false;
+  }
+
+  try {
+    return !isConfigRootObject(JSON.parse(fs.readFileSync(configPath, 'utf-8')));
+  } catch {
+    return true;
+  }
+}
+
+export interface SaveGlobalConfigOptions {
+  /** Overwrite a config file that cannot be parsed. Only a reset should. */
+  replaceUnreadable?: boolean;
+}
+
+/**
+ * Saves the global configuration to disk.
+ * Creates the config directory if it doesn't exist. Refuses to overwrite an
+ * existing file it cannot parse unless `replaceUnreadable` is set.
+ */
+export function saveGlobalConfig(config: GlobalConfig, options: SaveGlobalConfigOptions = {}): void {
   const configDir = getGlobalConfigDir();
   const configPath = getGlobalConfigPath();
+
+  if (!options.replaceUnreadable && isGlobalConfigUnreadable()) {
+    throw new Error(unreadableGlobalConfigMessage(configPath));
+  }
 
   // Create directory if it doesn't exist
   if (!fs.existsSync(configDir)) {

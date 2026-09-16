@@ -294,9 +294,12 @@ async function resolveSetupInput(
 
 async function prepareSetupInput(
   input: ResolvedStoreSetupInput,
-  _options: StoreSetupOptions
+  options: StoreSetupOptions
 ) {
-  return prepareStoreSetup(input);
+  return prepareStoreSetup({
+    ...input,
+    ...(options.initGit !== undefined ? { initGit: options.initGit } : {}),
+  });
 }
 
 async function confirmSetup(
