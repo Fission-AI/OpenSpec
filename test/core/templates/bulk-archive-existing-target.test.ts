@@ -96,6 +96,7 @@ describe('bulk archive existing-target handling', () => {
         'Target name: use the `<target-name>` recorded for this change in step 3d, unchanged'
       );
       expect(step, label).not.toContain('prepend the current date');
+      expect(body, label).toContain('computed once in step 3d and reused at the move');
     }
   });
 
