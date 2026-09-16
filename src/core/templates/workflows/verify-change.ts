@@ -11,7 +11,7 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
 export function getVerifyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-verify-change',
-    description: 'Verify implementation matches OpenSpec change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.',
+    description: 'Verify implementation matches OpenSpec change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving. Also use when the user says "openspec verify" or "opsx verify".',
     instructions: `Verify that an implementation matches the change artifacts (specs, tasks, design).
 
 ${STORE_SELECTION_GUIDANCE}
