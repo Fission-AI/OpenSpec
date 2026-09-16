@@ -123,6 +123,43 @@ describe('parseSchema apply references', () => {
       expect(findApplyTracksWarning(parseSchema(withApply('  requires: [tasks]')))).toBeUndefined();
       expect(findApplyTracksWarning(parseSchema(ARTIFACTS))).toBeUndefined();
     });
+
+    // The tracked-tasks lookup compares `tracks` and `generates` as plain
+    // strings, so a Windows separator on one side and a POSIX one on the other
+    // is a mismatch the warning must report, not a match it normalizes away.
+    describe('Windows path separators', () => {
+      const WINDOWS_ARTIFACTS = `
+name: test
+version: 1
+artifacts:
+  - id: tasks
+    generates: 'tasks\\main.md'
+    description: Tasks
+    template: tasks.md
+`;
+      const windowsApply = (tracks: string) =>
+        `${WINDOWS_ARTIFACTS}apply:\n  requires: [tasks]\n  tracks: '${tracks}'\n`;
+
+      it('warns when tracks uses a backslash but generates uses a forward slash', () => {
+        const schema = parseSchema(withApply(`  requires: [checklist]\n  tracks: 'work\\*.md'`));
+        expect(schema.apply?.tracks).toBe('work\\*.md');
+        expect(findApplyTracksWarning(schema)).toContain(
+          `apply.tracks 'work\\*.md' does not exactly match any artifact's generates value`
+        );
+      });
+
+      it('warns when generates uses a backslash but tracks uses a forward slash', () => {
+        const schema = parseSchema(windowsApply('tasks/main.md'));
+        expect(schema.artifacts[0].generates).toBe('tasks\\main.md');
+        expect(findApplyTracksWarning(schema)).toContain(
+          `apply.tracks 'tasks/main.md' does not exactly match any artifact's generates value`
+        );
+      });
+
+      it('does not warn when tracks and generates spell the same backslash path', () => {
+        expect(findApplyTracksWarning(parseSchema(windowsApply('tasks\\main.md')))).toBeUndefined();
+      });
+    });
   });
 
   it('accepts a schema with no apply block', () => {
