@@ -38,46 +38,46 @@ import {
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: '06aba775c621e61f00995a9ebc3a02fe873ddcc9bf024e416c4adaf91ccce115',
+  getExploreSkillTemplate: '3ffe63a08c09164e9fab4747bcb5b193f52ded40d250403c727d186152aeb7e5',
   getNewChangeSkillTemplate: 'eabd1e895c5881dcb17dcbaa3fb26098dd59e8eacb318e400820b4dc811ef781',
   getContinueChangeSkillTemplate: '012136f6411a99c8fa228e2f9444cb64b0a89e0f56fdeac2fe03b2f5bee0c5d7',
   getApplyChangeSkillTemplate: 'd1e7d5ceb85193c0964057dbb88e9651526754bd33f84020e2440ff0621d5dbb',
   getFfChangeSkillTemplate: 'efa6a70c111b18b61a7720250b9622afa9a212fb64edf609cf80e2182a9bdf8c',
-  getSyncSpecsSkillTemplate: 'b099e2ff31859c9b10d928066e662524f9aad9ecf2be12fceacb732d718c4146',
+  getSyncSpecsSkillTemplate: '271825029d9fa83c19ceb07e6f1ca3c10a17cf0822899d7709180a7487b9ae29',
   getOnboardSkillTemplate: '3a836faae463d88c289a1c129cb7ee556a563b7e53e1a52a4711ff152a3b51f7',
-  getOpsxExploreCommandTemplate: '8046003e97d885a86ed392d4fb522bb78544a02872b042e51347a5021cc10523',
+  getOpsxExploreCommandTemplate: '206a7d54b07122137e975cedceedda7e8397a9d7949eab8bb8f664bffc47b11b',
   getOpsxNewCommandTemplate: 'f2d30e569798a4c92ba932859d6ba4e0ad10e18feccbade1cfee0957597b3463',
   getOpsxContinueCommandTemplate: 'e50e50266efa1b8e64ff9b6274ee8254f0a240d6adc1b862d126e2f1c9d3a559',
   getOpsxApplyCommandTemplate: 'e3579ac78f2e2c75fa3d3a7ac7dc3e49c395e96f7323398f0f041d94f8de9bb0',
   getOpsxFfCommandTemplate: '21132fc9c6d3b3ab2d2295d6bbd72d1e0052eb35ea1be0258c8b1ab3e200c4db',
-  getArchiveChangeSkillTemplate: 'e0c21f54f1f027ee69f9855e4d65e68097d50e4e90cdba513fc1b03d45203857',
+  getArchiveChangeSkillTemplate: 'e6c1fd5b0bb80bac6c34960ec6a218a0382b4d86c73e651d761d06ee9691028a',
   getBulkArchiveChangeSkillTemplate: '59c2a482fb534f2a3a26b59e260329eb2edfaaf7996f77a0db30914f77319ca7',
-  getOpsxSyncCommandTemplate: '0d2427efb79986e8fff3f96bd075a739c80d45eb29159fae717e950030da8202',
+  getOpsxSyncCommandTemplate: 'b4b2bbcfa7e3709bc7cfdfefed7d4c5921878d03ba483e6c97bd33eb94cb583c',
   getVerifyChangeSkillTemplate: '7c27431d32ece63f618d197a88375ffdd2f3979d5314ce3affacba923dc60c87',
-  getOpsxArchiveCommandTemplate: 'ec258209822f72d49252f0c0f825082b726634702e08179a88125ee88ce8f716',
+  getOpsxArchiveCommandTemplate: '6c149828ec059c3bdb91f013d9a06b018824aa60dfbbf3d79dbd6105880f02d1',
   getOpsxOnboardCommandTemplate: 'ee99aa99252c602720fbb8c63fb3ac438a5bd4e952fd961ddf1ae956cbfc2c8f',
   getOpsxBulkArchiveCommandTemplate: '93b031ef69f80bc85a14271e1834d02082c87d9a79fe998a354baa69dd94fc3a',
   getOpsxVerifyCommandTemplate: 'b7c4e065817144c3f1bb61fb6598e4b4ec2da80c36f98b112f95a5f83290b126',
   getOpsxProposeSkillTemplate: 'b7215583fefddae0127076465de9b3de9c230f2f1ea9ae6e4fb2a46fe510e8d6',
   getOpsxProposeCommandTemplate: 'f016c66c2b6115b459751154c76a6270e444d6aee31973bb7cb8c0e6d505fb98',
   getFeedbackSkillTemplate: 'dabeb5e825b9349abc8156c3e7b8608f27987912a6d9bf47ef29addde6138133',
-  getUpdateChangeSkillTemplate: '7dc8abc6f64c58bf34d7581ed4ab095a3b7a53cb372349bee2d840db58622819',
-  getOpsxUpdateCommandTemplate: 'e2388521b22f92f74561df9a0c2f98e1fa4d265af93b5ba26f42fb47a6c5bfed',
+  getUpdateChangeSkillTemplate: '968e4164ce38258fdab858bbe65ff3f2300b0174a9c35194dc6cacafe4626f61',
+  getOpsxUpdateCommandTemplate: 'fc3b2ba3977a63e9f7689fef2ba05bb788f909db312818a4844867aefa6837d5',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '32b20cfbcc7d51ff526bb19571ff3dc3d0c616a5911b8de74cf6d9b15650cf3e',
+  'openspec-explore': '561602f8578779f25f5c43e7beb47f414e7fe961bcca427a16c2d09923f0e587',
   'openspec-new-change': 'ec4529beef978e34634a6f7286fab55d68fad8fb374dceb45691d52caab33fbb',
   'openspec-continue-change': 'bb6194a16c54891cdb253678e8f70ce53b2af86735243980f366ce551d37e42e',
   'openspec-apply-change': '81ea96d9fa6ec8536cd23c1fe561ed28e1cc1cad0a8ceb700588e08974cc0e49',
   'openspec-ff-change': '31355250514bce51b16ff37ee2b833bc9d475cd0dbd4b1f68fe2041694575623',
-  'openspec-sync-specs': 'd933d8856584d6c1253de91e652e7aee9e85c77ad4d3531f6476f79d84e6e5e8',
-  'openspec-archive-change': 'b4dac563bd371b39e7635c1309789ec2108a2357868dd3fd5fdef66669393e15',
+  'openspec-sync-specs': '0690c2290e74b3f7ce8f19d3204fb2d5630eb06290d1c6a79370026099758c98',
+  'openspec-archive-change': 'd6e91de7430428956d33220a82abae14221eee56e10bd84938212935035d2959',
   'openspec-bulk-archive-change': 'e1c0f1a0ef706222620a0c1b17606d746439506c19de2a9cf621c9478b1bc1a4',
   'openspec-verify-change': '847bc57688cc4987828f9535559d74f2d1ebe192c33f084a2defa9d60cb8bc67',
   'openspec-onboard': 'f6f59476acaf5e4d65dbb180da4cef62432612f3cecf207d471a951295e2003a',
   'openspec-propose': '679d0f868bed23cfb34a8ecc6b4ba4ff7b88dd7dbaef91563423e98f194f988f',
-  'openspec-update-change': '586547406aca94422dfeb3ffedce6c01049429b743f57ce829baa79ebc714d51',
+  'openspec-update-change': '832fc53b29546f70dc5b70047864a118f2b84ad86456dcad835ce3e21094811f',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
@@ -478,6 +478,142 @@ describe('skill templates split parity', () => {
 
       // Main spec paths are store-root aware
       expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability-path>/spec.md');
+    }
+  });
+
+  it('requires sync to create a missing main spec from ADDED requirements (#1222, #1264)', () => {
+    // `openspec archive` creates the main spec from the delta's ADDED requirements
+    // when it does not exist yet (`buildUpdatedSpec`, specs-apply.ts). The agent
+    // workflow only told the agent to "compare each delta spec with its
+    // corresponding main spec", so a capability with no main spec compared against
+    // nothing, read as "already synced", and the change archived with the spec
+    // never written. Assertions are scoped to the sync-assessment step so they
+    // cannot pass on unrelated text elsewhere in the body.
+    const archiveVariants: Array<[string, string]> = [
+      ['archive skill', generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['archive opsx command', getOpsxArchiveCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of archiveVariants) {
+      const start = content.indexOf('**Assess delta spec sync state**');
+      const end = content.indexOf('**Perform the archive**');
+      expect(start, variant).toBeGreaterThan(-1);
+      expect(end, variant).toBeGreaterThan(start);
+      const assessStep = content.slice(start, end);
+
+      expect(assessStep, variant).toContain(
+        'A missing main spec is **not automatically** "already synced"'
+      );
+      expect(assessStep, variant).toContain('is an *output* of the sync, not an input');
+      expect(assessStep, variant).toContain('If the delta has MODIFIED or RENAMED');
+      expect(assessStep, variant).toContain('only ADDED requirements can create');
+      expect(assessStep, variant).toContain('Never invent a requirement');
+      expect(assessStep, variant).toContain('Otherwise, if the delta has no ADDED requirements');
+      expect(assessStep, variant).toContain('report that no sync is possible');
+      expect(assessStep, variant).toContain('For a REMOVED-only delta');
+      expect(assessStep, variant).toContain('leave the main-spec tree unchanged');
+      expect(assessStep, variant).toContain('mark that capability as sync-blocked');
+      expect(assessStep, variant).toContain('Spec must have at least one requirement');
+      expect(assessStep, variant).toContain('Otherwise, count the capability as needing sync');
+      expect(assessStep, variant).toContain('If the delta also has REMOVED requirements');
+      expect(assessStep, variant).toContain('warn that they will be ignored');
+      expect(assessStep, variant).toContain(
+        "creates the main spec from only the delta's ADDED requirements"
+      );
+    }
+
+    // The sync itself must not invent a requirement that has no base to modify:
+    // the CLI throws "only ADDED requirements are allowed for new specs".
+    const syncVariants: Array<[string, string]> = [
+      ['sync skill', getSyncSpecsSkillTemplate().instructions],
+      ['sync command', getOpsxSyncCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of syncVariants) {
+      const start = content.indexOf('b. **Read the main spec**');
+      const end = content.indexOf('c. **Apply changes intelligently**');
+      expect(start, variant).toBeGreaterThan(-1);
+      expect(end, variant).toBeGreaterThan(start);
+      const readStep = content.slice(start, end);
+
+      expect(readStep, variant).toContain('**If it does not exist yet** (a new capability)');
+      expect(readStep, variant).toContain('only ADDED requirements may be applied');
+      expect(readStep, variant).toContain('MODIFIED and RENAMED have no requirement to act on');
+      expect(readStep, variant).toContain('never invent the missing requirement');
+      expect(readStep, variant).toContain('REMOVED has nothing to');
+
+      // ...and the creation step must not then write the empty spec the CLI refuses:
+      // an unmarked REMOVED-only delta against a capability with no main spec aborts with
+      // "Spec must have at least one requirement" and leaves the tree untouched.
+      const createStart = content.indexOf("d. **Create new main spec**");
+      const createEnd = content.indexOf('**Validate updated main specs**');
+      expect(createStart, variant).toBeGreaterThan(-1);
+      expect(createEnd, variant).toBeGreaterThan(createStart);
+      const createStep = content.slice(createStart, createEnd);
+
+      expect(createStep, variant).toContain(
+        'Only when the delta has ADDED requirements to put in it'
+      );
+      expect(createStep, variant).toContain('RENAMED requirements blocked this capability in step b');
+      expect(createStep, variant).toContain('create nothing');
+      expect(createStep, variant).toContain('Spec must have at least one requirement');
+      expect(createStep, variant).toContain('Never write an empty');
+    }
+  });
+
+  it('preserves explicit archive-without-sync when a missing target blocks sync', () => {
+    for (const content of [
+      getArchiveChangeSkillTemplate().instructions,
+      getOpsxArchiveCommandTemplate().content,
+    ]) {
+      const assessment = content.slice(
+        content.indexOf('**If delta specs exist:**'),
+        content.indexOf('Before a selected sync writes any main spec')
+      );
+      expect(assessment).not.toContain('stop instead of prompting to sync');
+      expect(assessment).toContain('mark that capability as sync-blocked');
+      expect(assessment).toContain('Continue assessing the remaining capabilities');
+      expect(assessment).toContain(
+        'If any capability is sync-blocked: explain why and offer only "Archive without syncing", "Cancel"'
+      );
+      expect(assessment).toContain('Do not start any sync while a capability is sync-blocked');
+      expect(assessment).toContain('"Archive without syncing" or "Archive now" — proceed to archive');
+      expect(assessment).toContain('"Cancel" — stop, do not archive');
+      expect(content).toContain('If the sync failed, or any capability does not match');
+      expect(content).toContain('stop — do not archive');
+    }
+  });
+
+  it('recognizes explicitly retired missing specs without blocking archive verification', () => {
+    for (const content of [
+      getArchiveChangeSkillTemplate().instructions,
+      getOpsxArchiveCommandTemplate().content,
+    ]) {
+      const assessment = content.slice(
+        content.indexOf('**If delta specs exist:**'),
+        content.indexOf('**Prompt options:**')
+      );
+      const retirement = assessment.indexOf('Otherwise, if the delta has only REMOVED requirements');
+      expect(retirement).toBeGreaterThan(-1);
+      expect(retirement).toBeLessThan(assessment.indexOf('Otherwise, if the delta has no ADDED requirements'));
+      expect(assessment).toContain('`retire_capabilities: true`');
+      expect(assessment).toContain('count it as already synced');
+      expect(assessment).toContain('do not recreate the main spec');
+      expect(content).toContain('including the explicitly retired, missing-spec case');
+    }
+
+    for (const content of [
+      getSyncSpecsSkillTemplate().instructions,
+      getOpsxSyncCommandTemplate().content,
+    ]) {
+      const createStep = content.slice(
+        content.indexOf('d. **Create new main spec**'),
+        content.indexOf('**Validate updated main specs**')
+      );
+      expect(createStep).toContain('`retire_capabilities: true`');
+      expect(createStep).toContain('report it as already retired');
+      expect(createStep).toContain('Without that marker, report the sync as blocked');
+      expect(createStep).toContain('create nothing');
     }
   });
 

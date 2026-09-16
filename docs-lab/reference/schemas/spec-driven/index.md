@@ -122,6 +122,8 @@ This is the foundation - specs, design, and tasks all build on this.
 
 Defines what behavior changes, with one delta spec per capability the proposal lists.
 
+Each delta spec is the `spec.md` inside its capability folder. `openspec validate` and `openspec archive` reject delta sections written in any other file under `specs/`, such as `specs/user-auth.md`, because archive never merges them.
+
 ### Structure
 
 The template the agent receives as the output format ([templates/spec.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/spec.md)):
