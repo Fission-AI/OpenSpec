@@ -50,13 +50,13 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxContinueCommandTemplate: 'e50e50266efa1b8e64ff9b6274ee8254f0a240d6adc1b862d126e2f1c9d3a559',
   getOpsxApplyCommandTemplate: 'e3579ac78f2e2c75fa3d3a7ac7dc3e49c395e96f7323398f0f041d94f8de9bb0',
   getOpsxFfCommandTemplate: '21132fc9c6d3b3ab2d2295d6bbd72d1e0052eb35ea1be0258c8b1ab3e200c4db',
-  getArchiveChangeSkillTemplate: '56bfada1a5f35a127791b70de9d428a75b5aedd1584d6c9803a1ecb1fd1b4a23',
-  getBulkArchiveChangeSkillTemplate: '93875998cade5322d95b43299fba794bc1da754e917dd63a770406386a6d295d',
+  getArchiveChangeSkillTemplate: '2b82eb002b62d61ec75e27efb068193350d0790c7942ca859f82705c34806aed',
+  getBulkArchiveChangeSkillTemplate: 'f975f66cd658f8eb855254ed001cbff428d154b3569a0c2c46a41aa6b16455f9',
   getOpsxSyncCommandTemplate: '0d2427efb79986e8fff3f96bd075a739c80d45eb29159fae717e950030da8202',
   getVerifyChangeSkillTemplate: '223b7ffd99299a7d430e13092b9a0a3421b39f0d3217232f46c39d79b5f619ff',
-  getOpsxArchiveCommandTemplate: '9f973c819b11620985b03322945f0e0a92a02a2ef455b94e74482f5e6292ac5d',
+  getOpsxArchiveCommandTemplate: '0fc2dbed1619aed7e12236b2403c407c56762004c69d429ff566bf0c673157b0',
   getOpsxOnboardCommandTemplate: 'ee99aa99252c602720fbb8c63fb3ac438a5bd4e952fd961ddf1ae956cbfc2c8f',
-  getOpsxBulkArchiveCommandTemplate: '9fa8cdebe2f5667ebfc37bdc023396762c59d5b038c771dac2d8fd2c19e2627b',
+  getOpsxBulkArchiveCommandTemplate: 'c177e30f96fcc53e152a942652de5c1c78b42b490e59f5a9686a0eab57134ce4',
   getOpsxVerifyCommandTemplate: '1efcf7eff0671f48e9d9420f50865c563dd3079ee60f8c380bb7a90dd0102696',
   getOpsxProposeSkillTemplate: 'b7215583fefddae0127076465de9b3de9c230f2f1ea9ae6e4fb2a46fe510e8d6',
   getOpsxProposeCommandTemplate: 'f016c66c2b6115b459751154c76a6270e444d6aee31973bb7cb8c0e6d505fb98',
@@ -72,8 +72,8 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-apply-change': '81ea96d9fa6ec8536cd23c1fe561ed28e1cc1cad0a8ceb700588e08974cc0e49',
   'openspec-ff-change': '31355250514bce51b16ff37ee2b833bc9d475cd0dbd4b1f68fe2041694575623',
   'openspec-sync-specs': 'd933d8856584d6c1253de91e652e7aee9e85c77ad4d3531f6476f79d84e6e5e8',
-  'openspec-archive-change': '7c65053d674ba4e1e20e2bf73ba7e5a7f94baef2eaa9b33cee48d4cadea51b7a',
-  'openspec-bulk-archive-change': '2039b9ecf6e64339dffe0e16272507a386d9fe326f419ff758315aa736fdd96c',
+  'openspec-archive-change': 'e8db67bf5eca8d9a418e45fb98bfb736b354727b495138b244b290c387e96169',
+  'openspec-bulk-archive-change': '1e1dfddfb3483fb8977761944cdfb5c9af485d3d0325ae646b2a5439486eb32d',
   'openspec-verify-change': 'af9be013dcbe8c6d8f6d9ab10c893fbd03f4c62933c384d82f63894dd0ceb84f',
   'openspec-onboard': 'f6f59476acaf5e4d65dbb180da4cef62432612f3cecf207d471a951295e2003a',
   'openspec-propose': '679d0f868bed23cfb34a8ecc6b4ba4ff7b88dd7dbaef91563423e98f194f988f',
@@ -468,6 +468,10 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain('Do not delegate it to a background task');
       expect(content, variant).toContain('Never archive while a spec sync is still in flight');
 
+      expect(content, variant).toContain('If the sync reports any stop or blocking condition, treat the sync as failed');
+      expect(content, variant).toContain('Do not perform the post-sync content comparison');
+      expect(content, variant).toContain('do not move its `changeRoot`');
+
       // Verification must follow delta semantics.
       expect(content, variant).toContain('MODIFIED requirements carrying the scenario and description changes');
       expect(content, variant).toContain('REMOVED requirements gone');
@@ -478,6 +482,27 @@ describe('skill templates split parity', () => {
 
       // Main spec paths are store-root aware
       expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability-path>/spec.md');
+
+      // Semantic main-spec structure contract.
+      expect(content, variant).toContain('The file MUST start with a `# <capability> Specification` title.');
+      expect(content, variant).toContain('Preserve existing `## Purpose` sections completely untouched for established main specs.');
+      expect(content, variant).toContain('For a new main spec, copy the delta `## Purpose` verbatim.');
+      expect(content, variant).toContain('If no usable `## Purpose` is provided, use the existing TBD Purpose behavior and warning.');
+      expect(content, variant).toContain('Ensure all requirement blocks use `### Requirement:` headings and scenario blocks use `#### Scenario:` headings under a unified `## Requirements` section.');
+
+      // Every canonical delta header must be rejected.
+      const deltaHeaders = [
+          '## ADDED Requirements',
+          '## MODIFIED Requirements',
+          '## REMOVED Requirements',
+          '## RENAMED Requirements',
+      ];
+
+      expect(content, variant).toContain('Verify that no delta-style section headers (`## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, `## RENAMED Requirements`) remain in the main spec');
+
+      for (const header of deltaHeaders) {
+          expect(content, variant).toContain(header);
+      }
     }
   });
 
@@ -503,6 +528,10 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain('MODIFIED requirements carrying scenario and description changes');
       expect(content, variant).toContain('REMOVED requirements gone');
       expect(content, variant).toContain('RENAMED requirements present under the new name and absent under the old one');
+
+      expect(content, variant).toContain('If the sync reports any stop or blocking condition, treat the sync as failed');
+      expect(content, variant).toContain('Do not perform the post-sync content comparison');
+      expect(content, variant).toContain('do not move its `changeRoot`');
 
       // Main spec paths are store-root aware
       expect(content, variant).toContain('<planningHome.root>/openspec/specs/<capability-path>/spec.md');
