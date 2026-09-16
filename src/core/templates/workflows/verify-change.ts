@@ -65,7 +65,9 @@ ${PROJECT_ROOT_GUARD}
 
    **Task Completion**:
    - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
+   - Parse checkboxes: complete means the box holds only \`x\`/\`X\`, ignoring
+     spacing (\`- [ x]\` is complete); every other marker is incomplete
+     (\`- [ ]\`, \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
    - Count complete vs total tasks
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task
@@ -242,7 +244,9 @@ ${PROJECT_ROOT_GUARD}
 
    **Task Completion**:
    - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
+   - Parse checkboxes: complete means the box holds only \`x\`/\`X\`, ignoring
+     spacing (\`- [ x]\` is complete); every other marker is incomplete
+     (\`- [ ]\`, \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
    - Count complete vs total tasks
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task
