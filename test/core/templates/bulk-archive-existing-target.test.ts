@@ -108,6 +108,7 @@ describe('bulk archive existing-target handling', () => {
       const move = step.indexOf('mv "<changeRoot>"');
       const confirm = step.indexOf('**Confirm the move did not nest:**');
 
+      expect(move, label).toBeGreaterThanOrEqual(0);
       expect(confirm, label).toBeGreaterThan(move);
       expect(step.slice(confirm), label).toContain(
         'move that directory back to `changeRoot` and record this change as Failed'
