@@ -15,7 +15,11 @@ export interface RequirementsSectionParts {
 }
 
 export function normalizeRequirementName(name: string): string {
-  return name.trim();
+  // An ATX heading may end in a closing run of `#`s: `### Requirement: Foo ###`
+  // renders as `Foo`, so the run is not part of the name. As for scenario names,
+  // only a run preceded by a space or tab closes the heading, so `C#` keeps its
+  // `#`, and `[ \t]` rather than `\s` keeps an NBSP-separated run in the name.
+  return name.replace(/[ \t]+#+[ \t]*$/, '').trim();
 }
 
 /**
