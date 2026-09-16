@@ -1,0 +1,5 @@
+---
+'@fission-ai/openspec': patch
+---
+
+Stop archiving a change whose delta was written somewhere `archive` never reads. `validate` and `archive` read a change's deltas only from `specs/<capability-path>/spec.md`, but the spec-driven artifact graph counts any markdown file under `specs/` as the specs being written, so a delta at `specs/user-auth.md`, or in a second file beside a capability's `spec.md`, was reported done by `status` and ready by `instructions apply` with no warning, rejected by `validate` only as "no deltas found", and then archived with exit 0 and nothing merged into `openspec/specs/`. A markdown file that carries delta sections but is not a capability's `spec.md` is now a validation error naming the file and the `spec.md` its requirements belong in; `archive` runs that validation and refuses the change instead of archiving it unmerged, and `instructions apply` lists each such file in its `warnings`. `--no-validate` still archives as before, a change with no spec files still archives, and notes without delta sections under `specs/` are not affected.
