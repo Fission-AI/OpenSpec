@@ -126,6 +126,26 @@ export interface SkippedHeader {
   line: number; // 1-based line number in the delta file
 }
 
+/**
+ * A `FROM:` or `TO:` line in `## RENAMED Requirements` that never formed a pair,
+ * recorded at the moment the reader steps over it.
+ *
+ * The pair reader used to carry one mutable `{ from, to }` and drop whatever did
+ * not fit: a second `FROM:` overwrote an unpaired first, a `TO:` with no pending
+ * `FROM:` vanished, and a trailing `FROM:` was forgotten at the end of the
+ * section. Nothing counted any of it, so a rename the author asked for could
+ * silently not happen - or, when the lines interleaved, a DIFFERENT requirement
+ * could be renamed under a name meant for another one.
+ *
+ * Recording them is what lets `validate` report the problem and `buildUpdatedSpec`
+ * refuse, rather than guess a pairing and rewrite the spec from it.
+ */
+export interface UnpairedRename {
+  side: 'FROM' | 'TO';
+  name: string; // requirement name as written
+  line: number; // 1-based line number in the delta file
+}
+
 export interface DeltaPlan {
   added: RequirementBlock[];
   modified: RequirementBlock[];
@@ -135,6 +155,8 @@ export interface DeltaPlan {
   // reader of the removal needs. Empty for the bullet-list form, which has none.
   removedBlocks: RequirementBlock[];
   renamed: Array<{ from: string; to: string }>;
+  /** FROM:/TO: lines in RENAMED that never formed a pair. */
+  unpairedRenames: UnpairedRename[];
   skippedHeaders: SkippedHeader[]; // non-canonical ### headers the reader skipped
   sectionPresence: {
     added: boolean;
@@ -193,8 +215,13 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     parseRequirementBlocksFromSection(body)
   );
   // Pairs are read per section, so a FROM in one copy of the header can never
-  // pair with a TO in another.
-  const renamedPairs = renamedLookup.bodies.flatMap((body) => parseRenamedPairs(body));
+  // pair with a TO in another: a FROM left pending at the end of one copy is
+  // reported as unpaired rather than carried into the next.
+  const unpairedRenames: UnpairedRename[] = [];
+  const renamedPairs = renamedLookup.bodies.flatMap((body) =>
+    parseRenamedPairs(body, unpairedRenames)
+  );
+  unpairedRenames.sort((a, b) => a.line - b.line);
   skippedHeaders.sort((a, b) => a.line - b.line);
   return {
     added,
@@ -202,6 +229,7 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     removed: removedNames,
     removedBlocks,
     renamed: renamedPairs,
+    unpairedRenames,
     skippedHeaders,
     sectionPresence: {
       added: addedLookup.found,
@@ -355,17 +383,37 @@ function parseRemovedNames(sectionBody: SectionBody): string[] {
 }
 
 /**
- * `FROM:`/`TO:` rename pairs from `## RENAMED Requirements`, in document order.
+ * Read `FROM:`/`TO:` entries into rename pairs, recording every line that never
+ * formed one.
+ *
+ * A pair is a `FROM:` followed by a `TO:` with no second `FROM:` in between -
+ * the shape the documented format uses. Anything else is reported through
+ * `unpaired` rather than absorbed:
+ *
+ *   - a `FROM:` displaced by another `FROM:` before its `TO:` arrived
+ *   - a `TO:` with no pending `FROM:`
+ *   - a `FROM:` still pending when the section ends
+ *
+ * Silently dropping these is what let a requested rename not happen, and what
+ * let interleaved lines (`FROM a`, `FROM b`, `TO x`, `TO y`) pair b with x -
+ * renaming a requirement the author never named, under a name meant for a
+ * different one. Callers refuse the delta instead of guessing.
  *
  * The bullet is optional, and every CommonMark bullet marker is accepted: a
  * rename written with `*` or `+` used to match nothing at all, so the rename
  * silently never happened while archive still reported success.
  */
-function parseRenamedPairs(sectionBody: SectionBody): Array<{ from: string; to: string }> {
-  const { lines, fenceMask } = sectionBody;
+function parseRenamedPairs(
+  sectionBody: SectionBody,
+  unpaired?: UnpairedRename[]
+): Array<{ from: string; to: string }> {
+  const { lines, fenceMask, bodyStartLine } = sectionBody;
   if (lines.length === 0) return [];
   const pairs: Array<{ from: string; to: string }> = [];
-  let current: { from?: string; to?: string } = {};
+  let pending: { name: string; line: number } | undefined;
+  const drop = (side: 'FROM' | 'TO', name: string, line: number) => {
+    unpaired?.push({ side, name, line });
+  };
   for (let i = 0; i < lines.length; i++) {
     if (fenceMask[i]) continue;
     const line = lines[i];
@@ -375,15 +423,19 @@ function parseRenamedPairs(sectionBody: SectionBody): Array<{ from: string; to: 
     const fromMatch = line.match(/^\s*[-*+]?\s*FROM:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
     const toMatch = line.match(/^\s*[-*+]?\s*TO:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
     if (fromMatch) {
-      current.from = normalizeRequirementName(fromMatch[1]);
+      if (pending) drop('FROM', pending.name, pending.line);
+      pending = { name: normalizeRequirementName(fromMatch[1]), line: bodyStartLine + i };
     } else if (toMatch) {
-      current.to = normalizeRequirementName(toMatch[1]);
-      if (current.from && current.to) {
-        pairs.push({ from: current.from, to: current.to });
-        current = {};
+      const to = normalizeRequirementName(toMatch[1]);
+      if (!pending) {
+        drop('TO', to, bodyStartLine + i);
+        continue;
       }
+      pairs.push({ from: pending.name, to });
+      pending = undefined;
     }
   }
+  if (pending) drop('FROM', pending.name, pending.line);
   return pairs;
 }
 
