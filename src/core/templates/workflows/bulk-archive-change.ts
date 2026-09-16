@@ -83,6 +83,12 @@ ${STORE_SELECTION_GUIDANCE}
         lookup for that change; do not infer deltas from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
         batches where some schemas have no \`specs\` artifact.
+
+   d. **Archive target** - Compute the target name with the step 8c rule and check whether \`<planningHome.changesDir>/archive/<target-name>\` already exists
+      - If it exists, or another selected change resolves to the same target name, mark every such change \`Blocked\` with \`Archive directory already exists\`
+      - A blocked change is never synced or moved: show it as \`Blocked\` in the step 6 table, leave it out of conflict resolution (resolve its conflicts using only the other changes), and record it as Failed in step 8d
+      - Checking here, before any main spec is written, matches \`openspec archive\`: a collision found after sync would leave main specs rewritten for an archive that never happened
+
 4. **Detect spec conflicts**
 
    Build a map keyed by \`<capability-path>\`, the exact path relative to \`specs/\`:
@@ -155,7 +161,7 @@ ${STORE_SELECTION_GUIDANCE}
    Route on the answer by intent, not by exact label — you wrote these labels,
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
-   - The archive-everything option — proceed with every selected change
+   - The archive-everything option — proceed with every selected change that is not \`Blocked\`
    - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
@@ -204,7 +210,8 @@ ${STORE_SELECTION_GUIDANCE}
       Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
 
       **Check if target already exists:**
-      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, and continue with the remaining changes
+      - Check again immediately before the move, even though step 3 already checked: the target can appear mid-batch
+      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, report any main specs step 8a already synced for it, and continue with the remaining changes
       - If no: move \`changeRoot\` to the archive directory
 
       \`\`\`bash
@@ -328,6 +335,7 @@ No active changes found. Create a new change to get started.
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
+- Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
 - If sync is requested, run the \`openspec-sync-specs\` workflow inline (agent-driven) for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
@@ -427,6 +435,11 @@ ${STORE_SELECTION_GUIDANCE}
       - Evaluate this independently for every change, including mixed-schema
         batches where some schemas have no \`specs\` artifact.
 
+   d. **Archive target** - Compute the target name with the step 8c rule and check whether \`<planningHome.changesDir>/archive/<target-name>\` already exists
+      - If it exists, or another selected change resolves to the same target name, mark every such change \`Blocked\` with \`Archive directory already exists\`
+      - A blocked change is never synced or moved: show it as \`Blocked\` in the step 6 table, leave it out of conflict resolution (resolve its conflicts using only the other changes), and record it as Failed in step 8d
+      - Checking here, before any main spec is written, matches \`openspec archive\`: a collision found after sync would leave main specs rewritten for an archive that never happened
+
 4. **Detect spec conflicts**
 
    Build a map keyed by \`<capability-path>\`, the exact path relative to \`specs/\`:
@@ -499,7 +512,7 @@ ${STORE_SELECTION_GUIDANCE}
    Route on the answer by intent, not by exact label — you wrote these labels,
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
-   - The archive-everything option — proceed with every selected change
+   - The archive-everything option — proceed with every selected change that is not \`Blocked\`
    - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
@@ -548,7 +561,8 @@ ${STORE_SELECTION_GUIDANCE}
       Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
 
       **Check if target already exists:**
-      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, and continue with the remaining changes
+      - Check again immediately before the move, even though step 3 already checked: the target can appear mid-batch
+      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, report any main specs step 8a already synced for it, and continue with the remaining changes
       - If no: move \`changeRoot\` to the archive directory
 
       \`\`\`bash
@@ -672,6 +686,7 @@ No active changes found. Create a new change to get started.
 - Preserve .openspec.yaml when moving to archive
 - Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
+- Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
 - If sync is requested, run the \`/opsx:sync\` workflow inline (agent-driven) for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped

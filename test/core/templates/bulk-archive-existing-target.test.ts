@@ -54,6 +54,31 @@ describe('bulk archive existing-target handling', () => {
     }
   });
 
+  // `openspec archive` settles the destination before touching any spec. A
+  // collision found only at the move would leave main specs rewritten for a
+  // change that stays active, so the batch must check every target first.
+  it('checks every archive target before the first main-spec write (#1827)', () => {
+    for (const [label, body] of bodies) {
+      const preflight = body.indexOf('   d. **Archive target**');
+      const conflicts = body.indexOf('4. **Detect spec conflicts**');
+      const firstSync = body.indexOf('   a. **Sync included delta specs**');
+
+      expect(preflight, label).toBeGreaterThanOrEqual(0);
+      expect(conflicts, label).toBeGreaterThan(preflight);
+      expect(firstSync, label).toBeGreaterThan(preflight);
+
+      const step = body.slice(preflight, conflicts);
+      expect(step, label).toContain('another selected change resolves to the same target name');
+      expect(step, label).toContain('A blocked change is never synced or moved');
+      expect(body, label).toContain(
+        'The archive-everything option — proceed with every selected change that is not `Blocked`'
+      );
+      expect(body, label).toContain(
+        'Check every archive target in step 3, before the first main-spec write'
+      );
+    }
+  });
+
   // The guardrail and both failure output templates already promised this
   // outcome while the steps never produced it; keep them in agreement.
   it('keeps the guardrail and failure output consistent with the step (#1827)', () => {
