@@ -350,7 +350,11 @@ Without `--all` it exits 1 and prints the usage line.
 openspec config edit
 ```
 
-Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated. Invalid JSON or an invalid config exits 1. With no editor configured it exits 1:
+Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated. Invalid JSON or an invalid config exits 1.
+
+The editor value may carry arguments and quoted paths, for example `code --wait` or `"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl" -w`. It is split into words without a shell, so `$VAR`, `~` and `;` are passed through literally. An editor that cannot start, or exits non-zero, prints a one-line error and exits 1.
+
+With no editor configured it exits 1:
 
 ```
 Error: No editor configured
@@ -1594,6 +1598,8 @@ openspec store setup team-context --path ~/openspec/team-context
 
 In an interactive terminal, setup prompts for a missing name and location and confirms before creating anything. Outside one, a missing name or `--path` exits 1 with the flag to pass. Rerunning setup for a registered store reports `Registry: already registered`.
 
+Setup exits 1 with `store_setup_inside_git_repo` when `--path` is inside another Git repository, because initializing the store there would nest one repository in another. `--no-init-git` creates no repository, so it skips that check. Use it to keep a store at `~/openspec/<id>` when your home directory is itself a Git repository, such as a dotfiles repo.
+
 **Arguments**
 
 | Argument | What it is |
@@ -1716,6 +1722,8 @@ Interactively, remove asks before deleting. With `--json` or outside an interact
 Error: Pass --yes to delete store files non-interactively.
 Fix: openspec store remove design-system --yes
 ```
+
+Remove exits 1 and deletes nothing when the folder lacks matching store metadata, or when it contains another registered store (for example a store vendored as a Git submodule). In that case the error is `store_remove_contains_registered_store`: run `openspec store unregister <nested-id>` first, or `openspec store unregister <id>` to forget the store without deleting files.
 
 **Options**
 

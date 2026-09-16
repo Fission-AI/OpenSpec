@@ -3,6 +3,8 @@ import path from 'path';
 import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 
+import { getStoreMetadataPath } from './store/foundation.js';
+
 export const OPERATION_IDS = ['apply', 'archive'] as const;
 export type OperationId = (typeof OPERATION_IDS)[number];
 
@@ -577,7 +579,10 @@ export function storePointerProblem(reason: 'unparseable' | 'non_string'): strin
 }
 
 export interface OpenSpecDirClassification {
-  /** True when openspec/specs or openspec/changes exists as a directory. */
+  /**
+   * True when openspec/specs or openspec/changes exists as a directory
+   * that is not itself a store root.
+   */
   hasPlanningShape: boolean;
   pointer: StorePointerRead;
 }
@@ -586,13 +591,22 @@ export interface OpenSpecDirClassification {
  * One classification for "real root vs config-only pointer dir", shared
  * by root resolution and the init pointer guard so they can never
  * disagree (slice 3.2).
+ *
+ * A specs/ or changes/ directory carrying store metadata is a store at
+ * the recommended `~/openspec/<id>` layout whose id is `specs` or
+ * `changes`, not planning content of the directory above it. Counting it
+ * would make $HOME the phantom root the qualifying walk exists to prevent.
  */
 export function classifyOpenSpecDir(projectRoot: string): OpenSpecDirClassification {
   const openspecDir = path.join(projectRoot, 'openspec');
   const hasPlanningShape =
-    isDirectorySync(path.join(openspecDir, 'specs')) ||
-    isDirectorySync(path.join(openspecDir, 'changes'));
+    isPlanningDirectorySync(path.join(openspecDir, 'specs')) ||
+    isPlanningDirectorySync(path.join(openspecDir, 'changes'));
   return { hasPlanningShape, pointer: readStorePointer(projectRoot) };
+}
+
+function isPlanningDirectorySync(candidatePath: string): boolean {
+  return isDirectorySync(candidatePath) && !existsSync(getStoreMetadataPath(candidatePath));
 }
 
 function isDirectorySync(candidatePath: string): boolean {
