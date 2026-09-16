@@ -39,9 +39,11 @@ describe('store git probe output limits', () => {
     }
   }, 180_000);
 
+  // Deleting the 12000 files is as slow as writing them on the Windows runner,
+  // where the default 10s hook timeout failed the suite after every test passed.
   afterAll(async () => {
     await fs.rm(repoRoot, { recursive: true, force: true });
-  });
+  }, 180_000);
 
   it('reports uncommitted changes when status output exceeds 1 MB', async () => {
     const status = execFileSync('git', ['status', '--porcelain'], {
