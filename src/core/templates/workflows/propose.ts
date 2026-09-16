@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 /**
  * The implementation handoff. `apply` is not guaranteed to be installed, so
@@ -32,7 +33,7 @@ const COMMAND_APPLY_HANDOFF = optionalWorkflow(
 export function getOpsxProposeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-propose',
-    description: 'Propose a new change with all artifacts generated in one step. Use when the user wants to quickly describe what they want to build and get a complete proposal with design, specs, and tasks ready for implementation. Also use when the user says "openspec propose" or "opsx propose".',
+    description: 'Propose a new OpenSpec change with all artifacts generated in one step. Use when the user wants to quickly describe what they want to build and get a complete proposal with design, specs, and tasks ready for implementation. Also use when the user says "openspec propose" or "opsx propose".',
     instructions: `Propose a new change - create the change and generate all artifacts in one step.
 
 **Planning boundary**: This workflow creates planning artifacts only. The user request that selected or triggered this workflow authorizes planning only, even if it asks to build or fix something. Do not edit project code. After the planning artifacts are complete, stop. Do not start implementation in the same response, even if the initial request asks for it. Wait for a new user request after the artifacts are presented; then start the apply workflow.
@@ -51,6 +52,8 @@ When the user is ready to implement, they must start the apply workflow explicit
 
 ${STORE_SELECTION_GUIDANCE}
 
+${PROJECT_ROOT_GUARD}
+
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
 **Steps**
@@ -68,7 +71,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 2. **Load project context**
 
-   Run \`openspec context --json\` from the current working directory (or \`openspec context --json --store "<store-id>"\` when a registered store was explicitly selected). Use the returned \`root.path\` as the authoritative OpenSpec root. If context reports \`no_openspec_root\`, stop without creating or changing any files. Offer \`openspec init\` and wait for the user to request initialization. Do not initialize automatically or run \`openspec new change\`. After initialization, rerun this context check before continuing. For any other context failure, stop and report the error; do not fall back to the current directory or run later OpenSpec commands without the selected store.
+   Run \`openspec context --json\` from the current working directory (or \`openspec context --json --store "<store-id>"\` when a registered store was explicitly selected). Use the returned \`root.path\` as the authoritative OpenSpec root. If context reports \`no_openspec_root\`, stop without creating or changing any files and follow the **Project check** above for how this workflow was reached. Offer \`openspec init\` only for an explicit OpenSpec request, and wait for the user to request initialization. Do not initialize automatically or run \`openspec new change\`. After initialization, rerun this context check before continuing. For any other context failure, stop and report the error; do not fall back to the current directory or run later OpenSpec commands without the selected store.
 
    Only when context returns a resolved \`root.path\`, read \`<root.path>/openspec/config.yaml\`. Use \`config.yml\` only when \`config.yaml\` does not exist. If neither file exists, continue without project context. Do not fall back to \`config.yml\` if \`config.yaml\` is unreadable or invalid.
 
@@ -214,6 +217,8 @@ When the user is ready to implement, they must start the apply workflow explicit
 
 ${STORE_SELECTION_GUIDANCE}
 
+${PROJECT_ROOT_GUARD}
+
 **Input**: The argument after \`/opsx:propose\` is the change name (kebab-case), OR a description of what the user wants to build.
 
 **Steps**
@@ -231,7 +236,7 @@ ${STORE_SELECTION_GUIDANCE}
 
 2. **Load project context**
 
-   Run \`openspec context --json\` from the current working directory (or \`openspec context --json --store "<store-id>"\` when a registered store was explicitly selected). Use the returned \`root.path\` as the authoritative OpenSpec root. If context reports \`no_openspec_root\`, stop without creating or changing any files. Offer \`openspec init\` and wait for the user to request initialization. Do not initialize automatically or run \`openspec new change\`. After initialization, rerun this context check before continuing. For any other context failure, stop and report the error; do not fall back to the current directory or run later OpenSpec commands without the selected store.
+   Run \`openspec context --json\` from the current working directory (or \`openspec context --json --store "<store-id>"\` when a registered store was explicitly selected). Use the returned \`root.path\` as the authoritative OpenSpec root. If context reports \`no_openspec_root\`, stop without creating or changing any files and follow the **Project check** above for how this workflow was reached. Offer \`openspec init\` only for an explicit OpenSpec request, and wait for the user to request initialization. Do not initialize automatically or run \`openspec new change\`. After initialization, rerun this context check before continuing. For any other context failure, stop and report the error; do not fall back to the current directory or run later OpenSpec commands without the selected store.
 
    Only when context returns a resolved \`root.path\`, read \`<root.path>/openspec/config.yaml\`. Use \`config.yml\` only when \`config.yaml\` does not exist. If neither file exists, continue without project context. Do not fall back to \`config.yml\` if \`config.yaml\` is unreadable or invalid.
 

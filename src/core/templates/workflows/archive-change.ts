@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 /**
  * Archiving must merge delta specs into the main specs; the `sync` workflow is
@@ -30,10 +31,12 @@ const SYNC_GUARDRAIL = optionalWorkflow(
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-archive-change',
-    description: 'Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete. Also use when the user says "openspec archive" or "opsx archive".',
+    description: 'Archive a completed OpenSpec change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete. Also use when the user says "openspec archive" or "opsx archive".',
     instructions: `Archive a completed change in the experimental workflow.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
@@ -98,7 +101,11 @@ ${STORE_SELECTION_GUIDANCE}
 
    Read the tasks file (typically \`tasks.md\`) to check for incomplete tasks.
 
-   Count tasks marked with \`- [ ]\` (incomplete) vs \`- [x]\` (complete).
+   A checkbox is complete when its only content is \`x\` or \`X\`; spacing inside
+   the brackets does not matter, so \`- [ x]\` counts as complete too. Every
+   other marker is incomplete - \`- [ ]\`, an empty \`- []\`, and markers OpenSpec
+   assigns no meaning to such as \`- [~]\` or \`- [-]\`. Never read an unfamiliar
+   marker as complete.
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks
@@ -223,6 +230,8 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
+${PROJECT_ROOT_GUARD}
+
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
 **Input**: Optionally specify a change name after \`/opsx:archive\` (e.g., \`/opsx:archive add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
@@ -286,7 +295,11 @@ ${STORE_SELECTION_GUIDANCE}
 
    Read the tasks file (typically \`tasks.md\`) to check for incomplete tasks.
 
-   Count tasks marked with \`- [ ]\` (incomplete) vs \`- [x]\` (complete).
+   A checkbox is complete when its only content is \`x\` or \`X\`; spacing inside
+   the brackets does not matter, so \`- [ x]\` counts as complete too. Every
+   other marker is incomplete - \`- [ ]\`, an empty \`- []\`, and markers OpenSpec
+   assigns no meaning to such as \`- [~]\` or \`- [-]\`. Never read an unfamiliar
+   marker as complete.
 
    **If incomplete tasks found:**
    - Display warning showing count of incomplete tasks
