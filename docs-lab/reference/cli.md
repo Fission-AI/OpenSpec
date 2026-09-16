@@ -1449,7 +1449,7 @@ openspec schema validate spec-driven   # one schema, from any source
 openspec schema validate               # every project-local schema
 ```
 
-It verifies that `schema.yaml` exists and parses, that the structure matches the schema format, that every artifact's template file exists inside the schema's `templates/` directory, and that the dependency graph has no cycles or unknown references.
+It verifies that `schema.yaml` exists and parses, that the structure matches the schema format, that every artifact's template file exists inside the schema's `templates/` directory, and that the dependency graph has no cycles or unknown references, including in `apply.requires`. An `apply.tracks` value that isn't exactly equal to some artifact's `generates` value prints a `warning:` line but does not fail validation, because OpenSpec then can't tell which artifact's progress that file belongs to.
 
 **Options**
 

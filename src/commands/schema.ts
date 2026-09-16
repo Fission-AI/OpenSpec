@@ -12,7 +12,11 @@ import {
   isSchemaDir,
   listSchemas,
 } from '../core/artifact-graph/resolver.js';
-import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
+import {
+  findApplyTracksWarning,
+  parseSchema,
+  SchemaValidationError,
+} from '../core/artifact-graph/schema.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
 import { resolveConfigFilePath } from '../core/project-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
@@ -227,13 +231,20 @@ function validateSchema(
     }
   }
 
-  // Dependency graph validation is already done by parseSchema
-  // (it throws on cycles and invalid references)
+  // Dependency graph validation is already done by parseSchema (it throws on
+  // cycles, invalid references, and an unknown apply.requires id)
   if (verbose) {
     console.log('  Dependency graph validation passed (via parseSchema)');
   }
 
-  return { valid: issues.length === 0, issues };
+  // An apply.tracks value that matches no generates value exactly still loads
+  // (apply reads the path as written), so it is a warning, not an error.
+  const tracksWarning = findApplyTracksWarning(schema);
+  if (tracksWarning) {
+    issues.push({ level: 'warning', path: 'apply.tracks', message: tracksWarning });
+  }
+
+  return { valid: !issues.some((issue) => issue.level === 'error'), issues };
 }
 
 /**
@@ -740,6 +751,9 @@ export function registerSchemaCommand(program: Command): void {
         } else {
           if (result.valid) {
             console.log(`✓ Schema '${name}' is valid`);
+            for (const issue of result.issues) {
+              console.log(`  ${issue.level}: ${issue.message}`);
+            }
           } else {
             console.log(`✗ Schema '${name}' has errors:`);
             for (const issue of result.issues) {
