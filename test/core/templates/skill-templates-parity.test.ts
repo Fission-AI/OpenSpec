@@ -54,14 +54,14 @@ const asDeployed = (template: SkillTemplate): SkillTemplate => ({
 });
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: '3ffe63a08c09164e9fab4747bcb5b193f52ded40d250403c727d186152aeb7e5',
+  getExploreSkillTemplate: 'facc3c805a324c4ad7c484567372bbdc98a921bcfdd9f55cd50143979190cc9f',
   getNewChangeSkillTemplate: 'eabd1e895c5881dcb17dcbaa3fb26098dd59e8eacb318e400820b4dc811ef781',
   getContinueChangeSkillTemplate: '012136f6411a99c8fa228e2f9444cb64b0a89e0f56fdeac2fe03b2f5bee0c5d7',
   getApplyChangeSkillTemplate: '796a56dfd16bd04df0c0adfe10c5378bb0c620307fb81eb28bf4f5378cd78aac',
   getFfChangeSkillTemplate: 'dbf062f7018309bfd89993d215017964cc82b7eab413e8318051cd9421589da4',
   getSyncSpecsSkillTemplate: '271825029d9fa83c19ceb07e6f1ca3c10a17cf0822899d7709180a7487b9ae29',
   getOnboardSkillTemplate: '3549e6a34a59ff5a11cdabf0edfdac2e9171158dd78b83045505f5ec7c7b83bf',
-  getOpsxExploreCommandTemplate: '206a7d54b07122137e975cedceedda7e8397a9d7949eab8bb8f664bffc47b11b',
+  getOpsxExploreCommandTemplate: 'f70b83a5d16d7ba73a13e8d7f17feecee526bc69f431c05c68c1a0bc654ff2e6',
   getOpsxNewCommandTemplate: '00a1077bd71ad84ceaa149e35479b3041598fc4c0219b75b7bb74feac80624f4',
   getOpsxContinueCommandTemplate: '1cfb9527dc2cdb267d56c1804a97346b0055861954fbe75a86949e962a5040a5',
   getOpsxApplyCommandTemplate: '704da8e513f853ace5567997a29b1bcfd30fc6b4386687bd7d1352e06c0f0ffa',
@@ -82,7 +82,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '561602f8578779f25f5c43e7beb47f414e7fe961bcca427a16c2d09923f0e587',
+  'openspec-explore': 'dce3fa2ee328cf66d3aacd1f90e62379073c3a0f4a58feecce9c90e0c159a24e',
   'openspec-new-change': 'ec4529beef978e34634a6f7286fab55d68fad8fb374dceb45691d52caab33fbb',
   'openspec-continue-change': 'bb6194a16c54891cdb253678e8f70ce53b2af86735243980f366ce551d37e42e',
   'openspec-apply-change': '149b1bcd19d867749f8a3e016bd452e8b5ef699f591dfb8793a9d527e98ddec5',
