@@ -255,6 +255,18 @@ function parseDeclarationList(raw: unknown, warn: FieldWarn = (_path, message) =
 
 export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
 
+/** Every top-level key `parseProjectConfig` reads (`targets` is the retired spelling of `references`). */
+const KNOWN_CONFIG_FIELDS = new Set([
+  'schema',
+  'context',
+  'rules',
+  'operations',
+  'references',
+  'store',
+  'githubCopilot',
+  'targets',
+]);
+
 /**
  * Read and parse openspec/config.yaml from project root.
  * Uses resilient parsing - validates each field independently using Zod safeParse.
@@ -466,6 +478,22 @@ function parseProjectConfig(
         }
       } else {
         warn('githubCopilot', `Invalid 'githubCopilot' field in config (must be an object)`);
+      }
+    }
+
+    // A top-level key nothing above reads is ignored: for a typo such as
+    // `rule:` that silently drops every project rule. Reported as a warning
+    // (nothing the parser understood was lost) so `validate --strict` can
+    // reject it while a config written for a newer CLI still degrades on an
+    // older one. `targets` is the retired name of `references` and stays
+    // silent, as it always has.
+    for (const key of Object.keys(raw)) {
+      if (!KNOWN_CONFIG_FIELDS.has(key)) {
+        warn(
+          key,
+          `Unknown field '${key}' in config, ignoring it. Supported fields: ${[...KNOWN_CONFIG_FIELDS].filter((k) => k !== 'targets').join(', ')}`,
+          'warning'
+        );
       }
     }
 

@@ -1170,6 +1170,24 @@ operations:
       expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('not a valid YAML object'));
     });
 
+    it('reports an unknown top-level field as a warning and keeps the legacy targets key silent', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.yaml'),
+        ['schema: spec-driven', 'rule:', '  proposal:', '    - typo, not rules', 'targets:', '  - legacy', ''].join(String.fromCharCode(10))
+      );
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.config).toEqual({ schema: 'spec-driven' });
+      expect(inspection.problems).toEqual([
+        { kind: 'field', level: 'warning', path: 'rule', message: expect.stringContaining("Unknown field 'rule' in config") },
+      ]);
+      expect(inspection.problems[0].message).toContain('Supported fields: schema, context, rules');
+      expect(inspection.problems[0].message).not.toContain('targets');
+    });
+
     it('returns an empty problem list for a healthy config', () => {
       const configDir = path.join(tempDir, 'openspec');
       fs.mkdirSync(configDir, { recursive: true });
