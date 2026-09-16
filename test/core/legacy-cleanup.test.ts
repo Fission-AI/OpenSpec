@@ -270,7 +270,7 @@ ${OPENSPEC_MARKERS.end}`);
     it('should detect legacy Claude slash command directory', async () => {
       const dirPath = path.join(testDir, '.claude', 'commands', 'openspec');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'proposal.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'proposal.md'), '<!-- OPENSPEC:START -->\ncontent\n<!-- OPENSPEC:END -->\n');
 
       const result = await detectLegacySlashCommands(testDir);
       expect(result.directories).toContain('.claude/commands/openspec');
@@ -612,7 +612,7 @@ ${OPENSPEC_MARKERS.end}`);
     it('should delete legacy slash command directories', async () => {
       const dirPath = path.join(testDir, '.claude', 'commands', 'openspec');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'proposal.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'proposal.md'), '<!-- OPENSPEC:START -->\ncontent\n<!-- OPENSPEC:END -->\n');
 
       const detection = await detectLegacyArtifacts(testDir);
       const result = await cleanupLegacyArtifacts(testDir, detection);
@@ -1162,6 +1162,7 @@ ${OPENSPEC_MARKERS.end}`);
       expect(LEGACY_SLASH_COMMAND_PATHS['claude']).toEqual({
         type: 'directory',
         path: '.claude/commands/openspec',
+        managedFileNames: ['proposal.md', 'apply.md', 'archive.md'],
       });
 
       expect(LEGACY_SLASH_COMMAND_PATHS['cursor']).toEqual({

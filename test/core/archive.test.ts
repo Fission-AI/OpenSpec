@@ -127,6 +127,77 @@ describe('ArchiveCommand', () => {
       await expect(fs.access(changeDir)).rejects.toThrow();
     });
 
+    describe('a namespace folder holding nested changes (#1846)', () => {
+      async function seedNamespaceFolder(): Promise<string> {
+        const nested = path.join(tempDir, 'openspec', 'changes', 'mobile', 'refresh-token');
+        await fs.mkdir(nested, { recursive: true });
+        await fs.writeFile(path.join(nested, 'proposal.md'), '# Refresh token\n');
+        await fs.writeFile(path.join(nested, 'tasks.md'), '- [ ] Not done\n');
+        return nested;
+      }
+
+      it('is refused instead of archived, so the nested change is not buried', async () => {
+        const nested = await seedNamespaceFolder();
+
+        await expect(
+          archiveCommand.execute('mobile', { yes: true, skipSpecs: true })
+        ).rejects.toThrow(/not a change/);
+
+        // The nested change is untouched and nothing was written to the archive.
+        await expect(fs.access(path.join(nested, 'tasks.md'))).resolves.toBeUndefined();
+        await expect(
+          fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))
+        ).resolves.toEqual([]);
+      });
+
+      it('names the nested directory and the way out', async () => {
+        await seedNamespaceFolder();
+
+        await expect(
+          archiveCommand.execute('mobile', { yes: true, skipSpecs: true })
+        ).rejects.toThrow(/openspec\/changes\/mobile\/refresh-token\//);
+      });
+
+      it('carries a machine-readable diagnostic in --json mode', async () => {
+        await seedNamespaceFolder();
+
+        await archiveCommand
+          .execute('mobile', { yes: true, skipSpecs: true, json: true })
+          .catch(() => undefined);
+
+        const calls = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls;
+        const payload = JSON.parse(String(calls[calls.length - 1][0]));
+        expect(payload.archive).toBeNull();
+        expect(payload.status).toEqual([
+          expect.objectContaining({
+            severity: 'error',
+            code: 'archive_change_is_namespace_folder',
+          }),
+        ]);
+        expect(process.exitCode).toBe(1);
+      });
+
+      it('still archives an ordinary change that happens to have subdirectories', async () => {
+        const changeDir = path.join(tempDir, 'openspec', 'changes', 'add-auth');
+        await fs.mkdir(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done\n');
+        await fs.writeFile(
+          path.join(changeDir, 'specs', 'auth', 'spec.md'),
+          '## ADDED Requirements\n'
+        );
+
+        await archiveCommand.execute('add-auth', {
+          yes: true,
+          skipSpecs: true,
+          noValidate: true,
+        });
+
+        await expect(
+          fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))
+        ).resolves.toEqual([`${formatLocalDate()}-add-auth`]);
+      });
+    });
+
     it('retains the complete copied archive when fallback source cleanup partially fails', async () => {
       const changeName = 'fallback-cleanup-failure';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
