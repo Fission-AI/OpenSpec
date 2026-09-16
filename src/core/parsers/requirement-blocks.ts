@@ -151,6 +151,24 @@ export interface UnpairedRename {
   line: number; // 1-based line number in the delta file
 }
 
+/**
+ * A canonical `### Requirement:` block that sits outside every delta section -
+ * under `## Notes`, under a misspelled `## Add Requirements`, or above the
+ * first `## ` header entirely.
+ *
+ * The delta reader only ever looks inside the four delta sections, so a block
+ * written anywhere else was dropped with no error, no warning and no note -
+ * even though it is well formed and reads exactly like one that would apply.
+ * That was the inconsistency worth closing: the ADJACENT mistake, a
+ * non-canonical `###` header INSIDE a delta section, has been reported as INFO
+ * since #498 (`skippedHeaders`), while the costlier one said nothing at all.
+ */
+export interface OrphanedRequirement {
+  name: string; // requirement name as written
+  section: string | null; // the `## ` section it sits under, or null above the first one
+  line: number; // 1-based line number in the delta file
+}
+
 export interface DeltaPlan {
   added: RequirementBlock[];
   modified: RequirementBlock[];
@@ -162,6 +180,8 @@ export interface DeltaPlan {
   renamed: Array<{ from: string; to: string }>;
   /** FROM:/TO: lines in RENAMED that never formed a pair. */
   unpairedRenames: UnpairedRename[];
+  /** Canonical requirement blocks written outside every delta section. */
+  orphanedRequirements: OrphanedRequirement[];
   skippedHeaders: SkippedHeader[]; // non-canonical ### headers the reader skipped
   sectionPresence: {
     added: boolean;
@@ -235,6 +255,7 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     removedBlocks,
     renamed: renamedPairs,
     unpairedRenames,
+    orphanedRequirements: findOrphanedRequirements(lines, fenceMask),
     skippedHeaders,
     sectionPresence: {
       added: addedLookup.found,
@@ -243,6 +264,55 @@ export function parseDeltaSpec(content: string): DeltaPlan {
       renamed: renamedLookup.found,
     },
   };
+}
+
+/**
+ * The four section titles the delta reader acts on, folded the way
+ * `getSectionsCaseInsensitive` folds them. Matching the reader exactly matters:
+ * a looser test (say, any run of whitespace) would treat `## ADDED  Requirements`
+ * as a delta section here while the reader ignores it, and the requirements
+ * under it would be dropped without this warning.
+ */
+const DELTA_SECTION_TITLES = new Set(
+  ['ADDED Requirements', 'MODIFIED Requirements', 'REMOVED Requirements', 'RENAMED Requirements'].map(
+    (title) => title.toLowerCase()
+  )
+);
+
+/**
+ * Every canonical `### Requirement:` header that is not inside a delta section,
+ * in document order.
+ *
+ * Walks the whole file rather than the parsed sections so a requirement written
+ * ABOVE the first `## ` header is reported too - it is dropped just as silently
+ * as one under `## Notes`. Fenced lines are skipped, so a requirement shown
+ * inside a markdown example is not mistaken for an authored one.
+ */
+function findOrphanedRequirements(
+  lines: string[],
+  fenceMask: boolean[]
+): OrphanedRequirement[] {
+  const orphans: OrphanedRequirement[] = [];
+  let section: string | null = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (fenceMask[i]) continue;
+    // The same `## ` test splitTopLevelSections uses, so both agree on sections.
+    const sectionMatch = lines[i].match(/^(##)\s+(.+)$/);
+    if (sectionMatch) {
+      section = sectionMatch[2].trim();
+      continue;
+    }
+    if (section !== null && DELTA_SECTION_TITLES.has(section.toLowerCase())) continue;
+    const header = lines[i].match(REQUIREMENT_HEADER_REGEX);
+    if (header) {
+      orphans.push({
+        name: normalizeRequirementName(header[1]),
+        section,
+        line: i + 1,
+      });
+    }
+  }
+  return orphans;
 }
 
 /** One `## ` section of a delta file, in the order it was written. */
