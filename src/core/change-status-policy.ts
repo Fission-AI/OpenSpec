@@ -62,20 +62,41 @@ export function buildActionContext(input: ActionContextInput): ActionContext {
   };
 }
 
-export function buildNextSteps(input: ChangeNextStepsInput): string[] {
+/**
+ * The one next action for a change, in both the forms the CLI needs.
+ *
+ * `sentence` is what the JSON `nextSteps` contract publishes; `command` is the
+ * bare command the text surface prints. Both are built here so the two
+ * surfaces can never name a different next step.
+ */
+export interface ChangeNextStep {
+  /** Ready-to-run command, including any `--store` flag. */
+  command: string;
+  /** Sentence form carried by the JSON `nextSteps` array. */
+  sentence: string;
+}
+
+export function resolveNextStep(input: ChangeNextStepsInput): ChangeNextStep | undefined {
   const readyArtifact = input.artifactStatuses.find((artifact) => artifact.status === 'ready');
-  const steps: string[] = [];
   const storeFlag = input.storeId ? ` --store ${input.storeId}` : '';
 
   if (readyArtifact) {
-    steps.push(
-      `Run openspec instructions ${readyArtifact.id} --change "${input.changeName}"${storeFlag} --json before writing that artifact.`
-    );
-  } else if (input.allArtifactsComplete) {
-    steps.push(
-      `All planning artifacts are complete. Run openspec instructions apply --change "${input.changeName}"${storeFlag} --json to inspect implementation progress.`
-    );
+    const command = `openspec instructions ${readyArtifact.id} --change "${input.changeName}"${storeFlag} --json`;
+    return { command, sentence: `Run ${command} before writing that artifact.` };
   }
 
-  return steps;
+  if (input.allArtifactsComplete) {
+    const command = `openspec instructions apply --change "${input.changeName}"${storeFlag} --json`;
+    return {
+      command,
+      sentence: `All planning artifacts are complete. Run ${command} to inspect implementation progress.`,
+    };
+  }
+
+  return undefined;
+}
+
+export function buildNextSteps(input: ChangeNextStepsInput): string[] {
+  const step = resolveNextStep(input);
+  return step ? [step.sentence] : [];
 }
