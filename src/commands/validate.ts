@@ -1,6 +1,12 @@
 import ora from 'ora';
 import path from 'path';
+import {
+  describeNestedChange,
+  findNestedChangesIn,
+  NESTED_CHANGE_ISSUE_MARKER,
+} from '../utils/nested-change.js';
 import { Validator } from '../core/validation/validator.js';
+import type { ValidationIssue } from '../core/validation/types.js';
 import { VALIDATION_MESSAGES } from '../core/validation/constants.js';
 import {
   resolveRootForCommand,
@@ -16,6 +22,7 @@ import { nearestMatches } from '../utils/match.js';
 import { promises as fs } from 'fs';
 import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { folderStyleNameProblem } from '../core/id.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -270,11 +277,63 @@ export class ValidateCommand {
     await this.validateByType(root, type, itemName, opts);
   }
 
+  /**
+   * A namespace folder wrapping nested change directories has no deltas of its
+   * own and never will. The usual "add a delta spec" error points the author at
+   * a directory that is not the change, so the nesting is reported instead
+   * (#1846). Returns undefined for every ordinary change.
+   */
+  private async nestedChangeReport(
+    root: ResolvedOpenSpecRoot,
+    id: string
+  ): Promise<{ valid: false; issues: ValidationIssue[] } | undefined> {
+    const nested = await findNestedChangesIn(root.changesDir, id);
+    if (!nested) return undefined;
+    return {
+      valid: false,
+      issues: [{ level: 'ERROR', path: 'file', message: describeNestedChange(nested) }],
+    };
+  }
+
   private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
+    // `--type` skips the membership check above, so the name still has to be
+    // guarded before it is joined onto a directory. `show` already rejects a
+    // traversing id.
+    //
+    // Spec ids are nested (`specs/<area>/<capability>/spec.md`, #1353), so the
+    // guard runs per segment - rejecting the whole id for containing a `/`
+    // would break every nested capability, including the hint that
+    // `validate --specs` prints. Change names are flat, so they keep the
+    // whole-value check.
+    const nameProblem =
+      type === 'change'
+        ? folderStyleNameProblem(id, 'Change name')
+        : (id.split('/').map((segment) => folderStyleNameProblem(segment, 'Spec id')).find(Boolean) ?? null);
+    if (nameProblem) {
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            { status: [{ severity: 'error', code: 'invalid_item', message: nameProblem }] },
+            null,
+            2
+          )
+        );
+      } else {
+        console.error(nameProblem);
+      }
+      process.exitCode = 1;
+      return;
+    }
     const validator = new Validator(opts.strict);
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
       const start = Date.now();
+      const nestedReport = await this.nestedChangeReport(root, id);
+      if (nestedReport) {
+        this.printReport('change', id, nestedReport, Date.now() - start, opts.json, root);
+        process.exitCode = 1;
+        return;
+      }
       const report = await validator.validateChangeDeltaSpecs(changeDir, {
         mainSpecsDir: root.specsDir,
         projectRoot: root.path,
@@ -325,7 +384,13 @@ export class ValidateCommand {
     const invalidMarkerIssue = issues.some(i =>
       i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_INVALID_METADATA)
     );
-    if (type === 'change' && conflictIssue) {
+    // A namespace folder has no deltas to author, so the delta-authoring
+    // bullets below would point at a directory that is not the change (#1846).
+    const nestedIssue = issues.some(i => i.message.includes(NESTED_CHANGE_ISSUE_MARKER));
+    if (type === 'change' && nestedIssue) {
+      bullets.push('- Move each nested change directly under openspec/changes/, folding the namespace into its name');
+      bullets.push('- Only specs may be nested by domain; change directories are always flat');
+    } else if (type === 'change' && conflictIssue) {
       bullets.push('- This change declares skip_specs (no spec deltas): delete the files under specs/, or remove skip_specs from .openspec.yaml if requirements do change');
       bullets.push('- skip_specs is only honored when .openspec.yaml is valid change metadata (schema: <name> naming a known schema is required)');
     } else if (type === 'change' && invalidMarkerIssue) {
@@ -392,6 +457,16 @@ export class ValidateCommand {
       queue.push(async () => {
         const start = Date.now();
         const changeDir = path.join(root.changesDir, id);
+        const nestedReport = await this.nestedChangeReport(root, id);
+        if (nestedReport) {
+          return {
+            id,
+            type: 'change' as const,
+            valid: false,
+            issues: nestedReport.issues,
+            durationMs: Date.now() - start,
+          };
+        }
         const report = await validator.validateChangeDeltaSpecs(changeDir, {
           mainSpecsDir: root.specsDir,
           projectRoot: root.path,

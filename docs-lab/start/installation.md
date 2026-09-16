@@ -94,6 +94,11 @@ That leaves nothing on your PATH, so there's no install to check afterward.
 
 To put OpenSpec in a project dev shell instead, add the flake as an input and use its default package; [flake.nix](https://github.com/Fission-AI/OpenSpec/blob/main/flake.nix) lists the outputs.
 
+The Nix package ships the Bash, Fish, and Zsh completion scripts at the standard
+locations (`share/bash-completion/completions`, `share/fish/vendor_completions.d`,
+`share/zsh/site-functions`), so they load with the package and there is no need to run
+`openspec completion install`.
+
 ### Check it worked
 
 Whichever method you used, in your terminal:

@@ -32,7 +32,10 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
-import { resolveOptionalWorkflows } from '../templates/optional-workflow.js';
+import {
+  assertWorkflowConditionalsResolved,
+  resolveOptionalWorkflows,
+} from '../templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../profiles.js';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
 
@@ -43,7 +46,7 @@ import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
  * template may refer to, so resolving optional-workflow conditionals here —
  * the one place every generation path (init, update, migration, the skills.sh
  * distribution) already funnels through — keeps a reference to an uninstalled
- * workflow out of every generated file.
+ * workflow out of every generated file (#1734, umbrella #919).
  *
  * With no filter, every workflow is installed (that is what an unfiltered call
  * means), so the installed branch is kept.
@@ -169,6 +172,11 @@ export function generateSkillContent(
   const instructions = transformInstructions
     ? transformInstructions(template.instructions)
     : template.instructions;
+
+  assertWorkflowConditionalsResolved(
+    instructions,
+    `Skill '${template.name}' was generated without resolving its optional-workflow blocks`
+  );
 
   return `---
 name: ${template.name}
