@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import fs from 'fs';
 import http from 'http';
+import https from 'https';
 import os from 'os';
 import path from 'path';
 import { execFile } from 'child_process';
@@ -117,7 +118,20 @@ describe('getAvailableCliUpdate', () => {
     originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
     // The check is disabled under test/CI by design; opt back in to exercise it.
     for (const key of ENV_KEYS) delete process.env[key];
-    process.env.npm_config_registry = `http://127.0.0.1:${port}/`;
+    // The registry must be https — the CLI refuses a cleartext one — so the
+    // fixture speaks https and the TLS transport is swapped for the local
+    // plaintext server at the socket level. Everything above it (URL,
+    // headers, redirect policy, timeouts) is the real code path; only the
+    // handshake is stubbed, since no cert authority exists in-process.
+    process.env.npm_config_registry = `https://127.0.0.1:${port}/`;
+    vi.spyOn(https, 'get').mockImplementation(((target: URL, ...rest: unknown[]) => {
+      const plaintext = new URL(target.toString());
+      plaintext.protocol = 'http:';
+      return (http.get as unknown as (...args: unknown[]) => http.ClientRequest)(
+        plaintext,
+        ...rest
+      );
+    }) as unknown as typeof https.get);
   });
 
   afterEach(async () => {
@@ -173,6 +187,43 @@ describe('getAvailableCliUpdate', () => {
 
     await expect(getAvailableCliUpdate()).resolves.toBe(bumpMajor(OPENSPEC_VERSION));
     expect(requests[1].url).toBe('/elsewhere/@fission-ai/openspec/latest');
+  });
+
+  it('refuses a redirect that leaves TLS', async () => {
+    // Cross-host is allowed on purpose - mirrors and corporate front-ends
+    // redirect, and the check would be permanently dead for them otherwise.
+    // Leaving TLS is not: a MITM on a cleartext hop would choose the answer.
+    // A second local server stands in for the redirect target, so proving the
+    // hop was refused costs no real network traffic.
+    let elsewhereHits = 0;
+    const elsewhere = http.createServer((_req, res) => {
+      elsewhereHits += 1;
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ version: bumpMajor(OPENSPEC_VERSION) }));
+    });
+    await new Promise<void>((resolve) => elsewhere.listen(0, '127.0.0.1', resolve));
+    const elsewherePort = (elsewhere.address() as { port: number }).port;
+
+    try {
+      for (const location of [
+        // The cleartext metadata service the hostile-.npmrc path aims for.
+        'http://169.254.169.254/latest/meta-data/',
+        'http://127.0.0.1:1/@fission-ai/openspec/latest',
+      ]) {
+        requests = [];
+        respond = (res) => {
+          res.writeHead(302, { location });
+          res.end();
+        };
+
+        await expect(getAvailableCliUpdate()).resolves.toBeNull();
+        // Refused before a socket is opened: only the first hop was sent.
+        expect(requests).toHaveLength(1);
+        expect(elsewhereHits).toBe(0);
+      }
+    } finally {
+      await new Promise<void>((resolve) => elsewhere.close(() => resolve()));
+    }
   });
 
   it('gives up rather than following a redirect loop', async () => {
@@ -268,7 +319,12 @@ describe('getAvailableCliUpdate', () => {
       ['CI', 'yes'],
       ['NODE_ENV', 'test'],
       ['DO_NOT_TRACK', '1'],
+      // Tolerant, like CI above: a user who wrote "true" opted out.
+      ['DO_NOT_TRACK', 'true'],
+      ['DO_NOT_TRACK', ' Yes '],
       ['OPENSPEC_TELEMETRY', '0'],
+      ['OPENSPEC_TELEMETRY', 'false'],
+      ['OPENSPEC_TELEMETRY', 'OFF'],
     ] as const) {
       process.env[key] = value;
       await expect(getAvailableCliUpdate()).resolves.toBeNull();
@@ -328,15 +384,29 @@ describe('getAvailableCliUpdate', () => {
     }
   });
 
-  it('falls back to the public registry when the override is not an http(s) URL', () => {
-    // Asserted on the URL rather than by calling: the fallback would send a
-    // real request to npmjs.org, which no test should depend on.
+  it('disables the check when the override is not an https URL', () => {
+    // Not a fallback to public npm: an organization on an internal mirror
+    // deliberately avoided that request, and a version resolved against a
+    // registry the eventual `npm install -g` does not use is worse than none.
     // No '   ' case: a blank value falls through to ~/.npmrc, and this test
     // must not depend on whatever the machine has configured there.
-    for (const bogus of ['not-a-url', 'file:///etc/passwd', 'javascript:alert(1)']) {
+    for (const bogus of [
+      'not-a-url',
+      'file:///etc/passwd',
+      'javascript:alert(1)',
+      // npm exports a cloned repository's .npmrc as npm_config_registry, so a
+      // cleartext registry is repo-content choosing a cleartext destination —
+      // here the cloud metadata service.
+      'http://169.254.169.254/',
+      'http://localhost:8500/',
+      'HTTP://registry.npmjs.org/',
+    ]) {
       process.env.npm_config_registry = bogus;
-      expect(registryUrl()).toBe('https://registry.npmjs.org/@fission-ai/openspec/latest');
+      expect(registryUrl()).toBeNull();
     }
+
+    delete process.env.npm_config_registry;
+    expect(registryUrl()).toBe('https://registry.npmjs.org/@fission-ai/openspec/latest');
 
     process.env.npm_config_registry = 'https://npm.internal.example.com/';
     expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
@@ -353,7 +423,7 @@ describe('getAvailableCliUpdate against an unroutable registry', () => {
     // A file:// URL, not a path: import() rejects a bare Windows path.
     const distModule = new URL('../../dist/core/version-check.js', import.meta.url).href;
 
-    const env = { ...process.env, npm_config_registry: 'http://192.0.2.1:81/' };
+    const env = { ...process.env, npm_config_registry: 'https://192.0.2.1:81/' };
     // TEST-NET-1 (RFC 5737) is routable nowhere, so the connection can only
     // end by our own teardown. Windows drops empty env vars, so unset rather
     // than blank the guards that would otherwise skip the check.
@@ -386,10 +456,45 @@ describe('getAvailableCliUpdate against an unroutable registry', () => {
  * user's global environment without consent is the wrong default.
  */
 describe('offerCliUpgrade', () => {
+  // Whatever registry this machine (or `npm test`) exported must not decide
+  // these cases; the registry rule has its own test below.
+  let originalRegistry: string | undefined;
+
+  beforeEach(() => {
+    originalRegistry = process.env.npm_config_registry;
+    delete process.env.npm_config_registry;
+  });
+
   afterEach(() => {
+    if (originalRegistry === undefined) {
+      delete process.env.npm_config_registry;
+    } else {
+      process.env.npm_config_registry = originalRegistry;
+    }
     vi.restoreAllMocks();
     vi.doUnmock('@inquirer/prompts');
     vi.resetModules();
+  });
+
+  it('never offers to install from a registry that is not the public one', () => {
+    // npm resolves `npm install -g` against npm_config_registry, which npm may
+    // have read from a cloned repository's .npmrc — so a non-default registry
+    // may inform the check but must never drive an install prompt.
+    const npmGlobal = path.join(npmGlobalRoots()[0], '@fission-ai', 'openspec');
+    const base = { installDir: npmGlobal, projectPath: PROJECT_ROOT, interactive: true, stdoutIsTty: true };
+    expect(canSelfUpgrade(npmGlobal, PROJECT_ROOT)).toBe(true);
+
+    for (const registry of ['https://evil.example.com/', 'https://npm.internal.example.com']) {
+      process.env.npm_config_registry = registry;
+      expect(canSelfUpgrade(npmGlobal, PROJECT_ROOT)).toBe(false);
+      expect(shouldOfferUpgrade(base)).toBe(false);
+    }
+
+    // The public registry, however it is spelled, still qualifies.
+    for (const registry of ['https://registry.npmjs.org', 'https://registry.npmjs.org/']) {
+      process.env.npm_config_registry = registry;
+      expect(canSelfUpgrade(npmGlobal, PROJECT_ROOT)).toBe(true);
+    }
   });
 
   it('offers only for an npm-owned global install', () => {
