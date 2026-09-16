@@ -46,6 +46,9 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 | [How Commands Work](how-commands-work.md) | Where slash commands run, what "interactive mode" means, terminal vs chat |
 | [Core Concepts at a Glance](overview.md) | The whole mental model on one page: specs, changes, deltas, archive |
 | [Installation](installation.md) | npm, pnpm, yarn, bun, Nix, a prompt that hands setup to your AI assistant, and how to verify it worked |
+| [Claude Code Setup](install-claude-code.md) | End-to-end install for Claude Code, including `/openspec-autonomous-apply` and worktree-isolated subagents |
+| [Codex Setup](install-codex.md) | End-to-end install for Codex, including `openspec-autonomous-apply` and manual worktree discipline |
+| [OpenCode Setup](install-opencode.md) | End-to-end install for OpenCode, including `/opsx:autonomous-apply` and `opencode.json` skill-path registration |
 
 ### Use it day to day
 

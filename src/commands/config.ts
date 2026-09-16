@@ -93,6 +93,10 @@ export const WORKFLOW_PROMPT_META: Record<string, WorkflowPromptMeta> = {
     name: 'Onboard',
     description: 'Guided onboarding flow for OpenSpec',
   },
+  'autonomous-apply': {
+    name: 'Autonomous apply',
+    description: 'Fully autonomous propose→apply→review→merge loop (sandboxed, opt-in)',
+  },
 };
 
 
