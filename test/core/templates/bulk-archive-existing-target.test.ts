@@ -44,7 +44,7 @@ describe('bulk archive existing-target handling', () => {
   it('orders the existence check between the target name and the move (#1827)', () => {
     for (const [label, body] of bodies) {
       const step = archiveStep(body, label);
-      const targetName = step.indexOf('Target name: use the change name as-is');
+      const targetName = step.indexOf('Target name: use the `<target-name>` recorded');
       const existenceCheck = step.indexOf('**Check if target already exists:**');
       const move = step.indexOf('mv "<changeRoot>"');
 
@@ -76,6 +76,26 @@ describe('bulk archive existing-target handling', () => {
       expect(body, label).toContain(
         'Check every archive target in step 3, before the first main-spec write'
       );
+    }
+  });
+
+  // The dated name must be computed once. Recomputing it at the move lets a
+  // batch that crosses midnight check yesterday's target in step 3, sync main
+  // specs, then collide at today's target with the change still active.
+  it('reuses the target name recorded in step 3 for the move (#1827)', () => {
+    for (const [label, body] of bodies) {
+      const preflight = body.slice(
+        body.indexOf('   d. **Archive target**'),
+        body.indexOf('4. **Detect spec conflicts**')
+      );
+      const step = archiveStep(body, label);
+
+      expect(preflight, label).toContain("record it as that change's `<target-name>`");
+      expect(preflight, label).toContain('prepend the current date');
+      expect(step, label).toContain(
+        'Target name: use the `<target-name>` recorded for this change in step 3d, unchanged'
+      );
+      expect(step, label).not.toContain('prepend the current date');
     }
   });
 

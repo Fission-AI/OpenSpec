@@ -82,7 +82,9 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       - Evaluate this independently for every change, including mixed-schema
         batches where some schemas have no `specs` artifact.
 
-   d. **Archive target** - Compute the target name with the step 8c rule and check whether `<planningHome.changesDir>/archive/<target-name>` already exists
+   d. **Archive target** - Compute each change's target name once and record it as that change's `<target-name>`
+      - Use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<name>` (same rule as `openspec archive`)
+      - Check whether `<planningHome.changesDir>/archive/<target-name>` already exists
       - If it exists, or another selected change resolves to the same target name, mark every such change `Blocked` with `Archive directory already exists`
       - A blocked change is never synced or moved: show it as `Blocked` in the step 6 table, leave it out of conflict resolution (resolve its conflicts using only the other changes), and record it as Failed in step 8d
       - Checking here, before any main spec is written, matches `openspec archive`: a collision found after sync would leave main specs rewritten for an archive that never happened
@@ -205,7 +207,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
    c. **Perform the archive**:
 
-      Target name: use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<name>` (same rule as `openspec archive`).
+      Target name: use the `<target-name>` recorded for this change in step 3d, unchanged. Never recompute it here: a batch that runs past midnight would check one date in step 3 and move to another.
 
       **Check if target already exists:**
       - Check again immediately before the move, even though step 3 already checked: the target can appear mid-batch
