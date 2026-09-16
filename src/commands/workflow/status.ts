@@ -20,6 +20,10 @@ import {
   type ChangeStatus,
 } from '../../core/artifact-graph/index.js';
 import { asStatus } from '../shared-output.js';
+import {
+  describeNestedChange,
+  findNestedChanges,
+} from '../../utils/nested-change.js';
 import type { StoreDiagnostic } from '../../core/store/errors.js';
 import {
   validateChangeExists,
@@ -124,7 +128,25 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
         // with the same comparator validate --all uses so the two batch
         // commands order a given change set identically.
         const entries: BatchStatusEntry[] = [];
+        // The sweep reads each directory straight through `loadStatus`, so a
+        // namespace folder wrapping nested changes would report a whole
+        // artifact plan for work that is not there (#1846). It carries the same
+        // per-change diagnostic a malformed change does.
+        const nestedByName = new Map(
+          (await findNestedChanges(root.changesDir, available)).map((finding) => [
+            finding.name,
+            finding,
+          ])
+        );
         for (const changeName of available.sort((a, b) => a.localeCompare(b))) {
+          const nested = nestedByName.get(changeName);
+          if (nested) {
+            entries.push({
+              changeName,
+              status: [asStatus(new Error(describeNestedChange(nested)), 'change_error')],
+            });
+            continue;
+          }
           try {
             entries.push(loadStatus(changeName));
           } catch (error) {
