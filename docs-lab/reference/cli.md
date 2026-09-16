@@ -359,7 +359,11 @@ Without `--all` it exits 1 and prints the usage line.
 openspec config edit
 ```
 
-Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated. Invalid JSON or an invalid config exits 1. With no editor configured it exits 1:
+Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated. Invalid JSON or an invalid config exits 1.
+
+The editor value may carry arguments and quoted paths, for example `code --wait` or `"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl" -w`. It is split into words without a shell, so `$VAR`, `~` and `;` are passed through literally. An editor that cannot start, or exits non-zero, prints a one-line error and exits 1.
+
+With no editor configured it exits 1:
 
 ```
 Error: No editor configured
@@ -457,6 +461,13 @@ Specs:
 ```
 
 An empty listing prints `No active changes found.` or `No specs found.` and still exits 0.
+
+A change is a directory directly under `openspec/changes/`. Unlike specs, changes cannot be nested in a namespace folder. A folder like `changes/mobile/` that only wraps a change (`changes/mobile/refresh-token/`) is listed with the status `not a change`, followed by a warning that names the nested directories. `--json` marks that entry with a `nested` array and adds a top-level `warnings` array. `show`, `status`, `validate` and `archive` refuse the folder with the same message. To fix it, move the change up and fold the namespace into its name:
+
+```bash
+mv openspec/changes/mobile/refresh-token openspec/changes/mobile-refresh-token
+rmdir openspec/changes/mobile
+```
 
 **Exit codes**
 
@@ -675,6 +686,18 @@ Bulk runs print one status line per item, followed by any findings, and end with
 ✓ spec/api
 Totals: 2 passed, 0 failed (2 items)
 ```
+
+**Task checkbox findings**
+
+Progress counts checkboxes and nothing else, so a task file written as plain bullets reads as zero tasks: `openspec list` and `openspec status` report no work, and `openspec archive` has nothing to flag as incomplete. Validate reports a `WARNING` on each tracked task file that lists work without a checkbox:
+
+```text
+⚠ [WARNING] tasks.md: This change counts as 0 tasks: no line in its tracked task files is a checkbox, so "openspec list" and "openspec status" report no work and "openspec archive" has nothing to flag as incomplete. Write each task as "- [ ] 1.1 Description".
+```
+
+The warning fires only when the change's whole tracked set holds no checkbox at all. One file of prose beside a real checklist is not reported, and a change mid-authoring keeps its progress the moment a single checkbox exists. `--strict` turns the warning into a failure. The line number is in the `--json` report.
+
+Fenced blocks, HTML comments, YAML front matter and indented code are not scanned, so a pasted terminal sample is never mistaken for a task list.
 
 **Archive merge findings**
 
@@ -1074,7 +1097,23 @@ Progress: 2/4 artifacts complete
 [x] specs
 [ ] design
 [-] tasks (blocked by: design)
+
+Next: openspec instructions design --change "add-rate-limit" --json
 ```
+
+The `Next:` line names the one command that moves the change forward, so `openspec status` is enough to pick a change back up in a fresh session. It names the next ready artifact while planning is unfinished, and `openspec instructions apply` once every planning artifact exists:
+
+```
+[x] proposal
+[x] specs
+[x] design
+[x] tasks
+
+All planning artifacts complete!
+Next: openspec instructions apply --change "add-rate-limit" --json
+```
+
+It carries `--store <id>` whenever the resolved root is a store, and names the same command as the JSON `nextSteps` sentence.
 
 `--json` adds per-artifact dependencies, resolved file paths, and a suggested next step. Trimmed:
 
@@ -1568,6 +1607,8 @@ openspec store setup team-context --path ~/openspec/team-context
 
 In an interactive terminal, setup prompts for a missing name and location and confirms before creating anything. Outside one, a missing name or `--path` exits 1 with the flag to pass. Rerunning setup for a registered store reports `Registry: already registered`.
 
+Setup exits 1 with `store_setup_inside_git_repo` when `--path` is inside another Git repository, because initializing the store there would nest one repository in another. `--no-init-git` creates no repository, so it skips that check. Use it to keep a store at `~/openspec/<id>` when your home directory is itself a Git repository, such as a dotfiles repo.
+
 **Arguments**
 
 | Argument | What it is |
@@ -1690,6 +1731,8 @@ Interactively, remove asks before deleting. With `--json` or outside an interact
 Error: Pass --yes to delete store files non-interactively.
 Fix: openspec store remove design-system --yes
 ```
+
+Remove exits 1 and deletes nothing when the folder lacks matching store metadata, or when it contains another registered store (for example a store vendored as a Git submodule). In that case the error is `store_remove_contains_registered_store`: run `openspec store unregister <nested-id>` first, or `openspec store unregister <id>` to forget the store without deleting files.
 
 **Options**
 
@@ -2126,6 +2169,8 @@ Supported shells: `zsh`, `bash`, `fish`, `powershell`. Every subcommand takes an
 | `generate [shell]` | Print the completion script to stdout. |
 | `install [shell]` | Write the script and configure your shell startup file. |
 | `uninstall [shell]` | Remove the script and the config block. |
+
+Installed with Nix, completions are already in place: the flake package ships the Bash, Fish, and Zsh scripts at the standard locations, so `install` is not needed ([Installation](../start/installation.md#nix)).
 
 ### openspec completion generate
 

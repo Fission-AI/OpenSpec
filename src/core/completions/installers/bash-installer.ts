@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
 import { InstallationResult } from '../factory.js';
+import { shellSingleQuote } from './shell-quote.js';
 
 /**
  * Installer for Bash completion scripts.
@@ -115,10 +116,11 @@ export class BashInstaller {
    * @returns Configuration content
    */
   private generateBashrcConfig(completionsDir: string): string {
+    const quotedDir = shellSingleQuote(completionsDir);
     return [
       '# OpenSpec shell completions configuration',
-      `if [ -d "${completionsDir}" ]; then`,
-      `  for f in "${completionsDir}"/*; do`,
+      `if [ -d ${quotedDir} ]; then`,
+      `  for f in ${quotedDir}/*; do`,
       '    [ -f "$f" ] && . "$f"',
       '  done',
       'fi',
@@ -203,9 +205,11 @@ export class BashInstaller {
       // Remove lines between markers (inclusive)
       lines.splice(startIndex, endIndex - startIndex + 1);
 
-      // Remove trailing empty lines
-      while (lines.length > 0 && lines[lines.length - 1].trim() === '') {
-        lines.pop();
+      // Install puts the block at the top of the file followed by one blank
+      // separator line; drop that line too so the file reads as it did before.
+      // Everything else, including the file's final newline, is left as is.
+      if (startIndex === 0 && lines.length > 0 && lines[0].trim() === '') {
+        lines.shift();
       }
 
       // Write back
@@ -328,14 +332,19 @@ export class BashInstaller {
   private generateInstructions(installedPath: string): string[] {
     const completionsDir = path.dirname(installedPath);
 
+    // Quoted exactly like the auto-configured block: these lines are printed
+    // for the user to paste into their own rc file, so an expansion left in
+    // them runs on every future shell start.
+    const quotedDir = shellSingleQuote(completionsDir);
+
     return [
       'Completion script installed successfully.',
       '',
       'To enable completions, add the following to your ~/.bashrc file:',
       '',
       `  # Source OpenSpec completions`,
-      `  if [ -d "${completionsDir}" ]; then`,
-      `    for f in "${completionsDir}"/*; do`,
+      `  if [ -d ${quotedDir} ]; then`,
+      `    for f in ${quotedDir}/*; do`,
       '      [ -f "$f" ] && . "$f"',
       '    done',
       '  fi',
