@@ -99,6 +99,32 @@ describe('bulk archive existing-target handling', () => {
     }
   });
 
+  // The last check and the `mv` are separate steps, so a target created in
+  // between still nests the change with exit 0. The workflow must detect the
+  // nesting after the move and undo it instead of reporting success.
+  it('detects and undoes a move that nested inside a late target (#1827)', () => {
+    for (const [label, body] of bodies) {
+      const step = archiveStep(body, label);
+      const move = step.indexOf('mv "<changeRoot>"');
+      const confirm = step.indexOf('**Confirm the move did not nest:**');
+
+      expect(confirm, label).toBeGreaterThan(move);
+      expect(step.slice(confirm), label).toContain(
+        'move that directory back to `changeRoot` and record this change as Failed'
+      );
+    }
+  });
+
+  // A collision is a failure in every confirmation path, including ready-only,
+  // which otherwise records everything not Ready as Skipped.
+  it('keeps blocked changes Failed under the ready-only option (#1827)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'except `Blocked` changes, which stay Failed with `Archive directory already exists`'
+      );
+    }
+  });
+
   // The guardrail and both failure output templates already promised this
   // outcome while the steps never produced it; keep them in agreement.
   it('keeps the guardrail and failure output consistent with the step (#1827)', () => {

@@ -162,7 +162,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change that is not `Blocked`
-   - The ready-only option — proceed with only the changes the step 6 table marks `Ready` or `Ready*`, and record the rest as Skipped in step 8d. If a `Ready*` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks `Ready` or `Ready*`, and record the rest as Skipped in step 8d, except `Blocked` changes, which stay Failed with `Archive directory already exists`. If a `Ready*` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every
@@ -218,6 +218,8 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
       mkdir -p "<planningHome.changesDir>/archive"
       mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       ```
+
+      **Confirm the move did not nest:** `mv` exits 0 even when the target appeared after the check, moving the change *inside* it. If `<planningHome.changesDir>/archive/<target-name>/<change-directory-name>` now exists (the last path segment of `changeRoot`), move that directory back to `changeRoot` and record this change as Failed with `Archive directory already exists`. Never report it as archived.
 
    d. **Track outcome** for each change:
       - Success: archived successfully
