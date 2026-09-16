@@ -302,6 +302,15 @@ Pass --allow-unknown to bypass this check.
 Error: Invalid configuration - delivery: Invalid option: expected one of "both"|"skills"|"commands"
 ```
 
+If the config file exists but does not hold a JSON object, whether because it is not valid JSON at all or because its root is something else such as `null` or an array, `config set`, `config unset` and `config profile` exit 1 and leave the file unchanged. Fix it with `openspec config edit`, or replace it with `openspec config reset --all`:
+
+```
+Error: /home/you/.config/openspec/config.json could not be parsed, so it was left unchanged.
+Fix it with "openspec config edit", or reset it with "openspec config reset --all".
+```
+
+Until it is fixed, telemetry and the update check stay off.
+
 ### openspec config unset
 
 ```bash
@@ -314,7 +323,7 @@ Removes the key so the default applies again. Keys with built-in defaults always
 Unset delivery (reverted to default)
 ```
 
-A key with no value at all prints `Key "featureFlags.nothere" was not set`. Both cases exit 0.
+A key with no value at all prints `Key "featureFlags.nothere" was not set`. Both cases exit 0. A config file that cannot be parsed exits 1 instead, as for `config set`.
 
 ### openspec config reset
 
@@ -1449,7 +1458,7 @@ openspec schema validate spec-driven   # one schema, from any source
 openspec schema validate               # every project-local schema
 ```
 
-It verifies that `schema.yaml` exists and parses, that the structure matches the schema format, that every artifact's template file exists inside the schema's `templates/` directory, and that the dependency graph has no cycles or unknown references.
+It verifies that `schema.yaml` exists and parses, that the structure matches the schema format, that every artifact's template file exists inside the schema's `templates/` directory, and that the dependency graph has no cycles or unknown references, including in `apply.requires`. An `apply.tracks` value that isn't exactly equal to some artifact's `generates` value prints a `warning:` line but does not fail validation, because OpenSpec then can't tell which artifact's progress that file belongs to.
 
 **Options**
 

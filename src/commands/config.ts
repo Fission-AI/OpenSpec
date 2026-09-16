@@ -6,6 +6,8 @@ import * as path from 'node:path';
 import {
   getGlobalConfigPath,
   getGlobalConfig,
+  isConfigRootObject,
+  isGlobalConfigUnreadable,
   saveGlobalConfig,
   GlobalConfig,
 } from '../core/global-config.js';
@@ -149,6 +151,21 @@ function reportEditorFailure(editor: string, outcome: EditorOutcome): void {
 }
 
 type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
+
+/**
+ * A config file that exists but cannot be parsed is still the user's file:
+ * getGlobalConfig() reads it as defaults, and saving those back would erase
+ * every setting in it. Reports the fix instead, and returns true when it did.
+ */
+function refuseUnreadableConfig(): boolean {
+  if (!isGlobalConfigUnreadable()) {
+    return false;
+  }
+  console.error(`Error: ${getGlobalConfigPath()} could not be parsed, so it was left unchanged.`);
+  console.error('Fix it with "openspec config edit", or reset it with "openspec config reset --all".');
+  process.exitCode = 1;
+  return true;
+}
 
 interface ProfileState {
   profile: Profile;
@@ -370,7 +387,12 @@ export function registerConfigCommand(program: Command): void {
         let rawConfig: Record<string, unknown> = {};
         try {
           if (fs.existsSync(configPath)) {
-            rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            const parsed: unknown = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            // A non-object root holds no explicit settings, and reading a key
+            // off `null` would crash this read-only command.
+            if (isConfigRootObject(parsed)) {
+              rawConfig = parsed as Record<string, unknown>;
+            }
           }
         } catch {
           // If reading fails, treat all as defaults
@@ -436,6 +458,10 @@ export function registerConfigCommand(program: Command): void {
         return;
       }
 
+      if (refuseUnreadableConfig()) {
+        return;
+      }
+
       const config = getGlobalConfig() as Record<string, unknown>;
       const coercedValue = coerceValue(value, options.string || false);
 
@@ -465,6 +491,10 @@ export function registerConfigCommand(program: Command): void {
     .command('unset <key>')
     .description('Remove a key (revert to default)')
     .action((key: string) => {
+      if (refuseUnreadableConfig()) {
+        return;
+      }
+
       const config = getGlobalConfig() as Record<string, unknown>;
       const existed = deleteNestedValue(config, key);
 
@@ -513,7 +543,8 @@ export function registerConfigCommand(program: Command): void {
         }
       }
 
-      saveGlobalConfig({ ...DEFAULT_CONFIG });
+      // A reset is the one write meant to replace a file that cannot be parsed.
+      saveGlobalConfig({ ...DEFAULT_CONFIG }, { replaceUnreadable: true });
       console.log('Configuration reset to defaults');
     });
 
@@ -574,6 +605,10 @@ export function registerConfigCommand(program: Command): void {
     .command('profile [preset]')
     .description('Configure workflow profile (interactive picker or preset shortcut)')
     .action(async (preset?: string) => {
+      if (refuseUnreadableConfig()) {
+        return;
+      }
+
       // Preset shortcut: `openspec config profile core`
       if (preset === 'core') {
         const config = getGlobalConfig();

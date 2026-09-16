@@ -2,7 +2,7 @@ packages:
   - '.'
 
 allowBuilds:
-  esbuild@0.28.1: true
+  esbuild@0.28.2: true
 
 # The only declaration of these. A `pnpm.overrides` block in package.json does not
 # merge with this list — pnpm 10 uses it *instead of* this file (verified: a lone
