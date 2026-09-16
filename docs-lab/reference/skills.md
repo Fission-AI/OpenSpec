@@ -51,6 +51,7 @@ The skills come in two sets:
 | [openspec-continue-change](#openspec-continue-change) | Create the next planning artifact, one at a time | Optional |
 | [openspec-ff-change](#openspec-ff-change) | Create a change proposal with every artifact implementation needs, in one pass | Optional |
 | [openspec-verify-change](#openspec-verify-change) | Check the implementation matches the plan | Optional |
+| [openspec-review](#openspec-review) | Review, critique, and fix until the implementation provably matches the plan | Optional |
 | [openspec-bulk-archive-change](#openspec-bulk-archive-change) | Archive several change proposals at once | Optional |
 | [openspec-onboard](#openspec-onboard) | Learn the workflow by doing one real change proposal end to end | Optional |
 
@@ -154,6 +155,16 @@ Check that the implementation matches the change proposal's artifacts.
 | **Arguments** | A change proposal name, optional. When ambiguous it asks, listing change proposals that have a tasks artifact. |
 | **Creates** | Nothing. It reads the change proposal's artifacts and the codebase. Verification is report-only. |
 | **Response** | A report: a scorecard for Completeness, Correctness, and Coherence, then CRITICAL, WARNING, and SUGGESTION issues with recommendations, and a final archive-readiness assessment. It changes nothing and does not archive. |
+
+## openspec-review
+
+Run an iterative review-critique-implement loop on a change proposal before archiving.
+
+| Contract | Description |
+|---|---|
+| **Arguments** | A change proposal name, optional. When ambiguous it asks, listing the active change proposals. |
+| **Creates** | Code, through fixer roles only: one surgical fix per confirmed issue, tests first. The reviewer and critic roles are read-only. |
+| **Response** | A per-cycle table of reviewer and critic verdicts with the fixes applied, then the consensus call - REACHED or NOT REACHED with outstanding items - the test and validate results, and an archive-readiness verdict. |
 
 ## openspec-bulk-archive-change
 
