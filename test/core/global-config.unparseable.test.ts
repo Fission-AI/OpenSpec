@@ -197,8 +197,11 @@ describe('an unparseable global config', () => {
     });
 
     it('still creates the file on a first run', async () => {
-      const { trackCommand, shutdown } = await import('../../src/telemetry/index.js');
+      const { maybeShowTelemetryNotice, trackCommand, shutdown } = await import('../../src/telemetry/index.js');
 
+      // Nothing is tracked until the notice has been shown, so a first run
+      // shows it before the command is tracked.
+      await maybeShowTelemetryNotice();
       await trackCommand('list', '0.0.0-test');
       await shutdown();
 
