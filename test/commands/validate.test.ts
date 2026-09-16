@@ -204,6 +204,24 @@ describe('top-level validate command', () => {
     expect(JSON.parse(strict.stdout.trim()).config.valid).toBe(false);
   });
 
+  it('flags a misspelled top-level key as a warning that --strict turns into a failure', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'config.yaml'),
+      ['rule:', '  proposal:', '    - "typo for rules"', ''].join(String.fromCharCode(10)),
+      'utf-8'
+    );
+
+    const lenient = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(lenient.exitCode).toBe(0);
+    const out = JSON.parse(lenient.stdout.trim());
+    expect(out.config.issues).toEqual([
+      { level: 'WARNING', path: 'rule', message: expect.stringContaining("Unknown field 'rule'") },
+    ]);
+
+    const strict = await runCLI(['validate', '--all', '--strict', '--json'], { cwd: testDir });
+    expect(strict.exitCode).toBe(1);
+  });
+
   it('includes config problems in the findings report', async () => {
     await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), ['rules:', '  proposal: "not an array"', ''].join('\n'), 'utf-8');
 
