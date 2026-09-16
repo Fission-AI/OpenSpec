@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 /**
  * Archiving must merge delta specs into the main specs; the `sync` workflow is
@@ -30,10 +31,12 @@ const SYNC_GUARDRAIL = optionalWorkflow(
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-archive-change',
-    description: 'Archive a completed change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.',
+    description: 'Archive a completed OpenSpec change in the experimental workflow. Use when the user wants to finalize and archive a change after implementation is complete.',
     instructions: `Archive a completed change in the experimental workflow.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
@@ -226,6 +229,8 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
     content: `Archive a completed change in the experimental workflow.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 

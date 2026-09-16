@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { onlyWithWorkflow, optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 /**
  * The tutorial names other workflows throughout. Which of them exist depends
@@ -84,6 +85,8 @@ function getOnboardInstructions(): string {
   return `Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 ---
 

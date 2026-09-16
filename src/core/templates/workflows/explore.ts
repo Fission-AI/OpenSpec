@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 const PLANNING_GUIDANCE = `## Planning a Change
 
@@ -75,7 +76,7 @@ const GUARDRAIL_HANDOFF = optionalWorkflow(
 export function getExploreSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-explore',
-    description: 'Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.',
+    description: 'Enter OpenSpec explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements in a project that uses OpenSpec. Use when the user wants to think through something before or during an OpenSpec change.',
     instructions: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
 **IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, investigate the codebase, and run read-only commands or tools without confirmation, but you must NEVER write code or implement features. If the user asks you to implement something, do not start it here: say that explore mode does not implement, and ${IMPLEMENT_REQUEST_HANDOFF}. The work happens from that change, never from explore mode. You MAY create or update OpenSpec change artifacts (proposals, designs, specs) within a confirmed scope—that's capturing thinking, not implementing. Answering design or clarifying questions is never consent to write. Before the first write-capable action, name the artifacts or files you would change and what you would do, ask a direct yes/no question, and wait for the user's confirmation in a separate message. Confirmation covers only the scope you described; ask again before expanding it. An explicit request from the user to capture the exploration as a new change is itself that confirmation, covering the change and the change artifacts the request names; scaffold it first as described below.
@@ -83,6 +84,8 @@ export function getExploreSkillTemplate(): SkillTemplate {
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 ---
 
@@ -406,6 +409,8 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The argument after \`/opsx:explore\` is whatever the user wants to think about. Could be:
 - A vague idea: "real-time collaboration"
