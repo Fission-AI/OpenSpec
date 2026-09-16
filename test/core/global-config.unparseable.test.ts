@@ -98,6 +98,18 @@ describe('an unparseable global config', () => {
     expect(read()).toBe(content);
   });
 
+  // Reads must answer with plain defaults, not with the shape of the root: a
+  // string used to spread into numeric character keys that reached callers.
+  it.each(['null\n', '[]\n', '["core"]\n', '"abc"\n', '42\n', 'true\n'])(
+    'reads a non-object root (%j) as plain defaults',
+    async (content) => {
+      const { getGlobalConfig } = await import('../../src/core/global-config.js');
+      fs.writeFileSync(configPath, content);
+
+      expect(getGlobalConfig()).toEqual({ featureFlags: {}, profile: 'core', delivery: 'both' });
+    },
+  );
+
   describe('saveGlobalConfig', () => {
     it('refuses to overwrite it, names the file and the fix, and leaves it byte-identical', async () => {
       const { saveGlobalConfig } = await import('../../src/core/global-config.js');

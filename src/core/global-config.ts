@@ -149,6 +149,14 @@ export function getGlobalConfig(): GlobalConfig {
     const content = fs.readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(content);
 
+    // A root that is not a plain object carries no settings, and spreading it
+    // would leak its shape into the result: a string contributes numeric
+    // character keys. Answer with plain defaults, as for a file that did not
+    // parse at all. Same predicate the writers refuse to save over.
+    if (!isConfigRootObject(parsed)) {
+      return { ...DEFAULT_CONFIG };
+    }
+
     // Merge with defaults (loaded values take precedence)
     const merged: GlobalConfig = {
       ...DEFAULT_CONFIG,
