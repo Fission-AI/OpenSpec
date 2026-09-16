@@ -6,7 +6,7 @@ import { createRequire } from 'module';
 import chalk from 'chalk';
 import { isCiEnvironment } from '../utils/ci.js';
 import { isTelemetryOptedOutByEnv } from '../telemetry/opt-out.js';
-import { getGlobalConfig } from './global-config.js';
+import { getGlobalConfig, isGlobalConfigUnreadable } from './global-config.js';
 
 const require = createRequire(import.meta.url);
 const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package.json');
@@ -38,6 +38,8 @@ function isCheckEnabled(): boolean {
   if (process.env.NODE_ENV === 'test') return false;
   // Same config opt-out as telemetry (env remains the hard override above).
   if (getGlobalConfig().telemetry?.enabled === false) return false;
+  // A config that cannot be parsed may be hiding that opt-out.
+  if (isGlobalConfigUnreadable()) return false;
   return true;
 }
 
