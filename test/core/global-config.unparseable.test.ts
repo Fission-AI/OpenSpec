@@ -320,6 +320,20 @@ describe('an unparseable global config', () => {
       expect(errorOutput()).toContain('openspec config edit');
     });
 
+    // `config list` reads the raw file to mark values explicit vs default. A
+    // `null` root used to crash it with a TypeError stack trace.
+    it.each(['null\n', '[]\n', '"core"\n', '42\n', 'true\n', TYPO])(
+      'lists defaults without crashing for %j and leaves the file unchanged',
+      async (content) => {
+        fs.writeFileSync(configPath, content);
+
+        await expect(runConfig(['list'])).resolves.toBeUndefined();
+
+        expect(read()).toBe(content);
+        expect(process.exitCode).not.toBe(1);
+      },
+    );
+
     it('lets `config reset --all` replace the file with defaults', async () => {
       fs.writeFileSync(configPath, TYPO);
 

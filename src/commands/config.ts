@@ -5,6 +5,7 @@ import * as path from 'node:path';
 import {
   getGlobalConfigPath,
   getGlobalConfig,
+  isConfigRootObject,
   isGlobalConfigUnreadable,
   saveGlobalConfig,
   GlobalConfig,
@@ -264,7 +265,12 @@ export function registerConfigCommand(program: Command): void {
         let rawConfig: Record<string, unknown> = {};
         try {
           if (fs.existsSync(configPath)) {
-            rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            const parsed: unknown = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            // A non-object root holds no explicit settings, and reading a key
+            // off `null` would crash this read-only command.
+            if (isConfigRootObject(parsed)) {
+              rawConfig = parsed as Record<string, unknown>;
+            }
           }
         } catch {
           // If reading fails, treat all as defaults
