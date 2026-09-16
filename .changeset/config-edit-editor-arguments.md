@@ -1,0 +1,5 @@
+---
+'@fission-ai/openspec': patch
+---
+
+Let `openspec config edit` run an `EDITOR` or `VISUAL` that carries arguments. The whole value was passed to `spawn` as the program name, so common settings such as `code --wait`, `subl -w` or `emacsclient -t` failed with `spawn code --wait ENOENT`, and because that error was never caught the command died with a raw Node stack trace. The value is now split into a program and its arguments, honoring quoted paths with spaces, and the config path is appended as its own argument. No shell is involved, so shell metacharacters in the value are passed through literally. On Windows, `.cmd` shims such as `code.cmd` are found. A value that is itself the absolute path of an existing file is still run as-is, so an unquoted editor path containing spaces keeps working. An editor that cannot be started, exits non-zero or is killed is now reported as a one-line error naming the editor, with an install hint when the program was not found, and the command exits 1 instead of throwing. `EDITOR` still takes precedence over `VISUAL`, and the file is still validated after the editor closes.
