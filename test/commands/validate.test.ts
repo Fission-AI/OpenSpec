@@ -163,6 +163,47 @@ describe('top-level validate command', () => {
     ]);
   });
 
+  it('fails --changes and --specs scopes on a bad config too, and a tree with no items', async () => {
+    await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), ['rules:', '  proposal: "not an array"', ''].join('\n'), 'utf-8');
+
+    for (const scope of ['--changes', '--specs']) {
+      const result = await runCLI(['validate', scope, '--json'], { cwd: testDir });
+      expect(result.exitCode, scope).toBe(1);
+      expect(JSON.parse(result.stdout.trim()).config.valid).toBe(false);
+    }
+
+    // Nothing to validate is not a pass when the config itself is broken.
+    await fs.rm(changesDir, { recursive: true, force: true });
+    await fs.rm(specsDir, { recursive: true, force: true });
+    await fs.mkdir(changesDir, { recursive: true });
+    const empty = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(empty.exitCode).toBe(1);
+    const out = JSON.parse(empty.stdout.trim());
+    expect(out.items).toEqual([]);
+    expect(out.config.valid).toBe(false);
+  });
+
+  it('treats an unknown operation id as a warning: passes by default, fails under --strict', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'config.yaml'),
+      ['operations:', '  deploy:', '    guidance:', '      - later', ''].join('\n'),
+      'utf-8'
+    );
+
+    const lenient = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(lenient.exitCode).toBe(0);
+    const out = JSON.parse(lenient.stdout.trim());
+    expect(out.config).toEqual({
+      path: 'openspec/config.yaml',
+      valid: true,
+      issues: [{ level: 'WARNING', path: 'operations', message: expect.stringContaining("Unknown operation ID 'deploy'") }],
+    });
+
+    const strict = await runCLI(['validate', '--all', '--strict', '--json'], { cwd: testDir });
+    expect(strict.exitCode).toBe(1);
+    expect(JSON.parse(strict.stdout.trim()).config.valid).toBe(false);
+  });
+
   it('includes config problems in the findings report', async () => {
     await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), ['rules:', '  proposal: "not an array"', ''].join('\n'), 'utf-8');
 

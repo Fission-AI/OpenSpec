@@ -118,7 +118,7 @@ export function loadOperationInputs(
   };
 }
 
-type FieldWarn = (path: string, message: string) => void;
+type FieldWarn = (path: string, message: string, level?: 'error' | 'warning') => void;
 
 function parseOperations(raw: unknown, warn: FieldWarn = (_path, message) => console.warn(message)): OperationsConfig | undefined {
   if (raw === undefined) {
@@ -136,7 +136,8 @@ function parseOperations(raw: unknown, warn: FieldWarn = (_path, message) => con
     if (!supported.has(operationId)) {
       warn(
         'operations',
-        `Unknown operation ID '${operationId}' in config. Supported operation IDs: ${OPERATION_IDS.join(', ')}`
+        `Unknown operation ID '${operationId}' in config. Supported operation IDs: ${OPERATION_IDS.join(', ')}`,
+        'warning'
       );
       continue;
     }
@@ -155,7 +156,8 @@ function parseOperations(raw: unknown, warn: FieldWarn = (_path, message) => con
     if (unknownFields.length > 0) {
       warn(
         `operations.${operationId}`,
-        `Unknown field(s) in 'operations.${operationId}': ${unknownFields.join(', ')}. Supported fields: guidance`
+        `Unknown field(s) in 'operations.${operationId}': ${unknownFields.join(', ')}. Supported fields: guidance`,
+        'warning'
       );
     }
 
@@ -274,8 +276,15 @@ export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the r
  */
 /** One problem found while reading `openspec/config.yaml`. */
 export interface ProjectConfigProblem {
-  /** `parse`: the file could not be read as a YAML object. `field`: a field was dropped. */
+  /** `parse`: the file could not be read as a YAML object. `field`: a field was dropped or ignored. */
   kind: 'parse' | 'field';
+  /**
+   * `error`: configured content was lost (unparseable file, a dropped rule,
+   * context, store, ...). `warning`: nothing was lost — an unknown operation id
+   * or an unknown field was ignored, which is how a config written for a newer
+   * CLI is meant to degrade on an older one.
+   */
+  level: 'error' | 'warning';
   /** Config path the problem refers to (e.g. `rules.proposal[0]`), or `file` for whole-file failures. */
   path: string;
   message: string;
@@ -312,7 +321,7 @@ function parseProjectConfig(
   projectRoot: string,
   report: (problem: ProjectConfigProblem) => void
 ): { configPath: string | null; config: ProjectConfig | null } {
-  const warn = (path: string, message: string) => report({ kind: 'field', path, message });
+  const warn: FieldWarn = (path, message, level = 'error') => report({ kind: 'field', level, path, message });
   const configPath = resolveConfigFilePath(projectRoot);
   if (configPath === null) {
     return { configPath, config: null }; // No config is OK
@@ -323,7 +332,7 @@ function parseProjectConfig(
     const raw = parseYaml(content);
 
     if (!raw || typeof raw !== 'object') {
-      report({ kind: 'parse', path: 'file', message: `openspec/config.yaml is not a valid YAML object` });
+      report({ kind: 'parse', level: 'error', path: 'file', message: `openspec/config.yaml is not a valid YAML object` });
       return { configPath, config: null };
     }
 
@@ -348,9 +357,8 @@ function parseProjectConfig(
         if (contextSize > MAX_CONTEXT_SIZE) {
           warn(
             'context',
-            `Context too large (${(contextSize / 1024).toFixed(1)}KB, limit: ${MAX_CONTEXT_SIZE / 1024}KB)`
+            `Context too large (${(contextSize / 1024).toFixed(1)}KB, limit: ${MAX_CONTEXT_SIZE / 1024}KB). Ignoring context field`
           );
-          warn('context', `Ignoring context field`);
         } else {
           config.context = contextResult.data;
         }
@@ -436,7 +444,7 @@ function parseProjectConfig(
       } else {
         warn(
           'store',
-          `Warning: ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string).`
+          `Ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string)`
         );
       }
     }
@@ -464,6 +472,7 @@ function parseProjectConfig(
   } catch (error) {
     report({
       kind: 'parse',
+      level: 'error',
       path: 'file',
       message: `could not parse ${configPathForWarnings(projectRoot)} (${error instanceof Error ? error.message.split('\n')[0] : String(error)})`,
     });
@@ -476,7 +485,7 @@ function describeYamlValue(value: unknown): string {
   if (Array.isArray(value)) return 'a list';
   if (typeof value === 'object') {
     const keys = Object.keys(value as Record<string, unknown>);
-    return keys.length === 1 ? `a mapping with key "${keys[0]}"` : 'a mapping';
+    return keys.length === 1 ? `a mapping with key ${JSON.stringify(keys[0])}` : 'a mapping';
   }
   return `a ${typeof value}`;
 }

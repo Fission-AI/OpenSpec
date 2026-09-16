@@ -486,7 +486,7 @@ rules:
         });
         const warned = consoleWarnSpy.mock.calls.map((c) => String(c[0]));
         expect(warned).toEqual([
-          expect.stringContaining('rules.proposal[0] is not a string (found a mapping with key "Keep the "Why" section concrete")'),
+          expect.stringContaining('rules.proposal[0] is not a string (found a mapping with key "Keep the \\"Why\\" section concrete")'),
         ]);
         expect(warned[0]).toContain('quote the rule if it contains ": "');
       });
@@ -1101,7 +1101,7 @@ rules:
       expect(inspection.configPath).toBe(configPath);
       expect(inspection.config).toBeNull();
       expect(inspection.problems).toEqual([
-        { kind: 'parse', path: 'file', message: expect.stringContaining('could not parse') },
+        { kind: 'parse', level: 'error', path: 'file', message: expect.stringContaining('could not parse') },
       ]);
       expect(inspection.problems[0].message).toContain('config.yaml');
       expect(inspection.problems[0].message).not.toContain('Warning:');
@@ -1129,13 +1129,30 @@ operations:
       const inspection = inspectProjectConfig(tempDir);
 
       expect(inspection.config).toEqual({ schema: 'spec-driven', rules: { proposal: ['Fine'] } });
-      expect(inspection.problems.map((p) => [p.kind, p.path])).toEqual([
-        ['field', 'context'],
-        ['field', 'rules.proposal[1]'],
-        ['field', 'rules.specs'],
-        ['field', 'operations.apply.guidance'],
+      expect(inspection.problems.map((p) => [p.kind, p.level, p.path])).toEqual([
+        ['field', 'error', 'context'],
+        ['field', 'error', 'rules.proposal[1]'],
+        ['field', 'error', 'rules.specs'],
+        ['field', 'error', 'operations.apply.guidance'],
       ]);
       expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('reports an unknown operation id or field as a warning, not an error', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.yaml'),
+        ['operations:', '  deploy:', '    guidance:', '      - later', '  apply:', '    guidance:', '      - fine', '    extra: 1', ''].join('\n')
+      );
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.config).toEqual({ operations: { apply: { guidance: ['fine'] } } });
+      expect(inspection.problems.map((p) => [p.level, p.path])).toEqual([
+        ['warning', 'operations'],
+        ['warning', 'operations.apply'],
+      ]);
     });
 
     it('returns an empty problem list for a healthy config', () => {

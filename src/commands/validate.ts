@@ -54,8 +54,9 @@ type BulkScope = 'all' | 'changes' | 'specs' | 'archived';
  */
 interface ConfigValidationResult {
   path: string;
+  /** False when any ERROR-level issue exists (or any issue at all under --strict). */
   valid: boolean;
-  issues: { level: 'ERROR'; path: string; message: string }[];
+  issues: { level: 'ERROR' | 'WARNING'; path: string; message: string }[];
 }
 
 interface BulkValidationResult<T extends BulkItemResult = BulkItemResult> {
@@ -86,23 +87,28 @@ export function projectValidationFindings<T extends BulkItemResult>(full: BulkVa
   };
 }
 
-function inspectConfigForValidation(projectRoot: string): ConfigValidationResult | undefined {
+function inspectConfigForValidation(projectRoot: string, strict: boolean): ConfigValidationResult | undefined {
   const inspection = inspectProjectConfig(projectRoot);
   if (inspection.configPath === null) return undefined;
   const issues = inspection.problems.map((problem: ProjectConfigProblem) => ({
-    level: 'ERROR' as const,
+    level: problem.level === 'error' ? ('ERROR' as const) : ('WARNING' as const),
     path: problem.path,
     message: problem.message,
   }));
   const relative = path.relative(projectRoot, inspection.configPath).split(path.sep).join('/');
-  return { path: relative, valid: issues.length === 0, issues };
+  // Lost content always fails. An ignored unknown id/field only fails under
+  // --strict: that is how a config written for a newer CLI degrades on an
+  // older one, and a CI gate should not break on it by default.
+  const failing = issues.some((issue) => issue.level === 'ERROR' || strict);
+  return { path: relative, valid: !failing, issues };
 }
 
 function printConfigIssues(config: ConfigValidationResult | undefined): void {
-  if (!config || config.valid) return;
-  console.error(`✗ config/${config.path}`);
+  if (!config || config.issues.length === 0) return;
+  console.error(`${config.valid ? '⚠' : '✗'} config/${config.path}`);
   for (const issue of config.issues) {
-    console.error(`  ✗ [${issue.level}] ${issue.path}: ${issue.message}`);
+    const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
+    console.error(`  ${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
   }
 }
 
@@ -387,7 +393,7 @@ export class ValidateCommand {
     }
     console.log(`Scope: ${scope} (${findings.report.totalItems} items)`);
     printConfigIssues(full.config);
-    if (findings.itemFindings.length === 0 && (!full.config || full.config.valid)) {
+    if (findings.itemFindings.length === 0 && (!full.config || full.config.issues.length === 0)) {
       console.log('No item findings.');
     }
     for (const item of findings.itemFindings) {
@@ -413,7 +419,7 @@ export class ValidateCommand {
 
   private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean; findingsScope?: BulkScope }): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
-    const config = inspectConfigForValidation(root.path);
+    const config = inspectConfigForValidation(root.path, opts.strict);
     const configFailed = config !== undefined && !config.valid;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? this.listChangeIds(root) : Promise.resolve<string[]>([]),
