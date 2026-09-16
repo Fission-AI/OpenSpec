@@ -73,7 +73,7 @@ const QUICK_REFERENCE_INVITE = optionalWorkflow(
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-onboard',
-    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.',
+    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work. Also use when the user says "openspec onboard" or "opsx onboard".',
     instructions: getOnboardInstructions(),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
