@@ -457,7 +457,7 @@ async function resolveBackendWithObservedOrigin(
 }
 
 async function prepareSetupPlan(
-  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository' | 'remote'>
+  input: Pick<SetupStoreInput, 'id' | 'path' | 'initGit' | 'allowInsideGitRepository' | 'remote'>
 ): Promise<StoreSetupPlan> {
   const id = validateStoreId(input.id ?? '');
   if (input.remote !== undefined && input.remote.length === 0) {
@@ -481,9 +481,10 @@ async function prepareSetupPlan(
   }
 
   // Stores may be Git-backed, but creating one inside an implementation
-  // repo is almost always an accidental nested-repo setup.
+  // repo is almost always an accidental nested-repo setup. --no-init-git
+  // creates no repository, so there is nothing to nest.
   await assertSetupPathIsNotNestedInGitRepo(storeRoot, {
-    allowInsideGitRepository: input.allowInsideGitRepository,
+    allowInsideGitRepository: input.allowInsideGitRepository || input.initGit === false,
   });
 
   let metadata: Awaited<ReturnType<typeof readStoreMetadataForOperation>> = null;
@@ -557,7 +558,7 @@ export function resolveSetupGitEnabled(
 }
 
 export async function prepareStoreSetup(
-  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository' | 'remote'>
+  input: Pick<SetupStoreInput, 'id' | 'path' | 'initGit' | 'allowInsideGitRepository' | 'remote'>
 ): Promise<PreparedStoreSetup> {
   const plan = await prepareSetupPlan(input);
 
