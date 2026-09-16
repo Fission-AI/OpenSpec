@@ -122,6 +122,68 @@ describe('top-level validate command', () => {
     expect(json.version).toBe('1.0');
   });
 
+
+  it('fails --all when openspec/config.yaml cannot be parsed, and reports it in JSON (#1892)', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'config.yaml'),
+      ['rules:', '  proposal:', `    - 'Keep the "Why" section concrete: what breaks today`, ''].join('\n'),
+      'utf-8'
+    );
+
+    const text = await runCLI(['validate', '--all', '--no-interactive'], { cwd: testDir });
+    expect(text.exitCode).toBe(1);
+    expect(text.stderr).toContain('config/openspec/config.yaml');
+    expect(text.stderr).toContain('could not parse');
+
+    const json = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(json.exitCode).toBe(1);
+    const out = JSON.parse(json.stdout.trim());
+    expect(out.config).toEqual({
+      path: 'openspec/config.yaml',
+      valid: false,
+      issues: [{ level: 'ERROR', path: 'file', message: expect.stringContaining('could not parse') }],
+    });
+    // Items still validate on their own; the config failure does not masquerade as an item failure.
+    expect(out.summary.totals.failed).toBe(0);
+  });
+
+  it('fails --all when a rules item is not a string and names the item (#1891)', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'config.yaml'),
+      ['rules:', '  proposal:', '    - Keep the "Why" section concrete: what breaks today', '    - List "What Changes" at the file level', ''].join('\n'),
+      'utf-8'
+    );
+
+    const result = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(result.exitCode).toBe(1);
+    const out = JSON.parse(result.stdout.trim());
+    expect(out.config.valid).toBe(false);
+    expect(out.config.issues).toEqual([
+      { level: 'ERROR', path: 'rules.proposal[0]', message: expect.stringContaining('rules.proposal[0] is not a string') },
+    ]);
+  });
+
+  it('includes config problems in the findings report', async () => {
+    await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), ['rules:', '  proposal: "not an array"', ''].join('\n'), 'utf-8');
+
+    const result = await runCLI(['validate', '--all', '--report', 'findings', '--json'], { cwd: testDir });
+    expect(result.exitCode).toBe(1);
+    const out = JSON.parse(result.stdout.trim());
+    expect(out.report.kind).toBe('validation-findings');
+    expect(out.config.issues[0].path).toBe('rules.proposal');
+  });
+
+  it('keeps --all passing with a healthy config and omits the config key when there is no config', async () => {
+    const noConfig = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(noConfig.exitCode).toBe(0);
+    expect(JSON.parse(noConfig.stdout.trim()).config).toBeUndefined();
+
+    await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), ['schema: spec-driven', 'rules:', '  proposal:', '    - "Keep it concrete"', ''].join('\n'), 'utf-8');
+    const healthy = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(healthy.exitCode).toBe(0);
+    expect(JSON.parse(healthy.stdout.trim()).config).toEqual({ path: 'openspec/config.yaml', valid: true, issues: [] });
+  });
+
   it('validates only specs with --specs and respects --concurrency', async () => {
     const result = await runCLI(['validate', '--specs', '--json', '--concurrency', '1'], { cwd: testDir });
     expect(result.exitCode).toBe(0);
