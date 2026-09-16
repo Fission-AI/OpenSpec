@@ -1719,6 +1719,8 @@ Error: Pass --yes to delete store files non-interactively.
 Fix: openspec store remove design-system --yes
 ```
 
+Remove exits 1 and deletes nothing when the folder lacks matching store metadata, or when it contains another registered store (for example a store vendored as a Git submodule). In that case the error is `store_remove_contains_registered_store`: run `openspec store unregister <nested-id>` first, or `openspec store unregister <id>` to forget the store without deleting files.
+
 **Options**
 
 | Flag | Effect |
