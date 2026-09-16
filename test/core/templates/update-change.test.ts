@@ -5,6 +5,7 @@ import {
   getOpsxUpdateCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
+import { PROJECT_ROOT_GUARD } from '../../../src/core/templates/workflows/project-root.js';
 import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
 import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../../src/core/profiles.js';
 
@@ -104,7 +105,8 @@ function stepFive(body: string, label: string): string {
   return section(body, '5. **Confirm and apply', '6. **Point to the next step', `${label} step 5`);
 }
 
-// Everything the agent reads except step 5 and the shared store preamble.
+// Everything the agent reads except step 5 and the shared store and project-root
+// preambles (the root guard says to stop before writing; it authorizes none).
 // #1836 lived in step 4, but a sentence in the intro, in step 3, in the
 // Guardrails or in the Output section would govern the agent just as well
 // while sitting outside any single-step slice. Returns the checks that tripped.
@@ -113,6 +115,8 @@ function writeAuthorizationsOutsideStepFive(body: string, label: string): string
     .split(stepFive(body, label))
     .join('\n')
     .split(STORE_SELECTION_GUIDANCE)
+    .join('')
+    .split(PROJECT_ROOT_GUARD)
     .join('');
   for (const sanctioned of SANCTIONED_OUTSIDE_STEP_FIVE) {
     rest = rest.split(sanctioned).join('');

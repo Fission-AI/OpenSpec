@@ -107,6 +107,32 @@ describe('generateApplyInstructions task list', () => {
     expect(listProgress).toEqual({ total: 2, completed: 1 });
   });
 
+  it('lists a task written with an unrecognised marker as remaining work (#1761)', async () => {
+    // Before the fix the apply parser dropped the line, so the agent was told
+    // every task was complete and the change was ready to archive.
+    writeTasks(
+      ['## 1. Implementation', '- [x] 1.1 Done', '- [~] 1.2 Deferred', '- [] 1.3 Empty box', ''].join(
+        '\n'
+      )
+    );
+
+    const instructions = await generateApplyInstructions(tempDir, 'my-change');
+    const listProgress = await getTaskProgressForChange(
+      path.join(tempDir, 'openspec', 'changes'),
+      'my-change',
+      tempDir
+    );
+
+    expect(instructions.tasks.map((task) => task.description)).toEqual([
+      '1.1 Done',
+      '1.2 Deferred',
+      '1.3 Empty box',
+    ]);
+    expect(instructions.progress).toEqual({ total: 3, complete: 1, remaining: 2 });
+    expect(instructions.state).toBe('ready');
+    expect(listProgress).toEqual({ total: 3, completed: 1 });
+  });
+
   it('does not call a change done while a bare checkbox is still unchecked', async () => {
     writeTasks('## 1. Implementation\n- [x] 1.1 Real task\n- [ ]\n');
 

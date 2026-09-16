@@ -352,7 +352,10 @@ would change what gets built, resolve them with the user first - do not
 bake an unstated assumption into the task list.
 
 **IMPORTANT: Follow the template below exactly.** The apply phase parses
-checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+checkbox format to track progress. A box holding only `x` counts as done,
+upper or lower case and with any spacing, so `- [ x]` is done too. Every
+other marker, including `- [~]`, `- [-]` and an empty `- []`, reads as
+unfinished. A line with no checkbox is not tracked at all.
 
 Guidelines:
 - Group related tasks under ## numbered headings
