@@ -146,14 +146,11 @@ Step through what archiving does:
           └── 2026-08-08-add-rate-limiting/
 ```
 
-Git is a separate concern. Commit the change folder with the code, and nothing else about your workflow changes. When to archive relative to a PR is a team convention; the [Teams](../guides/teams.md) guide has the tradeoff.
+Git is a separate concern. Commit the change folder with the code, and nothing else about your workflow changes.
 
 ## Going further
 
-- [Concepts](../guides/concepts.md): what the two artifacts are, and how a delta describes a change.
-- [Explore](../guides/explore.md): getting more out of explore mode.
-- [Apply](../guides/apply.md): pacing, context windows, resuming long changes.
-- [Review the plan](../guides/review-the-plan.md): what to look for in specs before you build.
+- [Delta specs](../reference/schemas/spec-driven/index.md#delta-specs-specmd): how to write the behavior changes in a delta spec.
 - [Profiles](../customize/profiles.md): optional workflows beyond the core set (verify before archive, incremental planning).
 
 ## Advanced guides
