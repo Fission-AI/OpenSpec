@@ -128,6 +128,9 @@ Install OpenSpec globally:
 
 ```bash
 npm install -g @fission-ai/openspec@latest
+
+# or via Homebrew (macOS / Linux)
+brew install openspec
 ```
 
 Then navigate to your project directory and initialize:
@@ -206,6 +209,9 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 
 ```bash
 npm install -g @fission-ai/openspec@latest
+
+# or via Homebrew
+brew upgrade openspec
 ```
 
 **Refresh agent instructions**
