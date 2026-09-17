@@ -13,7 +13,37 @@ import { cleanupTempPath } from '../helpers/temp-cleanup.js';
  */
 
 const STORE_ID = 'view-store';
+const SCHEMA_NAME = 'store-billing';
 const TIMEOUT_MS = 60_000;
+
+const STORE_SCHEMA = `name: ${SCHEMA_NAME}
+version: 1
+description: Billing workflow owned by the registered store
+artifacts:
+  - id: proposal
+    generates: planning/proposal.md
+    description: Billing change proposal
+    template: proposal.md
+    requires: []
+  - id: specs
+    generates: specs/**/*.md
+    description: Billing behavior
+    template: spec.md
+    requires: [proposal]
+  - id: design
+    generates: planning/design.md
+    description: Billing implementation design
+    template: design.md
+    requires: [specs]
+  - id: tasks
+    generates: execution/tasks.md
+    description: Implementation checklist
+    template: tasks.md
+    requires: [design]
+apply:
+  requires: [tasks]
+  tracks: execution/tasks.md
+`;
 
 let base: string;
 let storeRoot: string;
@@ -60,10 +90,40 @@ beforeAll(async () => {
   await fs.mkdir(specDir, { recursive: true });
   await fs.writeFile(path.join(specDir, 'spec.md'), SPEC);
 
+  const schemaDir = path.join(storeRoot, 'openspec', 'schemas', SCHEMA_NAME);
+  await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+  await fs.writeFile(path.join(schemaDir, 'schema.yaml'), STORE_SCHEMA);
+  for (const template of ['proposal.md', 'spec.md', 'design.md', 'tasks.md']) {
+    await fs.writeFile(path.join(schemaDir, 'templates', template), '# Billing\n');
+  }
+  await fs.writeFile(
+    path.join(storeRoot, 'openspec', 'config.yaml'),
+    `schema: ${SCHEMA_NAME}\n`
+  );
+
+  for (const changeName of ['billing-update', 'billing-refactor']) {
+    const changeDir = path.join(storeRoot, 'openspec', 'changes', changeName);
+    await fs.mkdir(path.join(changeDir, 'planning'), { recursive: true });
+    await fs.mkdir(path.join(changeDir, 'execution'), { recursive: true });
+    await fs.writeFile(path.join(changeDir, 'planning', 'proposal.md'), '# Update billing\n');
+    // A written tasks artifact is done even while its checklist is unfinished.
+    await fs.writeFile(
+      path.join(changeDir, 'execution', 'tasks.md'),
+      '- [x] Audit billing\n- [ ] Implement billing change\n'
+    );
+    if (changeName === 'billing-refactor') {
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        `schema: ${SCHEMA_NAME}\nskip_specs: true\n`
+      );
+    }
+    // billing-update deliberately inherits the store's schema from config.yaml.
+  }
+
   await fs.mkdir(path.join(pointerProject, 'openspec'), { recursive: true });
   await fs.writeFile(
     path.join(pointerProject, 'openspec', 'config.yaml'),
-    `store: ${STORE_ID}\n`
+    `store: ${STORE_ID}\nschema: spec-driven\n`
   );
 }, TIMEOUT_MS);
 
@@ -72,36 +132,46 @@ afterAll(async () => {
 });
 
 describe('openspec view root resolution', () => {
-  it(
-    'follows a store pointer declared in openspec/config.yaml',
-    async () => {
-      const result = await runCLI(['view'], {
-        cwd: pointerProject,
-        env,
-        timeoutMs: TIMEOUT_MS,
-      });
+  it.each([
+    { route: 'a declared store pointer', directory: 'project', storeArgs: [] },
+    { route: 'explicit --store', directory: 'outside', storeArgs: ['--store', STORE_ID] },
+  ])(
+    'resolves workflow schemas and artifacts from the store via $route',
+    async ({ directory, storeArgs }) => {
+      const cwd = path.join(base, directory);
+      await fs.mkdir(cwd, { recursive: true });
+      const options = { cwd, env, timeoutMs: TIMEOUT_MS };
+      const result = await runCLI(['view', ...storeArgs], options);
 
       expect(result.exitCode, result.stderr).toBe(0);
       expect(result.stdout).toContain('1 specs, 1 requirements');
       expect(result.stdout).toContain('billing');
-    },
-    TIMEOUT_MS
-  );
+      expect(result.stdout).toContain('Active Changes: 2 in progress');
+      expect(result.stdout).toContain('Task Progress: 2/4 (50% complete)');
+      const lines = result.stdout.split(/\r?\n/);
 
-  it(
-    'targets a registered store when --store is passed',
-    async () => {
-      const outside = path.join(base, 'outside');
-      await fs.mkdir(outside, { recursive: true });
+      for (const changeName of ['billing-update', 'billing-refactor']) {
+        const skipped = changeName === 'billing-refactor';
+        const statusResult = await runCLI(
+          ['status', '--change', changeName, '--json', ...storeArgs],
+          options
+        );
+        expect(statusResult.exitCode, statusResult.stderr).toBe(0);
+        const status = JSON.parse(statusResult.stdout);
+        expect(status.schemaName).toBe(SCHEMA_NAME);
+        expect(status.artifacts).toMatchObject([
+          { id: 'proposal', status: 'done' },
+          { id: 'specs', status: skipped ? 'skipped' : 'ready' },
+          { id: 'design', status: skipped ? 'ready' : 'blocked' },
+          { id: 'tasks', status: 'done' },
+        ]);
 
-      const result = await runCLI(['view', '--store', STORE_ID], {
-        cwd: outside,
-        env,
-        timeoutMs: TIMEOUT_MS,
-      });
-
-      expect(result.exitCode, result.stderr).toBe(0);
-      expect(result.stdout).toContain('1 specs, 1 requirements');
+        const changeLine = lines.findIndex((line) => line.includes(`◉ ${changeName}`));
+        expect(changeLine).toBeGreaterThanOrEqual(0);
+        expect.soft(lines[changeLine + 1]).toBe(
+          `    └─ [${SCHEMA_NAME}] proposal✓ ${skipped ? 'specs (skipped) design→' : 'specs→ design'} tasks✓`
+        );
+      }
     },
     TIMEOUT_MS
   );
