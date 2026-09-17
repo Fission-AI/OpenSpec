@@ -190,7 +190,11 @@ export function getToolsNeedingProfileSync(
   );
 }
 
-function getInstalledWorkflowsForTool(
+/**
+ * Workflows one tool holds on the requested surfaces (skill files, command
+ * files, or both).
+ */
+export function getInstalledWorkflowsForTool(
   projectPath: string,
   toolId: string,
   options: { includeSkills: boolean; includeCommands: boolean }
