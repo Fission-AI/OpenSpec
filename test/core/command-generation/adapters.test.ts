@@ -16,6 +16,7 @@ import { devinAdapter } from '../../../src/core/command-generation/adapters/devi
 import { factoryAdapter } from '../../../src/core/command-generation/adapters/factory.js';
 import { geminiAdapter } from '../../../src/core/command-generation/adapters/gemini.js';
 import { githubCopilotAdapter } from '../../../src/core/command-generation/adapters/github-copilot.js';
+import { grokAdapter } from '../../../src/core/command-generation/adapters/grok.js';
 import { iflowAdapter } from '../../../src/core/command-generation/adapters/iflow.js';
 import { junieAdapter } from '../../../src/core/command-generation/adapters/junie.js';
 import { kilocodeAdapter } from '../../../src/core/command-generation/adapters/kilocode.js';
@@ -1136,7 +1137,7 @@ describe('command-generation/adapters', () => {
         amazonQAdapter, antigravityAdapter, auggieAdapter, bobAdapter, clineAdapter,
         codebuddyAdapter, continueAdapter, costrictAdapter,
         crushAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter,
-        iflowAdapter, kilocodeAdapter, kiroAdapter, lingmaAdapter, ohMyPiAdapter,
+        grokAdapter, iflowAdapter, kilocodeAdapter, kiroAdapter, lingmaAdapter, ohMyPiAdapter,
         opencodeAdapter, piAdapter, qoderAdapter, qwenAdapter, roocodeAdapter,
         traeAdapter, zcodeAdapter
       ];
@@ -1145,6 +1146,85 @@ describe('command-generation/adapters', () => {
         expect(filePath.length).toBeGreaterThan(0);
         expect(filePath.includes(path.sep) || filePath.includes('.')).toBe(true);
       }
+    });
+  });
+
+  describe('grokAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(grokAdapter.toolId).toBe('grok');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = grokAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.grok', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file path for different command IDs', () => {
+      expect(grokAdapter.getFilePath('new')).toBe(path.join('.grok', 'commands', 'opsx-new.md'));
+      expect(grokAdapter.getFilePath('bulk-archive')).toBe(
+        path.join('.grok', 'commands', 'opsx-bulk-archive.md')
+      );
+    });
+
+    // Grok's command loader reads `commands/` with a single non-recursive
+    // scan, so a file one directory deeper is skipped rather than namespaced.
+    // Nesting these under `opsx/` would leave Grok users with no commands at
+    // all, and nothing else in the suite would notice.
+    it('writes commands directly in commands/, which Grok scans without recursion', () => {
+      for (const commandId of ['explore', 'propose', 'bulk-archive']) {
+        const segments = grokAdapter.getFilePath(commandId).split(path.sep);
+        expect(segments).toEqual(['.grok', 'commands', `opsx-${commandId}.md`]);
+      }
+    });
+
+    // The file stem is what Grok registers, so it has to survive Grok's own
+    // name rules, which its loader applies to commands and skills alike:
+    // lowercase [a-z0-9-], no leading or trailing hyphen, no `--`, and at most
+    // 64 characters. Grok normalizes a stem that breaks the character rules,
+    // so the risk is a silently renamed command rather than a rejected one.
+    it('names every command with a stem Grok accepts verbatim', () => {
+      const contents = getCommandContents();
+      expect(contents.length).toBeGreaterThan(0);
+      for (const { id } of contents) {
+        const stem = path.basename(grokAdapter.getFilePath(id), '.md');
+        expect(stem).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
+        expect(stem.length).toBeLessThanOrEqual(64);
+      }
+    });
+
+    it('should format file with correct YAML frontmatter', () => {
+      const output = grokAdapter.formatFile(sampleContent);
+
+      const frontmatter = output.match(/^---\n([\s\S]*?)\n---\n\n/);
+      expect(frontmatter).not.toBeNull();
+      expect(parseYaml(frontmatter![1])).toEqual({ description: sampleContent.description });
+      expect(output.slice(frontmatter![0].length)).toBe(`${sampleContent.body}\n`);
+    });
+
+    // `CommandContent.name` is a display name ("OPSX: New"). Grok normalizes a
+    // frontmatter `name` to [a-z0-9-] and prefers it over the stem, so
+    // emitting one would hand Grok a name OpenSpec does not control while
+    // docs, skills, and the getting-started hint all advertise the stem.
+    it('omits frontmatter name so the file stem names the command', () => {
+      const output = grokAdapter.formatFile({ ...sampleContent, name: 'OPSX: Explore' });
+      const frontmatter = output.match(/^---\n([\s\S]*?)\n---/);
+      expect(Object.keys(parseYaml(frontmatter![1]) as object)).toEqual(['description']);
+      expect(frontmatter![1]).not.toContain('OPSX: Explore');
+    });
+
+    it('generates registered commands with hyphenated workflow references', () => {
+      const content: CommandContent = {
+        ...sampleContent,
+        body: 'Use /opsx:propose, /opsx:update, and /opsx:bulk-archive. Keep /opsx:unknown.',
+      };
+      const adapter = CommandAdapterRegistry.get('grok');
+      expect(adapter).toBe(grokAdapter);
+      const generated = generateCommand(content, adapter!);
+
+      expect(generated.path).toBe(path.join('.grok', 'commands', 'opsx-explore.md'));
+      expect(generated.fileContent).toContain(
+        'Use /opsx-propose, /opsx-update, and /opsx-bulk-archive. Keep /opsx:unknown.'
+      );
     });
   });
 
