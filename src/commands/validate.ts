@@ -8,6 +8,7 @@ import {
 import { Validator } from '../core/validation/validator.js';
 import type { ValidationIssue } from '../core/validation/types.js';
 import { VALIDATION_MESSAGES } from '../core/validation/constants.js';
+import { inspectProjectConfig, type ProjectConfigProblem } from '../core/project-config.js';
 import {
   resolveRootForCommand,
   toRootOutput,
@@ -23,7 +24,6 @@ import { promises as fs } from 'fs';
 import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { folderStyleNameProblem } from '../core/id.js';
-import { inspectProjectConfig, type ProjectConfigProblem } from '../core/project-config.js';
 
 type ItemType = 'change' | 'spec';
 
