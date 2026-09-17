@@ -1,0 +1,67 @@
+name: Bug report
+description: Something in OpenSpec does not work the way it should.
+labels: ['bug', 'needs-triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this.
+
+        Already have OpenSpec installed and an agent open? `openspec feedback "..."`
+        drafts and files this for you, with the version and platform filled in.
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened
+      description: The actual behavior. Paste the command you ran and its output if you have it.
+      placeholder: |
+        I ran `openspec archive add-login` and it exited 0 without writing the main spec.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+      placeholder: The main spec at openspec/specs/auth/spec.md should have been updated.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Minimal steps to reproduce
+      description: The shortest path from a fresh project to the problem. This is the single most useful thing you can give us.
+      placeholder: |
+        1. `openspec init` in an empty directory
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: OpenSpec version
+      description: Output of `openspec --version`.
+      placeholder: '1.11.0'
+    validations:
+      required: true
+
+  - type: input
+    id: agent
+    attributes:
+      label: Coding agent and model
+      description: Which agent and model were driving OpenSpec, if any. Behavior often differs between them.
+      placeholder: Claude Code, Opus 4.6
+    validations:
+      required: false
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS and Node version
+      placeholder: macOS 15.6, Node 22.11.0
+    validations:
+      required: false

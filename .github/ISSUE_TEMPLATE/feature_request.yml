@@ -1,0 +1,44 @@
+name: Feature request
+description: Something OpenSpec should do that it does not do yet.
+labels: ['enhancement', 'needs-triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        If this would change OpenSpec's core design, open a
+        [discussion](https://github.com/Fission-AI/OpenSpec/discussions) instead — see
+        [CONTRIBUTING.md](https://github.com/Fission-AI/OpenSpec/blob/main/CONTRIBUTING.md).
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem, in one or two sentences
+      description: What you were trying to do, and where OpenSpec got in the way. Describe the problem, not the solution.
+      placeholder: There is no way to tell which change a spec came from after it is archived.
+    validations:
+      required: true
+
+  - type: textarea
+    id: who
+    attributes:
+      label: Who this affects
+      description: Just you, everyone on a particular agent, everyone using a particular workflow, or everyone. OpenSpec serves many agents and models, so this shapes whether a change fits.
+      placeholder: Anyone archiving more than a handful of changes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: What you tried
+      description: Existing commands, flags, or workarounds you reached for, and why they fell short.
+    validations:
+      required: false
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: Optional. A sketch is fine — we will agree on the approach before anyone builds it.
+    validations:
+      required: false
