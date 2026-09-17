@@ -2,6 +2,7 @@ import ora from 'ora';
 import path from 'path';
 import { Validator } from '../core/validation/validator.js';
 import { VALIDATION_MESSAGES } from '../core/validation/constants.js';
+import { inspectProjectConfig, type ProjectConfigProblem } from '../core/project-config.js';
 import {
   resolveRootForCommand,
   toRootOutput,
@@ -16,7 +17,6 @@ import { nearestMatches } from '../utils/match.js';
 import { promises as fs } from 'fs';
 import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { inspectProjectConfig, type ProjectConfigProblem } from '../core/project-config.js';
 
 type ItemType = 'change' | 'spec';
 
