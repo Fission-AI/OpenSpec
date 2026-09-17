@@ -192,6 +192,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
 **Delta Spec Format Reference**
 
 ```markdown
+# Spec Delta
+
 ## Purpose
 
 Only on a delta that introduces a brand-new capability. Seeds the new main spec.

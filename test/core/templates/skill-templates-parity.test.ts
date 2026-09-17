@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -38,6 +40,7 @@ import {
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
+import { parseSchema } from '../../../src/core/artifact-graph/schema.js';
 
 /**
  * Templates carry optional-workflow conditionals that the production registry
@@ -53,14 +56,33 @@ const asDeployed = (template: SkillTemplate): SkillTemplate => ({
   ),
 });
 
+/**
+ * The title `spec-driven` gives each artifact, read from the packaged templates
+ * so guidance and template cannot drift apart.
+ */
+function specDrivenTitles(): Record<string, string> {
+  const schemaDir = path.join(__dirname, '..', '..', '..', 'schemas', 'spec-driven');
+  const schema = parseSchema(fs.readFileSync(path.join(schemaDir, 'schema.yaml'), 'utf-8'));
+
+  return Object.fromEntries(
+    schema.artifacts.map((artifact) => [
+      artifact.id,
+      fs
+        .readFileSync(path.join(schemaDir, 'templates', artifact.template), 'utf-8')
+        .replace(/\r\n?/g, '\n')
+        .split('\n')[0],
+    ])
+  );
+}
+
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'b17a409b5634b5e48864a87f038f2111a74c2442288e9f4cb7a704f86b6d75e7',
   getNewChangeSkillTemplate: '0e5035b7b42198afc430206a1dbc9579096650ef0813d85e837d5a6cd0b98a85',
   getContinueChangeSkillTemplate: '550dc22bc8e0921b1ca5cef867379c4f370c5f1902c420bf9fa3bbfa75cea933',
   getApplyChangeSkillTemplate: '04ae407c97b5f9cb0cc15199fe877ccc7cd1eff78bfe10ad70c16a112b10a661',
   getFfChangeSkillTemplate: '6fb5492e78b9ceec068949080ec9f2e0d2a8baff75a2fe33d07ad33ffe542b65',
-  getSyncSpecsSkillTemplate: '2ba7107351ed2644542f089b0c224d345aca37142d7dc0db7ee8000d5425ebdf',
-  getOnboardSkillTemplate: '234e8237286ab7ae426923d058e66e32842211fd2d9180d62a17952f7a22d8ec',
+  getSyncSpecsSkillTemplate: 'bc80fe9b07eaa289e5eb8a3ce65eb7df722a16d864e37283c678220712e4f230',
+  getOnboardSkillTemplate: '7d92756ffc0b30053838716005610daf3f65c3fa011f3f4d29b6488f303f9cfb',
   getOpsxExploreCommandTemplate: 'f6cf22825643281d653355745623a6c1a4566db46cc2f262d2282243c6d8169a',
   getOpsxNewCommandTemplate: '6d504fef1e0d4ced7c423f4cc9d9d2cee11b1a6224edf685e06a3f0757e0ebff',
   getOpsxContinueCommandTemplate: 'ace5c9cc239c12b57dc86fd9a1c02a6ca467cb8e1245127340c07ab1b9d37c11',
@@ -68,10 +90,10 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxFfCommandTemplate: '04cb49b0bf3ebe364b45268a283564ee4fd50b78b01ec1d3f975bcae68179d2d',
   getArchiveChangeSkillTemplate: '8447a2489240bf0c27f863065d61453dd0264842d1dabafe27b577d6bff96eb3',
   getBulkArchiveChangeSkillTemplate: 'f17399959921ff98c7798e4591c8888825b7c9a83b0a90f09d98c7e0984ab793',
-  getOpsxSyncCommandTemplate: '1664f4c4d8698ba058d03eaf977ff1de1718f6d86110e7987f681b6d2a6a9b1f',
+  getOpsxSyncCommandTemplate: '60550b7bb9829421656d6324a9e4c951bc912f48f88882d1a07ce7f78397a5e7',
   getVerifyChangeSkillTemplate: '2e069a277dac23818b13bb50b66e806ab405bc3b7f535400e1ebf81b84153699',
   getOpsxArchiveCommandTemplate: '980109e5f8362610872c70fe0a0f1d48d3d2692275b2b17e2f4c91c3de89c2fd',
-  getOpsxOnboardCommandTemplate: '4176f03b0be1a96668aa8c4234e8dcc1d61aba1226c1cbee9f4498a54cd0d546',
+  getOpsxOnboardCommandTemplate: '9cad751f7b938eea039b0ba207247776269c81bec5923eb335bee468f515f244',
   getOpsxBulkArchiveCommandTemplate: '3db03eadb764abd74c8c180656c3f64a8b9a4971056c91624d38df3209d7b446',
   getOpsxVerifyCommandTemplate: '938f52f20fb9a3b811ea47314baac1034cd550e8ab363ae878ccba4b6329348f',
   getOpsxProposeSkillTemplate: '1aa2f2eb9c8cbc4dcab9d777bf8832b92ca04f9ef91d0494f1224a566aefdfe8',
@@ -87,11 +109,11 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-continue-change': '182f015de6a1a114c79a6106c0565fd71f368d629641d0ad088de54bd871b52f',
   'openspec-apply-change': 'f3e92c229fab8d77df9f0a77dcb117cf46279b53a208d53aed89bfe0bab2ac09',
   'openspec-ff-change': '8ffad1b1a2deea5f097eb7294fb8b9474d5dfb1c31ee2fd3311d9a9d78259323',
-  'openspec-sync-specs': 'f1d78a7f931330a766bafe5f619e587926fbd976474165eb6b8c0bc7e7e24dc1',
+  'openspec-sync-specs': '3909936a236a21a9a6d5bf495f90b396b3b68fc9220d7b2c1894668653beb2e4',
   'openspec-archive-change': '305a21a9c76a925055f3bdbaac504f208660ef6948d78f73928de166250609bf',
   'openspec-bulk-archive-change': '4bd638a50111d2ee3a667752a2355ed513f770695b137b93fc28848ca7bf60d2',
   'openspec-verify-change': 'ad8a3098bd27d852721687c47a12db7107ed8b8dfc7f071406bb19961652e7ee',
-  'openspec-onboard': '41e50fb271850ff3de99c58cabdcd31338b86b592fcb1c97e1d4ed14f0fb850d',
+  'openspec-onboard': 'd4c5f3e24c19c8e389950544ea0d1844027753def14748c9684210ae4c6cd5e5',
   'openspec-propose': '66e3395adf9f2d93a09e8ef1d20e4efb010e5e8d4811f2d42a9316e4d1ca5a8b',
   'openspec-update-change': '19163b8c1b40ccdc0840019aa8005877a90a3a1cd9f7aadb87f76ccce1342f19',
 };
@@ -1149,5 +1171,38 @@ describe('apply skill/command shared instruction core', () => {
     const core = getApplyInstructions();
     expect(getApplyChangeSkillTemplate().instructions).toBe(core);
     expect(getOpsxApplyCommandTemplate().content).toBe(core);
+  });
+});
+
+describe('workflow guidance matches the packaged templates (#1138)', () => {
+  // Onboard drafts each artifact in the conversation and then saves what it
+  // drafted, so a preview missing the template's title writes an untitled file
+  // no matter what the template says.
+  it('shows every artifact title in the onboarding walkthrough', () => {
+    const titles = specDrivenTitles();
+    const surfaces: Array<[string, string]> = [
+      ['onboard skill', getOnboardSkillTemplate().instructions],
+      ['opsx onboard command', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [surface, text] of surfaces) {
+      for (const artifactId of ['proposal', 'specs', 'design', 'tasks']) {
+        expect(text, `${surface} / ${artifactId}`).toContain(`\n${titles[artifactId]}\n`);
+      }
+    }
+  });
+
+  // The sync workflow prints a delta reference right beside the main-spec one.
+  // The two are only telling them apart if the delta carries its own title.
+  it('titles the delta spec in the sync format reference', () => {
+    const titles = specDrivenTitles();
+
+    for (const [surface, text] of [
+      ['sync skill', getSyncSpecsSkillTemplate().instructions],
+      ['opsx sync command', getOpsxSyncCommandTemplate().content],
+    ] as Array<[string, string]>) {
+      expect(text, surface).toContain(`\n${titles.specs}\n\n## Purpose\n`);
+      expect(text, surface).toContain('\n# <capability> Specification\n');
+    }
   });
 });

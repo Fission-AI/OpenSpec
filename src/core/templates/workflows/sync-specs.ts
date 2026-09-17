@@ -186,6 +186,8 @@ ${PROJECT_ROOT_GUARD}
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+# Spec Delta
+
 ## Purpose
 
 Only on a delta that introduces a brand-new capability. Seeds the new main spec.
@@ -465,6 +467,8 @@ ${PROJECT_ROOT_GUARD}
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+# Spec Delta
+
 ## Purpose
 
 Only on a delta that introduces a brand-new capability. Seeds the new main spec.
