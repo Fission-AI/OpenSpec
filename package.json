@@ -30,6 +30,9 @@
   "bin": {
     "openspec": "./bin/openspec.js"
   },
+  "man": [
+    "./dist/man/openspec.1"
+  ],
   "files": [
     "dist",
     "bin",
@@ -42,6 +45,7 @@
     "lint": "eslint src/",
     "build": "node build.js",
     "generate:skills": "node scripts/generate-skillssh.mjs",
+    "generate:man": "node scripts/generate-man.mjs",
     "regen:parity-hashes": "node scripts/regen-parity-hashes.mjs",
     "dev": "tsc --watch",
     "dev:cli": "pnpm build && node bin/openspec.js",
