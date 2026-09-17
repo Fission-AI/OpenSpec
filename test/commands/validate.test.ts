@@ -122,6 +122,127 @@ describe('top-level validate command', () => {
     expect(json.version).toBe('1.0');
   });
 
+
+  it('fails --all when openspec/config.yaml cannot be parsed, and reports it in JSON (#1892)', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'config.yaml'),
+      ['rules:', '  proposal:', `    - 'Keep the "Why" section concrete: what breaks today`, ''].join('\n'),
+      'utf-8'
+    );
+
+    const text = await runCLI(['validate', '--all', '--no-interactive'], { cwd: testDir });
+    expect(text.exitCode).toBe(1);
+    expect(text.stderr).toContain('config/openspec/config.yaml');
+    expect(text.stderr).toContain('could not parse');
+
+    const json = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(json.exitCode).toBe(1);
+    const out = JSON.parse(json.stdout.trim());
+    expect(out.config).toEqual({
+      path: 'openspec/config.yaml',
+      valid: false,
+      issues: [{ level: 'ERROR', path: 'file', message: expect.stringContaining('could not parse') }],
+    });
+    // Items still validate on their own; the config failure does not masquerade as an item failure.
+    expect(out.summary.totals.failed).toBe(0);
+  });
+
+  it('fails --all when a rules item is not a string and names the item (#1891)', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'config.yaml'),
+      ['rules:', '  proposal:', '    - Keep the "Why" section concrete: what breaks today', '    - List "What Changes" at the file level', ''].join('\n'),
+      'utf-8'
+    );
+
+    const result = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(result.exitCode).toBe(1);
+    const out = JSON.parse(result.stdout.trim());
+    expect(out.config.valid).toBe(false);
+    expect(out.config.issues).toEqual([
+      { level: 'ERROR', path: 'rules.proposal[0]', message: expect.stringContaining('rules.proposal[0] is not a string') },
+    ]);
+  });
+
+  it('fails --changes and --specs scopes on a bad config too, and a tree with no items', async () => {
+    await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), ['rules:', '  proposal: "not an array"', ''].join('\n'), 'utf-8');
+
+    for (const scope of ['--changes', '--specs']) {
+      const result = await runCLI(['validate', scope, '--json'], { cwd: testDir });
+      expect(result.exitCode, scope).toBe(1);
+      expect(JSON.parse(result.stdout.trim()).config.valid).toBe(false);
+    }
+
+    // Nothing to validate is not a pass when the config itself is broken.
+    await fs.rm(changesDir, { recursive: true, force: true });
+    await fs.rm(specsDir, { recursive: true, force: true });
+    await fs.mkdir(changesDir, { recursive: true });
+    const empty = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(empty.exitCode).toBe(1);
+    const out = JSON.parse(empty.stdout.trim());
+    expect(out.items).toEqual([]);
+    expect(out.config.valid).toBe(false);
+  });
+
+  it('treats an unknown operation id as a warning: passes by default, fails under --strict', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'config.yaml'),
+      ['operations:', '  deploy:', '    guidance:', '      - later', ''].join('\n'),
+      'utf-8'
+    );
+
+    const lenient = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(lenient.exitCode).toBe(0);
+    const out = JSON.parse(lenient.stdout.trim());
+    expect(out.config).toEqual({
+      path: 'openspec/config.yaml',
+      valid: true,
+      issues: [{ level: 'WARNING', path: 'operations', message: expect.stringContaining("Unknown operation ID 'deploy'") }],
+    });
+
+    const strict = await runCLI(['validate', '--all', '--strict', '--json'], { cwd: testDir });
+    expect(strict.exitCode).toBe(1);
+    expect(JSON.parse(strict.stdout.trim()).config.valid).toBe(false);
+  });
+
+  it('flags a misspelled top-level key as a warning that --strict turns into a failure', async () => {
+    await fs.writeFile(
+      path.join(testDir, 'openspec', 'config.yaml'),
+      ['rule:', '  proposal:', '    - "typo for rules"', ''].join(String.fromCharCode(10)),
+      'utf-8'
+    );
+
+    const lenient = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(lenient.exitCode).toBe(0);
+    const out = JSON.parse(lenient.stdout.trim());
+    expect(out.config.issues).toEqual([
+      { level: 'WARNING', path: 'rule', message: expect.stringContaining("Unknown field 'rule'") },
+    ]);
+
+    const strict = await runCLI(['validate', '--all', '--strict', '--json'], { cwd: testDir });
+    expect(strict.exitCode).toBe(1);
+  });
+
+  it('includes config problems in the findings report', async () => {
+    await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), ['rules:', '  proposal: "not an array"', ''].join('\n'), 'utf-8');
+
+    const result = await runCLI(['validate', '--all', '--report', 'findings', '--json'], { cwd: testDir });
+    expect(result.exitCode).toBe(1);
+    const out = JSON.parse(result.stdout.trim());
+    expect(out.report.kind).toBe('validation-findings');
+    expect(out.config.issues[0].path).toBe('rules.proposal');
+  });
+
+  it('keeps --all passing with a healthy config and omits the config key when there is no config', async () => {
+    const noConfig = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(noConfig.exitCode).toBe(0);
+    expect(JSON.parse(noConfig.stdout.trim()).config).toBeUndefined();
+
+    await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), ['schema: spec-driven', 'rules:', '  proposal:', '    - "Keep it concrete"', ''].join('\n'), 'utf-8');
+    const healthy = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(healthy.exitCode).toBe(0);
+    expect(JSON.parse(healthy.stdout.trim()).config).toEqual({ path: 'openspec/config.yaml', valid: true, issues: [] });
+  });
+
   it('validates only specs with --specs and respects --concurrency', async () => {
     const result = await runCLI(['validate', '--specs', '--json', '--concurrency', '1'], { cwd: testDir });
     expect(result.exitCode).toBe(0);
