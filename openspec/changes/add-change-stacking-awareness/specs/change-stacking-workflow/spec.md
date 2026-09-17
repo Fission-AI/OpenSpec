@@ -46,12 +46,20 @@ The system SHALL treat capability markers as validation contracts and `touches` 
 - **THEN** validation SHALL NOT infer an implicit dependency edge
 - **AND** ordering SHALL continue to be determined solely by explicit `dependsOn` relationships
 
-#### Scenario: Requires marker satisfied by archived history
+#### Scenario: Archived provider evidence suppresses missing-provider warning
 - **WHEN** a change declares a `requires` marker
-- **AND** no active change provides that marker
-- **AND** at least one archived change in history provides that marker
+- **AND** no active change declares the corresponding `provides` marker
+- **AND** archived history contains explicit change-level provider evidence for that marker
 - **THEN** validation SHALL NOT warn solely about missing provider
-- **AND** SHALL continue to use explicit `dependsOn` for active ordering
+- **AND** the provider evidence SHALL identify the archived change and marker source used for the decision
+- **AND** validation SHALL continue to use explicit `dependsOn` for active ordering
+
+#### Scenario: Ambiguous provider evidence still warns
+- **WHEN** a change declares a `requires` marker
+- **AND** no active change declares the corresponding `provides` marker
+- **AND** archived history has no explicit change-level provider evidence for that marker
+- **THEN** validation SHALL emit a non-blocking warning naming the change and missing marker
+- **AND** validation SHALL NOT suppress the warning from fuzzy text matches or inferred capability names
 
 #### Scenario: Requires marker missing in full history
 - **WHEN** a change declares a `requires` marker
