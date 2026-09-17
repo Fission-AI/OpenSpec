@@ -23,7 +23,7 @@ What to write in these fields is covered in [Project configuration](../../custom
 
 ### schema
 
-The workflow schema every change in this project follows. Valid values are `spec-driven` or a schema name the project defines. The names are listed in [Schemas](../schemas/index.md).
+The workflow schema every change in this project follows. Valid values are `spec-driven` or a schema name the project defines. Run [`openspec schemas`](../cli.md#openspec-schemas) to list the available schema names.
 
 ### context
 
