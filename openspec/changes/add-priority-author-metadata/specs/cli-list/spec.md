@@ -5,11 +5,7 @@ The command SHALL display items in a clear, readable table format with mode-appr
 
 #### Scenario: Displaying change list (default)
 - **WHEN** displaying the list of changes
-- **THEN** show a table with columns:
-  - Change name (directory name)
-  - Task progress (e.g., "3/5 tasks" or "✓ Complete")
-  - Priority (when set in `.openspec.yaml`, e.g. "high")
-  - Author (when set in `.openspec.yaml`)
+- **THEN** show a table with columns: Change name (directory name) and Task progress (e.g., "3/5 tasks" or "✓ Complete")
 
 #### Scenario: Displaying spec list
 - **WHEN** displaying the list of specs
@@ -17,9 +13,17 @@ The command SHALL display items in a clear, readable table format with mode-appr
   - Spec id (directory name)
   - Requirement count (e.g., "requirements 12")
 
-#### Scenario: Change without priority or author
-- **WHEN** a change's `.openspec.yaml` sets neither `priority` nor `author`
-- **THEN** its row omits those columns' values without breaking table alignment
+#### Scenario: Priority column included only when some change sets it
+- **WHEN** displaying the list of changes and at least one listed change's `.openspec.yaml` sets `priority`
+- **THEN** the table includes a Priority column, with an empty cell for any row whose change does not set `priority`
+
+#### Scenario: Author column included only when some change sets it
+- **WHEN** displaying the list of changes and at least one listed change's `.openspec.yaml` sets `author`
+- **THEN** the table includes an Author column, with an empty cell for any row whose change does not set `author`
+
+#### Scenario: Legacy layout when no change sets priority or author
+- **WHEN** displaying the list of changes and no listed change's `.openspec.yaml` sets `priority` or `author`
+- **THEN** the table renders with only the Change name and Task progress columns, unchanged from today's layout
 
 ## ADDED Requirements
 
