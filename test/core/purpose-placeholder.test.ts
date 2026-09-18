@@ -164,6 +164,23 @@ describe('findPurposePlaceholderIssue', () => {
       expect(findPurposePlaceholderIssue('   \n  ', specWith(''))).toBeNull();
     });
 
+    it('does not report the Spanish word "Todo" opening authored prose', () => {
+      // `todo` is an extremely frequent sentence opener in Spanish ("Todo
+      // el…") and Portuguese ("Todo o…"). A marker is written `TODO:`,
+      // `TODO -`, or alone on its line - never `Todo` followed by prose.
+      for (const purpose of [
+        'Todo el conocimiento del producto vive del otro lado, en el repo hermano.',
+        'Todo o catálogo é carregado a partir do repositório irmão.',
+      ]) {
+        expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
+      }
+    });
+
+    it('still reports a marker alone on its line above placeholder prose', () => {
+      const purpose = 'TODO\nfill this in once the capability settles down.';
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).not.toBeNull();
+    });
+
     it('does not report an ordinary short Purpose, which PURPOSE_TOO_BRIEF covers', () => {
       expect(findPurposePlaceholderIssue('Does stuff.', specWith('Does stuff.'))).toBeNull();
     });
