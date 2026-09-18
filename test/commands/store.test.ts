@@ -420,7 +420,7 @@ describe('store command', () => {
     const storeRoot = path.join(repoRoot, 'team-context');
 
     const result = await runCLI(
-      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--json'],
       { cwd: tempDir, env }
     );
 
@@ -440,7 +440,7 @@ describe('store command', () => {
     const storeRoot = path.join(repoRoot, 'team-context');
 
     const result = await runCLI(
-      ['store', 'setup', 'team-context', '--path', storeRoot, '--no-init-git', '--json'],
+      ['store', 'setup', 'team-context', '--path', storeRoot, '--json'],
       { cwd: tempDir, env }
     );
 
