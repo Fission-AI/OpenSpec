@@ -446,4 +446,34 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     expect(lossIssue(report)).toBeUndefined();
     expect(report.issues.map((i) => i.message).join('\n')).toContain('MODIFIED references old name from RENAMED');
   });
+  it('reports what the block adds, so a rename reads differently from a truncation (#1697)', async () => {
+    await writeMainSpec('widgets', mainSpec(TWO_SCENARIO_REQUIREMENT));
+    const widened = `## MODIFIED Requirements\n\n### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n\n#### Scenario: Second scenario, widened\n- **WHEN** idle\n- **THEN** idle is reported\n`;
+    const changeDir = await writeChange('widen-scenario', 'widgets', widened);
+
+    const issue = lossIssue(await validate(changeDir));
+
+    // The guard still fires: a widened title is a dropped name, and nothing
+    // here decides whether that was deliberate.
+    expect(issue?.message).toContain('"Second scenario"');
+    expect(issue?.message).toContain(
+      "The modified block has 2 scenario(s) to the current spec's 2, and adds 1 the spec does not have: \"Second scenario, widened\"."
+    );
+    // Parity: archive refuses the same change and prints the same sentence.
+    expect(await archiveError(changeDir)).toContain(
+      'and adds 1 the spec does not have: "Second scenario, widened".'
+    );
+  });
+
+  it('says the block adds none when scenarios are only dropped (#1697)', async () => {
+    await writeMainSpec('widgets', mainSpec(TWO_SCENARIO_REQUIREMENT));
+    const changeDir = await writeChange('drop-scenario', 'widgets', DELTA_KEEPING_ONE);
+
+    const issue = lossIssue(await validate(changeDir));
+
+    expect(issue?.message).toContain(
+      "The modified block has 1 scenario(s) to the current spec's 2, and adds none."
+    );
+    expect(await archiveError(changeDir)).toContain('and adds none.');
+  });
 });
