@@ -207,6 +207,7 @@ describe('command completion registry', () => {
     expect(newChange?.flags.map((flag) => flag.name)).toEqual([
       'description',
       'goal',
+      'author',
       'schema',
       'json',
       'store',

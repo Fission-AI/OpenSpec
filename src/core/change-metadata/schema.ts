@@ -31,6 +31,8 @@ export const ChangeMetadataSchema = z.object({
     })
     .optional(),
   goal: z.string().min(1).optional(),
+  priority: z.enum(['low', 'medium', 'high']).optional(),
+  author: z.string().min(1).optional(),
   affected_areas: z.array(z.string().min(1)).optional(),
   initiative: InitiativeLinkSchema.optional(),
   // Declares that this change intentionally has no spec deltas (pure refactor,
