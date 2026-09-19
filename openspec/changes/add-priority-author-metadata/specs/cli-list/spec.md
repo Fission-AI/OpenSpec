@@ -23,7 +23,7 @@ The command SHALL display items in a clear, readable table format with mode-appr
 
 #### Scenario: Legacy layout when no change sets priority or author
 - **WHEN** displaying the list of changes and no listed change's `.openspec.yaml` sets `priority` or `author`
-- **THEN** the table renders with only the Change name and Task progress columns, unchanged from today's layout
+- **THEN** the table renders with only the Change name, Task progress, and relative modification time columns, unchanged from today's layout
 
 ## ADDED Requirements
 
