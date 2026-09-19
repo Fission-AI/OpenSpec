@@ -138,9 +138,12 @@ Apply stays blocked if that file is missing or contains no checkbox with task te
 - [ ] Pending task
 - [x] Completed task
 * [X] Completed task
++ [ ] Pending task
+1. [ ] Pending task
+2) [x] Completed task
 ```
 
-Leading spaces are allowed. The [tasks.md section of the spec-driven page](spec-driven/index.md#tasksmd) defines the stricter format produced by the default schema.
+Any Markdown list marker works: `-`, `*`, `+`, or a number of up to nine digits followed by `.` or `)`. Leading spaces are allowed. The [tasks.md section of the spec-driven page](spec-driven/index.md#tasksmd) defines the stricter format produced by the default schema.
 
 The tracked file drives the apply state:
 
@@ -198,12 +201,16 @@ apply:
 - Field types and required fields
 - Relative paths
 - Artifact IDs, dependencies, and cycles
+- `apply.requires` IDs: each must be an artifact in the schema
 - Template files
+
+A schema with an unknown `apply.requires` ID doesn't load, so every command that uses it reports the error.
+
+Validation warns, without failing, when `apply.tracks` isn't exactly equal to some artifact's `generates` value. OpenSpec finds the tracked artifact by comparing those two strings, so anything else leaves it unable to tell which artifact's progress the file belongs to. That includes a typo like `task.md`, and also `tracks: tasks/main.md` against `generates: tasks/*.md`, where the glob does produce the file but the strings still differ. Apply keeps reading the file either way, but `openspec list` and `openspec status` count `tasks.md` instead.
 
 Validation doesn't catch these mistakes:
 
 | Mistake | What happens |
 |---|---|
 | A field is misspelled, such as `instrution` | OpenSpec ignores it. Validation doesn't report the typo. |
-| `apply.requires` names an unknown artifact ID | Validation doesn't report the unknown ID. |
 | `name` differs from the schema directory | Validation passes. OpenSpec still uses the directory name for lookup. |

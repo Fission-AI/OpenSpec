@@ -41,7 +41,7 @@ Running init creates two things in your project:
 - An `openspec/` folder at the repo root
 - Workflow files (skills and commands) added to your AI tool's folder (`.agents/`, `.claude/`, etc.)
 
-Commit all of it like the rest of your source ([FAQ](../help/faq.md) covers why). Init changes nothing else in your repo (if it finds leftovers from an older OpenSpec version, it asks before cleaning them up).
+Commit all of it like the rest of your source. Init changes nothing else in your repo (if it finds leftovers from an older OpenSpec version, it asks before cleaning them up).
 
 ### The `openspec/` folder
 
@@ -55,7 +55,7 @@ openspec/
     └── archive/    completed changes move here
 ```
 
-[Concepts](../guides/concepts.md) explains both artifacts; [Project config](../customize/project-config.md) covers `config.yaml`.
+[Project config](../customize/project-config.md) covers `config.yaml`.
 
 ### The workflow files (skills and commands)
 
