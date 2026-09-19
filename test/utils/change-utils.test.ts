@@ -213,6 +213,53 @@ describe('createChange', () => {
     });
   });
 
+  describe('author from git config', () => {
+    const emptyGitConfig = () => path.join(testDir, 'gitconfig-empty');
+
+    beforeEach(async () => {
+      await fs.writeFile(emptyGitConfig(), '', 'utf-8');
+      vi.stubEnv('GIT_CONFIG_GLOBAL', emptyGitConfig());
+      vi.stubEnv('GIT_CONFIG_SYSTEM', emptyGitConfig());
+    });
+
+    afterEach(() => {
+      vi.unstubAllEnvs();
+    });
+
+    it('should populate author from git config user.name when not explicitly provided', async () => {
+      const namedConfig = path.join(testDir, 'gitconfig-named');
+      await fs.writeFile(namedConfig, '[user]\n\tname = Jane Doe\n', 'utf-8');
+      vi.stubEnv('GIT_CONFIG_GLOBAL', namedConfig);
+
+      await createChange(testDir, 'add-auth');
+
+      const metaPath = path.join(testDir, 'openspec', 'changes', 'add-auth', '.openspec.yaml');
+      const content = await fs.readFile(metaPath, 'utf-8');
+      expect(content).toContain('author: Jane Doe');
+    });
+
+    it('should prefer an explicit author over git config', async () => {
+      const namedConfig = path.join(testDir, 'gitconfig-named');
+      await fs.writeFile(namedConfig, '[user]\n\tname = Jane Doe\n', 'utf-8');
+      vi.stubEnv('GIT_CONFIG_GLOBAL', namedConfig);
+
+      await createChange(testDir, 'add-auth', { metadata: { author: 'Explicit Author' } });
+
+      const metaPath = path.join(testDir, 'openspec', 'changes', 'add-auth', '.openspec.yaml');
+      const content = await fs.readFile(metaPath, 'utf-8');
+      expect(content).toContain('author: Explicit Author');
+      expect(content).not.toContain('Jane Doe');
+    });
+
+    it('should omit author when git config has no user.name', async () => {
+      await createChange(testDir, 'add-auth');
+
+      const metaPath = path.join(testDir, 'openspec', 'changes', 'add-auth', '.openspec.yaml');
+      const content = await fs.readFile(metaPath, 'utf-8');
+      expect(content).not.toContain('author:');
+    });
+  });
+
   describe('schema validation', () => {
     it('should throw error for unknown schema', async () => {
       await expect(createChange(testDir, 'add-auth', { schema: 'unknown-schema' })).rejects.toThrow(

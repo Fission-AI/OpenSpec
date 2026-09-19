@@ -732,6 +732,7 @@ newCmd
   .description('Create a new change directory')
   .option('--description <text>', 'Description to add to README.md')
   .option('--goal <text>', 'Optional goal metadata to store with the change')
+  .option('--author <name>', "Optional author metadata to store with the change (default: git config user.name)")
   .option('--schema <name>', `Workflow schema to use (default: ${DEFAULT_SCHEMA})`)
   .option('--json', 'Output as JSON')
   .option('--store <id>', STORE_OPTION_DESCRIPTION)

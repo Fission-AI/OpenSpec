@@ -31,6 +31,7 @@ import { printJson, statusFromError, validateSchemaExists } from './shared.js';
 export interface NewChangeOptions {
   description?: string;
   goal?: string;
+  author?: string;
   schema?: string;
   store?: string;
   storePath?: string;
@@ -154,6 +155,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       changesDir: root.changesDir,
       metadata: {
         ...(options.goal ? { goal: options.goal } : {}),
+        ...(options.author ? { author: options.author } : {}),
       },
     });
 

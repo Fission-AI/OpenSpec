@@ -93,7 +93,8 @@ export function writeChangeMetadata(
  */
 export function readChangeMetadata(
   changeDir: string,
-  projectRoot?: string
+  projectRoot?: string,
+  availableSchemas?: string[]
 ): ChangeMetadata | null {
   const metaPath = path.join(changeDir, METADATA_FILENAME);
 
@@ -135,10 +136,10 @@ export function readChangeMetadata(
   }
 
   // Validate that the schema exists
-  const availableSchemas = listSchemas(projectRoot);
-  if (!availableSchemas.includes(parseResult.data.schema)) {
+  const schemas = availableSchemas ?? listSchemas(projectRoot);
+  if (!schemas.includes(parseResult.data.schema)) {
     throw new ChangeMetadataError(
-      `Unknown schema '${parseResult.data.schema}'. Available: ${availableSchemas.join(', ')}`,
+      `Unknown schema '${parseResult.data.schema}'. Available: ${schemas.join(', ')}`,
       metaPath
     );
   }

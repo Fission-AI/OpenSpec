@@ -5,7 +5,11 @@ The command SHALL display items in a clear, readable table format with mode-appr
 
 #### Scenario: Displaying change list (default)
 - **WHEN** displaying the list of changes
-- **THEN** show a table with columns: Change name (directory name) and Task progress (e.g., "3/5 tasks" or "✓ Complete")
+- **THEN** show a table with columns:
+  - Priority (when set in `.openspec.yaml`, e.g. "high")
+  - Change name (directory name)
+  - Task progress (e.g., "3/5 tasks" or "✓ Complete")
+  - Author (when set in `.openspec.yaml`)
 
 #### Scenario: Displaying spec list
 - **WHEN** displaying the list of specs

@@ -43,6 +43,41 @@ describe('ChangeMetadataSchema', () => {
       expect(nonBoolean.success).toBe(false);
     });
 
+    it('should accept priority values low, medium, and high', () => {
+      for (const priority of ['low', 'medium', 'high'] as const) {
+        const result = ChangeMetadataSchema.safeParse({
+          schema: 'spec-driven',
+          priority,
+        });
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.data.priority).toBe(priority);
+        }
+      }
+    });
+
+    it('should accept a non-empty author string', () => {
+      const result = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        author: 'Jane Doe',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.author).toBe('Jane Doe');
+      }
+    });
+
+    it('should accept metadata without priority or author', () => {
+      const result = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.priority).toBeUndefined();
+        expect(result.data.author).toBeUndefined();
+      }
+    });
+
     it('should accept valid schema without created date', () => {
       const result = ChangeMetadataSchema.safeParse({
         schema: 'custom-schema',
@@ -115,6 +150,22 @@ describe('ChangeMetadataSchema', () => {
         },
       });
 
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject a priority value outside low, medium, high', () => {
+      const result = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        priority: 'urgent',
+      });
+      expect(result.success).toBe(false);
+    });
+
+    it('should reject an empty author string', () => {
+      const result = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        author: '',
+      });
       expect(result.success).toBe(false);
     });
 

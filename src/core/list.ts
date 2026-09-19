@@ -10,6 +10,8 @@ import {
   findNestedChanges,
   type NestedChangeFinding,
 } from '../utils/nested-change.js';
+import { readChangeMetadata } from '../utils/change-metadata.js';
+import { listSchemas } from './artifact-graph/resolver.js';
 
 interface ChangeInfo {
   name: string;
@@ -18,6 +20,8 @@ interface ChangeInfo {
   lastModified: Date;
   /** Set when the entry is a namespace folder rather than a change (#1846). */
   nested?: string[];
+  priority?: 'low' | 'medium' | 'high';
+  author?: string;
 }
 
 interface ListOptions {
@@ -141,6 +145,7 @@ export class ListCommand {
 
       // Collect information about each change
       const changes: ChangeInfo[] = [];
+      const availableSchemas = listSchemas(targetPath);
 
       // A directory that only wraps nested change directories is still listed -
       // hiding it would hide a real change whenever the probe is wrong - but it
@@ -154,12 +159,22 @@ export class ListCommand {
         const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
         const changePath = path.join(changesDir, changeDir);
         const lastModified = await getLastModified(changePath);
+        // Malformed metadata shouldn't take down the whole listing - a change
+        // with a bad .openspec.yaml just renders without priority/author.
+        let metadata: ReturnType<typeof readChangeMetadata> = null;
+        try {
+          metadata = readChangeMetadata(changePath, targetPath, availableSchemas);
+        } catch {
+          metadata = null;
+        }
         changes.push({
           name: changeDir,
           completedTasks: progress.completed,
           totalTasks: progress.total,
           lastModified,
-          ...(nestedByName.has(changeDir) ? { nested: nestedByName.get(changeDir)!.nested } : {})
+          ...(nestedByName.has(changeDir) ? { nested: nestedByName.get(changeDir)!.nested } : {}),
+          ...(metadata?.priority ? { priority: metadata.priority } : {}),
+          ...(metadata?.author ? { author: metadata.author } : {}),
         });
       }
 
@@ -178,7 +193,9 @@ export class ListCommand {
           totalTasks: c.totalTasks,
           lastModified: c.lastModified.toISOString(),
           status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress',
-          ...(c.nested ? { nested: c.nested } : {})
+          ...(c.nested ? { nested: c.nested } : {}),
+          ...(c.priority ? { priority: c.priority } : {}),
+          ...(c.author ? { author: c.author } : {}),
         }));
         // Additive: the entries keep their shape so existing consumers are
         // unaffected, and the nesting is reported alongside them.
@@ -199,14 +216,37 @@ export class ListCommand {
       // Display results
       console.log('Changes:');
       const padding = '  ';
-      const nameWidth = Math.max(...changes.map(c => c.name.length));
-      for (const change of changes) {
-        const paddedName = change.name.padEnd(nameWidth);
-        const status = change.nested
+      const rows = changes.map(change => ({
+        change,
+        status: change.nested
           ? 'not a change'
-          : formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
-        const timeAgo = formatRelativeTime(change.lastModified);
-        console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
+          : formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks }),
+        timeAgo: formatRelativeTime(change.lastModified),
+      }));
+      const hasPriority = changes.some(c => c.priority);
+      const hasAuthor = changes.some(c => c.author);
+      const nameWidth = Math.max('Name'.length, ...changes.map(c => c.name.length));
+      const statusWidth = Math.max('Status'.length, 12);
+      const modifiedWidth = Math.max('Modified'.length, ...rows.map(r => r.timeAgo.length));
+      const priorityWidth = Math.max('Priority'.length, ...changes.map(c => (c.priority ?? '').length));
+
+      const buildLine = (name: string, status: string, modified: string, priority: string, author: string): string => {
+        let line = padding;
+        if (hasPriority) {
+          line += `${priority.padEnd(priorityWidth)}  `;
+        }
+        line += `${name.padEnd(nameWidth)}     ${status.padEnd(statusWidth)}  ${modified.padEnd(modifiedWidth)}`;
+        if (hasAuthor) {
+          line += `  ${author}`;
+        }
+        return line.trimEnd();
+      };
+
+      if (hasPriority || hasAuthor) {
+        console.log(buildLine('Name', 'Status', 'Modified', 'Priority', 'Author'));
+      }
+      for (const { change, status, timeAgo } of rows) {
+        console.log(buildLine(change.name, status, timeAgo, change.priority ?? '', change.author ?? ''));
       }
       for (const finding of nestedFindings) {
         console.log('');
