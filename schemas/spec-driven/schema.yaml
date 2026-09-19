@@ -11,6 +11,7 @@ artifacts:
 
       Sections:
       - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
+      - **Review Focus**: 3-5 bullets listing only what a reviewer should actually check: decisions a human should confirm, assumptions made without asking, and what is deliberately out of scope. Leave empty rather than pad.
       - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
       - **Capabilities**: Identify which specs will be created or modified:
         - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<capability-path>/spec.md`. Use kebab-case for path segments you introduce (e.g., `user-auth` or `identity/user-auth`) and follow the project's existing spec organization.
