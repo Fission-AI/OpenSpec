@@ -275,6 +275,11 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             takesValue: true,
           },
           {
+            name: 'author',
+            description: 'Optional author metadata to store with the change',
+            takesValue: true,
+          },
+          {
             name: 'schema',
             description: 'Workflow schema to use',
             takesValue: true,
