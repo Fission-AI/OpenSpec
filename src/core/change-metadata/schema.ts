@@ -20,6 +20,19 @@ export const InitiativeLinkSchema = z.object({
 
 export type InitiativeLink = z.infer<typeof InitiativeLinkSchema>;
 
+/** Top-level keys ChangeMetadataSchema recognises. Anything else is ignored. */
+export const CHANGE_METADATA_KNOWN_KEYS = [
+  'schema',
+  'created',
+  'goal',
+  'affected_areas',
+  'initiative',
+  'skip_specs',
+  'retire_capabilities',
+] as const;
+
+export type ChangeMetadataKnownKey = (typeof CHANGE_METADATA_KNOWN_KEYS)[number];
+
 // Per-change metadata schema. The schema field is validated against available
 // workflow schemas when metadata is read or written.
 export const ChangeMetadataSchema = z.object({

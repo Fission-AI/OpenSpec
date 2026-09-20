@@ -24,7 +24,13 @@ import {
   type SpecUpdate,
 } from './specs-apply.js';
 import { discoverSpecFiles, findUnreadDeltaFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
-import { METADATA_FILENAME, readRetireCapabilitiesMarker, readSkipSpecsMarker } from '../utils/change-metadata.js';
+import {
+  METADATA_FILENAME,
+  formatUnknownChangeMetadataKeysMessage,
+  readRetireCapabilitiesMarker,
+  readSkipSpecsMarker,
+  readUnknownChangeMetadataKeys,
+} from '../utils/change-metadata.js';
 import { confirmPrompt, isNonInteractivePromptError } from '../utils/interactive.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { folderStyleNameProblem } from './id.js';
@@ -1194,6 +1200,15 @@ export class ArchiveCommand {
       );
     }
 
+    const unknownMetadataKeys = readUnknownChangeMetadataKeys(changeDir);
+    const unknownMetadataWarning =
+      unknownMetadataKeys.length > 0
+        ? formatUnknownChangeMetadataKeysMessage(unknownMetadataKeys)
+        : undefined;
+    if (unknownMetadataWarning && !json) {
+      console.warn(chalk.yellow(unknownMetadataWarning));
+    }
+
     const skipValidation = options.validate === false || options.noValidate === true;
 
     // Validate specs and change before archiving
@@ -2074,7 +2089,13 @@ export class ArchiveCommand {
         path: archivePath,
         specsUpdated,
         ...(totals ? { totals } : {}),
-        ...(specWarnings.length > 0 ? { warnings: specWarnings } : {}),
+        ...(specWarnings.length > 0 || unknownMetadataWarning
+          ? {
+              warnings: unknownMetadataWarning
+                ? [...specWarnings, unknownMetadataWarning]
+                : specWarnings,
+            }
+          : {}),
       };
     } finally {
       if (archiveClaim) await releaseArchiveClaim(archiveClaim, claimPath).catch(() => undefined);
