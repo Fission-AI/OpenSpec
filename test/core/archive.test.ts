@@ -6769,11 +6769,14 @@ The system SHALL provide a replacement behavior.
       const realRename = fs.rename.bind(fs);
       onTestFinished(() => vi.restoreAllMocks());
       vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const src = String(source);
+        const dest = String(destination);
         if (
-          String(source).endsWith(
-            `${path.sep}openspec${path.sep}changes${path.sep}${changeName}`
-          )
+          src.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)
         ) {
+          if (dest.includes(`${path.sep}.openspec-move-`)) {
+            throw Object.assign(new Error('staging denied'), { code: 'EACCES' });
+          }
           throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
         }
         return realRename(source, destination);
@@ -6802,6 +6805,111 @@ The system SHALL provide a replacement behavior.
       ).rejects.toThrow();
       expect(
         (await fs.readdir(path.dirname(changeDir))).some((entry) =>
+          entry.startsWith('.openspec-move-')
+        )
+      ).toBe(false);
+    });
+
+    it('does not leave an empty capability directory when a create is rolled back', async () => {
+      const changeName = 'eperm-create-rollback-prunes';
+      const changeDir = await createChange(
+        changeName,
+        'write-feedback',
+        `## ADDED Requirements
+
+### Requirement: Write feedback is captured
+The system SHALL capture write feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** write feedback arrives
+- **THEN** it is stored
+`
+      );
+      const capabilityDir = path.join(tempDir, 'openspec', 'specs', 'write-feedback');
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const src = String(source);
+        const dest = String(destination);
+        if (
+          src.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)
+        ) {
+          if (dest.includes(`${path.sep}.openspec-move-`)) {
+            throw Object.assign(new Error('staging denied'), { code: 'EACCES' });
+          }
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).rejects.toThrow(/Could not safely stage/);
+
+      await expect(fs.access(path.join(capabilityDir, 'spec.md'))).rejects.toThrow();
+      await expect(fs.access(capabilityDir)).rejects.toThrow();
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('archives via copy when EPERM prevents both dest rename and staging', async () => {
+      const changeName = 'eperm-copy-without-staging';
+      const changeDir = await createChange(
+        changeName,
+        'write-feedback',
+        `## ADDED Requirements
+
+### Requirement: Write feedback is captured
+The system SHALL capture write feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** write feedback arrives
+- **THEN** it is stored
+`
+      );
+      const target = path.join(
+        tempDir,
+        'openspec',
+        'specs',
+        'write-feedback',
+        'spec.md'
+      );
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (
+          String(source).endsWith(
+            `${path.sep}openspec${path.sep}changes${path.sep}${changeName}`
+          )
+        ) {
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(changeDir)).rejects.toThrow();
+      await expect(fs.readFile(target, 'utf-8')).resolves.toContain(
+        '### Requirement: Write feedback is captured'
+      );
+      await expect(
+        fs.access(
+          path.join(
+            tempDir,
+            'openspec',
+            'changes',
+            'archive',
+            `${formatLocalDate()}-${changeName}`,
+            'specs',
+            'write-feedback',
+            'spec.md'
+          )
+        )
+      ).resolves.not.toThrow();
+      expect(
+        (await fs.readdir(path.dirname(path.dirname(changeDir)))).some((entry) =>
           entry.startsWith('.openspec-move-')
         )
       ).toBe(false);
