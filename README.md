@@ -122,7 +122,7 @@ Solo, OpenSpec keeps you and your AI honest on a single repo. On a team, the har
 
 ## Quick Start
 
-**Requires Node.js 20.19.0 or higher.**
+**Requires Node.js 20.19.0 or higher.** Homebrew installs it as a dependency.
 
 Install OpenSpec globally:
 

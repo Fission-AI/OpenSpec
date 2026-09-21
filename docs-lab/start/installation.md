@@ -5,7 +5,9 @@
 
 ## Prerequisites
 
-OpenSpec is a Node.js CLI. You need version 20.19.0 or newer. The Homebrew formula installs Node.js as a dependency.
+OpenSpec runs on Node.js 20.19.0 or newer. Homebrew installs Node.js as a
+dependency, and the Nix package includes the runtime. Check your installed version
+before using another install method.
 
 In your terminal:
 
@@ -13,7 +15,9 @@ In your terminal:
 node --version
 ```
 
-If that prints `v20.19.0` or higher, you're set. If not, install a newer Node from [nodejs.org](https://nodejs.org) or through your version manager (nvm, fnm, asdf, volta).
+If that prints `v20.19.0` or higher, you're set. If not, install a newer Node from
+[nodejs.org](https://nodejs.org) or through your version manager (nvm, fnm, asdf,
+volta). You can skip this check when you install with Homebrew or Nix.
 
 The workflow itself runs inside an AI coding tool: Claude Code, Cursor, or any other tool on the [supported list](../reference/supported-tools.md).
 
