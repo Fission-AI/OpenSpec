@@ -15,6 +15,9 @@ const PROFILES = fs.readFileSync(
   path.join(REPO_ROOT, 'docs-lab', 'customize', 'profiles.md'),
   'utf-8'
 );
+const CORE_SECTION = PROFILES.split('## The core set')[1].split(
+  '## Expanding the set: optional workflows'
+)[0];
 
 describe('setup documentation', () => {
   it('keeps the Claude Code paths and recovery commands aligned with OpenSpec', () => {
@@ -31,7 +34,7 @@ describe('setup documentation', () => {
 
   it('lists every workflow in the core profile', () => {
     for (const workflow of CORE_WORKFLOWS) {
-      expect(PROFILES).toContain(`\`${workflow}\``);
+      expect(CORE_SECTION).toContain(`\`${workflow}\``);
     }
   });
 });
