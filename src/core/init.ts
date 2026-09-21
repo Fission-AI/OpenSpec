@@ -1360,9 +1360,13 @@ export class InitCommand {
           // Tools with no slash surface (e.g. Rovo Dev) reference skills as
           // prose ("the openspec-propose skill"); phrase the hint so it reads
           // as an instruction rather than a dead command with an argument.
-          hint = usesNaturalLanguageSkillReferences(tool.value)
-            ? `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`
-            : `Start your first change: ${skillReference} "your idea"`;
+          if (usesNaturalLanguageSkillReferences(tool.value)) {
+            hint = `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`;
+          } else if (tool.value === 'codex') {
+            hint = `Start your first change: ${skillReference} "your idea" (Codex CLI or IDE); in the Codex desktop app, select ${skillReference.slice(1)} from Skills in the sidebar`;
+          } else {
+            hint = `Start your first change: ${skillReference} "your idea"`;
+          }
         } else {
           continue;
         }
