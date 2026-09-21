@@ -27,14 +27,14 @@ flowchart LR
     archive -. "next change" .-> explore
 ```
 
-Every prompt below goes in your AI chat, the same place you ask for code. Each invokes an OpenSpec skill by name, the same spelling in every tool. A plain ask works too ("propose a change to add rate limiting"), and so does naming the step directly - "openspec propose", "opsx apply" - which runs the workflow instead of hand-building the files. (`openspec update` is a real CLI command that refreshes generated files, so say "openspec update change" for that workflow.) Some tools add shorter command aliases (`/opsx:propose` in Claude Code, [other tools vary](../reference/supported-tools.md)).
+Every prompt below goes in your AI chat, the same place you ask for code. The examples use plain language so they work across tools. You can also invoke a skill directly; the syntax varies by tool ([supported tools](../reference/supported-tools.md)).
 
 ## Step 1: Explore
 
 Think the idea through with your agent before you ask for a plan. In your AI chat:
 
 ```text
-/openspec-explore how rate limiting should work in this app
+Help me explore how rate limiting should work in this app.
 ```
 
 Explore is a thinking mode. The agent investigates your codebase, asks the questions that matter, sketches options, and challenges assumptions. It never writes code. It writes nothing else unless you ask it to capture what you decided, or say yes when it offers. The output is a sharper idea.
@@ -42,7 +42,7 @@ Explore is a thinking mode. The agent investigates your codebase, asks the quest
 Stay here as long as the problem needs. When the shape feels right, hand it off:
 
 ```text
-/openspec-propose
+Propose the change we just discussed.
 ```
 
 That line starts propose for you, carrying everything you settled. Skip the first prompt in step 2.
@@ -52,7 +52,7 @@ That line starts propose for you, carrying everything you settled. Skip the firs
 Propose turns the idea into a reviewable plan. Coming from explore, it's already running. Starting cold, when the change is clear in your head, ask directly. In your AI chat:
 
 ```text
-/openspec-propose add rate limiting
+Propose a change to add rate limiting.
 ```
 
 The agent asks what it needs to, then writes a change folder:
@@ -85,7 +85,7 @@ To fix something, either works:
 Apply turns the plan into code. Start a fresh chat session, since implementation goes better on a clean context window. In your AI chat:
 
 ```text
-/openspec-apply-change add-rate-limiting
+Apply the add-rate-limiting change.
 ```
 
 The agent reads the change folder, then works through `tasks.md`, checking off each task as it lands.
@@ -101,7 +101,7 @@ Archiving does two things: it updates your main specs with the change's requirem
 When every box in `tasks.md` is checked, in your AI chat:
 
 ```text
-/openspec-archive-change add-rate-limiting
+Archive the add-rate-limiting change.
 ```
 
 Step through what archiving does:
