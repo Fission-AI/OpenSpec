@@ -283,6 +283,74 @@ ${END_MARKER}
       expect(secondResult).toBe(firstResult);
     });
   });
+  describe('line endings', () => {
+    const START = '# >>> openspec >>>';
+    const END = '# <<< openspec <<<';
+
+    function countEndings(content: string): { crlf: number; loneLf: number } {
+      return {
+        crlf: content.match(/\r\n/g)?.length ?? 0,
+        loneLf: content.match(/(?<!\r)\n/g)?.length ?? 0,
+      };
+    }
+
+    it('keeps a CRLF rc file on CRLF when inserting a block', async () => {
+      // A .bashrc with CRLF endings must not come back mixed: bash chokes on a
+      // stray \r with "$'\r': command not found".
+      const filePath = path.join(testDir, '.bashrc');
+      await fs.writeFile(filePath, '# user config\r\nexport EDITOR="vim"\r\n');
+
+      await FileSystemUtils.updateFileWithMarkers(
+        filePath,
+        'alias openspec="npx openspec"',
+        START,
+        END
+      );
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(result).toContain('alias openspec');
+      expect(result).toContain('export EDITOR');
+      expect(countEndings(result).loneLf).toBe(0);
+    });
+
+    it('keeps an LF rc file on LF', async () => {
+      const filePath = path.join(testDir, '.bashrc');
+      await fs.writeFile(filePath, '# user config\nexport EDITOR="vim"\n');
+
+      await FileSystemUtils.updateFileWithMarkers(
+        filePath,
+        'alias openspec="npx openspec"',
+        START,
+        END
+      );
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(countEndings(result).crlf).toBe(0);
+    });
+
+    it('keeps a CRLF rc file on CRLF when replacing an existing block', async () => {
+      const filePath = path.join(testDir, '.bashrc');
+      await fs.writeFile(
+        filePath,
+        `# user config\r\n${START}\r\nold content\r\n${END}\r\nexport EDITOR="vim"\r\n`
+      );
+
+      await FileSystemUtils.updateFileWithMarkers(filePath, 'new content', START, END);
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(result).toContain('new content');
+      expect(result).not.toContain('old content');
+      expect(countEndings(result).loneLf).toBe(0);
+    });
+
+    it('writes a new file with LF', async () => {
+      const filePath = path.join(testDir, 'brand-new');
+
+      await FileSystemUtils.updateFileWithMarkers(filePath, 'content', START, END);
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(countEndings(result).crlf).toBe(0);
+    });
 });
 
 describe('removeMarkerBlock', () => {
@@ -443,5 +511,7 @@ export EDITOR="vim"`;
       expect(result).not.toContain('alias openspec');
       expect(result).not.toContain(SHELL_START);
     });
+  });
+
   });
 });

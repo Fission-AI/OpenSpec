@@ -1,5 +1,6 @@
 import * as nodeFs from 'fs';
 import path from 'path';
+import { matchLineEnding } from './line-endings.js';
 
 const fs = nodeFs.promises;
 const { constants: fsConstants } = nodeFs;
@@ -325,10 +326,16 @@ export class FileSystemUtils {
     endMarker: string
   ): Promise<void> {
     let existingContent = '';
-    
+    // The managed block is composed with '\n', so splicing it into a CRLF file
+    // would leave mixed endings behind. bash reports a stray '\r' in .bashrc as
+    // "$'\r': command not found", so settle the whole file on the convention it
+    // already used. A file that does not exist yet stays LF.
+    let originalContent: string | undefined;
+
     if (await this.fileExists(filePath)) {
       existingContent = await this.readFile(filePath);
-      
+      originalContent = existingContent;
+
       const startIndex = findMarkerIndex(existingContent, startMarker);
       const endIndex = startIndex !== -1
         ? findMarkerIndex(existingContent, endMarker, startIndex + startMarker.length)
@@ -352,8 +359,13 @@ export class FileSystemUtils {
     } else {
       existingContent = startMarker + '\n' + content + '\n' + endMarker;
     }
-    
-    await this.writeFile(filePath, existingContent);
+
+    await this.writeFile(
+      filePath,
+      originalContent === undefined
+        ? existingContent
+        : matchLineEnding(existingContent, originalContent)
+    );
   }
 
   static async ensureWritePermissions(dirPath: string): Promise<boolean> {
