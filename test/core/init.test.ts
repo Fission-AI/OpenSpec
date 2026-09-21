@@ -2288,31 +2288,33 @@ describe('InitCommand - profile and detection features', () => {
     }
   });
 
-  it('should print the $-prefixed skill hint for codex (skills-invocable, no slash surface)', async () => {
-    // Codex has no slash-command surface: it invokes skills as $<name>, so the
-    // hint - and the generated skills - must use that form, never /opsx:*
-    const initCommand = new InitCommand({ tools: 'codex', force: true });
-    await initCommand.execute(testDir);
+  it.each(['both', 'skills', 'commands'] as const)(
+    'should print the Codex skill hint with delivery=%s',
+    async (delivery) => {
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery });
+      // Codex has no slash-command surface: it invokes skills as $<name>, so the
+      // hint - and the generated skills - must use that form, never /opsx:*
+      const initCommand = new InitCommand({ tools: 'codex', force: true });
+      await initCommand.execute(testDir);
 
-    const skillFile = path.join(testDir, '.agents', 'skills', 'openspec-apply-change', 'SKILL.md');
-    expect(await fileExists(skillFile)).toBe(true);
-    const skillContent = await fs.readFile(skillFile, 'utf-8');
-    expect(skillContent).not.toContain('/opsx:');
-    expect(skillContent).toContain('$openspec-');
+      const skillFile = path.join(testDir, '.agents', 'skills', 'openspec-apply-change', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+      const skillContent = await fs.readFile(skillFile, 'utf-8');
+      expect(skillContent).not.toContain('/opsx:');
+      expect(skillContent).toContain('$openspec-');
 
-    const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
-    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
-    expect(startHint).toContain('$openspec-propose');
-    expect(startHint).toContain('(Codex CLI or IDE)');
-    expect(startHint).toContain('in the Codex desktop app, select openspec-propose from Skills in the sidebar');
-    expect(startHint).not.toContain('/openspec-propose');
-    expect(startHint).not.toContain('/opsx:propose');
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
+      const startHints = logCalls.filter((entry) => entry.includes('Start your first change'));
+      expect(startHints).toEqual([
+        '  Start your first change: $openspec-propose "your idea" (Codex CLI or IDE); in the Codex desktop app, select openspec-propose from Skills in the sidebar',
+      ]);
 
-    // Codex is a CLI tool: its skills load as soon as the files exist, with no
-    // IDE process to restart, so the restart line must not appear at all (#1067).
-    const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
-    expect(restartHint).toBeUndefined();
-  });
+      // Codex is a CLI tool: its skills load as soon as the files exist, with no
+      // IDE process to restart, so the restart line must not appear at all (#1067).
+      const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
+      expect(restartHint).toBeUndefined();
+    }
+  );
 
   it('should print the @-prefixed prompt hint for amazon-q (prompt library, no slash surface)', async () => {
     // Amazon Q loads .amazonq/prompts/opsx-<id>.md into its prompt library,
@@ -2358,6 +2360,7 @@ describe('InitCommand - profile and detection features', () => {
     expect(codexHint).toContain('Skills in the sidebar');
     expect(codexHint).not.toContain('/openspec-propose');
     expect(vibeHint).toContain('/openspec-propose');
+    expect(vibeHint).not.toContain('Skills in the sidebar');
     for (const hint of startHints) {
       expect(hint).not.toContain('/opsx:');
     }

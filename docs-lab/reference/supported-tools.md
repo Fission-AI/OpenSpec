@@ -80,10 +80,10 @@ Skills stay in `.cline/skills/`.
 
 ### Codex
 
-- **CLI and IDE extension**: type `$openspec-<skill>` or run `/skills`. Codex does
-  not recognize the `/openspec-<skill>` form
+- **CLI and IDE extension**: mention `$openspec-propose` with your idea, or run
+  `/skills` to select the skill. Codex does not recognize `/openspec-propose`
   ([upstream issue](https://github.com/openai/codex/issues/11817)).
-- **Desktop app**: open Skills in the sidebar and select `openspec-<skill>`.
+- **Desktop app**: open Skills in the sidebar and select `openspec-propose`.
   [OpenAI's skills documentation](https://learn.chatgpt.com/docs/build-skills)
   describes both interfaces.
 - **No command files**: Codex runs skills directly, so init skips commands even when
