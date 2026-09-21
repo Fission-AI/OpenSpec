@@ -6,13 +6,13 @@ Before you start, you need the CLI on your machine ([Installation](installation.
 
 ## Start from an empty project
 
-You can start without a chosen stack or a full product spec. Initialize OpenSpec in your project folder, then use Explore to work through the first decision with your agent. In your AI chat:
+You can start without a chosen stack or a complete architecture. Initialize OpenSpec in your project folder, then ask your agent to explore the options with you. In your AI chat:
 
 ```text
-/openspec-explore I want to build a small task tracker. Help me choose a stack and the first behavior to implement.
+Help me explore a task tracker from scratch. I have not picked a stack. Compare the options and help me choose the first behavior to build.
 ```
 
-When you have a direction, propose one small change. Review its requirements and tasks before asking the agent to build it. Repeat the loop for the next part of the project instead of planning the entire application in one change.
+Decide what the first change needs and leave later architecture choices open. Ask your agent to propose that one change, then follow the steps below. You can revisit the architecture as the project grows.
 
 ## The loop at a glance
 
