@@ -54,7 +54,15 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   // belong to `devin` — the id Windsurf became. Only `.windsurf/` is listed:
   // `.devin/` postdates the opsx rename and never held `openspec-*` files.
   'devin': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
-  'kilocode': { type: 'files', pattern: '.kilocode/workflows/openspec-*.md' },
+  // Kilo now writes commands under `.kilo/command/`. Clean up both generations
+  // of OpenSpec workflows from Kilo's legacy `.kilocode/workflows/` folder.
+  'kilocode': {
+    type: 'files',
+    pattern: [
+      '.kilocode/workflows/opsx-*.md',
+      '.kilocode/workflows/openspec-*.md',
+    ],
+  },
   'kiro': { type: 'files', pattern: '.kiro/prompts/openspec-*.prompt.md' },
   'github-copilot': { type: 'files', pattern: '.github/prompts/openspec-*.prompt.md' },
   'amazon-q': { type: 'files', pattern: '.amazonq/prompts/openspec-*.md' },

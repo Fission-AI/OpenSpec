@@ -1238,7 +1238,7 @@ describe('InitCommand', () => {
       const proposeFiles = [
         path.join(testDir, '.factory', 'commands', 'opsx-propose.md'),
         path.join(testDir, '.cursor', 'commands', 'opsx-propose.md'),
-        path.join(testDir, '.kilocode', 'workflows', 'opsx-propose.md'),
+        path.join(testDir, '.kilo', 'command', 'opsx-propose.md'),
         path.join(testDir, '.pi', 'prompts', 'opsx-propose.md'),
         path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'),
       ];
@@ -1770,6 +1770,18 @@ describe('InitCommand - profile and detection features', () => {
     expect(await directoryExists(newCommandsDir)).toBe(true);
     const proposeCommand = await fs.readFile(path.join(newCommandsDir, 'opsx-propose.md'), 'utf-8');
     expect(proposeCommand).toContain('**Provided arguments**: $ARGUMENTS');
+  });
+
+  it('should replace legacy Kilo workflows with commands in the canonical directory', async () => {
+    const legacyDir = path.join(testDir, '.kilocode', 'workflows');
+    await fs.mkdir(legacyDir, { recursive: true });
+    await fs.writeFile(path.join(legacyDir, 'opsx-propose.md'), 'legacy content');
+
+    const initCommand = new InitCommand({ tools: 'kilocode' });
+    await initCommand.execute(testDir);
+
+    expect(await fileExists(path.join(legacyDir, 'opsx-propose.md'))).toBe(false);
+    expect(await fileExists(path.join(testDir, '.kilo', 'command', 'opsx-propose.md'))).toBe(true);
   });
 
   it('should remove managed global Codex prompts in non-interactive mode', async () => {

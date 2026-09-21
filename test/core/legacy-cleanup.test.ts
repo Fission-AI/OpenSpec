@@ -391,6 +391,17 @@ ${OPENSPEC_MARKERS.end}`);
       expect(result.files).toContain('.opencode/command/openspec-new.md');
     });
 
+    it('should detect Kilo workflows from the legacy command directory', async () => {
+      const dirPath = path.join(testDir, '.kilocode', 'workflows');
+      await fs.mkdir(dirPath, { recursive: true });
+      await fs.writeFile(path.join(dirPath, 'opsx-propose.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'openspec-apply.md'), 'content');
+
+      const result = await detectLegacySlashCommands(testDir);
+      expect(result.files).toContain('.kilocode/workflows/opsx-propose.md');
+      expect(result.files).toContain('.kilocode/workflows/openspec-apply.md');
+    });
+
     it('should detect legacy CoStrict command files without claiming their directory', async () => {
       const dirPath = path.join(testDir, '.cospec', 'openspec', 'commands');
       await fs.mkdir(dirPath, { recursive: true });
@@ -1173,6 +1184,14 @@ ${OPENSPEC_MARKERS.end}`);
       expect(LEGACY_SLASH_COMMAND_PATHS['devin']).toEqual({
         type: 'files',
         pattern: '.windsurf/workflows/openspec-*.md',
+      });
+
+      expect(LEGACY_SLASH_COMMAND_PATHS['kilocode']).toEqual({
+        type: 'files',
+        pattern: [
+          '.kilocode/workflows/opsx-*.md',
+          '.kilocode/workflows/openspec-*.md',
+        ],
       });
     });
 
