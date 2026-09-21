@@ -91,7 +91,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - Dependencies are enablers, not gates: if a required artifact is still `blocked` only because you skipped a conditional dependency, write it anyway
       - Stop when every artifact in the required set is `done`, `skipped`, or was deliberately skipped
 
-   c. **If an artifact requires user input** (unclear context):
+   c. **If an artifact requires user input** (critically unclear context):
       - Ask the user to clarify
       - Then continue with creation
 
