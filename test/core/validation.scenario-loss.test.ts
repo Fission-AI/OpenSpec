@@ -446,22 +446,27 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     expect(lossIssue(report)).toBeUndefined();
     expect(report.issues.map((i) => i.message).join('\n')).toContain('MODIFIED references old name from RENAMED');
   });
-  it('reports what the block adds, so a rename reads differently from a truncation (#1697)', async () => {
-    await writeMainSpec('widgets', mainSpec(TWO_SCENARIO_REQUIREMENT));
-    const widened = `## MODIFIED Requirements\n\n### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported\n\n#### Scenario: Second scenario, widened\n- **WHEN** idle\n- **THEN** idle is reported\n`;
+  it('reports both new headings when one current scenario is replaced by two (#1697)', async () => {
+    await writeMainSpec(
+      'widgets',
+      mainSpec(`### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported`)
+    );
+    const widened = `## MODIFIED Requirements\n\n### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario, first branch\n- **WHEN** queried in the first case\n- **THEN** the first state is reported\n\n#### Scenario: Existing scenario, second branch\n- **WHEN** queried in the second case\n- **THEN** the second state is reported\n`;
     const changeDir = await writeChange('widen-scenario', 'widgets', widened);
 
-    const issue = lossIssue(await validate(changeDir));
+    const report = await validate(changeDir);
+    const issue = lossIssue(report);
 
     // The guard still fires: a widened title is a dropped name, and nothing
     // here decides whether that was deliberate.
-    expect(issue?.message).toContain('"Second scenario"');
+    expect(report.valid).toBe(false);
+    expect(issue?.message).toContain('"Existing scenario"');
     expect(issue?.message).toContain(
-      'The modified block has 2 scenarios; the current spec has 2 scenarios. It adds 1 scenario not in the current spec: "Second scenario, widened".'
+      'The modified block has 2 scenarios; the current spec has 1 scenario. It adds 2 scenarios not in the current spec: "Existing scenario, first branch", "Existing scenario, second branch".'
     );
     // Parity: archive refuses the same change and prints the same sentence.
     expect(await archiveError(changeDir)).toContain(
-      'It adds 1 scenario not in the current spec: "Second scenario, widened".'
+      'It adds 2 scenarios not in the current spec: "Existing scenario, first branch", "Existing scenario, second branch".'
     );
   });
 
