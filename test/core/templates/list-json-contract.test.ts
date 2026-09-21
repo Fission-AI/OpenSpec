@@ -10,6 +10,7 @@ import {
   getOpsxUpdateCommandTemplate,
   getUpdateChangeSkillTemplate,
 } from '../../../src/core/templates/skill-templates.js';
+import { getCommandTemplates, getSkillTemplates } from '../../../src/core/shared/skill-generation.js';
 
 describe('workflow list --json field usage', () => {
   it('does not invent schema labels in update and continue pickers', () => {
@@ -62,6 +63,35 @@ describe('workflow list --json field usage', () => {
     for (const body of bodies) {
       expect(body).toContain('Their names and task status');
       expect(body).not.toContain('Their names, schemas, and status');
+    }
+  });
+
+  it('keeps bulk archive sync available with and without the sync workflow', () => {
+    const variants = [
+      [
+        getSkillTemplates(['bulk-archive', 'sync']).find((entry) => entry.workflowId === 'bulk-archive')!.template.instructions,
+        getSkillTemplates(['bulk-archive'])[0].template.instructions,
+        'openspec-sync-specs',
+      ],
+      [
+        getCommandTemplates(['bulk-archive', 'sync']).find((entry) => entry.id === 'bulk-archive')!.template.content,
+        getCommandTemplates(['bulk-archive'])[0].template.content,
+        '/opsx:sync',
+      ],
+    ] as const;
+
+    for (const [withSync, withoutSync, workflow] of variants) {
+      const syncStep = (text: string) => text.slice(
+        text.indexOf('a. **Sync included delta specs**'),
+        text.indexOf('b. **Verify included delta specs')
+      );
+
+      expect(syncStep(withSync)).toContain(workflow);
+      expect(syncStep(withoutSync)).not.toContain(workflow);
+      expect(syncStep(withoutSync)).toContain('Perform the delta-to-main-spec merge inline yourself');
+      expect(syncStep(withoutSync)).toContain('`includedDeltas`');
+      expect(syncStep(withoutSync)).toContain('`excludedDeltas`');
+      expect(withoutSync).toContain('If sync is requested, perform the delta-to-main-spec merge inline');
     }
   });
 });
