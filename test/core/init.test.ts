@@ -1591,12 +1591,20 @@ describe('InitCommand', () => {
       expect(await fileExists(cmdFile)).toBe(true);
     });
 
-    it('should generate GitHub Copilot prompt files', async () => {
+    it('should generate GitHub Copilot prompt and skill files with default delivery', async () => {
       const initCommand = new InitCommand({ tools: 'github-copilot', force: true });
       await initCommand.execute(testDir);
 
       const cmdFile = path.join(testDir, '.github', 'prompts', 'opsx-explore.prompt.md');
+      const skillFile = path.join(
+        testDir,
+        '.github',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
       expect(await fileExists(cmdFile)).toBe(true);
+      expect(await fileExists(skillFile)).toBe(true);
     });
 
     it('should fail GitHub Copilot setup without partially creating cloud files', async () => {
