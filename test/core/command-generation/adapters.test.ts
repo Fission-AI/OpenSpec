@@ -397,6 +397,9 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('name: "opsx-explore"');
       expect(output).toContain('description: "Enter explore mode for thinking"');
       expect(output).toContain('invokable: true');
+      expect(output).toContain(
+        '---\n\nThis workflow prompt is already active. Follow its instructions directly. Do not call a tool named after this workflow.\n\nThis is the command body.'
+      );
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
     });

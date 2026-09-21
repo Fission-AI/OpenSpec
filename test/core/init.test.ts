@@ -1581,6 +1581,9 @@ describe('InitCommand', () => {
       const content = await fs.readFile(cmdFile, 'utf-8');
       expect(content).toContain('name: "opsx-explore"');
       expect(content).toContain('invokable: true');
+      expect(content).toContain(
+        '---\n\nThis workflow prompt is already active. Follow its instructions directly. Do not call a tool named after this workflow.\n\nEnter explore mode.'
+      );
     });
 
     it('should generate Cline workflow files', async () => {
