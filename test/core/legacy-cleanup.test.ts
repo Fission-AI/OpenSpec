@@ -17,6 +17,7 @@ import {
   formatDetectionSummary,
   formatProjectMdMigrationHint,
   getToolsFromLegacyArtifacts,
+  omitToolLegacyArtifacts,
   LEGACY_CONFIG_FILES,
   LEGACY_GLOBAL_SLASH_COMMAND_PATHS,
   LEGACY_SLASH_COMMAND_PATHS,
@@ -269,7 +270,7 @@ ${OPENSPEC_MARKERS.end}`);
     it('should detect legacy Claude slash command directory', async () => {
       const dirPath = path.join(testDir, '.claude', 'commands', 'openspec');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'proposal.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'proposal.md'), '<!-- OPENSPEC:START -->\ncontent\n<!-- OPENSPEC:END -->\n');
 
       const result = await detectLegacySlashCommands(testDir);
       expect(result.directories).toContain('.claude/commands/openspec');
@@ -611,7 +612,7 @@ ${OPENSPEC_MARKERS.end}`);
     it('should delete legacy slash command directories', async () => {
       const dirPath = path.join(testDir, '.claude', 'commands', 'openspec');
       await fs.mkdir(dirPath, { recursive: true });
-      await fs.writeFile(path.join(dirPath, 'proposal.md'), 'content');
+      await fs.writeFile(path.join(dirPath, 'proposal.md'), '<!-- OPENSPEC:START -->\ncontent\n<!-- OPENSPEC:END -->\n');
 
       const detection = await detectLegacyArtifacts(testDir);
       const result = await cleanupLegacyArtifacts(testDir, detection);
@@ -1161,6 +1162,7 @@ ${OPENSPEC_MARKERS.end}`);
       expect(LEGACY_SLASH_COMMAND_PATHS['claude']).toEqual({
         type: 'directory',
         path: '.claude/commands/openspec',
+        managedFileNames: ['proposal.md', 'apply.md', 'archive.md'],
       });
 
       expect(LEGACY_SLASH_COMMAND_PATHS['cursor']).toEqual({
@@ -1477,6 +1479,57 @@ ${OPENSPEC_MARKERS.end}`);
 
       const tools = getToolsFromLegacyArtifacts(detection);
       expect(tools).toHaveLength(0);
+    });
+  });
+
+  describe('omitToolLegacyArtifacts', () => {
+    const baseDetection = () => ({
+      configFiles: [],
+      configFilesToUpdate: [],
+      slashCommandDirs: ['.claude/commands/openspec'],
+      slashCommandFiles: ['.codex/prompts/openspec-explore.md', '.cursor/commands/openspec-apply.md'],
+      globalSlashCommandFiles: [],
+      hasOpenspecAgents: false,
+      hasProjectMd: false,
+      hasRootAgentsWithMarkers: false,
+      hasLegacyArtifacts: true,
+    });
+
+    it('removes only the named tool\'s repo-local artifacts', () => {
+      const result = omitToolLegacyArtifacts(baseDetection(), ['codex']);
+      expect(result.slashCommandFiles).toEqual(['.cursor/commands/openspec-apply.md']);
+      // Other tools' files and directories are untouched.
+      expect(result.slashCommandDirs).toEqual(['.claude/commands/openspec']);
+      expect(result.hasLegacyArtifacts).toBe(true);
+    });
+
+    it('recomputes hasLegacyArtifacts to false when nothing is left', () => {
+      const detection = {
+        ...baseDetection(),
+        slashCommandDirs: [],
+        slashCommandFiles: ['.codex/prompts/openspec-explore.md'],
+      };
+      const result = omitToolLegacyArtifacts(detection, ['codex']);
+      expect(result.slashCommandFiles).toEqual([]);
+      expect(result.hasLegacyArtifacts).toBe(false);
+    });
+
+    it('returns the detection unchanged when no tools are skipped', () => {
+      const detection = baseDetection();
+      expect(omitToolLegacyArtifacts(detection, [])).toBe(detection);
+    });
+
+    it('omits backslash-delimited paths for the skipped tool (Windows)', () => {
+      // Defensive: `legacyToolIdForFile` normalizes separators, so a
+      // Windows-style path must map to `codex` and be filtered too.
+      const detection = {
+        ...baseDetection(),
+        slashCommandDirs: [],
+        slashCommandFiles: ['.codex\\prompts\\openspec-explore.md'],
+      };
+      const result = omitToolLegacyArtifacts(detection, ['codex']);
+      expect(result.slashCommandFiles).toEqual([]);
+      expect(result.hasLegacyArtifacts).toBe(false);
     });
   });
 });

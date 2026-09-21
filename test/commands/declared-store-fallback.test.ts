@@ -71,8 +71,13 @@ describe('declared store fallback (3.2)', () => {
     expect(statusHuman.exitCode).toBe(0);
     expect(statusHuman.stderr).toContain('Using OpenSpec root: team-context');
 
-    // Hint continuity: follow-ups carry --store (JSON nextSteps is the
-    // surface that prints them).
+    // Hint continuity: follow-ups carry --store on BOTH surfaces. A text
+    // `Next:` line that dropped the flag would resolve against the pointer
+    // repo instead of the store.
+    expect(statusHuman.stdout).toContain(
+      'Next: openspec instructions proposal --change "billing-rework" --store team-context --json'
+    );
+
     const statusJson = await runCLI(['status', '--change', 'billing-rework', '--json'], {
       cwd: pointerRepo,
       env,
@@ -164,6 +169,15 @@ describe('declared store fallback (3.2)', () => {
     if (dataBefore) {
       expect(snapshot(path.join(tempDir, 'data'))).toEqual(dataBefore);
     }
+
+    const refusedWithLanguage = await runCLI(
+      ['init', '.', '--tools', 'none', '--language', 'French'],
+      { cwd: pointerRepo, env }
+    );
+    expect(refusedWithLanguage.exitCode).toBe(1);
+    expect(refusedWithLanguage.stderr).toContain("externalized to store 'team-context'");
+    expect(refusedWithLanguage.stderr).toContain('Remove the store: line');
+    expect(snapshot(pointerRepo)).toEqual(before);
 
     // Conversion: remove the line, rerun, get a normal local root.
     fs.writeFileSync(path.join(pointerRepo, 'openspec', 'config.yaml'), 'schema: spec-driven\n');

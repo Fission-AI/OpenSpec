@@ -58,7 +58,30 @@ export function getProjectSchemasDir(projectRoot: string): string {
  * @param parentDir - The directory containing the entry
  * @param entry - The directory entry from `fs.readdirSync(..., { withFileTypes: true })`
  */
+/**
+ * Directories `schema fork` and `schema init` create transiently while swapping
+ * a schema into place: a staging copy (`.fork-staging-<rand>` /
+ * `.init-staging-<rand>`, created via mkdtemp) and a backup of the previous
+ * destination (`<name>.fork-backup-<pid>-<ts>` /
+ * `<name>.init-backup-<pid>-<ts>`). Either can briefly coexist with real
+ * schemas in the schemas dir, and a backup outlives the run when its cleanup is
+ * blocked, so discovery must never surface them. Real schema names are
+ * kebab-case (no dots), so excluding these dot-bearing temp names can never
+ * hide a legitimate schema.
+ */
+function isOwnedTransientSchemaDir(name: string): boolean {
+  return (
+    name.startsWith('.fork-staging-') ||
+    name.includes('.fork-backup-') ||
+    name.startsWith('.init-staging-') ||
+    name.includes('.init-backup-')
+  );
+}
+
 export function isSchemaDir(parentDir: string, entry: fs.Dirent): boolean {
+  if (isOwnedTransientSchemaDir(entry.name)) {
+    return false;
+  }
   if (entry.isDirectory()) {
     return true;
   }

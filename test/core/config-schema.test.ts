@@ -392,6 +392,13 @@ describe('config-schema', () => {
       expect(validateConfigKeyPath('telemetry.enabled')).toEqual({ valid: true });
     });
 
+    it('rejects completionTipSeen, which the CLI manages rather than the user', () => {
+      // Accepted by the schema (passthrough) so `config validate` stays quiet,
+      // but never settable — it is runtime state, like telemetry.noticeSeen.
+      expect(GlobalConfigSchema.safeParse({ completionTipSeen: true }).success).toBe(true);
+      expect(validateConfigKeyPath('completionTipSeen').valid).toBe(false);
+    });
+
     it('rejects bare telemetry and unknown leaves', () => {
       expect(validateConfigKeyPath('telemetry').valid).toBe(false);
       expect(validateConfigKeyPath('telemetry.anonymousId').valid).toBe(false);

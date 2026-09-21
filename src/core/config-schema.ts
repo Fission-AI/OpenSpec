@@ -35,6 +35,8 @@ export const GlobalConfigSchema = z
       })
       .passthrough()
       .optional(),
+    // Runtime-managed (like telemetry.noticeSeen); not user-settable via CLI set.
+    completionTipSeen: z.boolean().optional(),
   })
   .passthrough();
 

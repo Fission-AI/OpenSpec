@@ -141,6 +141,36 @@ describe('buildUpdatedSpec (content absorbed into a requirement)', () => {
     expect(warnings.join('\n')).not.toContain('goes with it');
   });
 
+  it('warns against the source requirement when a rename-plus-modify drops its tail', async () => {
+    const tail = ['   ### Notes', 'Kept by hand.'];
+    const renamedRequirement = [...REQUIREMENT];
+    renamedRequirement[0] = '### Requirement: Renamed';
+    const { rebuilt, counts, warnings } = await build(SPEC(tail), [
+      '# demo - Changes',
+      '',
+      '## RENAMED Requirements',
+      '',
+      '- FROM: `### Requirement: Target`',
+      '- TO: `### Requirement: Renamed`',
+      '',
+      '## MODIFIED Requirements',
+      '',
+      ...renamedRequirement,
+      '',
+    ]);
+
+    expect([...rebuilt.matchAll(/^### Requirement:\s*(.+?)\s*$/gm)].map((m) => m[1])).toEqual([
+      'Renamed',
+      'Other',
+    ]);
+    expect(rebuilt).not.toContain(tail.join('\n'));
+    expect(counts).toMatchObject({ modified: 1, renamed: 1 });
+    expect(warnings.join('\n')).toContain(
+      '"### Notes" sits inside requirement "Target" and goes with it'
+    );
+    expect(warnings.join('\n')).not.toContain('requirement "Renamed"');
+  });
+
   it('does not warn when MODIFIED carries the full absorbed tail forward', async () => {
     const tail = ['   ### Notes', 'Kept by hand.'];
     const { rebuilt, counts, warnings } = await build(SPEC(tail), [

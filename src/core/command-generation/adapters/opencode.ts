@@ -8,10 +8,27 @@ import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 import { escapeYamlValue } from '../yaml.js';
 
+const OPENCODE_INPUT_BLOCK = /^\*\*Input\*\*:[^\r\n]*(?:\r?\n(?!\r?\n)[^\r\n]*)*/m;
+const OPENCODE_NO_INPUT = /^\*\*Input\*\*:\s*None required\b/im;
+const OPENCODE_ARGUMENT_PLACEHOLDER = /\$(?:ARGUMENTS\b|[1-9]\d*\b)/;
+
+function injectOpenCodeArgs(body: string): string {
+  if (OPENCODE_ARGUMENT_PLACEHOLDER.test(body) || OPENCODE_NO_INPUT.test(body)) {
+    return body;
+  }
+
+  const eol = body.includes('\r\n') ? '\r\n' : '\n';
+  return body.replace(
+    OPENCODE_INPUT_BLOCK,
+    (input) => `${input}${eol}**Provided arguments**: $ARGUMENTS`
+  );
+}
+
 /**
  * OpenCode adapter for command generation.
  * File path: .opencode/commands/opsx-<id>.md
- * Frontmatter: description
+ * Frontmatter: description. $ARGUMENTS is injected after the complete input
+ * contract because OpenCode only passes arguments through explicit placeholders.
  */
 export const opencodeAdapter: ToolCommandAdapter = {
   toolId: 'opencode',
@@ -25,7 +42,7 @@ export const opencodeAdapter: ToolCommandAdapter = {
 description: ${escapeYamlValue(content.description)}
 ---
 
-${content.body}
+${injectOpenCodeArgs(content.body)}
 `;
   },
 };

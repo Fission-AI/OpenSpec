@@ -292,6 +292,60 @@ describe('BashInstaller', () => {
       expect(content).toContain(completionsDir);
     });
 
+    it('writes the completions dir as a single-quoted literal', async () => {
+      // completionsDir comes from XDG_DATA_HOME / HOME. Inside double quotes a
+      // $(...) in that value would run on every new shell, forever; single
+      // quotes suppress every expansion.
+      const hostileDir = "/tmp/x$(touch /tmp/pwned)`id`'quote";
+      const hostileInstaller = new BashInstaller(testHomeDir);
+
+      expect(await hostileInstaller.configureBashrc(hostileDir)).toBe(true);
+
+      const content = await fs.readFile(path.join(testHomeDir, '.bashrc'), 'utf-8');
+      expect(content).not.toContain('"/tmp/x$(touch');
+      expect(content).toContain(
+        "if [ -d '/tmp/x$(touch /tmp/pwned)`id`'\\''quote' ]; then"
+      );
+      expect(content).toContain(
+        "for f in '/tmp/x$(touch /tmp/pwned)`id`'\\''quote'/*; do"
+      );
+    });
+
+    it('single-quotes the completions dir in the fallback instructions too', async () => {
+      // With auto-config off these lines are printed for the user to paste
+      // into their own rc file, so an expansion left in them runs on every
+      // future shell start exactly as it would from the written block.
+      const originalEnv = process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+
+      try {
+        const hostileHome = path.join(testHomeDir, "x$(touch pwned)`id`'q");
+        const hostileInstaller = new BashInstaller(hostileHome);
+
+        const result = await hostileInstaller.install('#compdef openspec\n');
+        const printed = result.instructions!.join('\n');
+
+        expect(printed).not.toContain('"$(touch');
+        expect(printed).not.toMatch(/if \[ -d "/);
+        expect(printed).toContain("if [ -d '");
+        expect(printed).toContain("'\\''q");
+
+        // The full lines, with the platform's own separators, so a path that
+        // loses or rewrites them fails here and not in a user's shell.
+        const expectedDir = path.join(hostileHome, '.local', 'share', 'bash-completion', 'completions');
+        expect(path.dirname(result.installedPath!)).toBe(expectedDir);
+        const quotedDir = `'${expectedDir.replace(/'/g, "'\\''")}'`;
+        expect(result.instructions).toContain(`  if [ -d ${quotedDir} ]; then`);
+        expect(result.instructions).toContain(`    for f in ${quotedDir}/*; do`);
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+        } else {
+          process.env.OPENSPEC_NO_AUTO_CONFIG = originalEnv;
+        }
+      }
+    });
+
     it('should prepend markers and config when .bashrc exists without markers', async () => {
       const bashrcPath = path.join(testHomeDir, '.bashrc');
       await fs.writeFile(bashrcPath, '# My custom bash config\nalias ll="ls -la"\n');
@@ -496,4 +550,32 @@ describe('BashInstaller', () => {
       expect(defaultInstaller).toBeDefined();
     });
   });
+
+  describe('isInstalled', () => {
+    // Drives the first-run completions tip: a false positive silences a hint
+    // the user needs, a false negative nags someone who is already set up.
+    async function installPath(): Promise<string> {
+      return installer.getInstallationPath();
+    }
+
+    it('is false when nothing is installed', async () => {
+      expect(await installer.isInstalled()).toBe(false);
+    });
+
+    it('is true once the completion script exists', async () => {
+      const target = await installPath();
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, '# completions');
+
+      expect(await installer.isInstalled()).toBe(true);
+    });
+
+    it('is false when a directory sits at the install path', async () => {
+      const target = await installPath();
+      await fs.mkdir(target, { recursive: true });
+
+      expect(await installer.isInstalled()).toBe(false);
+    });
+  });
+
 });

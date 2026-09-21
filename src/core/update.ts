@@ -18,6 +18,7 @@ import {
   CommandAdapterRegistry,
 } from './command-generation/index.js';
 import {
+  getToolSkillStatus,
   getToolVersionStatus,
   getSkillTemplates,
   getCommandContents,
@@ -27,6 +28,7 @@ import {
   resolveToolSkillsDir,
   toolSupportsSkills,
   type ToolVersionStatus,
+  formatIdeRestart,
 } from './shared/index.js';
 import {
   detectLegacyArtifacts,
@@ -38,13 +40,14 @@ import {
   getLegacyWorkflowIdsForTool,
   getToolsFromLegacyArtifacts,
   omitGlobalLegacyPromptFiles,
+  omitToolLegacyArtifacts,
   pickGlobalLegacyPromptFiles,
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
-import { getOnboardingCommands } from './onboarding-commands.js';
+import { formatOptionalWorkflowsNote, getOnboardingCommands } from './onboarding-commands.js';
 import { getAvailableTools } from './available-tools.js';
 import {
   WORKFLOW_TO_SKILL_DIR,
@@ -70,7 +73,10 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-import { writeSharedSkillTarget } from './shared-skill-target.js';
+import {
+  resolveSharedSkillWriters,
+  writeSharedSkillTarget,
+} from './shared-skill-target.js';
 import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
@@ -84,7 +90,22 @@ type LegacyUpgradeResult = {
   newlyConfiguredTools: string[];
   workflowOverrides: Partial<Record<string, readonly (typeof ALL_WORKFLOWS)[number][]>>;
   deferredGlobalCleanup?: LegacyDetectionResult;
+  /**
+   * Tools whose skill generation was skipped because another tool already owns
+   * their shared skills root. Their repo-local legacy artifacts must be exempt
+   * from immediate cleanup — no replacement was written to justify deleting them.
+   */
+  skippedSharedSkillTools?: string[];
 };
+
+/**
+ * Checkout artifacts that are not real content drift: a UTF-8 BOM and the CRLF
+ * line endings a Windows clone with `core.autocrlf` reintroduces on every
+ * checkout of committed generated files.
+ */
+function normalizeGeneratedFile(content: string): string {
+  return content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+}
 
 /**
  * Options for the update command.
@@ -223,9 +244,16 @@ export class UpdateCommand {
       delivery,
       configuredTools
     );
+    const toolsWithDriftedSkills = this.findToolsWithDriftedSkills(
+      resolvedProjectPath,
+      configuredTools,
+      delivery,
+      (toolId) => legacyWorkflowOverrides[toolId] ?? desiredWorkflows
+    );
     const toolsToUpdateSet = new Set<string>([
       ...toolsNeedingVersionUpdate,
       ...toolsNeedingConfigSync,
+      ...toolsWithDriftedSkills,
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
@@ -239,8 +267,7 @@ export class UpdateCommand {
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
-      this.displayExtraWorkflowsNote(resolvedProjectPath, configuredTools, desiredWorkflows);
-      this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+      this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
       return;
     }
@@ -251,7 +278,12 @@ export class UpdateCommand {
     } else if (toolsToUpdateSet.size === 0) {
       console.log('No additional refresh needed after legacy migration.');
     } else {
-      this.displayUpdatePlan([...toolsToUpdateSet], statusByTool, toolsUpToDate);
+      this.displayUpdatePlan(
+        [...toolsToUpdateSet],
+        statusByTool,
+        toolsUpToDate,
+        new Set(toolsWithDriftedSkills)
+      );
     }
     console.log();
 
@@ -259,7 +291,14 @@ export class UpdateCommand {
     const deliveryIncludesCommands = delivery !== 'skills';
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
+    const sharedSkillWriters = resolveSharedSkillWriters(
+      resolvedProjectPath,
+      configuredAndNewTools
+        .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
+        .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined)
+    );
     const updatedTools: string[] = [];
+    const updatedToolIds: string[] = [];
     const failedTools: Array<{ name: string; error: string }> = [];
     const skillsInvocableCommandSkips: string[] = [];
     const zeroArtifactTools: string[] = [];
@@ -279,12 +318,13 @@ export class UpdateCommand {
         const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : resolvedProjectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
+        const writesSkills = !tool.skillsDir || sharedSkillWriters.has(tool.value);
         const toolWorkflows = legacyWorkflowOverrides[tool.value] ?? desiredWorkflows;
         const skillTemplates = getSkillTemplates(toolWorkflows);
         const commandContents = getCommandContents(toolWorkflows);
 
         // Generate skill files if delivery includes skills
-        if (shouldGenerateSkills) {
+        if (shouldGenerateSkills && writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
@@ -309,7 +349,11 @@ export class UpdateCommand {
         }
 
         // Delete skill directories if delivery is commands-only
-        if (shouldRemoveSkillsForTool(tool.value, delivery) && !hasGlobalSkillTarget(tool)) {
+        if (
+          shouldRemoveSkillsForTool(tool.value, delivery) &&
+          writesSkills &&
+          !hasGlobalSkillTarget(tool)
+        ) {
           removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir);
           // Persist the selected owner even when commands-only delivery leaves
           // this target with no generated skills.
@@ -354,6 +398,7 @@ export class UpdateCommand {
 
         spinner.succeed(`Updated ${tool.name}`);
         updatedTools.push(tool.name);
+        updatedToolIds.push(tool.value);
         for (const migration of migrateLegacyToolDirs(
           resolvedProjectPath,
           [tool.value],
@@ -465,9 +510,8 @@ export class UpdateCommand {
     // 13. Detect new tool directories not currently configured
     this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
 
-    // 14. Display note about extra workflows not in profile
-    this.displayExtraWorkflowsNote(resolvedProjectPath, configuredAndNewTools, desiredWorkflows);
-    this.displayMissingCoreWorkflowsNote(profile, globalConfig.workflows);
+    // 14. Display the profile notes
+    this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile, delivery);
     this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
@@ -477,7 +521,11 @@ export class UpdateCommand {
     }
 
     console.log();
-    console.log(chalk.dim('Restart your IDE for changes to take effect.'));
+    const affectedToolIds = [...new Set([...newlyConfiguredTools, ...updatedToolIds])];
+    const restartHint = formatIdeRestart(affectedToolIds, delivery);
+    if (restartHint) {
+      console.log(chalk.dim(restartHint));
+    }
     if (failedTools.length > 0) {
       throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
     }
@@ -537,6 +585,53 @@ export class UpdateCommand {
   }
 
   /**
+   * Tools whose SKILL.md bodies no longer match what this CLI generates.
+   *
+   * Skill freshness was decided solely by the `generatedBy:` line, so a body
+   * edited after generation — a "helpful" PR touching `.claude/skills/**`, a
+   * dotfile sync, another agent — left `update` reporting the install healthy.
+   * Command files never had that gap: `areCommandFilesUpToDate` content-
+   * compares them, and the same comparison belongs on the higher-authority
+   * surface. A missing skill file is left to the profile-sync check, which
+   * already knows what a partial install means.
+   */
+  private findToolsWithDriftedSkills(
+    projectPath: string,
+    toolIds: string[],
+    delivery: Delivery,
+    workflowsForTool: (toolId: string) => readonly (typeof ALL_WORKFLOWS)[number][]
+  ): string[] {
+    return toolIds.filter((toolId) => {
+      const tool = AI_TOOLS.find((t) => t.value === toolId);
+      if (!tool || !toolSupportsSkills(tool)) return false;
+      if (!shouldGenerateSkillsForTool(tool.value, delivery)) return false;
+      // A shared skills root is generated with its owner's transformer, so
+      // only the owner may compare it. getToolSkillStatus settles ownership.
+      if (!getToolSkillStatus(projectPath, tool.value).configured) return false;
+
+      const skillsDir = resolveToolSkillsDir(projectPath, tool);
+      const transformer = getTransformerForTool(
+        tool.value,
+        delivery,
+        resolveCommandSurfaceCapability(tool.value),
+        resolveCommandInvocation(tool.value)
+      );
+
+      return getSkillTemplates(workflowsForTool(toolId)).some(({ template, dirName }) => {
+        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+        if (!fs.existsSync(skillFile)) return false;
+        try {
+          const existing = fs.readFileSync(skillFile, 'utf-8');
+          const generated = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+          return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
+        } catch {
+          return true;
+        }
+      });
+    });
+  }
+
+  /**
    * Display message when all tools are up to date.
    */
   private displayUpToDateMessage(toolStatuses: ToolVersionStatus[]): void {
@@ -553,13 +648,19 @@ export class UpdateCommand {
   private displayUpdatePlan(
     toolsToUpdate: string[],
     statusByTool: Map<string, ToolVersionStatus>,
-    upToDate: ToolVersionStatus[]
+    upToDate: ToolVersionStatus[],
+    driftedSkills: ReadonlySet<string> = new Set()
   ): void {
     const updates = toolsToUpdate.map((toolId) => {
       const status = statusByTool.get(toolId);
       if (status?.needsUpdate) {
         const fromVersion = status.generatedByVersion ?? 'unknown';
         return `${status.toolId} (${fromVersion} → ${OPENSPEC_VERSION})`;
+      }
+      // Say why: a user who edited a SKILL.md on purpose is owed the reason
+      // their edit is about to be overwritten.
+      if (driftedSkills.has(toolId)) {
+        return `${toolId} (skill files differ from the generated content)`;
       }
       return `${toolId} (config sync)`;
     });
@@ -609,20 +710,50 @@ export class UpdateCommand {
   }
 
   /**
+   * Prints the profile notes, in order, with one pointer at
+   * `openspec config profile` rather than three.
+   *
+   * Every note is evaluated: reading them as one short-circuited `||` chain
+   * would swallow whichever ran second.
+   */
+  private displayProfileNotes(
+    projectPath: string,
+    configuredTools: string[],
+    desiredWorkflows: readonly string[] | undefined,
+    profile: Profile,
+    delivery: Delivery
+  ): void {
+    const printedExtraNote = this.displayExtraWorkflowsNote(
+      projectPath,
+      configuredTools,
+      desiredWorkflows ?? []
+    );
+    const printedMissingCoreNote = this.displayMissingCoreWorkflowsNote(profile, desiredWorkflows);
+    this.displayOptionalWorkflowsNote(
+      configuredTools,
+      desiredWorkflows,
+      delivery,
+      printedExtraNote || printedMissingCoreNote
+    );
+  }
+
+  /**
    * Displays a note about extra workflows installed that aren't in the current profile.
    */
   private displayExtraWorkflowsNote(
     projectPath: string,
     configuredTools: string[],
     profileWorkflows: readonly string[]
-  ): void {
+  ): boolean {
     const installedWorkflows = scanInstalledWorkflows(projectPath, configuredTools);
     const profileSet = new Set(profileWorkflows);
     const extraWorkflows = installedWorkflows.filter((w) => !profileSet.has(w));
 
     if (extraWorkflows.length > 0) {
       console.log(chalk.dim(`Note: ${extraWorkflows.length} extra workflows not in profile (use \`openspec config profile\` to manage)`));
+      return true;
     }
+    return false;
   }
 
   /**
@@ -630,22 +761,64 @@ export class UpdateCommand {
    * grow CORE_WORKFLOWS stay discoverable. Keep custom profiles user-owned;
    * do not mutate them.
    */
-  private displayMissingCoreWorkflowsNote(profile: Profile, workflows?: readonly string[]): void {
+  private displayMissingCoreWorkflowsNote(profile: Profile, workflows?: readonly string[]): boolean {
     if (profile !== 'custom' || !workflows) {
-      return;
+      return false;
     }
 
     const workflowSet = new Set(workflows);
     const missing = CORE_WORKFLOWS.filter((workflow) => !workflowSet.has(workflow));
 
     if (missing.length === 0) {
-      return;
+      return false;
     }
 
     const label = missing.length === 1 ? 'workflow' : 'workflows';
     const pronoun = missing.length === 1 ? 'it' : 'them';
     console.log(chalk.dim(`Note: Your custom profile is missing ${missing.length} core ${label}: ${missing.join(', ')}`));
     console.log(chalk.dim(`Run \`openspec config profile\` to add ${pronoun}, or \`openspec config profile core\` to use the core set.`));
+    return true;
+  }
+
+  /**
+   * Fallback pointer to the workflows the profile leaves out.
+   *
+   * `update` already points at `openspec config profile` when files drift from
+   * the profile, and when a custom profile is missing core workflows. Neither
+   * fires for the default `core` profile, so the user `update` is most likely
+   * to be helping — the one who ran it because a command they read about never
+   * appeared — learns nothing (#1076). This covers that gap.
+   *
+   * Silent when another note already pointed at the same command, and when no
+   * configured tool can receive a workflow surface under the active delivery:
+   * adding workflows would write nothing there.
+   */
+  private displayOptionalWorkflowsNote(
+    configuredTools: string[],
+    workflows: readonly string[] | undefined,
+    delivery: Delivery,
+    alreadyPointedAtProfileConfig: boolean
+  ): void {
+    if (alreadyPointedAtProfileConfig || !workflows) {
+      return;
+    }
+
+    const anyToolHasASurface = configuredTools.some(
+      (toolId) =>
+        shouldGenerateSkillsForTool(toolId, delivery) ||
+        shouldGenerateCommandsForTool(toolId, delivery)
+    );
+    if (!anyToolHasASurface) {
+      return;
+    }
+
+    const note = formatOptionalWorkflowsNote(workflows);
+    if (!note) {
+      return;
+    }
+    for (const line of note) {
+      console.log(chalk.dim(line));
+    }
   }
 
   /**
@@ -886,7 +1059,11 @@ export class UpdateCommand {
         desiredWorkflows,
         delivery
       );
-      await this.performImmediateLegacyCleanup(projectPath, detection);
+      await this.performImmediateLegacyCleanup(
+        projectPath,
+        detection,
+        legacyUpgrade.skippedSharedSkillTools
+      );
       return {
         ...legacyUpgrade,
         deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
@@ -919,7 +1096,11 @@ export class UpdateCommand {
         desiredWorkflows,
         delivery
       );
-      await this.performImmediateLegacyCleanup(projectPath, detection);
+      await this.performImmediateLegacyCleanup(
+        projectPath,
+        detection,
+        legacyUpgrade.skippedSharedSkillTools
+      );
       return {
         ...legacyUpgrade,
         deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
@@ -939,9 +1120,15 @@ export class UpdateCommand {
    */
   private async performImmediateLegacyCleanup(
     projectPath: string,
-    detection: LegacyDetectionResult
+    detection: LegacyDetectionResult,
+    skippedSharedSkillTools: readonly string[] = []
   ): Promise<void> {
-    const immediateDetection = omitGlobalLegacyPromptFiles(detection);
+    // Tools whose upgrade was skipped (shared root owned by another) had no
+    // replacement written, so their repo-local legacy files must be preserved.
+    const immediateDetection = omitToolLegacyArtifacts(
+      omitGlobalLegacyPromptFiles(detection),
+      skippedSharedSkillTools
+    );
     if (immediateDetection.hasLegacyArtifacts) {
       await this.performLegacyCleanup(projectPath, immediateDetection);
     }
@@ -1060,6 +1247,7 @@ export class UpdateCommand {
         return {
           name: tool?.name || toolId,
           value: toolId,
+          searchAliases: tool?.searchAliases,
           configured: false,
           preSelected: true, // Pre-select all detected legacy tools
         };
@@ -1079,11 +1267,21 @@ export class UpdateCommand {
       }
     }
 
-    const inferredCodexWorkflows = getLegacyWorkflowIdsForTool(detection, 'codex');
+    const inferredCodexWorkflows = getProfileWorkflows(
+      'custom',
+      getLegacyWorkflowIdsForTool(detection, 'codex')
+    ).filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
+      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+    );
 
     // Create skills/commands for selected tools using effective profile+delivery.
     const newlyConfigured: string[] = [];
+    const skippedSharedSkillTools: string[] = [];
     const workflowOverrides: LegacyUpgradeResult['workflowOverrides'] = {};
+    const arbitrationTools = [...new Set([...configuredTools, ...selectedTools])]
+      .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
+      .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined);
+    const sharedSkillWriters = resolveSharedSkillWriters(projectPath, arbitrationTools);
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -1096,6 +1294,7 @@ export class UpdateCommand {
         const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
+        const writesSkills = !tool.skillsDir || sharedSkillWriters.has(tool.value);
         const toolWorkflows = (
           tool.value === 'codex' && inferredCodexWorkflows.length > 0
             ? inferredCodexWorkflows
@@ -1107,8 +1306,30 @@ export class UpdateCommand {
         const skillTemplates = getSkillTemplates(toolWorkflows);
         const commandContents = getCommandContents(toolWorkflows);
 
+        // Never overwrite a shared skills root owned by another tool. A tool
+        // with its own command surface can still install those commands: this
+        // is how a legacy Antigravity install gains `.agents/workflows` beside
+        // Codex-owned `.agents/skills`. A skills-only tool has no safe artifact
+        // to install, so preserve its legacy files and re-offer it later.
+        const sharedOwner = shouldGenerateSkills && !writesSkills
+          ? arbitrationTools.find(
+              (candidate) =>
+                candidate.skillsDir === tool.skillsDir &&
+                sharedSkillWriters.has(candidate.value)
+            )?.value
+          : undefined;
+        if (sharedOwner && !shouldGenerateCommands) {
+          const ownerName =
+            AI_TOOLS.find((candidate) => candidate.value === sharedOwner)?.name ?? sharedOwner;
+          spinner.info(
+            `Skipped ${tool.name}: ${tool.skillsDir}/skills is already managed by another tool (${ownerName}).`
+          );
+          skippedSharedSkillTools.push(tool.value);
+          continue;
+        }
+
         // Create skill files when delivery includes skills
-        if (shouldGenerateSkills) {
+        if (shouldGenerateSkills && writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
@@ -1164,6 +1385,6 @@ export class UpdateCommand {
       console.log();
     }
 
-    return { newlyConfiguredTools: newlyConfigured, workflowOverrides };
+    return { newlyConfiguredTools: newlyConfigured, workflowOverrides, skippedSharedSkillTools };
   }
 }

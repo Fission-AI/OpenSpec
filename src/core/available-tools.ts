@@ -58,7 +58,22 @@ export function getAvailableTools(projectPath: string): AIToolOption[] {
       available.filter((tool) => tool.skillsDir)
     ).map((tool) => tool.value)
   );
+  const hasIndependentDetectionPath = (tool: AIToolOption): boolean =>
+    (tool.detectionPaths ?? []).some((detectionPath) => {
+      // Skill roots still go through managed-content reconciliation below;
+      // their mere existence is not an independent tool signal.
+      if (detectionPath.endsWith('/skills')) return false;
+      try {
+        fs.statSync(path.join(projectPath, detectionPath));
+        return true;
+      } catch {
+        return false;
+      }
+    });
   return available.filter(
-    (tool) => tool.globalSkillsDir || activeProjectTools.has(tool.value)
+    (tool) =>
+      tool.globalSkillsDir ||
+      hasIndependentDetectionPath(tool) ||
+      activeProjectTools.has(tool.value)
   );
 }

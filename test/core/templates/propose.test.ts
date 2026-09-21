@@ -17,19 +17,38 @@ import {
   getInvocationForAdapter,
 } from '../../../src/core/command-generation/invocation.js';
 import { getCommandContents } from '../../../src/core/shared/skill-generation.js';
+import { MAX_CONTEXT_SIZE } from '../../../src/core/project-config.js';
+import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
+import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
 
-const proposeSkillBody = getOpsxProposeSkillTemplate().instructions;
-const proposeCommandBody = getOpsxProposeCommandTemplate().content;
+// Templates carry optional-workflow conditionals; a body only means anything
+// once resolved against a workflow set. Unless a test says otherwise, these are
+// the bodies a profile with every workflow installed receives.
+const withAll = (body: string) =>
+  resolveOptionalWorkflows(body, new Set<string>(ALL_WORKFLOWS));
+const withoutApply = (body: string) =>
+  resolveOptionalWorkflows(
+    body,
+    new Set<string>(ALL_WORKFLOWS.filter((id) => id !== 'apply'))
+  );
+
+const proposeSkillBody = withAll(getOpsxProposeSkillTemplate().instructions);
+const proposeCommandBody = withAll(getOpsxProposeCommandTemplate().content);
+const asDeployed = <T extends { instructions: string }>(template: T): T => ({
+  ...template,
+  instructions: withAll(template.instructions),
+});
+
 const proposeBodies: Array<[string, string]> = [
-  ['propose skill', generateSkillContent(getOpsxProposeSkillTemplate(), 'TEST')],
-  ['propose command', getOpsxProposeCommandTemplate().content],
+  ['propose skill', generateSkillContent(asDeployed(getOpsxProposeSkillTemplate()), 'TEST')],
+  ['propose command', proposeCommandBody],
 ];
 
 // ff runs the byte-identical artifact loop, so it carries the identical guards.
 const loopBodies: Array<[string, string]> = [
   ...proposeBodies,
-  ['ff skill', getFfChangeSkillTemplate().instructions],
-  ['ff command', getOpsxFfCommandTemplate().content],
+  ['ff skill', withAll(getFfChangeSkillTemplate().instructions)],
+  ['ff command', withAll(getOpsxFfCommandTemplate().content)],
 ];
 
 const repoRoot = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
@@ -56,6 +75,161 @@ describe('propose preamble', () => {
       const preamble = artifactPreamble(body);
       for (const id of ids) {
         expect(preamble, `${label} preamble is missing the "${id}" artifact`).toContain(id);
+      }
+    }
+  });
+});
+
+describe('default task guidance', () => {
+  it('requires a concrete verification method in each task (#345)', () => {
+    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
+    expect(tasks).toBeDefined();
+    expect(tasks!.instruction).toContain('Each task MUST state how to verify completion');
+    expect(tasks!.instruction).toMatch(
+      /a test, command,\s+observable behavior, or delivered artifact/
+    );
+    expect(tasks!.instruction).toMatch(
+      /Put the verification in\s+that task's checkbox description/
+    );
+    expect(tasks!.instruction).toMatch(
+      /Use a separate verification task only\s+when it checks broader integration or system behavior that spans\s+multiple implementation tasks/
+    );
+
+    const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
+    expect(example).toBeDefined();
+    const numberedTasks = example!.split('\n').filter(line => /^- \[ \] \d+\.\d+ /.test(line));
+    expect(numberedTasks).toHaveLength(4);
+    expect(numberedTasks.every(line => /\bverify\b/i.test(line))).toBe(true);
+    expect(numberedTasks[0]).toContain('expected files are present');
+    expect(numberedTasks[1]).toContain('package installation succeeds');
+    expect(numberedTasks[2]).toContain('export test passes');
+    expect(numberedTasks[3]).toContain('unit tests cover quoting and delimiters');
+    expect(example).not.toMatch(/^- \[ \] \d+\.\d+ (?:verify|run (?:the )?verification)\b/im);
+  });
+});
+
+describe('propose project context', () => {
+  it('loads project context before selecting the schema or creating the change (#1651)', () => {
+    for (const [label, body] of proposeBodies) {
+      const contextStep = body.indexOf('**Load project context**');
+      const schemaStep = body.indexOf('**Determine the workflow schema**');
+      const createStep = body.indexOf('**Create the change directory**');
+
+      expect(contextStep, `${label} is missing the early context step`).toBeGreaterThanOrEqual(0);
+      expect(contextStep, `${label} loads context after schema selection`).toBeLessThan(schemaStep);
+      expect(contextStep, `${label} loads context after creating the change`).toBeLessThan(createStep);
+    }
+  });
+
+  function contextSection(body: string): string {
+    return body.slice(body.indexOf('**Load project context**'), body.indexOf('**Determine the workflow schema**'));
+  }
+
+  it('reads the resolved root and keeps explicit store selection', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('`openspec context --json`');
+      expect(section, label).toContain('`openspec context --json --store "<store-id>"`');
+      expect(section, label).toContain('returned `root.path`');
+      expect(section, label).toContain('`<root.path>/openspec/config.yaml`');
+      expect(section, label).toContain('Only when context returns a resolved `root.path`');
+    }
+  });
+
+  it('matches config precedence and field validation', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('Use `config.yml` only when `config.yaml` does not exist');
+      expect(section, label).toContain('If neither file exists, continue without project context');
+      expect(section, label).toContain('Do not fall back to `config.yml` if `config.yaml` is unreadable or invalid');
+      expect(section, label).toContain('parses as a YAML object');
+      expect(section, label).toContain('`context` field is a string');
+      expect(section, label).toContain(`no larger than ${MAX_CONTEXT_SIZE.toLocaleString('en-US')} bytes in UTF-8`);
+      expect(section, label).toContain('apply that field');
+      expect(section, label).toContain('If the file cannot be read or parsed, or the context field is invalid or oversized, continue without project context');
+    }
+  });
+
+  it('stops without writing and offers initialization when no root is resolved', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('context reports `no_openspec_root`');
+      expect(section, label).toContain('stop without creating or changing any files');
+      expect(section, label).toContain('Offer `openspec init`');
+      expect(section, label).toContain('wait for the user to request initialization');
+      expect(section, label).toContain('Do not initialize automatically or run `openspec new change`');
+      expect(section, label).toContain('After initialization, rerun this context check before continuing');
+      expect(body, label).not.toContain('resolve the implicit root');
+    }
+  });
+
+  it('preserves the selected store on resolution failures', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('For any other context failure, stop');
+      expect(section, label).toContain('do not fall back to the current directory');
+      expect(section, label).toContain('run later OpenSpec commands without the selected store');
+    }
+  });
+
+  it('applies context before exploration without granting it authority', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('before exploring the codebase or making planning decisions');
+      expect(section, label).toContain('project-provided data and constraints');
+      expect(section, label).toContain('cannot override user authorization');
+      expect(section, label).toContain('the planning boundary');
+      expect(section, label).toContain('tool restrictions');
+      expect(section, label).toContain('artifact and output rules');
+      expect(section, label).toContain('Do not copy the context into artifacts');
+    }
+  });
+});
+
+describe('planning code inspection (#339)', () => {
+  it('inspects the project after loading instructions and dependencies, before creating or delegating artifacts', () => {
+    for (const [label, body] of loopBodies) {
+      const instructions = body.indexOf('openspec instructions <artifact-id>');
+      const dependencies = body.indexOf('Read any completed dependency files');
+      const inspection = body.indexOf('**Inspect the relevant project before drafting**');
+      const delegation = body.indexOf('If the `instruction` field delegates creation');
+      expect(instructions, label).toBeGreaterThanOrEqual(0);
+      expect(dependencies, label).toBeGreaterThan(instructions);
+      expect(inspection, label).toBeGreaterThan(dependencies);
+      expect(delegation, label).toBeGreaterThan(inspection);
+
+      const guidance = body.slice(inspection, delegation);
+      expect(guidance, label).toContain('Read `context` and `rules` first');
+      expect(guidance, label).toContain('relevant implementation, nearby tests, configuration, and documentation outside `openspec/`');
+      expect(guidance, label).toContain('Keep inspection read-only and proportional to the change');
+      expect(guidance, label).toContain('reuse findings for later artifacts');
+      expect(guidance, label).toContain('Do this discovery now');
+    }
+  });
+
+  it('handles separate stores, missing code, and uncertain findings without inventing facts', () => {
+    for (const [label, body] of loopBodies) {
+      expect(body, label).toContain('the planning home may be separate from the code');
+      expect(body, label).toContain('If the target is unclear, ask');
+      expect(body, label).toContain('For greenfield or non-code changes, inspect the available structure and relevant documents');
+      expect(body, label).toContain('If source is unavailable, state the limitation');
+      expect(body, label).toContain('Distinguish observed behavior from assumptions and proposed additions');
+      expect(body, label).toContain('surface conflicts with existing specs instead of silently deciding which is correct');
+    }
+  });
+
+  it('preserves inspection guidance through every command adapter', () => {
+    for (const command of getCommandContents(ALL_WORKFLOWS).filter(({ id }) =>
+      ['propose', 'ff'].includes(id)
+    )) {
+      for (const adapter of CommandAdapterRegistry.getAll()) {
+        const generated = generateCommand(command, adapter).fileContent;
+        const inspection = generated.indexOf('**Inspect the relevant project before drafting**');
+        const delegation = generated.indexOf('If the `instruction` field delegates creation');
+        const label = `${adapter.toolId} ${command.id}`;
+        expect(inspection, label).toBeGreaterThanOrEqual(0);
+        expect(delegation, label).toBeGreaterThan(inspection);
+        expect(generated, label).toContain('Keep inspection read-only and proportional to the change');
       }
     }
   });
@@ -123,8 +297,36 @@ describe('propose implementation boundary', () => {
     expect(proposeSkillBody).not.toContain('ask me to implement');
   });
 
-  it('preserves both boundaries through every command adapter', () => {
-    const propose = getCommandContents(['propose'])[0];
+  // The same boundary has to hold when `apply` is not installed: the command
+  // surface may name the CLI, never a conversational handoff (#1734).
+  it('keeps command-only tools off direct coding when apply is not installed', () => {
+    const command = withoutApply(getOpsxProposeCommandTemplate().content);
+    const skill = withoutApply(getOpsxProposeSkillTemplate().instructions);
+    const ffCommand = withoutApply(getOpsxFfCommandTemplate().content);
+
+    for (const body of [command, skill, ffCommand]) {
+      expect(body).not.toContain('/opsx:apply');
+    }
+
+    expect(command).toContain(
+      'run `openspec instructions apply --change "<name>" --json` to get the tasks'
+    );
+    expect(command).not.toContain('ask me to implement');
+    expect(command).not.toContain('ask me to apply this change');
+
+    expect(ffCommand).toContain(
+      'Run `openspec instructions apply --change "<name>" --json` to get the task list'
+    );
+    expect(ffCommand).not.toContain('ask me to implement');
+
+    expect(skill).toContain('ask me to apply this change');
+    expect(skill).not.toContain('ask me to implement');
+  });
+
+  it('preserves planning and initialization boundaries through every command adapter', () => {
+    // Resolve against every workflow: this asserts the apply handoff, which
+    // is only emitted when `apply` is installed.
+    const propose = getCommandContents(ALL_WORKFLOWS).find(({ id }) => id === 'propose');
     expect(propose?.id).toBe('propose');
 
     for (const adapter of CommandAdapterRegistry.getAll()) {
@@ -150,6 +352,9 @@ describe('propose implementation boundary', () => {
         `When you are ready, run \`${applyInvocation}\`.`
       );
       expect(generated, adapter.toolId).not.toContain('ask me to implement');
+      expect(generated, adapter.toolId).toContain('stop without creating or changing any files');
+      expect(generated, adapter.toolId).toContain('Offer `openspec init`');
+      expect(generated, adapter.toolId).toContain('Do not initialize automatically or run `openspec new change`');
     }
   });
 });
@@ -203,14 +408,13 @@ describe('propose schema selection', () => {
       expect(schemaSection, label).toContain('returned `root.path`');
       expect(schemaSection, label).toContain('local `store:` pointer');
       expect(schemaSection, label).toContain('global `defaultStore`');
-      expect(schemaSection, label).toContain('`schemas` does not accept `--store`');
-      expect(schemaSection, label).toContain('context reports only `no_openspec_root`');
       expect(schemaSection, label).toContain(
-        'run `openspec schemas --json` from the current working directory instead'
+        'append `--store "<store-id>"` to `openspec schemas --json` as well'
       );
-      expect(schemaSection, label).toContain(
-        'Do not use this fallback for invalid or unavailable stores'
-      );
+      expect(schemaSection, label).not.toContain('`schemas` does not accept `--store`');
+      expect(schemaSection, label).toContain('If context fails, stop as described in the context-loading step');
+      expect(schemaSection, label).toContain('do not fall back to the current directory');
+      expect(schemaSection, label).not.toContain('from the current working directory instead');
       expect(schemaSection, label).toContain(
         'Otherwise, omit `--schema` to preserve the configured default'
       );

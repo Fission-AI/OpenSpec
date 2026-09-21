@@ -47,6 +47,7 @@ export function getFeedbackSkillTemplate(): SkillTemplate {
 5. **Submit on confirmation**
    - Use the \`openspec feedback\` command to submit
    - Format: \`openspec feedback "title" --body "body content"\`
+   - The command preserves the title text in the issue body and shortens long GitHub issue titles
    - The command will automatically add metadata (version, platform, timestamp)
 
 **Example Draft**

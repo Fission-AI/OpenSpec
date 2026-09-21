@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import os from 'os';
 import {
   countTasksFromContent,
+  formatTaskStatus,
   getTaskProgressForChange,
+  getTaskProgressDetailForChange,
   parseTaskLines,
 } from '../../src/utils/task-progress.js';
 import { resolveArtifactOutputs } from '../../src/core/artifact-graph/index.js';
@@ -113,6 +115,25 @@ describe('getTaskProgressForChange (#1202 tracked-tasks resolution)', () => {
 
     const progress = await getTaskProgressForChange(changesDir, 'target', projectRoot);
     expect(progress).toEqual({ total: 2, completed: 1 });
+  });
+
+  it('memoizes schema→glob resolution across changes via the shared cache (#205)', async () => {
+    await writeGlobSchema();
+    await writeChange('c1', { 'backend/tasks.md': '- [x] a\n' });
+    await writeChange('c2', { 'backend/tasks.md': '- [ ] b\n' });
+
+    const cache = new Map<string, string | undefined>();
+    const d1 = await getTaskProgressDetailForChange(changesDir, 'c1', projectRoot, cache);
+    // The schema→glob lookup is now cached under the resolved schema name.
+    expect(cache.get('glob-tasks')).toBe('**/tasks.md');
+    expect(cache.size).toBe(1);
+
+    // A second change on the same schema reuses the entry (no new key added),
+    // and results are still correct.
+    const d2 = await getTaskProgressDetailForChange(changesDir, 'c2', projectRoot, cache);
+    expect(cache.size).toBe(1);
+    expect(d1).toEqual({ total: 1, completed: 1, unreadable: [] });
+    expect(d2).toEqual({ total: 1, completed: 0, unreadable: [] });
   });
 
   it('identifies the tracked artifact by apply.tracks even when it is not named "tasks"', async () => {
@@ -231,6 +252,136 @@ describe('parseTaskLines', () => {
     ]);
   });
 
+  it('counts an empty checkbox as not done, rather than dropping it (#1761)', () => {
+    // `- []` is a checkbox-like line that was lost the same silent way as
+    // `- [~]`: neither numerator nor denominator, so archive stopped warning.
+    expect(parseTaskLines('- [] 1.1 Open\n- [x] 1.2 Done\n')).toEqual([
+      { done: false, description: '1.1 Open' },
+      { done: true, description: '1.2 Done' },
+    ]);
+  });
+
+  it('reads a padded tick as done, wherever the space sits (#1761)', () => {
+    // `[ x]` is an affirmative tick, so honouring it cannot hide work the
+    // author still considers open - the direction that matters. Before the fix
+    // these lines were dropped entirely, which could hide either.
+    const tasks = parseTaskLines('- [ x] 1.1 One\n- [x ] 1.2 Two\n- [ x ] 1.3 Three\n');
+
+    expect(tasks.every((task) => task.done)).toBe(true);
+    expect(tasks.map((task) => task.description)).toEqual(['1.1 One', '1.2 Two', '1.3 Three']);
+  });
+
+  it('counts an unrecognised marker as not done, rather than dropping it (#1761)', () => {
+    const tasks = parseTaskLines(
+      '- [x] 1.1 Done\n- [~] 1.2 Deferred\n- [-] 1.3 Cancelled\n- [?] 1.4 Unclear\n- [/] 1.5 Partial\n'
+    );
+
+    expect(tasks).toEqual([
+      { done: true, description: '1.1 Done' },
+      { done: false, description: '1.2 Deferred' },
+      { done: false, description: '1.3 Cancelled' },
+      { done: false, description: '1.4 Unclear' },
+      { done: false, description: '1.5 Partial' },
+    ]);
+  });
+
+  it('sees an unrecognised marker at every indent depth, and on CRLF files (#1761 + #1485)', () => {
+    const tasks = parseTaskLines(
+      '- [x] 1.1 Parent\r\n  - [~] 1.1.1 Deferred child\r\n\t- [-] 1.1.2 Tab child\r\n'
+    );
+
+    expect(tasks).toEqual([
+      { done: true, description: '1.1 Parent' },
+      { done: false, description: '1.1.1 Deferred child' },
+      { done: false, description: '1.1.2 Tab child' },
+    ]);
+  });
+
+  it('keeps multi-character brackets out, so link bullets are not phantom tasks (#1761)', () => {
+    // The guard on the widened marker. `- [Some doc](./doc.md)` ends its
+    // bracket with `(`, not a space, so a `[^\]]*` marker would match it and
+    // turn every Markdown link list into unfinished work.
+    const tasks = parseTaskLines(
+      [
+        '- [Some doc](./doc.md)',
+        '- [Another](https://example.com) with trailing prose',
+        '- [WIP] 1.1 Multi-character marker',
+        '- [xx] 1.2 Two characters',
+        '- [ ] 1.3 Only this one counts',
+        '',
+      ].join('\n')
+    );
+
+    expect(tasks).toEqual([{ done: false, description: '1.3 Only this one counts' }]);
+  });
+
+  it('keeps one-character link bullets out too (#1761)', () => {
+    // The width guard alone does not cover these: a single-character link
+    // label is one token, so `- [A](https://example.com)` and the reference
+    // form `- [1][one]` matched the marker class and reported phantom work.
+    // What excludes them is the separator: a checkbox is followed by its
+    // description or by end of line, never by `(` or `[`.
+    const tasks = parseTaskLines(
+      [
+        '- [A](https://example.com)',
+        '- [1](./one)',
+        '- [a][ref]',
+        '- [x]1.1 No space after the box still counts',
+        '- [ ] 1.2 Counts',
+        '',
+      ].join('\n')
+    );
+
+    expect(tasks).toEqual([
+      { done: true, description: '1.1 No space after the box still counts' },
+      { done: false, description: '1.2 Counts' },
+    ]);
+  });
+
+  it('still counts an empty box followed by link syntax, as the strict pattern did (#1761)', () => {
+    // The link guard must not tighten what the pre-#1761 pattern accepted:
+    // `- [ ](...)` and `- [ ][...]` matched it as unfinished tasks, and a line
+    // dropped here is one archive stops warning about.
+    const tasks = parseTaskLines('- [ ](optional) 1.1 Open\n- [ ][ref] 1.2 Open\n');
+
+    expect(tasks).toEqual([
+      { done: false, description: '(optional) 1.1 Open' },
+      { done: false, description: '[ref] 1.2 Open' },
+    ]);
+  });
+
+  it('reads a link inside a task description as description, not as a marker (#1761)', () => {
+    const tasks = parseTaskLines('- [ ] 1.1 See [the doc](./doc.md)\n');
+
+    expect(tasks).toEqual([{ done: false, description: '1.1 See [the doc](./doc.md)' }]);
+  });
+
+  it('keeps unrecognised markers in the denominator, so progress cannot go up when work is deferred (#1761)', () => {
+    // The reported failure: marking open items `[~]` moved them out of the
+    // count instead of leaving them not-done, and the change read "✓ Complete".
+    const open = ['- [x] 1.1 Done', '- [ ] 1.2 Open', '- [ ] 1.3 Open', ''].join('\n');
+    const deferred = ['- [x] 1.1 Done', '- [~] 1.2 Deferred', '- [~] 1.3 Deferred', ''].join('\n');
+
+    expect(countTasksFromContent(deferred)).toEqual(countTasksFromContent(open));
+    expect(formatTaskStatus(countTasksFromContent(deferred))).toBe('1/3 tasks');
+  });
+
+  it('reproduces the reported ratio: 42 done, 17 deferred, none open (#1761)', () => {
+    // The wild case: reported "✓ Complete" with seventeen items still open,
+    // and 22/48 before those items were re-marked - the count moved the wrong
+    // way when work was deferred.
+    const lines = [
+      ...Array.from({ length: 42 }, (_, i) => `- [x] 1.${i + 1} Done`),
+      ...Array.from({ length: 17 }, (_, i) => `- [~] 2.${i + 1} Deferred`),
+      '',
+    ];
+
+    const progress = countTasksFromContent(lines.join('\n'));
+
+    expect(progress).toEqual({ total: 59, completed: 42 });
+    expect(formatTaskStatus(progress)).toBe('42/59 tasks');
+  });
+
   it('leaves non-checkbox lines, prose and headings alone', () => {
     const tasks = parseTaskLines(
       [
@@ -303,5 +454,74 @@ describe('countTasksFromContent', () => {
     ].join('\n');
 
     expect(countTasksFromContent(content)).toEqual({ total: 6, completed: 3 });
+  });
+
+  it('counts the checkbox shapes the strict marker class used to drop (#1761)', () => {
+    // Everything here was invisible to progress and to archive's gate before
+    // the marker widened; only `x`/`X` reads as done.
+    const content = [
+      '- [~] 1.1 Unrecognised marker',
+      '- [-] 1.2 Another unrecognised marker',
+      '- [] 1.3 Empty checkbox',
+      '  - [?] 1.4 Indented, unrecognised',
+      '- [ x] 1.5 Padded tick',
+      '- [X ] 1.6 Padded uppercase tick',
+      '',
+    ].join('\n');
+
+    expect(countTasksFromContent(content)).toEqual({ total: 6, completed: 2 });
+  });
+});
+
+/**
+ * #205 — `getTaskProgressDetailForChange` mirrors `getTaskProgressForChange`
+ * but also reports task files that exist yet cannot be read, so a lint can fail
+ * loudly instead of silently counting an unreadable file as "no tasks".
+ */
+describe('getTaskProgressDetailForChange (#205 unreadable reporting)', () => {
+  let root: string;
+  let changesDir: string;
+
+  beforeEach(async () => {
+    root = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-taskdetail-'));
+    changesDir = path.join(root, 'openspec', 'changes');
+    await fs.mkdir(changesDir, { recursive: true });
+  });
+
+  afterEach(async () => {
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  it('reports no unreadable files for a normal tasks.md and counts as before', async () => {
+    const changeDir = path.join(changesDir, 'ok');
+    await fs.mkdir(changeDir, { recursive: true });
+    await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] a\n- [ ] b\n', 'utf-8');
+
+    const detail = await getTaskProgressDetailForChange(changesDir, 'ok', root);
+    expect(detail).toEqual({ total: 2, completed: 1, unreadable: [] });
+  });
+
+  it('records a task file that exists but cannot be read (EISDIR)', async () => {
+    // A tasks.md that is a directory yields a non-ENOENT read error on every
+    // platform, standing in for a genuinely unreadable file.
+    const badTasks = path.join(changesDir, 'bad', 'tasks.md');
+    await fs.mkdir(badTasks, { recursive: true });
+
+    const detail = await getTaskProgressDetailForChange(changesDir, 'bad', root);
+    expect(detail.total).toBe(0);
+    expect(detail.completed).toBe(0);
+    expect(detail.unreadable).toHaveLength(1);
+    // The reported path is the file that could not be read (both canonicalized
+    // so a /var vs /private/var symlink difference does not fail the identity).
+    expect(realpathSync.native(detail.unreadable[0])).toBe(
+      realpathSync.native(badTasks)
+    );
+  });
+
+  it('treats a missing tasks.md as zero tasks, not unreadable', async () => {
+    await fs.mkdir(path.join(changesDir, 'empty'), { recursive: true });
+
+    const detail = await getTaskProgressDetailForChange(changesDir, 'empty', root);
+    expect(detail).toEqual({ total: 0, completed: 0, unreadable: [] });
   });
 });

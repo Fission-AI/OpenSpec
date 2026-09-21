@@ -1,5 +1,6 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 
@@ -10,6 +11,10 @@ import {
   rollbackCreatedPaths,
 } from '../../src/core/index.js';
 
+vi.mock('node:fs/promises', async (importOriginal) => ({
+  ...await importOriginal<typeof import('node:fs/promises')>(),
+}));
+
 describe('OpenSpec root helper', () => {
   let tempDir: string;
 
@@ -18,6 +23,7 @@ describe('OpenSpec root helper', () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
@@ -133,6 +139,59 @@ describe('OpenSpec root helper', () => {
     expect(fs.readFileSync(path.join(root, 'openspec', 'specs', 'note.md'), 'utf-8')).toBe(
       'keep me\n'
     );
+  });
+
+  it('records only new anchors and includes them in rollback', async () => {
+    const root = path.join(tempDir, 'store');
+    createHealthyRoot(root);
+
+    const result = await ensureOpenSpecRoot(root, { anchorEmptyDirectories: true });
+
+    expect(result.createdArtifacts).toEqual([
+      'openspec/specs/.gitkeep',
+      'openspec/changes/archive/.gitkeep',
+    ]);
+    expect((await ensureOpenSpecRoot(root, { anchorEmptyDirectories: true })).createdPaths).toEqual([]);
+
+    await rollbackCreatedPaths(result.createdPaths);
+
+    expect(fs.readdirSync(path.join(root, 'openspec', 'specs'))).toEqual([]);
+    expect(fs.readdirSync(path.join(root, 'openspec', 'changes', 'archive'))).toEqual([]);
+  });
+
+  it.each(['file', 'directory', 'symlink'] as const)(
+    'preserves a competing %s created after checking an empty directory',
+    async (kind) => {
+      const root = path.join(tempDir, 'store');
+      createHealthyRoot(root);
+      const marker = path.join(root, 'openspec', 'specs', '.gitkeep');
+      const target = path.join(tempDir, 'outside-target');
+      fs.mkdirSync(target);
+      fs.writeFileSync(path.join(target, 'user.txt'), 'keep me');
+      vi.spyOn(fsPromises, 'readdir').mockImplementationOnce(async () => {
+        if (kind === 'file') fs.writeFileSync(marker, 'keep me');
+        if (kind === 'directory') fs.mkdirSync(marker);
+        if (kind === 'symlink') fs.symlinkSync(target, marker, process.platform === 'win32' ? 'junction' : 'dir');
+        return [];
+      });
+
+      const result = await ensureOpenSpecRoot(root, { anchorEmptyDirectories: true });
+
+      expect(result.createdArtifacts).toEqual(['openspec/changes/archive/.gitkeep']);
+      if (kind === 'file') expect(fs.readFileSync(marker, 'utf-8')).toBe('keep me');
+      if (kind === 'directory') expect(fs.lstatSync(marker).isDirectory()).toBe(true);
+      if (kind === 'symlink') expect(fs.lstatSync(marker).isSymbolicLink()).toBe(true);
+      expect(fs.readFileSync(path.join(target, 'user.txt'), 'utf-8')).toBe('keep me');
+    },
+  );
+
+  it('propagates anchor write failures other than an existing path', async () => {
+    const root = path.join(tempDir, 'store');
+    createHealthyRoot(root);
+    const error = Object.assign(new Error('permission denied'), { code: 'EACCES' });
+    vi.spyOn(fsPromises, 'writeFile').mockRejectedValueOnce(error);
+
+    await expect(ensureOpenSpecRoot(root, { anchorEmptyDirectories: true })).rejects.toBe(error);
   });
 
   it('rolls back only ledger-created files and empty directories', async () => {

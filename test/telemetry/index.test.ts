@@ -4,11 +4,12 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 import { isTelemetryEnabled, maybeShowTelemetryNotice, shutdown, trackCommand } from '../../src/telemetry/index.js';
+import { getTelemetryConfig } from '../../src/telemetry/config.js';
 
 describe('telemetry/index', () => {
   let tempDir: string;
   let originalEnv: NodeJS.ProcessEnv;
-  let consoleLogSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let fetchSpy: ReturnType<typeof vi.spyOn<typeof globalThis, 'fetch'>>;
 
   beforeEach(() => {
@@ -27,8 +28,8 @@ describe('telemetry/index', () => {
     // Clear all mocks
     vi.clearAllMocks();
 
-    // Spy on console.log for notice tests
-    consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    // Notice is written to stderr so it never pollutes stdout (raw/JSON output)
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     // Telemetry must never reach the real network in tests
     fetchSpy = vi
       .spyOn(globalThis, 'fetch')
@@ -78,6 +79,42 @@ describe('telemetry/index', () => {
       process.env.DO_NOT_TRACK = '1';
       expect(isTelemetryEnabled()).toBe(false);
     });
+
+    it.each(['true', 'TRUE', ' Yes ', 'on', 'anything'])(
+      'should return false for DO_NOT_TRACK=%s (opt-out fails safe)',
+      (value) => {
+        enableTelemetry();
+        process.env.DO_NOT_TRACK = value;
+        expect(isTelemetryEnabled()).toBe(false);
+      }
+    );
+
+    it.each(['false', 'FALSE', ' no ', 'off', 'anything'])(
+      'should return false for OPENSPEC_TELEMETRY=%s (opt-out fails safe)',
+      (value) => {
+        enableTelemetry();
+        process.env.OPENSPEC_TELEMETRY = value;
+        expect(isTelemetryEnabled()).toBe(false);
+      }
+    );
+
+    it.each(['0', 'false', 'no', 'off', ''])(
+      'should stay enabled for DO_NOT_TRACK=%s (explicitly off)',
+      (value) => {
+        enableTelemetry();
+        process.env.DO_NOT_TRACK = value;
+        expect(isTelemetryEnabled()).toBe(true);
+      }
+    );
+
+    it.each(['1', 'true', 'YES', 'on'])(
+      'should stay enabled for OPENSPEC_TELEMETRY=%s (explicitly on)',
+      (value) => {
+        enableTelemetry();
+        process.env.OPENSPEC_TELEMETRY = value;
+        expect(isTelemetryEnabled()).toBe(true);
+      }
+    );
 
     it('should return false when CI=true', () => {
       process.env.CI = 'true';
@@ -166,7 +203,7 @@ describe('telemetry/index', () => {
 
       await maybeShowTelemetryNotice();
 
-      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 
     it('should not show notice when telemetry.enabled is false', async () => {
@@ -175,11 +212,53 @@ describe('telemetry/index', () => {
 
       await maybeShowTelemetryNotice();
 
-      expect(consoleLogSpy).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('should show notice on the first non-silent run, then never repeat it', async () => {
+      enableTelemetry();
+
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('OpenSpec collects anonymous usage stats')
+      );
+
+      // noticeSeen is now persisted: a second run stays quiet.
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should suppress the notice in silent (--json) mode and defer the disclosure', async () => {
+      enableTelemetry();
+
+      // A first-ever run in --json mode must not pollute stdout.
+      await maybeShowTelemetryNotice({ silent: true });
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+
+      // The disclosure must be deferred, not consumed: noticeSeen stays unset.
+      expect((await getTelemetryConfig()).noticeSeen).toBeFalsy();
+
+      // Disclosure is only deferred, not skipped: the next non-JSON run shows it.
+      await maybeShowTelemetryNotice();
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('OpenSpec collects anonymous usage stats')
+      );
     });
   });
 
+  /** The disclosure gate: trackCommand sends nothing until the notice was shown. */
+  function markNoticeSeen(): void {
+    writeTelemetryConfig({ noticeSeen: true });
+  }
+
   describe('trackCommand', () => {
+    beforeEach(() => {
+      // Every case here is about what happens *after* the disclosure.
+      markNoticeSeen();
+    });
+
     it('should send nothing when telemetry is disabled', async () => {
       process.env.OPENSPEC_TELEMETRY = '0';
 
@@ -285,6 +364,30 @@ describe('telemetry/index', () => {
     });
   });
 
+  describe('disclosure before collection', () => {
+    it('should send nothing on a first --json run, whose notice is deferred', async () => {
+      enableTelemetry();
+
+      // --json defers the notice to keep stdout parseable, so the user has
+      // not been told anything yet — and must not be tracked yet either.
+      await maybeShowTelemetryNotice({ silent: true });
+      await trackCommand('list', '1.0.0');
+      await shutdown();
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      // No anonymous id was created for a user who never saw the notice.
+      expect((await getTelemetryConfig()).anonymousId).toBeUndefined();
+
+      // The first run that actually shows the notice starts the tracking.
+      await maybeShowTelemetryNotice();
+      await trackCommand('list', '1.0.0');
+      await shutdown();
+
+      expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('shutdown', () => {
     it('should not throw when nothing is pending', async () => {
       await expect(shutdown()).resolves.not.toThrow();
@@ -292,6 +395,7 @@ describe('telemetry/index', () => {
 
     it('should flush an in-flight event before returning', async () => {
       enableTelemetry();
+      writeTelemetryConfig({ noticeSeen: true });
 
       let settle!: (response: Response) => void;
       fetchSpy.mockImplementationOnce(
