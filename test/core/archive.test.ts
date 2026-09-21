@@ -2276,7 +2276,7 @@ New feature description.
     // Windows defers deletion of an open file until its original handle closes,
     // so unlink-and-recreate cannot model a persistent replacement there.
     it.skipIf(process.platform === 'win32')(
-      'does not unlink a claim entry replaced by another process',
+      'does not unlink a replaced claim when path stats omit the device id',
       async () => {
         const changeName = 'replaced-archive-claim';
         const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -2284,7 +2284,14 @@ New feature description.
         const archiveName = `${formatLocalDate()}-${changeName}`;
         const claimPath = archiveClaimPath(archiveName);
         const realRename = fs.rename.bind(fs);
+        const realLstat = fs.lstat.bind(fs);
         onTestFinished(() => vi.restoreAllMocks());
+        vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+          const stats = await realLstat(target, options as any);
+          return path.basename(String(target)) === '.openspec-archive.lock'
+            ? { ...stats, dev: 0n }
+            : stats;
+        });
         let replaced = false;
         vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
           if (
