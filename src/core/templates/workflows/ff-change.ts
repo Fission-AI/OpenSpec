@@ -5,15 +5,39 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
+
+/**
+ * The implementation handoff, resolved at generation time so a profile
+ * without `apply` is not told to run it (see optional-workflow.ts).
+ *
+ * The two surfaces word this differently on purpose (#258): a command-only
+ * tool has no conversational agent to ask, so its prompt names a command or
+ * the CLI and never invites "ask me to implement".
+ */
+const SKILL_APPLY_HANDOFF = optionalWorkflow(
+  'apply',
+  'Run `/opsx:apply` or ask me to implement to start working on the tasks.',
+  'Ask me to implement to start working on the tasks.'
+);
+
+const COMMAND_APPLY_HANDOFF = optionalWorkflow(
+  'apply',
+  'Run `/opsx:apply` to start implementing.',
+  'Run `openspec instructions apply --change "<name>" --json` to get the task list and start implementing.'
+);
 
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-ff-change',
-    description: 'Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually.',
+    description: 'Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually. Also use when the user says "openspec ff" or "opsx ff".',
     instructions: `Fast-forward through artifact creation - generate everything needed to start implementation in one go.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
@@ -97,7 +121,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "Run \`/opsx:apply\` or ask me to implement to start working on the tasks."
+- Prompt: "${SKILL_APPLY_HANDOFF}"
 
 **Artifact Creation Guidelines**
 
@@ -131,6 +155,8 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
     content: `Fast-forward through artifact creation - generate everything needed to start implementation.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The argument after \`/opsx:ff\` is the change name (kebab-case), OR a description of what the user wants to build.
 
@@ -214,7 +240,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "Run \`/opsx:apply\` to start implementing."
+- Prompt: "${COMMAND_APPLY_HANDOFF}"
 
 **Artifact Creation Guidelines**
 

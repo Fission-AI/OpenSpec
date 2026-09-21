@@ -6,14 +6,17 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 export function getVerifyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-verify-change',
-    description: 'Verify implementation matches change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving.',
+    description: 'Verify implementation matches OpenSpec change artifacts. Use when the user wants to validate that implementation is complete, correct, and coherent before archiving. Also use when the user says "openspec verify" or "opsx verify".',
     instructions: `Verify that an implementation matches the change artifacts (specs, tasks, design).
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -62,7 +65,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Task Completion**:
    - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
+   - Parse checkboxes: complete means the box holds only \`x\`/\`X\`, ignoring
+     spacing (\`- [ x]\` is complete); every other marker is incomplete
+     (\`- [ ]\`, \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
    - Count complete vs total tasks
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task
@@ -190,6 +195,8 @@ export function getOpsxVerifyCommandTemplate(): CommandTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
+${PROJECT_ROOT_GUARD}
+
 **Input**: Optionally specify a change name after \`/opsx:verify\` (e.g., \`/opsx:verify add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -237,7 +244,9 @@ ${STORE_SELECTION_GUIDANCE}
 
    **Task Completion**:
    - If \`contextFiles.tasks\` exists, read every file path in it
-   - Parse checkboxes: \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
+   - Parse checkboxes: complete means the box holds only \`x\`/\`X\`, ignoring
+     spacing (\`- [ x]\` is complete); every other marker is incomplete
+     (\`- [ ]\`, \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
    - Count complete vs total tasks
    - If incomplete tasks exist:
      - Add CRITICAL issue for each incomplete task
