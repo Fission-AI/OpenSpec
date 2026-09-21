@@ -1203,6 +1203,29 @@ metadata:
       await expect(fs.access(path.join(testDir, '.agents'))).rejects.toThrow();
     });
 
+    it('should migrate Kilo commands without deleting unrelated workflows', async () => {
+      const skillsDir = path.join(testDir, '.kilocode', 'skills');
+      await fs.mkdir(path.join(skillsDir, 'openspec-explore'), { recursive: true });
+      await fs.writeFile(
+        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        'old content'
+      );
+
+      const legacyDir = path.join(testDir, '.kilocode', 'workflows');
+      await fs.mkdir(legacyDir, { recursive: true });
+      await fs.writeFile(path.join(legacyDir, 'opsx-explore.md'), 'old OpenSpec command');
+      await fs.writeFile(path.join(legacyDir, 'opsx-custom.md'), 'user workflow');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      expect(await FileSystemUtils.fileExists(path.join(legacyDir, 'opsx-explore.md'))).toBe(false);
+      expect(await fs.readFile(path.join(legacyDir, 'opsx-custom.md'), 'utf-8')).toBe('user workflow');
+
+      const commandFile = path.join(testDir, '.kilo', 'command', 'opsx-explore.md');
+      expect(await FileSystemUtils.fileExists(commandFile)).toBe(true);
+      expect(await fs.readFile(commandFile, 'utf-8')).toContain('Enter explore mode');
+    });
+
     it('should update core profile opsx commands when tool is configured', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');
