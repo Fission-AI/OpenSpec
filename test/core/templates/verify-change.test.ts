@@ -73,6 +73,10 @@ describe('verify-change templates', () => {
       expect(body, label).toContain('`skip_specs: true`');
       expect(body, label).toContain('schemas without task tracking');
       expect(body, label).toContain('Do not require or invent optional or intentionally omitted artifacts');
+      expect(body, label).toContain('Mark checks the schema does not define, or artifacts the status reports as intentionally skipped, as **Not applicable**');
+      expect(body, label).toContain('Exclude them from skipped-check counts and the archive-readiness assessment');
+      expect(body, label).toContain('If `taskTrackingConfigured` is false, report **Task Completion** as not applicable');
+      expect(body, label).toContain('If `taskTrackingConfigured` is true and `tasks` is empty, mark **Task Completion** as not verified');
       expect(body, label).toContain('`Not verified` describes a limit of this report, not a new archive prerequisite');
       expect(body, label).toContain('Archive retains its own checks and user-confirmation behavior');
     }
@@ -80,7 +84,7 @@ describe('verify-change templates', () => {
 
   it('preserves task-only verification without dropping checks supported by other artifacts', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain('If only task evidence is available, verify task completion only');
+      expect(body, label).toContain('If only task evidence is available for applicable checks, verify task completion only');
       expect(body, label).toContain('including **Code Pattern Consistency**, as not verified');
       expect(body, label).toContain('With other supporting artifacts, **Code Pattern Consistency** still runs');
     }

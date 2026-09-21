@@ -45,6 +45,7 @@ export interface ApplyInstructions {
     remaining: number;
   };
   tasks: TaskItem[];
+  taskTrackingConfigured: boolean;
   unavailableTrackingFiles?: Array<{
     path: string;
     reason: string;

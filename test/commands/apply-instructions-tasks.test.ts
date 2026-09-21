@@ -80,6 +80,7 @@ ${tracked ? '  tracks: checklist.md\n' : ''}`
     const instructions = await generateApplyInstructions(tempDir, 'my-change');
 
     expect(instructions.contextFiles).toEqual({ implementation: [fs.realpathSync.native(checklist)] });
+    expect(instructions.taskTrackingConfigured).toBe(tracked);
     expect(instructions.tasks).toEqual(tracked ? [
       { id: '1', description: 'Finished task', done: true },
       { id: '2', description: 'Pending task', done: false },

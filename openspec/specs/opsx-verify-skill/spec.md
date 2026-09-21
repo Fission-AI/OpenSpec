@@ -19,10 +19,15 @@ The system SHALL provide an `/opsx:verify` skill that validates implementation a
 - **AND** announces which change was selected and how to override
 
 #### Scenario: Change has no task descriptions
-- **WHEN** the structured task list provides no usable task descriptions, even if task progress reports nonzero totals
+- **WHEN** the schema configures task tracking but the structured task list provides no usable task descriptions, even if task progress reports nonzero totals
 - **THEN** the agent reports Task Completion as not verified with the reason
 - **AND** continues checks supported by the remaining artifacts
-- **AND** does not require tasks when the schema does not track them
+
+#### Scenario: Schema has no task tracking
+- **WHEN** the schema does not configure `apply.tracks`
+- **THEN** apply instructions report `taskTrackingConfigured: false`
+- **AND** the agent reports Task Completion as not applicable, not as skipped or failed
+- **AND** continues the checks that apply to the schema
 
 ### Requirement: Completeness Verification
 The agent SHALL verify that all required work has been completed.
@@ -53,7 +58,7 @@ The agent SHALL verify that all required work has been completed.
 - **WHEN** all tasks are marked complete
 - **THEN** report "Tasks: N/N complete"
 - **AND** mark Task Completion as passed only when task descriptions are available
-- **AND** mark the completeness dimension as passed only when all its checks ran and passed
+- **AND** mark the completeness dimension as passed only when all applicable checks ran and passed
 
 #### Scenario: Incomplete tasks found
 - **WHEN** some tasks are incomplete
@@ -162,7 +167,7 @@ The agent SHALL produce a structured, prioritized report.
 - **AND** avoid vague suggestions like "consider reviewing"
 
 #### Scenario: All checks pass
-- **WHEN** every check ran and no issues were found across all dimensions
+- **WHEN** every applicable check ran and no issues were found across all dimensions
 - **THEN** display:
   ```text
   All checks passed. Ready for archive.
@@ -178,7 +183,7 @@ The agent SHALL produce a structured, prioritized report.
 - **AND** name every skipped check and its reason, if any
 
 #### Scenario: Only warnings
-- **WHEN** every check ran and no CRITICAL issues but warnings exist
+- **WHEN** every applicable check ran and no CRITICAL issues but warnings exist
 - **THEN** display:
   ```text
   No critical issues. Y warning(s) to consider.
@@ -186,7 +191,7 @@ The agent SHALL produce a structured, prioritized report.
   ```
 
 #### Scenario: Only suggestions
-- **WHEN** every check ran and only suggestions exist
+- **WHEN** every applicable check ran and only suggestions exist
 - **THEN** report "No critical issues or warnings. Z suggestion(s) to consider. Ready for archive (with noted improvements)."
 
 #### Scenario: Checks skipped
@@ -227,7 +232,8 @@ The agent SHALL gracefully handle changes with varying artifact completeness.
 
 #### Scenario: Intentional artifact omissions
 - **WHEN** a check has no supporting artifacts because the schema omits task tracking or optional artifacts, or the change declares `skip_specs: true`
-- **THEN** report why the corresponding checks were not verified
+- **THEN** report the corresponding checks as not applicable and explain why
+- **AND** exclude not-applicable checks from skipped-check counts and readiness assessment
 - **AND** do not require or create optional or intentionally skipped artifacts to obtain a passing report
-- **AND** treat verification as advisory: not verified describes a limit of the report, not a new archive gate
+- **AND** treat verification as advisory: not verified describes missing evidence for an applicable check, not a new archive gate
 - **AND** leave archive checks and user-confirmation behavior unchanged
