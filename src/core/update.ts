@@ -219,6 +219,7 @@ export class UpdateCommand {
             chalk.dim(`Re-run "openspec update" and accept the move to ${migration.to}/ to resume updates.`)
           );
         }
+        throwIfUpdateFailed(legacyUpgradeFailures);
         return;
       }
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
