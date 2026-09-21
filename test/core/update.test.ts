@@ -1688,6 +1688,55 @@ metadata:
   });
 
   describe('error handling', () => {
+    it('should report a failed legacy-only Codex bootstrap to automation', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const prompt = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
+      await fs.mkdir(path.dirname(prompt), { recursive: true });
+      await fs.writeFile(prompt, 'legacy prompt');
+
+      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
+      vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
+        if (filePath.includes(`${path.sep}.agents${path.sep}`) && filePath.endsWith('SKILL.md')) {
+          throw new Error('EACCES: permission denied');
+        }
+        return originalWriteFile(filePath, content);
+      });
+
+      await expect(new UpdateCommand({ force: true }).execute(testDir)).rejects.toThrow(
+        'OpenSpec update failed for: Codex'
+      );
+      await expect(fs.access(prompt)).resolves.toBeUndefined();
+      await expect(
+        fs.access(path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md'))
+      ).rejects.toThrow();
+    });
+
+    it('should refresh configured tools after a legacy Codex bootstrap fails', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const prompt = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
+      await fs.mkdir(path.dirname(prompt), { recursive: true });
+      await fs.writeFile(prompt, 'legacy prompt');
+
+      const cursorCommand = path.join(testDir, '.cursor', 'commands', 'opsx-explore.md');
+      await fs.mkdir(path.dirname(cursorCommand), { recursive: true });
+      await fs.writeFile(cursorCommand, 'old');
+
+      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
+      vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
+        if (filePath.includes(`${path.sep}.agents${path.sep}`) && filePath.endsWith('SKILL.md')) {
+          throw new Error('EACCES: permission denied');
+        }
+        return originalWriteFile(filePath, content);
+      });
+
+      await expect(new UpdateCommand({ force: true }).execute(testDir)).rejects.toThrow(
+        'OpenSpec update failed for: Codex'
+      );
+      expect(await fs.readFile(cursorCommand, 'utf-8')).not.toBe('old');
+    });
+
     it('should preserve legacy Codex skills and prompts when canonical generation fails', async () => {
       const legacySkill = path.join(
         testDir,
