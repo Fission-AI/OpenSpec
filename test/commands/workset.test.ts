@@ -638,8 +638,10 @@ describe('openspec workset (7.1)', () => {
       });
     });
 
-    it('renaming an attach flag is a one-line local fix', async () => {
-      writeOpenersConfig({ claude: { attach_flag: '--dir' } });
+    it('passes configured args before configured attach pairs', async () => {
+      writeOpenersConfig({
+        claude: { args: ['--model', 'opus'], attach_flag: '--dir' },
+      });
       await createPlatform(['--tool', 'claude']);
       const fakeClaude = createFakeTool(tempDir, 'claude');
 
@@ -650,6 +652,8 @@ describe('openspec workset (7.1)', () => {
 
       expect(result.exitCode).toBe(0);
       expect(readLaunchLog(fakeClaude.logPath).args).toEqual([
+        '--model',
+        'opus',
         '--dir',
         memberA,
         '--dir',

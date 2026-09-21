@@ -54,7 +54,7 @@ The tools a workset can open in, keyed by tool id. Edit `openers` in the global 
 
 **Launch styles:** `workspace-file` passes the generated `.code-workspace` path to the executable. `attach-dirs` passes one flag/path pair per member, including the primary member.
 
-**Availability:** `attach-dirs` openers, including Claude Code and Codex, are disabled by default. They are hidden from the picker and rejected by `workset open --tool`. Configuration overrides do not enable the `attach-dirs` launch style.
+**Availability:** `attach-dirs` openers, including Claude Code and Codex, are disabled by default. You cannot select or save them with `--tool`, and OpenSpec refuses to open a workset that already names one. Configuration overrides do not enable the `attach-dirs` launch style.
 
 **Validation:** unknown fields, invalid types, and a new tool without `style` fail when a workset command reads the opener table.
 

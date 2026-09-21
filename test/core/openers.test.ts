@@ -109,6 +109,9 @@ describe('openers core', () => {
       expect(() =>
         mergeOpenerTable({ zed: { style: 'workspace-file', extra: 1 } }, CONFIG_PATH)
       ).toThrowError(/Invalid openers config/);
+      expect(() =>
+        mergeOpenerTable({ code: { args: ['--wait', 1] } }, CONFIG_PATH)
+      ).toThrowError(/Invalid openers config/);
     });
   });
 
