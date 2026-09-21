@@ -457,11 +457,11 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     // here decides whether that was deliberate.
     expect(issue?.message).toContain('"Second scenario"');
     expect(issue?.message).toContain(
-      "The modified block has 2 scenario(s) to the current spec's 2, and adds 1 the spec does not have: \"Second scenario, widened\"."
+      'The modified block has 2 scenarios; the current spec has 2 scenarios. It adds 1 scenario not in the current spec: "Second scenario, widened".'
     );
     // Parity: archive refuses the same change and prints the same sentence.
     expect(await archiveError(changeDir)).toContain(
-      'and adds 1 the spec does not have: "Second scenario, widened".'
+      'It adds 1 scenario not in the current spec: "Second scenario, widened".'
     );
   });
 
@@ -472,8 +472,8 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     const issue = lossIssue(await validate(changeDir));
 
     expect(issue?.message).toContain(
-      "The modified block has 1 scenario(s) to the current spec's 2, and adds none."
+      'The modified block has 1 scenario; the current spec has 2 scenarios. It adds none.'
     );
-    expect(await archiveError(changeDir)).toContain('and adds none.');
+    expect(await archiveError(changeDir)).toContain('It adds none.');
   });
 });

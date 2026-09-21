@@ -318,13 +318,13 @@ describe('describeScenarioBalance: the sentence archive and validate share', () 
     expect(
       describeScenarioBalance(diff({ added: ['Fresh'], currentCount: 2, incomingCount: 2 }))
     ).toBe(
-      'The modified block has 2 scenario(s) to the current spec\'s 2, and adds 1 the spec does not have: "Fresh".'
+      'The modified block has 2 scenarios; the current spec has 2 scenarios. It adds 1 scenario not in the current spec: "Fresh".'
     );
   });
 
   it('says so when a block adds nothing, which reads as a truncation', () => {
     expect(describeScenarioBalance(diff({ currentCount: 5, incomingCount: 2 }))).toBe(
-      "The modified block has 2 scenario(s) to the current spec's 5, and adds none."
+      'The modified block has 2 scenarios; the current spec has 5 scenarios. It adds none.'
     );
   });
 
@@ -332,7 +332,7 @@ describe('describeScenarioBalance: the sentence archive and validate share', () 
     const message = describeScenarioBalance(
       diff({ added: ['A', 'B', 'C', 'D', 'E'], currentCount: 1, incomingCount: 5 })
     );
-    expect(message).toContain('adds 5 the spec does not have: "A", "B", "C" and 2 more.');
+    expect(message).toContain('adds 5 scenarios not in the current spec: "A", "B", "C" and 2 more.');
     expect(message).not.toContain('"D"');
   });
 });

@@ -598,9 +598,10 @@ const MAX_LISTED_ADDED_SCENARIOS = 3;
  * the counts a reader sees cannot differ between the two commands.
  */
 export function describeScenarioBalance(diff: ScenarioNameDiff): string {
-  const scale = `The modified block has ${diff.incomingCount} scenario(s) to the current spec's ${diff.currentCount}`;
+  const count = (value: number) => `${value} ${value === 1 ? 'scenario' : 'scenarios'}`;
+  const scale = `The modified block has ${count(diff.incomingCount)}; the current spec has ${count(diff.currentCount)}.`;
   if (diff.added.length === 0) {
-    return `${scale}, and adds none.`;
+    return `${scale} It adds none.`;
   }
   const listed = diff.added
     .slice(0, MAX_LISTED_ADDED_SCENARIOS)
@@ -608,7 +609,7 @@ export function describeScenarioBalance(diff: ScenarioNameDiff): string {
     .join(', ');
   const rest = diff.added.length - MAX_LISTED_ADDED_SCENARIOS;
   const names = rest > 0 ? `${listed} and ${rest} more` : listed;
-  return `${scale}, and adds ${diff.added.length} the spec does not have: ${names}.`;
+  return `${scale} It adds ${count(diff.added.length)} not in the current spec: ${names}.`;
 }
 
 /**
