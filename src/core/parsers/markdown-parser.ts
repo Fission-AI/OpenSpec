@@ -1,5 +1,5 @@
 import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation } from '../schemas/index.js';
-import { buildCodeFenceMask, extractRequirementText } from './requirement-text.js';
+import { buildCodeFenceMask, extractRequirementText, hasScenarioBody } from './requirement-text.js';
 
 export interface Section {
   level: number;
@@ -172,8 +172,9 @@ export class MarkdownParser {
     const scenarios: Scenario[] = [];
     
     for (const scenarioSection of requirementSection.children) {
-      // Store the raw text content of the scenario section
-      if (scenarioSection.content.trim()) {
+      // Store the raw text content of the scenario section. A header with no
+      // body is not a scenario; the delta counter applies the same rule.
+      if (hasScenarioBody(scenarioSection.content)) {
         scenarios.push({
           rawText: scenarioSection.content
         });

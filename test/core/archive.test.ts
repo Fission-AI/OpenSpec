@@ -127,6 +127,77 @@ describe('ArchiveCommand', () => {
       await expect(fs.access(changeDir)).rejects.toThrow();
     });
 
+    describe('a namespace folder holding nested changes (#1846)', () => {
+      async function seedNamespaceFolder(): Promise<string> {
+        const nested = path.join(tempDir, 'openspec', 'changes', 'mobile', 'refresh-token');
+        await fs.mkdir(nested, { recursive: true });
+        await fs.writeFile(path.join(nested, 'proposal.md'), '# Refresh token\n');
+        await fs.writeFile(path.join(nested, 'tasks.md'), '- [ ] Not done\n');
+        return nested;
+      }
+
+      it('is refused instead of archived, so the nested change is not buried', async () => {
+        const nested = await seedNamespaceFolder();
+
+        await expect(
+          archiveCommand.execute('mobile', { yes: true, skipSpecs: true })
+        ).rejects.toThrow(/not a change/);
+
+        // The nested change is untouched and nothing was written to the archive.
+        await expect(fs.access(path.join(nested, 'tasks.md'))).resolves.toBeUndefined();
+        await expect(
+          fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))
+        ).resolves.toEqual([]);
+      });
+
+      it('names the nested directory and the way out', async () => {
+        await seedNamespaceFolder();
+
+        await expect(
+          archiveCommand.execute('mobile', { yes: true, skipSpecs: true })
+        ).rejects.toThrow(/openspec\/changes\/mobile\/refresh-token\//);
+      });
+
+      it('carries a machine-readable diagnostic in --json mode', async () => {
+        await seedNamespaceFolder();
+
+        await archiveCommand
+          .execute('mobile', { yes: true, skipSpecs: true, json: true })
+          .catch(() => undefined);
+
+        const calls = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls;
+        const payload = JSON.parse(String(calls[calls.length - 1][0]));
+        expect(payload.archive).toBeNull();
+        expect(payload.status).toEqual([
+          expect.objectContaining({
+            severity: 'error',
+            code: 'archive_change_is_namespace_folder',
+          }),
+        ]);
+        expect(process.exitCode).toBe(1);
+      });
+
+      it('still archives an ordinary change that happens to have subdirectories', async () => {
+        const changeDir = path.join(tempDir, 'openspec', 'changes', 'add-auth');
+        await fs.mkdir(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done\n');
+        await fs.writeFile(
+          path.join(changeDir, 'specs', 'auth', 'spec.md'),
+          '## ADDED Requirements\n'
+        );
+
+        await archiveCommand.execute('add-auth', {
+          yes: true,
+          skipSpecs: true,
+          noValidate: true,
+        });
+
+        await expect(
+          fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))
+        ).resolves.toEqual([`${formatLocalDate()}-add-auth`]);
+      });
+    });
+
     it('retains the complete copied archive when fallback source cleanup partially fails', async () => {
       const changeName = 'fallback-cleanup-failure';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -698,6 +769,32 @@ describe('ArchiveCommand', () => {
 
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Warning: 2 incomplete task(s) found')
+      );
+    });
+
+    it('detects tasks written with an unrecognised marker (#1761 data-safety gate)', async () => {
+      // Before the fix the marker had to be ` `, `x` or `X`; every other
+      // checkbox character was dropped from the count entirely, so a change
+      // whose remaining work was written `- [~] ...` archived with no warning.
+      const changeName = 'unknown-marker-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        [
+          '## 1. Implementation',
+          '- [x] 1.1 Done',
+          '- [~] 1.2 Deferred, not done',
+          '- [-] 1.3 Cancelled, not done',
+          '- [] 1.4 Empty box, not done',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Warning: 3 incomplete task(s) found')
       );
     });
 
@@ -2383,7 +2480,7 @@ The system will log all events.
       }
     });
 
-    it('should proceed with archive when user declines spec updates', async () => {
+    it.each(['legacy', 'MODIFIED', 'RENAMED', 'REMOVED'])('archives when the user declines %s sync', async (operation) => {
       const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
@@ -2392,8 +2489,21 @@ The system will log all events.
       const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
       await fs.mkdir(changeSpecDir, { recursive: true });
       
-      // Create valid spec in change
-      const specContent = `# Test Capability Spec
+      // These deltas cannot build a new main spec. Declining sync must still
+      // archive them without creating one, including the legacy no-operations case.
+      const specContent = operation === 'RENAMED'
+        ? '## RENAMED Requirements\n- FROM: `### Requirement: Old name`\n- TO: `### Requirement: New name`\n'
+        : operation !== 'legacy'
+          ? `## ${operation} Requirements
+
+### Requirement: Test capability
+The system SHALL provide test capability.
+
+#### Scenario: Basic test
+- **WHEN** an action occurs
+- **THEN** the expected result happens
+`
+          : `# Test Capability Spec
 
 ## Purpose
 This is a test capability specification.
@@ -2434,6 +2544,10 @@ Then expected result happens`;
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
       expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+      expect(process.exitCode).not.toBe(1);
+      await expect(
+        fs.readFile(path.join(archiveDir, archives[0], 'specs', 'test-capability', 'spec.md'), 'utf-8')
+      ).resolves.toBe(specContent);
     });
 
     it('warns about absorbed content before asking to apply the destructive spec update', async () => {
@@ -5383,22 +5497,35 @@ The system SHALL do the thing differently.
       );
     });
 
-    it('archives a REMOVED-only delta whose main spec was already deleted', async () => {
+    it.each([true, false])('handles an already-deleted main spec with retirement declared: %s', async (declareRetirement) => {
       // The issue's second dead end: pre-deleting the spec made the delta look
       // like a create, which landed on an empty spec and failed the same way.
       const changeName = 'retire-already-gone';
-      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL, { declareRetirement });
 
       await archiveCommand.execute(changeName, { yes: true });
 
-      expect(process.exitCode).not.toBe(1);
       // Nothing was recreated.
       await expect(
         fs.access(path.join(tempDir, 'openspec', 'specs', 'legacy-layer'))
       ).rejects.toThrow();
-      await expect(
-        fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
-      ).rejects.toThrow();
+      if (declareRetirement) {
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(changeDir)).rejects.toThrow();
+        const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+        const [archivedName] = await fs.readdir(archiveDir);
+        await expect(
+          fs.readFile(path.join(archiveDir, archivedName, 'specs', 'legacy-layer', 'spec.md'), 'utf-8')
+        ).resolves.toBe(REMOVE_ALL);
+      } else {
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining(VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS)
+        );
+        await expect(fs.readFile(path.join(changeDir, 'specs', 'legacy-layer', 'spec.md'), 'utf-8'))
+          .resolves.toBe(REMOVE_ALL);
+        expect(await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))).toEqual([]);
+      }
     });
 
     // The requirement-block count and the validator do NOT agree on what a
@@ -8087,6 +8214,72 @@ This change exists to document greeting behavior thoroughly for the team, which 
 
       // The change was not archived.
       await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+  });
+  // Every packaged template opens with an `# ` heading so the artifacts an
+  // agent writes are complete markdown documents (#1138). The delta spec is the
+  // one artifact archive reads back, so its title must stay inert: it belongs to
+  // the delta, not to the main spec archive builds from it.
+  describe('templates opening with a title (#1138)', () => {
+    it('keeps the delta spec title out of the main spec it creates', async () => {
+      const changeName = 'add-widget';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'specs', 'widget'), { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        [
+          '# Proposal',
+          '',
+          '## Why',
+          'Widgets are the one thing this product cannot assemble today.',
+          '',
+          '## What Changes',
+          '- Add the widget capability.',
+          '',
+        ].join('\n')
+      );
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        ['# Tasks', '', '## 1. Build', '', '- [x] 1.1 Build it', ''].join('\n')
+      );
+      await fs.writeFile(
+        path.join(changeDir, 'specs', 'widget', 'spec.md'),
+        [
+          '# Spec Delta',
+          '',
+          '## Purpose',
+          'Lets users assemble widgets from parts in a repeatable way.',
+          '',
+          '## ADDED Requirements',
+          '',
+          '### Requirement: User can build a widget',
+          'The system SHALL let a user build a widget.',
+          '',
+          '#### Scenario: Successful build',
+          '- **WHEN** a user requests a widget',
+          '- **THEN** the system builds it',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const mainSpec = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'widget', 'spec.md'),
+        'utf-8'
+      );
+
+      // The main spec keeps its own generated title, and only that one.
+      expect(mainSpec.split('\n').filter((line) => line.startsWith('# '))).toEqual([
+        '# widget Specification',
+      ]);
+      // The delta's title is gone entirely, not demoted to a lower level.
+      expect(mainSpec).not.toMatch(/^#+\s+Spec Delta\s*$/m);
+      // The delta's title did not displace the Purpose archive carries over.
+      expect(mainSpec).toContain(
+        '## Purpose\nLets users assemble widgets from parts in a repeatable way.'
+      );
+      expect(mainSpec).toContain('### Requirement: User can build a widget');
     });
   });
 });

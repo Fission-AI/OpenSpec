@@ -146,6 +146,58 @@ describe('top-level show command', () => {
     }
   });
 
+  it('reports a namespace folder as such instead of a proposal-less change (#1846)', async () => {
+    // `changes/mobile/refresh-token/` is not a layout OpenSpec supports: the
+    // nested change is invisible and the folder around it reads as an empty
+    // change. Saying "no proposal.md yet" would send the user to a second dead
+    // end (`status --change mobile`).
+    await fs.mkdir(path.join(changesDir, 'mobile', 'refresh-token'), { recursive: true });
+    await fs.writeFile(
+      path.join(changesDir, 'mobile', 'refresh-token', 'proposal.md'),
+      '# Refresh token\n',
+      'utf-8'
+    );
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(testDir);
+      let err: any;
+      try {
+        execFileSync('node', [openspecBin, 'show', 'mobile'], { encoding: 'utf-8' });
+      } catch (e) { err = e; }
+      expect(err).toBeDefined();
+      expect(err.status).not.toBe(0);
+      const stderr = err.stderr.toString();
+      expect(stderr).toContain('"mobile" is not a change');
+      expect(stderr).toContain('openspec/changes/mobile/refresh-token/');
+      expect(stderr).toContain('mobile-refresh-token');
+      expect(stderr).not.toContain('has no proposal.md yet');
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
+  it('reports a namespace folder from "status --change" too (#1846)', async () => {
+    await fs.mkdir(path.join(changesDir, 'mobile', 'refresh-token'), { recursive: true });
+    await fs.writeFile(
+      path.join(changesDir, 'mobile', 'refresh-token', 'tasks.md'),
+      '- [ ] Not done\n',
+      'utf-8'
+    );
+
+    const originalCwd = process.cwd();
+    try {
+      process.chdir(testDir);
+      const result = spawnSync('node', [openspecBin, 'status', '--change', 'mobile'], {
+        encoding: 'utf-8',
+      });
+      expect(result.status).not.toBe(0);
+      expect(`${result.stderr}${result.stdout}`).toContain('"mobile" is not a change');
+    } finally {
+      process.chdir(originalCwd);
+    }
+  });
+
   it('offers a scaffolded change when "change show" is called without a name', async () => {
     await fs.mkdir(path.join(changesDir, 'scaffolded'), { recursive: true });
     await fs.writeFile(path.join(changesDir, 'scaffolded', '.openspec.yaml'), 'schema: spec-driven\n', 'utf-8');

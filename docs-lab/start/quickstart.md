@@ -17,7 +17,7 @@ flowchart LR
     archive -. "next change" .-> explore
 ```
 
-Every prompt below goes in your AI chat, the same place you ask for code. Each invokes an OpenSpec skill by name, the same spelling in every tool. A plain ask works too ("propose a change to add rate limiting"). Some tools add shorter command aliases (`/opsx:propose` in Claude Code, [other tools vary](../reference/supported-tools.md)).
+Every prompt below goes in your AI chat, the same place you ask for code. Each invokes an OpenSpec skill by name, the same spelling in every tool. A plain ask works too ("propose a change to add rate limiting"), and so does naming the step directly - "openspec propose", "opsx apply" - which runs the workflow instead of hand-building the files. (`openspec update` is a real CLI command that refreshes generated files, so say "openspec update change" for that workflow.) Some tools add shorter command aliases (`/opsx:propose` in Claude Code, [other tools vary](../reference/supported-tools.md)).
 
 ## Step 1: Explore
 
@@ -27,7 +27,7 @@ Think the idea through with your agent before you ask for a plan. In your AI cha
 /openspec-explore how rate limiting should work in this app
 ```
 
-Explore is a thinking mode. The agent investigates your codebase, asks the questions that matter, sketches options, and challenges assumptions. It writes no code and no files. The output is a sharper idea.
+Explore is a thinking mode. The agent investigates your codebase, asks the questions that matter, sketches options, and challenges assumptions. It never writes code. It writes nothing else unless you ask it to capture what you decided, or say yes when it offers. The output is a sharper idea.
 
 Stay here as long as the problem needs. When the shape feels right, hand it off:
 
@@ -146,14 +146,11 @@ Step through what archiving does:
           └── 2026-08-08-add-rate-limiting/
 ```
 
-Git is a separate concern. Commit the change folder with the code, and nothing else about your workflow changes. When to archive relative to a PR is a team convention; the [Teams](../guides/teams.md) guide has the tradeoff.
+Git is a separate concern. Commit the change folder with the code, and nothing else about your workflow changes.
 
 ## Going further
 
-- [Concepts](../guides/concepts.md): what the two artifacts are, and how a delta describes a change.
-- [Explore](../guides/explore.md): getting more out of explore mode.
-- [Apply](../guides/apply.md): pacing, context windows, resuming long changes.
-- [Review the plan](../guides/review-the-plan.md): what to look for in specs before you build.
+- [Delta specs](../reference/schemas/spec-driven/index.md#delta-specs-specmd): how to write the behavior changes in a delta spec.
 - [Profiles](../customize/profiles.md): optional workflows beyond the core set (verify before archive, incremental planning).
 
 ## Advanced guides

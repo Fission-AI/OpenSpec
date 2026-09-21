@@ -75,7 +75,7 @@ describe('archive task discovery uses schema-resolved CLI progress', () => {
       ].join('\n'));
       await write('openspec/changes/selected/.openspec.yaml', 'schema: custom\n');
       for (const file of files) {
-        await write(`openspec/changes/selected/${file}`, '- [x] Finished\n- [ ] Pending\n');
+        await write(`openspec/changes/selected/${file}`, '- [ x ] Finished\n- [~] Pending\n- [ ] Pending\n');
       }
 
       // Execute the lookup actually taught in the task-checking step. The old
@@ -87,6 +87,7 @@ describe('archive task discovery uses schema-resolved CLI progress', () => {
       expect(step).toContain('same selected-root flags');
       expect(step).toMatch(/name` exactly matches/);
       expect(step).toContain('totalTasks - completedTasks');
+      expect(step).toMatch(/other markers.*remain incomplete/s);
       expect(step).not.toContain('artifactPaths.tasks');
       expect(step).not.toContain('If no tasks file exists');
 
@@ -111,7 +112,7 @@ describe('archive task discovery uses schema-resolved CLI progress', () => {
       const changes = report.changes;
       expect(changes).toHaveLength(2);
       expect(changes.find((change: { name: string }) => change.name === 'selected')).toMatchObject({
-        totalTasks: files.length * 2,
+        totalTasks: files.length * 3,
         completedTasks: files.length,
         status: 'in-progress',
       });
