@@ -61,6 +61,19 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
 
 6. **Confirm your tool supports command files.** Codex, CodeArts, ForgeCode, Hermes, Kimi Code, Mistral Vibe, Zed Agent, and the shared `.agents` target don't get generated `opsx-*` command files; they use skill-based invocations instead, so `/opsx` will never autocomplete for them. Type `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code, and `/openspec-propose` in the rest. The shared `.agents` target is vendor-neutral, so `/openspec-propose` is the common form rather than a guaranteed one — if your assistant does not answer to it, check its own docs for how it invokes a skill. Amazon Q does get command files, but loads them into its prompt library rather than its slash menu — type `@opsx-propose` there, not `/opsx`. Every tool's form is listed in [How To Invoke](supported-tools.md#how-to-invoke).
 
+### GitHub Copilot stops finding an OpenSpec workflow
+
+Copilot uses different OpenSpec files in its IDE extensions and CLI.
+
+- **VS Code, Visual Studio, or JetBrains:** run `/opsx-propose`. The command comes from `.github/prompts/opsx-propose.prompt.md`. If the file exists but the command disappeared from chat, reload the IDE window.
+- **Copilot CLI:** run `/openspec-propose`. The CLI loads `.github/skills/openspec-propose/SKILL.md`, not `.github/prompts/`. After `openspec update` in an active session, run `/skills reload`, then `/skills info openspec-propose` to confirm the skill is available.
+
+If either file is missing, regenerate the configured Copilot files from your project root:
+
+```bash
+openspec update
+```
+
 ## Working with changes
 
 ### "Change not found"
