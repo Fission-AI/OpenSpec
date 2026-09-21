@@ -95,7 +95,7 @@ artifacts:
       - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
       - Every requirement MUST have at least one scenario.
 
-      New capabilities only: start the delta spec with a `## Purpose` section -
+      New capabilities only: the delta spec's first section is `## Purpose` -
       one or two sentences (50+ characters, or `openspec validate --strict`
       reports it as too brief) describing what the capability is for. Archive
       copies it into the main spec it creates; without it the new main spec is
@@ -120,8 +120,10 @@ artifacts:
       Common pitfall: Using MODIFIED with partial content loses detail at archive time.
       If adding new concerns without changing existing behavior, use ADDED instead.
 
-      Example (a new capability, so it opens with `## Purpose`):
+      Example (a new capability, so its first section is `## Purpose`):
       ```
+      # Spec Delta
+
       ## Purpose
 
       Lets users take their data out of the product in a portable format.
@@ -193,7 +195,10 @@ artifacts:
       bake an unstated assumption into the task list.
 
       **IMPORTANT: Follow the template below exactly.** The apply phase parses
-      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+      checkbox format to track progress. A box holding only `x` counts as done,
+      upper or lower case and with any spacing, so `- [ x]` is done too. Every
+      other marker, including `- [~]`, `- [-]` and an empty `- []`, reads as
+      unfinished. A line with no checkbox is not tracked at all.
 
       Guidelines:
       - Group related tasks under ## numbered headings
@@ -208,6 +213,8 @@ artifacts:
 
       Example:
       ```
+      # Tasks
+
       ## 1. Setup
 
       - [ ] 1.1 Create new module structure and verify expected files are present

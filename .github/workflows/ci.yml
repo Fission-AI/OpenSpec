@@ -42,6 +42,10 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'scripts/update-flake.sh'
               - '.github/workflows/ci.yml'
+              # The Nix build runs `openspec completion generate`, so a change to
+              # the generator can break packaging without touching flake.nix.
+              - 'src/commands/completion.ts'
+              - 'src/core/completions/**'
 
   test_matrix:
     name: Test (${{ matrix.label }})
@@ -219,6 +223,19 @@ jobs:
             echo "Error: openspec binary not found in build output"
             exit 1
           fi
+          for completion in \
+            "share/bash-completion/completions/openspec.bash" \
+            "share/fish/vendor_completions.d/openspec.fish" \
+            "share/zsh/site-functions/_openspec"; do
+            if [ ! -s "result/$completion" ]; then
+              echo "Error: completion script missing or empty: $completion"
+              exit 1
+            fi
+          done
+          if [ "$(head -1 result/share/zsh/site-functions/_openspec)" != "#compdef openspec" ]; then
+            echo "Error: zsh completion is not autoloadable (missing #compdef header)"
+            exit 1
+          fi
           echo "✅ Build output verified"
 
       - name: Test binary execution
@@ -248,10 +265,14 @@ jobs:
           changed_changesets="$(git diff --name-only --diff-filter=ACMRT origin/main...HEAD -- '.changeset/*.md' ':!.changeset/README.md')"
           if [[ -n "$changed_changesets" ]]; then
             echo "has_changesets=true" >> "$GITHUB_OUTPUT"
+            # Run-unique delimiter: the value is a list of PR-authored paths, so a
+            # fixed "EOF" would let a crafted path close the block early and append
+            # its own key=value outputs.
+            delim="EOF_$(openssl rand -hex 16)"
             {
-              echo "files<<EOF"
+              echo "files<<$delim"
               echo "$changed_changesets"
-              echo "EOF"
+              echo "$delim"
             } >> "$GITHUB_OUTPUT"
           else
             echo "has_changesets=false" >> "$GITHUB_OUTPUT"

@@ -5,17 +5,40 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
+
+/**
+ * Archiving must merge delta specs into the main specs; the `sync` workflow is
+ * how it normally does that. A profile that selects `archive` gets `sync`
+ * injected (see getProfileWorkflows), but an install whose workflow set was
+ * read back off disk can still be missing it — in which case the merge has to
+ * happen inline rather than be handed to a workflow that is not there.
+ */
+const SYNC_INLINE_HANDOFF = optionalWorkflow(
+  'sync',
+  'Run the `/opsx:sync` workflow inline (agent-driven intelligent merge)',
+  'Perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)'
+);
+
+const SYNC_GUARDRAIL = optionalWorkflow(
+  'sync',
+  'run the `/opsx:sync` workflow inline (agent-driven)',
+  'perform the delta-to-main-spec merge inline (agent-driven)'
+);
 
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-bulk-archive-change',
-    description: 'Archive multiple completed changes at once. Use when archiving several parallel changes.',
+    description: 'Archive multiple completed OpenSpec changes at once. Use when archiving several parallel changes. Also use for a plural archive request - "openspec bulk-archive", "opsx bulk-archive", "openspec archive all", or "openspec archive these changes".',
     instructions: `Archive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
@@ -72,7 +95,9 @@ ${STORE_SELECTION_GUIDANCE}
       - Note which artifacts are \`done\` vs other states
 
    b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
-      - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
+      - Complete means the checkbox holds only \`x\`/\`X\`, ignoring spacing
+        (\`- [ x]\` is complete); every other marker is incomplete (\`- [ ]\`,
+        \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
       - If no tasks file exists, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
@@ -83,6 +108,14 @@ ${STORE_SELECTION_GUIDANCE}
         lookup for that change; do not infer deltas from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
         batches where some schemas have no \`specs\` artifact.
+
+   d. **Archive target** - Compute each change's target name once and record it as that change's \`<target-name>\`
+      - Use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`)
+      - Check whether \`<planningHome.changesDir>/archive/<target-name>\` already exists
+      - If it exists, or another selected change resolves to the same target name, mark every such change \`Blocked\` with \`Archive directory already exists\`
+      - A blocked change is never synced or moved: show it as \`Blocked\` in the step 6 table, leave it out of conflict resolution (resolve its conflicts using only the other changes), and record it as Failed in step 8d
+      - Checking here, before any main spec is written, matches \`openspec archive\`: a collision found after sync would leave main specs rewritten for an archive that never happened
+
 4. **Detect spec conflicts**
 
    Build a map keyed by \`<capability-path>\`, the exact path relative to \`specs/\`:
@@ -155,8 +188,8 @@ ${STORE_SELECTION_GUIDANCE}
    Route on the answer by intent, not by exact label — you wrote these labels,
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
-   - The archive-everything option — proceed with every selected change
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The archive-everything option — proceed with every selected change that is not \`Blocked\`
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with \`Archive directory already exists\`. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every
@@ -201,12 +234,19 @@ ${STORE_SELECTION_GUIDANCE}
 
    c. **Perform the archive**:
 
-      Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
+      Target name: use the \`<target-name>\` recorded for this change in step 3d, unchanged. Never recompute it here: a batch that runs past midnight would check one date in step 3 and move to another.
+
+      **Check if target already exists:**
+      - Check again immediately before the move, even though step 3 already checked: the target can appear mid-batch
+      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, report any main specs step 8a already synced for it, and continue with the remaining changes
+      - If no: move \`changeRoot\` to the archive directory
 
       \`\`\`bash
       mkdir -p "<planningHome.changesDir>/archive"
       mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       \`\`\`
+
+      **Confirm the move did not nest:** \`mv\` exits 0 even when the target appeared after the check, moving the change *inside* it. If \`<planningHome.changesDir>/archive/<target-name>/<change-directory-name>\` now exists (the last path segment of \`changeRoot\`), move that directory back to \`changeRoot\` and record this change as Failed with \`Archive directory already exists\`. Never report it as archived.
 
    d. **Track outcome** for each change:
       - Success: archived successfully
@@ -322,8 +362,9 @@ No active changes found. Create a new change to get started.
 - Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
+- Archive directory target uses the current date, computed once in step 3d and reused at the move: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
+- Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
 - If sync is requested, run the \`openspec-sync-specs\` workflow inline (agent-driven) for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
@@ -355,6 +396,8 @@ export function getOpsxBulkArchiveCommandTemplate(): CommandTemplate {
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
@@ -411,7 +454,9 @@ ${STORE_SELECTION_GUIDANCE}
       - Note which artifacts are \`done\` vs other states
 
    b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
-      - Count \`- [ ]\` (incomplete) vs \`- [x]\` (complete)
+      - Complete means the checkbox holds only \`x\`/\`X\`, ignoring spacing
+        (\`- [ x]\` is complete); every other marker is incomplete (\`- [ ]\`,
+        \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
       - If no tasks file exists, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
@@ -422,6 +467,13 @@ ${STORE_SELECTION_GUIDANCE}
         lookup for that change; do not infer deltas from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
         batches where some schemas have no \`specs\` artifact.
+
+   d. **Archive target** - Compute each change's target name once and record it as that change's \`<target-name>\`
+      - Use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`)
+      - Check whether \`<planningHome.changesDir>/archive/<target-name>\` already exists
+      - If it exists, or another selected change resolves to the same target name, mark every such change \`Blocked\` with \`Archive directory already exists\`
+      - A blocked change is never synced or moved: show it as \`Blocked\` in the step 6 table, leave it out of conflict resolution (resolve its conflicts using only the other changes), and record it as Failed in step 8d
+      - Checking here, before any main spec is written, matches \`openspec archive\`: a collision found after sync would leave main specs rewritten for an archive that never happened
 
 4. **Detect spec conflicts**
 
@@ -495,8 +547,8 @@ ${STORE_SELECTION_GUIDANCE}
    Route on the answer by intent, not by exact label — you wrote these labels,
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
-   - The archive-everything option — proceed with every selected change
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The archive-everything option — proceed with every selected change that is not \`Blocked\`
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with \`Archive directory already exists\`. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every
@@ -519,7 +571,7 @@ ${STORE_SELECTION_GUIDANCE}
    Process changes in the determined order (respecting conflict resolution):
 
    a. **Sync included delta specs**:
-      - Run the \`/opsx:sync\` workflow inline (agent-driven intelligent merge) only for changes with entries in \`includedDeltas\`, passing only the included delta paths and explicitly instructing it to ignore that change's \`excludedDeltas\`. Wait for it to finish.
+      - ${SYNC_INLINE_HANDOFF} only for changes with entries in \`includedDeltas\`, passing only the included delta paths and explicitly instructing it to ignore that change's \`excludedDeltas\`. Wait for it to finish.
       - For conflicts, apply in resolved order.
       - Pass that change's fetched specs-rule snapshot into inline sync; inline
         sync must reuse it without fetching instructions again
@@ -541,12 +593,19 @@ ${STORE_SELECTION_GUIDANCE}
 
    c. **Perform the archive**:
 
-      Target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`).
+      Target name: use the \`<target-name>\` recorded for this change in step 3d, unchanged. Never recompute it here: a batch that runs past midnight would check one date in step 3 and move to another.
+
+      **Check if target already exists:**
+      - Check again immediately before the move, even though step 3 already checked: the target can appear mid-batch
+      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, report any main specs step 8a already synced for it, and continue with the remaining changes
+      - If no: move \`changeRoot\` to the archive directory
 
       \`\`\`bash
       mkdir -p "<planningHome.changesDir>/archive"
       mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
       \`\`\`
+
+      **Confirm the move did not nest:** \`mv\` exits 0 even when the target appeared after the check, moving the change *inside* it. If \`<planningHome.changesDir>/archive/<target-name>/<change-directory-name>\` now exists (the last path segment of \`changeRoot\`), move that directory back to \`changeRoot\` and record this change as Failed with \`Archive directory already exists\`. Never report it as archived.
 
    d. **Track outcome** for each change:
       - Success: archived successfully
@@ -662,9 +721,10 @@ No active changes found. Create a new change to get started.
 - Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses current date: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
+- Archive directory target uses the current date, computed once in step 3d and reused at the move: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
-- If sync is requested, run the \`/opsx:sync\` workflow inline (agent-driven) for each change with included delta specs
+- Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
+- If sync is requested, ${SYNC_GUARDRAIL} for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
 - Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`

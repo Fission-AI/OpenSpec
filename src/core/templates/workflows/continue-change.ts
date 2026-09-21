@@ -5,15 +5,34 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
+
+/**
+ * The planning-complete handoff. Neither `apply` nor `archive` is guaranteed
+ * to be installed, so each half is resolved at generation time (see
+ * optional-workflow.ts).
+ */
+const PLANNING_COMPLETE_HANDOFF = optionalWorkflow(
+  'apply',
+  'You can now implement this change with `/opsx:apply`.',
+  'You can now implement this change - `openspec instructions apply --change "<name>" --json` returns the tasks and how to work them.'
+) + ' ' + optionalWorkflow(
+  'archive',
+  'Once implementation and any tracked work are complete, archive it with `/opsx:archive`.',
+  'Once implementation and any tracked work are complete, archive it with `openspec archive "<name>"`.'
+);
 
 export function getContinueChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-continue-change',
-    description: 'Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.',
+    description: 'Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow. Also use when the user says "openspec continue" or "opsx continue".',
     instructions: `Continue working on a change by creating the next artifact.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -133,6 +152,8 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
 
 ${STORE_SELECTION_GUIDANCE}
 
+${PROJECT_ROOT_GUARD}
+
 **Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
@@ -171,7 +192,7 @@ ${STORE_SELECTION_GUIDANCE}
    **If all planning artifacts are complete (\`isPlanningComplete: true\`, or legacy \`isComplete: true\`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "Planning is complete! You can now implement this change with \`/opsx:apply\`. Once implementation and any tracked work are complete, archive it with \`/opsx:archive\`."
+   - Suggest: "Planning is complete! ${PLANNING_COMPLETE_HANDOFF}"
    - STOP
 
    ---

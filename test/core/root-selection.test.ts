@@ -500,6 +500,46 @@ describe('resolveOpenSpecRoot', () => {
       );
       expect(error.message).toContain(path.join(dir, 'openspec', 'config.yml'));
     });
+
+    // The generated workflows' project check (#1645) reads `root: null` as
+    // "never initialized" unless the status message starts with a prefix it
+    // names. Every failure of a project's own `store:` declaration must carry
+    // one of those prefixes, or the guard drops OpenSpec (or offers `openspec
+    // init`) in a project that already uses it. A stale global defaultStore in
+    // an unrelated repository must carry neither.
+    it('starts every declaration failure with a prefix the project check names', async () => {
+      const { PROJECT_ROOT_GUARD } = await import(
+        '../../src/core/templates/workflows/project-root.js'
+      );
+      const prefixes = ['Declared in ', 'Invalid store declaration in '];
+      for (const prefix of prefixes) {
+        expect(PROJECT_ROOT_GUARD).toContain(`\`${prefix.trim()}\``);
+      }
+      const namedByGuard = (message: string) =>
+        prefixes.some((prefix) => message.startsWith(prefix));
+
+      const failures = [
+        createPointerDir('guard-unregistered', 'store: ghost\n'),
+        createPointerDir('guard-bad-type', 'store: [a, b]\n'),
+        createPointerDir('guard-bad-yaml', 'store: [unclosed'),
+        createPointerDir('guard-bad-id', 'store: "BAD ID"\n'),
+      ];
+      for (const dir of failures) {
+        const error = await resolveOpenSpecRoot({ startPath: dir, globalDataDir }).catch(
+          (caught: unknown) => caught
+        );
+        expect(error, dir).toBeInstanceOf(RootSelectionError);
+        expect(namedByGuard((error as RootSelectionError).message), dir).toBe(true);
+      }
+
+      setDefaultStore('ghost-plans');
+      const stale = await resolveOpenSpecRoot({
+        startPath: mkdir('guard-unrelated-repo'),
+        globalDataDir,
+      }).catch((caught: unknown) => caught);
+      expect(stale).toBeInstanceOf(RootSelectionError);
+      expect(namedByGuard((stale as RootSelectionError).message)).toBe(false);
+    });
   });
 
   it('skips openspec/ directories that are neither planning-shaped nor configured (the ~/openspec layout)', async () => {
