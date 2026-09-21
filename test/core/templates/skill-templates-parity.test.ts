@@ -180,6 +180,9 @@ describe('skill templates split parity', () => {
 
     for (const [variant, content] of variants) {
       expect(content, variant).toContain('Does this task breakdown look right?');
+      expect(content, variant).not.toContain(
+        'Each checkbox becomes a unit of work in the apply phase. Ready to implement?'
+      );
       expect(content, variant).toContain(
         '**PAUSE** - Wait for user approval/feedback.\n\n' +
         'After approval, save to the `resolvedOutputPath` from `openspec instructions tasks --change "<name>" --json`.'
