@@ -243,6 +243,20 @@ describe('artifact-graph/outputs', () => {
     expect(artifactOutputExists(tempDir, 'review-{api,ui}.md')).toBe(true);
   });
 
+  it('resolves a brace glob with Windows-style separators', () => {
+    const specsDir = path.join(tempDir, 'specs');
+    fs.mkdirSync(specsDir);
+    const apiPath = path.join(specsDir, 'review-api.md');
+    const uiPath = path.join(specsDir, 'review-ui.md');
+    fs.writeFileSync(apiPath, 'content');
+    fs.writeFileSync(uiPath, 'content');
+
+    expect(resolveArtifactOutputs(tempDir, String.raw`specs\review-{api,ui}.md`)).toEqual([
+      canonical(apiPath),
+      canonical(uiPath),
+    ]);
+  });
+
   it('supports brace range glob patterns', () => {
     const file1 = path.join(tempDir, 'file-1.md');
     const file2 = path.join(tempDir, 'file-2.md');
