@@ -7,6 +7,10 @@
 
 import chalk from 'chalk';
 import path from 'path';
+import {
+  describeNestedChange,
+  findNestedChangesIn,
+} from '../../utils/nested-change.js';
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import type { ReferenceIndexEntry } from '../../core/references.js';
@@ -229,6 +233,14 @@ export async function validateChangeExists(
     throw new Error(
       `Change '${changeName}' not found. Available changes:\n  ${available.join('\n  ')}`
     );
+  }
+
+  // The directory exists but is a namespace folder wrapping nested change
+  // directories. Every artifact lookup below it would report "not started" for
+  // work that is in fact there, so say what is actually wrong instead (#1846).
+  const nested = await findNestedChangesIn(changesDir, changeName);
+  if (nested) {
+    throw new Error(describeNestedChange(nested));
   }
 
   return changeName;

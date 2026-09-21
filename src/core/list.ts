@@ -5,12 +5,19 @@ import { readFileSync, type Dirent } from 'fs';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import type { RootOutput } from './root-selection.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import {
+  describeNestedChange,
+  findNestedChanges,
+  type NestedChangeFinding,
+} from '../utils/nested-change.js';
 
 interface ChangeInfo {
   name: string;
   completedTasks: number;
   totalTasks: number;
   lastModified: Date;
+  /** Set when the entry is a namespace folder rather than a change (#1846). */
+  nested?: string[];
 }
 
 interface ListOptions {
@@ -26,6 +33,17 @@ function isMissingPathError(error: unknown): boolean {
     'code' in error &&
     (error as NodeJS.ErrnoException).code === 'ENOENT'
   );
+}
+
+/**
+ * An entry that cannot be dated because it no longer resolves: it was removed
+ * after `readdir` listed it, or it is a symlink whose target is missing (an
+ * Emacs `.#file` lock) or that loops back on itself.
+ */
+function isUnresolvableEntryError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === 'ENOENT' || code === 'ELOOP';
 }
 
 async function readChangeDirectoryEntries(changesDir: string): Promise<Dirent[]> {
@@ -48,13 +66,18 @@ async function getLastModified(dirPath: string): Promise<Date> {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(fullPath);
-      } else {
-        const stat = await fs.stat(fullPath);
-        if (latest === null || stat.mtime > latest) {
-          latest = stat.mtime;
+      try {
+        if (entry.isDirectory()) {
+          await walk(fullPath);
+        } else {
+          const stat = await fs.stat(fullPath);
+          if (latest === null || stat.mtime > latest) {
+            latest = stat.mtime;
+          }
         }
+      } catch (error) {
+        // Skip the one entry rather than fail the listing of every change.
+        if (!isUnresolvableEntryError(error)) throw error;
       }
     }
   }
@@ -119,6 +142,14 @@ export class ListCommand {
       // Collect information about each change
       const changes: ChangeInfo[] = [];
 
+      // A directory that only wraps nested change directories is still listed -
+      // hiding it would hide a real change whenever the probe is wrong - but it
+      // is listed as what it is, so the nesting stops failing silently (#1846).
+      const nestedFindings = await findNestedChanges(changesDir, changeDirs);
+      const nestedByName = new Map<string, NestedChangeFinding>(
+        nestedFindings.map((finding) => [finding.name, finding])
+      );
+
       for (const changeDir of changeDirs) {
         const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
         const changePath = path.join(changesDir, changeDir);
@@ -127,7 +158,8 @@ export class ListCommand {
           name: changeDir,
           completedTasks: progress.completed,
           totalTasks: progress.total,
-          lastModified
+          lastModified,
+          ...(nestedByName.has(changeDir) ? { nested: nestedByName.get(changeDir)!.nested } : {})
         });
       }
 
@@ -145,9 +177,22 @@ export class ListCommand {
           completedTasks: c.completedTasks,
           totalTasks: c.totalTasks,
           lastModified: c.lastModified.toISOString(),
-          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress'
+          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress',
+          ...(c.nested ? { nested: c.nested } : {})
         }));
-        console.log(JSON.stringify({ changes: jsonOutput, ...(root ? { root } : {}) }, null, 2));
+        // Additive: the entries keep their shape so existing consumers are
+        // unaffected, and the nesting is reported alongside them.
+        const warnings = nestedFindings.map((finding) => ({
+          code: 'nested_change_directory',
+          name: finding.name,
+          nested: finding.nested,
+          message: describeNestedChange(finding)
+        }));
+        console.log(JSON.stringify({
+          changes: jsonOutput,
+          ...(warnings.length > 0 ? { warnings } : {}),
+          ...(root ? { root } : {})
+        }, null, 2));
         return;
       }
 
@@ -157,9 +202,15 @@ export class ListCommand {
       const nameWidth = Math.max(...changes.map(c => c.name.length));
       for (const change of changes) {
         const paddedName = change.name.padEnd(nameWidth);
-        const status = formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
+        const status = change.nested
+          ? 'not a change'
+          : formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
         const timeAgo = formatRelativeTime(change.lastModified);
         console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
+      }
+      for (const finding of nestedFindings) {
+        console.log('');
+        console.log(`Warning: ${describeNestedChange(finding)}`);
       }
       return;
     }

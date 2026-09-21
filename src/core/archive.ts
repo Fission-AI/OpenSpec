@@ -23,11 +23,15 @@ import {
   finalizeRetiredSpec,
   type SpecUpdate,
 } from './specs-apply.js';
-import { discoverSpecFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
+import { discoverSpecFiles, findUnreadDeltaFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
 import { METADATA_FILENAME, readRetireCapabilitiesMarker, readSkipSpecsMarker } from '../utils/change-metadata.js';
 import { confirmPrompt, isNonInteractivePromptError } from '../utils/interactive.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { folderStyleNameProblem } from './id.js';
+import {
+  describeNestedChange,
+  findNestedChangesIn,
+} from '../utils/nested-change.js';
 
 function isMissingPathError(error: unknown): boolean {
   return (
@@ -1177,6 +1181,19 @@ export class ArchiveCommand {
       );
     }
 
+    // Archiving a namespace folder moves an active, unfinished change into the
+    // archive under a name nobody will look for, and never applies its deltas.
+    // That is silent data loss, so it is refused outright rather than warned
+    // about (#1846).
+    const nested = await findNestedChangesIn(changesDir, changeName);
+    if (nested) {
+      throw new ArchiveBlockedError(
+        'archive_change_is_namespace_folder',
+        `Cannot archive '${changeName}': ${describeNestedChange(nested)}`,
+        `Rename openspec/changes/${nested.nested[0]}/ to a flat change directory, then archive it.`
+      );
+    }
+
     const skipValidation = options.validate === false || options.noValidate === true;
 
     // Validate specs and change before archiving
@@ -1225,6 +1242,13 @@ export class ArchiveCommand {
       // folder, so only a regular file counts.
       const rootSpecStat = await fs.stat(path.join(changeSpecsDir, 'spec.md')).catch(() => null);
       let hasDeltaSpecs = rootSpecStat?.isFile() === true;
+      // Likewise for delta sections in any other file the merge path does not
+      // read (specs/<capability>.md, a note beside spec.md): without this the
+      // zero-delta leniency below archives the change as done with nothing
+      // merged, although validate rejects it.
+      if (!hasDeltaSpecs) {
+        hasDeltaSpecs = (await findUnreadDeltaFiles(changeSpecsDir)).length > 0;
+      }
       // A change that declares skip_specs must not carry any file under
       // specs/ — validate reports that as a conflict, so archive has to run
       // the same check instead of skipping validation because the files
