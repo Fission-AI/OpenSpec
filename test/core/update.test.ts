@@ -11,6 +11,23 @@ import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 
+const { confirmMock, searchableMultiSelectMock, interactiveState } = vi.hoisted(() => ({
+  confirmMock: vi.fn(),
+  searchableMultiSelectMock: vi.fn(),
+  interactiveState: { value: false },
+}));
+
+vi.mock('@inquirer/prompts', () => ({ confirm: confirmMock }));
+
+vi.mock('../../src/prompts/searchable-multi-select.js', () => ({
+  searchableMultiSelect: searchableMultiSelectMock,
+}));
+
+vi.mock('../../src/utils/interactive.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../src/utils/interactive.js')>();
+  return { ...actual, isInteractive: () => interactiveState.value };
+});
+
 // Shared mutable mock config state
 const mockState = {
   config: {
@@ -45,6 +62,23 @@ async function markCodexTarget(skillsDir: string): Promise<void> {
   await fs.writeFile(path.join(skillsDir, '.openspec-target'), 'codex\n');
 }
 
+async function createLegacyCodexPrompt(): Promise<string> {
+  const prompt = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
+  await fs.mkdir(path.dirname(prompt), { recursive: true });
+  await fs.writeFile(prompt, 'legacy prompt');
+  return prompt;
+}
+
+function failCodexSkillWrites(): void {
+  const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
+  vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
+    if (filePath.includes(`${path.sep}.agents${path.sep}`) && filePath.endsWith('SKILL.md')) {
+      throw new Error('EACCES: permission denied');
+    }
+    return originalWriteFile(filePath, content);
+  });
+}
+
 describe('UpdateCommand', () => {
   let testDir: string;
   let updateCommand: UpdateCommand;
@@ -66,6 +100,9 @@ describe('UpdateCommand', () => {
 
     // Reset mock config to defaults
     resetMockConfig();
+    interactiveState.value = false;
+    confirmMock.mockReset();
+    searchableMultiSelectMock.mockReset();
 
     // Clear all mocks before each test
     vi.restoreAllMocks();
@@ -1691,17 +1728,8 @@ metadata:
     it('should report a failed legacy-only Codex bootstrap to automation', async () => {
       setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
 
-      const prompt = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
-      await fs.mkdir(path.dirname(prompt), { recursive: true });
-      await fs.writeFile(prompt, 'legacy prompt');
-
-      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
-      vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
-        if (filePath.includes(`${path.sep}.agents${path.sep}`) && filePath.endsWith('SKILL.md')) {
-          throw new Error('EACCES: permission denied');
-        }
-        return originalWriteFile(filePath, content);
-      });
+      const prompt = await createLegacyCodexPrompt();
+      failCodexSkillWrites();
 
       await expect(new UpdateCommand({ force: true }).execute(testDir)).rejects.toThrow(
         'OpenSpec update failed for: Codex'
@@ -1715,26 +1743,64 @@ metadata:
     it('should refresh configured tools after a legacy Codex bootstrap fails', async () => {
       setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
 
-      const prompt = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
-      await fs.mkdir(path.dirname(prompt), { recursive: true });
-      await fs.writeFile(prompt, 'legacy prompt');
+      await createLegacyCodexPrompt();
 
       const cursorCommand = path.join(testDir, '.cursor', 'commands', 'opsx-explore.md');
       await fs.mkdir(path.dirname(cursorCommand), { recursive: true });
       await fs.writeFile(cursorCommand, 'old');
 
-      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
-      vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
-        if (filePath.includes(`${path.sep}.agents${path.sep}`) && filePath.endsWith('SKILL.md')) {
-          throw new Error('EACCES: permission denied');
-        }
-        return originalWriteFile(filePath, content);
-      });
+      failCodexSkillWrites();
 
       await expect(new UpdateCommand({ force: true }).execute(testDir)).rejects.toThrow(
         'OpenSpec update failed for: Codex'
       );
       expect(await fs.readFile(cursorCommand, 'utf-8')).not.toBe('old');
+    });
+
+    it('should report a failed bootstrap when configured tools are already current', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      await new InitCommand({ tools: 'cursor', force: true }).execute(testDir);
+
+      await createLegacyCodexPrompt();
+
+      interactiveState.value = true;
+      confirmMock.mockResolvedValue(true);
+      searchableMultiSelectMock.mockResolvedValue(['codex']);
+
+      failCodexSkillWrites();
+      const consoleSpy = vi.spyOn(console, 'log');
+
+      await expect(new UpdateCommand().execute(testDir)).rejects.toThrow(
+        'OpenSpec update failed for: Codex'
+      );
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('All 1 tool(s) up to date'));
+    });
+
+    it('should report a failed bootstrap after declining an unrelated migration', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const legacySkill = path.join(
+        testDir,
+        '.windsurf',
+        'skills',
+        'openspec-explore',
+        'SKILL.md'
+      );
+      await fs.mkdir(path.dirname(legacySkill), { recursive: true });
+      await fs.writeFile(legacySkill, 'legacy skill');
+
+      await createLegacyCodexPrompt();
+
+      interactiveState.value = true;
+      confirmMock.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+      searchableMultiSelectMock.mockResolvedValue(['codex']);
+
+      failCodexSkillWrites();
+
+      await expect(new UpdateCommand().execute(testDir)).rejects.toThrow(
+        'OpenSpec update failed for: Codex'
+      );
+      expect(await fs.readFile(legacySkill, 'utf-8')).toBe('legacy skill');
     });
 
     it('should preserve legacy Codex skills and prompts when canonical generation fails', async () => {

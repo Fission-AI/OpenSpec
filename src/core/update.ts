@@ -205,6 +205,7 @@ export class UpdateCommand {
       if (deferredGlobalCleanup) {
         await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
       }
+      throwIfUpdateFailed(legacyUpgradeFailures);
       if (declinedMigrations.length > 0) {
         // Not an unconfigured project — a configured one the user chose to
         // leave in its former directory. Saying "run init" would be wrong.
@@ -219,11 +220,9 @@ export class UpdateCommand {
             chalk.dim(`Re-run "openspec update" and accept the move to ${migration.to}/ to resume updates.`)
           );
         }
-        throwIfUpdateFailed(legacyUpgradeFailures);
         return;
       }
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
-      throwIfUpdateFailed(legacyUpgradeFailures);
       console.log(chalk.yellow('No configured tools found.'));
       console.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
