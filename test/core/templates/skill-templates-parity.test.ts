@@ -82,7 +82,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getApplyChangeSkillTemplate: '04ae407c97b5f9cb0cc15199fe877ccc7cd1eff78bfe10ad70c16a112b10a661',
   getFfChangeSkillTemplate: 'd091600476a815ba99f69b446bcd46af5bf73d1c2810215a0c6196937d019cf6',
   getSyncSpecsSkillTemplate: 'bc80fe9b07eaa289e5eb8a3ce65eb7df722a16d864e37283c678220712e4f230',
-  getOnboardSkillTemplate: 'def3c044921df3fe133de7f00ac2bd995a8e2f0913d098d3024272ca6ce0ddfa',
+  getOnboardSkillTemplate: '8f4bb13c097c7c2dfca714c3f51765039008d87f844e62186e066bebd7637376',
   getOpsxExploreCommandTemplate: 'f6cf22825643281d653355745623a6c1a4566db46cc2f262d2282243c6d8169a',
   getOpsxNewCommandTemplate: '6d504fef1e0d4ced7c423f4cc9d9d2cee11b1a6224edf685e06a3f0757e0ebff',
   getOpsxContinueCommandTemplate: 'ace5c9cc239c12b57dc86fd9a1c02a6ca467cb8e1245127340c07ab1b9d37c11',
@@ -93,7 +93,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxSyncCommandTemplate: '60550b7bb9829421656d6324a9e4c951bc912f48f88882d1a07ce7f78397a5e7',
   getVerifyChangeSkillTemplate: '2e069a277dac23818b13bb50b66e806ab405bc3b7f535400e1ebf81b84153699',
   getOpsxArchiveCommandTemplate: '980109e5f8362610872c70fe0a0f1d48d3d2692275b2b17e2f4c91c3de89c2fd',
-  getOpsxOnboardCommandTemplate: '2038da4ba69687da5d8cb0d74846b4012cb69aa450cd294f8ad2c24d5b82bdb3',
+  getOpsxOnboardCommandTemplate: '35332b79e943daefd4118513f03dc48926267af60348f781b8d92bbe5086a986',
   getOpsxBulkArchiveCommandTemplate: '3db03eadb764abd74c8c180656c3f64a8b9a4971056c91624d38df3209d7b446',
   getOpsxVerifyCommandTemplate: '938f52f20fb9a3b811ea47314baac1034cd550e8ab363ae878ccba4b6329348f',
   getOpsxProposeSkillTemplate: '1aa2f2eb9c8cbc4dcab9d777bf8832b92ca04f9ef91d0494f1224a566aefdfe8',
@@ -113,7 +113,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-archive-change': '305a21a9c76a925055f3bdbaac504f208660ef6948d78f73928de166250609bf',
   'openspec-bulk-archive-change': '4bd638a50111d2ee3a667752a2355ed513f770695b137b93fc28848ca7bf60d2',
   'openspec-verify-change': 'ad8a3098bd27d852721687c47a12db7107ed8b8dfc7f071406bb19961652e7ee',
-  'openspec-onboard': 'fb738d4cfecffcecf8f94ed155e62aa18983058672f9d20303f47c825677605b',
+  'openspec-onboard': '526bb7f9b8ceb8670b600ce33b0a62fe268393b7e778e120c796316da3a3cc3d',
   'openspec-propose': '66e3395adf9f2d93a09e8ef1d20e4efb010e5e8d4811f2d42a9316e4d1ca5a8b',
   'openspec-update-change': '19163b8c1b40ccdc0840019aa8005877a90a3a1cd9f7aadb87f76ccce1342f19',
 };
@@ -184,7 +184,17 @@ describe('skill templates split parity', () => {
         '**PAUSE** - Wait for user approval/feedback.\n\n' +
         'After approval, save to the `resolvedOutputPath` from `openspec instructions tasks --change "<name>" --json`.'
       );
-      expect(content, variant).not.toContain("Wait for user to confirm they're ready to implement");
+      expect(content, variant).toContain('> "Tasks are saved. Ready to implement?"');
+      expect(content, variant).toContain(
+        '**PAUSE** - Wait for user to confirm before implementation.'
+      );
+
+      const saveAt = content.indexOf('After approval, save to the `resolvedOutputPath`');
+      const implementationChoiceAt = content.indexOf('> "Tasks are saved. Ready to implement?"');
+      const implementationAt = content.indexOf('## Phase 9: Apply (Implementation)');
+      expect(saveAt, variant).toBeGreaterThanOrEqual(0);
+      expect(implementationChoiceAt, variant).toBeGreaterThan(saveAt);
+      expect(implementationAt, variant).toBeGreaterThan(implementationChoiceAt);
     }
   });
 

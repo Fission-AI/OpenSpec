@@ -472,6 +472,11 @@ Each checkbox becomes a unit of work in the apply phase. Does this task breakdow
 
 After approval, save to the \`resolvedOutputPath\` from \`openspec instructions tasks --change "<name>" --json\`.
 
+Then ask:
+> "Tasks are saved. Ready to implement?"
+
+**PAUSE** - Wait for user to confirm before implementation.
+
 ---
 
 ## Phase 9: Apply (Implementation)
