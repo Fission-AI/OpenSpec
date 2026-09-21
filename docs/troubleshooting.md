@@ -49,15 +49,24 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
    openspec update
    ```
 
-   This rewrites the skill and command files for every tool you've configured.
+   This refreshes generated files that are outdated or out of sync with your profile and delivery mode.
 
    Instruction files come from the *installed* CLI, so an outdated CLI reports everything up to date without ever writing the newer workflows. `openspec update` now checks for that and offers to upgrade — take the offer if you see it.
 
-3. **Restart your assistant.** Most tools scan for skills and commands at startup. A fresh window often does it.
+3. **Restart your assistant.** If it hasn't picked up new or updated files, a fresh window often does it.
 
 4. **Confirm the files exist.** For Claude Code, check for `.claude/skills/openspec-*/SKILL.md` or `.claude/commands/opsx/<id>.md`, depending on your delivery mode. Other tools use their own directories, all listed in [Supported Tools](supported-tools.md).
 
-5. **Check your selected workflows.** If some commands appear but others are missing, your active profile does not include those workflows. The default `core` profile installs `propose`, `explore`, `apply`, `update`, `sync`, and `archive`. Select any additional workflows, then regenerate the project files:
+5. **If Claude Code has command files but loads none of them, update Claude Code and restart it.** If commands-only delivery still does not load, enable the skill surface too:
+
+   ```bash
+   openspec config set delivery both
+   openspec update
+   ```
+
+   Restart Claude Code, then try `/openspec-propose`. This keeps `/opsx:propose` available where command loading works and adds the equivalent skill as a fallback.
+
+6. **Check your selected workflows.** If some commands appear but others are missing, check whether your active profile includes them. The default `core` profile installs `propose`, `explore`, `apply`, `update`, `sync`, and `archive`. Select any additional workflows, then regenerate the project files:
 
    ```bash
    openspec config profile
@@ -66,9 +75,9 @@ If `/opsx:propose` (or your tool's equivalent) doesn't appear or doesn't do anyt
 
    Restart your assistant after the update.
 
-6. **Check you initialized this project.** Skills are written per project. If you cloned a repo or switched folders, run `openspec init` (or `openspec update`) there.
+7. **Check you initialized this project.** For Claude Code, generated files are project-local. If the repo has no `openspec/` directory, run `openspec init`; if it is already initialized but generated files are missing, run `openspec update`.
 
-7. **Confirm your tool supports command files.** Codex, CodeArts, ForgeCode, Hermes, Kimi Code, Mistral Vibe, Zed Agent, and the shared `.agents` target don't get generated `opsx-*` command files; they use skill-based invocations instead, so `/opsx` will never autocomplete for them. Type `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code, and `/openspec-propose` in the rest. The shared `.agents` target is vendor-neutral, so `/openspec-propose` is the common form rather than a guaranteed one — if your assistant does not answer to it, check its own docs for how it invokes a skill. Amazon Q does get command files, but loads them into its prompt library rather than its slash menu — type `@opsx-propose` there, not `/opsx`. Every tool's form is listed in [How To Invoke](supported-tools.md#how-to-invoke).
+8. **Confirm your tool supports command files.** Some tools expose OpenSpec workflows as skills instead, and Amazon Q loads them into its prompt library. Use the exact form for your assistant in [How To Invoke](supported-tools.md#how-to-invoke).
 
 ## Working with changes
 
