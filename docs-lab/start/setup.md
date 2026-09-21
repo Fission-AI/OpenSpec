@@ -112,4 +112,26 @@ Config changes:
 
 Answering yes applies it to the current project on the spot. Other projects pick it up on their next `openspec update`. The setting is global, per machine.
 
+#### Claude Code doesn't show the workflows
+
+Claude Code loads OpenSpec workflows from one or both of these project paths, based on your delivery setting:
+
+- **Skills**: `.claude/skills/openspec-*/SKILL.md`
+- **Commands**: `.claude/commands/opsx/<id>.md`
+
+If the files are missing, refresh the project. In your terminal:
+
+```bash
+openspec update
+```
+
+If the command files exist but `/opsx:` shows no OpenSpec commands, update Claude Code and restart it. If commands still don't load, enable skills too. In your terminal:
+
+```bash
+openspec config set delivery both
+openspec update
+```
+
+Restart Claude Code, then run `/openspec-propose` in its chat. If only some workflows are missing, [change your profile](../customize/profiles.md#expanding-the-set-optional-workflows).
+
 Setup is done. The [Quickstart](quickstart.md) takes your first change from here.
