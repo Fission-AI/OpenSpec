@@ -68,7 +68,7 @@ Tip: for a fix, a good scenario is the regression test in prose. "GIVEN a logged
 
 **When to use it:** you have a problem but not yet a plan. You're not sure what to build, or which approach is right.
 
-Start with `/opsx:explore`. It's a thinking partner with no structure and no artifacts created. It reads your codebase and helps you decide.
+Start with `/opsx:explore`. It's a thinking partner with no structure. It never writes code, and writes nothing else unless you ask it to capture what you decided, or say yes when it offers. It reads your codebase and helps you decide.
 
 ```text
 You: /opsx:explore

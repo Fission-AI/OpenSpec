@@ -39,6 +39,13 @@ The skills come in two sets:
 - **Core**: installed by default, the main planning loop.
 - **Optional**: installed only when you add them, via [Profiles](../customize/profiles.md).
 
+Every skill expects a project that already uses OpenSpec. Before its first step that writes anything, a skill checks for a resolved root. What happens when there is none depends on how the skill was reached:
+
+- **Auto-selected**: your agent picked the skill on its own, without you naming OpenSpec. It drops OpenSpec and answers your request normally, the way it would with OpenSpec not installed.
+- **Explicit OpenSpec request**: you named OpenSpec, named the skill, or ran its command. It stops before writing and asks how to proceed: run `openspec init` here, target a store with `--store <id>`, or continue without OpenSpec. It waits for your answer.
+
+Commands are always the second case. A project whose `openspec/config.yaml` names a store this machine cannot resolve (not registered, or a malformed `store:` line) is not treated as uninitialized: the skill stops and shows the store error with its fix. No skill creates an `openspec/` directory on its own in either case. The entries below describe what each skill does once a root is in place.
+
 | Skill | Job | Type |
 |---|---|---|
 | [openspec-explore](#openspec-explore) | Think through an idea before it becomes a change proposal | Core |
@@ -53,6 +60,8 @@ The skills come in two sets:
 | [openspec-verify-change](#openspec-verify-change) | Check the implementation matches the plan | Optional |
 | [openspec-bulk-archive-change](#openspec-bulk-archive-change) | Archive several change proposals at once | Optional |
 | [openspec-onboard](#openspec-onboard) | Learn the workflow by doing one real change proposal end to end | Optional |
+
+Each entry below names the skill that owns the next step. When your profile leaves that skill out, the installed files never name it: the handoff becomes the equivalent `openspec` command, or a plain request to you, and a line that exists only to point at a missing skill is not written at all. So the skills you have always hand off to skills you have. Which set you get is [Profiles](../customize/profiles.md).
 
 ## openspec-explore
 
@@ -82,7 +91,7 @@ Implement a change proposal's tasks, working through the list until done or bloc
 |---|---|
 | **Arguments** | A change proposal name (`add-auth`), optional. If the target is ambiguous it lists the active change proposals and asks you to pick. |
 | **Creates** | Code: the minimal changes each task calls for, in your project files. In the change proposal it touches only the tasks file, checking off each finished task (`- [ ]` to `- [x]`). |
-| **Response** | Progress per task, then an overall count (N/M tasks complete). All done: suggests `openspec-archive-change`. Blocked by missing artifacts: points to `openspec-continue-change`. Unclear tasks or errors: pauses and asks. |
+| **Response** | Progress per task, then an overall count (N/M tasks complete). All done: suggests `openspec-archive-change`. Blocked by missing artifacts: points to `openspec-continue-change`, or to `openspec status` and `openspec instructions` when that skill is not installed (the core profile leaves it out). Unclear tasks or errors: pauses and asks. |
 
 ## openspec-update-change
 
@@ -92,7 +101,7 @@ other.
 | Contract | Description |
 |---|---|
 | **Arguments** | A change proposal name, optional, plus the revision you want. With no revision stated it runs a coherence review: artifacts checked against each other for contradictions, gaps, and duplication. |
-| **Creates** | Nothing new. Edits only artifact files that already exist. Missing artifacts are `openspec-continue-change`'s job. Never code. |
+| **Creates** | Nothing new. Edits only artifact files that already exist. Missing artifacts are `openspec-continue-change`'s job. Without that skill (the core profile leaves it out), it points to `openspec status` and `openspec instructions` instead. Never code. |
 | **Response** | Shows each proposed revision and writes it only after you confirm, one artifact at a time. Ends with what was revised and the next step; implementation waits for `openspec-apply-change`. |
 
 ## openspec-sync-specs

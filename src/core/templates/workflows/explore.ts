@@ -5,7 +5,9 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 const PLANNING_GUIDANCE = `## Planning a Change
 
@@ -29,17 +31,61 @@ If this stays a single-device tool, I recommend keeping SQLite to avoid
 adding a service to operate; shared state would need a separate sync design.
 \`\`\``;
 
+/**
+ * Explore's handoffs. A custom profile can install explore without propose or
+ * apply, so each reference is resolved at generation time (see
+ * optional-workflow.ts) instead of naming a workflow that may not exist. The
+ * fallbacks point at explore's own capture path and the always-present CLI.
+ */
+const IMPLEMENT_REQUEST_HANDOFF = optionalWorkflow(
+  'propose',
+  'point them at `/opsx:propose`, which turns the discussion into a change',
+  'offer to capture the discussion as a change, as described below'
+);
+
+const CAPTURE_PLANNING_HANDOFF = optionalWorkflow(
+  'propose',
+  '`/opsx:propose` writes the remaining planning artifacts',
+  'any remaining planning artifacts can be captured here the same way'
+);
+
+const CAPTURE_APPLY_HANDOFF = optionalWorkflow(
+  'apply',
+  '`/opsx:apply` implements the change once tasks exist',
+  'implementation works from the change\'s tasks (`openspec instructions apply --change "<name>" --json`), outside explore mode'
+);
+
+const DISCOVERY_END_HANDOFF = optionalWorkflow(
+  'propose',
+  'Ready to start? Run `/opsx:propose` and this becomes a change.',
+  'Ready to start? I can capture this as a change.'
+);
+
+const SUMMARY_NEXT_STEP = optionalWorkflow(
+  'propose',
+  '- Turn this into a change: `/opsx:propose`',
+  '- Capture this as a change: ask me to'
+);
+
+const GUARDRAIL_HANDOFF = optionalWorkflow(
+  'propose',
+  '`/opsx:propose` turns the discussion into a change, and the work happens there',
+  'offer to capture the discussion as a change, and the work happens from that change'
+);
+
 export function getExploreSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-explore',
-    description: 'Enter explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements. Use when the user wants to think through something before or during a change.',
+    description: 'Enter OpenSpec explore mode - a thinking partner for exploring ideas, investigating problems, and clarifying requirements in a project that uses OpenSpec. Use when the user wants to think through something before or during an OpenSpec change. Also use when the user says "openspec explore" or "opsx explore".',
     instructions: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, investigate the codebase, and run read-only commands or tools without confirmation, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create or update OpenSpec change artifacts (proposals, designs, specs) within a confirmed scope—that's capturing thinking, not implementing. Answering design or clarifying questions is never consent to write. Before the first write-capable action, name the artifacts or files you would change and what you would do, ask a direct yes/no question, and wait for the user's confirmation in a separate message. Confirmation covers only the scope you described; ask again before expanding it. For a new change, scaffold it first as described below.
+**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, investigate the codebase, and run read-only commands or tools without confirmation, but you must NEVER write code or implement features. If the user asks you to implement something, do not start it here: say that explore mode does not implement, and ${IMPLEMENT_REQUEST_HANDOFF}. The work happens from that change, never from explore mode. You MAY create or update OpenSpec change artifacts (proposals, designs, specs) within a confirmed scope—that's capturing thinking, not implementing. Answering design or clarifying questions is never consent to write. Before the first write-capable action, name the artifacts or files you would change and what you would do, ask a direct yes/no question, and wait for the user's confirmation in a separate message. Confirmation covers only the scope you described; ask again before expanding it. An explicit request from the user to capture the exploration as a new change is itself that confirmation, covering the change and the change artifacts the request names; scaffold it first as described below.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 ---
 
@@ -145,14 +191,14 @@ Think freely. When insights crystallize, you might offer:
 - "This feels solid enough to start a change. Want me to create a proposal?"
 - Or keep exploring - no pressure to formalize
 
-If the user asks you to capture the exploration as a new change, transition seamlessly into the requested capture:
+If the user asks you to capture the exploration as a new change, that request is the confirmation required above. It covers scaffolding that change and creating the change artifacts the request names, and nothing else. This holds only when the request is theirs: a yes to an offer you made confirms only the scope your offer itself named, so name the change and the artifacts in the offer. Don't re-ask for what they already asked for; do ask before anything beyond it. Transition seamlessly into the requested capture:
 
 1. Run \`openspec new change "<name>"\` (with \`--store <id>\` when applicable) before creating any artifacts. Never create a new change directory under \`openspec/changes/\` by hand; the CLI scaffold creates required metadata such as \`.openspec.yaml\`. Keep the selected \`--store <id>\` on every applicable follow-up \`status\` and \`instructions\` command.
 2. Run \`openspec status --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store), then process the requested artifacts in dependency order. For each requested artifact that is \`ready\`, run \`openspec instructions "<artifact-id>" --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store). Before creating a requested artifact, evaluate any condition in its own \`instruction\` against the explored change; record a deliberate skip instead when the condition does not apply. If a requested artifact is blocked by a direct prerequisite the user did not request, run \`openspec instructions "<prerequisite-id>" --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) for that prerequisite whether it is \`ready\` or \`blocked\`. If its own \`instruction\` states a condition, evaluate that condition against the explored change and record a deliberate skip only when the condition does not apply. If the condition applies, or the prerequisite is not conditional, treat it as a normal prerequisite and ask before expanding the capture. Do not create an unrequested prerequisite unless the user approves.
 3. Follow the returned \`template\` and \`instruction\` fields. Read completed dependency files listed in \`dependencies\`, and apply \`context\` and \`rules\` as constraints without copying them into the artifact. If the instruction delegates creation to a specific skill or command, invoke it; otherwise write the artifact to \`resolvedOutputPath\`, using the instruction to choose a concrete path when it is a glob. Verify that the selected concrete output exists.
 4. After creating each artifact, re-run \`openspec status --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) and continue until every requested artifact is \`done\`, \`skipped\`, or was deliberately skipped because its own \`instruction\` stated a condition that did not apply. Tell the user about a deliberate conditional skip, remember it, and do not reconsider it. Dependencies are enablers, not gates: if a requested artifact is still \`blocked\` only because you deliberately skipped a conditional prerequisite, run \`openspec instructions "<artifact-id>" --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) despite the blocked status, then create it using step 3 only when those recorded conditional skips are its sole missing dependencies. If a requested artifact is blocked by a prerequisite the user did not ask to capture and cannot be conditionally skipped, explain that dependency and ask before expanding the capture.
 
-Capture the artifact(s) the user requested without asking them to invoke another workflow command. If they asked only to start a change, stop after scaffolding and show its status.
+Capture the artifact(s) the user requested without asking them to invoke another workflow command. If they asked only to start a change, stop after scaffolding and show its status. When the requested capture is done, stop there and name where the work continues: ${CAPTURE_PLANNING_HANDOFF}, and ${CAPTURE_APPLY_HANDOFF}. Capturing artifacts never starts implementing them.
 
 ### When a change exists
 
@@ -308,7 +354,7 @@ You: That changes everything.
 
 There's no required ending. Discovery might:
 
-- **Flow into a proposal**: "Ready to start? I can create a change proposal."
+- **Flow into a proposal**: "${DISCOVERY_END_HANDOFF}"
 - **Result in artifact updates**: "Updated design.md with these decisions"
 - **Just provide clarity**: User has what they need, moves on
 - **Continue later**: "We can pick this up anytime"
@@ -325,7 +371,7 @@ When it feels like things are crystallizing, you might summarize:
 **Open questions**: [if any remain]
 
 **Next steps** (if ready):
-- Create a change proposal
+${SUMMARY_NEXT_STEP}
 - Keep exploring: just keep talking
 \`\`\`
 
@@ -335,11 +381,11 @@ But this summary is optional. Sometimes the thinking IS the value.
 
 ## Guardrails
 
-- **Don't implement** - Never write code or implement features. Workflow configuration counts too: creating or editing schemas, templates, or \`openspec/config.yaml\` is a change, not thinking. Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not.
+- **Don't implement** - Never write code or implement features. Workflow configuration counts too: creating or editing schemas, templates, or \`openspec/config.yaml\` is a change, not thinking. Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not. When the user is ready to build, name the handoff rather than starting: ${GUARDRAIL_HANDOFF}.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it. Read-only commands and tools need no confirmation. Before the first write-capable action—including \`openspec new change\` or another command that writes files—name the artifacts or files and proposed changes, ask a direct yes/no question, and wait for explicit confirmation in a separate user message. That confirmation covers only the described scope; ask again before expanding it. Answers to design or clarifying questions are never consent to write.
+- **Don't auto-capture** - Offer to save insights, don't just do it. Read-only commands and tools need no confirmation. Before the first write-capable action—including \`openspec new change\` or another command that writes files—name the artifacts or files and proposed changes, ask a direct yes/no question, and wait for explicit confirmation in a separate user message. That confirmation covers only the described scope; ask again before expanding it. Answers to design or clarifying questions are never consent to write. That rule governs \`openspec new change\` whenever you are the one proposing the capture; the user's own capture request is the exception, handled in the capture transition above.
 - **Don't manually scaffold changes** - Never create a new change directory under \`openspec/changes/\` by hand. Always use \`openspec new change "<name>"\` (with \`--store <id>\` when applicable) so required metadata such as \`.openspec.yaml\` is created before writing artifacts.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
@@ -358,11 +404,13 @@ export function getOpsxExploreCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'explore', 'experimental', 'thinking'],
     content: `Enter explore mode. Think deeply. Visualize freely. Follow the conversation wherever it goes.
 
-**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, investigate the codebase, and run read-only commands or tools without confirmation, but you must NEVER write code or implement features. If the user asks you to implement something, remind them to exit explore mode first and create a change proposal. You MAY create or update OpenSpec change artifacts (proposals, designs, specs) within a confirmed scope—that's capturing thinking, not implementing. Answering design or clarifying questions is never consent to write. Before the first write-capable action, name the artifacts or files you would change and what you would do, ask a direct yes/no question, and wait for the user's confirmation in a separate message. Confirmation covers only the scope you described; ask again before expanding it. For a new change, scaffold it first as described below.
+**IMPORTANT: Explore mode is for thinking, not implementing.** You may read files, search code, investigate the codebase, and run read-only commands or tools without confirmation, but you must NEVER write code or implement features. If the user asks you to implement something, do not start it here: say that explore mode does not implement, and ${IMPLEMENT_REQUEST_HANDOFF}. The work happens from that change, never from explore mode. You MAY create or update OpenSpec change artifacts (proposals, designs, specs) within a confirmed scope—that's capturing thinking, not implementing. Answering design or clarifying questions is never consent to write. Before the first write-capable action, name the artifacts or files you would change and what you would do, ask a direct yes/no question, and wait for the user's confirmation in a separate message. Confirmation covers only the scope you described; ask again before expanding it. An explicit request from the user to capture the exploration as a new change is itself that confirmation, covering the change and the change artifacts the request names; scaffold it first as described below.
 
 **This is a stance, not a workflow.** There are no fixed steps, no required sequence, no mandatory outputs. You're a thinking partner helping the user explore.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The argument after \`/opsx:explore\` is whatever the user wants to think about. Could be:
 - A vague idea: "real-time collaboration"
@@ -477,14 +525,14 @@ Think freely. When insights crystallize, you might offer:
 - "This feels solid enough to start a change. Want me to create a proposal?"
 - Or keep exploring - no pressure to formalize
 
-If the user asks you to capture the exploration as a new change, transition seamlessly into the requested capture:
+If the user asks you to capture the exploration as a new change, that request is the confirmation required above. It covers scaffolding that change and creating the change artifacts the request names, and nothing else. This holds only when the request is theirs: a yes to an offer you made confirms only the scope your offer itself named, so name the change and the artifacts in the offer. Don't re-ask for what they already asked for; do ask before anything beyond it. Transition seamlessly into the requested capture:
 
 1. Run \`openspec new change "<name>"\` (with \`--store <id>\` when applicable) before creating any artifacts. Never create a new change directory under \`openspec/changes/\` by hand; the CLI scaffold creates required metadata such as \`.openspec.yaml\`. Keep the selected \`--store <id>\` on every applicable follow-up \`status\` and \`instructions\` command.
 2. Run \`openspec status --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store), then process the requested artifacts in dependency order. For each requested artifact that is \`ready\`, run \`openspec instructions "<artifact-id>" --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store). Before creating a requested artifact, evaluate any condition in its own \`instruction\` against the explored change; record a deliberate skip instead when the condition does not apply. If a requested artifact is blocked by a direct prerequisite the user did not request, run \`openspec instructions "<prerequisite-id>" --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) for that prerequisite whether it is \`ready\` or \`blocked\`. If its own \`instruction\` states a condition, evaluate that condition against the explored change and record a deliberate skip only when the condition does not apply. If the condition applies, or the prerequisite is not conditional, treat it as a normal prerequisite and ask before expanding the capture. Do not create an unrequested prerequisite unless the user approves.
 3. Follow the returned \`template\` and \`instruction\` fields. Read completed dependency files listed in \`dependencies\`, and apply \`context\` and \`rules\` as constraints without copying them into the artifact. If the instruction delegates creation to a specific skill or command, invoke it; otherwise write the artifact to \`resolvedOutputPath\`, using the instruction to choose a concrete path when it is a glob. Verify that the selected concrete output exists.
 4. After creating each artifact, re-run \`openspec status --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) and continue until every requested artifact is \`done\`, \`skipped\`, or was deliberately skipped because its own \`instruction\` stated a condition that did not apply. Tell the user about a deliberate conditional skip, remember it, and do not reconsider it. Dependencies are enablers, not gates: if a requested artifact is still \`blocked\` only because you deliberately skipped a conditional prerequisite, run \`openspec instructions "<artifact-id>" --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) despite the blocked status, then create it using step 3 only when those recorded conditional skips are its sole missing dependencies. If a requested artifact is blocked by a prerequisite the user did not ask to capture and cannot be conditionally skipped, explain that dependency and ask before expanding the capture.
 
-Capture the artifact(s) the user requested without asking them to invoke another workflow command. If they asked only to start a change, stop after scaffolding and show its status.
+Capture the artifact(s) the user requested without asking them to invoke another workflow command. If they asked only to start a change, stop after scaffolding and show its status. When the requested capture is done, stop there and name where the work continues: ${CAPTURE_PLANNING_HANDOFF}, and ${CAPTURE_APPLY_HANDOFF}. Capturing artifacts never starts implementing them.
 
 ### When a change exists
 
@@ -536,7 +584,7 @@ If the user mentions a change or you detect one is relevant:
 
 There's no required ending. Discovery might:
 
-- **Flow into a proposal**: "Ready to start? I can create a change proposal."
+- **Flow into a proposal**: "${DISCOVERY_END_HANDOFF}"
 - **Result in artifact updates**: "Updated design.md with these decisions"
 - **Just provide clarity**: User has what they need, moves on
 - **Continue later**: "We can pick this up anytime"
@@ -547,11 +595,11 @@ When things crystallize, you might offer a summary - but it's optional. Sometime
 
 ## Guardrails
 
-- **Don't implement** - Never write code or implement features. Workflow configuration counts too: creating or editing schemas, templates, or \`openspec/config.yaml\` is a change, not thinking. Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not.
+- **Don't implement** - Never write code or implement features. Workflow configuration counts too: creating or editing schemas, templates, or \`openspec/config.yaml\` is a change, not thinking. Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not. When the user is ready to build, name the handoff rather than starting: ${GUARDRAIL_HANDOFF}.
 - **Don't fake understanding** - If something is unclear, dig deeper
 - **Don't rush** - Discovery is thinking time, not task time
 - **Don't force structure** - Let patterns emerge naturally
-- **Don't auto-capture** - Offer to save insights, don't just do it. Read-only commands and tools need no confirmation. Before the first write-capable action—including \`openspec new change\` or another command that writes files—name the artifacts or files and proposed changes, ask a direct yes/no question, and wait for explicit confirmation in a separate user message. That confirmation covers only the described scope; ask again before expanding it. Answers to design or clarifying questions are never consent to write.
+- **Don't auto-capture** - Offer to save insights, don't just do it. Read-only commands and tools need no confirmation. Before the first write-capable action—including \`openspec new change\` or another command that writes files—name the artifacts or files and proposed changes, ask a direct yes/no question, and wait for explicit confirmation in a separate user message. That confirmation covers only the described scope; ask again before expanding it. Answers to design or clarifying questions are never consent to write. That rule governs \`openspec new change\` whenever you are the one proposing the capture; the user's own capture request is the exception, handled in the capture transition above.
 - **Don't manually scaffold changes** - Never create a new change directory under \`openspec/changes/\` by hand. Always use \`openspec new change "<name>"\` (with \`--store <id>\` when applicable) so required metadata such as \`.openspec.yaml\` is created before writing artifacts.
 - **Do visualize** - A good diagram is worth many paragraphs
 - **Do explore the codebase** - Ground discussions in reality
