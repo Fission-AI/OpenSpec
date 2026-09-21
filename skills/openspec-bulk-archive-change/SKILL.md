@@ -76,7 +76,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    Run `openspec list --json` once with the same selected-root flags for task
    progress. If the lookup fails, returns invalid JSON, or omits any selected
-   change, report the problem and stop before syncing or archiving the batch.
+   change, contains a duplicate selected change, or returns invalid counts,
+   report the problem and stop before syncing or archiving the batch.
 
    For each selected change, collect:
 
@@ -85,7 +86,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - Note which artifacts are `done` vs other states
 
    b. **Task completion** - Find the `changes` entry from the list response whose `name` exactly matches this change
-      - Use `totalTasks` and `completedTasks`; incomplete tasks = `totalTasks - completedTasks`
+      - Require nonnegative integer `totalTasks` and `completedTasks`, with `completedTasks <= totalTasks`
+      - Incomplete tasks = `totalTasks - completedTasks`
       - The CLI resolves the schema's tracked task files, including custom artifact names, output paths, and globs
       - Do not infer task completion from artifact status, an artifact id of `tasks`, or the absence of a top-level `tasks.md`
       - The CLI counts only `x`/`X` checkbox markers as complete; other markers remain incomplete

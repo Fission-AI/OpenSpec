@@ -87,6 +87,8 @@ describe('archive task discovery uses schema-resolved CLI progress', () => {
       expect(step).toContain('same selected-root flags');
       expect(step).toMatch(/name` exactly matches/);
       expect(step).toContain('totalTasks - completedTasks');
+      expect(step).toContain('nonnegative integer');
+      expect(step).toContain('completedTasks <= totalTasks');
       expect(step).toMatch(/other markers.*remain incomplete/s);
       expect(step).not.toContain('artifactPaths.tasks');
       expect(step).not.toContain('If no tasks file exists');

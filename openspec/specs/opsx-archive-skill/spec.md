@@ -72,7 +72,7 @@ The skill SHALL check the selected change's task completion using `totalTasks` a
 
 #### Scenario: Task progress lookup unavailable
 
-- **WHEN** the list command fails, returns invalid JSON, or omits a selected change
+- **WHEN** the list command fails, returns invalid JSON, omits or duplicates a selected change, or reports invalid task counts
 - **THEN** report the lookup problem and stop before syncing or archiving
 - **AND** do not treat the missing progress as zero tasks
 

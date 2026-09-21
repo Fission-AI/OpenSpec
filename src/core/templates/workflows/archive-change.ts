@@ -101,13 +101,16 @@ ${PROJECT_ROOT_GUARD}
 
    Run \`openspec list --json\` with the same selected-root flags and find the
    entry in \`changes\` whose \`name\` exactly matches the selected change.
-   Use its \`totalTasks\` and \`completedTasks\`: the CLI resolves the schema's
-   tracked task files, including custom artifact names, output paths, and globs.
+   Require exactly one match and nonnegative integer \`totalTasks\` and
+   \`completedTasks\`, with \`completedTasks <= totalTasks\`. The CLI resolves
+   the schema's tracked task files, including custom artifact names, output
+   paths, and globs.
    Incomplete tasks = \`totalTasks - completedTasks\`.
 
    Do not infer task completion from artifact status or the absence of a
-   top-level \`tasks.md\`. If the lookup fails, returns invalid JSON, or omits
-   the selected change, report the problem and stop before syncing or archiving.
+   top-level \`tasks.md\`. If the lookup fails, returns invalid JSON, omits or
+   duplicates the selected change, or returns invalid counts, report the problem
+   and stop before syncing or archiving.
    The CLI counts only \`x\`/\`X\` checkbox markers as complete;
    other markers, including unfamiliar ones, remain incomplete.
 
@@ -299,13 +302,16 @@ ${PROJECT_ROOT_GUARD}
 
    Run \`openspec list --json\` with the same selected-root flags and find the
    entry in \`changes\` whose \`name\` exactly matches the selected change.
-   Use its \`totalTasks\` and \`completedTasks\`: the CLI resolves the schema's
-   tracked task files, including custom artifact names, output paths, and globs.
+   Require exactly one match and nonnegative integer \`totalTasks\` and
+   \`completedTasks\`, with \`completedTasks <= totalTasks\`. The CLI resolves
+   the schema's tracked task files, including custom artifact names, output
+   paths, and globs.
    Incomplete tasks = \`totalTasks - completedTasks\`.
 
    Do not infer task completion from artifact status or the absence of a
-   top-level \`tasks.md\`. If the lookup fails, returns invalid JSON, or omits
-   the selected change, report the problem and stop before syncing or archiving.
+   top-level \`tasks.md\`. If the lookup fails, returns invalid JSON, omits or
+   duplicates the selected change, or returns invalid counts, report the problem
+   and stop before syncing or archiving.
    The CLI counts only \`x\`/\`X\` checkbox markers as complete;
    other markers, including unfamiliar ones, remain incomplete.
 
