@@ -242,25 +242,25 @@ describe('update-change templates', () => {
       expect(body, label).toContain('stop and point to `/opsx:apply`');
       expect(body, label).toContain('Do not advance the build frontier');
       expect(body, label).toContain(
-        'Leave an artifact with no existing output files and status `ready` or `blocked` for `/opsx:continue`'
+        'no existing output files and status `ready` or `blocked`, note it and point the user to `/opsx:continue`'
       );
       expect(body, label).toContain(
-        'leave artifacts with empty `existingOutputPaths` and status `ready` or `blocked` for `/opsx:continue`'
+        'empty `existingOutputPaths` and status `ready` or `blocked`, that is `/opsx:continue`\'s job'
       );
       expect(body, label).toContain('Leave `skipped` artifacts untouched');
-      expect(body, label).toContain('do not treat them as missing or send them to `/opsx:continue`');
+      expect(body, label).toContain('do not treat them as missing or defer them to the continue workflow');
     }
   });
 
   it('fills a gap under an already-satisfied glob artifact instead of deferring it (3.3a)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('is marked `done` after at least one file matches');
-      expect(body, label).toContain('`/opsx:continue` only handles `ready` artifacts');
+      expect(body, label).toContain('the continue workflow only handles `ready` artifacts');
       expect(body, label).toContain('whose `existingOutputPaths` is non-empty');
       expect(body, label).toContain(
         'use its `instruction` and `template`'
       );
-      expect(body, label).toContain('Apply `context` and `rules` as constraints; do not copy them into the file');
+      expect(body, label).toContain('Treat `context` and `rules` as constraints; do not copy them into the file');
       expect(body, label).toContain('If instructions report `skipped: true`, do not create the file');
       expect(body, label).toContain('Read current dependency files from disk');
       expect(body, label).toContain('if a required non-skipped dependency is missing, stop and ask the user to restore it first');
@@ -288,16 +288,16 @@ describe('update-change templates', () => {
       expect(writeGuard, label).toContain('refresh status and instructions');
       expect(writeGuard, label).toContain('still in scope, not skipped, and partially populated');
       expect(writeGuard, label).toContain('repeat the concrete-path checks above');
-      expect(body, label).toContain('stop and reconcile with the user instead of overwriting or choosing a different path');
+      expect(body, label).toContain('stop and reconcile with the user rather than replacing existing content or choosing a different path');
     }
   });
 
   it('writes to existingOutputPaths, never to a glob resolvedOutputPath (3.4)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('artifactPaths.<id>.existingOutputPaths');
-      expect(body, label).toContain('`resolvedOutputPath` is still a pattern');
-      expect(body, label).toContain('Never write to the glob `resolvedOutputPath`');
-      expect(body, label).toContain('The only new-file exception');
+      expect(body, label).toContain('it is still the glob pattern');
+      expect(body, label).toContain('The glob `resolvedOutputPath` is not a valid target');
+      expect(body, label).toContain('The only new-file scope');
     }
   });
 
@@ -348,7 +348,7 @@ describe('update-change templates', () => {
   it('confirms every edit and redirects intent changes to /opsx:new when installed', () => {
     for (const [label, body] of bodies) {
       const reconciliation = body.slice(body.indexOf('4. **Read and reconcile**'), body.indexOf('5. **Confirm and apply'));
-      expect(reconciliation, label).toContain('Draft the requested edit without writing');
+      expect(reconciliation, label).toContain('Draft the requested edit in the conversation, not in files');
       expect(reconciliation, label).not.toContain('Apply the requested edit');
       expect(body, label).toContain('Write only after the user confirms');
       expect(body, label).toContain('If the user rejects a revision, do not write it');
