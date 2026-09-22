@@ -382,7 +382,9 @@ describe('end to end: a delta written as specs/<capability>.md', () => {
     const cli = (args: string[]) => runCLI(args, { cwd: project, env, timeoutMs: 60_000 });
     expect((await cli(['init', '--tools', 'claude'])).exitCode).toBe(0);
     expect((await cli(['new', 'change', 'add-login'])).exitCode).toBe(0);
-    const dir = path.join(project, 'openspec', 'changes', 'add-login');
+    const proposedDir = path.join(project, 'openspec', 'changes', 'proposed', 'add-login');
+    const dir = path.join(project, 'openspec', 'changes', 'approved', 'add-login');
+    await fs.rename(proposedDir, dir);
     await write(
       dir,
       ['proposal.md'],
