@@ -126,7 +126,9 @@ describe('ordered and plus tasks through the CLI', () => {
 
     expect((await cli(['init', '--tools', 'claude'])).exitCode).toBe(0);
     expect((await cli(['new', 'change', 'add-thing'])).exitCode).toBe(0);
-    const changeDir = path.join(project, 'openspec', 'changes', 'add-thing');
+    const proposedDir = path.join(project, 'openspec', 'changes', 'proposed', 'add-thing');
+    const changeDir = path.join(project, 'openspec', 'changes', 'approved', 'add-thing');
+    await fs.rename(proposedDir, changeDir);
     await fs.mkdir(path.join(changeDir, 'specs', 'billing'), { recursive: true });
     await fs.writeFile(
       path.join(changeDir, 'proposal.md'),

@@ -82,7 +82,9 @@ async function seededProject() {
 
   expect((await cli(['init', '--tools', 'claude'])).exitCode).toBe(0);
   expect((await cli(['new', 'change', 'seed'])).exitCode).toBe(0);
-  const seedDir = path.join(project, 'openspec', 'changes', 'seed');
+  const seedProposedDir = path.join(project, 'openspec', 'changes', 'proposed', 'seed');
+  const seedDir = path.join(project, 'openspec', 'changes', 'approved', 'seed');
+  await fs.rename(seedProposedDir, seedDir);
   await fs.mkdir(path.join(seedDir, 'specs', 'billing'), { recursive: true });
   await fs.writeFile(path.join(seedDir, 'proposal.md'), PROPOSAL);
   await fs.writeFile(path.join(seedDir, 'tasks.md'), '## 1. Work\n- [x] 1.1 Done\n');
@@ -90,7 +92,9 @@ async function seededProject() {
   expect((await cli(['archive', 'seed', '--yes'])).exitCode).toBe(0);
 
   expect((await cli(['new', 'change', 'edit'])).exitCode).toBe(0);
-  const editDir = path.join(project, 'openspec', 'changes', 'edit');
+  const editProposedDir = path.join(project, 'openspec', 'changes', 'proposed', 'edit');
+  const editDir = path.join(project, 'openspec', 'changes', 'approved', 'edit');
+  await fs.rename(editProposedDir, editDir);
   await fs.mkdir(path.join(editDir, 'specs', 'billing'), { recursive: true });
   await fs.writeFile(path.join(editDir, 'proposal.md'), PROPOSAL);
   await fs.writeFile(path.join(editDir, 'tasks.md'), '## 1. Work\n- [x] 1.1 Done\n');
