@@ -268,16 +268,16 @@ describe('legacy command directories and the files users keep in them', () => {
 
     // Swap in the user's file right after cleanup's own directory scan has
     // read the generated one, so only a check just before the unlink catches it.
-    const realReadFile = fs.readFile.bind(fs);
+    const realOpen = fs.open.bind(fs);
+    let opens = 0;
     let replaced = false;
-    const spy = vi.spyOn(fs, 'readFile').mockImplementation((async (file: any, options?: any) => {
-      const content = await realReadFile(file, options);
-      if (!replaced && file === proposalPath) {
+    const spy = vi.spyOn(fs, 'open').mockImplementation((async (file: any, ...rest: any[]) => {
+      if (file === proposalPath && ++opens === 2) {
         replaced = true;
         await fs.writeFile(proposalPath, 'my own proposal command\n');
       }
-      return content;
-    }) as typeof fs.readFile);
+      return realOpen(file, ...rest);
+    }) as typeof fs.open);
     let result;
     try {
       result = await cleanupLegacyArtifacts(testDir, detection);
@@ -294,6 +294,21 @@ describe('legacy command directories and the files users keep in them', () => {
   });
 
   // Creating symlinks on Windows needs elevated rights.
+  it.skipIf(process.platform === 'win32')('never follows a symlinked legacy command file', async () => {
+    const shared = path.join(testDir, 'shared-proposal.md');
+    await fs.writeFile(shared, generatedContent('proposal.md'));
+    await writeFiles(CLAUDE_DIR, ['apply.md', 'archive.md']);
+    await fs.symlink(shared, inProject(CLAUDE_DIR, 'proposal.md'));
+
+    const detection = await detectLegacyArtifacts(testDir);
+    const result = await cleanupLegacyArtifacts(testDir, detection);
+
+    expect(await fs.readFile(shared, 'utf-8')).toBe(generatedContent('proposal.md'));
+    expect((await fs.lstat(inProject(CLAUDE_DIR, 'proposal.md'))).isSymbolicLink()).toBe(true);
+    expect(await exists(inProject(CLAUDE_DIR, 'apply.md'))).toBe(false);
+    expect(result.keptFiles).toEqual([`${CLAUDE_DIR}/proposal.md`]);
+  });
+
   it.skipIf(process.platform === 'win32')('never follows a symlinked legacy command folder', async () => {
     const shared = path.join(testDir, 'shared-commands');
     await fs.mkdir(shared, { recursive: true });

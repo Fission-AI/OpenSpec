@@ -446,4 +446,39 @@ describe('validate: MODIFIED blocks that would drop a main-spec scenario (#1477)
     expect(lossIssue(report)).toBeUndefined();
     expect(report.issues.map((i) => i.message).join('\n')).toContain('MODIFIED references old name from RENAMED');
   });
+  it('reports both new headings when one current scenario is replaced by two (#1697)', async () => {
+    await writeMainSpec(
+      'widgets',
+      mainSpec(`### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario\n- **WHEN** queried\n- **THEN** the state is reported`)
+    );
+    const widened = `## MODIFIED Requirements\n\n### Requirement: Widget state\nThe system SHALL report the widget state.\n\n#### Scenario: Existing scenario, first branch\n- **WHEN** queried in the first case\n- **THEN** the first state is reported\n\n#### Scenario: Existing scenario, second branch\n- **WHEN** queried in the second case\n- **THEN** the second state is reported\n`;
+    const changeDir = await writeChange('widen-scenario', 'widgets', widened);
+
+    const report = await validate(changeDir);
+    const issue = lossIssue(report);
+
+    // The guard still fires: a widened title is a dropped name, and nothing
+    // here decides whether that was deliberate.
+    expect(report.valid).toBe(false);
+    expect(issue?.message).toContain('"Existing scenario"');
+    expect(issue?.message).toContain(
+      'The modified block has 2 scenarios; the current spec has 1 scenario. It adds 2 scenarios not in the current spec: "Existing scenario, first branch", "Existing scenario, second branch".'
+    );
+    // Parity: archive refuses the same change and prints the same sentence.
+    expect(await archiveError(changeDir)).toContain(
+      'It adds 2 scenarios not in the current spec: "Existing scenario, first branch", "Existing scenario, second branch".'
+    );
+  });
+
+  it('says the block adds none when scenarios are only dropped (#1697)', async () => {
+    await writeMainSpec('widgets', mainSpec(TWO_SCENARIO_REQUIREMENT));
+    const changeDir = await writeChange('drop-scenario', 'widgets', DELTA_KEEPING_ONE);
+
+    const issue = lossIssue(await validate(changeDir));
+
+    expect(issue?.message).toContain(
+      'The modified block has 1 scenario; the current spec has 2 scenarios. It adds none.'
+    );
+    expect(await archiveError(changeDir)).toContain('It adds none.');
+  });
 });

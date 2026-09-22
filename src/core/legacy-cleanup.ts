@@ -5,11 +5,12 @@
 
 import path from 'path';
 import os from 'os';
-import { promises as fs } from 'fs';
+import { promises as fs, constants as fsConstants } from 'fs';
+import type { FileHandle } from 'fs/promises';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
-import type { WorkflowId } from './profiles.js';
+import { ALL_WORKFLOWS, type WorkflowId } from './profiles.js';
 
 /**
  * Legacy config file names from the old ToolRegistry.
@@ -28,6 +29,14 @@ export const LEGACY_CONFIG_FILES = [
 
 /** The three commands the old SlashCommandRegistry wrote into each directory. */
 const LEGACY_DIRECTORY_COMMAND_FILES = ['proposal.md', 'apply.md', 'archive.md'] as const;
+
+/** Exact Kilo workflow files written by OpenSpec before the command path moved. */
+const LEGACY_KILOCODE_COMMAND_FILES = [
+  ...ALL_WORKFLOWS.map(workflow => `.kilocode/workflows/opsx-${workflow}.md`),
+  '.kilocode/workflows/openspec-proposal.md',
+  '.kilocode/workflows/openspec-apply.md',
+  '.kilocode/workflows/openspec-archive.md',
+];
 
 /**
  * Legacy slash command patterns from the old SlashCommandRegistry.
@@ -54,7 +63,12 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   // belong to `devin` — the id Windsurf became. Only `.windsurf/` is listed:
   // `.devin/` postdates the opsx rename and never held `openspec-*` files.
   'devin': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
-  'kilocode': { type: 'files', pattern: '.kilocode/workflows/openspec-*.md' },
+  // Kilo now writes commands under `.kilo/command/`. Clean up both generations
+  // of OpenSpec workflows from Kilo's legacy `.kilocode/workflows/` folder.
+  'kilocode': {
+    type: 'files',
+    pattern: LEGACY_KILOCODE_COMMAND_FILES,
+  },
   'kiro': { type: 'files', pattern: '.kiro/prompts/openspec-*.prompt.md' },
   'github-copilot': { type: 'files', pattern: '.github/prompts/openspec-*.prompt.md' },
   'amazon-q': { type: 'files', pattern: '.amazonq/prompts/openspec-*.md' },
@@ -443,13 +457,24 @@ async function settleLegacyCommandDir(
  * a same-named file without them is the user's.
  */
 async function isGeneratedLegacyCommand(filePath: string): Promise<boolean> {
+  // Judge the opened handle, not the path, so the file checked is the file
+  // read. O_NOFOLLOW refuses a link and O_NONBLOCK keeps a FIFO from hanging;
+  // Windows has neither flag, so a link is refused there by lstat instead.
+  const { O_RDONLY, O_NOFOLLOW, O_NONBLOCK } = fsConstants;
+  let handle: FileHandle | undefined;
   try {
-    if (!(await fs.lstat(filePath)).isFile()) {
+    handle = await fs.open(filePath, O_RDONLY | (O_NOFOLLOW ?? 0) | (O_NONBLOCK ?? 0));
+    if (O_NOFOLLOW === undefined && (await fs.lstat(filePath)).isSymbolicLink()) {
       return false;
     }
-    return hasOpenSpecMarkers(await fs.readFile(filePath, 'utf-8'));
+    if (!(await handle.stat()).isFile()) {
+      return false;
+    }
+    return hasOpenSpecMarkers(await handle.readFile('utf-8'));
   } catch {
     return false;
+  } finally {
+    await handle?.close();
   }
 }
 

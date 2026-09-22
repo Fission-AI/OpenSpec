@@ -2243,10 +2243,61 @@ New feature description.
       await expect(fs.access(claimPath)).resolves.not.toThrow();
     });
 
+    it('releases its archive claim when the path stat has no Windows device id', async () => {
+      const changeName = 'windows-archive-claim-release';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      const archiveName = `${formatLocalDate()}-${changeName}`;
+      const claimPath = archiveClaimPath(archiveName);
+      const realLstat = fs.lstat.bind(fs);
+      // Match the claim by file name rather than by full path. The command
+      // stats the resolved real path, so a literal comparison against the
+      // temp-dir path misses on macOS (/var -> /private/var) and on Windows
+      // short paths, leaving the mock inert and the regression unexercised.
+      let maskedDeviceIds = 0;
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        const stats = await realLstat(target, options as any);
+        if (path.basename(String(target)) !== '.openspec-archive.lock') {
+          return stats;
+        }
+        maskedDeviceIds += 1;
+        return { ...stats, dev: 0n };
+      });
+
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
+
+      // Guards the assertion below: without this the test passes even when the
+      // mock never intercepts, which is how it originally went vacuous.
+      expect(maskedDeviceIds).toBeGreaterThan(0);
+      await expect(fs.access(claimPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('keeps a claim when its inode changes after reading on a zero-device stat', async () => {
+      const changeName = 'changed-archive-claim-identity';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      const claimPath = archiveClaimPath(`${formatLocalDate()}-${changeName}`);
+      const realLstat = fs.lstat.bind(fs);
+      let claimStats = 0;
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        const stats = await realLstat(target, options as any);
+        if (path.basename(String(target)) !== '.openspec-archive.lock') return stats;
+        claimStats += 1;
+        return { ...stats, dev: 0n, ino: claimStats === 2 ? stats.ino + 1n : stats.ino };
+      });
+
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
+
+      expect(claimStats).toBe(2);
+      await expect(fs.access(claimPath)).resolves.not.toThrow();
+    });
+
     // Windows defers deletion of an open file until its original handle closes,
     // so unlink-and-recreate cannot model a persistent replacement there.
     it.skipIf(process.platform === 'win32')(
-      'does not unlink a claim entry replaced by another process',
+      'does not unlink a replaced claim when path stats omit the device id',
       async () => {
         const changeName = 'replaced-archive-claim';
         const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -2254,7 +2305,14 @@ New feature description.
         const archiveName = `${formatLocalDate()}-${changeName}`;
         const claimPath = archiveClaimPath(archiveName);
         const realRename = fs.rename.bind(fs);
+        const realLstat = fs.lstat.bind(fs);
         onTestFinished(() => vi.restoreAllMocks());
+        vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+          const stats = await realLstat(target, options as any);
+          return path.basename(String(target)) === '.openspec-archive.lock'
+            ? { ...stats, dev: 0n }
+            : stats;
+        });
         let replaced = false;
         vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
           if (
