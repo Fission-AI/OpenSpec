@@ -70,6 +70,17 @@ describe('ArchiveCommand', () => {
     archiveCommand = new ArchiveCommand();
   });
 
+  it('refuses proposed changes even when task completion and validation are bypassed', async () => {
+    const proposed = path.join(tempDir, 'openspec', 'changes', 'proposed', 'example');
+    await fs.mkdir(proposed, { recursive: true });
+    await fs.writeFile(path.join(proposed, 'tasks.md'), '- [x] Finished\n');
+    await archiveCommand.execute('example', { json: true, yes: true, noValidate: true, skipSpecs: true });
+    expect(process.exitCode).toBe(1);
+    expect(JSON.stringify(vi.mocked(console.log).mock.calls)).toContain('archive_change_unapproved');
+    expect(await fs.readFile(path.join(proposed, 'tasks.md'), 'utf8')).toBe('- [x] Finished\n');
+    expect(await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))).toEqual([]);
+  });
+
   afterEach(async () => {
     vi.useRealTimers();
 

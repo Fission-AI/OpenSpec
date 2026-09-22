@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { activeChangeNames, resolveChangeDir } from '../utils/change-directory.js';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { readFileSync, type Dirent } from 'fs';
 import { MarkdownParser } from './parsers/markdown-parser.js';
@@ -126,9 +127,10 @@ export class ListCommand {
 
       // Get all directories in changes (excluding archive)
       const entries = await readChangeDirectoryEntries(changesDir);
-      const changeDirs = entries
+      const topLevelChangeDirs = entries
         .filter(entry => entry.isDirectory() && entry.name !== 'archive')
         .map(entry => entry.name);
+      const changeDirs = activeChangeNames(changesDir);
 
       if (changeDirs.length === 0) {
         if (json) {
@@ -145,14 +147,17 @@ export class ListCommand {
       // A directory that only wraps nested change directories is still listed -
       // hiding it would hide a real change whenever the probe is wrong - but it
       // is listed as what it is, so the nesting stops failing silently (#1846).
-      const nestedFindings = await findNestedChanges(changesDir, changeDirs);
+      const nestedFindings = await findNestedChanges(
+        changesDir,
+        topLevelChangeDirs.filter((name) => changeDirs.includes(name))
+      );
       const nestedByName = new Map<string, NestedChangeFinding>(
         nestedFindings.map((finding) => [finding.name, finding])
       );
 
       for (const changeDir of changeDirs) {
         const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
-        const changePath = path.join(changesDir, changeDir);
+        const changePath = resolveChangeDir(changesDir, changeDir);
         const lastModified = await getLastModified(changePath);
         changes.push({
           name: changeDir,

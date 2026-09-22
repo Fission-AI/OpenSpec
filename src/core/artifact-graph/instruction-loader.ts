@@ -1,3 +1,4 @@
+import { resolveChangeDir } from '../../utils/change-directory.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getSchemaDir, resolveSchema, listSchemasWithInfo } from './resolver.js';
@@ -269,7 +270,7 @@ export function loadChangeContext(
   options: LoadChangeContextOptions = {}
 ): ChangeContext {
   const changeDir = FileSystemUtils.canonicalizeExistingPath(
-    options.changeDir ?? path.join(projectRoot, 'openspec', 'changes', changeName)
+    options.changeDir ?? resolveChangeDir(path.join(projectRoot, 'openspec', 'changes'), changeName)
   );
 
   const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
