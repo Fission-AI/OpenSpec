@@ -351,6 +351,7 @@ ${END_MARKER}
       const result = await fs.readFile(filePath, 'utf-8');
       expect(countEndings(result).crlf).toBe(0);
     });
+  });
 });
 
 describe('removeMarkerBlock', () => {
@@ -490,6 +491,54 @@ After block content`;
     });
   });
 
+  describe('line endings', () => {
+    const MD_START = '<!-- OPENSPEC:START -->';
+    const MD_END = '<!-- OPENSPEC:END -->';
+
+    it('collapses a blank-line run without leaving a lone LF in a CRLF file', () => {
+      // The collapse rebuilds the separator it matched. Spelling that '\n'
+      // puts a lone LF into an otherwise-CRLF file, which is the mixed ending
+      // bash reports as "$'\r': command not found" in a .bashrc.
+      const content = [
+        '# User config',
+        '',
+        '',
+        MD_START,
+        'managed',
+        MD_END,
+        '',
+        '',
+        '# More user config',
+      ].join('\r\n');
+
+      const result = removeMarkerBlock(content, MD_START, MD_END);
+
+      expect(result.match(/(?<!\r)\n/g)).toBeNull();
+      expect(result).toContain('# User config');
+      expect(result).toContain('# More user config');
+      expect(result).not.toContain('managed');
+    });
+
+    it('leaves an LF file on LF when collapsing the same run', () => {
+      const content = [
+        '# User config',
+        '',
+        '',
+        MD_START,
+        'managed',
+        MD_END,
+        '',
+        '',
+        '# More user config',
+      ].join('\n');
+
+      const result = removeMarkerBlock(content, MD_START, MD_END);
+
+      expect(result).not.toContain('\r');
+      expect(result).toContain('# More user config');
+    });
+  });
+
   describe('shell markers', () => {
     const SHELL_START = '# OPENSPEC:START';
     const SHELL_END = '# OPENSPEC:END';
@@ -511,7 +560,5 @@ export EDITOR="vim"`;
       expect(result).not.toContain('alias openspec');
       expect(result).not.toContain(SHELL_START);
     });
-  });
-
   });
 });

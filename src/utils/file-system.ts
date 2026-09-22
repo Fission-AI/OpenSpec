@@ -451,14 +451,19 @@ export function removeMarkerBlock(
   const before = content.substring(0, lineStart);
   const after = content.substring(lineEnd);
 
+  // The file's own newline, used for every ending this function writes. The
+  // blank-line collapse below rebuilds the separator it matched, so spelling it
+  // '\n' would leave a CRLF file with a mixed pair wherever a run was collapsed
+  // - the stray '\r' that bash reports as "$'\r': command not found".
+  const newline = content.includes('\r\n') ? '\r\n' : '\n';
+
   // Clean up double blank lines (handle both Unix \n and Windows \r\n)
   let result = before + after;
-  result = result.replace(/(\r?\n){3,}/g, '\n\n');
+  result = result.replace(/(\r?\n){3,}/g, newline + newline);
 
   // Trim trailing whitespace but preserve leading whitespace and original newline style
   if (result.trimEnd() === '') {
     return '';
   }
-  const newline = content.includes('\r\n') ? '\r\n' : '\n';
   return result.trimEnd() + newline;
 }
