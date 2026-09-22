@@ -1,5 +1,5 @@
 import { describe, expect, it, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
@@ -46,6 +46,31 @@ describe('FileSystemUtils.assertPathWithin', () => {
       );
     } finally {
       rmSync(sibling, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects a directory link inside the root that resolves outside it', () => {
+    // The guard canonicalizes before deciding, which is the half that a
+    // lexical containment check cannot do: the link's own path looks inside.
+    const outside = mkdtempSync(path.join(tmpdir(), 'openspec-outside-'));
+    const link = path.join(root, 'linked');
+    try {
+      symlinkSync(outside, link, 'junction');
+    } catch {
+      // Creating a directory link needs a privilege the runner may not have.
+      rmSync(outside, { recursive: true, force: true });
+      return;
+    }
+    try {
+      expect(() => FileSystemUtils.assertPathWithin(root, link)).toThrow(
+        /outside the allowed directory/
+      );
+      expect(() =>
+        FileSystemUtils.assertPathWithin(root, path.join(link, 'spec.md'))
+      ).toThrow(/outside the allowed directory/);
+    } finally {
+      rmSync(link, { recursive: true, force: true });
+      rmSync(outside, { recursive: true, force: true });
     }
   });
 

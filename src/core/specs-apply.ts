@@ -1250,7 +1250,12 @@ export async function writeUpdatedSpec(
   // it back with the convention the file already used, or a Windows checkout
   // (core.autocrlf=true) sees every line of the spec change when one
   // requirement moved. A spec that does not exist yet stays LF.
-  const previous = await fs.readFile(update.target, 'utf-8').catch(() => undefined);
+  // Only a missing file means "no convention to match". Swallowing every error
+  // would read an existing but unreadable spec as absent and rewrite it as LF.
+  const previous = await fs.readFile(update.target, 'utf-8').catch((error) => {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  });
   const toWrite = previous === undefined ? rebuilt : matchLineEnding(rebuilt, previous);
 
   await options.beforeMutate?.();

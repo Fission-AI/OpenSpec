@@ -519,6 +519,21 @@ After block content`;
       expect(result).not.toContain('managed');
     });
 
+    it('follows the dominant ending, not a single stray CRLF', () => {
+      // One stray CRLF in an otherwise-LF file must not pull the rewrite to
+      // CRLF. This is the reading matchLineEnding uses, so both write paths
+      // agree on what the file's convention is.
+      const content =
+        '# User config\r\n' +
+        ['', '', MD_START, 'managed', MD_END, '', '', '# More user config'].join('\n');
+
+      const result = removeMarkerBlock(content, MD_START, MD_END);
+
+      expect(result.endsWith('\n')).toBe(true);
+      expect(result.endsWith('\r\n')).toBe(false);
+      expect(result).toContain('# More user config');
+    });
+
     it('leaves an LF file on LF when collapsing the same run', () => {
       const content = [
         '# User config',

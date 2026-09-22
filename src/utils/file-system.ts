@@ -1,6 +1,6 @@
 import * as nodeFs from 'fs';
 import path from 'path';
-import { matchLineEnding } from './line-endings.js';
+import { detectLineEnding, matchLineEnding } from './line-endings.js';
 
 const fs = nodeFs.promises;
 const { constants: fsConstants } = nodeFs;
@@ -455,7 +455,11 @@ export function removeMarkerBlock(
   // blank-line collapse below rebuilds the separator it matched, so spelling it
   // '\n' would leave a CRLF file with a mixed pair wherever a run was collapsed
   // - the stray '\r' that bash reports as "$'\r': command not found".
-  const newline = content.includes('\r\n') ? '\r\n' : '\n';
+  //
+  // Dominant rather than "contains a CRLF anywhere", so that one stray CRLF in
+  // an otherwise-LF file does not pull the whole rewrite to CRLF. This is the
+  // same reading matchLineEnding uses, so both write paths agree.
+  const newline = detectLineEnding(content) ?? '\n';
 
   // Clean up double blank lines (handle both Unix \n and Windows \r\n)
   let result = before + after;
