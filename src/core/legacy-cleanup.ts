@@ -5,7 +5,8 @@
 
 import path from 'path';
 import os from 'os';
-import { promises as fs } from 'fs';
+import { promises as fs, constants as fsConstants } from 'fs';
+import type { FileHandle } from 'fs/promises';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
@@ -443,13 +444,24 @@ async function settleLegacyCommandDir(
  * a same-named file without them is the user's.
  */
 async function isGeneratedLegacyCommand(filePath: string): Promise<boolean> {
+  // Judge the opened handle, not the path, so the file checked is the file
+  // read. O_NOFOLLOW refuses a link and O_NONBLOCK keeps a FIFO from hanging;
+  // Windows has neither flag, so a link is refused there by lstat instead.
+  const { O_RDONLY, O_NOFOLLOW, O_NONBLOCK } = fsConstants;
+  let handle: FileHandle | undefined;
   try {
-    if (!(await fs.lstat(filePath)).isFile()) {
+    handle = await fs.open(filePath, O_RDONLY | (O_NOFOLLOW ?? 0) | (O_NONBLOCK ?? 0));
+    if (O_NOFOLLOW === undefined && (await fs.lstat(filePath)).isSymbolicLink()) {
       return false;
     }
-    return hasOpenSpecMarkers(await fs.readFile(filePath, 'utf-8'));
+    if (!(await handle.stat()).isFile()) {
+      return false;
+    }
+    return hasOpenSpecMarkers(await handle.readFile('utf-8'));
   } catch {
     return false;
+  } finally {
+    await handle?.close();
   }
 }
 
