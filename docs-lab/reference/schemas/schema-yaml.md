@@ -74,7 +74,15 @@ A glob can match several files:
 generates: specs/**/*.md
 ```
 
-This matches Markdown files below `openspec/changes/add-auth/specs/`. OpenSpec treats a value containing `*`, `?`, or `[` as a glob.
+This matches Markdown files below `openspec/changes/add-auth/specs/`.
+
+OpenSpec recognizes these glob forms in `generates`:
+
+- **Wildcards and character classes**: values containing `*`, `?`, or `[`, such as `specs/**/*.md` and `review-[ab].md`.
+- **Brace expansions**: alternatives such as `review-{api,ui}.md` and ranges such as `file-{1..3}.md`.
+- **Extglobs**: patterns such as `@(proposal|design).md`, `+(proposal|design).md`, and `!(proposal|design).md`.
+
+**Literal filenames**: a leading `!` alone does not make a glob. Use `generates: '!review.md'` to name that file. Plain parentheses such as `(proposal|design).md` and single-element braces such as `review-{api}.md` also remain literal.
 
 OpenSpec rejects absolute paths and paths containing a `..` segment.
 

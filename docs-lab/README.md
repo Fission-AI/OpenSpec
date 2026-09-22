@@ -96,7 +96,7 @@ the page or rewriting the goal in both places, never letting them drift.
 | [Overview](start/overview.md) | _TODO: emptied 2026-08-21 for a from-scratch rewrite and pulled from the site (`/docs` redirects to Installation meanwhile); the old goal line was dropped as too weak a pitch. Brief in Notes.md._ |
 | [Installation](start/installation.md) | Install the `openspec` CLI on your machine, update it, and uninstall it. |
 | [Set up your project](start/setup.md) | Add OpenSpec to a project: run init, see what it wrote, and adjust it. |
-| [Quickstart](start/quickstart.md) | Your first change on your existing repo, from idea to archived. |
+| [Quickstart](start/quickstart.md) | Your first change in a new or existing project, from idea to archived. |
 
 ### Guides: understand the system, use it well, bring it to your codebase and team
 
