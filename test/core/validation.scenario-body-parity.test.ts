@@ -169,7 +169,9 @@ async function projectWithScenarios(scenarios: string[]) {
 
   expect((await cli(['init', '--tools', 'claude'])).exitCode).toBe(0);
   expect((await cli(['new', 'change', 'edit'])).exitCode).toBe(0);
-  const dir = path.join(project, 'openspec', 'changes', 'edit');
+  const proposedDir = path.join(project, 'openspec', 'changes', 'proposed', 'edit');
+  const dir = path.join(project, 'openspec', 'changes', 'approved', 'edit');
+  await fs.rename(proposedDir, dir);
   await fs.mkdir(path.join(dir, 'specs', 'billing'), { recursive: true });
   await fs.writeFile(
     path.join(dir, 'proposal.md'),

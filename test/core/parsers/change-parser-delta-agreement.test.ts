@@ -270,7 +270,9 @@ async function projectWithDelta(delta: string) {
   const cli = (args: string[]) => runCLI(args, { cwd: project, env, timeoutMs: 60_000 });
   const writeChange = async (name: string, spec: string) => {
     expect((await cli(['new', 'change', name])).exitCode).toBe(0);
-    const dir = path.join(project, 'openspec', 'changes', name);
+    const proposedDir = path.join(project, 'openspec', 'changes', 'proposed', name);
+    const dir = path.join(project, 'openspec', 'changes', 'approved', name);
+    await fs.rename(proposedDir, dir);
     await fs.mkdir(path.join(dir, 'specs', 'billing'), { recursive: true });
     await fs.writeFile(path.join(dir, 'proposal.md'), PROPOSAL);
     await fs.writeFile(path.join(dir, 'tasks.md'), '## 1. Work\n- [x] 1.1 Done\n');
