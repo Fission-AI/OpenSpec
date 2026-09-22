@@ -486,6 +486,59 @@ function isFallbackRenameCode(code: string | undefined): boolean {
   return code === 'EPERM' || code === 'EXDEV';
 }
 
+/**
+ * Every entry under `root`, deepest first, as paths relative to it.
+ *
+ * The listing is what bounds the removal below. Anything that appears after it
+ * is simply not in the set, so it cannot be deleted by the cleanup.
+ */
+async function listTreeEntriesDeepestFirst(
+  root: string
+): Promise<{ relative: string; isDirectory: boolean }[]> {
+  const entries: { relative: string; isDirectory: boolean }[] = [];
+  const visit = async (dir: string, relativeDir: string): Promise<void> => {
+    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      const relative = relativeDir === '' ? entry.name : path.join(relativeDir, entry.name);
+      if (entry.isDirectory()) {
+        await visit(path.join(dir, entry.name), relative);
+        entries.push({ relative, isDirectory: true });
+      } else {
+        entries.push({ relative, isDirectory: false });
+      }
+    }
+  };
+  await visit(root, '');
+  return entries;
+}
+
+/**
+ * Remove exactly the entries that were copied and verified, deepest first.
+ *
+ * The move is only safe to finish by deleting the source, and the source of the
+ * unstaged fallback is still the live change directory: the archive claim
+ * covers the destination, not it. A recursive remove would delete whatever is
+ * there at that moment, including a file a concurrent writer added after the
+ * final fingerprint - data that never reached the destination.
+ *
+ * Removing a named set instead means a late arrival is never in it. It is left
+ * on disk, and the `rmdir` of its parent fails with ENOTEMPTY, which the caller
+ * reports as a retained destination. The move does not complete silently.
+ */
+async function removeVerifiedTree(
+  root: string,
+  entries: { relative: string; isDirectory: boolean }[]
+): Promise<void> {
+  for (const entry of entries) {
+    const target = path.join(root, entry.relative);
+    if (entry.isDirectory) {
+      await fs.rmdir(target);
+    } else {
+      await fs.rm(target, { force: true });
+    }
+  }
+  await fs.rmdir(root);
+}
+
 async function copyThenRemoveDirectory(
   source: string,
   dest: string,
@@ -545,11 +598,14 @@ async function copyThenRemoveDirectory(
     throw verificationError;
   }
   try {
-    await fs.rm(source, { recursive: true, force: true });
+    // Bounded by a listing taken after the last verification, so only entries
+    // that were copied can be deleted. See removeVerifiedTree.
+    await removeVerifiedTree(source, await listTreeEntriesDeepestFirst(source));
   } catch (cleanupError) {
-    // Recursive removal may already have deleted part of the source. The
-    // destination is now the only complete copy, so never erase it while
-    // trying to make this failed move look atomic.
+    // Removal may already have deleted part of the source, or stopped on an
+    // entry that appeared after verification. The destination is now the only
+    // complete copy, so never erase it while trying to make this failed move
+    // look atomic.
     throw new MoveDestinationRetainedError(
       `Copied ${source} to ${dest}, but could not remove the source at ` +
         `${source} completely ` +
@@ -703,6 +759,12 @@ async function claimArchiveDestination(
 interface SpecSnapshot {
   target: string;
   existed: boolean;
+  /**
+   * Whether the target's parent directory existed before the mutation. An
+   * empty capability directory the user already had is not ours to delete on
+   * rollback, and removing it would drop its permissions and ACLs too.
+   */
+  parentExisted?: boolean;
   outcome: 'write' | 'retire';
   expectedContent?: Buffer;
   content?: Buffer;
@@ -892,6 +954,17 @@ async function assertDistinctMutationTargets(mutations: SpecMutation[]): Promise
   }
 }
 
+/** Whether `dir` is present, without distinguishing why it is not. */
+async function directoryExists(dir: string): Promise<boolean> {
+  try {
+    await fs.lstat(dir);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+    throw error;
+  }
+}
+
 async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnapshot[]> {
   return Promise.all(
     mutations.map(async ({ update, outcome, rebuilt }) => {
@@ -938,6 +1011,7 @@ async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnap
             target: update.target,
             existed: false,
             outcome,
+            parentExisted: await directoryExists(path.dirname(update.target)),
             ...(outcome === 'write' ? { expectedContent: Buffer.from(rebuilt) } : {}),
           };
         }
@@ -1041,7 +1115,11 @@ async function restoreSpecSnapshots(
 
       if (!snapshot.existed) {
         await fs.rm(snapshot.target, { force: true });
-        await pruneEmptyDirs(path.dirname(snapshot.target), mainSpecsDir);
+        // Only a capability directory this write created is ours to take back.
+        // One the user already had stays, empty or not, with its own mode.
+        if (snapshot.parentExisted === false) {
+          await pruneEmptyDirs(path.dirname(snapshot.target), mainSpecsDir);
+        }
         continue;
       }
       if (snapshot.symlink !== undefined) {

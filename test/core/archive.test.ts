@@ -6852,6 +6852,129 @@ The system SHALL capture write feedback.
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
 
+    it('keeps a file added after verification, and retains the destination', async () => {
+      // The unstaged fallback copies from the live change directory: the
+      // archive claim covers the destination, not the source. Cleanup must
+      // therefore delete only the entries it verified, never whatever happens
+      // to be there when it runs.
+      const changeName = 'eperm-late-write-preserved';
+      const changeDir = await createChange(
+        changeName,
+        'write-feedback',
+        `## ADDED Requirements
+
+### Requirement: Write feedback is captured
+The system SHALL capture write feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** write feedback arrives
+- **THEN** it is stored
+`
+      );
+      const lateFile = path.join(changeDir, 'late-arrival.md');
+
+      const realRename = fs.rename.bind(fs);
+      const realRmdir = fs.rmdir.bind(fs);
+      // archive works in realpaths, which on macOS carry a /private prefix the
+      // temp dir does not.
+      const resolvedChangeDir = await fs.realpath(changeDir);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (
+          String(source).endsWith(
+            `${path.sep}openspec${path.sep}changes${path.sep}${changeName}`
+          )
+        ) {
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      // Land the write in the window the listing has already closed: the
+      // verified entries are being removed, so the copy and both fingerprint
+      // checks are already behind us. rmdir of a subdirectory only happens
+      // inside that removal.
+      let arrived = false;
+      vi.spyOn(fs, 'rmdir').mockImplementation(async (target, options) => {
+        const t = String(target);
+        if (
+          !arrived &&
+          (t === resolvedChangeDir || t.startsWith(resolvedChangeDir + path.sep))
+        ) {
+          arrived = true;
+          await fs.writeFile(lateFile, 'Written while the move was finishing.\n');
+        }
+        return realRmdir(target, options);
+      });
+
+      await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+        /could not remove the source|retained for recovery/i
+      );
+
+      expect(arrived).toBe(true);
+      // The late write survives, and the complete copy is still there.
+      await expect(fs.readFile(lateFile, 'utf-8')).resolves.toContain(
+        'Written while the move was finishing.'
+      );
+      await expect(
+        fs.access(
+          path.join(
+            tempDir,
+            'openspec',
+            'changes',
+            'archive',
+            `${formatLocalDate()}-${changeName}`,
+            'specs',
+            'write-feedback',
+            'spec.md'
+          )
+        )
+      ).resolves.not.toThrow();
+    });
+
+    it('keeps a capability directory that already existed when a create is rolled back', async () => {
+      // Pruning is only ever taking back a directory this write created. One
+      // the user already had carries their own mode and ACLs.
+      const changeName = 'eperm-create-rollback-keeps-existing-dir';
+      await createChange(
+        changeName,
+        'write-feedback',
+        `## ADDED Requirements
+
+### Requirement: Write feedback is captured
+The system SHALL capture write feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** write feedback arrives
+- **THEN** it is stored
+`
+      );
+      const capabilityDir = path.join(tempDir, 'openspec', 'specs', 'write-feedback');
+      await fs.mkdir(capabilityDir, { recursive: true });
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const src = String(source);
+        const dest = String(destination);
+        if (src.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)) {
+          if (dest.includes(`${path.sep}.openspec-move-`)) {
+            throw Object.assign(new Error('staging denied'), { code: 'EACCES' });
+          }
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+        /Could not safely stage/
+      );
+
+      // The spec the rollback undid is gone; the directory the user had stays.
+      await expect(fs.access(path.join(capabilityDir, 'spec.md'))).rejects.toThrow();
+      await expect(fs.access(capabilityDir)).resolves.not.toThrow();
+    });
+
     it('archives via copy when EPERM prevents both dest rename and staging', async () => {
       const changeName = 'eperm-copy-without-staging';
       const changeDir = await createChange(
