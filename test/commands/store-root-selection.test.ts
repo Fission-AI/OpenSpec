@@ -674,7 +674,9 @@ operations:
       // relative to where the command ran, so it reads the same on Windows.
       expect(firstOutput).toContain('created at openspec/.');
       expect(firstOutput).toContain('openspec init');
-      expect(fs.existsSync(path.join(appRepo, 'openspec', 'changes', 'adopt-me'))).toBe(true);
+      expect(
+        fs.existsSync(path.join(appRepo, 'openspec', 'changes', 'proposed', 'adopt-me'))
+      ).toBe(true);
 
       // The root exists now, so the notice must not repeat on every change.
       const second = await runCLI(['new', 'change', 'already-adopted'], {
@@ -702,9 +704,11 @@ operations:
       expect(created.exitCode).toBe(0);
       expect(created.stdout + created.stderr).toContain('created at openspec/.');
 
-      expect(fs.existsSync(path.join(nested, 'openspec', 'changes', 'adopt-the-subdir'))).toBe(
-        true
-      );
+      expect(
+        fs.existsSync(
+          path.join(nested, 'openspec', 'changes', 'proposed', 'adopt-the-subdir')
+        )
+      ).toBe(true);
       expect(fs.existsSync(path.join(appRepo, 'openspec'))).toBe(false);
     });
 
