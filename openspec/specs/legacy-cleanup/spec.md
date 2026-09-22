@@ -32,6 +32,13 @@ The system SHALL detect legacy OpenSpec artifacts from previous init versions.
   - `.windsurf/workflows/openspec-*.md`
   - And equivalent directories for all tools in the legacy SlashCommandRegistry
 
+#### Scenario: Detecting legacy Kilo Code workflows
+
+- **WHEN** `.kilocode/workflows/` contains OpenSpec-managed `opsx-*.md` or `openspec-*.md` workflow files
+- **THEN** `openspec init` or legacy cleanup SHALL remove those files
+- **AND** Kilo Code commands SHALL be generated under `.kilo/command/`
+- **AND** `openspec update` SHALL NOT refresh files that remain only under `.kilocode/workflows/`
+
 #### Scenario: Detecting legacy OpenSpec structure files
 
 - **WHEN** running `openspec init` on an existing project
@@ -160,4 +167,3 @@ The system SHALL report what was cleaned up.
 - **WHEN** no legacy artifacts are found
 - **THEN** the system SHALL NOT display the cleanup section
 - **AND** proceed directly with skill setup
-

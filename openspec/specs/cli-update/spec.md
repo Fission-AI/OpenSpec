@@ -117,7 +117,7 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** skip creating missing files (the update command only refreshes what already exists)
 
 #### Scenario: Updating slash commands for Kilo Code
-- **WHEN** `.kilocode/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **WHEN** `.kilo/command/` contains OpenSpec-managed `opsx-*.md` command files for the configured profile
 - **THEN** refresh each file using shared templates wrapped in OpenSpec markers
 - **AND** ensure templates include instructions for the relevant workflow stage
 - **AND** skip creating missing files (the update command only refreshes what already exists)
