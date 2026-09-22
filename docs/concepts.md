@@ -341,6 +341,8 @@ Tasks are the **implementation checklist** — concrete steps with checkboxes.
 - Group related tasks under headings
 - Use hierarchical numbering (1.1, 1.2, etc.)
 - Keep tasks small enough to complete in one session
+- State how each task is verified (a test, command, or observable result)
+- Land each group's tests and documentation inside that group, not in a final catch-up group
 - Check tasks off as you complete them
 
 ## Delta Specs
