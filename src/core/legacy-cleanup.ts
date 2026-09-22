@@ -10,7 +10,7 @@ import type { FileHandle } from 'fs/promises';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
-import type { WorkflowId } from './profiles.js';
+import { ALL_WORKFLOWS, type WorkflowId } from './profiles.js';
 
 /**
  * Legacy config file names from the old ToolRegistry.
@@ -29,6 +29,14 @@ export const LEGACY_CONFIG_FILES = [
 
 /** The three commands the old SlashCommandRegistry wrote into each directory. */
 const LEGACY_DIRECTORY_COMMAND_FILES = ['proposal.md', 'apply.md', 'archive.md'] as const;
+
+/** Exact Kilo workflow files written by OpenSpec before the command path moved. */
+const LEGACY_KILOCODE_COMMAND_FILES = [
+  ...ALL_WORKFLOWS.map(workflow => `.kilocode/workflows/opsx-${workflow}.md`),
+  '.kilocode/workflows/openspec-proposal.md',
+  '.kilocode/workflows/openspec-apply.md',
+  '.kilocode/workflows/openspec-archive.md',
+];
 
 /**
  * Legacy slash command patterns from the old SlashCommandRegistry.
@@ -55,7 +63,12 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   // belong to `devin` — the id Windsurf became. Only `.windsurf/` is listed:
   // `.devin/` postdates the opsx rename and never held `openspec-*` files.
   'devin': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
-  'kilocode': { type: 'files', pattern: '.kilocode/workflows/openspec-*.md' },
+  // Kilo now writes commands under `.kilo/command/`. Clean up both generations
+  // of OpenSpec workflows from Kilo's legacy `.kilocode/workflows/` folder.
+  'kilocode': {
+    type: 'files',
+    pattern: LEGACY_KILOCODE_COMMAND_FILES,
+  },
   'kiro': { type: 'files', pattern: '.kiro/prompts/openspec-*.prompt.md' },
   'github-copilot': { type: 'files', pattern: '.github/prompts/openspec-*.prompt.md' },
   'amazon-q': { type: 'files', pattern: '.amazonq/prompts/openspec-*.md' },
