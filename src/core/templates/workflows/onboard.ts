@@ -465,12 +465,17 @@ Here are the implementation tasks:
 
 ---
 
-Each checkbox becomes a unit of work in the apply phase. Ready to implement?
+Each checkbox becomes a unit of work in the apply phase. Does this task breakdown look right?
 \`\`\`
 
-**PAUSE** - Wait for user to confirm they're ready to implement.
+**PAUSE** - Wait for user approval/feedback.
 
-Save to the \`resolvedOutputPath\` from \`openspec instructions tasks --change "<name>" --json\`.
+After approval, save to the \`resolvedOutputPath\` from \`openspec instructions tasks --change "<name>" --json\`.
+
+Then ask:
+> "Tasks are saved. Ready to implement?"
+
+**PAUSE** - Wait for user to confirm before implementation.
 
 ---
 

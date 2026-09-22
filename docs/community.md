@@ -6,7 +6,7 @@ Listed projects are maintained independently. Inclusion does not imply official 
 
 ## Projects and resources
 
-- **[OpenSpec UI](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: A standalone web dashboard and VS Code extension for browsing OpenSpec changes, archives, specs, and tasks.
+- **[OpenSpec Workbench](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: Running and supervising agents on OpenSpec changes.
 
 ## Add your project
 
