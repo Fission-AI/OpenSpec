@@ -156,6 +156,51 @@ function hash(value: string): string {
 }
 
 describe('skill templates split parity', () => {
+  it('uses one clarification threshold in fast-forward guidance (#1837)', () => {
+    const variants: Array<[string, string]> = [
+      ['ff skill', getFfChangeSkillTemplate().instructions],
+      ['ff command', getOpsxFfCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain(
+        '**If an artifact requires user input** (critically unclear context)'
+      );
+      expect(content, variant).not.toContain(
+        '**If an artifact requires user input** (unclear context)'
+      );
+    }
+  });
+
+  it('approves onboarding tasks before saving or offering implementation (#1837)', () => {
+    const variants: Array<[string, string]> = [
+      ['onboard skill', getOnboardSkillTemplate().instructions],
+      ['onboard command', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain('Does this task breakdown look right?');
+      expect(content, variant).not.toContain(
+        'Each checkbox becomes a unit of work in the apply phase. Ready to implement?'
+      );
+      expect(content, variant).toContain(
+        '**PAUSE** - Wait for user approval/feedback.\n\n' +
+        'After approval, save to the `resolvedOutputPath` from `openspec instructions tasks --change "<name>" --json`.'
+      );
+      expect(content, variant).toContain('> "Tasks are saved. Ready to implement?"');
+      expect(content, variant).toContain(
+        '**PAUSE** - Wait for user to confirm before implementation.'
+      );
+
+      const saveAt = content.indexOf('After approval, save to the `resolvedOutputPath`');
+      const implementationChoiceAt = content.indexOf('> "Tasks are saved. Ready to implement?"');
+      const implementationAt = content.indexOf('## Phase 9: Apply (Implementation)');
+      expect(saveAt, variant).toBeGreaterThanOrEqual(0);
+      expect(implementationChoiceAt, variant).toBeGreaterThan(saveAt);
+      expect(implementationAt, variant).toBeGreaterThan(implementationChoiceAt);
+    }
+  });
+
   it('preserves all template function payloads exactly', () => {
     const functionFactories: Record<string, () => unknown> = {
       getExploreSkillTemplate,
