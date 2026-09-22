@@ -80,20 +80,20 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getNewChangeSkillTemplate: '0e5035b7b42198afc430206a1dbc9579096650ef0813d85e837d5a6cd0b98a85',
   getContinueChangeSkillTemplate: '550dc22bc8e0921b1ca5cef867379c4f370c5f1902c420bf9fa3bbfa75cea933',
   getApplyChangeSkillTemplate: '04ae407c97b5f9cb0cc15199fe877ccc7cd1eff78bfe10ad70c16a112b10a661',
-  getFfChangeSkillTemplate: '6fb5492e78b9ceec068949080ec9f2e0d2a8baff75a2fe33d07ad33ffe542b65',
+  getFfChangeSkillTemplate: 'd091600476a815ba99f69b446bcd46af5bf73d1c2810215a0c6196937d019cf6',
   getSyncSpecsSkillTemplate: 'bc80fe9b07eaa289e5eb8a3ce65eb7df722a16d864e37283c678220712e4f230',
-  getOnboardSkillTemplate: '7d92756ffc0b30053838716005610daf3f65c3fa011f3f4d29b6488f303f9cfb',
+  getOnboardSkillTemplate: '8f4bb13c097c7c2dfca714c3f51765039008d87f844e62186e066bebd7637376',
   getOpsxExploreCommandTemplate: 'f6cf22825643281d653355745623a6c1a4566db46cc2f262d2282243c6d8169a',
   getOpsxNewCommandTemplate: '6d504fef1e0d4ced7c423f4cc9d9d2cee11b1a6224edf685e06a3f0757e0ebff',
   getOpsxContinueCommandTemplate: 'ace5c9cc239c12b57dc86fd9a1c02a6ca467cb8e1245127340c07ab1b9d37c11',
   getOpsxApplyCommandTemplate: 'd70cecce3b7d1dd4dbd5fd1fc2bccb538f5e61f5b43d520e4beca896e3f9e6b3',
-  getOpsxFfCommandTemplate: '04cb49b0bf3ebe364b45268a283564ee4fd50b78b01ec1d3f975bcae68179d2d',
+  getOpsxFfCommandTemplate: '743a7304c7efc84aa87f556154c034e1e0e561c276c51870a30ada58f33eb9af',
   getArchiveChangeSkillTemplate: '8447a2489240bf0c27f863065d61453dd0264842d1dabafe27b577d6bff96eb3',
   getBulkArchiveChangeSkillTemplate: 'f17399959921ff98c7798e4591c8888825b7c9a83b0a90f09d98c7e0984ab793',
   getOpsxSyncCommandTemplate: '60550b7bb9829421656d6324a9e4c951bc912f48f88882d1a07ce7f78397a5e7',
   getVerifyChangeSkillTemplate: '2e069a277dac23818b13bb50b66e806ab405bc3b7f535400e1ebf81b84153699',
   getOpsxArchiveCommandTemplate: '980109e5f8362610872c70fe0a0f1d48d3d2692275b2b17e2f4c91c3de89c2fd',
-  getOpsxOnboardCommandTemplate: '9cad751f7b938eea039b0ba207247776269c81bec5923eb335bee468f515f244',
+  getOpsxOnboardCommandTemplate: '35332b79e943daefd4118513f03dc48926267af60348f781b8d92bbe5086a986',
   getOpsxBulkArchiveCommandTemplate: '3db03eadb764abd74c8c180656c3f64a8b9a4971056c91624d38df3209d7b446',
   getOpsxVerifyCommandTemplate: '938f52f20fb9a3b811ea47314baac1034cd550e8ab363ae878ccba4b6329348f',
   getOpsxProposeSkillTemplate: '1aa2f2eb9c8cbc4dcab9d777bf8832b92ca04f9ef91d0494f1224a566aefdfe8',
@@ -108,12 +108,12 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-new-change': '27e09d43785953827efc9a98bb9d6cf06db48fe6abe7e1c049409fe5b5061323',
   'openspec-continue-change': '182f015de6a1a114c79a6106c0565fd71f368d629641d0ad088de54bd871b52f',
   'openspec-apply-change': 'f3e92c229fab8d77df9f0a77dcb117cf46279b53a208d53aed89bfe0bab2ac09',
-  'openspec-ff-change': '8ffad1b1a2deea5f097eb7294fb8b9474d5dfb1c31ee2fd3311d9a9d78259323',
+  'openspec-ff-change': 'a7ab656d46f04d45dff0c8888df4a126a2e62288b7336f7445bce4d1715055f5',
   'openspec-sync-specs': '3909936a236a21a9a6d5bf495f90b396b3b68fc9220d7b2c1894668653beb2e4',
   'openspec-archive-change': '305a21a9c76a925055f3bdbaac504f208660ef6948d78f73928de166250609bf',
   'openspec-bulk-archive-change': '4bd638a50111d2ee3a667752a2355ed513f770695b137b93fc28848ca7bf60d2',
   'openspec-verify-change': 'ad8a3098bd27d852721687c47a12db7107ed8b8dfc7f071406bb19961652e7ee',
-  'openspec-onboard': 'd4c5f3e24c19c8e389950544ea0d1844027753def14748c9684210ae4c6cd5e5',
+  'openspec-onboard': '526bb7f9b8ceb8670b600ce33b0a62fe268393b7e778e120c796316da3a3cc3d',
   'openspec-propose': '66e3395adf9f2d93a09e8ef1d20e4efb010e5e8d4811f2d42a9316e4d1ca5a8b',
   'openspec-update-change': '19163b8c1b40ccdc0840019aa8005877a90a3a1cd9f7aadb87f76ccce1342f19',
 };
@@ -156,6 +156,51 @@ function hash(value: string): string {
 }
 
 describe('skill templates split parity', () => {
+  it('uses one clarification threshold in fast-forward guidance (#1837)', () => {
+    const variants: Array<[string, string]> = [
+      ['ff skill', getFfChangeSkillTemplate().instructions],
+      ['ff command', getOpsxFfCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain(
+        '**If an artifact requires user input** (critically unclear context)'
+      );
+      expect(content, variant).not.toContain(
+        '**If an artifact requires user input** (unclear context)'
+      );
+    }
+  });
+
+  it('approves onboarding tasks before saving or offering implementation (#1837)', () => {
+    const variants: Array<[string, string]> = [
+      ['onboard skill', getOnboardSkillTemplate().instructions],
+      ['onboard command', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [variant, content] of variants) {
+      expect(content, variant).toContain('Does this task breakdown look right?');
+      expect(content, variant).not.toContain(
+        'Each checkbox becomes a unit of work in the apply phase. Ready to implement?'
+      );
+      expect(content, variant).toContain(
+        '**PAUSE** - Wait for user approval/feedback.\n\n' +
+        'After approval, save to the `resolvedOutputPath` from `openspec instructions tasks --change "<name>" --json`.'
+      );
+      expect(content, variant).toContain('> "Tasks are saved. Ready to implement?"');
+      expect(content, variant).toContain(
+        '**PAUSE** - Wait for user to confirm before implementation.'
+      );
+
+      const saveAt = content.indexOf('After approval, save to the `resolvedOutputPath`');
+      const implementationChoiceAt = content.indexOf('> "Tasks are saved. Ready to implement?"');
+      const implementationAt = content.indexOf('## Phase 9: Apply (Implementation)');
+      expect(saveAt, variant).toBeGreaterThanOrEqual(0);
+      expect(implementationChoiceAt, variant).toBeGreaterThan(saveAt);
+      expect(implementationAt, variant).toBeGreaterThan(implementationChoiceAt);
+    }
+  });
+
   it('preserves all template function payloads exactly', () => {
     const functionFactories: Record<string, () => unknown> = {
       getExploreSkillTemplate,
