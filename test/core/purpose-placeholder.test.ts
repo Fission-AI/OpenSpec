@@ -181,6 +181,26 @@ describe('findPurposePlaceholderIssue', () => {
       expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).not.toBeNull();
     });
 
+    it('still reports a shouted TODO opening placeholder prose without punctuation', () => {
+      // Case is what separates the marker from the Spanish word. In capitals
+      // it is the marker whatever follows it, so requiring punctuation must
+      // not let the plainest unwritten Purpose of all through.
+      for (const purpose of [
+        'TODO write this once the capability settles down.',
+        'TBD pending the design review that has not happened yet.',
+      ]) {
+        expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).not.toBeNull();
+      }
+    });
+
+    it('does not report lowercase Spanish prose either', () => {
+      // The reporter is the capitals, not the position: `todo` uncapitalised
+      // opens a sentence just as often, and is just as much authored prose.
+      const purpose =
+        'todo el conocimiento del producto vive del otro lado, en el repo hermano.';
+      expect(findPurposePlaceholderIssue(purpose, specWith(purpose))).toBeNull();
+    });
+
     it('does not report an ordinary short Purpose, which PURPOSE_TOO_BRIEF covers', () => {
       expect(findPurposePlaceholderIssue('Does stuff.', specWith('Does stuff.'))).toBeNull();
     });
