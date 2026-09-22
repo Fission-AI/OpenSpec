@@ -56,7 +56,7 @@ describe('published schema reference', () => {
   it('keeps the tasks guidance on the published page (#1952)', () => {
     const doc = fs.readFileSync(DOC_PATH, 'utf-8').replace(/\r\n?/g, '\n');
     expect(doc).toContain(
-      'Each task group MUST land its own tests and documentation updates'
+      'Each task group MUST land the tests and documentation its own work'
     );
     expect(doc).toContain('Each task MUST state how to verify completion');
   });

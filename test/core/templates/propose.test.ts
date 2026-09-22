@@ -114,13 +114,19 @@ describe('default task guidance', () => {
     const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
     expect(tasks).toBeDefined();
     expect(tasks!.instruction).toMatch(
-      /Each task group MUST land its own tests and documentation updates for\s+the work that group does/
+      /Each task group MUST land the tests and documentation its own work\s+calls for/
     );
     expect(tasks!.instruction).toMatch(
-      /Do NOT collect testing or documentation into\s+a final group/
+      /Do NOT collect testing or documentation into a final group/
+    );
+    // The rule is scoped to what a group's work actually needs, so the worked
+    // example's scaffolding group can carry no tests or docs without
+    // contradicting it.
+    expect(tasks!.instruction).toMatch(
+      /A group\s+whose work calls for neither, such as scaffolding or dependency setup,\s+carries neither/
     );
     expect(tasks!.instruction).toMatch(
-      /A final group is for integration checks only, not for the tests\s+and docs an earlier group owed/
+      /A final group is for integration checks only, not for\s+the tests and docs an earlier group owed/
     );
 
     // The worked example has to show a docs task inside the implementation

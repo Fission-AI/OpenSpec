@@ -210,12 +210,13 @@ artifacts:
         that task's checkbox description. Use a separate verification task only
         when it checks broader integration or system behavior that spans
         multiple implementation tasks.
-      - Each task group MUST land its own tests and documentation updates for
-        the work that group does. Do NOT collect testing or documentation into
-        a final group - when a late group first exercises work from an early
-        one, the failures cascade back through every group in between and force
-        rework. A final group is for integration checks only, not for the tests
-        and docs an earlier group owed.
+      - Each task group MUST land the tests and documentation its own work
+        calls for. Do NOT collect testing or documentation into a final group -
+        when a late group first exercises work from an early one, the failures
+        cascade back through every group in between and force rework. A group
+        whose work calls for neither, such as scaffolding or dependency setup,
+        carries neither. A final group is for integration checks only, not for
+        the tests and docs an earlier group owed.
 
       Example:
       ```
