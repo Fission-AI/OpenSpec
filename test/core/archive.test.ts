@@ -6975,6 +6975,51 @@ The system SHALL capture write feedback.
       await expect(fs.access(capabilityDir)).resolves.not.toThrow();
     });
 
+    it('keeps a pre-existing ancestor when a nested capability create is rolled back', async () => {
+      // `platform/` already existed and `platform/session-layout/` did not.
+      // Only the leaf is ours to take back; walking up to the specs root would
+      // delete the user's directory too.
+      const changeName = 'eperm-nested-rollback-keeps-ancestor';
+      await createChange(
+        changeName,
+        'platform/session-layout',
+        `## ADDED Requirements
+
+### Requirement: Session layout is described
+The system SHALL describe the session layout.
+
+#### Scenario: Layout is read
+- **WHEN** the layout is requested
+- **THEN** it is returned
+`
+      );
+      const ancestorDir = path.join(tempDir, 'openspec', 'specs', 'platform');
+      const capabilityDir = path.join(ancestorDir, 'session-layout');
+      await fs.mkdir(ancestorDir, { recursive: true });
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const src = String(source);
+        const dest = String(destination);
+        if (src.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)) {
+          if (dest.includes(`${path.sep}.openspec-move-`)) {
+            throw Object.assign(new Error('staging denied'), { code: 'EACCES' });
+          }
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+        /Could not safely stage/
+      );
+
+      // The leaf this write created is gone; the ancestor the user had stays.
+      await expect(fs.access(capabilityDir)).rejects.toThrow();
+      await expect(fs.access(ancestorDir)).resolves.not.toThrow();
+    });
+
     it('archives via copy when EPERM prevents both dest rename and staging', async () => {
       const changeName = 'eperm-copy-without-staging';
       const changeDir = await createChange(

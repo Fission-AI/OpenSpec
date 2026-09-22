@@ -523,6 +523,13 @@ async function listTreeEntriesDeepestFirst(
  * Removing a named set instead means a late arrival is never in it. It is left
  * on disk, and the `rmdir` of its parent fails with ENOTEMPTY, which the caller
  * reports as a retained destination. The move does not complete silently.
+ *
+ * `entries` must be listed before the final fingerprint, so that an arrival is
+ * either caught by that fingerprint or absent from the set. What this cannot
+ * cover is an edit to a file that is already in the set: the copy holds the
+ * content as of the fingerprint, and the newer bytes go with the source. That
+ * window is the one the staging rename closes, and is why staging is still
+ * preferred whenever the rename is permitted at all.
  */
 async function removeVerifiedTree(
   root: string,
@@ -579,7 +586,13 @@ async function copyThenRemoveDirectory(
     }
     throw copyError;
   }
+  let verifiedEntries: { relative: string; isDirectory: boolean }[];
   try {
+    // Listed before the verification, not after it. A file that arrives before
+    // the fingerprint changes it and aborts the move; one that arrives after is
+    // not in this set. Listing afterwards would leave a window in which an
+    // arrival is both unverified and deletable.
+    verifiedEntries = await listTreeEntriesDeepestFirst(source);
     await options.verifyCopiedDestination?.(source);
     await assertCopiedDirectoryUnchanged(source, dest, sourceFingerprint);
   } catch (verificationError) {
@@ -598,9 +611,7 @@ async function copyThenRemoveDirectory(
     throw verificationError;
   }
   try {
-    // Bounded by a listing taken after the last verification, so only entries
-    // that were copied can be deleted. See removeVerifiedTree.
-    await removeVerifiedTree(source, await listTreeEntriesDeepestFirst(source));
+    await removeVerifiedTree(source, verifiedEntries);
   } catch (cleanupError) {
     // Removal may already have deleted part of the source, or stopped on an
     // entry that appeared after verification. The destination is now the only
@@ -760,11 +771,13 @@ interface SpecSnapshot {
   target: string;
   existed: boolean;
   /**
-   * Whether the target's parent directory existed before the mutation. An
-   * empty capability directory the user already had is not ours to delete on
-   * rollback, and removing it would drop its permissions and ACLs too.
+   * The deepest directory at or above the target's parent that already existed
+   * before the mutation. Rollback prunes up to but never past it, so a
+   * capability directory the user already had keeps its permissions and ACLs -
+   * including an intermediate one under a nested capability id, where only the
+   * leaf was created by this write.
    */
-  parentExisted?: boolean;
+  pruneBoundary?: string;
   outcome: 'write' | 'retire';
   expectedContent?: Buffer;
   content?: Buffer;
@@ -954,18 +967,31 @@ async function assertDistinctMutationTargets(mutations: SpecMutation[]): Promise
   }
 }
 
-/** Whether `dir` is present, without distinguishing why it is not. */
-async function directoryExists(dir: string): Promise<boolean> {
-  try {
-    await fs.lstat(dir);
-    return true;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
-    throw error;
+/**
+ * The deepest directory at or above `dir` that exists, never going above
+ * `boundaryDir`. Used as the floor for a rollback prune: everything below it
+ * was created by the write being undone, and it was not.
+ */
+async function deepestExistingAncestor(dir: string, boundaryDir: string): Promise<string> {
+  let current = dir;
+  for (;;) {
+    if (current === boundaryDir || !current.startsWith(boundaryDir + path.sep)) {
+      return boundaryDir;
+    }
+    try {
+      await fs.lstat(current);
+      return current;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    current = path.dirname(current);
   }
 }
 
-async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnapshot[]> {
+async function captureSpecSnapshots(
+  mutations: SpecMutation[],
+  mainSpecsDir: string
+): Promise<SpecSnapshot[]> {
   return Promise.all(
     mutations.map(async ({ update, outcome, rebuilt }) => {
       try {
@@ -1011,7 +1037,10 @@ async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnap
             target: update.target,
             existed: false,
             outcome,
-            parentExisted: await directoryExists(path.dirname(update.target)),
+            pruneBoundary: await deepestExistingAncestor(
+              path.dirname(update.target),
+              mainSpecsDir
+            ),
             ...(outcome === 'write' ? { expectedContent: Buffer.from(rebuilt) } : {}),
           };
         }
@@ -1116,10 +1145,12 @@ async function restoreSpecSnapshots(
       if (!snapshot.existed) {
         await fs.rm(snapshot.target, { force: true });
         // Only a capability directory this write created is ours to take back.
-        // One the user already had stays, empty or not, with its own mode.
-        if (snapshot.parentExisted === false) {
-          await pruneEmptyDirs(path.dirname(snapshot.target), mainSpecsDir);
-        }
+        // One the user already had stays, empty or not, with its own mode -
+        // pruneEmptyDirs never removes its boundary.
+        await pruneEmptyDirs(
+          path.dirname(snapshot.target),
+          snapshot.pruneBoundary ?? mainSpecsDir
+        );
         continue;
       }
       if (snapshot.symlink !== undefined) {
@@ -1868,7 +1899,7 @@ export class ArchiveCommand {
               );
             }
           }
-          const specSnapshots = await captureSpecSnapshots(mutations);
+          const specSnapshots = await captureSpecSnapshots(mutations, mainSpecsDir);
           const specSnapshotsByTarget = new Map(
             specSnapshots.map((snapshot) => [snapshot.target, snapshot])
           );
