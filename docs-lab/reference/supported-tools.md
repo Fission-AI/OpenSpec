@@ -102,8 +102,13 @@ Skills stay in `.cline/skills/`.
 
 ### GitHub Copilot
 
-Prompt files register as slash commands in the Copilot IDE extensions (VS Code,
-JetBrains, Visual Studio). Copilot CLI does not read `.github/prompts/`.
+- **IDE extensions (command delivery)**: VS Code, JetBrains, and Visual Studio load
+  `.github/prompts/opsx-<id>.prompt.md` as `/opsx-<id>`. If a command disappears
+  while its file still exists, restart the IDE.
+- **Copilot CLI (skill delivery)**: the CLI ignores `.github/prompts/` and loads
+  `.github/skills/openspec-*/SKILL.md` instead. Invoke a skill as
+  `/openspec-<skill>`. If a skill disappears while its file still exists, run
+  `/skills reload`, then `/skills info openspec-propose` to confirm discovery.
 
 ### Hermes Agent
 
