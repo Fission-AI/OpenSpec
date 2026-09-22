@@ -234,19 +234,24 @@ ${PROJECT_ROOT_GUARD}
 
    c. **Perform the archive**:
 
-      Target name: use the \`<target-name>\` recorded for this change in step 3d, unchanged. Never recompute it here: a batch that runs past midnight would check one date in step 3 and move to another.
-
-      **Check if target already exists:**
-      - Check again immediately before the move, even though step 3 already checked: the target can appear mid-batch
-      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, report any main specs step 8a already synced for it, and continue with the remaining changes
-      - If no: move \`changeRoot\` to the archive directory
-
+      After that change's sync verification succeeds (or it has no included
+      deltas to sync), run the CLI with the same selected-root flags:
       \`\`\`bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
+      openspec archive "<name>" --skip-specs --yes --json
       \`\`\`
+      The CLI handles the archive lock and destination-collision checks.
+      \`--yes\` carries the batch confirmation already obtained in step 7.
+      \`--skip-specs\` prevents a second merge, including accidentally applying
+      \`excludedDeltas\` that this batch deliberately left unsynced.
 
-      **Confirm the move did not nest:** \`mv\` exits 0 even when the target appeared after the check, moving the change *inside* it. If \`<planningHome.changesDir>/archive/<target-name>/<change-directory-name>\` now exists (the last path segment of \`changeRoot\`), move that directory back to \`changeRoot\` and record this change as Failed with \`Archive directory already exists\`. Never report it as archived.
+      Require a zero exit status and an \`archive\` result for this change before
+      recording success. On failure, record the diagnostics and continue with the
+      remaining confirmed changes. Do not fall back to a shell move or bypass
+      validation; an existing archive must remain intact.
+
+      The CLI derives \`<target-name>\`: it keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Record the returned \`archive.path\`.
+      Preserve the earlier per-delta sync outcomes; \`archive.specsUpdated\` is
+      false for this move-only invocation, not evidence that inline sync was skipped.
 
    d. **Track outcome** for each change:
       - Success: archived successfully
@@ -593,19 +598,24 @@ ${PROJECT_ROOT_GUARD}
 
    c. **Perform the archive**:
 
-      Target name: use the \`<target-name>\` recorded for this change in step 3d, unchanged. Never recompute it here: a batch that runs past midnight would check one date in step 3 and move to another.
-
-      **Check if target already exists:**
-      - Check again immediately before the move, even though step 3 already checked: the target can appear mid-batch
-      - If yes: record this change as Failed with \`Archive directory already exists\`, leave \`changeRoot\` where it is, report any main specs step 8a already synced for it, and continue with the remaining changes
-      - If no: move \`changeRoot\` to the archive directory
-
+      After that change's sync verification succeeds (or it has no included
+      deltas to sync), run the CLI with the same selected-root flags:
       \`\`\`bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
+      openspec archive "<name>" --skip-specs --yes --json
       \`\`\`
+      The CLI handles the archive lock and destination-collision checks.
+      \`--yes\` carries the batch confirmation already obtained in step 7.
+      \`--skip-specs\` prevents a second merge, including accidentally applying
+      \`excludedDeltas\` that this batch deliberately left unsynced.
 
-      **Confirm the move did not nest:** \`mv\` exits 0 even when the target appeared after the check, moving the change *inside* it. If \`<planningHome.changesDir>/archive/<target-name>/<change-directory-name>\` now exists (the last path segment of \`changeRoot\`), move that directory back to \`changeRoot\` and record this change as Failed with \`Archive directory already exists\`. Never report it as archived.
+      Require a zero exit status and an \`archive\` result for this change before
+      recording success. On failure, record the diagnostics and continue with the
+      remaining confirmed changes. Do not fall back to a shell move or bypass
+      validation; an existing archive must remain intact.
+
+      The CLI derives \`<target-name>\`: it keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Record the returned \`archive.path\`.
+      Preserve the earlier per-delta sync outcomes; \`archive.specsUpdated\` is
+      false for this move-only invocation, not evidence that inline sync was skipped.
 
    d. **Track outcome** for each change:
       - Success: archived successfully
