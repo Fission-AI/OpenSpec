@@ -49,6 +49,7 @@ export const COMMAND_IDS = [
   'archive',
   'bulk-archive',
   'verify',
+  'review',
   'onboard',
   'propose',
 ] as const;
