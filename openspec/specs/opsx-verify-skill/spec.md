@@ -35,9 +35,10 @@ The agent SHALL verify that all required work has been completed.
 #### Scenario: Spec coverage check
 - **WHEN** verifying completeness
 - **AND** delta specs exist in `openspec/changes/<name>/specs/`
-- **THEN** the agent extracts all requirements from delta specs
-- **AND** searches codebase for implementation of each requirement
-- **AND** reports which requirements appear to have implementation vs which are missing
+- **THEN** the agent extracts all requirements from delta specs, noting the delta section each one sits under
+- **AND** searches codebase for implementation of each ADDED or MODIFIED requirement
+- **AND** reports which ADDED or MODIFIED requirements appear to have implementation vs which are missing
+- **AND** checks REMOVED and RENAMED requirements as described in the Removed requirement and Renamed requirement scenarios
 
 #### Scenario: All tasks complete
 - **WHEN** all tasks are marked complete
@@ -56,14 +57,14 @@ The agent SHALL verify that implementation matches the specifications.
 
 #### Scenario: Requirement implementation mapping
 - **WHEN** verifying correctness
-- **THEN** for each requirement in delta specs:
+- **THEN** for each ADDED or MODIFIED requirement in delta specs:
   - Search codebase for implementation
   - Identify relevant files and line numbers
   - Assess whether implementation satisfies the requirement
 
 #### Scenario: Scenario coverage check
 - **WHEN** verifying correctness
-- **THEN** for each scenario in delta specs:
+- **THEN** for each scenario under an ADDED or MODIFIED requirement in delta specs:
   - Check if the scenario's conditions are handled in code
   - Check if tests exist that cover the scenario
   - Report coverage status
