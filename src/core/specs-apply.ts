@@ -1191,7 +1191,7 @@ async function isInsideRealDir(realPath: string, dir: string): Promise<boolean> 
  * needs fd-relative syscalls Node does not expose, and it requires local write
  * access to `openspec/specs` during an archive.
  */
-async function pruneEmptyDirs(startDir: string, boundaryDir: string): Promise<void> {
+export async function pruneEmptyDirs(startDir: string, boundaryDir: string): Promise<void> {
   let boundary: string;
   try {
     boundary = await fs.realpath(boundaryDir);
