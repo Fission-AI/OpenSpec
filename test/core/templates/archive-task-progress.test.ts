@@ -3,20 +3,33 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  getArchiveChangeSkillTemplate,
-  getBulkArchiveChangeSkillTemplate,
-  getOpsxArchiveCommandTemplate,
-  getOpsxBulkArchiveCommandTemplate,
-} from '../../../src/core/templates/skill-templates.js';
-import { generateSkillContent } from '../../../src/core/shared/skill-generation.js';
+  generateSkillContent,
+  getCommandTemplates,
+  getSkillTemplates,
+} from '../../../src/core/shared/skill-generation.js';
 import { getGlobalDataDir, registerStore } from '../../../src/core/index.js';
 import { runCLI } from '../../helpers/run-cli.js';
 
+// Go through getSkillTemplates/getCommandTemplates rather than the raw
+// templates: these workflows carry optional-workflow blocks, and only these
+// entry points resolve them against an installed set. Building from the raw
+// template leaves `[[opsx:if-workflow ...]]` in the text, which skill
+// generation rejects. The set names sync so the installed branch is chosen,
+// which is the wording these assertions are about.
+const WORKFLOWS = ['archive', 'bulk-archive', 'sync'];
+const skill = (workflowId: string): string =>
+  generateSkillContent(
+    getSkillTemplates(WORKFLOWS).find((entry) => entry.workflowId === workflowId)!.template,
+    'test'
+  );
+const command = (id: string): string =>
+  getCommandTemplates(WORKFLOWS).find((entry) => entry.id === id)!.template.content;
+
 const surfaces = [
-  ['archive skill', generateSkillContent(getArchiveChangeSkillTemplate(), 'test')],
-  ['archive command', getOpsxArchiveCommandTemplate().content],
-  ['bulk archive skill', generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'test')],
-  ['bulk archive command', getOpsxBulkArchiveCommandTemplate().content],
+  ['archive skill', skill('archive')],
+  ['archive command', command('archive')],
+  ['bulk archive skill', skill('bulk-archive')],
+  ['bulk archive command', command('bulk-archive')],
 ] as const;
 
 describe('archive task discovery uses schema-resolved CLI progress', () => {
