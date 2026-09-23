@@ -75,18 +75,25 @@ ${PROJECT_ROOT_GUARD}
 
    **Spec Coverage**:
    - If delta specs exist in \`contextFiles.specs\`:
-     - Extract all requirements (marked with "### Requirement:")
-     - For each requirement:
+     - Extract all requirements (marked with "### Requirement:") and note the delta section each one sits under: \`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\`, or \`## RENAMED Requirements\`. The section decides what the check looks for.
+     - For each ADDED or MODIFIED requirement (for MODIFIED, check the text in the delta, not the old wording):
        - Search codebase for keywords related to the requirement
        - Assess if implementation likely exists
-     - If requirements appear unimplemented:
+     - If ADDED or MODIFIED requirements appear unimplemented:
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
+     - For each REMOVED requirement, the change asks for the behavior to be gone, so invert the check:
+       - Search codebase for the removed behavior
+       - Finding no implementation is the expected result. Never report a REMOVED requirement as "Requirement not found" or recommend implementing it.
+       - If the behavior is still present:
+         - Add CRITICAL issue: "Removed requirement still implemented: <requirement name>"
+         - Recommendation: "Remove the remaining implementation at <file>:<lines>, following the requirement's Migration note if it has one"
+     - A RENAMED entry (\`FROM:\`/\`TO:\`) changes only a name. Do not report the FROM name as missing. If the renamed requirement's behavior also changes, it appears under MODIFIED with its TO name and is checked there.
 
 6. **Verify Correctness**
 
    **Requirement Implementation Mapping**:
-   - For each requirement from delta specs:
+   - For each ADDED or MODIFIED requirement from delta specs (REMOVED and RENAMED entries were settled under Spec Coverage):
      - Search codebase for implementation evidence
      - If found, note file paths and line ranges
      - Assess if implementation matches requirement intent
@@ -95,12 +102,13 @@ ${PROJECT_ROOT_GUARD}
        - Recommendation: "Review <file>:<lines> against requirement X"
 
    **Scenario Coverage**:
-   - For each scenario in delta specs (marked with "#### Scenario:"):
+   - For each scenario under an ADDED or MODIFIED requirement in delta specs (marked with "#### Scenario:"):
      - Check if conditions are handled in code
      - Check if tests exist covering the scenario
      - If scenario appears uncovered:
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
+   - Skip scenarios under a REMOVED requirement; that behavior is meant to be gone.
 
 7. **Verify Coherence**
 
@@ -139,6 +147,7 @@ ${PROJECT_ROOT_GUARD}
    1. **CRITICAL** (Must fix before archive):
       - Incomplete tasks
       - Missing requirement implementations
+      - Removed requirements still implemented
       - Each with specific, actionable recommendation
 
    2. **WARNING** (Should fix):
@@ -254,18 +263,25 @@ ${PROJECT_ROOT_GUARD}
 
    **Spec Coverage**:
    - If delta specs exist in \`contextFiles.specs\`:
-     - Extract all requirements (marked with "### Requirement:")
-     - For each requirement:
+     - Extract all requirements (marked with "### Requirement:") and note the delta section each one sits under: \`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\`, or \`## RENAMED Requirements\`. The section decides what the check looks for.
+     - For each ADDED or MODIFIED requirement (for MODIFIED, check the text in the delta, not the old wording):
        - Search codebase for keywords related to the requirement
        - Assess if implementation likely exists
-     - If requirements appear unimplemented:
+     - If ADDED or MODIFIED requirements appear unimplemented:
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
+     - For each REMOVED requirement, the change asks for the behavior to be gone, so invert the check:
+       - Search codebase for the removed behavior
+       - Finding no implementation is the expected result. Never report a REMOVED requirement as "Requirement not found" or recommend implementing it.
+       - If the behavior is still present:
+         - Add CRITICAL issue: "Removed requirement still implemented: <requirement name>"
+         - Recommendation: "Remove the remaining implementation at <file>:<lines>, following the requirement's Migration note if it has one"
+     - A RENAMED entry (\`FROM:\`/\`TO:\`) changes only a name. Do not report the FROM name as missing. If the renamed requirement's behavior also changes, it appears under MODIFIED with its TO name and is checked there.
 
 6. **Verify Correctness**
 
    **Requirement Implementation Mapping**:
-   - For each requirement from delta specs:
+   - For each ADDED or MODIFIED requirement from delta specs (REMOVED and RENAMED entries were settled under Spec Coverage):
      - Search codebase for implementation evidence
      - If found, note file paths and line ranges
      - Assess if implementation matches requirement intent
@@ -274,12 +290,13 @@ ${PROJECT_ROOT_GUARD}
        - Recommendation: "Review <file>:<lines> against requirement X"
 
    **Scenario Coverage**:
-   - For each scenario in delta specs (marked with "#### Scenario:"):
+   - For each scenario under an ADDED or MODIFIED requirement in delta specs (marked with "#### Scenario:"):
      - Check if conditions are handled in code
      - Check if tests exist covering the scenario
      - If scenario appears uncovered:
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
+   - Skip scenarios under a REMOVED requirement; that behavior is meant to be gone.
 
 7. **Verify Coherence**
 
@@ -318,6 +335,7 @@ ${PROJECT_ROOT_GUARD}
    1. **CRITICAL** (Must fix before archive):
       - Incomplete tasks
       - Missing requirement implementations
+      - Removed requirements still implemented
       - Each with specific, actionable recommendation
 
    2. **WARNING** (Should fix):

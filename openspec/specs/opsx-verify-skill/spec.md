@@ -80,9 +80,20 @@ The agent SHALL verify that implementation matches the specifications.
 - **AND** suggest: either update implementation or update spec to match reality
 
 #### Scenario: Missing implementation
-- **WHEN** no implementation found for a requirement
+- **WHEN** no implementation found for an ADDED or MODIFIED requirement
 - **THEN** report as CRITICAL issue
 - **AND** suggest: "Implement requirement X" with guidance on what's needed
+
+#### Scenario: Removed requirement
+- **WHEN** a requirement sits under `## REMOVED Requirements` in a delta spec
+- **THEN** the agent treats the absence of its implementation as the expected result
+- **AND** does not report it as missing or suggest implementing it
+- **AND** reports it as CRITICAL only if the removed behavior is still present in the codebase
+- **AND** skips scenario coverage for it
+
+#### Scenario: Renamed requirement
+- **WHEN** a requirement is listed under `## RENAMED Requirements` in a delta spec
+- **THEN** the agent does not report its FROM name as missing
 
 ### Requirement: Coherence Verification
 The agent SHALL verify that implementation is sensible and follows design decisions.
