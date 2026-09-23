@@ -113,6 +113,10 @@ The agent SHALL verify that implementation matches the specifications.
 #### Scenario: Renamed requirement
 - **WHEN** a requirement is listed under `## RENAMED Requirements` in a delta spec
 - **THEN** the agent does not report its FROM name as missing
+- **AND** does not require code symbols or file names to be renamed
+- **AND** unless the TO name also appears under MODIFIED, verifies that the behavior of the baseline requirement (its body and scenarios in the main spec, under the FROM name, or under the TO name only when the main spec is already synced) is still implemented
+- **AND** reports CRITICAL "Renamed requirement not found" when that behavior is missing
+- **AND** marks spec coverage as not verified for the entry when the baseline requirement cannot be found or read
 
 #### Scenario: Change that only removes or renames requirements
 - **WHEN** the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements
