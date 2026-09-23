@@ -7,6 +7,7 @@ Listed projects are maintained independently. Inclusion does not imply official 
 ## Projects and resources
 
 - **[OpenSpec Workbench](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: Running and supervising agents on OpenSpec changes.
+- **[openspec-guard](https://github.com/guillaume-flambard/spec-guard)**: CLI and GitHub Action that reports which OpenSpec scenarios are covered by a Vitest or Jest test, without running the tests.
 
 ## Add your project
 
