@@ -379,6 +379,17 @@ async function copyDirContents(src: string, dest: string): Promise<void> {
   await fs.chmod(dest, sourceStat.mode & 0o7777);
 }
 
+type TreeEntry = { relative: string; kind: 'directory' | 'file' | 'symlink' };
+
+/** SHA-256 of one file's bytes, streamed so a large file is never held whole. */
+async function fingerprintFileContents(filePath: string): Promise<Buffer> {
+  const fileHash = createHash('sha256');
+  for await (const chunk of createReadStream(filePath)) {
+    fileHash.update(chunk);
+  }
+  return fileHash.digest();
+}
+
 async function fingerprintDirectoryContents(root: string): Promise<string> {
   const hash = createHash('sha256');
   const updateHashField = (label: string, value: string | Buffer): void => {
@@ -391,13 +402,7 @@ async function fingerprintDirectoryContents(root: string): Promise<string> {
     hash.update(labelBuffer);
     hash.update(valueBuffer);
   };
-  const fingerprintFile = async (filePath: string): Promise<Buffer> => {
-    const fileHash = createHash('sha256');
-    for await (const chunk of createReadStream(filePath)) {
-      fileHash.update(chunk);
-    }
-    return fileHash.digest();
-  };
+  const fingerprintFile = fingerprintFileContents;
 
   const visit = async (dir: string, relativeDir: string): Promise<void> => {
     const before = await fs.lstat(dir, { bigint: true });
@@ -494,16 +499,19 @@ function isFallbackRenameCode(code: string | undefined): boolean {
  */
 async function listTreeEntriesDeepestFirst(
   root: string
-): Promise<{ relative: string; isDirectory: boolean }[]> {
-  const entries: { relative: string; isDirectory: boolean }[] = [];
+): Promise<TreeEntry[]> {
+  const entries: TreeEntry[] = [];
   const visit = async (dir: string, relativeDir: string): Promise<void> => {
     for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
       const relative = relativeDir === '' ? entry.name : path.join(relativeDir, entry.name);
       if (entry.isDirectory()) {
         await visit(path.join(dir, entry.name), relative);
-        entries.push({ relative, isDirectory: true });
+        entries.push({ relative, kind: 'directory' });
       } else {
-        entries.push({ relative, isDirectory: false });
+        // A symlink to a directory is not a directory here, and its content is
+        // its target, not bytes to read - reading one raises EISDIR. Record the
+        // kind so cleanup compares each entry the way the copy wrote it.
+        entries.push({ relative, kind: entry.isSymbolicLink() ? 'symlink' : 'file' });
       }
     }
   };
@@ -525,23 +533,67 @@ async function listTreeEntriesDeepestFirst(
  * reports as a retained destination. The move does not complete silently.
  *
  * `entries` must be listed before the final fingerprint, so that an arrival is
- * either caught by that fingerprint or absent from the set. What this cannot
- * cover is an edit to a file that is already in the set: the copy holds the
- * content as of the fingerprint, and the newer bytes go with the source. That
- * window is the one the staging rename closes, and is why staging is still
+ * either caught by that fingerprint or absent from the set.
+ *
+ * An edit to a file that is already in the set is covered by claiming each file
+ * before reading it: `rename` is atomic, so once a file is under its claim name
+ * the bytes there are ours. A writer that rewrites the file by path after that
+ * point creates a new file at the original path, which is not in `entries`, is
+ * never deleted, and makes the parent `rmdir` fail with ENOTEMPTY - reported as
+ * a retained destination. A writer that got there first is caught by comparing
+ * the claimed bytes against the copy: on a mismatch the file is put back and
+ * the move is abandoned with both trees intact, because the destination holds
+ * the older content and deleting the source would lose the newer.
+ *
+ * What remains outside this, as for any copy, is a writer holding an open
+ * descriptor that writes through it after the comparison. Staging is still
  * preferred whenever the rename is permitted at all.
  */
+const CLEANUP_CLAIM_SUFFIX = '.openspec-claim';
+
+/** What the entry holds now, for comparison against the copy. */
+async function readEntryIdentity(
+  entryPath: string,
+  kind: 'file' | 'symlink'
+): Promise<string> {
+  return kind === 'symlink'
+    ? `symlink:${await fs.readlink(entryPath)}`
+    : `file:${(await fingerprintFileContents(entryPath)).toString('hex')}`;
+}
+
 async function removeVerifiedTree(
   root: string,
-  entries: { relative: string; isDirectory: boolean }[]
+  entries: TreeEntry[],
+  destination: string
 ): Promise<void> {
   for (const entry of entries) {
     const target = path.join(root, entry.relative);
-    if (entry.isDirectory) {
+    if (entry.kind === 'directory') {
       await fs.rmdir(target);
-    } else {
-      await fs.rm(target, { force: true });
+      continue;
     }
+    const claimed = target + CLEANUP_CLAIM_SUFFIX;
+    await fs.rename(target, claimed);
+    let claimedIdentity: string;
+    let copiedIdentity: string;
+    try {
+      claimedIdentity = await readEntryIdentity(claimed, entry.kind);
+      copiedIdentity = await readEntryIdentity(
+        path.join(destination, entry.relative),
+        entry.kind
+      );
+    } catch (error) {
+      await fs.rename(claimed, target).catch(() => undefined);
+      throw error;
+    }
+    if (claimedIdentity !== copiedIdentity) {
+      await fs.rename(claimed, target).catch(() => undefined);
+      throw new Error(
+        `${target} changed after it was verified, so the copy at ${destination} ` +
+          'does not hold its current content.'
+      );
+    }
+    await fs.rm(claimed, { force: true });
   }
   await fs.rmdir(root);
 }
@@ -586,7 +638,7 @@ async function copyThenRemoveDirectory(
     }
     throw copyError;
   }
-  let verifiedEntries: { relative: string; isDirectory: boolean }[];
+  let verifiedEntries: TreeEntry[];
   try {
     // Listed before the verification, not after it. A file that arrives before
     // the fingerprint changes it and aborts the move; one that arrives after is
@@ -611,7 +663,7 @@ async function copyThenRemoveDirectory(
     throw verificationError;
   }
   try {
-    await removeVerifiedTree(source, verifiedEntries);
+    await removeVerifiedTree(source, verifiedEntries, dest);
   } catch (cleanupError) {
     // Removal may already have deleted part of the source, or stopped on an
     // entry that appeared after verification. The destination is now the only

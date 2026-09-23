@@ -6852,6 +6852,79 @@ The system SHALL capture write feedback.
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
 
+    it('keeps an edit to an already-verified file, and retains the destination', async () => {
+      // The window alfred flagged: the copy and both fingerprints are behind
+      // us, and an editor rewrites a file that is already in the verified set.
+      // The destination holds the older bytes, so removing that file would
+      // delete the only copy of the newer ones and still report success.
+      // Cleanup claims each file by renaming it before reading, then compares
+      // the claimed bytes against the copy, so this aborts instead.
+      const changeName = 'eperm-late-edit-preserved';
+      const changeDir = await createChange(
+        changeName,
+        'edit-feedback',
+        `## ADDED Requirements
+
+### Requirement: Edit feedback is captured
+The system SHALL capture edit feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** edit feedback arrives
+- **THEN** it is stored
+`
+      );
+      const deltaPath = path.join(changeDir, 'specs', 'edit-feedback', 'spec.md');
+      const newBytes = '# Rewritten while the move was finishing.\n';
+
+      const realRename = fs.rename.bind(fs);
+      const realWriteFile = fs.writeFile.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+
+      let edited = false;
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const from = String(source);
+        if (
+          from.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)
+        ) {
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        // The claim rename for the delta: land the edit just before it, so the
+        // bytes we claim are the new ones and the copy still holds the old.
+        if (!edited && from.endsWith(`${path.sep}spec.md`) && from.includes(changeName)) {
+          edited = true;
+          await realWriteFile(from, newBytes);
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+        /could not remove the source|retained for recovery/i
+      );
+
+      expect(edited).toBe(true);
+      // The newer bytes are still on disk, under their own path.
+      await expect(fs.readFile(deltaPath, 'utf-8')).resolves.toBe(newBytes);
+      // No claim file is left behind.
+      await expect(
+        fs.access(`${deltaPath}.openspec-claim`)
+      ).rejects.toThrow();
+      // The complete copy is retained for recovery.
+      await expect(
+        fs.access(
+          path.join(
+            tempDir,
+            'openspec',
+            'changes',
+            'archive',
+            `${formatLocalDate()}-${changeName}`,
+            'specs',
+            'edit-feedback',
+            'spec.md'
+          )
+        )
+      ).resolves.not.toThrow();
+    });
+
     it('keeps a file added after verification, and retains the destination', async () => {
       // The unstaged fallback copies from the live change directory: the
       // archive claim covers the destination, not the source. Cleanup must
