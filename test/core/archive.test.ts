@@ -6852,6 +6852,66 @@ The system SHALL capture write feedback.
       await expect(fs.access(changeDir)).resolves.not.toThrow();
     });
 
+    it('archives a source that already contains a claim-suffixed filename', async () => {
+      // A fixed claim suffix collided with a real source file ending in it:
+      // claiming `collision` renamed it over `collision.openspec-claim`, and
+      // that file's own turn then failed with ENOENT after part of the live
+      // source was gone. The suffix is drawn per move and checked against the
+      // entries being removed, so a valid tree like this archives normally.
+      const changeName = 'eperm-claim-suffix-collision';
+      const changeDir = await createChange(
+        changeName,
+        'collision-feedback',
+        `## ADDED Requirements
+
+### Requirement: Collision feedback is captured
+The system SHALL capture collision feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** collision feedback arrives
+- **THEN** it is stored
+`
+      );
+      await fs.writeFile(path.join(changeDir, 'collision'), 'plain entry\n');
+      await fs.writeFile(
+        path.join(changeDir, 'collision.openspec-claim'),
+        'entry that looks like a claim\n'
+      );
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (
+          String(source).endsWith(
+            `${path.sep}openspec${path.sep}changes${path.sep}${changeName}`
+          )
+        ) {
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).resolves.not.toThrow();
+
+      // The source is gone and both files made it into the archive intact.
+      await expect(fs.access(changeDir)).rejects.toThrow();
+      const archived = path.join(
+        tempDir,
+        'openspec',
+        'changes',
+        'archive',
+        `${formatLocalDate()}-${changeName}`
+      );
+      await expect(fs.readFile(path.join(archived, 'collision'), 'utf-8')).resolves.toBe(
+        'plain entry\n'
+      );
+      await expect(
+        fs.readFile(path.join(archived, 'collision.openspec-claim'), 'utf-8')
+      ).resolves.toBe('entry that looks like a claim\n');
+    });
+
     it('keeps an edit to an already-verified file, and retains the destination', async () => {
       // The window alfred flagged: the copy and both fingerprints are behind
       // us, and an editor rewrites a file that is already in the verified set.
@@ -6904,10 +6964,10 @@ The system SHALL capture edit feedback.
       expect(edited).toBe(true);
       // The newer bytes are still on disk, under their own path.
       await expect(fs.readFile(deltaPath, 'utf-8')).resolves.toBe(newBytes);
-      // No claim file is left behind.
+      // No claim file is left behind, whatever suffix this move drew.
       await expect(
-        fs.access(`${deltaPath}.openspec-claim`)
-      ).rejects.toThrow();
+        fs.readdir(path.dirname(deltaPath))
+      ).resolves.toEqual(['spec.md']);
       // The complete copy is retained for recovery.
       await expect(
         fs.access(

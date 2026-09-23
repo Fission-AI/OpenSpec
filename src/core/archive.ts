@@ -549,7 +549,23 @@ async function listTreeEntriesDeepestFirst(
  * descriptor that writes through it after the comparison. Staging is still
  * preferred whenever the rename is permitted at all.
  */
-const CLEANUP_CLAIM_SUFFIX = '.openspec-claim';
+/**
+ * A claim suffix no entry in this move can already carry.
+ *
+ * A fixed suffix collides with a source file that legitimately ends in it:
+ * claiming `x` would rename it over a real `x.openspec-claim`, and that file's
+ * own turn would then fail with ENOENT after part of the live source had
+ * already been removed. So draw a fresh suffix per move and prove it against
+ * the very set being removed - if no entry ends with the suffix, no claim of
+ * one entry can land on another.
+ */
+function makeClaimSuffix(entries: TreeEntry[]): string {
+  const names = entries.map((entry) => entry.relative);
+  for (;;) {
+    const suffix = `.openspec-claim-${randomUUID()}`;
+    if (!names.some((name) => name.endsWith(suffix))) return suffix;
+  }
+}
 
 /** What the entry holds now, for comparison against the copy. */
 async function readEntryIdentity(
@@ -566,13 +582,14 @@ async function removeVerifiedTree(
   entries: TreeEntry[],
   destination: string
 ): Promise<void> {
+  const claimSuffix = makeClaimSuffix(entries);
   for (const entry of entries) {
     const target = path.join(root, entry.relative);
     if (entry.kind === 'directory') {
       await fs.rmdir(target);
       continue;
     }
-    const claimed = target + CLEANUP_CLAIM_SUFFIX;
+    const claimed = target + claimSuffix;
     await fs.rename(target, claimed);
     let claimedIdentity: string;
     let copiedIdentity: string;
