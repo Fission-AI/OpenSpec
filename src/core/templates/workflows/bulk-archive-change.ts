@@ -55,7 +55,7 @@ ${PROJECT_ROOT_GUARD}
 2. **Prompt for change selection**
 
    Ask the user to choose changes (multi-select):
-   - Show each change with its schema
+   - Show each change name and task status from the list output
    - Include an option for "All changes"
    - Allow any number of selections (1+ works, 2+ is the typical use case)
 
@@ -88,17 +88,24 @@ ${PROJECT_ROOT_GUARD}
 
 3. **Batch validation - gather status for all selected changes**
 
+   Run \`openspec list --json\` once with the same selected-root flags for task
+   progress. If the lookup fails, returns invalid JSON, or omits any selected
+   change, contains a duplicate selected change, or returns invalid counts,
+   report the problem and stop before syncing or archiving the batch.
+
    For each selected change, collect:
 
    a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
-   b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
-      - Complete means the checkbox holds only \`x\`/\`X\`, ignoring spacing
-        (\`- [ x]\` is complete); every other marker is incomplete (\`- [ ]\`,
-        \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
-      - If no tasks file exists, note as "No tasks"
+   b. **Task completion** - Find the \`changes\` entry from the list response whose \`name\` exactly matches this change
+      - Require nonnegative integer \`totalTasks\` and \`completedTasks\`, with \`completedTasks <= totalTasks\`
+      - Incomplete tasks = \`totalTasks - completedTasks\`
+      - The CLI resolves the schema's tracked task files, including custom artifact names, output paths, and globs
+      - Do not infer task completion from artifact status, an artifact id of \`tasks\`, or the absence of a top-level \`tasks.md\`
+      - The CLI counts only \`x\`/\`X\` checkbox markers as complete; other markers remain incomplete
+      - If \`totalTasks\` is zero, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
       - List which capability specs exist
@@ -212,7 +219,7 @@ ${PROJECT_ROOT_GUARD}
    Process changes in the determined order (respecting conflict resolution):
 
    a. **Sync included delta specs**:
-      - Run the \`openspec-sync-specs\` workflow inline (agent-driven intelligent merge) only for changes with entries in \`includedDeltas\`, passing only the included delta paths and explicitly instructing it to ignore that change's \`excludedDeltas\`. Wait for it to finish.
+      - ${optionalWorkflow('sync', 'Run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge)', 'Perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)')} only for changes with entries in \`includedDeltas\`, passing only the included delta paths and explicitly instructing it to ignore that change's \`excludedDeltas\`. Wait for it to finish.
       - For conflicts, apply in resolved order.
       - Pass that change's fetched specs-rule snapshot into inline sync; inline
         sync must reuse it without fetching instructions again
@@ -365,7 +372,7 @@ No active changes found. Create a new change to get started.
 - Archive directory target uses the current date, computed once in step 3d and reused at the move: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
 - Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
-- If sync is requested, run the \`openspec-sync-specs\` workflow inline (agent-driven) for each change with included delta specs
+- If sync is requested, ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven)', 'perform the delta-to-main-spec merge inline (agent-driven)')} for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
 - Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`
@@ -414,7 +421,7 @@ ${PROJECT_ROOT_GUARD}
 2. **Prompt for change selection**
 
    Ask the user to choose changes (multi-select):
-   - Show each change with its schema
+   - Show each change name and task status from the list output
    - Include an option for "All changes"
    - Allow any number of selections (1+ works, 2+ is the typical use case)
 
@@ -447,17 +454,24 @@ ${PROJECT_ROOT_GUARD}
 
 3. **Batch validation - gather status for all selected changes**
 
+   Run \`openspec list --json\` once with the same selected-root flags for task
+   progress. If the lookup fails, returns invalid JSON, or omits any selected
+   change, contains a duplicate selected change, or returns invalid counts,
+   report the problem and stop before syncing or archiving the batch.
+
    For each selected change, collect:
 
    a. **Artifact status** - Run \`openspec status --change "<name>" --json\`
       - Parse \`schemaName\`, \`artifacts\`, \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`
       - Note which artifacts are \`done\` vs other states
 
-   b. **Task completion** - Read \`artifactPaths.tasks.existingOutputPaths\` from status JSON
-      - Complete means the checkbox holds only \`x\`/\`X\`, ignoring spacing
-        (\`- [ x]\` is complete); every other marker is incomplete (\`- [ ]\`,
-        \`- []\`, and unfamiliar ones such as \`- [~]\` or \`- [-]\`)
-      - If no tasks file exists, note as "No tasks"
+   b. **Task completion** - Find the \`changes\` entry from the list response whose \`name\` exactly matches this change
+      - Require nonnegative integer \`totalTasks\` and \`completedTasks\`, with \`completedTasks <= totalTasks\`
+      - Incomplete tasks = \`totalTasks - completedTasks\`
+      - The CLI resolves the schema's tracked task files, including custom artifact names, output paths, and globs
+      - Do not infer task completion from artifact status, an artifact id of \`tasks\`, or the absence of a top-level \`tasks.md\`
+      - The CLI counts only \`x\`/\`X\` checkbox markers as complete; other markers remain incomplete
+      - If \`totalTasks\` is zero, note as "No tasks"
 
    c. **Delta specs** - Check \`artifactPaths.specs.existingOutputPaths\` from status JSON
       - List which capability specs exist
