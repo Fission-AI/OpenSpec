@@ -76,10 +76,11 @@ When active changes are in scope of a bulk validation (`--changes` or `--all`), 
 - **AND WHEN** a run selects a store
 - **THEN** the scan SHALL read that store's changes and main specs
 
-#### Scenario: A scan failure reports nothing
+#### Scenario: An unreadable change is skipped
 
 - **WHEN** a change's delta files cannot be read during the scan
 - **THEN** the scan SHALL skip that change without an error of its own
+- **AND** overlaps among the remaining changes SHALL still be reported
 - **AND** the change's own validation SHALL report the problem as it does today
 
 #### Scenario: Output order is stable

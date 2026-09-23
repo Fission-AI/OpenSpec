@@ -4,7 +4,7 @@
 - [ ] 1.2 Enumerate delta files with `discoverSpecFiles()` and match names with `normalizeRequirementName()`, so the scan sees exactly what archive applies
 - [ ] 1.3 Group claims by spec id and normalized name, keep groups claimed by two or more changes, and set `inMainSpec` from the main spec's current requirements
 - [ ] 1.4 Sort overlaps and claimants by code unit, never by locale
-- [ ] 1.5 Skip an unreadable change or spec instead of throwing
+- [ ] 1.5 Skip an unreadable change, and treat an unreadable main spec as holding no requirements, so overlaps among the remaining changes are still reported
 
 ## 2. Validate integration
 
