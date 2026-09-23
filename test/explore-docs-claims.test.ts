@@ -68,6 +68,9 @@ const FORBIDDEN: readonly RegExp[] = [
 const ALLOW = [
   // docs/commands.md and docs/troubleshooting.md quote this CLI message.
   /"No artifacts ready"/,
+  // docs/commands.md describes which artifacts `/opsx:update` leaves to
+  // `/opsx:continue`. "no files yet" is about an update target, not explore.
+  /Artifacts with no files yet remain with/,
 ];
 
 const TEST_FILE = 'test/explore-docs-claims.test.ts';

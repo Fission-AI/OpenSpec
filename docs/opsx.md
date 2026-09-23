@@ -213,7 +213,9 @@ Works through tasks, checking them off as you go. If you're juggling multiple ch
 ```
 /opsx:update add-dark-mode - we're storing the theme in a cookie now
 ```
-Revises the change's existing planning artifacts and keeps them coherent - in any direction (a design edit may ripple back to the proposal). Planning artifacts only: it never edits code, and it never creates missing artifacts (that's `/opsx:continue`). Every edit is confirmed with you first. If the change was already implemented, it recommends `/opsx:apply` so the code catches up with the revised plan. If your revision changes the change's *intent*, start fresh instead - see [When to Update vs. Start Fresh](#when-to-update-vs-start-fresh).
+Revises the change's existing planning artifacts and keeps them coherent in any direction (a design edit may ripple back to the proposal). It never edits code. Every edit is confirmed with you first. See [the update reference](commands.md#opsxupdate) for how it handles missing files without starting a new artifact.
+
+If the change was already implemented, it recommends `/opsx:apply` so the code catches up with the revised plan. If your revision changes the change's *intent*, start fresh instead. See [When to Update vs. Start Fresh](#when-to-update-vs-start-fresh).
 
 ### Sync delta specs
 ```text
