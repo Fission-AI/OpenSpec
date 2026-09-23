@@ -71,7 +71,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    Verification is advisory. Respect intentional omissions such as `skip_specs: true`, optional design documents, and schemas without task tracking. Do not require or invent optional or intentionally omitted artifacts to obtain a clean report. `Not verified` describes a limit of this report, not a new archive prerequisite. Archive retains its own checks and user-confirmation behavior.
 
-   Mark checks the schema does not define, or artifacts the status reports as intentionally skipped, as **Not applicable**. Exclude them from skipped-check counts and the archive-readiness assessment. Reserve **Not verified** for applicable checks whose evidence is missing or unusable.
+   Mark checks the schema does not define, or artifacts the status reports as intentionally skipped, as **Not applicable**. The correctness checks of a change whose readable delta specs contain REMOVED or RENAMED requirements but no ADDED or MODIFIED requirements are also **Not applicable** (see step 6). Exclude them from skipped-check counts and the archive-readiness assessment. Reserve **Not verified** for applicable checks whose evidence is missing or unusable.
 
    If only task evidence is available for applicable checks, verify task completion only and mark the remaining applicable checks, including **Code Pattern Consistency**, as not verified with the reason "Only task evidence available".
 
@@ -101,7 +101,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
      - For each REMOVED requirement, the change asks for the behavior to be gone, so invert the check:
-       - Search codebase for the removed behavior
+       - Search codebase for the removed behavior. Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves. Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.
        - Finding no implementation is the expected result. Never report a REMOVED requirement as "Requirement not found" or recommend implementing it.
        - If the behavior is still present:
          - Add CRITICAL issue: "Removed requirement still implemented: <requirement name>"
@@ -109,6 +109,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
      - A RENAMED entry (`FROM:`/`TO:`) changes only a name. Do not report the FROM name as missing. If the renamed requirement's behavior also changes, it appears under MODIFIED with its TO name and is checked there.
 
 6. **Verify Correctness**
+
+   If the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements (the change only removes or renames requirements), report **Requirement Implementation Mapping** and **Scenario Coverage** as **Not applicable**. The REMOVED and RENAMED checks under Spec Coverage are the evidence for such a change, so do not mark these two checks as not verified. A delta spec with no parseable requirements at all is unusable evidence, not a removal-only change: mark these checks as not verified.
 
    **Requirement Implementation Mapping**:
    - For each ADDED or MODIFIED requirement from delta specs (REMOVED and RENAMED entries were settled under Spec Coverage):
@@ -162,7 +164,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    | Coherence    | Followed/Issues  |
    ```
 
-   In each Status cell, report the results of checks that ran and `Not verified (<reason>)` for every skipped check. If all checks in a dimension were skipped, start the cell with `Not verified`. Never score a skipped check as passing. Treat every not verified or partially verified check as skipped in the final assessment.
+   In each Status cell, report the results of checks that ran and `Not verified (<reason>)` for every skipped check. If all checks in a dimension were skipped, start the cell with `Not verified`. Never score a skipped check as passing. Treat every not verified or partially verified check as skipped in the final assessment. Count only ADDED and MODIFIED requirements in N, and report REMOVED requirements separately (for example, "1 removal confirmed"). For a change that only removes or renames requirements, the Correctness cell reads `Not applicable (no ADDED or MODIFIED requirements)`.
 
    **Issues by Priority**:
 

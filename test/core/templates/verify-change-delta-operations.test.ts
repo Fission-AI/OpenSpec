@@ -66,4 +66,29 @@ describe('verify checks each requirement by its delta operation', () => {
     expect(correctness, label).not.toContain('- For each requirement from delta specs:');
     expect(correctness, label).not.toContain('- For each scenario in delta specs');
   });
+  // With #1732's "Not verified" rule, a change with nothing to add or modify
+  // left both correctness checks empty, which read as unverified and withheld
+  // readiness. That is the exact case #1959 reports.
+  it.each(bodies)('%s: treats the correctness checks of a removal-only change as not applicable', (label, body) => {
+    const correctness = section(body, '6. **Verify Correctness**', '**Requirement Implementation Mapping**:', label);
+
+    expect(correctness, label).toContain('If the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements');
+    // An empty or unparseable delta must not pass as a removal-only change.
+    expect(correctness, label).toContain('A delta spec with no parseable requirements at all is unusable evidence, not a removal-only change: mark these checks as not verified.');
+    expect(correctness, label).toContain('report **Requirement Implementation Mapping** and **Scenario Coverage** as **Not applicable**');
+    expect(correctness, label).toContain('do not mark these two checks as not verified');
+    expect(body, label).toContain('The correctness checks of a change whose readable delta specs contain REMOVED or RENAMED requirements but no ADDED or MODIFIED requirements are also **Not applicable** (see step 6).');
+  });
+
+  it.each(bodies)('%s: does not treat artifacts or replacement code as the removed behavior', (label, body) => {
+    const removed = section(body, '- For each REMOVED requirement', '- A RENAMED entry', label);
+
+    expect(removed, label).toContain('Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves.');
+    expect(removed, label).toContain('Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.');
+  });
+
+  it.each(bodies)('%s: counts removals separately from covered requirements', (label, body) => {
+    expect(body, label).toContain('Count only ADDED and MODIFIED requirements in N, and report REMOVED requirements separately');
+    expect(body, label).toContain('the Correctness cell reads `Not applicable (no ADDED or MODIFIED requirements)`');
+  });
 });

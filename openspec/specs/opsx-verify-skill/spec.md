@@ -107,10 +107,18 @@ The agent SHALL verify that implementation matches the specifications.
 - **AND** does not report it as missing or suggest implementing it
 - **AND** reports it as CRITICAL only if the removed behavior is still present in the codebase
 - **AND** skips scenario coverage for it
+- **AND** does not treat matches in OpenSpec artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, as evidence by themselves
+- **AND** still reports a code path that delivers the removed behavior, even when it is shared with an ADDED requirement
 
 #### Scenario: Renamed requirement
 - **WHEN** a requirement is listed under `## RENAMED Requirements` in a delta spec
 - **THEN** the agent does not report its FROM name as missing
+
+#### Scenario: Change that only removes or renames requirements
+- **WHEN** the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements
+- **THEN** the agent reports requirement implementation mapping and scenario coverage as not applicable
+- **AND** does not mark them as not verified or withhold readiness because of them
+- **AND** a delta spec with no parseable requirements still marks them as not verified
 
 ### Requirement: Coherence Verification
 The agent SHALL verify that implementation is sensible and follows design decisions.
