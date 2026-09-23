@@ -71,7 +71,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    Verification is advisory. Respect intentional omissions such as `skip_specs: true`, optional design documents, and schemas without task tracking. Do not require or invent optional or intentionally omitted artifacts to obtain a clean report. `Not verified` describes a limit of this report, not a new archive prerequisite. Archive retains its own checks and user-confirmation behavior.
 
-   Mark checks the schema does not define, or artifacts the status reports as intentionally skipped, as **Not applicable**. Exclude them from skipped-check counts and the archive-readiness assessment. Reserve **Not verified** for applicable checks whose evidence is missing or unusable.
+   Mark checks the schema does not define, or artifacts the status reports as intentionally skipped, as **Not applicable**. The correctness checks of a change whose readable delta specs contain REMOVED or RENAMED requirements but no ADDED or MODIFIED requirements are also **Not applicable** (see step 6). Exclude them from skipped-check counts and the archive-readiness assessment. Reserve **Not verified** for applicable checks whose evidence is missing or unusable.
 
    If only task evidence is available for applicable checks, verify task completion only and mark the remaining applicable checks, including **Code Pattern Consistency**, as not verified with the reason "Only task evidence available".
 
@@ -93,18 +93,35 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - If status marks the spec artifact skipped by `skip_specs: true`, or the schema defines no spec artifact, report the spec-dependent checks as not applicable.
    - Otherwise, `contextFiles` is keyed by artifact id, and artifact ids come from the active schema. If `contextFiles.specs` is absent or empty, mark **Spec Coverage**, **Requirement Implementation Mapping**, and **Scenario Coverage** as not verified; do not treat any of them as clean.
    - If delta specs exist in `contextFiles.specs`:
-     - Extract all requirements (marked with "### Requirement:")
-     - For each requirement:
+     - Extract all requirements (marked with "### Requirement:", or listed as `FROM:`/`TO:` pairs under `## RENAMED Requirements`) and note the delta section each one sits under: `## ADDED`, `## MODIFIED`, `## REMOVED`, or `## RENAMED Requirements`. The section decides what the check looks for.
+     - For each ADDED or MODIFIED requirement (for MODIFIED, check the text in the delta, not the old wording):
        - Search codebase for keywords related to the requirement
        - Assess if implementation likely exists
-     - If requirements appear unimplemented:
+     - If ADDED or MODIFIED requirements appear unimplemented:
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
+     - For each REMOVED requirement, the change asks for the behavior to be gone, so invert the check:
+       - Search codebase for the removed behavior. Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves. Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.
+       - Finding no implementation is the expected result. Never report a REMOVED requirement as "Requirement not found" or recommend implementing it.
+       - If the behavior is still present:
+         - Add CRITICAL issue: "Removed requirement still implemented: <requirement name>"
+         - Recommendation: "Remove the remaining implementation at <file>:<lines>, following the requirement's Migration note if it has one"
+     - For each RENAMED entry (`FROM:`/`TO:`), the name changes but the behavior stays, so check the TO requirement for that unchanged behavior:
+       - Do not report the FROM name as missing, and do not require code symbols, identifiers, or file names to be renamed.
+       - If the TO name also appears under MODIFIED, its behavior is checked there against the MODIFIED text; skip it here.
+       - Otherwise, read the baseline requirement in the main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md`, using the same capability path as the delta spec: the requirement under the FROM name, or under the TO name only when the FROM name is absent because the main spec is already synced. Its body and scenarios are the evidence for the behavior the TO requirement keeps.
+       - Search codebase for that behavior and assess if it is still implemented.
+       - If it appears unimplemented:
+         - Add CRITICAL issue: "Renamed requirement not found: <TO name>"
+         - Recommendation: "Restore the behavior of <TO name> (renamed from <FROM name>); a rename must not change behavior"
+       - If the baseline requirement cannot be found or read, mark **Spec Coverage** as not verified for that entry with the reason. Never count an unchecked rename as passing.
 
 6. **Verify Correctness**
 
+   If the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements (the change only removes or renames requirements), report **Requirement Implementation Mapping** and **Scenario Coverage** as **Not applicable**. The REMOVED and RENAMED checks under Spec Coverage are the evidence for such a change (each RENAMED entry is checked there against its baseline behavior), so do not mark these two checks as not verified. A delta spec with no parseable requirements at all is unusable evidence, not a removal-only change: mark these checks as not verified.
+
    **Requirement Implementation Mapping**:
-   - For each requirement from delta specs:
+   - For each ADDED or MODIFIED requirement from delta specs (REMOVED entries, and RENAMED entries without a MODIFIED block, were settled under Spec Coverage):
      - Search codebase for implementation evidence
      - If found, note file paths and line ranges
      - Assess if implementation matches requirement intent
@@ -113,12 +130,13 @@ In both branches, never create the root as a side effect: do not run `openspec i
        - Recommendation: "Review <file>:<lines> against requirement X"
 
    **Scenario Coverage**:
-   - For each scenario in delta specs (marked with "#### Scenario:"):
+   - For each scenario under an ADDED or MODIFIED requirement in delta specs (marked with "#### Scenario:"):
      - Check if conditions are handled in code
      - Check if tests exist covering the scenario
      - If scenario appears uncovered:
        - Add WARNING: "Scenario not covered: <scenario name>"
        - Recommendation: "Add test or implementation for scenario: <description>"
+   - Skip scenarios under a REMOVED requirement; that behavior is meant to be gone.
 
 7. **Verify Coherence**
 
@@ -154,13 +172,15 @@ In both branches, never create the root as a side effect: do not run `openspec i
    | Coherence    | Followed/Issues  |
    ```
 
-   In each Status cell, report the results of checks that ran and `Not verified (<reason>)` for every skipped check. If all checks in a dimension were skipped, start the cell with `Not verified`. Never score a skipped check as passing. Treat every not verified or partially verified check as skipped in the final assessment.
+   In each Status cell, report the results of checks that ran and `Not verified (<reason>)` for every skipped check. If all checks in a dimension were skipped, start the cell with `Not verified`. Never score a skipped check as passing. Treat every not verified or partially verified check as skipped in the final assessment. Count only ADDED and MODIFIED requirements in N, and report REMOVED and RENAMED requirements separately (for example, "1 removal confirmed, 1 rename verified"). For a change that only removes or renames requirements, the Correctness cell reads `Not applicable (no ADDED or MODIFIED requirements)`.
 
    **Issues by Priority**:
 
    1. **CRITICAL** (Must fix before archive):
       - Incomplete tasks
       - Missing requirement implementations
+      - Removed requirements still implemented
+      - Renamed requirements whose behavior is no longer implemented
       - Each with specific, actionable recommendation
 
    2. **WARNING** (Should fix):

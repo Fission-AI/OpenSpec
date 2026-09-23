@@ -50,9 +50,10 @@ The agent SHALL verify that all required work has been completed.
 #### Scenario: Spec coverage check
 - **WHEN** verifying completeness
 - **AND** delta specs exist in `openspec/changes/<name>/specs/`
-- **THEN** the agent extracts all requirements from delta specs
-- **AND** searches codebase for implementation of each requirement
-- **AND** reports which requirements appear to have implementation vs which are missing
+- **THEN** the agent extracts all requirements from delta specs, noting the delta section each one sits under
+- **AND** searches codebase for implementation of each ADDED or MODIFIED requirement
+- **AND** reports which ADDED or MODIFIED requirements appear to have implementation vs which are missing
+- **AND** checks REMOVED and RENAMED requirements as described in the Removed requirement and Renamed requirement scenarios
 
 #### Scenario: All tasks complete
 - **WHEN** all tasks are marked complete
@@ -72,14 +73,14 @@ The agent SHALL verify that implementation matches the specifications.
 
 #### Scenario: Requirement implementation mapping
 - **WHEN** verifying correctness
-- **THEN** for each requirement in delta specs:
+- **THEN** for each ADDED or MODIFIED requirement in delta specs:
   - Search codebase for implementation
   - Identify relevant files and line numbers
   - Assess whether implementation satisfies the requirement
 
 #### Scenario: Scenario coverage check
 - **WHEN** verifying correctness
-- **THEN** for each scenario in delta specs:
+- **THEN** for each scenario under an ADDED or MODIFIED requirement in delta specs:
   - Check if the scenario's conditions are handled in code
   - Check if tests exist that cover the scenario
   - Report coverage status
@@ -96,9 +97,32 @@ The agent SHALL verify that implementation matches the specifications.
 - **AND** suggest: either update implementation or update spec to match reality
 
 #### Scenario: Missing implementation
-- **WHEN** no implementation found for a requirement
+- **WHEN** no implementation found for an ADDED or MODIFIED requirement
 - **THEN** report as CRITICAL issue
 - **AND** suggest: "Implement requirement X" with guidance on what's needed
+
+#### Scenario: Removed requirement
+- **WHEN** a requirement sits under `## REMOVED Requirements` in a delta spec
+- **THEN** the agent treats the absence of its implementation as the expected result
+- **AND** does not report it as missing or suggest implementing it
+- **AND** reports it as CRITICAL only if the removed behavior is still present in the codebase
+- **AND** skips scenario coverage for it
+- **AND** does not treat matches in OpenSpec artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, as evidence by themselves
+- **AND** still reports a code path that delivers the removed behavior, even when it is shared with an ADDED requirement
+
+#### Scenario: Renamed requirement
+- **WHEN** a requirement is listed under `## RENAMED Requirements` in a delta spec
+- **THEN** the agent does not report its FROM name as missing
+- **AND** does not require code symbols or file names to be renamed
+- **AND** unless the TO name also appears under MODIFIED, verifies that the behavior of the baseline requirement (its body and scenarios in the main spec, under the FROM name, or under the TO name only when the main spec is already synced) is still implemented
+- **AND** reports CRITICAL "Renamed requirement not found" when that behavior is missing
+- **AND** marks spec coverage as not verified for the entry when the baseline requirement cannot be found or read
+
+#### Scenario: Change that only removes or renames requirements
+- **WHEN** the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements
+- **THEN** the agent reports requirement implementation mapping and scenario coverage as not applicable
+- **AND** does not mark them as not verified or withhold readiness because of them
+- **AND** a delta spec with no parseable requirements still marks them as not verified
 
 ### Requirement: Coherence Verification
 The agent SHALL verify that implementation is sensible and follows design decisions.
