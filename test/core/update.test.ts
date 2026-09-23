@@ -1452,6 +1452,34 @@ metadata:
       expect(content).toContain('description:');
     });
 
+    it('should update GigaCode tool with correct command format', async () => {
+      // Set up GigaCode
+      const gigacodeSkillsDir = path.join(testDir, '.gigacode', 'skills');
+      await fs.mkdir(path.join(gigacodeSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(gigacodeSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      await updateCommand.execute(testDir);
+
+      // Check GigaCode command format (Markdown) - flat path structure like Qwen: opsx-<id>.md
+      const gigacodeCmd = path.join(
+        testDir,
+        '.gigacode',
+        'commands',
+        'opsx-explore.md'
+      );
+      const exists = await FileSystemUtils.fileExists(gigacodeCmd);
+      expect(exists).toBe(true);
+
+      const content = await fs.readFile(gigacodeCmd, 'utf-8');
+      expect(content).toContain('---');
+      expect(content).toContain('description:');
+    });
+
     it('should update Command Code tool and regenerate its flat command', async () => {
       // A configured Command Code install is detected by its skills dir
       const commandCodeSkillsDir = path.join(testDir, '.commandcode', 'skills');
