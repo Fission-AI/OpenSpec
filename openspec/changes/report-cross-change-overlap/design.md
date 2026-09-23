@@ -34,7 +34,7 @@ The one piece of context it does add is `inMainSpec`. Two changes editing shared
 
 ### 2. Advisory, and never a failure
 
-Overlap never moves the exit code. Any error inside the scan is swallowed and the scan reports nothing, because every delta it reads is also read by the validation of each change, which reports unreadable or malformed files on its own path. Advisory output must never be the thing that fails a run.
+Overlap never moves the exit code, and the scan fails in two layers. An unreadable input only removes itself: a change whose delta files cannot be discovered or read is skipped, a main spec that cannot be read counts as holding no requirements, and overlaps among the remaining changes are still reported. Any other error inside the scan is swallowed and the report is empty for that run. Neither case loses information, because every delta the scan reads is also read by the validation of each change, which reports unreadable or malformed files on its own path. Advisory output must never be the thing that fails a run.
 
 ### 3. Read what archive reads
 
