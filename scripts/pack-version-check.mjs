@@ -10,18 +10,34 @@
 //   `changeset publish` triggers `prepublishOnly` (also builds here). This
 //   means an explicit build is not strictly necessary for the guard.
 
-import { execFileSync } from 'child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
+import spawn from 'cross-spawn';
 
 function log(msg) {
   if (process.env.CI) return; // keep CI logs quiet by default
   console.log(msg);
 }
 
+// cross-spawn, not execFileSync: on Windows `npm` is npm.cmd, which execFile
+// cannot resolve without a shell. Keeps the argv form, so no shell is involved.
 function run(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'], ...opts });
+  const result = spawn.sync(cmd, args, {
+    encoding: 'utf-8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+    ...opts,
+  });
+
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    const stderr = (result.stderr || '').trim();
+    throw new Error(
+      `${cmd} ${args.join(' ')} exited with ${result.status}${stderr ? `: ${stderr}` : ''}`
+    );
+  }
+
+  return result.stdout;
 }
 
 function npmPack() {
