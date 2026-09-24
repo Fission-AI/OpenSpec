@@ -155,39 +155,36 @@ describe('declared store fallback (3.2)', () => {
     expect(refs.map((entry: any) => entry.store_id)).toEqual(['upstream-context']);
   });
 
-  it('refuses init in a pointer repo and creates nothing, then converts cleanly', async () => {
+  it('installs integrations in a pointer repo without creating a local planning root', async () => {
     const before = snapshot(pointerRepo);
-    const dataBefore = fs.existsSync(path.join(tempDir, 'data'))
-      ? snapshot(path.join(tempDir, 'data'))
-      : null;
-
-    const refused = await runCLI(['init', '.'], { cwd: pointerRepo, env });
-    expect(refused.exitCode).toBe(1);
-    expect(refused.stderr).toContain("externalized to store 'team-context'");
-    expect(refused.stderr).toContain('Remove the store: line');
-    expect(snapshot(pointerRepo)).toEqual(before);
-    if (dataBefore) {
-      expect(snapshot(path.join(tempDir, 'data'))).toEqual(dataBefore);
-    }
-
-    const refusedWithLanguage = await runCLI(
-      ['init', '.', '--tools', 'none', '--language', 'French'],
-      { cwd: pointerRepo, env }
-    );
-    expect(refusedWithLanguage.exitCode).toBe(1);
-    expect(refusedWithLanguage.stderr).toContain("externalized to store 'team-context'");
-    expect(refusedWithLanguage.stderr).toContain('Remove the store: line');
-    expect(snapshot(pointerRepo)).toEqual(before);
-
-    // Conversion: remove the line, rerun, get a normal local root.
-    fs.writeFileSync(path.join(pointerRepo, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
-    const converted = await runCLI(['init', '.', '--tools', 'none'], {
+    const initialized = await runCLI(['init', '.', '--tools', 'claude'], {
       cwd: pointerRepo,
       env,
     });
-    expect(converted.exitCode).toBe(0);
-    expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'specs'))).toBe(true);
-    expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'changes'))).toBe(true);
+
+    expect(initialized.exitCode).toBe(0);
+    expect(fs.existsSync(path.join(pointerRepo, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    expect(fs.readFileSync(path.join(pointerRepo, 'openspec', 'config.yaml'), 'utf8')).toBe(
+      'store: team-context\n'
+    );
+    expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'specs'))).toBe(false);
+    expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'changes'))).toBe(false);
+
+    expect(before.get('openspec/config.yaml')).toBe('store: team-context\n');
+  });
+
+  it('rejects --language in a pointer repo without changing either root', async () => {
+    const pointerBefore = snapshot(pointerRepo);
+    const storeBefore = snapshot(storeRoot);
+    const result = await runCLI(
+      ['init', '.', '--tools', 'none', '--language', 'French'],
+      { cwd: pointerRepo, env }
+    );
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('--language cannot update an external store');
+    expect(snapshot(pointerRepo)).toEqual(pointerBefore);
+    expect(snapshot(storeRoot)).toEqual(storeBefore);
   });
 
   it('refuses init for malformed pointers and from pointer-repo subdirectories', async () => {
