@@ -556,4 +556,51 @@ Widgets are the one thing this product cannot assemble today.
       expect(titled).toEqual(untitled);
     });
   });
+
+  describe('requirement and scenario names', () => {
+    const spec = (requirements: string) =>
+      `## Purpose\nNames for JSON readers.\n\n## Requirements\n\n${requirements}`;
+
+    it('names a requirement and its scenarios without the header prefixes', () => {
+      const parsed = new MarkdownParser(spec(`### Requirement: User Login
+The system SHALL log users in.
+
+#### Scenario: Valid credentials
+- **WHEN** a user signs in
+- **THEN** a session starts
+
+#### Scenario: Wrong password
+- **WHEN** the password is wrong
+- **THEN** no session starts`)).parseSpec('auth');
+
+      expect(parsed.requirements[0].name).toBe('User Login');
+      expect(parsed.requirements[0].scenarios.map((s) => s.name)).toEqual([
+        'Valid credentials',
+        'Wrong password',
+      ]);
+    });
+
+    it('drops a closing # run the way archive does, but keeps a # inside the name', () => {
+      const parsed = new MarkdownParser(spec(`### Requirement: Supports C# ###
+The system SHALL compile C#.
+
+#### Scenario: Builds a C# project ##
+- **WHEN** a project is built
+- **THEN** it compiles`)).parseSpec('lang');
+
+      expect(parsed.requirements[0].name).toBe('Supports C#');
+      expect(parsed.requirements[0].scenarios[0].name).toBe('Builds a C# project');
+    });
+
+    it('names a level-4 header without the Scenario: prefix by its text', () => {
+      const parsed = new MarkdownParser(spec(`### Requirement: Retries
+The system SHALL retry failed calls.
+
+#### Edge case: zero retries
+- **WHEN** retries are set to 0
+- **THEN** the call runs once`)).parseSpec('net');
+
+      expect(parsed.requirements[0].scenarios[0].name).toBe('Edge case: zero retries');
+    });
+  });
 });

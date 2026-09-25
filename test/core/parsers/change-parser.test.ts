@@ -138,4 +138,42 @@ describe('ChangeParser', () => {
       expect(change.deltas[0].requirement?.text).toBe('The system SHALL do a thing.');
     });
   });
+
+  it('names each delta requirement and scenario as archive matches them', async () => {
+    await withTempDir(async (dir) => {
+      const specsDir = path.join(dir, 'specs', 'auth');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const content = `# Test Change\n\n## Why\nWe need it because reasons that are sufficiently long.\n\n## What Changes\n- **auth:** Update login`;
+      const deltaSpec = [
+        '## ADDED Requirements',
+        '',
+        '### Requirement: Session Timeout',
+        'The system SHALL end idle sessions.',
+        '',
+        '#### Scenario: Idle for an hour',
+        '- **WHEN** a session is idle for an hour',
+        '- **THEN** it ends',
+        '',
+        '## MODIFIED Requirements',
+        '',
+        '### Requirement: User Login ##',
+        'The system SHALL log users in with a password.',
+        '',
+        '#### Scenario: Valid credentials',
+        '- **WHEN** a user signs in',
+        '- **THEN** a session starts',
+      ].join('\n');
+      await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec, 'utf8');
+
+      const change = await new ChangeParser(content, dir).parseChangeWithDeltas('test-change');
+      const byOperation = Object.fromEntries(change.deltas.map((d) => [d.operation, d.requirement]));
+
+      expect(byOperation.ADDED?.name).toBe('Session Timeout');
+      expect(byOperation.ADDED?.scenarios[0].name).toBe('Idle for an hour');
+      // The closing run is not part of the name archive matches on.
+      expect(byOperation.MODIFIED?.name).toBe('User Login');
+      expect(byOperation.MODIFIED?.scenarios[0].name).toBe('Valid credentials');
+    });
+  });
 });

@@ -541,9 +541,11 @@ A change with `--json` is delta-shaped:
       "operation": "ADDED",
       "description": "Add requirement: The API SHALL limit each client to 100 requests per minute.",
       "requirement": {
+        "name": "Rate limit",
         "text": "The API SHALL limit each client to 100 requests per minute.",
         "scenarios": [
           {
+            "name": "Client exceeds the limit",
             "rawText": "- **WHEN** a client sends its 101st request within a minute\n- **THEN** the API responds 429"
           }
         ]
@@ -558,9 +560,11 @@ A change with `--json` is delta-shaped:
 }
 ```
 
+Each requirement carries its `name`, the header text after `Requirement:`. This is the name archive matches MODIFIED, REMOVED and RENAMED entries against. Each scenario carries its `name`, the header text after `Scenario:`. A closing `#` run on either header is not part of the name.
+
 `--json --diff` keeps this top-level shape. A MODIFIED delta gains a `diff` string, a `warning` string, or both. Other operations are unchanged. An empty `diff` string means the main and delta blocks are textually identical.
 
-A spec with `--json` lists its requirements with scenarios:
+A spec with `--json` lists its requirements with scenarios. Requirements and scenarios carry the same `name` fields as change JSON:
 
 ```json
 {
@@ -570,9 +574,11 @@ A spec with `--json` lists its requirements with scenarios:
   "requirementCount": 1,
   "requirements": [
     {
+      "name": "Health endpoint",
       "text": "The API SHALL expose a health endpoint.",
       "scenarios": [
         {
+          "name": "Health check succeeds",
           "rawText": "- **WHEN** a client requests GET /health\n- **THEN** the API responds 200"
         }
       ]
