@@ -99,7 +99,7 @@ Requirement headers SHALL serve as unique identifiers for programmatic matching 
 
 - **WHEN** processing delta changes
 - **THEN** use the `### Requirement: [Name]` header as the unique identifier
-- **AND** match using normalized headers: `normalize(header) = trim(header)`
+- **AND** match using normalized headers: `normalize(header) = remove a trailing run of `#` characters and surrounding spaces, then trim(header)`
 - **AND** compare headers with case-sensitive equality after normalization
 
 #### Scenario: Handling requirement renames
