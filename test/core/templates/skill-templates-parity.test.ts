@@ -88,7 +88,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxContinueCommandTemplate: '241c50f97d5d681412d456d6b982743c3a5babeb77017fc8099c418bcf0d92df',
   getOpsxApplyCommandTemplate: 'd70cecce3b7d1dd4dbd5fd1fc2bccb538f5e61f5b43d520e4beca896e3f9e6b3',
   getOpsxFfCommandTemplate: '743a7304c7efc84aa87f556154c034e1e0e561c276c51870a30ada58f33eb9af',
-  getArchiveChangeSkillTemplate: '71715f9d5899498942af03e182e6d1ac2c95952dde967950c2a9161084a53a8b',
+  getArchiveChangeSkillTemplate: '6a4c31efe1f5c453474ec04fa1caccc1d19e6356e3f1cdabc6401ac09e68fa73',
   getBulkArchiveChangeSkillTemplate: '2a6ec08fea0f942158b4abe9c8d1af9622038e0c4dc684e7c73dad2fb8379a54',
   getOpsxSyncCommandTemplate: '60550b7bb9829421656d6324a9e4c951bc912f48f88882d1a07ce7f78397a5e7',
   getVerifyChangeSkillTemplate: 'eecb063792075191b613978dec45f9f2fee247d2ff3003f2ebf17d632e54352e',
@@ -592,7 +592,7 @@ describe('skill templates split parity', () => {
     // never written. Assertions are scoped to the sync-assessment step so they
     // cannot pass on unrelated text elsewhere in the body.
     const archiveVariants: Array<[string, string]> = [
-      ['archive skill', generateSkillContent(getArchiveChangeSkillTemplate(), 'PARITY-BASELINE')],
+      ['archive skill', generateSkillContent(asDeployed(getArchiveChangeSkillTemplate()), 'PARITY-BASELINE')],
       ['archive opsx command', getOpsxArchiveCommandTemplate().content],
     ];
 

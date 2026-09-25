@@ -94,4 +94,31 @@ describe('workflow list --json field usage', () => {
       expect(withoutSync).toContain('If sync is requested, perform the delta-to-main-spec merge inline');
     }
   });
+
+  it('keeps archive sync available with and without the sync workflow', () => {
+    const variants = [
+      [
+        getSkillTemplates(['archive', 'sync']).find((entry) => entry.workflowId === 'archive')!.template.instructions,
+        getSkillTemplates(['archive'])[0].template.instructions,
+        'openspec-sync-specs',
+      ],
+      [
+        getCommandTemplates(['archive', 'sync']).find((entry) => entry.id === 'archive')!.template.content,
+        getCommandTemplates(['archive'])[0].template.content,
+        '/opsx:sync',
+      ],
+    ] as const;
+
+    for (const [withSync, withoutSync, workflow] of variants) {
+      const syncStep = (text: string) => text.slice(
+        text.indexOf('4. **Assess delta spec sync state**'),
+        text.indexOf('5. **Perform the archive**')
+      );
+
+      expect(syncStep(withSync)).toContain(workflow);
+      expect(withoutSync).not.toContain(workflow);
+      expect(syncStep(withoutSync)).toContain('perform the delta-to-main-spec merge inline yourself');
+      expect(withoutSync).toContain('If sync is requested, perform the delta-to-main-spec merge inline');
+    }
+  });
 });
