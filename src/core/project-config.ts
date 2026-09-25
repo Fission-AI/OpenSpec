@@ -120,12 +120,14 @@ export function loadOperationInputs(
   };
 }
 
-function parseOperations(raw: unknown): OperationsConfig | undefined {
+type FieldWarn = (path: string, message: string, level?: 'error' | 'warning') => void;
+
+function parseOperations(raw: unknown, warn: FieldWarn = (_path, message) => console.warn(message)): OperationsConfig | undefined {
   if (raw === undefined) {
     return undefined;
   }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    console.warn(`Invalid 'operations' field in config (must be object)`);
+    warn('operations', `Invalid 'operations' field in config (must be object)`);
     return undefined;
   }
 
@@ -134,15 +136,18 @@ function parseOperations(raw: unknown): OperationsConfig | undefined {
 
   for (const [operationId, value] of Object.entries(raw)) {
     if (!supported.has(operationId)) {
-      console.warn(
-        `Unknown operation ID '${operationId}' in config. Supported operation IDs: ${OPERATION_IDS.join(', ')}`
+      warn(
+        'operations',
+        `Unknown operation ID '${operationId}' in config. Supported operation IDs: ${OPERATION_IDS.join(', ')}`,
+        'warning'
       );
       continue;
     }
 
     const typedOperationId = operationId as OperationId;
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
-      console.warn(
+      warn(
+        `operations.${operationId}`,
         `Invalid 'operations.${operationId}' field in config (must be object), ignoring this operation`
       );
       continue;
@@ -151,8 +156,10 @@ function parseOperations(raw: unknown): OperationsConfig | undefined {
     const operation = value as Record<string, unknown>;
     const unknownFields = Object.keys(operation).filter((field) => field !== 'guidance');
     if (unknownFields.length > 0) {
-      console.warn(
-        `Unknown field(s) in 'operations.${operationId}': ${unknownFields.join(', ')}. Supported fields: guidance`
+      warn(
+        `operations.${operationId}`,
+        `Unknown field(s) in 'operations.${operationId}': ${unknownFields.join(', ')}. Supported fields: guidance`,
+        'warning'
       );
     }
 
@@ -162,7 +169,8 @@ function parseOperations(raw: unknown): OperationsConfig | undefined {
 
     const guidanceResult = z.array(z.string()).safeParse(operation.guidance);
     if (!guidanceResult.success) {
-      console.warn(
+      warn(
+        `operations.${operationId}.guidance`,
         `Guidance for operation '${operationId}' must be an array of strings, ignoring this operation's guidance`
       );
       continue;
@@ -170,7 +178,8 @@ function parseOperations(raw: unknown): OperationsConfig | undefined {
 
     const guidance = guidanceResult.data.filter((entry) => entry.length > 0);
     if (guidance.length < guidanceResult.data.length) {
-      console.warn(
+      warn(
+        `operations.${operationId}.guidance`,
         `Some guidance for operation '${operationId}' are empty strings, ignoring them`
       );
     }
@@ -191,13 +200,13 @@ function parseOperations(raw: unknown): OperationsConfig | undefined {
  * fields; returns undefined when the field is absent or normalizes to
  * empty.
  */
-function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
+function parseDeclarationList(raw: unknown, warn: FieldWarn = (_path, message) => console.warn(message)): DeclarationEntry[] | undefined {
   const fieldName = 'references';
   if (raw === undefined) {
     return undefined;
   }
   if (!Array.isArray(raw)) {
-    console.warn(`Invalid '${fieldName}' field in config (must be an array of store ids)`);
+    warn(fieldName, `Invalid '${fieldName}' field in config (must be an array of store ids)`);
     return undefined;
   }
 
@@ -235,10 +244,11 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
   }
 
   if (droppedEntries) {
-    console.warn(`Some '${fieldName}' entries are invalid, ignoring them`);
+    warn(fieldName, `Some '${fieldName}' entries are invalid, ignoring them`);
   }
   if (droppedRemotes) {
-    console.warn(
+    warn(
+      fieldName,
       `Some '${fieldName}' remotes are not non-empty strings; the ids are kept without a clone source`
     );
   }
@@ -246,6 +256,18 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
 }
 
 export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
+
+/** Every top-level key `parseProjectConfig` reads (`targets` is the retired spelling of `references`). */
+const KNOWN_CONFIG_FIELDS = new Set([
+  'schema',
+  'context',
+  'rules',
+  'operations',
+  'references',
+  'store',
+  'githubCopilot',
+  'targets',
+]);
 
 /**
  * Read and parse openspec/config.yaml from project root.
@@ -266,19 +288,68 @@ export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the r
  * @param projectRoot - The root directory of the project (where `openspec/` lives)
  * @returns Parsed config or null if file doesn't exist
  */
+/** One problem found while reading `openspec/config.yaml`. */
+export interface ProjectConfigProblem {
+  /** `parse`: the file could not be read as a YAML object. `field`: a field was dropped or ignored. */
+  kind: 'parse' | 'field';
+  /**
+   * `error`: configured content was lost (unparseable file, a dropped rule,
+   * context, store, ...). `warning`: nothing was lost — an unknown operation id
+   * or an unknown field was ignored, which is how a config written for a newer
+   * CLI is meant to degrade on an older one.
+   */
+  level: 'error' | 'warning';
+  /** Config path the problem refers to (e.g. `rules.proposal[0]`), or `file` for whole-file failures. */
+  path: string;
+  message: string;
+}
+
+export interface ProjectConfigInspection {
+  /** Absolute path of the config file, or null when no config exists. */
+  configPath: string | null;
+  /** The same partial config `readProjectConfig` returns. */
+  config: ProjectConfig | null;
+  /** Every warning `readProjectConfig` would have printed, plus whole-file parse failures. */
+  problems: ProjectConfigProblem[];
+}
+
 export function readProjectConfig(projectRoot: string): ProjectConfig | null {
+  return parseProjectConfig(projectRoot, (problem) =>
+    console.warn(problem.kind === 'parse' ? `Warning: ${problem.message}; ignoring it.` : problem.message)
+  ).config;
+}
+
+/**
+ * Read the config and collect every problem instead of printing it.
+ * `readProjectConfig` stays resilient (partial config, warnings only) so
+ * commands keep working; this is the surface for `openspec validate`, which
+ * must fail on a config the CLI cannot fully read (#1891, #1892).
+ */
+export function inspectProjectConfig(projectRoot: string): ProjectConfigInspection {
+  const problems: ProjectConfigProblem[] = [];
+  const { configPath, config } = parseProjectConfig(projectRoot, (problem) => problems.push(problem));
+  return { configPath, config, problems };
+}
+
+function parseProjectConfig(
+  projectRoot: string,
+  report: (problem: ProjectConfigProblem) => void
+): { configPath: string | null; config: ProjectConfig | null } {
+  const warn: FieldWarn = (path, message, level = 'error') => report({ kind: 'field', level, path, message });
   const configPath = resolveConfigFilePath(projectRoot);
   if (configPath === null) {
-    return null; // No config is OK
+    return { configPath, config: null }; // No config is OK
   }
 
   try {
     const content = readFileSync(configPath, 'utf-8');
     const raw = parseYaml(content);
 
-    if (!raw || typeof raw !== 'object') {
-      console.warn(`openspec/config.yaml is not a valid YAML object`);
-      return null;
+    // `typeof [] === 'object'`: a top-level sequence has no config fields, so
+    // without this it would parse to an empty config with no problem reported.
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      report({ kind: 'parse', level: 'error', path: 'file', message: `openspec/config.yaml is not a valid YAML object` });
+      return { configPath, config: null };
     }
 
     const config: Partial<ProjectConfig> = {};
@@ -289,7 +360,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
     if (schemaResult.success) {
       config.schema = schemaResult.data;
     } else if (raw.schema !== undefined) {
-      console.warn(`Invalid 'schema' field in config (must be non-empty string)`);
+      warn('schema', `Invalid 'schema' field in config (must be non-empty string)`);
     }
 
     // Parse context field with size limit
@@ -300,15 +371,15 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       if (contextResult.success) {
         const contextSize = Buffer.byteLength(contextResult.data, 'utf-8');
         if (contextSize > MAX_CONTEXT_SIZE) {
-          console.warn(
-            `Context too large (${(contextSize / 1024).toFixed(1)}KB, limit: ${MAX_CONTEXT_SIZE / 1024}KB)`
+          warn(
+            'context',
+            `Context too large (${(contextSize / 1024).toFixed(1)}KB, limit: ${MAX_CONTEXT_SIZE / 1024}KB). Ignoring context field`
           );
-          console.warn(`Ignoring context field`);
         } else {
           config.context = contextResult.data;
         }
       } else {
-        console.warn(`Invalid 'context' field in config (must be string)`);
+        warn('context', `Invalid 'context' field in config (must be string)`);
       }
     }
 
@@ -326,22 +397,37 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         let hasValidRules = false;
 
         for (const [artifactId, rules] of Object.entries(raw.rules)) {
-          const rulesArrayResult = z.array(z.string()).safeParse(rules);
-
-          if (rulesArrayResult.success) {
-            // Filter out empty strings
-            const validRules = rulesArrayResult.data.filter((r) => r.length > 0);
+          if (Array.isArray(rules)) {
+            // Validate item by item: one malformed entry must not drop the
+            // artifact's well-formed rules, and the warning must name the
+            // entry so it can be found without bisecting the list (#1891).
+            const validRules: string[] = [];
+            let emptyRules = 0;
+            rules.forEach((rule, index) => {
+              if (typeof rule === 'string') {
+                if (rule.length > 0) validRules.push(rule);
+                else emptyRules++;
+              } else {
+                const hint = isYamlMapping(rule) ? '; quote the rule if it contains ": "' : '';
+                warn(
+                  `rules.${artifactId}[${index}]`,
+                  `rules.${artifactId}[${index}] is not a string (found ${describeYamlValue(rule)}), ignoring this rule${hint}`
+                );
+              }
+            });
             if (validRules.length > 0) {
               parsedRules[artifactId] = validRules;
               hasValidRules = true;
             }
-            if (validRules.length < rulesArrayResult.data.length) {
-              console.warn(
+            if (emptyRules > 0) {
+              warn(
+                `rules.${artifactId}`,
                 `Some rules for '${artifactId}' are empty strings, ignoring them`
               );
             }
           } else {
-            console.warn(
+            warn(
+              `rules.${artifactId}`,
               `Rules for '${artifactId}' must be an array of strings, ignoring this artifact's rules`
             );
           }
@@ -351,16 +437,16 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
           config.rules = parsedRules;
         }
       } else {
-        console.warn(`Invalid 'rules' field in config (must be object)`);
+        warn('rules', `Invalid 'rules' field in config (must be object)`);
       }
     }
 
-    const operations = parseOperations(raw.operations);
+    const operations = parseOperations(raw.operations, warn);
     if (operations) {
       config.operations = operations;
     }
 
-    const references = parseDeclarationList(raw.references);
+    const references = parseDeclarationList(raw.references, warn);
     if (references) {
       config.references = references;
     }
@@ -372,8 +458,9 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
       if (typeof raw.store === 'string') {
         config.store = raw.store;
       } else {
-        console.warn(
-          `Warning: ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string).`
+        warn(
+          'store',
+          `Ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string)`
         );
       }
     }
@@ -389,22 +476,56 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         if (typeof cloudAgent === 'boolean') {
           config.githubCopilot = { cloudAgent };
         } else if (cloudAgent !== undefined) {
-          console.warn(`Invalid 'githubCopilot.cloudAgent' field in config (must be a boolean)`);
+          warn('githubCopilot.cloudAgent', `Invalid 'githubCopilot.cloudAgent' field in config (must be a boolean)`);
         }
       } else {
-        console.warn(`Invalid 'githubCopilot' field in config (must be an object)`);
+        warn('githubCopilot', `Invalid 'githubCopilot' field in config (must be an object)`);
+      }
+    }
+
+    // A top-level key nothing above reads is ignored: for a typo such as
+    // `rule:` that silently drops every project rule. Reported as a warning
+    // (nothing the parser understood was lost) so `validate --strict` can
+    // reject it while a config written for a newer CLI still degrades on an
+    // older one. `targets` is the retired name of `references` and stays
+    // silent, as it always has.
+    for (const key of Object.keys(raw)) {
+      if (!KNOWN_CONFIG_FIELDS.has(key)) {
+        warn(
+          key,
+          `Unknown field '${key}' in config, ignoring it. Supported fields: ${[...KNOWN_CONFIG_FIELDS].filter((k) => k !== 'targets').join(', ')}`,
+          'warning'
+        );
       }
     }
 
     // Return partial config even if some fields failed
-    return Object.keys(config).length > 0 ? (config as ProjectConfig) : null;
+    return { configPath, config: Object.keys(config).length > 0 ? (config as ProjectConfig) : null };
   } catch (error) {
-    console.warn(
-      `Warning: could not parse ${configPathForWarnings(projectRoot)} (${error instanceof Error ? error.message.split('\n')[0] : String(error)}); ignoring it.`
-    );
-    return null;
+    report({
+      kind: 'parse',
+      level: 'error',
+      path: 'file',
+      message: `could not parse ${configPathForWarnings(projectRoot)} (${error instanceof Error ? error.message.split('\n')[0] : String(error)})`,
+    });
+    return { configPath, config: null };
   }
 }
+
+function describeYamlValue(value: unknown): string {
+  if (value === null) return 'null';
+  if (Array.isArray(value)) return 'a list';
+  if (typeof value === 'object') {
+    const keys = Object.keys(value as Record<string, unknown>);
+    return keys.length === 1 ? `a mapping with key ${JSON.stringify(keys[0])}` : 'a mapping';
+  }
+  return `a ${typeof value}`;
+}
+
+function isYamlMapping(value: unknown): boolean {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 
 function configPathForWarnings(projectRoot: string): string {
   return resolveConfigFilePath(projectRoot) ?? path.join(projectRoot, 'openspec', 'config.yaml');

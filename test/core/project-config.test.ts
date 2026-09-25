@@ -6,6 +6,7 @@ import {
   loadOperationInputs,
   OPERATION_IDS,
   readProjectConfig,
+  inspectProjectConfig,
   validateConfigRules,
   suggestSchemas,
 } from '../../src/core/project-config.js';
@@ -458,6 +459,60 @@ rules:
         });
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           expect.stringContaining("Rules for 'specs' must be an array of strings")
+        );
+      });
+
+      it('keeps well-formed rules and names the offending item when one rule is not a string (#1891)', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `rules:
+  proposal:
+    - Keep the "Why" section concrete: what breaks today without the change
+    - List "What Changes" at the file level
+    - Declare "New Capabilities" using existing capability names
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        // The unquoted ": " turns item 0 into a mapping; the other two rules survive.
+        expect(config?.rules).toEqual({
+          proposal: [
+            'List "What Changes" at the file level',
+            'Declare "New Capabilities" using existing capability names',
+          ],
+        });
+        const warned = consoleWarnSpy.mock.calls.map((c) => String(c[0]));
+        expect(warned).toEqual([
+          expect.stringContaining('rules.proposal[0] is not a string (found a mapping with key "Keep the \\"Why\\" section concrete")'),
+        ]);
+        expect(warned[0]).toContain('quote the rule if it contains ": "');
+      });
+
+      it('drops the artifact when every rule is malformed, without touching other artifacts', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `rules:
+  proposal:
+    - 1
+    - { a: b }
+  specs:
+    - Fine
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        expect(config).toEqual({ rules: { specs: ['Fine'] } });
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('rules.proposal[0] is not a string (found a number)')
+        );
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('rules.proposal[1] is not a string (found a mapping with key "a")')
         );
       });
 
@@ -1026,6 +1081,122 @@ rules:
       // 'abcdefghijk' has large Levenshtein distance from all schemas
       expect(message).not.toContain('Did you mean');
       expect(message).toContain('Available schemas:');
+    });
+  });
+
+  describe('inspectProjectConfig', () => {
+    it('reports no config and no problems when the file is absent', () => {
+      expect(inspectProjectConfig(tempDir)).toEqual({ configPath: null, config: null, problems: [] });
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('collects a whole-file parse failure as a problem instead of printing it (#1892)', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      const configPath = path.join(configDir, 'config.yaml');
+      fs.writeFileSync(configPath, ['rules:', '  proposal:', `    - 'Keep the "Why" section concrete: what breaks today`, ''].join('\n'));
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.configPath).toBe(configPath);
+      expect(inspection.config).toBeNull();
+      expect(inspection.problems).toEqual([
+        { kind: 'parse', level: 'error', path: 'file', message: expect.stringContaining('could not parse') },
+      ]);
+      expect(inspection.problems[0].message).toContain('config.yaml');
+      expect(inspection.problems[0].message).not.toContain('Warning:');
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('collects dropped fields with their config path and still returns the partial config', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.yaml'),
+        `schema: spec-driven
+context: 42
+rules:
+  proposal:
+    - Fine
+    - { bad: item }
+  specs: "not an array"
+operations:
+  apply:
+    guidance: nope
+`
+      );
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.config).toEqual({ schema: 'spec-driven', rules: { proposal: ['Fine'] } });
+      expect(inspection.problems.map((p) => [p.kind, p.level, p.path])).toEqual([
+        ['field', 'error', 'context'],
+        ['field', 'error', 'rules.proposal[1]'],
+        ['field', 'error', 'rules.specs'],
+        ['field', 'error', 'operations.apply.guidance'],
+      ]);
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('reports an unknown operation id or field as a warning, not an error', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.yaml'),
+        ['operations:', '  deploy:', '    guidance:', '      - later', '  apply:', '    guidance:', '      - fine', '    extra: 1', ''].join('\n')
+      );
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.config).toEqual({ operations: { apply: { guidance: ['fine'] } } });
+      expect(inspection.problems.map((p) => [p.level, p.path])).toEqual([
+        ['warning', 'operations'],
+        ['warning', 'operations.apply'],
+      ]);
+    });
+
+    it('reports a top-level YAML sequence as a parse problem instead of an empty config', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(path.join(configDir, 'config.yaml'), ['- schema: spec-driven', ''].join('\n'));
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.config).toBeNull();
+      expect(inspection.problems).toEqual([
+        { kind: 'parse', level: 'error', path: 'file', message: expect.stringContaining('not a valid YAML object') },
+      ]);
+      expect(readProjectConfig(tempDir)).toBeNull();
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('not a valid YAML object'));
+    });
+
+    it('reports an unknown top-level field as a warning and keeps the legacy targets key silent', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.yaml'),
+        ['schema: spec-driven', 'rule:', '  proposal:', '    - typo, not rules', 'targets:', '  - legacy', ''].join(String.fromCharCode(10))
+      );
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.config).toEqual({ schema: 'spec-driven' });
+      expect(inspection.problems).toEqual([
+        { kind: 'field', level: 'warning', path: 'rule', message: expect.stringContaining("Unknown field 'rule' in config") },
+      ]);
+      expect(inspection.problems[0].message).toContain('Supported fields: schema, context, rules');
+      expect(inspection.problems[0].message).not.toContain('targets');
+    });
+
+    it('returns an empty problem list for a healthy config', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(path.join(configDir, 'config.yaml'), ['schema: spec-driven', 'rules:', '  proposal:', '    - Fine', ''].join('\n'));
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.problems).toEqual([]);
+      expect(inspection.config).toEqual({ schema: 'spec-driven', rules: { proposal: ['Fine'] } });
     });
   });
 });
