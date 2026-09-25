@@ -335,6 +335,14 @@ function toArchiveDiagnostic(error: unknown): ArchiveDiagnostic {
   if (isRootSelectionError(error)) {
     return error.diagnostic;
   }
+  if (error instanceof RetirementCleanupError) {
+    return {
+      severity: 'error',
+      code: 'archive_retirement_cleanup_failed',
+      message: error.message,
+      fix: 'Inspect the archived change and all recovery paths in this diagnostic; preserve any needed content before cleanup.',
+    };
+  }
   return {
     severity: 'error',
     code: 'archive_error',
@@ -485,7 +493,7 @@ async function assertCopiedDirectoryUnchanged(
  * the source untouched rather than copying through a path we could not claim.
  */
 class MoveDestinationRetainedError extends Error {}
-class RetirementBackupsRetainedError extends Error {}
+class RetirementCleanupError extends Error {}
 
 function isFallbackRenameCode(code: string | undefined): boolean {
   return code === 'EPERM' || code === 'EXDEV';
@@ -1267,14 +1275,14 @@ async function finalizeRetirementBackups(
       snapshot.displacedPath = undefined;
     } catch (error) {
       errors.push(
-        `Could not remove the committed retirement backup at ${displacedPath} ` +
+        `Could not finalize the retirement backup at ${displacedPath} ` +
           `(${error instanceof Error ? error.message : String(error)}).`
       );
     }
   }
   if (errors.length > 0) {
-    throw new RetirementBackupsRetainedError(
-      `${errors.join(' ')} The change remains archived and each listed backup was retained for recovery.`
+    throw new RetirementCleanupError(
+      `${errors.join(' ')} The change was archived, but retirement cleanup did not complete. Inspect all reported recovery paths before recovery or cleanup.`
     );
   }
 }
@@ -2228,7 +2236,7 @@ export class ArchiveCommand {
               try {
                 await finalizeRetirementBackups(specSnapshots, mainSpecsDir);
               } catch (cleanupError) {
-                throw new RetirementBackupsRetainedError(
+                throw new RetirementCleanupError(
                   `${error.message} ${
                     cleanupError instanceof Error ? cleanupError.message : String(cleanupError)
                   }`
@@ -2236,7 +2244,7 @@ export class ArchiveCommand {
               }
               throw error;
             }
-            if (error instanceof RetirementBackupsRetainedError) throw error;
+            if (error instanceof RetirementCleanupError) throw error;
             const rollbackErrors: Error[] = [];
             try {
               await restoreSpecSnapshots(
