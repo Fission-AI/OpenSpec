@@ -18,6 +18,7 @@ import {
   storePointerProblem,
 } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
+import { resolveOpenSpecRoot } from './root-selection.js';
 import { ANCHORED_OPENSPEC_DIRS, ensureDirectoryAnchor } from './openspec-root.js';
 import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
@@ -188,7 +189,7 @@ export class InitCommand {
   }
 
   async execute(targetPath: string): Promise<void> {
-    const projectPath = path.resolve(targetPath);
+    const projectPath = FileSystemUtils.canonicalizeExistingPath(targetPath);
     const openspecDir = OPENSPEC_DIR_NAME;
     const openspecPath = path.join(projectPath, openspecDir);
 
@@ -203,6 +204,7 @@ export class InitCommand {
     // finds the nearest ancestor root (so pointer-repo subdirectories
     // refuse exactly where a normal command would resolve the pointer).
     const guardRoot = findRepoPlanningRootSync(projectPath);
+    let integrationsOnly = false;
     if (guardRoot) {
       const { hasPlanningShape, pointer } = classifyOpenSpecDir(guardRoot);
       if (!hasPlanningShape) {
@@ -214,15 +216,30 @@ export class InitCommand {
           );
         }
         if (pointer.value !== undefined) {
-          throw new Error(
-            `This repo's planning is externalized to store '${pointer.value}' (${pointer.filePath}). ` +
-              `Remove the store: line first to convert this repo to a local OpenSpec root.`
-          );
+          if (path.resolve(guardRoot) !== projectPath) {
+            throw new Error(
+              `This repo's planning is externalized to store '${pointer.value}' (${pointer.filePath}). ` +
+                'Run openspec init from the pointer repo root to install integrations.'
+            );
+          }
+
+          // A valid pointer repo already has its planning root in the declared
+          // store. Init should still be able to install agent integrations in
+          // the code repo, without creating a second local planning root.
+          await resolveOpenSpecRoot({ startPath: projectPath });
+          integrationsOnly = true;
         }
       }
     }
 
-    await this.assertLanguageCanBeApplied(projectPath, openspecPath);
+    if (!integrationsOnly) {
+      await this.assertLanguageCanBeApplied(projectPath, openspecPath);
+    } else if (this.language) {
+      throw new Error(
+        '--language cannot update an external store through a pointer repo. ' +
+        'Run init in the store root, or edit the store config directly.'
+      );
+    }
 
     // Check for legacy artifacts and handle cleanup
     const deferredLegacyCleanup = await this.handleLegacyCleanup(projectPath, extendMode);
@@ -282,8 +299,11 @@ export class InitCommand {
     // config.yaml exists so future non-interactive updates honor it.
     const copilotDecision = await this.resolveCopilotCloudDecision(projectPath, validatedTools);
 
-    // Create directory structure and config
-    await this.createDirectoryStructure(openspecPath, extendMode);
+    // Pointer repos only receive integrations. Their planning structure and
+    // config stay in the declared store.
+    if (!integrationsOnly) {
+      await this.createDirectoryStructure(openspecPath, extendMode);
+    }
 
     // Generate skills and commands for each tool
     const results = await this.generateSkillsAndCommands(
@@ -298,13 +318,16 @@ export class InitCommand {
       await this.finalizeDeferredLegacyCleanup(projectPath, deferredLegacyCleanup);
     }
 
-    // Create config.yaml if needed
-    const configStatus = await this.createConfig(openspecPath, extendMode);
+    // Create config.yaml if needed. A pointer repo already has the config that
+    // declares its store, so preserve it byte-for-byte.
+    const configStatus = integrationsOnly
+      ? 'exists' as const
+      : await this.createConfig(openspecPath, extendMode);
 
     // Persist an explicit Copilot cloud decision so `openspec update` (which
     // never prompts) honors it. Best-effort: a config-write failure must not
     // fail an otherwise-successful init.
-    if (copilotDecision.persist !== undefined) {
+    if (!integrationsOnly && copilotDecision.persist !== undefined) {
       try {
         await persistCopilotCloudOptIn(projectPath, copilotDecision.persist);
       } catch {
