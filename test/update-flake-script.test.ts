@@ -105,7 +105,8 @@ describe('update-flake.sh confines every hash rewrite to the pnpmDeps block', ()
     expect(updated).not.toContain(placeholder);
 
     fs.rmSync(dir, { recursive: true, force: true });
-  });
+    // Three `bash` spawns: 0.3s to 13s on the Windows runner depending on load.
+  }, 60_000);
 
   it('refuses to touch the file when no pnpmDeps hash is found', () => {
     expect(script).toContain('no pnpmDeps hash found in flake.nix');
