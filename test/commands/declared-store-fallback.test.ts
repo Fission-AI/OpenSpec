@@ -173,6 +173,37 @@ describe('declared store fallback (3.2)', () => {
     expect(before.get('openspec/config.yaml')).toBe('store: team-context\n');
   });
 
+  it.skipIf(process.platform === 'win32')('installs integrations through a symlinked pointer-repo root', async () => {
+    const alias = path.join(tempDir, 'repo-alias');
+    fs.symlinkSync(pointerRepo, alias, 'dir');
+    const initialized = await runCLI(['init', alias, '--tools', 'claude'], {
+      cwd: tempDir,
+      env,
+    });
+
+    expect(initialized.exitCode).toBe(0);
+    expect(fs.existsSync(path.join(pointerRepo, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    expect(fs.readFileSync(path.join(pointerRepo, 'openspec', 'config.yaml'), 'utf8')).toBe(
+      'store: team-context\n'
+    );
+  });
+
+  it.each(['--copilot-cloud', '--no-copilot-cloud'])(
+    'preserves the pointer config with an explicit %s choice',
+    async (flag) => {
+      const configPath = path.join(pointerRepo, 'openspec', 'config.yaml');
+      const before = fs.readFileSync(configPath, 'utf8');
+      const initialized = await runCLI(['init', '.', '--tools', 'github-copilot', flag], {
+        cwd: pointerRepo,
+        env,
+      });
+
+      expect(initialized.exitCode).toBe(0);
+      expect(fs.readFileSync(configPath, 'utf8')).toBe(before);
+      expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'specs'))).toBe(false);
+    }
+  );
+
   it('rejects --language in a pointer repo without changing either root', async () => {
     const pointerBefore = snapshot(pointerRepo);
     const storeBefore = snapshot(storeRoot);

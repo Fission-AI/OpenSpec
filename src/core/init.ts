@@ -189,7 +189,7 @@ export class InitCommand {
   }
 
   async execute(targetPath: string): Promise<void> {
-    const projectPath = path.resolve(targetPath);
+    const projectPath = FileSystemUtils.canonicalizeExistingPath(targetPath);
     const openspecDir = OPENSPEC_DIR_NAME;
     const openspecPath = path.join(projectPath, openspecDir);
 
@@ -327,7 +327,7 @@ export class InitCommand {
     // Persist an explicit Copilot cloud decision so `openspec update` (which
     // never prompts) honors it. Best-effort: a config-write failure must not
     // fail an otherwise-successful init.
-    if (copilotDecision.persist !== undefined) {
+    if (!integrationsOnly && copilotDecision.persist !== undefined) {
       try {
         await persistCopilotCloudOptIn(projectPath, copilotDecision.persist);
       } catch {
