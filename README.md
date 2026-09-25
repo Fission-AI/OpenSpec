@@ -240,6 +240,10 @@ Open a discussion (for core design changes) or an issue before you open a PR, an
 
 → **[CONTRIBUTING.md](CONTRIBUTING.md)**: the full process, from first issue to merged PR
 
+## Ecosystem & Related SDD Tools
+
+- [MySpec](https://myspec.dev) — Interactive spec discovery engine compiling guided developer interviews into deterministic 4-file bundles (`constitution.md`, `requirements.md`, `solution.md`, `tasks.md`) with Model Context Protocol (MCP) server integration.
+
 ## Other
 
 <details>
