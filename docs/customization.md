@@ -95,6 +95,42 @@ Tech stack: TypeScript, React, Node.js, PostgreSQL
 - **Context** appears in ALL artifacts
 - **Rules** ONLY appear for the matching artifact
 
+**Scoping context/rules to one schema:**
+
+The top-level `context` and `rules` above apply to every schema in the
+project - useful, but a problem if you register more than one schema (say,
+the built-in `spec-driven` plus a schema forked for a different team) and
+want a rule or note to apply to only one of them. Add an optional `schemas`
+block, keyed by schema name, to layer schema-specific context and rules on
+top of the project-wide ones:
+
+```yaml
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack: TypeScript, React, Node.js, PostgreSQL
+
+rules:
+  proposal:
+    - Include rollback plan
+
+schemas:
+  my-workflow:
+    context: |
+      This schema is for the payments team; flag PCI-scope changes explicitly.
+    rules:
+      proposal:
+        - Tag the proposal with the affected payment provider
+```
+
+Generating instructions for `my-workflow`'s `proposal` artifact gets the
+project-wide context and rule above **plus** the `my-workflow`-only context
+and rule; generating instructions for `spec-driven`'s `proposal` artifact
+(or any other schema) only gets the project-wide ones. A schema with no
+entry under `schemas` is unaffected - existing `config.yaml` files that only
+use the flat `context`/`rules` fields keep behaving exactly as before.
+
 **Operation guidance:**
 
 `operations.apply.guidance` and `operations.archive.guidance` are optional arrays
