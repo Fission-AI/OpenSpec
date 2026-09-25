@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Core design change
+    url: https://github.com/Fission-AI/OpenSpec/discussions/categories/ideas
+    about: Anything that changes how OpenSpec works at its core starts as a discussion, per CONTRIBUTING step 1.
+  - name: Question or help with your setup
+    url: https://github.com/Fission-AI/OpenSpec/discussions/categories/q-a
+    about: Not sure whether it is a bug? Ask here and we will help you narrow it down.
+  - name: Discord
+    url: https://discord.gg/YctCnvvshC
+    about: Chat with the community and the maintainers.
