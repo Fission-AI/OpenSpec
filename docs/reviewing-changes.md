@@ -141,3 +141,60 @@ If all seven pass, run `/opsx:apply` with confidence. If any fail, that's not a 
 - [Writing Good Specs](writing-specs.md) — the flip side: how to draft requirements and scenarios worth approving.
 - [Editing & Iterating on a Change](editing-changes.md) — the mechanics of changing a plan after you've started.
 - [Workflows](workflows.md) — where review fits in the larger loop.
+
+## Optional: map requirements to evidence
+
+For changes with several verification environments, a short evidence table can
+make the code review easier. Keep it in the change's `tasks.md` or link to an
+existing CI report; a separate evidence file is optional. This is a review
+convention, not an OpenSpec schema, an archive gate, or a new command.
+
+Give requirements stable local labels and connect each scenario to a test or
+observation. Record which requirement revision and implementation inputs the
+result covers. A commit identifies source; a binary digest identifies a built
+artifact. Neither alone proves what was installed or tested.
+
+For example, consider a fictional client that suppresses extra probes for
+60 seconds after receiving traffic:
+
+| Requirement | Scenario | Evidence needed | Example review outcome |
+|-------------|----------|-----------------|------------------------|
+| RX-01 | Traffic age is 59,999 ms | Boundary test on the reviewed source | PASS if probes are suppressed |
+| RX-01 | Traffic age is 60,000 ms | Boundary test on the same source | PASS if suppression expires |
+| RX-02 | A send succeeds, but no traffic is received | Negative test | PASS if sending does not refresh receive evidence |
+| RX-03 | The connection target changes | Reset scenario | PASS if old receive evidence is discarded |
+| RX-04 | The client runs on a device | Observation tied to the installed artifact and test environment | NOT RUN until that observation exists |
+
+These are illustrative expectations, not results from a real device. A passing
+host test covers its scenario; it does not fill the device-observation row.
+If the change only promises host-tested behavior, do not add a device gate.
+
+An evidence reference should let the reviewer find:
+
+- The requirement/scenario and revision covered.
+- The relevant source revision or artifact digest and the test environment.
+- The test or observation, its result, and when it was collected.
+- The original CI run, report, or other producer that can be checked independently.
+- Remaining gaps, including failures and checks that were not run.
+
+Check the source of the result as well as its fields. An assistant-authored
+`PASS` or a file containing a hash is still a claim. Follow the reference to the
+trusted producer and verify that it checked the relevant inputs. Do not execute
+commands embedded in an untrusted report. Keep credentials, private endpoints,
+device identifiers, and raw operational logs out of public examples; use
+redacted references where the evidence itself is private.
+
+Before reusing a result, consider these cases:
+
+| What changed or is missing? | Review action |
+|----------------------------|---------------|
+| Requirement meaning changed | Reassess scenario coverage for the new revision |
+| Tested artifact differs from the candidate | Obtain evidence for the candidate |
+| Test environment differs from the promised environment | Keep that acceptance gap visible |
+| The same report is linked twice | Do not count it as two distinct checks |
+| Result is missing or unknown | Preserve NOT RUN or UNKNOWN; do not infer PASS |
+| Only unrelated documentation changed | Reuse may be reasonable under an explicit project policy |
+
+Archiving and release acceptance remain separate decisions. This table does
+not change OpenSpec's archive behavior. If a project requires enforcement, its
+existing CI or release process must enforce that policy; prose alone cannot.
