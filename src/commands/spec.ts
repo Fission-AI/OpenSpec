@@ -66,6 +66,7 @@ function filterSpec(spec: Spec, options: ShowOptions): Spec {
     ? [spec.requirements[requirementIndex]]
     : spec.requirements
   ).map(req => ({
+    name: req.name,
     text: req.text,
     scenarios: includeScenarios ? req.scenarios : [],
   }));

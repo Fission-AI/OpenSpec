@@ -630,8 +630,16 @@ function scenarioHeaderAt(lines: string[], mask: boolean[], index: number): bool
  * ATX-closed, one not) are not mistaken for a dropped scenario.
  */
 function scenarioNameAt(line: string): string {
-  return line
-    .replace(SCENARIO_HEADER, '')
+  return scenarioNameFromHeaderText(line.replace(SCENARIO_HEADER, ''));
+}
+
+/**
+ * scenarioNameAt for header text whose leading `####` is already gone, as the
+ * section parser (MarkdownParser) holds it, so `show --json` names a scenario
+ * exactly as the MODIFIED loss check does.
+ */
+export function scenarioNameFromHeaderText(headerText: string): string {
+  return headerText
     // Optional ATX closing sequence. CommonMark only treats a trailing `#` run
     // as a close when it is preceded by a space or tab — not any Unicode space —
     // so this uses `[ \t]`, not `\s`. A looser `\s` could strip a `#` run after
