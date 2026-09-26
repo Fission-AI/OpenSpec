@@ -459,6 +459,76 @@ rules:
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           expect.stringContaining("Rules for 'specs' must be an array of strings")
         );
+        // Names the offending index and the shape YAML produced there.
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining("rules.specs is a string")
+        );
+      });
+
+      it('should name the offending index and shape for a rule that YAML reads as a mapping', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+rules:
+  proposal:
+    - Valid rule
+    - Keep the "Why" section concrete: what breaks today without the change
+    - Another valid rule
+  specs:
+    - Requirements are declarative SHALL statements
+`
+        );
+
+        const config = readProjectConfig(tempDir);
+
+        // Unchanged behavior: the malformed artifact's whole rule set is still
+        // dropped, and its well-formed siblings are untouched.
+        expect(config).toEqual({
+          schema: 'spec-driven',
+          rules: {
+            specs: ['Requirements are declarative SHALL statements'],
+          },
+        });
+
+        const warned = consoleWarnSpy.mock.calls
+          .map((call) => call[0] as string)
+          .find((message) => message.includes("Rules for 'proposal'")) as string;
+        // Points at the exact index instead of making the reader bisect by hand.
+        expect(warned).toContain('rules.proposal[1] is a mapping');
+        // And says why, plus how to fix it.
+        expect(warned).toContain('unquoted ": "');
+        expect(warned).toContain('quote the whole scalar');
+        // The well-formed artifact is not implicated.
+        expect(warned).not.toContain('rules.specs');
+      });
+
+      it('should list every offending index when a rules list has more than one bad item', () => {
+        const configDir = path.join(tempDir, 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(configDir, 'config.yaml'),
+          `schema: spec-driven
+rules:
+  proposal:
+    - First: bad mapping
+    - Valid rule
+    - Second: also a mapping
+    - 42
+`
+        );
+
+        readProjectConfig(tempDir);
+
+        const warned = consoleWarnSpy.mock.calls
+          .map((call) => call[0] as string)
+          .find((message) => message.includes("Rules for 'proposal'")) as string;
+        expect(warned).toContain('rules.proposal[0] is a mapping');
+        expect(warned).toContain('rules.proposal[2] is a mapping');
+        expect(warned).toContain('rules.proposal[3] is a number');
+        // The valid sibling between them is not reported.
+        expect(warned).not.toContain('rules.proposal[1]');
       });
 
       it('should filter out empty string rules', () => {
