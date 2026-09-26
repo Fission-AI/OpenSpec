@@ -184,6 +184,24 @@ describe('listUnknownChangeMetadataKeys', () => {
   });
 });
 
+describe('formatUnknownChangeMetadataKeysMessage', () => {
+  it('lists the keys and the known keys', () => {
+    const message = formatUnknownChangeMetadataKeysMessage(['owner', 'skip_design']);
+    expect(message).toContain('Unrecognized key(s) in .openspec.yaml: owner, skip_design.');
+    expect(message).toContain('Known keys: schema, created, goal, affected_areas');
+  });
+
+  it('does not pass terminal control characters through from a key', () => {
+    const message = formatUnknownChangeMetadataKeysMessage([
+      'a\u001b[31mb\u001b[0m',
+      'c\u009bd\u007fe',
+      'f\ng',
+    ]);
+    expect(message).toContain('a [31mb [0m, c d e, f g.');
+    expect(message).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+  });
+});
+
 describe('writeChangeMetadata', () => {
   let testDir: string;
   let changeDir: string;

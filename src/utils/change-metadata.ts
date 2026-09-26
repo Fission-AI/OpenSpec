@@ -8,6 +8,7 @@ import {
 } from '../core/change-metadata/index.js';
 import { listSchemas, resolveSchema } from '../core/artifact-graph/resolver.js';
 import { readProjectConfig, type ProjectConfig } from '../core/project-config.js';
+import { sanitizeInline } from '../core/references.js';
 
 export const METADATA_FILENAME = '.openspec.yaml';
 
@@ -34,7 +35,9 @@ export function listUnknownChangeMetadataKeys(parsed: unknown): string[] {
  * is not `skip_specs`.
  */
 export function formatUnknownChangeMetadataKeysMessage(keys: string[]): string {
-  const listed = keys.join(', ');
+  // The keys come from the file as written, so a quoted key can carry a
+  // terminal escape; it is printed as inline text.
+  const listed = keys.map((key) => sanitizeInline(key, 100)).join(', ');
   const known = [...CHANGE_METADATA_KNOWN_KEYS].join(', ');
   let message =
     `Unrecognized key(s) in ${METADATA_FILENAME}: ${listed}. ` +
