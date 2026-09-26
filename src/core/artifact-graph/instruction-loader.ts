@@ -8,7 +8,12 @@ import {
   resolveArtifactOutputPath,
   resolveArtifactOutputs,
 } from './outputs.js';
-import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
+import {
+  formatUnknownChangeMetadataKeysMessage,
+  readChangeMetadata,
+  readUnknownChangeMetadataKeys,
+  resolveSchemaForChange,
+} from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   buildActionContext,
@@ -273,6 +278,14 @@ export function loadChangeContext(
   );
 
   const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
+  const unknownMetadataKeys = readUnknownChangeMetadataKeys(changeDir);
+  if (unknownMetadataKeys.length > 0) {
+    const warning = formatUnknownChangeMetadataKeysMessage(unknownMetadataKeys);
+    if (!shownWarnings.has(warning)) {
+      console.warn(warning);
+      shownWarnings.add(warning);
+    }
+  }
   const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot, {
     metadata: metadata ?? null,
     projectConfig: options.projectConfig,

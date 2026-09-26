@@ -9,6 +9,8 @@ import {
   validateSchemaName,
   ChangeMetadataError,
   readRetireCapabilitiesMarker,
+  listUnknownChangeMetadataKeys,
+  formatUnknownChangeMetadataKeysMessage,
 } from '../../src/utils/change-metadata.js';
 import { ChangeMetadataSchema } from '../../src/core/change-metadata/index.js';
 
@@ -118,6 +120,21 @@ describe('ChangeMetadataSchema', () => {
       expect(result.success).toBe(false);
     });
 
+    it('strips unrecognized top-level keys instead of rejecting the file', () => {
+      const result = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: true,
+        skip_design: true,
+        bogus_key: 1,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.skip_specs).toBe(true);
+        expect(result.data).not.toHaveProperty('skip_design');
+        expect(result.data).not.toHaveProperty('bogus_key');
+      }
+    });
+
     it('should reject unsafe initiative link identifiers', () => {
       for (const initiative of [
         { store: '/tmp/platform', id: 'billing-launch' },
@@ -133,6 +150,55 @@ describe('ChangeMetadataSchema', () => {
         expect(result.success).toBe(false);
       }
     });
+  });
+});
+
+describe('listUnknownChangeMetadataKeys', () => {
+  it('names extra top-level keys and ignores known ones', () => {
+    expect(
+      listUnknownChangeMetadataKeys({
+        schema: 'spec-driven',
+        skip_specs: true,
+        skip_design: true,
+        bogus_key: 1,
+      })
+    ).toEqual(['bogus_key', 'skip_design']);
+  });
+
+  it('returns nothing for a known-keys-only object', () => {
+    expect(
+      listUnknownChangeMetadataKeys({
+        schema: 'spec-driven',
+        created: '2026-09-19',
+        skip_specs: true,
+      })
+    ).toEqual([]);
+  });
+
+  it('explains that skip_design is not skip_specs', () => {
+    const message = formatUnknownChangeMetadataKeysMessage(['skip_design']);
+    expect(message).toContain('skip_design');
+    expect(message).toContain('skip_specs');
+    expect(message).toMatch(/ignored/i);
+    expect(message).toContain('generates path lives under specs/');
+  });
+});
+
+describe('formatUnknownChangeMetadataKeysMessage', () => {
+  it('lists the keys and the known keys', () => {
+    const message = formatUnknownChangeMetadataKeysMessage(['owner', 'skip_design']);
+    expect(message).toContain('Unrecognized key(s) in .openspec.yaml: owner, skip_design.');
+    expect(message).toContain('Known keys: schema, created, goal, affected_areas');
+  });
+
+  it('does not pass terminal control characters through from a key', () => {
+    const message = formatUnknownChangeMetadataKeysMessage([
+      'a\u001b[31mb\u001b[0m',
+      'c\u009bd\u007fe',
+      'f\ng',
+    ]);
+    expect(message).toContain('a [31mb [0m, c d e, f g.');
+    expect(message).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
   });
 });
 

@@ -1,11 +1,76 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'yaml';
-import { ChangeMetadataSchema, type ChangeMetadata } from '../core/change-metadata/index.js';
+import {
+  CHANGE_METADATA_KNOWN_KEYS,
+  ChangeMetadataSchema,
+  type ChangeMetadata,
+} from '../core/change-metadata/index.js';
 import { listSchemas, resolveSchema } from '../core/artifact-graph/resolver.js';
 import { readProjectConfig, type ProjectConfig } from '../core/project-config.js';
+import { sanitizeInline } from '../core/references.js';
 
 export const METADATA_FILENAME = '.openspec.yaml';
+
+export { CHANGE_METADATA_KNOWN_KEYS };
+
+/**
+ * Unknown top-level keys on a parsed .openspec.yaml object. Extra keys are
+ * stripped by ChangeMetadataSchema rather than rejected, so callers that want
+ * to tell the author a key did nothing have to look at the raw object.
+ */
+export function listUnknownChangeMetadataKeys(parsed: unknown): string[] {
+  if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return [];
+  }
+  const known = new Set<string>(CHANGE_METADATA_KNOWN_KEYS);
+  return Object.keys(parsed as Record<string, unknown>)
+    .filter((key) => !known.has(key))
+    .sort();
+}
+
+/**
+ * Human-readable warning for keys ChangeMetadataSchema strips. Names the
+ * unknown keys, the keys that do exist, and (when present) why `skip_design`
+ * is not `skip_specs`.
+ */
+export function formatUnknownChangeMetadataKeysMessage(keys: string[]): string {
+  // The keys come from the file as written, so a quoted key can carry a
+  // terminal escape; it is printed as inline text.
+  const listed = keys.map((key) => sanitizeInline(key, 100)).join(', ');
+  const known = [...CHANGE_METADATA_KNOWN_KEYS].join(', ');
+  let message =
+    `Unrecognized key(s) in ${METADATA_FILENAME}: ${listed}. ` +
+    `Known keys: ${known}. Unknown keys are ignored and have no effect.`;
+  if (keys.includes('skip_design')) {
+    message +=
+      ' skip_design is not a supported key; only skip_specs exists, and it only skips artifacts whose generates path lives under specs/.';
+  }
+  return message;
+}
+
+/**
+ * Non-throwing read of unknown top-level keys. Missing, unreadable, or
+ * unparseable files yield no keys: those failures already have their own
+ * diagnostics on the read path.
+ */
+export function readUnknownChangeMetadataKeys(changeDir: string): string[] {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(path.join(changeDir, METADATA_FILENAME), 'utf-8');
+  } catch {
+    return [];
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = yaml.parse(raw);
+  } catch {
+    return [];
+  }
+
+  return listUnknownChangeMetadataKeys(parsed);
+}
 
 /**
  * Error thrown when change metadata validation fails.
