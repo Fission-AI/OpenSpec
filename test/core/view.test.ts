@@ -215,5 +215,30 @@ describe('ViewCommand', () => {
     expect(barStartIndex0).toBeGreaterThan(0);
     expect(barStartIndex0).toBe(barStartIndex1);
   });
+
+  it('caps the Active Changes name column at 48 characters (#1986)', async () => {
+    const changesDir = path.join(tempDir, 'openspec', 'changes');
+    const longName = 'a-change-name-that-is-well-beyond-the-forty-eight-column-cap';
+    for (const name of ['short-change', 'improve-tuner-readout-legibility', longName]) {
+      await fs.mkdir(path.join(changesDir, name), { recursive: true });
+      await fs.writeFile(path.join(changesDir, name, 'tasks.md'), '- [ ] Task 1\n');
+    }
+
+    await new ViewCommand().execute(tempDir);
+
+    const activeLines = logOutput.map(stripAnsi).filter(line => line.includes('◉'));
+    const barStart = (name: string) => {
+      const line = activeLines.find(l => l.includes(name));
+      expect(line).toBeDefined();
+      return line!.indexOf('[');
+    };
+
+    // Names within the cap share one column, padded to 48 rather than to the longest name.
+    expect(barStart('short-change')).toBe(barStart('improve-tuner-readout-legibility'));
+    expect(barStart('short-change')).toBe(activeLines[0].indexOf('◉') + 2 + 48 + 1);
+    // A longer name stays whole and its bar starts after it.
+    expect(barStart(longName)).toBeGreaterThan(barStart('short-change'));
+    expect(activeLines.find(l => l.includes(longName))).toContain(longName);
+  });
 });
 
