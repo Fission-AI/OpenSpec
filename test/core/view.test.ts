@@ -189,5 +189,31 @@ describe('ViewCommand', () => {
     const completedLines = logOutput.map(stripAnsi).filter(line => line.includes('✓'));
     expect(completedLines.some(line => line.includes('subtask-change'))).toBe(false);
   });
+
+  it('aligns progress bars in Active Changes when a change name exceeds 30 characters (#1986)', async () => {
+    const changesDir = path.join(tempDir, 'openspec', 'changes');
+    await fs.mkdir(path.join(changesDir, 'add-harp-profile-catalog'), { recursive: true });
+    await fs.writeFile(
+      path.join(changesDir, 'add-harp-profile-catalog', 'tasks.md'),
+      '- [ ] Task 1\n- [ ] Task 2\n'
+    );
+
+    await fs.mkdir(path.join(changesDir, 'improve-tuner-readout-legibility'), { recursive: true });
+    await fs.writeFile(
+      path.join(changesDir, 'improve-tuner-readout-legibility', 'tasks.md'),
+      '- [x] Task 1\n- [ ] Task 2\n'
+    );
+
+    await new ViewCommand().execute(tempDir);
+
+    const activeLines = logOutput.map(stripAnsi).filter(line => line.includes('◉'));
+    expect(activeLines).toHaveLength(2);
+
+    const barStartIndex0 = activeLines[0].indexOf('[');
+    const barStartIndex1 = activeLines[1].indexOf('[');
+
+    expect(barStartIndex0).toBeGreaterThan(0);
+    expect(barStartIndex0).toBe(barStartIndex1);
+  });
 });
 
