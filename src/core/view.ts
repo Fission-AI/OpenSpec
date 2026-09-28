@@ -37,7 +37,10 @@ export class ViewCommand {
     if (changesData.active.length > 0) {
       console.log(chalk.bold.cyan('\nActive Changes'));
       console.log('─'.repeat(60));
-      const maxNameLength = this.nameColumnWidth(changesData.active.map((c) => c.name));
+      const maxNameLength = Math.min(
+        48,
+        Math.max(30, ...changesData.active.map((change) => change.name.length))
+      );
       changesData.active.forEach((change) => {
         const progressBar = this.createProgressBar(change.progress.completed, change.progress.total);
         const percentage =
@@ -68,11 +71,10 @@ export class ViewCommand {
       // Sort specs by requirement count (descending)
       specsData.sort((a, b) => b.requirementCount - a.requirementCount);
       
-      const maxSpecLength = this.nameColumnWidth(specsData.map((s) => s.name));
       specsData.forEach(spec => {
         const reqLabel = spec.requirementCount === 1 ? 'requirement' : 'requirements';
         console.log(
-          `  ${chalk.blue('▪')} ${chalk.bold(spec.name.padEnd(maxSpecLength))} ${chalk.dim(`${spec.requirementCount} ${reqLabel}`)}`
+          `  ${chalk.blue('▪')} ${chalk.bold(spec.name.padEnd(30))} ${chalk.dim(`${spec.requirementCount} ${reqLabel}`)}`
         );
       });
     }
@@ -198,15 +200,6 @@ export class ViewCommand {
         `  ${chalk.magenta('●')} Task Progress: ${chalk.bold(`${completedTasks}/${totalTasks}`)} (${overallProgress}% complete)`
       );
     }
-  }
-
-  /**
-   * Width of the name column: at least 30, and wide enough to align every name
-   * up to 48 characters so a row with a 20-block bar and percentage fits in 80
-   * columns. Longer names stay whole and push their own row's bar right.
-   */
-  private nameColumnWidth(names: string[]): number {
-    return Math.min(48, Math.max(30, ...names.map((name) => name.length)));
   }
 
   private createProgressBar(completed: number, total: number, width: number = 20): string {
