@@ -65,6 +65,25 @@ describe('profile sync drift detection', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
+  it.each(['commands', 'both'] as const)('ignores extra shared OpenCode commands with %s delivery but detects missing selected commands', (delivery) => {
+    const sharedRoot = path.join(tempDir, 'shared-opencode');
+    vi.stubEnv('OPENCODE_CONFIG_DIR', sharedRoot);
+    const commandsDir = path.join(sharedRoot, 'commands');
+    fs.mkdirSync(commandsDir, { recursive: true });
+    const selectedCommand = path.join(commandsDir, 'opsx-explore.md');
+    fs.writeFileSync(selectedCommand, '# explore');
+    fs.writeFileSync(path.join(commandsDir, 'opsx-propose.md'), '# another project');
+    if (delivery === 'both') {
+      const skillDir = path.join(tempDir, '.opencode', 'skills', 'openspec-explore');
+      fs.mkdirSync(skillDir, { recursive: true });
+      fs.writeFileSync(path.join(skillDir, 'SKILL.md'), 'name: openspec-explore');
+    }
+
+    expect(hasProjectConfigDrift(tempDir, ['explore'], delivery)).toBe(false);
+    fs.unlinkSync(selectedCommand);
+    expect(hasProjectConfigDrift(tempDir, ['explore'], delivery)).toBe(true);
+  });
+
   it('detects drift for skills-only delivery when commands still exist', () => {
     setupCoreSkills(tempDir);
     setupCoreCommands(tempDir);

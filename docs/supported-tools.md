@@ -121,25 +121,6 @@ repo-local `.minimax` or `.mavis` directories. Commands-only delivery leaves
 existing global MiniMax Code skills untouched so one project's delivery setting
 cannot remove skills used by another project.
 
-### OpenCode shared commands
-
-OpenCode commands default to `.opencode/commands/` in your project.
-To install them in a shared directory, set OpenCode's
-[`OPENCODE_CONFIG_DIR`](https://opencode.ai/docs/config/#custom-directory)
-for both OpenSpec and OpenCode:
-
-```bash
-export OPENCODE_CONFIG_DIR="$HOME/.config/opencode"
-openspec init --tools opencode
-```
-
-- **Commands:** `$OPENCODE_CONFIG_DIR/commands/opsx-<id>.md`. Relative directory values resolve from the current working directory.
-- **Skills:** `.opencode/skills/openspec-*/SKILL.md` in the project.
-- **Updates:** Keep the same variable set when running `openspec update`. Selected commands are overwritten with the current project's generated content.
-- **Cleanup:** Shared commands are preserved when you deselect workflows or switch to skills-only delivery. Remove unused shared files manually after checking other projects.
-
-Existing project-local commands remain in place and can override shared commands in OpenCode. Remove those files manually if you want the shared versions to take effect.
-
 ### GitHub Copilot cloud coding agent
 
 GitHub's [Copilot coding agent](https://docs.github.com/en/copilot/using-github-copilot/coding-agent) runs on GitHub in a GitHub Actions environment — separate from Copilot in your editor. OpenSpec can set it up to use the OpenSpec CLI by generating two files:

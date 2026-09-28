@@ -127,6 +127,26 @@ init prints this reminder after install.
 - **Safe across projects**: a commands-only delivery leaves the global skills in
   place, so one project's setting cannot remove skills another project uses.
 
+### OpenCode
+
+Commands use the project-local `.opencode/commands/` folder by default.
+Set [`OPENCODE_CONFIG_DIR`](https://opencode.ai/docs/config/#custom-directory)
+for both OpenSpec and OpenCode to share commands across projects:
+
+```bash
+export OPENCODE_CONFIG_DIR="$HOME/.config/opencode"
+openspec init --tools opencode
+```
+
+- **Command path**: `$OPENCODE_CONFIG_DIR/commands/opsx-<id>.md`. Relative values
+  resolve from the current working directory. Skills stay in `.opencode/skills/`.
+- **Updates**: keep the variable set when running `openspec update`. OpenSpec
+  overwrites selected shared commands with the current project's generated content.
+- **Cleanup**: deselecting a workflow or choosing skills-only delivery preserves
+  shared commands. Remove unused shared files manually after checking other projects.
+- **Existing local commands**: these remain in place and can override shared
+  commands. Remove the local files if you want OpenCode to use the shared versions.
+
 ### Other / Universal (shared `.agents` skills)
 
 - **When it fits**: any tool that reads the shared `.agents/skills/` folder,

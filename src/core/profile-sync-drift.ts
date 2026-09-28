@@ -220,7 +220,9 @@ function getInstalledWorkflowsForTool(
     if (adapter) {
       for (const workflow of ALL_WORKFLOWS) {
         const cmdPath = adapter.getFilePath(workflow);
-        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+        // Shared commands can belong to other projects; they are not local extras.
+        if (path.isAbsolute(cmdPath)) continue;
+        const fullPath = path.join(projectPath, cmdPath);
         if (fs.existsSync(fullPath)) {
           installed.add(workflow);
         }
