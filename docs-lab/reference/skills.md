@@ -121,7 +121,7 @@ Move a finished change proposal to the archive.
 | Contract | Description |
 |---|---|
 | **Arguments** | A change proposal name, optional. |
-| **Creates** | Moves the change proposal folder to `openspec/changes/archive/YYYY-MM-DD-<name>/` (no date added if the name already starts with one). With your approval it first syncs outstanding delta specs via `openspec-sync-specs`. Never code. |
+| **Creates** | Moves the change proposal folder to `openspec/changes/archive/YYYY-MM-DD-<name>/` (no date added if the name already starts with one). With your approval it first syncs outstanding delta specs. When `openspec-sync-specs` is installed, it runs that workflow. Otherwise, it merges the delta specs into the main specs itself. Never code. |
 | **Response** | Warns and asks before archiving with incomplete artifacts or tasks, and asks whether to sync when delta specs exist. Ends with a summary: name, schema, archive location, spec sync status, and any warnings. |
 
 ## openspec-new-change
