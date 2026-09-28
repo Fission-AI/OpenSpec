@@ -77,9 +77,9 @@ A filled-in config.yaml:
 schema: spec-driven
 
 context: |
-  Tech stack: TypeScript, React, Node.js
-  We use conventional commits
-  Domain: e-commerce platform
+  Public API changes must remain backward compatible for one minor release
+  Customer-visible changes need rollout and rollback plans
+  The desktop app must work offline after first sign-in
 
 rules:
   proposal:

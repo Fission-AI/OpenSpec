@@ -35,8 +35,8 @@ For example, with a `context` field and the rule from the top of this page, here
 
   <!-- From your config.yaml: context -->
   <project_context>
-    Tech stack: TypeScript, Node.js
-    Domain: e-commerce platform
+    Public API changes must remain backward compatible for one minor release
+    Customer-visible changes need rollout and rollback plans
   </project_context>
 
   <!-- From your config.yaml: rules for tasks -->
@@ -74,16 +74,16 @@ The last column is exact, so a field reaches only the steps listed there. In par
 
 ### context
 
-`context` is what the agent should know up front when planning a change, whether it's creating an artifact, applying tasks, or archiving:
+`context` is project information that should shape every artifact and workflow step:
 
 ```yaml
 context: |
-  We ship cross-platform; designs and tasks must cover Windows, macOS, and Linux
-  Tech stack: TypeScript, Node.js, Commander.js
-  We use conventional commits
+  Public API changes must remain backward compatible for one minor release
+  Customer-visible changes need rollout and rollback plans
+  The desktop app must work offline after first sign-in
 ```
 
-This is planning context, not project documentation. Add a fact when it should shape every plan, like the cross-platform line above. Leave out anything the agent can learn by reading the code.
+Use `context` for constraints the agent can't reliably learn from the code. Leave out tech stack inventories, code style, and general project documentation.
 
 **Another language**: because context reaches every artifact, it's also how you change the output language. One line, like `Write all artifacts in Spanish.`, switches every proposal, spec, and tasks file the workflows write.
 
