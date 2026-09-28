@@ -239,7 +239,9 @@ export function renderReferencedStoresSection(entries: ReferenceIndexEntry[]): s
  * let hostile content forge instruction lines (slice 6.1 hardening).
  */
 export function sanitizeInline(value: string, maxLength = 300): string {
-  const flattened = value.replace(/[\u0000-\u001f\u007f-\u009f]+/g, ' ').trim();
+  const flattened = value
+    .replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028-\u202e\u2066-\u206f]+/g, ' ')
+    .trim();
   return flattened.length > maxLength ? `${flattened.slice(0, maxLength)}…` : flattened;
 }
 

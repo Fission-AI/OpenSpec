@@ -196,9 +196,14 @@ describe('formatUnknownChangeMetadataKeysMessage', () => {
       'a\u001b[31mb\u001b[0m',
       'c\u009bd\u007fe',
       'f\ng',
+      'h\u2028i',
+      'j\u202ek',
+      'l\u2066m',
     ]);
-    expect(message).toContain('a [31mb [0m, c d e, f g.');
-    expect(message).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+    expect(message).toContain('a [31mb [0m, c d e, f g, h i, j k, l m.');
+    expect(message).not.toMatch(
+      /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028-\u202e\u2066-\u206f]/
+    );
   });
 });
 

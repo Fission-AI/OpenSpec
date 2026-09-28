@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Validator } from '../../src/core/validation/validator.js';
@@ -80,7 +80,7 @@ describe('unrecognized keys in .openspec.yaml', () => {
   });
 });
 
-describe('status/instructions warn about unrecognized change metadata keys', () => {
+describe('status/instructions report unrecognized change metadata keys', () => {
   let tempDir: string;
   let changeDir: string;
 
@@ -100,14 +100,10 @@ describe('status/instructions warn about unrecognized change metadata keys', () 
     await fs.rm(tempDir, { recursive: true, force: true });
   });
 
-  it('prints a warning when loading a change whose .openspec.yaml has unknown keys', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-
+  it('returns a warning when loading a change whose .openspec.yaml has unknown keys', () => {
     const context = loadChangeContext(tempDir, 'probe');
 
     expect(context.metadata?.skip_specs).toBe(true);
-    expect(warn.mock.calls.flat().join('\n')).toContain('skip_design');
-
-    warn.mockRestore();
+    expect(context.warnings).toEqual([expect.stringContaining('skip_design')]);
   });
 });

@@ -61,5 +61,5 @@ The file is validated whenever a command writes or reads it. A write that fails 
 
 Unlike [config.yaml](config-yaml.md), bad values are never dropped with a warning. A metadata error stops the command.
 
-- **Unknown top-level keys**: OpenSpec ignores them. `status`, `validate`, and `archive` warn that they have no effect.
+- **Unknown top-level keys**: OpenSpec ignores them. `status`, `instructions`, `validate`, and `archive` report that they have no effect. JSON output carries the warning in its structured result.
 - **Strict validation**: `openspec validate --strict` treats an unknown-key warning as a failure.

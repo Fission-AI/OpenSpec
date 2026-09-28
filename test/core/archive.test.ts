@@ -134,7 +134,7 @@ describe('ArchiveCommand', () => {
       await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
       await fs.writeFile(
         path.join(changeDir, '.openspec.yaml'),
-        'schema: spec-driven\n"owner\\u001b[31m": team-a\n'
+        'schema: spec-driven\n"owner\\u001b[31m\\u2028FORGED\\u202etxt": team-a\n'
       );
 
       await archiveCommand.execute(changeName, { yes: true, noValidate: true, json: true });
@@ -145,8 +145,10 @@ describe('ArchiveCommand', () => {
       const jsonLine = logCalls.find((entry) => entry.trimStart().startsWith('{'));
       expect(jsonLine).toBeDefined();
       const warning = JSON.parse(jsonLine!).archive.warnings[0] as string;
-      expect(warning).toContain('owner [31m');
-      expect(warning).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+      expect(warning).toContain('owner [31m FORGED txt');
+      expect(warning).not.toMatch(
+        /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028-\u202e\u2066-\u206f]/
+      );
     });
 
     describe('a namespace folder holding nested changes (#1846)', () => {
