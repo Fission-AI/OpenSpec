@@ -41,7 +41,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 2. **Prompt for change selection**
 
    Ask the user to choose changes (multi-select):
-   - Show each change with its schema
+   - Show each change name and task status from the list output
    - Include an option for "All changes"
    - Allow any number of selections (1+ works, 2+ is the typical use case)
 
@@ -74,17 +74,24 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
 3. **Batch validation - gather status for all selected changes**
 
+   Run `openspec list --json` once with the same selected-root flags for task
+   progress. If the lookup fails, returns invalid JSON, or omits any selected
+   change, contains a duplicate selected change, or returns invalid counts,
+   report the problem and stop before syncing or archiving the batch.
+
    For each selected change, collect:
 
    a. **Artifact status** - Run `openspec status --change "<name>" --json`
       - Parse `schemaName`, `artifacts`, `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`
       - Note which artifacts are `done` vs other states
 
-   b. **Task completion** - Read `artifactPaths.tasks.existingOutputPaths` from status JSON
-      - Complete means the checkbox holds only `x`/`X`, ignoring spacing
-        (`- [ x]` is complete); every other marker is incomplete (`- [ ]`,
-        `- []`, and unfamiliar ones such as `- [~]` or `- [-]`)
-      - If no tasks file exists, note as "No tasks"
+   b. **Task completion** - Find the `changes` entry from the list response whose `name` exactly matches this change
+      - Require nonnegative integer `totalTasks` and `completedTasks`, with `completedTasks <= totalTasks`
+      - Incomplete tasks = `totalTasks - completedTasks`
+      - The CLI resolves the schema's tracked task files, including custom artifact names, output paths, and globs
+      - Do not infer task completion from artifact status, an artifact id of `tasks`, or the absence of a top-level `tasks.md`
+      - The CLI counts only `x`/`X` checkbox markers as complete; other markers remain incomplete
+      - If `totalTasks` is zero, note as "No tasks"
 
    c. **Delta specs** - Check `artifactPaths.specs.existingOutputPaths` from status JSON
       - List which capability specs exist

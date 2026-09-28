@@ -1288,7 +1288,9 @@ With `--json`, each form returns one object. The artifact form starts:
   ...
 ```
 
-and continues with `outputPath`, `existingOutputPaths`, the full `instruction` and `template` strings, `dependencies`, `unlocks`, and `root`. The `apply` form carries `contextFiles`, `progress`, `tasks`, `state` (`blocked`, `ready`, `all_done`), and `instruction`.
+and continues with `outputPath`, `existingOutputPaths`, the full `instruction` and `template` strings, `dependencies`, `unlocks`, and `root`. The `apply` form carries `contextFiles`, `progress`, `tasks`, `taskTrackingConfigured`, `state` (`blocked`, `ready`, `all_done`), and `instruction`.
+
+`taskTrackingConfigured` is always a boolean: `true` when the schema sets a non-null [`apply.tracks`](schemas/schema-yaml.md#tracks), even if no file matches, and `false` otherwise. If a matched tracking file cannot be read, `unavailableTrackingFiles` contains its absolute `path` and error `reason`. This field is omitted when every matched file is readable. Readable files still contribute to `tasks` and `progress`, but `state` cannot be `all_done` until every matched file is read.
 
 **Exit codes**
 

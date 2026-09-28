@@ -76,46 +76,46 @@ function specDrivenTitles(): Record<string, string> {
 }
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: 'b17a409b5634b5e48864a87f038f2111a74c2442288e9f4cb7a704f86b6d75e7',
+  getExploreSkillTemplate: 'c1fddb294758004936add586f5826694cb06175cff935b75fd3a8d92332332e6',
   getNewChangeSkillTemplate: '0e5035b7b42198afc430206a1dbc9579096650ef0813d85e837d5a6cd0b98a85',
-  getContinueChangeSkillTemplate: '550dc22bc8e0921b1ca5cef867379c4f370c5f1902c420bf9fa3bbfa75cea933',
+  getContinueChangeSkillTemplate: 'c2c8a0ba7f8c8fc7b174793832cd50f7c404eb8e1f7d49c47000993d621633b6',
   getApplyChangeSkillTemplate: '04ae407c97b5f9cb0cc15199fe877ccc7cd1eff78bfe10ad70c16a112b10a661',
   getFfChangeSkillTemplate: 'd091600476a815ba99f69b446bcd46af5bf73d1c2810215a0c6196937d019cf6',
   getSyncSpecsSkillTemplate: 'bc80fe9b07eaa289e5eb8a3ce65eb7df722a16d864e37283c678220712e4f230',
-  getOnboardSkillTemplate: '8f4bb13c097c7c2dfca714c3f51765039008d87f844e62186e066bebd7637376',
-  getOpsxExploreCommandTemplate: 'f6cf22825643281d653355745623a6c1a4566db46cc2f262d2282243c6d8169a',
+  getOnboardSkillTemplate: '84258a06c0ca88de708a23dd74e9a17efe11eff63a071b3864c781dcd5a0a4b7',
+  getOpsxExploreCommandTemplate: '5d11f8ecb4c457140a3e874a8bf7aa72674e922e698c208832b1f34d3c617719',
   getOpsxNewCommandTemplate: '6d504fef1e0d4ced7c423f4cc9d9d2cee11b1a6224edf685e06a3f0757e0ebff',
-  getOpsxContinueCommandTemplate: 'ace5c9cc239c12b57dc86fd9a1c02a6ca467cb8e1245127340c07ab1b9d37c11',
+  getOpsxContinueCommandTemplate: '241c50f97d5d681412d456d6b982743c3a5babeb77017fc8099c418bcf0d92df',
   getOpsxApplyCommandTemplate: 'd70cecce3b7d1dd4dbd5fd1fc2bccb538f5e61f5b43d520e4beca896e3f9e6b3',
   getOpsxFfCommandTemplate: '743a7304c7efc84aa87f556154c034e1e0e561c276c51870a30ada58f33eb9af',
-  getArchiveChangeSkillTemplate: '8447a2489240bf0c27f863065d61453dd0264842d1dabafe27b577d6bff96eb3',
-  getBulkArchiveChangeSkillTemplate: 'f17399959921ff98c7798e4591c8888825b7c9a83b0a90f09d98c7e0984ab793',
+  getArchiveChangeSkillTemplate: '71715f9d5899498942af03e182e6d1ac2c95952dde967950c2a9161084a53a8b',
+  getBulkArchiveChangeSkillTemplate: '2a6ec08fea0f942158b4abe9c8d1af9622038e0c4dc684e7c73dad2fb8379a54',
   getOpsxSyncCommandTemplate: '60550b7bb9829421656d6324a9e4c951bc912f48f88882d1a07ce7f78397a5e7',
-  getVerifyChangeSkillTemplate: '2e069a277dac23818b13bb50b66e806ab405bc3b7f535400e1ebf81b84153699',
-  getOpsxArchiveCommandTemplate: '980109e5f8362610872c70fe0a0f1d48d3d2692275b2b17e2f4c91c3de89c2fd',
-  getOpsxOnboardCommandTemplate: '35332b79e943daefd4118513f03dc48926267af60348f781b8d92bbe5086a986',
-  getOpsxBulkArchiveCommandTemplate: '3db03eadb764abd74c8c180656c3f64a8b9a4971056c91624d38df3209d7b446',
-  getOpsxVerifyCommandTemplate: '938f52f20fb9a3b811ea47314baac1034cd550e8ab363ae878ccba4b6329348f',
+  getVerifyChangeSkillTemplate: 'eecb063792075191b613978dec45f9f2fee247d2ff3003f2ebf17d632e54352e',
+  getOpsxArchiveCommandTemplate: '3d2a330b46043fbb9f220831aa42ebbb62f411e9597b2bb491ad1ac1fa2d0873',
+  getOpsxOnboardCommandTemplate: '0cf66e164c0e14c916c6d1ebb5d80ded07d7fb8e55d4eb34eba43e8ca9c28558',
+  getOpsxBulkArchiveCommandTemplate: '4e2e39c4d634074f4a1ed67f076d5c4d0ead8b998f4d75218c33cdc6173719be',
+  getOpsxVerifyCommandTemplate: 'f47bc0c30cfa8e93b5e42026e9417636c5f15bd8505fb9138872e34af8906abb',
   getOpsxProposeSkillTemplate: '1aa2f2eb9c8cbc4dcab9d777bf8832b92ca04f9ef91d0494f1224a566aefdfe8',
   getOpsxProposeCommandTemplate: '3b7090ce5e79e879ab9b5bdaf4ff2b52e3c02211f71188838772d36ac337f96c',
   getFeedbackSkillTemplate: 'dabeb5e825b9349abc8156c3e7b8608f27987912a6d9bf47ef29addde6138133',
-  getUpdateChangeSkillTemplate: 'f4c38adf3c82b3e0af7c460de97b72740d69a8966b5426b259f7c2cb6dc11d3d',
-  getOpsxUpdateCommandTemplate: 'a3156c2c3b4a429fed56545f315f66a7cc25bc9f8822c5fe30a60ccd87159a0f',
+  getUpdateChangeSkillTemplate: '8380139769cf9b247cb64089c07628e73923405fca4704052d52a67f35526fe8',
+  getOpsxUpdateCommandTemplate: 'ec6c8b7f3f366d65a216c4ba423bc41b8dbd18974a432186ad44e60c1891340b',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '8b02eb77ae87a4374a43ad33930e5ea19cbaf1c8a7624d5b613c03d7ee1c5f14',
+  'openspec-explore': '7d80caf9cd25a2565ba190b1297f1631c7f2c2db5e614597b4284abc0118ea70',
   'openspec-new-change': '27e09d43785953827efc9a98bb9d6cf06db48fe6abe7e1c049409fe5b5061323',
-  'openspec-continue-change': '182f015de6a1a114c79a6106c0565fd71f368d629641d0ad088de54bd871b52f',
+  'openspec-continue-change': '1f92fad53022270e96f8ea34de75f7c12c08225edd5a9e8f4e864b63b5ef79c5',
   'openspec-apply-change': 'f3e92c229fab8d77df9f0a77dcb117cf46279b53a208d53aed89bfe0bab2ac09',
   'openspec-ff-change': 'a7ab656d46f04d45dff0c8888df4a126a2e62288b7336f7445bce4d1715055f5',
   'openspec-sync-specs': '3909936a236a21a9a6d5bf495f90b396b3b68fc9220d7b2c1894668653beb2e4',
-  'openspec-archive-change': '305a21a9c76a925055f3bdbaac504f208660ef6948d78f73928de166250609bf',
-  'openspec-bulk-archive-change': '4bd638a50111d2ee3a667752a2355ed513f770695b137b93fc28848ca7bf60d2',
-  'openspec-verify-change': 'ad8a3098bd27d852721687c47a12db7107ed8b8dfc7f071406bb19961652e7ee',
-  'openspec-onboard': '526bb7f9b8ceb8670b600ce33b0a62fe268393b7e778e120c796316da3a3cc3d',
+  'openspec-archive-change': 'd01d9eeb06223ee89708b7963e82c5ebc11719c5b2dc62d4abb268ee016fcb7b',
+  'openspec-bulk-archive-change': '10f050ad5ef77084dc55a202427988b23903ee122f00985238a4eb9354a5dc3c',
+  'openspec-verify-change': '62c2d471a1ebc4be38df0d06393eb94d3d8b803719b6349b8a1d8e9231448275',
+  'openspec-onboard': '6993eff867d97d485e080078f9dfb80e968e242f3b17a924eeb077715fd548fa',
   'openspec-propose': '66e3395adf9f2d93a09e8ef1d20e4efb010e5e8d4811f2d42a9316e4d1ca5a8b',
-  'openspec-update-change': '19163b8c1b40ccdc0840019aa8005877a90a3a1cd9f7aadb87f76ccce1342f19',
+  'openspec-update-change': '5f4ea19aa732b33d87a2120ec393ee34578e70678d97e8c3bb10f988c00cb4d3',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
@@ -496,6 +496,25 @@ describe('skill templates split parity', () => {
         'Verify [broader integration or system behavior] with [end-to-end test or observable result]'
       );
       expect(content, label).not.toContain('[Verification step]');
+    }
+  });
+
+  // #1952: the onboarding walkthrough is where a user first meets task groups,
+  // so it has to say the same thing the tasks instruction does - tests and docs
+  // belong to the group that did the work, not to a trailing catch-up group.
+  it('teaches per-group tests and docs in the onboarding walkthrough (#1952)', () => {
+    const variants: Array<[string, string]> = [
+      ['onboard skill', generateSkillContent(asDeployed(getOnboardSkillTemplate()), 'PARITY-BASELINE')],
+      ['onboard command', getOpsxOnboardCommandTemplate().content],
+    ];
+
+    for (const [label, content] of variants) {
+      expect(content, label).toContain(
+        'Each group carries the tests and documentation for its own work - the last group is only for integration checks.'
+      );
+      // The trailing group stays integration-only; it must not be renamed back
+      // into a general testing/documentation bucket.
+      expect(content, label).toContain('## 2. Integration Verification');
     }
   });
 

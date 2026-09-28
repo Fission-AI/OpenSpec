@@ -1,5 +1,60 @@
 # @fission-ai/openspec
 
+## 1.13.2
+
+### Patch Changes
+
+- [#1940](https://github.com/Fission-AI/OpenSpec/pull/1940) [`0b5ce44`](https://github.com/Fission-AI/OpenSpec/commit/0b5ce44b55e0d793a312290ba5a41170a78e47c6) Thanks [@clay-good](https://github.com/clay-good)! - Keep fast-forward clarification guidance and onboarding task approval consistent across generated skills and commands. Fast-forward now asks only when context is critically unclear, while onboarding asks users to approve the task breakdown before saving it and separately asks whether to begin implementation.
+
+- [#1926](https://github.com/Fission-AI/OpenSpec/pull/1926) [`f2812f6`](https://github.com/Fission-AI/OpenSpec/commit/f2812f6d185f47cb577055f2fe243f12000d6cd2) Thanks [@kevin9327](https://github.com/kevin9327)! - ### Bug Fixes
+  
+  - **Archive** — When Windows `EPERM` blocks renaming a change directory that still has children, copy from the original source instead of requiring a staging rename that fails the same way. That lets archive finish instead of rolling back the spec write and leaving an empty capability directory git cannot see. A staging failure that is not `EPERM`/`EXDEV` still leaves the source untouched.
+  
+    The source of that unstaged copy is still the live change directory, which the archive claim does not cover, so cleanup removes only the entries it copied and verified rather than whatever is present when it runs. A file written in that window is left alone and the complete destination is retained for recovery, instead of being deleted without ever reaching the archive.
+  
+    An edit to a file that was already verified is covered too. Cleanup claims each entry with an atomic rename before reading it, then compares what it claimed against the copy. A rewrite that lands first is caught by that comparison and the file is put back; one that lands after creates a new file at the original path, which is never deleted. Either way the newer bytes stay on disk and archive reports the move as incomplete rather than succeeding with the older copy.
+  
+    Rollback of a newly created spec now also prunes the capability directory it created — and only that one. An empty capability directory that was already there is left in place with its own permissions.
+
+- [#1795](https://github.com/Fission-AI/OpenSpec/pull/1795) [`fb1b876`](https://github.com/Fission-AI/OpenSpec/commit/fb1b87613b7cdbe8d74e8147833904f46f0468c6) Thanks [@runsonmypc](https://github.com/runsonmypc)! - Archive workflows now use schema-aware task progress from `openspec list --json`, so custom task files and globs still trigger incomplete-task warnings.
+
+- [#1885](https://github.com/Fission-AI/OpenSpec/pull/1885) [`fd56e12`](https://github.com/Fission-AI/OpenSpec/commit/fd56e12c9e7fdbbfdc2dcd0a5ef3fab04840909d) Thanks [@philo-x](https://github.com/philo-x)! - Fix artifact output resolution to recognize brace expansion and extglob patterns while preserving literal output filenames and confining brace-expanded paths to the change directory.
+
+- [#1964](https://github.com/Fission-AI/OpenSpec/pull/1964) [`7ac58dc`](https://github.com/Fission-AI/OpenSpec/commit/7ac58dc7905a4eeaaad7eff2b2b64cf971fd6ec7) Thanks [@clay-good](https://github.com/clay-good)! - Continue commands now open with an instruction to follow the active OpenSpec workflow directly, so local models no longer try to call a tool named after it ([#1944](https://github.com/Fission-AI/OpenSpec/issues/1944)).
+
+- [#1964](https://github.com/Fission-AI/OpenSpec/pull/1964) [`7ac58dc`](https://github.com/Fission-AI/OpenSpec/commit/7ac58dc7905a4eeaaad7eff2b2b64cf971fd6ec7) Thanks [@clay-good](https://github.com/clay-good)! - Generate Kilo Code commands in `.kilo/command/`, the directory Kilo Code reads, instead of `.kilocode/workflows/` ([#1938](https://github.com/Fission-AI/OpenSpec/issues/1938)). `openspec init` and legacy cleanup remove the workflow files OpenSpec generated there, matched by their known file names (including copies you edited), and leave files with other names in place.
+
+- [#1958](https://github.com/Fission-AI/OpenSpec/pull/1958) [`1d35e90`](https://github.com/Fission-AI/OpenSpec/commit/1d35e908804dbb3c4a1851516759c5de190aa4d5) Thanks [@clay-good](https://github.com/clay-good)! - Preserve a file's existing line endings when rewriting it, so Windows users no longer get whole-file diffs. Applying a delta to a CRLF spec (the default on a Windows checkout with `core.autocrlf=true`) rewrote the file to LF, turning a one-requirement change into a diff that touched every line. `openspec archive` now writes the spec back with the convention it already used; a spec that does not exist yet is still written with LF.
+  
+  The same fix covers marker-managed files: installing or updating shell completions in a CRLF `.bashrc` or `.zshrc` no longer leaves the file with mixed endings, which `bash` reports as `$'\r': command not found`.
+  
+  Removing a managed block is fixed the same way: the blank-line collapse in `removeMarkerBlock` rebuilt its separator as a bare LF, so cleaning up legacy artifacts left a lone LF inside an otherwise-CRLF `CLAUDE.md` or rc file. Both write paths now read the file the same way, by dominant ending, so one stray CRLF in an otherwise-LF file no longer pulls the whole rewrite to CRLF.
+  
+  `scripts/pack-version-check.mjs` now spawns `npm` through `cross-spawn`, so the release guard can run on Windows, where `npm` is `npm.cmd` and cannot be resolved by `execFile`.
+
+- [#1912](https://github.com/Fission-AI/OpenSpec/pull/1912) [`8826c0c`](https://github.com/Fission-AI/OpenSpec/commit/8826c0c4a17d3511947b7c5e0934257f153f0ed2) Thanks [@Tyagiquamar](https://github.com/Tyagiquamar)! - Fix `validate --strict` reporting `PURPOSE_IS_PLACEHOLDER` for a Purpose that opens with the ordinary word "Todo" followed by prose, as in Spanish ("Todo el…") and Portuguese ("Todo o…") specs ([#1897](https://github.com/Fission-AI/OpenSpec/issues/1897)).
+  
+  - Case now separates the marker from the word. `TBD`/`TODO` in capitals is still a placeholder marker whatever follows it, so `TODO write this later` is still reported.
+  - In any other case it counts as a marker only when followed by the end of the Purpose, a line break, or marker punctuation (`todo -`, `tbd.`), so an authored Spanish or Portuguese sentence is not reported.
+
+- [#1744](https://github.com/Fission-AI/OpenSpec/pull/1744) [`5b55263`](https://github.com/Fission-AI/OpenSpec/commit/5b5526377506c2f0179674a869c1ac64ca9ab72d) Thanks [@javigomez](https://github.com/javigomez)! - Clarify the Codex setup hint for CLI, IDE, and desktop app users.
+
+- [#1809](https://github.com/Fission-AI/OpenSpec/pull/1809) [`a5ceea3`](https://github.com/Fission-AI/OpenSpec/commit/a5ceea32cf110b6d8bbfea0bf1c65fe55abb133b) Thanks [@ryandemelo](https://github.com/ryandemelo)! - Say what a `MODIFIED` block adds when the scenario-loss guard fires ([#1809](https://github.com/Fission-AI/OpenSpec/pull/1809)). `openspec validate` and `openspec archive` already named the scenarios a block omits. They now also print how many scenarios each side has and which ones the block introduces, capped at three names, so a rename and a truncation read differently without opening either file. The guard catches exactly what it did before, and no exit code changes.
+
+- [#1731](https://github.com/Fission-AI/OpenSpec/pull/1731) [`d6bdef6`](https://github.com/Fission-AI/OpenSpec/commit/d6bdef6577a077614382ef47b64100852182d6a6) Thanks [@runsonmypc](https://github.com/runsonmypc)! - Stop workflows from displaying schema names that `openspec list --json` does not return. Update and continue no longer fabricate a `spec-driven` picker label, while bulk archive and explore describe only the change fields the list command actually provides.
+
+- [#1955](https://github.com/Fission-AI/OpenSpec/pull/1955) [`ed5d386`](https://github.com/Fission-AI/OpenSpec/commit/ed5d386a559c0215af1182d479d7f99b309fdcd2) Thanks [@clay-good](https://github.com/clay-good)! - Task guidance now requires each task group to land its own tests and documentation updates instead of deferring them to a trailing group. The onboarding walkthrough teaches the same rule, and the published schema reference no longer quotes stale instruction text.
+
+- [#1939](https://github.com/Fission-AI/OpenSpec/pull/1939) [`a64303f`](https://github.com/Fission-AI/OpenSpec/commit/a64303fe1e24f08dbf44f78032fadbeac3a6f7fa) Thanks [@clay-good](https://github.com/clay-good)! - Return a nonzero exit status when `openspec update --force` cannot replace a legacy-only Codex installation.
+
+- [#1733](https://github.com/Fission-AI/OpenSpec/pull/1733) [`72fbe4c`](https://github.com/Fission-AI/OpenSpec/commit/72fbe4c904707396151921a20b506d081a9dc024) Thanks [@runsonmypc](https://github.com/runsonmypc)! - Let `/opsx:update` fill a missing file under an already-satisfied glob artifact. A glob artifact is complete once one file matches it, and `/opsx:continue` only picks up `ready` artifacts, so the previous "point the user to `/opsx:continue`" handoff was unreachable and the missing file could never be created through the documented flow.
+
+- [#1962](https://github.com/Fission-AI/OpenSpec/pull/1962) [`3364146`](https://github.com/Fission-AI/OpenSpec/commit/336414665f3f987ae424177ab1b6891a4304baeb) Thanks [@ryandemelo](https://github.com/ryandemelo)! - Stop `/opsx:verify` from reporting a correctly removed requirement as missing. Verify now reads which delta section each requirement sits under: ADDED and MODIFIED requirements are checked for an implementation as before, a REMOVED requirement passes once its behavior is gone and is flagged only while it is still present, and the old name of a RENAMED requirement is no longer reported as missing.
+
+- [#1732](https://github.com/Fission-AI/OpenSpec/pull/1732) [`072de6b`](https://github.com/Fission-AI/OpenSpec/commit/072de6bc39b1c47b9aacf4d484be16345ca4f38e) Thanks [@runsonmypc](https://github.com/runsonmypc)! - Stop `/opsx:verify` from reporting skipped checks as passing. Task completion now uses the schema-aware `tasks` and `progress` fields returned by apply instructions, while absent spec or design inputs are mapped to every check they prevent. Apply instructions aggregate every file matched by the configured task path or glob, regardless of the tracked artifact ID. Verification stays advisory and does not require optional or intentionally omitted artifacts. The scorecard identifies each skipped check, and the final assessment does not claim archive readiness when any check did not run.
+
+- [#1769](https://github.com/Fission-AI/OpenSpec/pull/1769) [`d3d7707`](https://github.com/Fission-AI/OpenSpec/commit/d3d770736fc01bb246b4f12a7cef7e3572ec1fb6) Thanks [@kikeprzn](https://github.com/kikeprzn)! - Fix `openspec archive` leaving `.openspec-archive.lock` behind on Windows. Node can report `dev: 0n` from a path stat while the open file handle reports the real volume id, so the claim-ownership check never matched and the stale lock blocked every later archive. The check now treats an absent device id as unavailable while still requiring the inode and the claim's contents to match before unlinking.
+
 ## 1.13.1
 
 ### Patch Changes

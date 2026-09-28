@@ -127,7 +127,7 @@ OpenSpec rejects absolute paths and paths containing a `..` segment.
 | Field | Contract |
 |---|---|
 | `requires` | **Required.** A non-empty list of artifacts that must exist before apply instructions become ready. |
-| `tracks` | An optional relative path to a Markdown task file in the change folder. Default: `null`. |
+| `tracks` | An optional relative path or glob for Markdown task files in the change folder. Default: `null`. |
 | `instruction` | Optional guidance sent to the agent when apply is ready. OpenSpec uses built-in guidance by default. |
 
 Artifact `requires` controls planning order. `apply.requires` controls when apply instructions become ready.
@@ -140,7 +140,9 @@ The path starts from the change folder. For a change named `add-auth`, `tracks: 
 openspec/changes/add-auth/tasks.md
 ```
 
-Apply stays blocked if that file is missing or contains no checkbox with task text. OpenSpec counts these checkbox forms:
+A glob such as `tracks: "**/tasks.md"` reads every matching file, such as `backend/tasks.md` and `frontend/tasks.md`. OpenSpec combines their tasks and progress. Use the same value for an artifact's `generates` field so status and list track the same files.
+
+Apply stays blocked if no file matches or the matched files contain no checkbox with task text. OpenSpec counts these checkbox forms:
 
 ```markdown
 - [ ] Pending task
@@ -153,11 +155,13 @@ Apply stays blocked if that file is missing or contains no checkbox with task te
 
 Any Markdown list marker works: `-`, `*`, `+`, or a number of up to nine digits followed by `.` or `)`. Leading spaces are allowed. The [tasks.md section of the spec-driven page](spec-driven/index.md#tasksmd) defines the stricter format produced by the default schema.
 
-The tracked file drives the apply state:
+The tracked files drive the apply state:
 
-- **`blocked`**: the file is missing, or no checkbox has task text.
-- **`ready`**: at least one tracked task is pending.
-- **`all_done`**: every tracked task is checked.
+- **`blocked`**: no file matches, or no readable file has a checkbox with task text.
+- **`ready`**: at least one task is pending, or a matched file could not be read while another provides tasks.
+- **`all_done`**: every tracked task is checked and every matched file was read.
+
+If a matched file cannot be read, apply keeps the tasks and progress from readable files but does not mark the change `all_done`. [Apply JSON output](../cli.md#openspec-instructions) identifies each unavailable file and the reason.
 
 OpenSpec rejects absolute paths and paths containing a `..` segment.
 

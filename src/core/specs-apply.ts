@@ -29,6 +29,7 @@ import {
 } from './validation/constants.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { matchLineEnding } from '../utils/line-endings.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -1190,7 +1191,7 @@ async function isInsideRealDir(realPath: string, dir: string): Promise<boolean> 
  * needs fd-relative syscalls Node does not expose, and it requires local write
  * access to `openspec/specs` during an archive.
  */
-async function pruneEmptyDirs(startDir: string, boundaryDir: string): Promise<void> {
+export async function pruneEmptyDirs(startDir: string, boundaryDir: string): Promise<void> {
   let boundary: string;
   try {
     boundary = await fs.realpath(boundaryDir);
@@ -1244,11 +1245,24 @@ export async function writeUpdatedSpec(
   // Create target directory if needed
   const targetDir = path.dirname(update.target);
   await fs.mkdir(targetDir, { recursive: true });
+
+  // The parsers normalize CRLF to LF on read, so `rebuilt` is always LF. Write
+  // it back with the convention the file already used, or a Windows checkout
+  // (core.autocrlf=true) sees every line of the spec change when one
+  // requirement moved. A spec that does not exist yet stays LF.
+  // Only a missing file means "no convention to match". Swallowing every error
+  // would read an existing but unreadable spec as absent and rewrite it as LF.
+  const previous = await fs.readFile(update.target, 'utf-8').catch((error) => {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  });
+  const toWrite = previous === undefined ? rebuilt : matchLineEnding(rebuilt, previous);
+
   await options.beforeMutate?.();
   // Preserve the established in-place write semantics: symlink referents,
   // hard-linked specs, ACLs, extended attributes, and filesystems without hard
   // links must continue to behave as they did before capability retirement.
-  await fs.writeFile(update.target, rebuilt);
+  await fs.writeFile(update.target, toWrite);
   if (options.silent) return;
 
   const specName = update.id;

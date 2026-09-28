@@ -98,13 +98,52 @@ describe('default task guidance', () => {
     const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
     expect(example).toBeDefined();
     const numberedTasks = example!.split('\n').filter(line => /^- \[ \] \d+\.\d+ /.test(line));
-    expect(numberedTasks).toHaveLength(4);
+    expect(numberedTasks).toHaveLength(5);
     expect(numberedTasks.every(line => /\bverify\b/i.test(line))).toBe(true);
     expect(numberedTasks[0]).toContain('expected files are present');
     expect(numberedTasks[1]).toContain('package installation succeeds');
     expect(numberedTasks[2]).toContain('export test passes');
     expect(numberedTasks[3]).toContain('unit tests cover quoting and delimiters');
+    expect(numberedTasks[4]).toContain('Document the export API');
     expect(example).not.toMatch(/^- \[ \] \d+\.\d+ (?:verify|run (?:the )?verification)\b/im);
+  });
+
+  // #1952: agents parked testing and documentation in one trailing group, so a
+  // failure seeded in group 1 only surfaced at the end and cascaded into rework.
+  it('keeps tests and documentation inside the group that does the work (#1952)', () => {
+    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
+    expect(tasks).toBeDefined();
+    expect(tasks!.instruction).toMatch(
+      /Each task group MUST land the tests and documentation its own work\s+calls for/
+    );
+    expect(tasks!.instruction).toMatch(
+      /Do NOT collect testing or documentation into a final group/
+    );
+    // The rule is scoped to what a group's work actually needs, so the worked
+    // example's scaffolding group can carry no tests or docs without
+    // contradicting it.
+    expect(tasks!.instruction).toMatch(
+      /A group\s+whose work calls for neither, such as scaffolding or dependency setup,\s+carries neither/
+    );
+    expect(tasks!.instruction).toMatch(
+      /A final group is for integration checks only, not for\s+the tests and docs an earlier group owed/
+    );
+
+    // The worked example has to show a docs task inside the implementation
+    // group, not a trailing "testing and documentation" group of its own.
+    const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
+    expect(example).toBeDefined();
+    const headings = example!
+      .split('\n')
+      .filter(line => /^## /.test(line.trim()))
+      .map(line => line.trim());
+    expect(headings).toHaveLength(2);
+    expect(headings.some(heading => /\b(test|testing|documentation|docs)\b/i.test(heading))).toBe(
+      false
+    );
+
+    const lastGroup = example!.slice(example!.lastIndexOf(headings[headings.length - 1]));
+    expect(lastGroup).toMatch(/^- \[ \] \d+\.\d+ Document the export API in docs\/export\.md/im);
   });
 });
 

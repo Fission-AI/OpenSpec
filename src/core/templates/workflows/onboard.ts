@@ -442,7 +442,7 @@ Save to the \`resolvedOutputPath\` from \`openspec instructions design --change 
 
 Finally, we break the work into implementation tasks—checkboxes that drive the apply phase.
 
-These should be small, clear, and in logical order.
+These should be small, clear, and in logical order. Each group carries the tests and documentation for its own work - the last group is only for integration checks.
 \`\`\`
 
 **DO:** Generate tasks based on specs and design:

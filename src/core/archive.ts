@@ -21,6 +21,7 @@ import {
   writeUpdatedSpec,
   retireSpec,
   finalizeRetiredSpec,
+  pruneEmptyDirs,
   type SpecUpdate,
 } from './specs-apply.js';
 import { discoverSpecFiles, findUnreadDeltaFiles, hasAnyFileUnder } from '../utils/spec-discovery.js';
@@ -378,6 +379,17 @@ async function copyDirContents(src: string, dest: string): Promise<void> {
   await fs.chmod(dest, sourceStat.mode & 0o7777);
 }
 
+type TreeEntry = { relative: string; kind: 'directory' | 'file' | 'symlink' };
+
+/** SHA-256 of one file's bytes, streamed so a large file is never held whole. */
+async function fingerprintFileContents(filePath: string): Promise<Buffer> {
+  const fileHash = createHash('sha256');
+  for await (const chunk of createReadStream(filePath)) {
+    fileHash.update(chunk);
+  }
+  return fileHash.digest();
+}
+
 async function fingerprintDirectoryContents(root: string): Promise<string> {
   const hash = createHash('sha256');
   const updateHashField = (label: string, value: string | Buffer): void => {
@@ -390,13 +402,7 @@ async function fingerprintDirectoryContents(root: string): Promise<string> {
     hash.update(labelBuffer);
     hash.update(valueBuffer);
   };
-  const fingerprintFile = async (filePath: string): Promise<Buffer> => {
-    const fileHash = createHash('sha256');
-    for await (const chunk of createReadStream(filePath)) {
-      fileHash.update(chunk);
-    }
-    return fileHash.digest();
-  };
+  const fingerprintFile = fingerprintFileContents;
 
   const visit = async (dir: string, relativeDir: string): Promise<void> => {
     const before = await fs.lstat(dir, { bigint: true });
@@ -470,13 +476,224 @@ async function assertCopiedDirectoryUnchanged(
 
 /**
  * Move a directory from src to dest. On Windows, fs.rename() can fail with
- * EPERM, and cross-device moves fail with EXDEV. When the source can first be
- * renamed to a private sibling, fall back to a verified copy-then-remove. A
- * source that cannot be staged is left untouched rather than copied and deleted
- * through a path another process may still be editing.
+ * EPERM, and cross-device moves fail with EXDEV. Prefer renaming the source
+ * to a private sibling first, then copy-then-remove. When that staging rename
+ * also fails with EPERM/EXDEV — the usual Windows case for a directory that
+ * still has children, because a watcher holds a directory-enumeration handle —
+ * copy from the original source instead. Fingerprints still abort if the tree
+ * changes mid-copy. A staging failure that is not EPERM/EXDEV still leaves
+ * the source untouched rather than copying through a path we could not claim.
  */
 class MoveDestinationRetainedError extends Error {}
 class RetirementBackupsRetainedError extends Error {}
+
+function isFallbackRenameCode(code: string | undefined): boolean {
+  return code === 'EPERM' || code === 'EXDEV';
+}
+
+/**
+ * Every entry under `root`, deepest first, as paths relative to it.
+ *
+ * The listing is what bounds the removal below. Anything that appears after it
+ * is simply not in the set, so it cannot be deleted by the cleanup.
+ */
+async function listTreeEntriesDeepestFirst(
+  root: string
+): Promise<TreeEntry[]> {
+  const entries: TreeEntry[] = [];
+  const visit = async (dir: string, relativeDir: string): Promise<void> => {
+    for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+      const relative = relativeDir === '' ? entry.name : path.join(relativeDir, entry.name);
+      if (entry.isDirectory()) {
+        await visit(path.join(dir, entry.name), relative);
+        entries.push({ relative, kind: 'directory' });
+      } else {
+        // A symlink to a directory is not a directory here, and its content is
+        // its target, not bytes to read - reading one raises EISDIR. Record the
+        // kind so cleanup compares each entry the way the copy wrote it.
+        entries.push({ relative, kind: entry.isSymbolicLink() ? 'symlink' : 'file' });
+      }
+    }
+  };
+  await visit(root, '');
+  return entries;
+}
+
+/**
+ * Remove exactly the entries that were copied and verified, deepest first.
+ *
+ * The move is only safe to finish by deleting the source, and the source of the
+ * unstaged fallback is still the live change directory: the archive claim
+ * covers the destination, not it. A recursive remove would delete whatever is
+ * there at that moment, including a file a concurrent writer added after the
+ * final fingerprint - data that never reached the destination.
+ *
+ * Removing a named set instead means a late arrival is never in it. It is left
+ * on disk, and the `rmdir` of its parent fails with ENOTEMPTY, which the caller
+ * reports as a retained destination. The move does not complete silently.
+ *
+ * `entries` must be listed before the final fingerprint, so that an arrival is
+ * either caught by that fingerprint or absent from the set.
+ *
+ * An edit to a file that is already in the set is covered by claiming each file
+ * before reading it: `rename` is atomic, so once a file is under its claim name
+ * the bytes there are ours. A writer that rewrites the file by path after that
+ * point creates a new file at the original path, which is not in `entries`, is
+ * never deleted, and makes the parent `rmdir` fail with ENOTEMPTY - reported as
+ * a retained destination. A writer that got there first is caught by comparing
+ * the claimed bytes against the copy: on a mismatch the file is put back and
+ * the move is abandoned with both trees intact, because the destination holds
+ * the older content and deleting the source would lose the newer.
+ *
+ * What remains outside this, as for any copy, is a writer holding an open
+ * descriptor that writes through it after the comparison. Staging is still
+ * preferred whenever the rename is permitted at all.
+ */
+/**
+ * A claim suffix no entry in this move can already carry.
+ *
+ * A fixed suffix collides with a source file that legitimately ends in it:
+ * claiming `x` would rename it over a real `x.openspec-claim`, and that file's
+ * own turn would then fail with ENOENT after part of the live source had
+ * already been removed. So draw a fresh suffix per move and prove it against
+ * the very set being removed - if no entry ends with the suffix, no claim of
+ * one entry can land on another.
+ */
+function makeClaimSuffix(entries: TreeEntry[]): string {
+  const names = entries.map((entry) => entry.relative);
+  for (;;) {
+    const suffix = `.openspec-claim-${randomUUID()}`;
+    if (!names.some((name) => name.endsWith(suffix))) return suffix;
+  }
+}
+
+/** What the entry holds now, for comparison against the copy. */
+async function readEntryIdentity(
+  entryPath: string,
+  kind: 'file' | 'symlink'
+): Promise<string> {
+  return kind === 'symlink'
+    ? `symlink:${await fs.readlink(entryPath)}`
+    : `file:${(await fingerprintFileContents(entryPath)).toString('hex')}`;
+}
+
+async function removeVerifiedTree(
+  root: string,
+  entries: TreeEntry[],
+  destination: string
+): Promise<void> {
+  const claimSuffix = makeClaimSuffix(entries);
+  for (const entry of entries) {
+    const target = path.join(root, entry.relative);
+    if (entry.kind === 'directory') {
+      await fs.rmdir(target);
+      continue;
+    }
+    const claimed = target + claimSuffix;
+    await fs.rename(target, claimed);
+    let claimedIdentity: string;
+    let copiedIdentity: string;
+    try {
+      claimedIdentity = await readEntryIdentity(claimed, entry.kind);
+      copiedIdentity = await readEntryIdentity(
+        path.join(destination, entry.relative),
+        entry.kind
+      );
+    } catch (error) {
+      await fs.rename(claimed, target).catch(() => undefined);
+      throw error;
+    }
+    if (claimedIdentity !== copiedIdentity) {
+      await fs.rename(claimed, target).catch(() => undefined);
+      throw new Error(
+        `${target} changed after it was verified, so the copy at ${destination} ` +
+          'does not hold its current content.'
+      );
+    }
+    await fs.rm(claimed, { force: true });
+  }
+  await fs.rmdir(root);
+}
+
+async function copyThenRemoveDirectory(
+  source: string,
+  dest: string,
+  options: {
+    verifyCopiedDestination?: (copiedSource: string) => Promise<void>;
+  },
+  restoreSource?: () => Promise<void>
+): Promise<void> {
+  let destIsOurs = false;
+  let sourceFingerprint: string;
+  try {
+    sourceFingerprint = await fingerprintDirectoryContents(source);
+    await fs.mkdir(dest, { mode: 0o700 });
+    destIsOurs = true;
+    await copyDirContents(source, dest);
+    await options.verifyCopiedDestination?.(source);
+    await assertCopiedDirectoryUnchanged(source, dest, sourceFingerprint);
+  } catch (copyError) {
+    if (destIsOurs) {
+      await fs.rm(dest, { recursive: true, force: true }).catch(() => undefined);
+    }
+    if (restoreSource) {
+      try {
+        await restoreSource();
+      } catch (restoreError) {
+        throw new Error(
+          `${copyError instanceof Error ? copyError.message : String(copyError)} ` +
+            `Could not restore the staged source at ${source} ` +
+            `(${restoreError instanceof Error ? restoreError.message : String(restoreError)}).`
+        );
+      }
+    }
+    if ((copyError as NodeJS.ErrnoException).code === 'EEXIST') {
+      throw new ArchiveBlockedError(
+        'archive_target_exists',
+        `Archive '${path.basename(dest)}' already exists.`
+      );
+    }
+    throw copyError;
+  }
+  let verifiedEntries: TreeEntry[];
+  try {
+    // Listed before the verification, not after it. A file that arrives before
+    // the fingerprint changes it and aborts the move; one that arrives after is
+    // not in this set. Listing afterwards would leave a window in which an
+    // arrival is both unverified and deletable.
+    verifiedEntries = await listTreeEntriesDeepestFirst(source);
+    await options.verifyCopiedDestination?.(source);
+    await assertCopiedDirectoryUnchanged(source, dest, sourceFingerprint);
+  } catch (verificationError) {
+    await fs.rm(dest, { recursive: true, force: true }).catch(() => undefined);
+    if (restoreSource) {
+      try {
+        await restoreSource();
+      } catch (restoreError) {
+        throw new Error(
+          `${verificationError instanceof Error ? verificationError.message : String(verificationError)} ` +
+            `Could not restore the staged source at ${source} ` +
+            `(${restoreError instanceof Error ? restoreError.message : String(restoreError)}).`
+        );
+      }
+    }
+    throw verificationError;
+  }
+  try {
+    await removeVerifiedTree(source, verifiedEntries, dest);
+  } catch (cleanupError) {
+    // Removal may already have deleted part of the source, or stopped on an
+    // entry that appeared after verification. The destination is now the only
+    // complete copy, so never erase it while trying to make this failed move
+    // look atomic.
+    throw new MoveDestinationRetainedError(
+      `Copied ${source} to ${dest}, but could not remove the source at ` +
+        `${source} completely ` +
+        `(${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}). ` +
+        'The complete destination was retained for recovery.'
+    );
+  }
+}
 
 async function moveDirectory(
   src: string,
@@ -497,76 +714,25 @@ async function moveDirectory(
         `Archive '${path.basename(dest)}' already exists.`
       );
     }
-    if (code === 'EPERM' || code === 'EXDEV') {
+    if (isFallbackRenameCode(code)) {
       const stagedSource = path.join(path.dirname(src), `.openspec-move-${randomUUID()}`);
       try {
         await fs.rename(src, stagedSource);
       } catch (stageError) {
+        const stageCode = (stageError as NodeJS.ErrnoException)?.code;
+        if (isFallbackRenameCode(stageCode)) {
+          await copyThenRemoveDirectory(src, dest, options);
+          return;
+        }
         throw new Error(
           `Could not safely stage ${src} before the fallback archive copy ` +
             `(${stageError instanceof Error ? stageError.message : String(stageError)}). ` +
             'No fallback copy was attempted.'
         );
       }
-      let destIsOurs = false;
-      let stagedFingerprint: string;
-      try {
-        stagedFingerprint = await fingerprintDirectoryContents(stagedSource);
-        await fs.mkdir(dest, { mode: 0o700 });
-        destIsOurs = true;
-        await copyDirContents(stagedSource, dest);
-        await options.verifyCopiedDestination?.(stagedSource);
-        await assertCopiedDirectoryUnchanged(stagedSource, dest, stagedFingerprint);
-      } catch (copyError) {
-        if (destIsOurs) {
-          await fs.rm(dest, { recursive: true, force: true }).catch(() => undefined);
-        }
-        try {
-          await fs.rename(stagedSource, src);
-        } catch (restoreError) {
-          throw new Error(
-            `${copyError instanceof Error ? copyError.message : String(copyError)} ` +
-              `Could not restore the staged source at ${stagedSource} ` +
-              `(${restoreError instanceof Error ? restoreError.message : String(restoreError)}).`
-          );
-        }
-        if ((copyError as NodeJS.ErrnoException).code === 'EEXIST') {
-          throw new ArchiveBlockedError(
-            'archive_target_exists',
-            `Archive '${path.basename(dest)}' already exists.`
-          );
-        }
-        throw copyError;
-      }
-      try {
-        await options.verifyCopiedDestination?.(stagedSource);
-        await assertCopiedDirectoryUnchanged(stagedSource, dest, stagedFingerprint);
-      } catch (verificationError) {
-        await fs.rm(dest, { recursive: true, force: true }).catch(() => undefined);
-        try {
-          await fs.rename(stagedSource, src);
-        } catch (restoreError) {
-          throw new Error(
-            `${verificationError instanceof Error ? verificationError.message : String(verificationError)} ` +
-              `Could not restore the staged source at ${stagedSource} ` +
-              `(${restoreError instanceof Error ? restoreError.message : String(restoreError)}).`
-          );
-        }
-        throw verificationError;
-      }
-      try {
-        await fs.rm(stagedSource, { recursive: true, force: true });
-      } catch (cleanupError) {
-        // Recursive removal may already have deleted part of the source. The
-        // destination is now the only complete copy, so never erase it while
-        // trying to make this failed move look atomic.
-        throw new MoveDestinationRetainedError(
-          `Copied ${src} to ${dest}, but could not remove the staged source at ` +
-            `${stagedSource} completely ` +
-            `(${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}). ` +
-            'The complete destination was retained for recovery.'
-        );
-      }
+      await copyThenRemoveDirectory(stagedSource, dest, options, async () => {
+        await fs.rename(stagedSource, src);
+      });
     } else {
       throw err;
     }
@@ -673,6 +839,14 @@ async function claimArchiveDestination(
 interface SpecSnapshot {
   target: string;
   existed: boolean;
+  /**
+   * The deepest directory at or above the target's parent that already existed
+   * before the mutation. Rollback prunes up to but never past it, so a
+   * capability directory the user already had keeps its permissions and ACLs -
+   * including an intermediate one under a nested capability id, where only the
+   * leaf was created by this write.
+   */
+  pruneBoundary?: string;
   outcome: 'write' | 'retire';
   expectedContent?: Buffer;
   content?: Buffer;
@@ -862,7 +1036,31 @@ async function assertDistinctMutationTargets(mutations: SpecMutation[]): Promise
   }
 }
 
-async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnapshot[]> {
+/**
+ * The deepest directory at or above `dir` that exists, never going above
+ * `boundaryDir`. Used as the floor for a rollback prune: everything below it
+ * was created by the write being undone, and it was not.
+ */
+async function deepestExistingAncestor(dir: string, boundaryDir: string): Promise<string> {
+  let current = dir;
+  for (;;) {
+    if (current === boundaryDir || !current.startsWith(boundaryDir + path.sep)) {
+      return boundaryDir;
+    }
+    try {
+      await fs.lstat(current);
+      return current;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+    current = path.dirname(current);
+  }
+}
+
+async function captureSpecSnapshots(
+  mutations: SpecMutation[],
+  mainSpecsDir: string
+): Promise<SpecSnapshot[]> {
   return Promise.all(
     mutations.map(async ({ update, outcome, rebuilt }) => {
       try {
@@ -908,6 +1106,10 @@ async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnap
             target: update.target,
             existed: false,
             outcome,
+            pruneBoundary: await deepestExistingAncestor(
+              path.dirname(update.target),
+              mainSpecsDir
+            ),
             ...(outcome === 'write' ? { expectedContent: Buffer.from(rebuilt) } : {}),
           };
         }
@@ -917,7 +1119,10 @@ async function captureSpecSnapshots(mutations: SpecMutation[]): Promise<SpecSnap
   );
 }
 
-async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
+async function restoreSpecSnapshots(
+  snapshots: SpecSnapshot[],
+  mainSpecsDir: string
+): Promise<void> {
   const errors: Error[] = [];
   for (const snapshot of [...snapshots].reverse()) {
     try {
@@ -1008,6 +1213,13 @@ async function restoreSpecSnapshots(snapshots: SpecSnapshot[]): Promise<void> {
 
       if (!snapshot.existed) {
         await fs.rm(snapshot.target, { force: true });
+        // Only a capability directory this write created is ours to take back.
+        // One the user already had stays, empty or not, with its own mode -
+        // pruneEmptyDirs never removes its boundary.
+        await pruneEmptyDirs(
+          path.dirname(snapshot.target),
+          snapshot.pruneBoundary ?? mainSpecsDir
+        );
         continue;
       }
       if (snapshot.symlink !== undefined) {
@@ -1756,7 +1968,7 @@ export class ArchiveCommand {
               );
             }
           }
-          const specSnapshots = await captureSpecSnapshots(mutations);
+          const specSnapshots = await captureSpecSnapshots(mutations, mainSpecsDir);
           const specSnapshotsByTarget = new Map(
             specSnapshots.map((snapshot) => [snapshot.target, snapshot])
           );
@@ -2028,7 +2240,8 @@ export class ArchiveCommand {
             const rollbackErrors: Error[] = [];
             try {
               await restoreSpecSnapshots(
-                specSnapshots.filter(({ target }) => mutationAttempts.has(target))
+                specSnapshots.filter(({ target }) => mutationAttempts.has(target)),
+                mainSpecsDir
               );
             } catch (rollbackError) {
               rollbackErrors.push(
