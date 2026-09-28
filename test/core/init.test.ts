@@ -243,7 +243,11 @@ describe('InitCommand', () => {
     });
 
     it('should reject an unwritable language config before creating other files', async () => {
-      const configPath = path.join(testDir, 'openspec', 'config.yaml');
+      const configPath = path.join(
+        FileSystemUtils.canonicalizeExistingPath(testDir),
+        'openspec',
+        'config.yaml'
+      );
       vi.spyOn(FileSystemUtils, 'canWriteFile').mockResolvedValue(false);
       const initCommand = new InitCommand({ tools: 'claude', force: true, language: 'French' });
 

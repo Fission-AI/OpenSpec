@@ -188,21 +188,38 @@ describe('declared store fallback (3.2)', () => {
     );
   });
 
-  it.each(['--copilot-cloud', '--no-copilot-cloud'])(
-    'preserves the pointer config with an explicit %s choice',
-    async (flag) => {
-      const configPath = path.join(pointerRepo, 'openspec', 'config.yaml');
-      const before = fs.readFileSync(configPath, 'utf8');
-      const initialized = await runCLI(['init', '.', '--tools', 'github-copilot', flag], {
-        cwd: pointerRepo,
-        env,
-      });
+  it('applies explicit Copilot cloud choices without changing the pointer config', async () => {
+    const configPath = path.join(pointerRepo, 'openspec', 'config.yaml');
+    const setupStepsPath = path.join(
+      pointerRepo,
+      '.github',
+      'workflows',
+      'copilot-setup-steps.yml'
+    );
+    const agentPath = path.join(pointerRepo, '.github', 'agents', 'openspec.agent.md');
+    const before = fs.readFileSync(configPath, 'utf8');
 
-      expect(initialized.exitCode).toBe(0);
-      expect(fs.readFileSync(configPath, 'utf8')).toBe(before);
-      expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'specs'))).toBe(false);
-    }
-  );
+    const enabled = await runCLI(
+      ['init', '.', '--tools', 'github-copilot', '--copilot-cloud'],
+      { cwd: pointerRepo, env }
+    );
+
+    expect(enabled.exitCode).toBe(0);
+    expect(fs.existsSync(setupStepsPath)).toBe(true);
+    expect(fs.existsSync(agentPath)).toBe(true);
+    expect(fs.readFileSync(configPath, 'utf8')).toBe(before);
+
+    const disabled = await runCLI(
+      ['init', '.', '--tools', 'github-copilot', '--no-copilot-cloud'],
+      { cwd: pointerRepo, env }
+    );
+
+    expect(disabled.exitCode).toBe(0);
+    expect(fs.existsSync(setupStepsPath)).toBe(false);
+    expect(fs.existsSync(agentPath)).toBe(false);
+    expect(fs.readFileSync(configPath, 'utf8')).toBe(before);
+    expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'specs'))).toBe(false);
+  });
 
   it('rejects --language in a pointer repo without changing either root', async () => {
     const pointerBefore = snapshot(pointerRepo);
