@@ -70,7 +70,8 @@ describe('openspec CLI e2e basics', () => {
     const specs = await runCLI(['list', '--specs'], { cwd: cloneDir, env });
     expect(specs.exitCode).toBe(0);
     expect(specs.stdout).toContain('No specs found.');
-  });
+    // Seven subprocesses (3 CLI, 4 git): ~2.6s on the Windows runner, past 10s under load.
+  }, 60_000);
 
   it('shows help output', async () => {
     const result = await runCLI(['--help']);
