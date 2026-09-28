@@ -167,6 +167,53 @@ The config command SHALL open the config file in the user's editor.
 - **THEN** display error message suggesting to set `$EDITOR`
 - **AND** exit with code 1
 
+### Requirement: Profile Configuration Flow
+
+The `openspec config profile` command SHALL provide an action-first interactive flow that allows users to modify delivery and workflow settings independently.
+
+#### Scenario: Current profile summary appears first
+
+- **WHEN** user runs `openspec config profile` in an interactive terminal
+- **THEN** display a current-state header with:
+  - current delivery value
+  - workflow count with profile label (core or custom)
+
+#### Scenario: Action-first menu offers skippable paths
+
+- **WHEN** user runs `openspec config profile` interactively
+- **THEN** the first prompt SHALL offer:
+  - `Change delivery + workflows`
+  - `Change delivery only`
+  - `Change workflows only`
+  - `Keep current settings (exit)`
+
+#### Scenario: Delivery prompt marks current selection
+
+- **WHEN** delivery selection is shown in `openspec config profile`
+- **THEN** the currently configured delivery option SHALL include `[current]` in its label
+- **AND** that value SHALL be preselected by default
+
+#### Scenario: No-op exits without saving or apply prompt
+
+- **WHEN** user chooses `Keep current settings (exit)` OR makes selections that do not change effective config values
+- **THEN** the command SHALL print `No config changes.`
+- **AND** SHALL NOT write config changes
+- **AND** SHALL NOT ask to apply updates to the current project
+
+#### Scenario: No-op warns when current project is out of sync
+
+- **WHEN** `openspec config profile` exits with `No config changes.` inside an OpenSpec project
+- **AND** project files are out of sync with the current global profile/delivery
+- **THEN** display a non-blocking warning that global config is not yet applied to this project
+- **AND** include guidance to run `openspec update` to sync project files
+
+#### Scenario: Apply prompt is gated on actual changes
+
+- **WHEN** config values were changed and saved
+- **AND** current directory is an OpenSpec project
+- **THEN** prompt `Apply changes to this project now?`
+- **AND** if confirmed, run `openspec update` for the current project
+
 ### Requirement: Key Naming Convention
 
 The config command SHALL use camelCase keys matching the JSON structure.

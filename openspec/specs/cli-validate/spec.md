@@ -1,7 +1,8 @@
 # cli-validate Specification
 
 ## Purpose
-TBD - created by archiving change improve-validate-error-messages. Update Purpose after archive.
+Define `openspec validate` behavior for validating changes and specs with actionable remediation guidance and structured output.
+
 ## Requirements
 ### Requirement: Validation SHALL provide actionable remediation steps
 Validation output SHALL include specific guidance to fix each error, including expected structure, example headers, and suggested commands to verify fixes.
@@ -10,7 +11,7 @@ Validation output SHALL include specific guidance to fix each error, including e
 - **WHEN** validating a change with zero parsed deltas
 - **THEN** show error "No deltas found" with guidance:
   - Explain that change specs must include `## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, or `## RENAMED Requirements`
-  - Remind authors that files must live under `openspec/changes/{id}/specs/<capability>/spec.md`
+  - Remind authors that files must live under `openspec/changes/{id}/specs/<capability-path>/spec.md`
   - Include an explicit note: "Spec delta files cannot start with titles before the operation headers"
   - Suggest running `openspec change show {id} --json --deltas-only` for debugging
 
@@ -42,6 +43,34 @@ The validator SHALL recognize bulleted lines that look like scenarios (e.g., lin
 - **AND** ...
 ```
 
+### Requirement: Normative keyword guidance SHALL not require English
+
+The validation report SHALL include a warning for a non-empty requirement body without the literal English keywords `SHALL` or `MUST`. Normal validation SHALL remain valid when that warning is the only issue, while strict validation SHALL remain invalid because strict mode treats warnings as failures.
+
+A requirement with no body content before its scenarios SHALL remain an error.
+
+#### Scenario: Non-English main spec
+
+- **WHEN** a main spec has a non-empty requirement body written without the English keywords `SHALL` or `MUST`
+- **THEN** the validation report includes an RFC 2119 guidance warning
+- **AND** normal validation succeeds
+
+#### Scenario: Non-English change delta
+
+- **WHEN** an ADDED or MODIFIED requirement has a non-empty body written without the English keywords `SHALL` or `MUST`
+- **THEN** the validation report includes an RFC 2119 guidance warning
+- **AND** normal validation succeeds
+
+#### Scenario: Strict validation preserves keyword enforcement
+
+- **WHEN** the same main spec or change is validated in strict mode
+- **THEN** the warning causes validation to fail
+
+#### Scenario: Requirement body is missing
+
+- **WHEN** a requirement has no body content before its scenarios
+- **THEN** validation reports an error
+
 ### Requirement: All issues SHALL include file paths and structured locations
 Error, warning, and info messages SHALL include:
 - Source file path (`openspec/changes/{id}/proposal.md`, `.../specs/{cap}/spec.md`)
@@ -60,6 +89,35 @@ The CLI SHALL append a Next steps footer when the item is invalid and not using 
 #### Scenario: Change invalid summary
 - **WHEN** a change validation fails
 - **THEN** print "Next steps" with 2-3 targeted bullets and suggest `openspec change show <id> --json --deltas-only`
+
+### Requirement: Change validation SHALL report scenarios a MODIFIED block would drop
+
+The `validate` command SHALL compare every `MODIFIED` requirement in a change against the main specs and report, as an error naming the delta file, each scenario the main spec still has that the `MODIFIED` block omits. A `MODIFIED` requirement replaces the whole requirement block, so archive refuses to apply one that drops a scenario; this is the same check, run without writing anything.
+
+The comparison SHALL match archive's operation order, comparing a `MODIFIED` that names the new header of a rename against the renamed requirement's scenarios.
+
+The check SHALL be silent when the main spec file or the requirement header is absent, because a `MODIFIED` written against a base that has not landed yet is a separate condition that archive gates. A main spec that exists but cannot be read SHALL be reported instead, since archive fails on it too.
+
+Validation run inside `openspec archive` SHALL NOT report these issues, because archive enforces the same check when it applies the deltas.
+
+#### Scenario: MODIFIED omits an existing scenario
+
+- **GIVEN** the main spec's requirement has scenarios "A" and "B"
+- **WHEN** a change MODIFIES that requirement with only scenario "A" and `openspec validate <change>` runs
+- **THEN** report an error naming the delta file and scenario "B"
+- **AND** exit with code 1
+
+#### Scenario: MODIFIED names the new header of a rename
+
+- **GIVEN** the main spec has requirement "A" with scenarios "S1" and "S2"
+- **WHEN** a change renames "A" to "B" and MODIFIES "B" with only scenario "S1"
+- **THEN** report an error naming scenario "S2"
+
+#### Scenario: MODIFIED header is not in the main spec
+
+- **GIVEN** a change MODIFIES a requirement header the main spec does not contain
+- **WHEN** `openspec validate <change>` runs
+- **THEN** do not report a dropped-scenario error for that requirement
 
 ### Requirement: Top-level validate command
 
@@ -105,7 +163,7 @@ The validate command SHALL support flags for bulk validation (--all) and filtere
 - **AND** exclude the `openspec/changes/archive/` directory
 
 - **WHEN** validating with `--specs`
-- **THEN** include all specs that have a `spec.md` under `openspec/specs/<id>/spec.md`
+- **THEN** include all specs that have a `spec.md` under `openspec/specs/<capability-path>/spec.md`
 
 #### Scenario: Validate all changes
 
@@ -215,4 +273,3 @@ The markdown parser SHALL correctly identify sections regardless of line ending 
 - **AND** the document contains `## Why` and `## What Changes`
 - **WHEN** running `openspec validate <change-id>`
 - **THEN** validation SHALL recognize the sections and NOT raise parsing errors
-

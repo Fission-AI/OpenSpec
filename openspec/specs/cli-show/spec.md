@@ -1,7 +1,8 @@
 # cli-show Specification
 
 ## Purpose
-TBD - created by archiving change add-interactive-show-command. Update Purpose after archive.
+Define top-level `openspec show` behavior for interactive and direct display of change and spec content.
+
 ## Requirements
 ### Requirement: Top-level show command
 

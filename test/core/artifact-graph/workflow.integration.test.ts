@@ -35,6 +35,22 @@ describe('artifact-graph workflow integration', () => {
   });
 
   describe('spec-driven workflow', () => {
+    it('preserves existing flat or nested capability organization in its instructions (#1459)', () => {
+      const schema = resolveSchema('spec-driven');
+      const proposal = schema.artifacts.find(artifact => artifact.id === 'proposal');
+      const specs = schema.artifacts.find(artifact => artifact.id === 'specs');
+
+      expect(proposal?.instruction).toContain('`user-auth` or `identity/user-auth`');
+      expect(proposal?.instruction).toContain('follow the project\'s existing spec organization');
+      expect(specs?.instruction).toContain(
+        '`<capability-path>` is the spec directory relative to `specs/`'
+      );
+      expect(specs?.instruction).toContain(
+        'do not add a new domain level when the project uses a flat layout'
+      );
+      expect(specs?.instruction).toContain('Do not move or rename the capability');
+    });
+
     it('should progress through complete workflow', () => {
       // 1. Resolve the real built-in schema
       const schema = resolveSchema('spec-driven');
@@ -131,47 +147,18 @@ describe('artifact-graph workflow integration', () => {
     });
   });
 
-  describe('tdd workflow', () => {
-    it('should progress through complete workflow', () => {
-      const schema = resolveSchema('tdd');
+  describe('build order consistency', () => {
+    it('should follow the documented proposal -> specs -> design -> tasks sequence', () => {
+      // specs and design are siblings (both require only proposal). Ordering
+      // them alphabetically put design first, contradicting the schema's own
+      // documented sequence and sending agents to design before specs existed.
+      const schema = resolveSchema('spec-driven');
       const graph = ArtifactGraph.fromSchema(schema);
 
-      expect(graph.getName()).toBe('tdd');
-      expect(graph.getBuildOrder()).toEqual(['spec', 'tests', 'implementation', 'docs']);
-
-      // Initial state
-      let completed = detectCompleted(graph, tempDir);
-      expect(graph.getNextArtifacts(completed)).toEqual(['spec']);
-
-      // Create spec
-      fs.writeFileSync(path.join(tempDir, 'spec.md'), '# Feature Spec');
-      completed = detectCompleted(graph, tempDir);
-      expect(graph.getNextArtifacts(completed)).toEqual(['tests']);
-
-      // Create tests directory with test file
-      const testsDir = path.join(tempDir, 'tests');
-      fs.mkdirSync(testsDir, { recursive: true });
-      fs.writeFileSync(path.join(testsDir, 'feature.test.ts'), 'describe("feature", () => {});');
-      completed = detectCompleted(graph, tempDir);
-      expect(graph.getNextArtifacts(completed)).toEqual(['implementation']);
-
-      // Create src directory with implementation
-      const srcDir = path.join(tempDir, 'src');
-      fs.mkdirSync(srcDir, { recursive: true });
-      fs.writeFileSync(path.join(srcDir, 'feature.ts'), 'export function feature() {}');
-      completed = detectCompleted(graph, tempDir);
-      expect(graph.getNextArtifacts(completed)).toEqual(['docs']);
-
-      // Create docs
-      const docsDir = path.join(tempDir, 'docs');
-      fs.mkdirSync(docsDir, { recursive: true });
-      fs.writeFileSync(path.join(docsDir, 'feature.md'), '# Feature Documentation');
-      completed = detectCompleted(graph, tempDir);
-      expect(graph.isComplete(completed)).toBe(true);
+      expect(graph.getBuildOrder()).toEqual(['proposal', 'specs', 'design', 'tasks']);
+      expect(graph.getNextArtifacts(new Set(['proposal']))).toEqual(['specs', 'design']);
     });
-  });
 
-  describe('build order consistency', () => {
     it('should return consistent build order across multiple calls', () => {
       const schema = resolveSchema('spec-driven');
       const graph = ArtifactGraph.fromSchema(schema);

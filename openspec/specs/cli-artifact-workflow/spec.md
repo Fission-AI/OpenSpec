@@ -1,7 +1,7 @@
 # cli-artifact-workflow Specification
 
 ## Purpose
-TBD - created by archiving change add-artifact-workflow-cli. Update Purpose after archive.
+Define artifact workflow CLI behavior (`status`, `instructions`, `templates`, and setup flows) for scaffolded and active changes.
 ## Requirements
 ### Requirement: Status Command
 
@@ -25,7 +25,31 @@ The system SHALL display artifact completion status for a change, including scaf
 #### Scenario: Status JSON output
 
 - **WHEN** user runs `openspec status --change <id> --json`
-- **THEN** the system outputs JSON with changeName, schemaName, isComplete, and artifacts array
+- **THEN** the system outputs JSON with changeName, schemaName, isPlanningComplete, isComplete, and artifacts array
+- **AND** `isPlanningComplete` is true only when every non-skipped planning artifact exists
+- **AND** a skipped artifact counts as satisfied without being created
+- **AND** `isComplete` remains a compatibility alias with the same value
+
+#### Scenario: Status JSON includes apply requirements
+
+- **WHEN** user runs `openspec status --change <id> --json`
+- **THEN** the system outputs JSON with:
+  - `changeName`, `schemaName`, `isPlanningComplete`, `isComplete`, `artifacts` array
+  - `applyRequires`: array of artifact IDs needed for apply phase
+
+#### Scenario: Status JSON exposes each artifact's dependency edges
+
+- **WHEN** user runs `openspec status --change <id> --json`
+- **THEN** every entry in the `artifacts` array includes `requires`: the array of artifact IDs it directly depends on
+- **AND** `requires` is present regardless of the artifact's status, so a `done` artifact still reports its dependencies (letting agents compute the transitive required set from status alone)
+
+#### Scenario: Status lists artifacts in dependency order, declaration order breaking ties
+
+- **WHEN** user runs `openspec status --change <id>` (text or `--json`)
+- **THEN** artifacts appear in dependency order, so a dependency is never listed after something that requires it
+- **AND** artifacts that become ready at the same time keep the order the schema declares them, rather than being reordered alphabetically
+- **AND** the first `ready` entry is therefore the artifact to write next
+- **AND** a blocked artifact's `missingDeps` uses that same order
 
 #### Scenario: Status on scaffolded change
 
@@ -46,34 +70,16 @@ The system SHALL display artifact completion status for a change, including scaf
 - **AND** directory `openspec/changes/unknown-id/` does not exist
 - **THEN** the system displays an error listing all available change directories
 
-### Requirement: Next Command
+### Requirement: Next Artifact Discovery
 
-The system SHALL show which artifacts are ready to be created, including for scaffolded changes.
+The workflow SHALL use `openspec status` output to determine what can be created next, rather than a separate next-command surface.
 
-#### Scenario: Show ready artifacts
+#### Scenario: Discover next artifacts from status output
 
-- **WHEN** user runs `openspec next --change <id>`
-- **THEN** the system lists artifacts whose dependencies are all satisfied
-
-#### Scenario: No artifacts ready
-
-- **WHEN** all artifacts are either completed or blocked
-- **THEN** the system indicates no artifacts are ready (with explanation)
-
-#### Scenario: All artifacts complete
-
-- **WHEN** all artifacts in the change are completed
-- **THEN** the system indicates the change is complete
-
-#### Scenario: Next JSON output
-
-- **WHEN** user runs `openspec next --change <id> --json`
-- **THEN** the system outputs JSON array of ready artifact IDs
-
-#### Scenario: Next on scaffolded change
-
-- **WHEN** user runs `openspec next --change <id>` on a change with no artifacts
-- **THEN** system shows root artifacts (e.g., "proposal") as ready to create
+- **WHEN** a user needs to know which artifact to create next
+- **THEN** `openspec status --change <id>` identifies ready artifacts with `[ ]`
+- **AND** the first `[ ]` entry is the schema's recommended next artifact
+- **AND** no dedicated "next command" is required to continue the workflow
 
 ### Requirement: Instructions Command
 
@@ -188,3 +194,140 @@ The system SHALL implement artifact workflow commands in isolation for easy remo
 - **WHEN** user runs `--help` on any artifact workflow command
 - **THEN** help text indicates the command is experimental
 
+### Requirement: Schema Apply Block
+
+The system SHALL support an `apply` block in schema definitions that controls when and how implementation begins.
+
+#### Scenario: Schema with apply block
+
+- **WHEN** a schema defines an `apply` block
+- **THEN** the system uses `apply.requires` to determine which artifacts must exist before apply
+- **AND** uses `apply.tracks` to identify the file for progress tracking (or null if none)
+- **AND** uses `apply.instruction` for guidance shown to the agent
+
+#### Scenario: Schema without apply block
+
+- **WHEN** a schema has no `apply` block
+- **THEN** the system requires all non-skipped artifacts to exist before apply is available
+- **AND** once those artifacts exist, uses default instruction: "All required artifacts complete. Proceed with implementation."
+
+### Requirement: Apply Instructions Command
+
+The system SHALL generate schema-aware apply instructions via `openspec instructions apply`.
+
+#### Scenario: Generate apply instructions
+
+- **WHEN** user runs `openspec instructions apply --change <id>`
+- **AND** all required artifacts (per schema's `apply.requires`) exist
+- **THEN** the system outputs:
+  - `contextFiles` mapping artifact IDs to arrays of concrete paths for all existing artifacts
+  - Schema-specific instruction text
+  - Progress tracking file path (if `apply.tracks` is set)
+
+#### Scenario: Apply blocked by missing artifacts
+
+- **WHEN** user runs `openspec instructions apply --change <id>`
+- **AND** required artifacts are missing
+- **THEN** the system indicates apply is blocked
+- **AND** lists which artifacts must be created first
+
+#### Scenario: Apply instructions JSON output
+
+- **WHEN** user runs `openspec instructions apply --change <id> --json`
+- **THEN** the system outputs JSON with:
+  - `contextFiles`: object mapping artifact IDs to arrays of concrete paths for existing artifacts
+  - `instruction`: the apply instruction text
+  - `tracks`: path to progress file or null
+  - `applyRequires`: list of required artifact IDs
+
+### Requirement: Tool selection flag
+
+The `artifact-experimental-setup` command SHALL accept a `--tool <tool-id>` flag to specify the target AI tool.
+
+#### Scenario: Specify tool via flag
+
+- **WHEN** user runs `openspec artifact-experimental-setup --tool cursor`
+- **THEN** skill files are generated in `.cursor/skills/`
+- **AND** command files are generated using Cursor's frontmatter format
+
+#### Scenario: Missing tool flag
+
+- **WHEN** user runs `openspec artifact-experimental-setup` without `--tool`
+- **THEN** the system displays an error requiring the `--tool` flag
+- **AND** lists valid tool IDs in the error message
+
+#### Scenario: Unknown tool ID
+
+- **WHEN** user runs `openspec artifact-experimental-setup --tool unknown-tool`
+- **AND** the tool ID is not in `AI_TOOLS`
+- **THEN** the system displays an error listing valid tool IDs
+
+#### Scenario: Tool without skillsDir
+
+- **WHEN** user specifies a tool that has no `skillsDir` configured
+- **THEN** the system displays an error indicating skill generation is not supported for that tool
+
+#### Scenario: Tool without command adapter
+
+- **WHEN** user specifies a tool that has `skillsDir` but no command adapter registered
+- **THEN** skill files are generated successfully
+- **AND** command generation is skipped with informational message
+
+### Requirement: Output messaging
+
+The `openspec init` command SHALL display clear output about what was generated.
+
+#### Scenario: Show target tool in output
+
+- **WHEN** initialization creates or refreshes a tool configuration
+- **THEN** output includes the tool name under `Created:` or `Refreshed:`, respectively
+
+#### Scenario: Show generated paths
+
+- **WHEN** initialization generates skills or commands
+- **THEN** output summarizes their counts and destination directories
+- **AND** only reports the types enabled by the selected profile and delivery mode
+
+#### Scenario: Show skipped commands message
+
+- **WHEN** initialization skips command generation due to a missing adapter
+- **THEN** output includes message: "Commands skipped for: <tools> (no adapter)"
+- **AND** `<tools>` lists the skipped tool IDs separated by commas
+
+### Requirement: Status JSON provides planning context
+The status command SHALL provide machine-readable planning context for changes.
+
+#### Scenario: Reporting next steps
+- **WHEN** a user runs `openspec status --change <id> --json`
+- **THEN** the output SHALL include next step guidance for agents
+- **AND** the guidance SHALL use plain action language
+
+### Requirement: Status JSON action context
+The status command SHALL expose action context that lets agents act without hardcoded filesystem assumptions.
+
+#### Scenario: Repo-local action context
+- **GIVEN** the change is repo-local
+- **WHEN** a user runs `openspec status --change <id> --json`
+- **THEN** status JSON SHALL preserve existing artifact status behavior
+- **AND** it SHALL report a repo-local planning home for agents that use action context
+
+### Requirement: Instructions use resolved planning paths
+Artifact and apply instructions SHALL use resolved planning paths rather than hardcoded repo-local change paths.
+
+#### Scenario: Repo-local artifact instructions
+- **GIVEN** the change is repo-local
+- **WHEN** a user runs `openspec instructions <artifact> --change <id> --json`
+- **THEN** instruction output SHALL preserve existing repo-local paths
+
+### Requirement: Workflow skills use CLI artifact context
+Generated workflow skills SHALL use OpenSpec CLI output as the source of truth for artifact locations.
+
+#### Scenario: Skills inspect status before artifact work
+- **WHEN** a generated workflow skill needs to inspect or create artifacts for a change
+- **THEN** it SHALL instruct the agent to run `openspec status --change <id> --json`
+- **AND** it SHALL use returned planning context and artifact paths rather than assuming a repo-local change path
+
+#### Scenario: Skills use instructions before writing artifacts
+- **WHEN** a generated workflow skill is about to create or update an artifact
+- **THEN** it SHALL instruct the agent to run `openspec instructions <artifact> --change <id> --json`
+- **AND** it SHALL write to the resolved artifact path returned by the command

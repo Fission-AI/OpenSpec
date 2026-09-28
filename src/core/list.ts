@@ -1,53 +1,200 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, type Dirent } from 'fs';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import type { RootOutput } from './root-selection.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import {
+  describeNestedChange,
+  findNestedChanges,
+  type NestedChangeFinding,
+} from '../utils/nested-change.js';
 
 interface ChangeInfo {
   name: string;
   completedTasks: number;
   totalTasks: number;
+  lastModified: Date;
+  /** Set when the entry is a namespace folder rather than a change (#1846). */
+  nested?: string[];
+}
+
+interface ListOptions {
+  sort?: 'recent' | 'name';
+  json?: boolean;
+  root?: RootOutput;
+}
+
+function isMissingPathError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as NodeJS.ErrnoException).code === 'ENOENT'
+  );
+}
+
+/**
+ * An entry that cannot be dated because it no longer resolves: it was removed
+ * after `readdir` listed it, or it is a symlink whose target is missing (an
+ * Emacs `.#file` lock) or that loops back on itself.
+ */
+function isUnresolvableEntryError(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+  const code = (error as NodeJS.ErrnoException).code;
+  return code === 'ENOENT' || code === 'ELOOP';
+}
+
+async function readChangeDirectoryEntries(changesDir: string): Promise<Dirent[]> {
+  try {
+    return await fs.readdir(changesDir, { withFileTypes: true });
+  } catch (error) {
+    if (isMissingPathError(error)) return [];
+    throw error;
+  }
+}
+
+/**
+ * Get the most recent modification time of any file in a directory (recursive).
+ * Falls back to the directory's own mtime if no files are found.
+ */
+async function getLastModified(dirPath: string): Promise<Date> {
+  let latest: Date | null = null;
+
+  async function walk(dir: string): Promise<void> {
+    const entries = await fs.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const fullPath = path.join(dir, entry.name);
+      try {
+        if (entry.isDirectory()) {
+          await walk(fullPath);
+        } else {
+          const stat = await fs.stat(fullPath);
+          if (latest === null || stat.mtime > latest) {
+            latest = stat.mtime;
+          }
+        }
+      } catch (error) {
+        // Skip the one entry rather than fail the listing of every change.
+        if (!isUnresolvableEntryError(error)) throw error;
+      }
+    }
+  }
+
+  await walk(dirPath);
+
+  // If no files found, use the directory's own modification time
+  if (latest === null) {
+    const dirStat = await fs.stat(dirPath);
+    return dirStat.mtime;
+  }
+
+  return latest;
+}
+
+/**
+ * Format a date as relative time (e.g., "2 hours ago", "3 days ago")
+ */
+function formatRelativeTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays > 30) {
+    return date.toLocaleDateString();
+  } else if (diffDays > 0) {
+    return `${diffDays}d ago`;
+  } else if (diffHours > 0) {
+    return `${diffHours}h ago`;
+  } else if (diffMins > 0) {
+    return `${diffMins}m ago`;
+  } else {
+    return 'just now';
+  }
 }
 
 export class ListCommand {
-  async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes'): Promise<void> {
+  async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
+    const { sort = 'recent', json = false, root } = options;
+
     if (mode === 'changes') {
       const changesDir = path.join(targetPath, 'openspec', 'changes');
-      
-      // Check if changes directory exists
-      try {
-        await fs.access(changesDir);
-      } catch {
-        throw new Error("No OpenSpec changes directory found. Run 'openspec init' first.");
-      }
 
       // Get all directories in changes (excluding archive)
-      const entries = await fs.readdir(changesDir, { withFileTypes: true });
+      const entries = await readChangeDirectoryEntries(changesDir);
       const changeDirs = entries
         .filter(entry => entry.isDirectory() && entry.name !== 'archive')
         .map(entry => entry.name);
 
       if (changeDirs.length === 0) {
-        console.log('No active changes found.');
+        if (json) {
+          console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
+        } else {
+          console.log('No active changes found.');
+        }
         return;
       }
 
       // Collect information about each change
       const changes: ChangeInfo[] = [];
-      
+
+      // A directory that only wraps nested change directories is still listed -
+      // hiding it would hide a real change whenever the probe is wrong - but it
+      // is listed as what it is, so the nesting stops failing silently (#1846).
+      const nestedFindings = await findNestedChanges(changesDir, changeDirs);
+      const nestedByName = new Map<string, NestedChangeFinding>(
+        nestedFindings.map((finding) => [finding.name, finding])
+      );
+
       for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changesDir, changeDir);
+        const progress = await getTaskProgressForChange(changesDir, changeDir, targetPath);
+        const changePath = path.join(changesDir, changeDir);
+        const lastModified = await getLastModified(changePath);
         changes.push({
           name: changeDir,
           completedTasks: progress.completed,
-          totalTasks: progress.total
+          totalTasks: progress.total,
+          lastModified,
+          ...(nestedByName.has(changeDir) ? { nested: nestedByName.get(changeDir)!.nested } : {})
         });
       }
 
-      // Sort alphabetically by name
-      changes.sort((a, b) => a.name.localeCompare(b.name));
+      // Sort by preference (default: recent first)
+      if (sort === 'recent') {
+        changes.sort((a, b) => b.lastModified.getTime() - a.lastModified.getTime());
+      } else {
+        changes.sort((a, b) => a.name.localeCompare(b.name));
+      }
+
+      // JSON output for programmatic use
+      if (json) {
+        const jsonOutput = changes.map(c => ({
+          name: c.name,
+          completedTasks: c.completedTasks,
+          totalTasks: c.totalTasks,
+          lastModified: c.lastModified.toISOString(),
+          status: c.totalTasks === 0 ? 'no-tasks' : c.completedTasks === c.totalTasks ? 'complete' : 'in-progress',
+          ...(c.nested ? { nested: c.nested } : {})
+        }));
+        // Additive: the entries keep their shape so existing consumers are
+        // unaffected, and the nesting is reported alongside them.
+        const warnings = nestedFindings.map((finding) => ({
+          code: 'nested_change_directory',
+          name: finding.name,
+          nested: finding.nested,
+          message: describeNestedChange(finding)
+        }));
+        console.log(JSON.stringify({
+          changes: jsonOutput,
+          ...(warnings.length > 0 ? { warnings } : {}),
+          ...(root ? { root } : {})
+        }, null, 2));
+        return;
+      }
 
       // Display results
       console.log('Changes:');
@@ -55,8 +202,15 @@ export class ListCommand {
       const nameWidth = Math.max(...changes.map(c => c.name.length));
       for (const change of changes) {
         const paddedName = change.name.padEnd(nameWidth);
-        const status = formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
-        console.log(`${padding}${paddedName}     ${status}`);
+        const status = change.nested
+          ? 'not a change'
+          : formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
+        const timeAgo = formatRelativeTime(change.lastModified);
+        console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
+      }
+      for (const finding of nestedFindings) {
+        console.log('');
+        console.log(`Warning: ${describeNestedChange(finding)}`);
       }
       return;
     }
@@ -66,23 +220,29 @@ export class ListCommand {
     try {
       await fs.access(specsDir);
     } catch {
-      console.log('No specs found.');
+      if (json) {
+        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+      } else {
+        console.log('No specs found.');
+      }
       return;
     }
 
-    const entries = await fs.readdir(specsDir, { withFileTypes: true });
-    const specDirs = entries.filter(e => e.isDirectory()).map(e => e.name);
-    if (specDirs.length === 0) {
-      console.log('No specs found.');
+    const discovered = await discoverSpecFiles(specsDir);
+    if (discovered.length === 0) {
+      if (json) {
+        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+      } else {
+        console.log('No specs found.');
+      }
       return;
     }
 
     type SpecInfo = { id: string; requirementCount: number };
     const specs: SpecInfo[] = [];
-    for (const id of specDirs) {
-      const specPath = join(specsDir, id, 'spec.md');
+    for (const { id, specFile } of discovered) {
       try {
-        const content = readFileSync(specPath, 'utf-8');
+        const content = readFileSync(specFile, 'utf-8');
         const parser = new MarkdownParser(content);
         const spec = parser.parseSpec(id);
         specs.push({ id, requirementCount: spec.requirements.length });
@@ -93,6 +253,12 @@ export class ListCommand {
     }
 
     specs.sort((a, b) => a.id.localeCompare(b.id));
+
+    if (json) {
+      console.log(JSON.stringify({ specs, ...(root ? { root } : {}) }, null, 2));
+      return;
+    }
+
     console.log('Specs:');
     const padding = '  ';
     const nameWidth = Math.max(...specs.map(s => s.id.length));

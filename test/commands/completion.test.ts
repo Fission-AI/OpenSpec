@@ -9,7 +9,8 @@ vi.mock('../../src/utils/shell-detection.js', () => ({
 
 // Mock the ZshInstaller
 vi.mock('../../src/core/completions/installers/zsh-installer.js', () => ({
-  ZshInstaller: vi.fn().mockImplementation(() => ({
+  ZshInstaller: vi.fn().mockImplementation(function () {
+    return {
     install: vi.fn().mockResolvedValue({
       success: true,
       installedPath: '/home/user/.oh-my-zsh/completions/_openspec',
@@ -24,8 +25,9 @@ vi.mock('../../src/core/completions/installers/zsh-installer.js', () => ({
     uninstall: vi.fn().mockResolvedValue({
       success: true,
       message: 'Completion script removed from /home/user/.oh-my-zsh/completions/_openspec',
-    }),
-  })),
+      }),
+    };
+  }),
 }));
 
 describe('CompletionCommand', () => {
@@ -78,10 +80,10 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error for unsupported shell', async () => {
-      await command.generate({ shell: 'bash' });
+      await command.generate({ shell: 'tcsh' });
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Error: Shell 'bash' is not supported yet. Currently supported: zsh"
+        "Error: Shell 'tcsh' is not supported yet. Currently supported: zsh, bash, fish, powershell"
       );
       expect(process.exitCode).toBe(1);
     });
@@ -135,10 +137,10 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error for unsupported shell', async () => {
-      await command.install({ shell: 'fish' });
+      await command.install({ shell: 'tcsh' });
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Error: Shell 'fish' is not supported yet. Currently supported: zsh"
+        "Error: Shell 'tcsh' is not supported yet. Currently supported: zsh, bash, fish, powershell"
       );
       expect(process.exitCode).toBe(1);
     });
@@ -184,10 +186,10 @@ describe('CompletionCommand', () => {
     });
 
     it('should show error for unsupported shell', async () => {
-      await command.uninstall({ shell: 'powershell', yes: true });
+      await command.uninstall({ shell: 'tcsh', yes: true });
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Error: Shell 'powershell' is not supported yet. Currently supported: zsh"
+        "Error: Shell 'tcsh' is not supported yet. Currently supported: zsh, bash, fish, powershell"
       );
       expect(process.exitCode).toBe(1);
     });
@@ -196,7 +198,8 @@ describe('CompletionCommand', () => {
   describe('error handling', () => {
     it('should handle installation failures gracefully', async () => {
       const { ZshInstaller } = await import('../../src/core/completions/installers/zsh-installer.js');
-      vi.mocked(ZshInstaller).mockImplementationOnce(() => ({
+      vi.mocked(ZshInstaller).mockImplementationOnce(function () {
+        return {
         install: vi.fn().mockResolvedValue({
           success: false,
           isOhMyZsh: false,
@@ -207,8 +210,9 @@ describe('CompletionCommand', () => {
         getInstallationInfo: vi.fn(),
         isOhMyZshInstalled: vi.fn(),
         getInstallationPath: vi.fn(),
-        backupExistingFile: vi.fn(),
-      } as any));
+          backupExistingFile: vi.fn(),
+        } as any;
+      });
 
       const cmd = new CompletionCommand();
       await cmd.install({ shell: 'zsh' });
@@ -221,7 +225,8 @@ describe('CompletionCommand', () => {
 
     it('should handle uninstallation failures gracefully', async () => {
       const { ZshInstaller } = await import('../../src/core/completions/installers/zsh-installer.js');
-      vi.mocked(ZshInstaller).mockImplementationOnce(() => ({
+      vi.mocked(ZshInstaller).mockImplementationOnce(function () {
+        return {
         install: vi.fn(),
         uninstall: vi.fn().mockResolvedValue({
           success: false,
@@ -231,8 +236,9 @@ describe('CompletionCommand', () => {
         getInstallationInfo: vi.fn(),
         isOhMyZshInstalled: vi.fn(),
         getInstallationPath: vi.fn(),
-        backupExistingFile: vi.fn(),
-      } as any));
+          backupExistingFile: vi.fn(),
+        } as any;
+      });
 
       const cmd = new CompletionCommand();
       await cmd.uninstall({ shell: 'zsh', yes: true });
@@ -244,14 +250,23 @@ describe('CompletionCommand', () => {
     });
   });
 
+  describe('dynamic completion data', () => {
+    it('should output schema names for shell completion', async () => {
+      await command.complete({ type: 'schemas' });
+
+      expect(consoleLogSpy).toHaveBeenCalledWith('spec-driven\tschema');
+      expect(process.exitCode).toBe(0);
+    });
+  });
+
   describe('shell detection integration', () => {
     it('should show appropriate error when detected shell is unsupported', async () => {
-      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: 'bash' });
+      vi.mocked(shellDetection.detectShell).mockReturnValue({ shell: undefined, detected: 'tcsh' });
 
       await command.generate({});
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "Error: Shell 'bash' is not supported yet. Currently supported: zsh"
+        "Error: Shell 'tcsh' is not supported yet. Currently supported: zsh, bash, fish, powershell"
       );
       expect(process.exitCode).toBe(1);
     });

@@ -1,7 +1,8 @@
 # cli-spec Specification
 
 ## Purpose
-TBD - created by archiving change add-interactive-show-command. Update Purpose after archive.
+Define `openspec spec` command behavior for listing, showing, and validating source-of-truth specifications.
+
 ## Requirements
 ### Requirement: Interactive spec show
 

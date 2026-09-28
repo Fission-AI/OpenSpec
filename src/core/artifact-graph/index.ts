@@ -16,15 +16,23 @@ export { ArtifactGraph } from './graph.js';
 
 // State detection
 export { detectCompleted } from './state.js';
+export {
+  artifactOutputExists,
+  isGlobPattern,
+  resolveArtifactOutputPath,
+  resolveArtifactOutputs,
+} from './outputs.js';
 
 // Schema resolution
 export {
   resolveSchema,
   listSchemas,
+  listSchemasWithInfo,
   getSchemaDir,
   getPackageSchemasDir,
   getUserSchemasDir,
   SchemaLoadError,
+  type SchemaInfo,
 } from './resolver.js';
 
 // Instruction loading
@@ -35,8 +43,14 @@ export {
   formatChangeStatus,
   TemplateLoadError,
   type ChangeContext,
+  type LoadChangeContextOptions,
   type ArtifactInstructions,
-  type DependencyStatus,
+  type DependencyInfo,
   type ArtifactStatus,
   type ChangeStatus,
+  type ArtifactPathSummary,
 } from './instruction-loader.js';
+export type {
+  PlanningHomeSummary,
+  ActionContext,
+} from '../change-status-policy.js';

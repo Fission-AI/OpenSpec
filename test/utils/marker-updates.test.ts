@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { FileSystemUtils } from '../../src/utils/file-system.js';
+import { FileSystemUtils, removeMarkerBlock } from '../../src/utils/file-system.js';
 
 describe('FileSystemUtils.updateFileWithMarkers', () => {
   let testDir: string;
@@ -10,8 +10,7 @@ describe('FileSystemUtils.updateFileWithMarkers', () => {
   const END_MARKER = '<!-- OPENSPEC:END -->';
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-marker-test-${Date.now()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-marker-test-'));
   });
 
   afterEach(async () => {
@@ -282,6 +281,299 @@ ${END_MARKER}
 
       const secondResult = await fs.readFile(filePath, 'utf-8');
       expect(secondResult).toBe(firstResult);
+    });
+  });
+  describe('line endings', () => {
+    const START = '# >>> openspec >>>';
+    const END = '# <<< openspec <<<';
+
+    function countEndings(content: string): { crlf: number; loneLf: number } {
+      return {
+        crlf: content.match(/\r\n/g)?.length ?? 0,
+        loneLf: content.match(/(?<!\r)\n/g)?.length ?? 0,
+      };
+    }
+
+    it('keeps a CRLF rc file on CRLF when inserting a block', async () => {
+      // A .bashrc with CRLF endings must not come back mixed: bash chokes on a
+      // stray \r with "$'\r': command not found".
+      const filePath = path.join(testDir, '.bashrc');
+      await fs.writeFile(filePath, '# user config\r\nexport EDITOR="vim"\r\n');
+
+      await FileSystemUtils.updateFileWithMarkers(
+        filePath,
+        'alias openspec="npx openspec"',
+        START,
+        END
+      );
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(result).toContain('alias openspec');
+      expect(result).toContain('export EDITOR');
+      expect(countEndings(result).loneLf).toBe(0);
+    });
+
+    it('keeps an LF rc file on LF', async () => {
+      const filePath = path.join(testDir, '.bashrc');
+      await fs.writeFile(filePath, '# user config\nexport EDITOR="vim"\n');
+
+      await FileSystemUtils.updateFileWithMarkers(
+        filePath,
+        'alias openspec="npx openspec"',
+        START,
+        END
+      );
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(countEndings(result).crlf).toBe(0);
+    });
+
+    it('keeps a CRLF rc file on CRLF when replacing an existing block', async () => {
+      const filePath = path.join(testDir, '.bashrc');
+      await fs.writeFile(
+        filePath,
+        `# user config\r\n${START}\r\nold content\r\n${END}\r\nexport EDITOR="vim"\r\n`
+      );
+
+      await FileSystemUtils.updateFileWithMarkers(filePath, 'new content', START, END);
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(result).toContain('new content');
+      expect(result).not.toContain('old content');
+      expect(countEndings(result).loneLf).toBe(0);
+    });
+
+    it('writes a new file with LF', async () => {
+      const filePath = path.join(testDir, 'brand-new');
+
+      await FileSystemUtils.updateFileWithMarkers(filePath, 'content', START, END);
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(countEndings(result).crlf).toBe(0);
+    });
+  });
+});
+
+describe('removeMarkerBlock', () => {
+  const START_MARKER = '<!-- OPENSPEC:START -->';
+  const END_MARKER = '<!-- OPENSPEC:END -->';
+
+  describe('basic removal', () => {
+    it('should remove marker block and preserve content before', () => {
+      const content = `User content before
+${START_MARKER}
+OpenSpec content
+${END_MARKER}`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toBe('User content before\n');
+      expect(result).not.toContain(START_MARKER);
+      expect(result).not.toContain(END_MARKER);
+    });
+
+    it('should remove marker block and preserve content after', () => {
+      const content = `${START_MARKER}
+OpenSpec content
+${END_MARKER}
+User content after`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toBe('User content after\n');
+    });
+
+    it('should remove marker block and preserve content before and after', () => {
+      const content = `User content before
+${START_MARKER}
+OpenSpec content
+${END_MARKER}
+User content after`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain('User content before');
+      expect(result).toContain('User content after');
+      expect(result).not.toContain(START_MARKER);
+    });
+
+    it('should return empty string when only markers remain', () => {
+      const content = `${START_MARKER}
+OpenSpec content
+${END_MARKER}`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toBe('');
+    });
+  });
+
+  describe('invalid states', () => {
+    it('should return original content when markers are missing', () => {
+      const content = 'Plain content without markers';
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toBe('Plain content without markers');
+    });
+
+    it('should return original content when only start marker exists', () => {
+      const content = `${START_MARKER}
+Content without end marker`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain(START_MARKER);
+    });
+
+    it('should return original content when only end marker exists', () => {
+      const content = `Content without start marker
+${END_MARKER}`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain(END_MARKER);
+    });
+
+    it('should return original content when markers are in wrong order', () => {
+      const content = `${END_MARKER}
+Content
+${START_MARKER}`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain(END_MARKER);
+      expect(result).toContain(START_MARKER);
+    });
+  });
+
+  describe('whitespace handling', () => {
+    it('should clean up double blank lines', () => {
+      const content = `Line 1
+
+
+${START_MARKER}
+OpenSpec content
+${END_MARKER}
+
+
+Line 2`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).not.toMatch(/\n{3,}/);
+    });
+
+    it('should handle markers with whitespace on same line', () => {
+      const content = `User content
+  ${START_MARKER}
+OpenSpec content
+  ${END_MARKER}
+More content`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain('User content');
+      expect(result).toContain('More content');
+      expect(result).not.toContain(START_MARKER);
+    });
+  });
+
+  describe('inline marker mentions', () => {
+    it('should ignore inline mentions and only remove actual marker block', () => {
+      const content = `Intro referencing markers like ${START_MARKER} and ${END_MARKER} inside text.
+
+${START_MARKER}
+Original content
+${END_MARKER}
+`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      // Inline mentions should be preserved
+      expect(result).toContain('Intro referencing markers like');
+      expect(result).toContain(`${START_MARKER} and ${END_MARKER} inside text`);
+      // Original content between markers should be removed
+      expect(result).not.toContain('Original content');
+    });
+
+    it('should handle multiple inline mentions before actual block', () => {
+      const content = `The ${START_MARKER} marker starts a block.
+The ${END_MARKER} marker ends it.
+Here is the actual block:
+${START_MARKER}
+Managed content
+${END_MARKER}
+After block content`;
+      const result = removeMarkerBlock(content, START_MARKER, END_MARKER);
+      expect(result).toContain(`The ${START_MARKER} marker starts a block`);
+      expect(result).toContain(`The ${END_MARKER} marker ends it`);
+      expect(result).toContain('After block content');
+      expect(result).not.toContain('Managed content');
+    });
+  });
+
+  describe('line endings', () => {
+    const MD_START = '<!-- OPENSPEC:START -->';
+    const MD_END = '<!-- OPENSPEC:END -->';
+
+    it('collapses a blank-line run without leaving a lone LF in a CRLF file', () => {
+      // The collapse rebuilds the separator it matched. Spelling that '\n'
+      // puts a lone LF into an otherwise-CRLF file, which is the mixed ending
+      // bash reports as "$'\r': command not found" in a .bashrc.
+      const content = [
+        '# User config',
+        '',
+        '',
+        MD_START,
+        'managed',
+        MD_END,
+        '',
+        '',
+        '# More user config',
+      ].join('\r\n');
+
+      const result = removeMarkerBlock(content, MD_START, MD_END);
+
+      expect(result.match(/(?<!\r)\n/g)).toBeNull();
+      expect(result).toContain('# User config');
+      expect(result).toContain('# More user config');
+      expect(result).not.toContain('managed');
+    });
+
+    it('follows the dominant ending, not a single stray CRLF', () => {
+      // One stray CRLF in an otherwise-LF file must not pull the rewrite to
+      // CRLF. This is the reading matchLineEnding uses, so both write paths
+      // agree on what the file's convention is.
+      const content =
+        '# User config\r\n' +
+        ['', '', MD_START, 'managed', MD_END, '', '', '# More user config'].join('\n');
+
+      const result = removeMarkerBlock(content, MD_START, MD_END);
+
+      expect(result.endsWith('\n')).toBe(true);
+      expect(result.endsWith('\r\n')).toBe(false);
+      expect(result).toContain('# More user config');
+    });
+
+    it('leaves an LF file on LF when collapsing the same run', () => {
+      const content = [
+        '# User config',
+        '',
+        '',
+        MD_START,
+        'managed',
+        MD_END,
+        '',
+        '',
+        '# More user config',
+      ].join('\n');
+
+      const result = removeMarkerBlock(content, MD_START, MD_END);
+
+      expect(result).not.toContain('\r');
+      expect(result).toContain('# More user config');
+    });
+  });
+
+  describe('shell markers', () => {
+    const SHELL_START = '# OPENSPEC:START';
+    const SHELL_END = '# OPENSPEC:END';
+
+    it('should work with shell-style markers', () => {
+      const content = `# User config
+export PATH="/usr/local/bin:$PATH"
+
+${SHELL_START}
+# OpenSpec managed
+alias openspec="npx openspec"
+${SHELL_END}
+
+# More user config
+export EDITOR="vim"`;
+      const result = removeMarkerBlock(content, SHELL_START, SHELL_END);
+      expect(result).toContain('export PATH');
+      expect(result).toContain('export EDITOR');
+      expect(result).not.toContain('alias openspec');
+      expect(result).not.toContain(SHELL_START);
     });
   });
 });
