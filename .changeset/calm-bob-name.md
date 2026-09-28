@@ -4,4 +4,4 @@
 
 ### Bug Fixes
 
-- Display the `bob` integration as IBM Bob in tool selection and status output.
+- IBM Bob now appears by its full product name in the tool picker and success messages. Existing `bob` selections, configuration, skills, and slash-command paths continue to work unchanged.
