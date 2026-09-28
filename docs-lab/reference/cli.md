@@ -302,6 +302,15 @@ Pass --allow-unknown to bypass this check.
 Error: Invalid configuration - delivery: Invalid option: expected one of "both"|"skills"|"commands"
 ```
 
+If the config file exists but does not hold a JSON object, whether because it is not valid JSON at all or because its root is something else such as `null` or an array, `config set`, `config unset` and `config profile` exit 1 and leave the file unchanged. Fix it with `openspec config edit`, or replace it with `openspec config reset --all`:
+
+```
+Error: /home/you/.config/openspec/config.json could not be parsed, so it was left unchanged.
+Fix it with "openspec config edit", or reset it with "openspec config reset --all".
+```
+
+Until it is fixed, telemetry and the update check stay off.
+
 ### openspec config unset
 
 ```bash
@@ -314,7 +323,7 @@ Removes the key so the default applies again. Keys with built-in defaults always
 Unset delivery (reverted to default)
 ```
 
-A key with no value at all prints `Key "featureFlags.nothere" was not set`. Both cases exit 0.
+A key with no value at all prints `Key "featureFlags.nothere" was not set`. Both cases exit 0. A config file that cannot be parsed exits 1 instead, as for `config set`.
 
 ### openspec config reset
 
@@ -350,7 +359,11 @@ Without `--all` it exits 1 and prints the usage line.
 openspec config edit
 ```
 
-Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated. Invalid JSON or an invalid config exits 1. With no editor configured it exits 1:
+Opens the config file in `$EDITOR` (falling back to `$VISUAL`), creating it with defaults first if missing. When the editor closes, the file is validated. Invalid JSON or an invalid config exits 1.
+
+The editor value may carry arguments and quoted paths, for example `code --wait` or `"/Applications/Sublime Text.app/Contents/SharedSupport/bin/subl" -w`. It is split into words without a shell, so `$VAR`, `~` and `;` are passed through literally. An editor that cannot start, or exits non-zero, prints a one-line error and exits 1.
+
+With no editor configured it exits 1:
 
 ```
 Error: No editor configured
@@ -396,12 +409,14 @@ Config updated. Run `openspec update` in your projects to apply.
 Lists changes, or specs with `--specs`.
 
 ```bash
-openspec list           # changes, most recently modified first
-openspec list --specs   # specs with requirement counts
-openspec list --json    # machine-readable, includes the resolved root
+openspec list                    # active changes, most recently modified first
+openspec list --archived         # archived changes
+openspec list --all              # active and archived changes
+openspec list --specs            # specs with requirement counts
+openspec list --json             # machine-readable, includes the resolved root
 ```
 
-Rows come from `openspec/changes/` and `openspec/specs/` under the resolved root. The `archive/` folder is skipped.
+Rows come from `openspec/changes/` and `openspec/specs/` under the resolved root. The default change listing skips `openspec/changes/archive/`.
 
 **Options**
 
@@ -409,6 +424,8 @@ Rows come from `openspec/changes/` and `openspec/specs/` under the resolved root
 |---|---|
 | `--specs` | List specs instead of changes. |
 | `--changes` | List changes. This is the default. |
+| `--archived` | List only archived changes. Can't be combined with `--specs`. |
+| `--all` | List active and archived changes. Can't be combined with `--specs`. Takes precedence over `--archived`. |
 | `--sort <order>` | `recent` (last modified first) or `name`. Default: `recent`. Specs always sort by name. |
 | `--json` | Print JSON instead of the table. |
 | `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
@@ -420,6 +437,16 @@ One row per change: name, task status, last modified. The status column reads `N
 ```
 Changes:
   add-rate-limit     No tasks      just now
+```
+
+`--all` groups active and archived changes under separate headings. Each group uses the selected sort order:
+
+```
+Changes:
+  add-rate-limit     No tasks      just now
+
+Archived Changes:
+  2026-08-10-add-login     ✓ Complete    2d ago
 ```
 
 ```
@@ -447,7 +474,16 @@ Specs:
 }
 ```
 
-An empty listing prints `No active changes found.` or `No specs found.` and still exits 0.
+With `--archived` or `--all`, every change object includes an `archived` boolean. The combined array uses the selected sort order. An archived change can still have an `in-progress` status when its tracked task file has unchecked tasks. Without either flag, the JSON shape stays unchanged.
+
+An empty listing prints `No active changes found.`, `No archived changes found.`, `No changes found.`, or `No specs found.` and still exits 0.
+
+A change is a directory directly under `openspec/changes/`. Unlike specs, changes cannot be nested in a namespace folder. A folder like `changes/mobile/` that only wraps a change (`changes/mobile/refresh-token/`) is listed with the status `not a change`, followed by a warning that names the nested directories. `--json` marks that entry with a `nested` array and adds a top-level `warnings` array. `show`, `status`, `validate` and `archive` refuse the folder with the same message. To fix it, move the change up and fold the namespace into its name:
+
+```bash
+mv openspec/changes/mobile/refresh-token openspec/changes/mobile-refresh-token
+rmdir openspec/changes/mobile
+```
 
 **Exit codes**
 
@@ -584,7 +620,9 @@ Prints a one-screen dashboard of specs and changes.
 openspec view   # project summary in one screen
 ```
 
-view prints the dashboard once and exits. It reads no keystrokes. Changes group by task progress: Draft (no tasks yet), Active (tasks underway, with a progress bar and percent), Completed (every task checked). Specs list with requirement counts, largest first.
+view prints the dashboard once and exits. It reads no keystrokes. Changes group by task progress: Draft (no tasks yet), Active (tasks underway, with a progress bar and percent), Completed (every task checked), and Archived. Specs list with requirement counts, largest first.
+
+Archived changes appear by directory name in alphabetical order. They do not contribute to the Draft, Active, Completed, or Task Progress totals.
 
 **Options**
 
@@ -603,10 +641,15 @@ Summary:
   ● Draft Changes: 1
   ● Active Changes: 0 in progress
   ● Completed Changes: 0
+  ● Archived Changes: 1
 
 Draft Changes
 ────────────────────────────────────────────────────────────
   ○ add-rate-limit
+
+Archived Changes
+────────────────────────────────────────────────────────────
+  ◦ 2026-08-10-add-login
 
 Specifications
 ────────────────────────────────────────────────────────────
@@ -648,22 +691,50 @@ With no name and no bulk flag, validate prompts you to pick items. Outside an in
 | `--all` | Validate every change and spec. |
 | `--changes` | Validate every change. |
 | `--specs` | Validate every spec. |
+| `--archived` | Check task completion in archived changes, without validating their applied spec deltas. |
 | `--strict` | Treat warnings as failures. |
 | `--type <change\|spec>` | Pick the type when a change and a spec share a name. |
 | `--json` | Print a structured report instead of text. |
+| `--report <mode>` | Bulk output: `full` (default) or `findings`. Requires an explicit bulk scope. |
 | `--concurrency <n>` | Max parallel validations in bulk runs. Default: `OPENSPEC_CONCURRENCY`, else 6. |
 | `--no-interactive` | Never prompt: a missing or ambiguous name becomes an error. |
 | `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
 
 **Output**
 
-One line per item. Bulk runs end with totals:
+Bulk runs print one status line per item, followed by any findings, and end with totals:
 
 ```
 ✓ change/add-rate-limit
 ✓ spec/api
 Totals: 2 passed, 0 failed (2 items)
 ```
+
+**Task checkbox findings**
+
+Progress counts checkboxes and nothing else, so a task file written as plain bullets reads as zero tasks: `openspec list` and `openspec status` report no work, and `openspec archive` has nothing to flag as incomplete. Validate reports a `WARNING` on each tracked task file that lists work without a checkbox:
+
+```text
+⚠ [WARNING] tasks.md: This change counts as 0 tasks: no line in its tracked task files is a checkbox, so "openspec list" and "openspec status" report no work and "openspec archive" has nothing to flag as incomplete. Write each task as "- [ ] 1.1 Description".
+```
+
+The warning fires only when the change's whole tracked set holds no checkbox at all. One file of prose beside a real checklist is not reported, and a change mid-authoring keeps its progress the moment a single checkbox exists. `--strict` turns the warning into a failure. The line number is in the `--json` report.
+
+Fenced blocks, HTML comments, YAML front matter and indented code are not scanned, so a pasted terminal sample is never mistaken for a task list.
+
+**Archive merge findings**
+
+For changes, validate runs archive's merge builder against the current main specs without writing files. It reports merge conflicts, such as a missing `MODIFIED` target or a conflicting `ADDED` requirement, as `INFO`:
+
+```text
+ℹ [INFO] api/spec.md: Archive would refuse this delta: api MODIFIED failed for header "### Requirement: Rate limiting" - not found
+```
+
+These findings appear even when validation passes, in both text and JSON output. `INFO` never changes the exit code, including under `--strict`: a missing target may belong to a sibling change that has not archived yet. Deltas already synced into the main specs follow archive's existing merge rules.
+
+This check does not run archive's later merged-spec validation or retirement checks. A clean report does not guarantee that archive will succeed.
+
+If the merge preflight cannot start, an `INFO` finding explains why. Existing validation findings and the exit code stay unchanged.
 
 A failing item lists each issue and the fix:
 
@@ -715,8 +786,141 @@ Next steps:
 
 **Exit codes**
 
-- `0`: every validated item passed.
-- `1`: an item failed, or the run couldn't validate anything (unknown name, nothing to validate).
+- `0`: every validated item passed, including an empty bulk scope.
+- `1`: an item failed, the report request is invalid, or the run failed (for example an unknown name or no OpenSpec root).
+
+### --report full|findings
+
+Selects the output for an explicit bulk validation scope:
+
+- **`full`**: every item. This is the default. Explicit `--report full` keeps the existing output shape without adding report metadata.
+- **`findings`**: only items with issues, including passing items with warnings or information. Every item is still validated. Totals, strict-mode behavior, and exit codes are unchanged.
+
+```bash
+openspec validate --all --report findings
+openspec validate --archived --report findings --json
+```
+
+**Scopes**
+
+| Flags | Findings `report.scope` |
+|---|---|
+| `--all` | `all` |
+| `--changes` | `changes` |
+| `--specs` | `specs` |
+| `--changes --specs`, or `--all` with either flag | `all` |
+| `--archived` | `archived` |
+
+Both explicit report modes reject a positional item name, a missing bulk scope, or archive and active scopes combined.
+
+#### Findings text output
+
+**Human output**: stdout prints `Scope: <scope> (<count> items)`, then totals. With no issue-bearing items:
+
+```text
+Scope: all (2 items)
+No item findings.
+Totals: 2 passed, 0 failed (2 items)
+```
+
+Issue-bearing item labels, severity labels, paths, and messages print to stderr. Active-scope failures keep the `Details:` rerun hint after totals. The existing root banner and progress output may precede the report.
+
+#### Findings JSON output
+
+`--report findings --json` prints one document. This example has two clean items:
+
+```json
+{
+  "report": {
+    "kind": "validation-findings",
+    "version": "1.0",
+    "scope": "all",
+    "returnedItems": 0,
+    "totalItems": 2
+  },
+  "itemFindings": [],
+  "summary": {
+    "totals": { "items": 2, "passed": 2, "failed": 0 },
+    "byType": {
+      "change": { "items": 1, "passed": 1, "failed": 0 },
+      "spec": { "items": 1, "passed": 1, "failed": 0 }
+    }
+  },
+  "root": { "path": "/Users/you/projects/my-app", "source": "nearest" }
+}
+```
+
+- **`report.kind` and `report.version`**: identify the `validation-findings` shape, version `1.0`. There is no top-level `version` or `items`.
+- **`report.returnedItems` and `report.totalItems`**: count the returned records and all validated items, respectively.
+- **`itemFindings`**: complete item records whose `issues` array is nonempty. Includes `ERROR`, `WARNING`, and `INFO` issues. Each record retains `id`, `type`, `valid`, `issues`, and `durationMs`. Archived items use `type: "change"`.
+- **`summary`**: full-run totals and per-type counts, not counts of the returned subset. An empty scope has zero totals and exits 0.
+- **`root`**: the same selected-root metadata as the full report.
+
+**Record preservation**: returned items keep their full-report order and any additive fields on items or issues. Filtering does not rewrite messages or locations, including optional `line` and `column` fields.
+
+**Command failures**: root-selection or item-discovery failures retain the existing `status` diagnostic and exit 1. They do not return a completed findings report or a successful empty report.
+
+#### Invalid report requests
+
+Both explicit report modes reject these requests before root selection or item discovery:
+
+- An unsupported report value, including an empty string.
+- A positional item name, even with a bulk flag.
+- No explicit bulk scope.
+- `--archived` combined with `--all`, `--changes`, or `--specs`.
+
+In JSON mode, a rejected request exits 1 with only a single-element `status` array. It has no `root` or report payload:
+
+```bash
+openspec validate --all --report bogus --json
+```
+
+```json
+{
+  "status": [
+    {
+      "severity": "error",
+      "code": "invalid_validation_report_request",
+      "message": "Unknown validation report 'bogus'.",
+      "fix": "Use --report full|findings with --all, --changes, --specs, or --archived, without an item name. Do not combine archived and active scopes."
+    }
+  ]
+}
+```
+
+Human mode prints the error to stderr. A bare `--report` with no value is a Commander syntax error on stderr, including with `--json`; it does not use this diagnostic envelope.
+
+#### Filter a full report externally
+
+For a custom JSON view, filter the full report with `jq` or PowerShell. These script examples preserve the validation exit code and leave command-error documents intact.
+
+In Bash with `jq`:
+
+```bash
+if validation_json=$(openspec validate --all --json); then
+  validation_exit=0
+else
+  validation_exit=$?
+fi
+printf '%s\n' "$validation_json" |
+  jq 'if has("items") then .items |= map(select(.issues | length > 0)) else . end'
+exit "$validation_exit"
+```
+
+In PowerShell:
+
+```powershell
+$validationJson = openspec validate --all --json
+$validationExit = $LASTEXITCODE
+$validationReport = $validationJson | ConvertFrom-Json
+if ($validationReport.PSObject.Properties.Name -contains 'items') {
+  $validationReport.items = @($validationReport.items | Where-Object { $_.issues.Count -gt 0 })
+}
+$validationReport | ConvertTo-Json -Depth 100
+exit $validationExit
+```
+
+These custom views keep the full report's keys but omit clean items. They are neither complete full-v1 reports nor the versioned `--report findings` shape.
 
 ## openspec archive
 
@@ -850,7 +1054,20 @@ Schema: spec-driven
 Next: openspec status --change add-caching
 ```
 
-With `--json`:
+When no `openspec/` directory was found, `new change` creates one where you are and says so:
+
+```
+Created change 'add-caching' at openspec/changes/add-caching/
+Schema: spec-driven
+Next: openspec status --change add-caching
+
+Note: no OpenSpec root was found here, so one was created at openspec/.
+Run `openspec init` to finish setting this project up, or delete that directory if you meant a different project.
+```
+
+The notice goes to stdout with the rest of the human output, and never appears with `--json`.
+
+With `--json`, in a project that already has `openspec/`:
 
 ```json
 {
@@ -864,6 +1081,15 @@ With `--json`:
     "path": "/Users/you/projects/my-app",
     "source": "nearest"
   }
+}
+```
+
+When no `openspec/` directory was found and `new change` created one, the JSON has the same shape. `root.path` is the directory you ran it from, and `root.source` reads `implicit`:
+
+```json
+"root": {
+  "path": "/Users/you/projects/my-app",
+  "source": "implicit"
 }
 ```
 
@@ -916,7 +1142,23 @@ Progress: 2/4 artifacts complete
 [x] specs
 [ ] design
 [-] tasks (blocked by: design)
+
+Next: openspec instructions design --change "add-rate-limit" --json
 ```
+
+The `Next:` line names the one command that moves the change forward, so `openspec status` is enough to pick a change back up in a fresh session. It names the next ready artifact while planning is unfinished, and `openspec instructions apply` once every planning artifact exists:
+
+```
+[x] proposal
+[x] specs
+[x] design
+[x] tasks
+
+All planning artifacts complete!
+Next: openspec instructions apply --change "add-rate-limit" --json
+```
+
+It carries `--store <id>` whenever the resolved root is a store, and names the same command as the JSON `nextSteps` sentence.
 
 `--json` adds per-artifact dependencies, resolved file paths, and a suggested next step. Trimmed:
 
@@ -1069,7 +1311,9 @@ With `--json`, each form returns one object. The artifact form starts:
   ...
 ```
 
-and continues with `outputPath`, `existingOutputPaths`, the full `instruction` and `template` strings, `dependencies`, `unlocks`, and `root`. The `apply` form carries `contextFiles`, `progress`, `tasks`, `state` (`blocked`, `ready`, `all_done`), and `instruction`.
+and continues with `outputPath`, `existingOutputPaths`, the full `instruction` and `template` strings, `dependencies`, `unlocks`, and `root`. The `apply` form carries `contextFiles`, `progress`, `tasks`, `taskTrackingConfigured`, `state` (`blocked`, `ready`, `all_done`), and `instruction`.
+
+`taskTrackingConfigured` is always a boolean: `true` when the schema sets a non-null [`apply.tracks`](schemas/schema-yaml.md#tracks), even if no file matches, and `false` otherwise. If a matched tracking file cannot be read, `unavailableTrackingFiles` contains its absolute `path` and error `reason`. This field is omitted when every matched file is readable. Readable files still contribute to `tasks` and `progress`, but `state` cannot be `all_done` until every matched file is read.
 
 **Exit codes**
 
@@ -1261,7 +1505,7 @@ openspec schema validate spec-driven   # one schema, from any source
 openspec schema validate               # every project-local schema
 ```
 
-It verifies that `schema.yaml` exists and parses, that the structure matches the schema format, that every artifact's template file exists inside the schema's `templates/` directory, and that the dependency graph has no cycles or unknown references.
+It verifies that `schema.yaml` exists and parses, that the structure matches the schema format, that every artifact's template file exists inside the schema's `templates/` directory, and that the dependency graph has no cycles or unknown references, including in `apply.requires`. An `apply.tracks` value that isn't exactly equal to some artifact's `generates` value prints a `warning:` line but does not fail validation, because OpenSpec then can't tell which artifact's progress that file belongs to.
 
 **Options**
 
@@ -1410,6 +1654,8 @@ openspec store setup team-context --path ~/openspec/team-context
 
 In an interactive terminal, setup prompts for a missing name and location and confirms before creating anything. Outside one, a missing name or `--path` exits 1 with the flag to pass. Rerunning setup for a registered store reports `Registry: already registered`.
 
+Setup exits 1 with `store_setup_inside_git_repo` when `--path` is inside another Git repository, because initializing the store there would nest one repository in another. `--no-init-git` creates no repository, so it skips that check. Use it to keep a store at `~/openspec/<id>` when your home directory is itself a Git repository, such as a dotfiles repo.
+
 **Arguments**
 
 | Argument | What it is |
@@ -1532,6 +1778,8 @@ Interactively, remove asks before deleting. With `--json` or outside an interact
 Error: Pass --yes to delete store files non-interactively.
 Fix: openspec store remove design-system --yes
 ```
+
+Remove exits 1 and deletes nothing when the folder lacks matching store metadata, or when it contains another registered store (for example a store vendored as a Git submodule). In that case the error is `store_remove_contains_registered_store`: run `openspec store unregister <nested-id>` first, or `openspec store unregister <id>` to forget the store without deleting files.
 
 **Options**
 
@@ -1968,6 +2216,8 @@ Supported shells: `zsh`, `bash`, `fish`, `powershell`. Every subcommand takes an
 | `generate [shell]` | Print the completion script to stdout. |
 | `install [shell]` | Write the script and configure your shell startup file. |
 | `uninstall [shell]` | Remove the script and the config block. |
+
+Installed with Nix, completions are already in place: the flake package ships the Bash, Fish, and Zsh scripts at the standard locations, so `install` is not needed ([Installation](../start/installation.md#nix)).
 
 ### openspec completion generate
 

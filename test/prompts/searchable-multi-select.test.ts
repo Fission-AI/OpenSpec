@@ -80,6 +80,46 @@ function pressKey(name: string) {
   keypressHandler({ name, ctrl: false });
 }
 
+/**
+ * Types one printable character. Node's readline leaves `name` undefined for
+ * punctuation such as `.` or `-` and only reports it in `sequence`, so the
+ * two arrive at the handler differently.
+ */
+function typeChar(sequence: string, name?: string) {
+  if (!keypressHandler) throw new Error('No keypress handler registered');
+  keypressHandler({ name, sequence, ctrl: false });
+}
+
+function typeSearch(text: string) {
+  for (const char of text) {
+    typeChar(char, /^[a-z0-9]$/.test(char) ? char : undefined);
+  }
+}
+
+/** Key events exactly as Node's readline emits them for raw terminal input. */
+async function readlineKeys(input: string): Promise<Record<string, unknown>[]> {
+  const readline = await import('node:readline');
+  const { PassThrough } = await import('node:stream');
+  const stream = new PassThrough();
+  readline.emitKeypressEvents(stream);
+  const keys: Record<string, unknown>[] = [];
+  stream.on('keypress', (_char: string, key: Record<string, unknown>) => keys.push(key));
+  stream.write(input);
+  await new Promise((resolve) => setImmediate(resolve));
+  return keys;
+}
+
+function getSearchText(): string {
+  return (state[0] as string) ?? '';
+}
+
+function visibleNames(): string[] {
+  return renderOutput
+    .split('\n')
+    .filter((line) => line.includes('[ ]') || line.includes('[x]'))
+    .map((line) => line.replace(/.*\[[ x]\]\s*/, '').trim());
+}
+
 function getSelectedValues(): string[] {
   return (state[1] as string[]) ?? [];
 }
@@ -98,7 +138,21 @@ const testChoices = [
   { name: 'Tool C', value: 'tool-c' },
 ];
 
-async function setup(choices = testChoices, validate?: (selected: string[]) => boolean | string) {
+const searchChoices = [
+  { name: 'Claude Code', value: 'claude' },
+  { name: 'Amazon Q Developer', value: 'amazon-q' },
+  {
+    name: 'Other / Universal',
+    value: 'agents',
+    searchAliases: ['unlisted', 'generic', '.agents'],
+  },
+];
+
+async function setup(
+  choices = testChoices,
+  validate?: (selected: string[]) => boolean | string,
+  emptyHint?: string
+) {
   resetState();
 
   const mod = await import('../../src/prompts/searchable-multi-select.js');
@@ -109,6 +163,7 @@ async function setup(choices = testChoices, validate?: (selected: string[]) => b
     message: 'Select tools',
     choices,
     validate,
+    emptyHint,
   });
 
   // The async chain in searchableMultiSelect involves:
@@ -230,6 +285,175 @@ describe('searchable-multi-select keybindings', () => {
       expect(renderOutput).toContain('[ ]');
       expect(renderOutput).not.toContain('◉');
       expect(renderOutput).not.toContain('○');
+    });
+  });
+
+  describe('search filtering', () => {
+    it('should match a choice by an alias its name does not spell', async () => {
+      await setup(searchChoices);
+      typeSearch('unlisted');
+      expect(getSearchText()).toBe('unlisted');
+      expect(visibleNames()).toEqual(['Other / Universal']);
+    });
+
+    it('should match a second alias for the same choice', async () => {
+      await setup(searchChoices);
+      typeSearch('generic');
+      expect(visibleNames()).toEqual(['Other / Universal']);
+    });
+
+    it('should match an alias on a prefix, as it does for names', async () => {
+      await setup(searchChoices);
+      typeSearch('unlis');
+      expect(visibleNames()).toEqual(['Other / Universal']);
+    });
+
+    it('should match an alias regardless of case', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ sequence: 'UNLISTED' });
+      expect(visibleNames()).toEqual(['Other / Universal']);
+    });
+
+    it('should never render an alias as part of a choice', async () => {
+      await setup(searchChoices);
+      typeSearch('unlisted');
+      expect(renderOutput).not.toContain('generic');
+      expect(renderOutput).not.toContain('.agents');
+    });
+
+    it('should leave choices without aliases matching exactly as before', async () => {
+      await setup(searchChoices);
+      typeSearch('amazon');
+      expect(visibleNames()).toEqual(['Amazon Q Developer']);
+    });
+
+    it('should still match on name and value', async () => {
+      await setup(searchChoices);
+      typeSearch('claude');
+      expect(visibleNames()).toEqual(['Claude Code']);
+    });
+
+    it('should still show no matches for a term nothing carries', async () => {
+      await setup(searchChoices);
+      typeSearch('nonesuch');
+      expect(visibleNames()).toEqual([]);
+      expect(renderOutput).toContain('No matches');
+    });
+
+    it('should point at the fallback choice when a search matches nothing', async () => {
+      await setup(searchChoices, undefined, 'Tool not listed? Pick "Other / Universal".');
+      typeSearch('nonesuch');
+      expect(renderOutput).toContain('Tool not listed?');
+    });
+
+    it('should not show the fallback hint while matches remain', async () => {
+      await setup(searchChoices, undefined, 'Tool not listed? Pick "Other / Universal".');
+      typeSearch('claude');
+      expect(renderOutput).not.toContain('Tool not listed?');
+    });
+  });
+
+  describe('search input', () => {
+    it('should accept punctuation, which readline reports only in sequence', async () => {
+      await setup(searchChoices);
+      typeSearch('amazon-q');
+      expect(getSearchText()).toBe('amazon-q');
+      expect(visibleNames()).toEqual(['Amazon Q Developer']);
+    });
+
+    it('should accept a leading dot so directory-shaped terms filter', async () => {
+      await setup(searchChoices);
+      typeSearch('.agents');
+      expect(getSearchText()).toBe('.agents');
+      expect(visibleNames()).toEqual(['Other / Universal']);
+    });
+
+    it('should ignore control chords rather than typing them', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ name: 'c', sequence: '\u0003', ctrl: true });
+      expect(getSearchText()).toBe('');
+    });
+
+    it('should ignore meta chords rather than typing them', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ name: 'a', sequence: '\u001ba', meta: true });
+      expect(getSearchText()).toBe('');
+    });
+
+    it('should not type a named control key into the search box', async () => {
+      // readline names these, and the names are printable strings; only a
+      // single-character `name` is real input.
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ name: 'tab', sequence: '\t' });
+      keypressHandler({ name: 'escape', sequence: '\u001b' });
+      keypressHandler({ name: 'delete', sequence: '\u007f' });
+      keypressHandler({ name: 'f1', sequence: '\u001bOP' });
+      expect(getSearchText()).toBe('');
+    });
+
+    it('should not type an arrow key escape sequence into the search box', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ name: 'right', sequence: '\u001b[C' });
+      expect(getSearchText()).toBe('');
+    });
+
+    it('should accept a pasted multi-character sequence', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ sequence: 'amazon-q' });
+      expect(getSearchText()).toBe('amazon-q');
+      expect(visibleNames()).toEqual(['Amazon Q Developer']);
+    });
+
+    it('should reject a paste carrying a newline rather than mangling it', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ sequence: 'claude\ncode' });
+      expect(getSearchText()).toBe('');
+    });
+
+    it('should keep uppercase input case-insensitive for matching', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ name: 'c', sequence: 'C' });
+      keypressHandler({ name: 'l', sequence: 'L' });
+      expect(getSearchText()).toBe('CL');
+      expect(visibleNames()).toEqual(['Claude Code']);
+    });
+
+    it('should ignore padding around a pasted term when matching', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ sequence: ' claude ' });
+      expect(visibleNames()).toEqual(['Claude Code']);
+    });
+
+    it('should accept punctuation delivered by a real readline keypress stream', async () => {
+      await setup(searchChoices);
+      for (const key of await readlineKeys('amazon-q')) keypressHandler!(key);
+      expect(getSearchText()).toBe('amazon-q');
+      for (const key of await readlineKeys('\u007f'.repeat(8) + '.agents')) keypressHandler!(key);
+      expect(getSearchText()).toBe('.agents');
+    });
+
+    it('should still toggle, not type, on a space inside text readline delivers', async () => {
+      // readline splits a paste into one keypress per character, so a pasted
+      // space arrives as the space key. Multi-word search is not reachable.
+      await setup(searchChoices);
+      for (const key of await readlineKeys('claude code')) keypressHandler!(key);
+      expect(getSearchText()).toBe('claudecode');
+    });
+
+    it('should match a multi-word name if a single sequence carries the space', async () => {
+      await setup(searchChoices);
+      if (!keypressHandler) throw new Error('No keypress handler registered');
+      keypressHandler({ sequence: 'claude code' });
+      expect(visibleNames()).toEqual(['Claude Code']);
     });
   });
 

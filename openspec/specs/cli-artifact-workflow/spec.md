@@ -208,8 +208,8 @@ The system SHALL support an `apply` block in schema definitions that controls wh
 #### Scenario: Schema without apply block
 
 - **WHEN** a schema has no `apply` block
-- **THEN** the system requires all artifacts to exist before apply is available
-- **AND** uses default instruction: "All artifacts complete. Proceed with implementation."
+- **THEN** the system requires all non-skipped artifacts to exist before apply is available
+- **AND** once those artifacts exist, uses default instruction: "All required artifacts complete. Proceed with implementation."
 
 ### Requirement: Apply Instructions Command
 
@@ -275,23 +275,24 @@ The `artifact-experimental-setup` command SHALL accept a `--tool <tool-id>` flag
 
 ### Requirement: Output messaging
 
-The setup command SHALL display clear output about what was generated.
+The `openspec init` command SHALL display clear output about what was generated.
 
 #### Scenario: Show target tool in output
 
-- **WHEN** setup command runs successfully
-- **THEN** output includes the target tool name (e.g., "Setting up for Cursor...")
+- **WHEN** initialization creates or refreshes a tool configuration
+- **THEN** output includes the tool name under `Created:` or `Refreshed:`, respectively
 
 #### Scenario: Show generated paths
 
-- **WHEN** setup command completes
-- **THEN** output lists all generated skill file paths
-- **AND** lists all generated command file paths (if applicable)
+- **WHEN** initialization generates skills or commands
+- **THEN** output summarizes their counts and destination directories
+- **AND** only reports the types enabled by the selected profile and delivery mode
 
 #### Scenario: Show skipped commands message
 
-- **WHEN** command generation is skipped due to missing adapter
-- **THEN** output includes message: "Command generation skipped - no adapter for <tool>"
+- **WHEN** initialization skips command generation due to a missing adapter
+- **THEN** output includes message: "Commands skipped for: <tools> (no adapter)"
+- **AND** `<tools>` lists the skipped tool IDs separated by commas
 
 ### Requirement: Status JSON provides planning context
 The status command SHALL provide machine-readable planning context for changes.

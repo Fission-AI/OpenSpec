@@ -114,7 +114,7 @@ field so OpenSpec never overwrites project-specific guidance.
 
 The welcome animation is also skipped when the `OPENSPEC_NO_ANIMATION` environment variable is set (any value, including empty), when `NO_COLOR` is set to a non-empty value, or when the OS reduced-motion preference is enabled (macOS Reduce Motion, GNOME animations disabled).
 
-**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `command-code`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `qoder`, `qwen`, `roocode`, `trae`, `zed`, `zcode`, `agents`
+**Supported tool IDs (`--tools`)** — `windsurf` is also accepted, as an alias for `devin`: `amazon-q`, `antigravity`, `auggie`, `bob`, `claude`, `cline`, `command-code`, `codeartsagent`, `codex`, `devin`, `forgecode`, `codebuddy`, `continue`, `costrict`, `crush`, `cursor`, `factory`, `gemini`, `github-copilot`, `hermes`, `iflow`, `junie`, `kilocode`, `kimi`, `kiro`, `lingma`, `minimax-code`, `vibe`, `oh-my-pi`, `opencode`, `pi`, `codeassistant`, `qoder`, `qwen`, `rovodev`, `roocode`, `trae`, `zed`, `zcode`, `agents`
 
 > This list mirrors `AI_TOOLS` in `src/core/config.ts`. See [Supported Tools](supported-tools.md) for each tool's skill and command paths.
 
@@ -442,24 +442,14 @@ openspec list [options]
 |--------|-------------|
 | `--specs` | List specs instead of changes |
 | `--changes` | List changes (default) |
-| `--archived` | List only archived changes |
-| `--all` | List active and archived changes |
 | `--sort <order>` | Sort by `recent` (default) or `name` |
 | `--json` | Output as JSON |
-
-**Archive filters:** `--archived` and `--all` read `openspec/changes/archive/` in the selected root. Neither can be combined with `--specs`. If both are supplied, `--all` takes precedence.
 
 **Examples:**
 
 ```bash
 # List all active changes
 openspec list
-
-# List archived changes by name
-openspec list --archived --sort name
-
-# List active and archived changes
-openspec list --all
 
 # List all specs
 openspec list --specs
@@ -475,21 +465,17 @@ Changes:
   add-dark-mode     No tasks      just now
 ```
 
-**Archive output:** Text output groups active and archived changes under separate headings. Each group uses the selected sort order.
-
-**JSON output:** With `--archived` or `--all`, each entry in `changes` includes an `archived` boolean. The combined array uses the selected sort order. `status` still reports task progress, so an archived change can have unfinished tasks. Without either archive flag, the JSON format is unchanged.
-
 ---
 
 ### `openspec view`
 
-Display a dashboard of specs and changes.
+Display an interactive dashboard for exploring specs and changes.
 
-```bash
+```
 openspec view
 ```
 
-The summary counts archived changes separately. The **Archived Changes** section lists their directory names alphabetically. Archived changes do not contribute to active, completed, or task-progress metrics.
+Opens a terminal-based interface for navigating your project's specifications and changes.
 
 ---
 
@@ -677,6 +663,25 @@ openspec archive add-dark-mode --yes
 # Archive a tooling change that doesn't affect specs
 openspec archive update-ci-config --skip-specs
 ```
+
+**Retire a capability:** Add the retirement marker to the change metadata:
+
+```yaml
+# openspec/changes/retire-legacy/.openspec.yaml
+schema: spec-driven
+retire_capabilities: true
+```
+
+Then archive the change normally:
+
+```bash
+openspec archive retire-legacy --yes
+```
+
+When the change removes the capability's last requirement, OpenSpec deletes its
+live `spec.md`. Other capability deltas in the same change still update their
+main specs. Without the marker, archive stops before changing any files and
+tells you to add it.
 
 **What it does:**
 
@@ -1269,12 +1274,33 @@ openspec completion install
 # Install for specific shell
 openspec completion install zsh
 
-# Generate script for manual installation
+# Generate script for manual installation (bash)
 openspec completion generate bash > ~/.bash_completion.d/openspec
 
 # Uninstall
 openspec completion uninstall
 ```
+
+**Windows (PowerShell):** Install completions for the current PowerShell host:
+
+```powershell
+$env:PROFILE = $PROFILE
+openspec completion install powershell
+. $PROFILE
+```
+
+`$env:PROFILE` tells OpenSpec which profile to configure in this session. The
+installer creates missing profile directories and adds a managed block that loads
+`OpenSpecCompletion.ps1`. Reloading the profile enables completions immediately.
+
+To uninstall from the current host, run:
+
+```powershell
+$env:PROFILE = $PROFILE
+openspec completion uninstall powershell
+```
+
+Restart PowerShell after uninstalling to clear completions from the current session.
 
 Completions are opt-in. The CLI mentions them once, on stderr, the first time you
 run a command in an interactive terminal, and never again — it also stays quiet
