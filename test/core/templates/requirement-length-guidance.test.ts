@@ -19,7 +19,7 @@ describe('specs instruction requirement length (#1976)', () => {
     );
     const instruction = schema.artifacts.find(a => a.id === 'specs')?.instruction ?? '';
 
-    expect(instruction).toContain(`under ${MAX_REQUIREMENT_TEXT_LENGTH} characters`);
+    expect(instruction).toContain(`${MAX_REQUIREMENT_TEXT_LENGTH} characters or fewer`);
     expect(instruction).toContain('split a requirement that covers several behaviors');
   });
 });
