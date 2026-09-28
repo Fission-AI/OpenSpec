@@ -167,6 +167,14 @@ describe('available-tools', () => {
       expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['zed']);
     });
 
+    it('should detect GSD from its project directory', async () => {
+      await fs.mkdir(path.join(testDir, '.gsd'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toEqual(['gsd']);
+      expect(tools[0].skillsDir).toBe('.agents');
+    });
+
     it('should not detect the shared agents target from a bare .agents directory', async () => {
       // Frameworks use `.agents/` for more than skills (rules, subagent definitions).
       // The bare root therefore says nothing about whether this project keeps agent
