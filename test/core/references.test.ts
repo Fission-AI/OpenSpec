@@ -131,6 +131,70 @@ describe('reference index assembly', () => {
     expect(entries[0].status).toEqual([]);
   });
 
+  it('indexes a co-located parent root without using the store registry', async () => {
+    const monorepo = mkdir('monorepo');
+    createOpenSpecRoot(monorepo);
+    writeSpec(
+      monorepo,
+      'shared-auth',
+      '# shared auth\n\n## Purpose\n\nKeep authentication behavior consistent.\n'
+    );
+    const child = path.join(monorepo, 'packages', 'api');
+    createOpenSpecRoot(child);
+    const resolvedRoot: ResolvedOpenSpecRoot = {
+      path: child,
+      source: 'nearest',
+      changesDir: path.join(child, 'openspec', 'changes'),
+      specsDir: path.join(child, 'openspec', 'specs'),
+      archiveDir: path.join(child, 'openspec', 'changes', 'archive'),
+      defaultSchema: 'spec-driven',
+    };
+
+    const entries = await assembleReferenceIndex({
+      references: [{ path: '../..' }],
+      resolvedRoot,
+      globalDataDir,
+    });
+
+    expect(entries).toHaveLength(1);
+    const entry = entries[0];
+    if (!('local_path' in entry)) throw new Error('expected local reference');
+    expect(entry).toMatchObject({
+      local_path: '../..',
+      root: fs.realpathSync.native(monorepo),
+      specs: [{ id: 'shared-auth', summary: 'Keep authentication behavior consistent.' }],
+      specs_path: path.join(fs.realpathSync.native(monorepo), 'openspec', 'specs'),
+      status: [],
+    });
+    expect(renderReferencedStoresBlock(entries)).toContain('<referenced_roots>');
+    expect(renderReferencedStoresSection(entries)).toContain('### Referenced Roots');
+  });
+
+  it('reports sibling paths instead of reading arbitrary local roots', async () => {
+    const monorepo = mkdir('monorepo');
+    const child = path.join(monorepo, 'packages', 'api');
+    const sibling = path.join(monorepo, 'packages', 'web');
+    createOpenSpecRoot(child);
+    createOpenSpecRoot(sibling);
+    const resolvedRoot: ResolvedOpenSpecRoot = {
+      path: child,
+      source: 'nearest',
+      changesDir: path.join(child, 'openspec', 'changes'),
+      specsDir: path.join(child, 'openspec', 'specs'),
+      archiveDir: path.join(child, 'openspec', 'changes', 'archive'),
+      defaultSchema: 'spec-driven',
+    };
+
+    const entries = await assembleReferenceIndex({
+      references: [{ path: '../web' }],
+      resolvedRoot,
+      globalDataDir,
+    });
+
+    expect(entries[0].status[0].code).toBe('reference_local_path_invalid');
+    expect(entries[0].root).toBeUndefined();
+  });
+
   it('degrades an unregistered reference to reference_unresolved with a pasteable fix', async () => {
     const entries = await assemble(['missing-context']);
 

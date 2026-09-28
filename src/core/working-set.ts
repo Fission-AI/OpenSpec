@@ -7,10 +7,14 @@
  * guessed.
  */
 import type { StoreDiagnostic } from './store/errors.js';
-import { fetchRecipe, type ReferenceIndexEntry } from './references.js';
+import {
+  fetchRecipe,
+  isLocalReferenceEntry,
+  type ReferenceIndexEntry,
+} from './references.js';
 import { toRootOutput, type ResolvedOpenSpecRoot } from './root-selection.js';
 
-export type WorkingSetRole = 'referenced_store';
+export type WorkingSetRole = 'referenced_store' | 'parent_root';
 
 export interface WorkingSetMember {
   role: WorkingSetRole;
@@ -50,6 +54,15 @@ export function assembleWorkingSet(input: AssembleWorkingSetInput): WorkingSet {
   const members: WorkingSetMember[] = [];
 
   for (const entry of input.referenceEntries) {
+    if (isLocalReferenceEntry(entry)) {
+      members.push({
+        role: 'parent_root',
+        id: entry.local_path,
+        ...(entry.root !== undefined ? { path: entry.root } : {}),
+        status: entry.status,
+      });
+      continue;
+    }
     members.push({
       role: 'referenced_store',
       id: entry.store_id,
@@ -85,7 +98,10 @@ export function buildCodeWorkspaceJson(workingSet: WorkingSet, rootName: string)
     if (!isAvailableMember(member)) {
       continue;
     }
-    folders.push({ name: `ref:${member.id}`, path: member.path! });
+    folders.push({
+      name: member.role === 'parent_root' ? `parent:${member.id}` : `ref:${member.id}`,
+      path: member.path!,
+    });
   }
 
   return JSON.stringify({ folders }, null, 2) + '\n';

@@ -41,7 +41,7 @@ import {
 import { readRegistrySnapshot } from '../../core/store/registry.js';
 import {
   loadOperationInputs,
-  readProjectConfig,
+  readProjectConfigWithParents,
   type ProjectConfig,
 } from '../../core/project-config.js';
 import {
@@ -90,7 +90,7 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   references: ReferenceIndexEntry[] | undefined;
 }> {
   // readProjectConfig never throws: missing/unparseable configs are null.
-  const projectConfig = readProjectConfig(root.path);
+  const projectConfig = readProjectConfigWithParents(root.path);
 
   // One registry read serves every relationship consumer in this
   // output so it never carries a torn snapshot.
@@ -840,7 +840,7 @@ export async function archiveInstructionsCommand(
       root.changesDir,
       { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
-    const projectConfig = readProjectConfig(root.path);
+    const projectConfig = readProjectConfigWithParents(root.path);
     const instructions = generateArchiveInstructions(changeName, projectConfig);
 
     spinner?.stop();

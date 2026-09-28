@@ -69,7 +69,18 @@ function printHumanWorkingSet(workingSet: WorkingSet, declaredReferenceCount: nu
   const availableStores = workingSet.members.filter(
     (member) => member.role === 'referenced_store' && isAvailableMember(member)
   );
+  const parentRoots = workingSet.members.filter(
+    (member) => member.role === 'parent_root' && isAvailableMember(member)
+  );
   const unavailable = workingSet.members.filter((member) => !isAvailableMember(member));
+
+  if (parentRoots.length > 0) {
+    console.log('');
+    console.log('Parent roots');
+    for (const member of parentRoots) {
+      console.log(memberLine(member));
+    }
+  }
 
   if (availableStores.length > 0) {
     console.log('');

@@ -104,6 +104,71 @@ describe('store references in instructions (3.1)', () => {
     expect(parseJson(result).references[0].specs[0].summary).toBe('Rewritten upstream truth.');
   });
 
+  it('uses a local parent as read-only context while keeping child writes isolated', async () => {
+    const monorepo = path.join(tempDir, 'monorepo');
+    const child = path.join(monorepo, 'packages', 'api');
+    createOpenSpecRoot(monorepo);
+    createOpenSpecRoot(child);
+    writeSpec(monorepo, 'shared-auth', '## Purpose\n\nShared authentication contract.\n');
+    fs.writeFileSync(
+      path.join(monorepo, 'openspec', 'config.yaml'),
+      'schema: spec-driven\ncontext: Shared monorepo context\n'
+    );
+    fs.writeFileSync(
+      path.join(child, 'openspec', 'config.yaml'),
+      'context: API package context\nreferences:\n  - { path: ../.. }\n'
+    );
+
+    await createChange(child, 'add-api-auth');
+    const instructions = await runCLI(
+      ['instructions', 'proposal', '--change', 'add-api-auth', '--json'],
+      { cwd: child, env }
+    );
+    const payload = parseJson(instructions);
+
+    expect(payload.root.path).toBe(fs.realpathSync.native(child));
+    expect(payload.context).toBe('Shared monorepo context\n\nAPI package context');
+    expect(payload.references).toEqual([
+      {
+        local_path: '../..',
+        root: fs.realpathSync.native(monorepo),
+        specs: [{ id: 'shared-auth', summary: 'Shared authentication contract.' }],
+        specs_path: path.join(fs.realpathSync.native(monorepo), 'openspec', 'specs'),
+        status: [],
+      },
+    ]);
+    const context = parseJson(await runCLI(['context', '--json'], { cwd: child, env }));
+    expect(context.members).toEqual([
+      {
+        role: 'parent_root',
+        id: '../..',
+        path: fs.realpathSync.native(monorepo),
+        status: [],
+      },
+    ]);
+    const doctor = parseJson(await runCLI(['doctor', '--json'], { cwd: child, env }));
+    expect(doctor.references[0]).toMatchObject({
+      local_path: '../..',
+      root: fs.realpathSync.native(monorepo),
+      status: [],
+    });
+    expect(
+      fs.existsSync(path.join(monorepo, 'openspec', 'changes', 'add-api-auth'))
+    ).toBe(false);
+
+    const archive = await runCLI(
+      ['archive', 'add-api-auth', '--skip-specs', '--no-validate', '--yes', '--json'],
+      { cwd: child, env }
+    );
+    expect(archive.exitCode).toBe(0);
+    expect(
+      fs.readdirSync(path.join(child, 'openspec', 'changes', 'archive')).some((name) =>
+        name.endsWith('add-api-auth')
+      )
+    ).toBe(true);
+    expect(fs.readdirSync(path.join(monorepo, 'openspec', 'changes', 'archive'))).toEqual([]);
+  });
+
   it('omits the references field entirely when none are declared', async () => {
     fs.writeFileSync(path.join(appRepo, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
     await createChange(appRepo, 'plain-change');

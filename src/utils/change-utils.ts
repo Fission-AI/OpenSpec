@@ -2,7 +2,7 @@ import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { formatLocalDate } from './date.js';
-import { readProjectConfig } from '../core/project-config.js';
+import { readProjectConfigWithParents } from '../core/project-config.js';
 import { isKebabId } from '../core/id.js';
 import { resolveSchema } from '../core/artifact-graph/resolver.js';
 import { isSpecsArtifactPath } from '../core/artifact-graph/outputs.js';
@@ -148,7 +148,7 @@ export async function createChange(
   } else {
     // Try to read from project config
     try {
-      const config = readProjectConfig(projectRoot);
+      const config = readProjectConfigWithParents(projectRoot);
       schemaName = config?.schema ?? defaultSchema;
     } catch {
       // If config read fails, use default

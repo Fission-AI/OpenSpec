@@ -26,6 +26,7 @@ import {
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
+import { isLocalReferenceEntry } from '../core/references.js';
 import * as path from 'node:path';
 
 const FAILURE_PAYLOAD = { root: null, store: null, references: [] };
@@ -169,8 +170,9 @@ function printHumanHealth(health: RelationshipHealth, declaredReferenceCount: nu
     'References',
     health.references,
     referencesEmptyLine,
-    (entry) => `${entry.store_id}: ok${entry.root ? ` (${entry.root})` : ''}`,
-    (entry) => entry.store_id
+    (entry) =>
+      `${isLocalReferenceEntry(entry) ? entry.local_path : entry.store_id}: ok${entry.root ? ` (${entry.root})` : ''}`,
+    (entry) => (isLocalReferenceEntry(entry) ? entry.local_path : entry.store_id)
   );
 
   for (const entry of health.status) {

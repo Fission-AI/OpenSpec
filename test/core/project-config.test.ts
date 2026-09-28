@@ -6,6 +6,8 @@ import {
   loadOperationInputs,
   OPERATION_IDS,
   readProjectConfig,
+  readProjectConfigWithParents,
+  resolveLocalReferenceRoot,
   validateConfigRules,
   suggestSchemas,
 } from '../../src/core/project-config.js';
@@ -626,6 +628,14 @@ rules:
         );
       });
 
+      it('parses and deduplicates local parent references', () => {
+        writeConfig(
+          'schema: spec-driven\nreferences:\n  - { path: ../.. }\n  - { path: ../.. }\n'
+        );
+
+        expect(readProjectConfig(tempDir)?.references).toEqual([{ path: '../..' }]);
+      });
+
       it('omits the field when absent or empty and warns on non-arrays', () => {
         writeConfig('schema: spec-driven\n');
         expect(readProjectConfig(tempDir)?.references).toBeUndefined();
@@ -634,6 +644,79 @@ rules:
         expect(readProjectConfig(tempDir)?.references).toBeUndefined();
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           expect.stringContaining("Invalid 'references' field")
+        );
+      });
+    });
+
+    describe('local parent inheritance', () => {
+      it('inherits parent schema and context while keeping child-only settings local', () => {
+        const parent = path.join(tempDir, 'repo');
+        const child = path.join(parent, 'packages', 'api');
+        fs.mkdirSync(path.join(parent, 'openspec'), { recursive: true });
+        fs.mkdirSync(path.join(child, 'openspec'), { recursive: true });
+        fs.writeFileSync(
+          path.join(parent, 'openspec', 'config.yaml'),
+          'schema: team-flow\ncontext: Parent context\nrules:\n  proposal:\n    - Parent rule\n'
+        );
+        fs.writeFileSync(
+          path.join(child, 'openspec', 'config.yaml'),
+          'context: Child context\nreferences:\n  - { path: ../.. }\nrules:\n  tasks:\n    - Child rule\n'
+        );
+
+        expect(readProjectConfigWithParents(child)).toMatchObject({
+          schema: 'team-flow',
+          context: 'Parent context\n\nChild context',
+          rules: { tasks: ['Child rule'] },
+          references: [{ path: '../..' }],
+        });
+      });
+
+      it('accepts only relative ancestor OpenSpec roots', () => {
+        const parent = path.join(tempDir, 'repo');
+        const child = path.join(parent, 'packages', 'api');
+        const sibling = path.join(parent, 'packages', 'web');
+        fs.mkdirSync(path.join(parent, 'openspec'), { recursive: true });
+        fs.mkdirSync(path.join(child, 'openspec'), { recursive: true });
+        fs.mkdirSync(path.join(sibling, 'openspec'), { recursive: true });
+
+        expect(resolveLocalReferenceRoot(child, { path: '../..' })).toBe(
+          fs.realpathSync.native(parent)
+        );
+        expect(resolveLocalReferenceRoot(child, { path: '../web' })).toBeNull();
+        expect(resolveLocalReferenceRoot(child, { path: parent })).toBeNull();
+        expect(resolveLocalReferenceRoot(child, { path: '.' })).toBeNull();
+      });
+
+      it('resolves parent paths from the canonical child when entered through a symlink', () => {
+        const parent = path.join(tempDir, 'repo');
+        const child = path.join(parent, 'packages', 'api');
+        const alias = path.join(tempDir, 'api-alias');
+        fs.mkdirSync(path.join(parent, 'openspec'), { recursive: true });
+        fs.mkdirSync(path.join(child, 'openspec'), { recursive: true });
+        fs.symlinkSync(child, alias, 'dir');
+
+        expect(resolveLocalReferenceRoot(alias, { path: '../..' })).toBe(
+          fs.realpathSync.native(parent)
+        );
+      });
+
+      it('drops inherited context when the combined prompt would exceed 50KB', () => {
+        const parent = path.join(tempDir, 'repo');
+        const child = path.join(parent, 'packages', 'api');
+        fs.mkdirSync(path.join(parent, 'openspec'), { recursive: true });
+        fs.mkdirSync(path.join(child, 'openspec'), { recursive: true });
+        fs.writeFileSync(
+          path.join(parent, 'openspec', 'config.yaml'),
+          `context: ${'p'.repeat(40 * 1024)}\n`
+        );
+        fs.writeFileSync(
+          path.join(child, 'openspec', 'config.yaml'),
+          `context: ${'c'.repeat(20 * 1024)}\nreferences:\n  - { path: ../.. }\n`
+        );
+
+        expect(readProjectConfigWithParents(child)?.context).toBe('c'.repeat(20 * 1024));
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('Inherited context exceeds the 50KB limit')
         );
       });
     });
