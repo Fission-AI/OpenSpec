@@ -469,24 +469,13 @@ Changes:
 
 ### `openspec view`
 
-Print a dashboard of specs, changes, and task progress.
+Display an interactive dashboard for exploring specs and changes.
 
-```bash
+```
 openspec view
 ```
 
-**Workflow status:** Each active change shows its schema and artifact states below its task progress bar. For example:
-
-```text
-    └─ [spec-driven] proposal✓ specs→ design→ tasks✓
-```
-
-- **`✓`**: The artifact's output exists. This does not mean its implementation tasks are complete.
-- **`→`**: The artifact is ready to create.
-- **No symbol**: The artifact is blocked by missing dependencies.
-- **`(skipped)`**: The artifact is skipped because the change declares `skip_specs: true`.
-
-**Workflow errors:** If a change's workflow cannot be loaded, the command prints a warning and keeps that change's task progress visible. Run [`openspec status --change <name>`](#openspec-status) to inspect the workflow separately.
+Opens a terminal-based interface for navigating your project's specifications and changes.
 
 ---
 

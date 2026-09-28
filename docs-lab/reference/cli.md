@@ -639,6 +639,21 @@ Use openspec list --changes or openspec list --specs for detailed views
 
 A `Task Progress` summary line appears when any change has tasks underway.
 
+Each active change also shows its schema and artifact states below its task progress bar:
+
+```text
+    └─ [spec-driven] proposal✓ specs→ design→ tasks✓
+```
+
+| Marker | Artifact state |
+|---|---|
+| `✓` | Its output exists. An existing tasks artifact is done even when its checklist is unfinished. |
+| `→` | It is ready to create. |
+| No marker | It is blocked by a missing dependency. |
+| `(skipped)` | The change skips it. |
+
+If a workflow cannot be loaded, view prints a warning and keeps that change's task progress visible. Run `openspec status --change <name>` to inspect the workflow separately.
+
 **Exit codes**
 
 - `0`: dashboard printed.
