@@ -342,22 +342,12 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 // Apply Instructions Command
 // -----------------------------------------------------------------------------
 
-/**
- * Turns parsed task lines into the listed task items.
- *
- * A checkbox with no text after it is left out of the list: this is work for an
- * agent to act on and tick off, and a bare `- [ ]` gives it nothing to match.
- * It still counts toward progress, which is taken from every parsed line, so
- * this list can be shorter than the totals beside it but never disagrees with
- * `openspec list` or archive about how much work is left. An empty list is also
- * what puts apply in its "nothing to work on" state, so a file of nothing but
- * text-less checkboxes asks to be rewritten instead of being called done.
- */
 interface LocatedTask extends ParsedTask {
   sourcePath: string;
   line: number;
 }
 
+/** Adds one-based source locations to parsed tasks without changing task parsing. */
 function parseLocatedTasks(content: string, sourcePath: string): LocatedTask[] {
   const tasks: LocatedTask[] = [];
 
@@ -369,6 +359,17 @@ function parseLocatedTasks(content: string, sourcePath: string): LocatedTask[] {
   return tasks;
 }
 
+/**
+ * Turns parsed task lines into the listed task items.
+ *
+ * A checkbox with no text after it is left out of the list: this is work for an
+ * agent to act on and tick off, and a bare `- [ ]` gives it nothing to match.
+ * It still counts toward progress, which is taken from every parsed line, so
+ * this list can be shorter than the totals beside it but never disagrees with
+ * `openspec list` or archive about how much work is left. An empty list is also
+ * what puts apply in its "nothing to work on" state, so a file of nothing but
+ * text-less checkboxes asks to be rewritten instead of being called done.
+ */
 function toTaskItems(parsed: LocatedTask[]): TaskItem[] {
   const tasks: TaskItem[] = [];
 

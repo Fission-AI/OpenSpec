@@ -126,8 +126,9 @@ ${PROJECT_ROOT_GUARD}
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
+   - Before editing, confirm the checkbox at the returned \`sourcePath\` and \`line\` still matches the task description; if it does not, rerun the apply instructions and use the refreshed location
    - Mark the task complete at its returned \`sourcePath\` and \`line\`: \`- [ ]\` → \`- [x]\`
-   - Rerun the apply instructions and confirm progress changed
+   - Rerun the apply instructions and confirm that task is now done and progress changed
    - Continue to next task
 
    **Pause if:**
