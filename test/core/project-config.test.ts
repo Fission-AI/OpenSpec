@@ -516,6 +516,8 @@ rules:
     - Valid rule
     - Second: also a mapping
     - 42
+    - null
+    - [nested, list]
 `
         );
 
@@ -527,6 +529,8 @@ rules:
         expect(warned).toContain('rules.proposal[0] is a mapping');
         expect(warned).toContain('rules.proposal[2] is a mapping');
         expect(warned).toContain('rules.proposal[3] is a number');
+        expect(warned).toContain('rules.proposal[4] is null');
+        expect(warned).toContain('rules.proposal[5] is a nested list');
         // The valid sibling between them is not reported.
         expect(warned).not.toContain('rules.proposal[1]');
       });
