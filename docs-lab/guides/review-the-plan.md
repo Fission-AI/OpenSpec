@@ -14,23 +14,23 @@
 
 ## Advanced: verify after apply
 
-Check each scenario against the implemented behavior before archiving. The optional
+Before archiving, check that the code does what the scenarios describe. The optional
 [verify skill](../reference/skills.md#openspec-verify-change) can help find gaps.
 
-For changes that need several checks, keep a short record in `tasks.md` or link to
-an existing test report. For each scenario, record:
+### Keep a record when checks are hard to track
 
-- **Check**: the test or manual check and its expected outcome.
-- **Result**: what happened, with a link to the original test run or recorded observation.
-- **Version**: the code revision or build tested, and the environment it ran in.
-- **Gaps**: failures, checks not run, or results you could not confirm.
+Use the change's `tasks.md` or an existing test report. For each check, record:
 
-Open the linked results yourself. A checked task or an agent's claim that a test
-passed is not enough to confirm the behavior. A passing check covers only the
-scenario and environment it tested.
+- **Scenario**: the requirement and scenario it checks, with a link to that version of the spec.
+- **Check**: the test or manual check and what should happen.
+- **Result**: pass, fail, not run, or unknown. Link to the original run or dated observation.
+- **Tested version**: the code revision or build tested, and where it ran.
 
-When requirements or code change, rerun the affected checks. Reuse earlier results
-only when the changes leave the tested behavior and environment unaffected.
+### Review the results
 
-**Archiving does not enforce these checks.** If your project requires passing
-results before release, enforce that in your CI or release process.
+- **Open the source.** Confirm the result in the linked run or report. A checked task or an agent's summary alone does not prove the test passed.
+- **Look for gaps.** Check that every scenario has a result. A passing test on one device or environment does not cover another. Keep missing and failed checks visible.
+- **Check for changes.** Rerun checks affected by changes to the requirements, code, or environment. Unrelated documentation edits may leave earlier results valid.
+
+**Archiving does not enforce these checks.** If passing results are required for
+release, enforce that in your CI or release process.
