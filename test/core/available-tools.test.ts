@@ -141,6 +141,12 @@ describe('available-tools', () => {
       expect(tools[0].skillsDir).toBe('.agents');
     });
 
+    it('should detect Amp from its project configuration directory', async () => {
+      await fs.mkdir(path.join(testDir, '.amp'), { recursive: true });
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['amp']);
+    });
+
     it('should detect Antigravity from .agents/workflows', async () => {
       await fs.mkdir(path.join(testDir, '.agents', 'workflows'), { recursive: true });
 
@@ -201,6 +207,13 @@ describe('available-tools', () => {
       await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'zed\n');
 
       expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['zed']);
+    });
+
+    it('should use the shared-root marker to detect a configured Amp target', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'amp\n');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['amp']);
     });
 
     it('should preserve a global tool while reconciling a shared project root', async () => {

@@ -627,6 +627,21 @@ metadata:
       ).toBe(true);
     });
 
+    it('should refresh an Amp-owned shared skill tree', async () => {
+      await new InitCommand({ tools: 'amp', force: true }).execute(testDir);
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      const skillFile = path.join(skillsDir, 'openspec-propose', 'SKILL.md');
+      await fs.writeFile(skillFile, 'stale Amp skill');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('amp\n');
+      const updated = await fs.readFile(skillFile, 'utf-8');
+      expect(updated).toContain('name: openspec-propose');
+      expect(updated).toContain('/openspec-apply-change');
+      expect(updated).not.toContain('stale Amp skill');
+    });
+
     it('should refresh Antigravity workflows without rewriting Codex-owned shared skills', async () => {
       await new InitCommand({ tools: 'antigravity,codex', force: true }).execute(testDir);
 

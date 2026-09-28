@@ -15,6 +15,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Tool | `--tools` id | Skills | Skill invocation | Commands | Command invocation |
 |---|---|---|---|---|---|
 | Amazon Q Developer | `amazon-q` | `.amazonq/skills/` | `/openspec-apply-change` | `.amazonq/prompts/` | `@opsx-apply` |
+| Amp | `amp` | `.agents/skills/` | `/openspec-apply-change` | none | none |
 | Antigravity | `antigravity` | `.agents/skills/` | `/openspec-apply-change` | `.agents/workflows/` | `/opsx-apply` |
 | Auggie (Augment CLI) | `auggie` | `.augment/skills/` | `/openspec-apply-change` | `.augment/commands/` | `/opsx-apply` |
 | Bob Shell | `bob` | `.bob/skills/` | `/openspec-apply-change` | `.bob/commands/` | `/opsx-apply` |
@@ -62,6 +63,13 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 
 A tool not listed here behaves exactly as its row reads.
 
+### Amp
+
+- **Project skills**: Amp reads OpenSpec skills from `.agents/skills/`.
+- **No command files**: Amp runs skills directly, so init skips command generation.
+- **Shared folder**: Amp shares `.agents/skills/` with Antigravity, Codex, Zed Agent,
+  and the `agents` target. OpenSpec writes the skill tree once.
+
 ### Antigravity
 
 - **Current folder**: Antigravity v1.20.5 and later read workspace skills and
@@ -69,8 +77,8 @@ A tool not listed here behaves exactly as its row reads.
 - **Legacy folder**: after OpenSpec writes replacements, it removes equivalent
   generated files from `.agent/`. Custom files and changed generated files stay in
   `.agent/` for you to review.
-- **Shared skills**: Antigravity shares `.agents/skills/` with Codex, Zed Agent, and
-  the `agents` target. OpenSpec writes that skill tree once while still writing
+- **Shared skills**: Antigravity shares `.agents/skills/` with Amp, Codex, Zed Agent,
+  and the `agents` target. OpenSpec writes that skill tree once while still writing
   Antigravity commands to `.agents/workflows/`.
 
 ### Cline
@@ -88,10 +96,10 @@ Skills stay in `.cline/skills/`.
   describes both interfaces.
 - **No command files**: Codex runs skills directly, so init skips commands even when
   delivery includes them and prints `Commands skipped for: codex (uses skills)`.
-- **Shared folder**: Codex skills land in `.agents/skills/`, the same tree Antigravity,
-  Zed Agent, and the `agents` target use. Selecting more than one keeps a single
-  compatible tree, and its handoffs spell both `$openspec-*` and `/openspec-*` when
-  Codex owns it.
+- **Shared folder**: Codex skills land in `.agents/skills/`, the same tree Amp,
+  Antigravity, Zed Agent, and the `agents` target use. Selecting more than one keeps a
+  single compatible tree, and its handoffs spell both `$openspec-*` and `/openspec-*`
+  when Codex owns it.
 - **Legacy path**: skills installed under `.codex/skills/` by older versions are
   migrated on the next `openspec update`.
 
@@ -134,7 +142,7 @@ init prints this reminder after install.
   assistant is not listed. The init picker's search box finds it by `universal`,
   `other`, `generic`, `custom`, `proprietary`, `unlisted`, `unsupported`,
   `vendor-neutral`, or `agents.md`.
-- **Alongside other targets**: Antigravity, Codex, Zed Agent, and this target share
+- **Alongside other targets**: Amp, Antigravity, Codex, Zed Agent, and this target share
   one physical skill tree. OpenSpec records one writer in `.openspec-target` and
   writes the tree once per run. Each tool's separate command files are still
   generated.

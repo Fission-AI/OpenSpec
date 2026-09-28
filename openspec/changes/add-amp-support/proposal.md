@@ -1,11 +1,31 @@
 ## Why
-Amp is a popular AI coding agent from Sourcegraph that uses Skills (`.agents/skills/`) to extend its capabilities. Today OpenSpec can scaffold slash commands for many IDEs but not Amp, so Amp users cannot run the proposal/apply/archive flows from their workflow.
+
+Amp reads project skills from `.agents/skills/`, but OpenSpec does not list Amp in its tool picker or accept `amp` through `--tools`. Amp users can select the universal `.agents` target, but only if they already know how Amp discovers skills.
 
 ## What Changes
-- Add Amp as a selectable native tool in `openspec init` so it creates `.agents/skills/openspec-proposal/SKILL.md`, `.agents/skills/openspec-apply/SKILL.md`, and `.agents/skills/openspec-archive/SKILL.md` with YAML frontmatter containing `name` and `description` fields plus the standard OpenSpec-managed body.
-- Ensure `openspec update` refreshes the body of any existing Amp skills inside `.agents/skills/` without creating missing files, mirroring the behavior of other tools.
-- Share e2e/template coverage confirming the generator writes the proper directory, filename casing, and frontmatter format so Amp picks up the skills.
+
+- Add Amp as a supported skills-only tool with `amp` as its tool id.
+- Generate Amp's OpenSpec skills through the existing shared `.agents/skills/` pipeline.
+- Detect Amp projects from `.amp/` and recognize Amp-owned OpenSpec skill trees during update.
+- Document Amp's paths and invocation syntax in the docs-lab supported-tools reference.
+
+## Capabilities
+
+### New Capabilities
+
+_None._
+
+### Modified Capabilities
+
+- `ai-tool-paths`: define Amp's shared Agent Skills path and skills-only behavior.
 
 ## Impact
-- Affected specs: `specs/cli-init`, `specs/cli-update`
-- Expected code: CLI init/update tool registries, slash-command configurator, associated tests
+
+- `src/core/config.ts`: add the Amp tool metadata.
+- `test/core/init.test.ts`, `test/core/update.test.ts`, and `test/core/available-tools.test.ts`: cover generation, refresh, and detection.
+- `docs-lab/reference/supported-tools.md`: add Amp to the support matrix and shared-folder notes.
+
+## Non-Goals
+
+- Adding an Amp command adapter. Amp's supported project extension surface is Agent Skills.
+- Adding a second Amp-specific skill generator or template set.

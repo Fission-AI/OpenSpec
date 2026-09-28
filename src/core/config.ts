@@ -40,6 +40,7 @@ export interface AIToolOption {
 
 export const AI_TOOLS: AIToolOption[] = [
   { name: 'Amazon Q Developer', value: 'amazon-q', available: true, successLabel: 'Amazon Q Developer', skillsDir: '.amazonq', requiresIdeRestart: true },
+  { name: 'Amp', value: 'amp', available: true, successLabel: 'Amp', skillsDir: '.agents', detectionPaths: ['.amp', '.agents/skills'] },
   // Antigravity moved workspace skills and workflows from `.agent` to the
   // shared `.agents` root in v1.20.5. Detection keys off `.agent` and
   // `.agents/workflows` rather than the bare `.agents` root: that root is
