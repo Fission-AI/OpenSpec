@@ -1,10 +1,12 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import fg from 'fast-glob';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { FileSystemUtils } from '../../../src/utils/file-system.js';
 import {
   artifactOutputExists,
+  isGlobPattern,
   isSpecsArtifactPath,
   resolveArtifactOutputs,
 } from '../../../src/core/artifact-graph/outputs.js';
@@ -34,6 +36,36 @@ describe('artifact-graph/outputs', () => {
     expect(isSpecsArtifactPath(generates)).toBe(expected);
   });
 
+  it.each([
+    ['specs/**/*.md', true],
+    ['specs/foo*.md', true],
+    ['specs/a?.md', true],
+    ['specs/[ab].md', true],
+    ['review-{api,ui}.md', true],
+    ['file-{1..3}.md', true],
+    ['report-{draft}-{api,ui}.md', true],
+    ['report-{draft}-{1..3}.md', true],
+    ['report-{draft,{api,ui}}.md', true],
+    ['report-{{draft},api}.md', true],
+    ['report-{draft}-{final}.md', false],
+    ['@(proposal|design).md', true],
+    ['+(proposal|design).md', true],
+    ['!(proposal|design).md', true],
+    ['*(proposal|design).md', true],
+    ['?(proposal|design).md', true],
+    ['!*.md', true],
+    ['file[.md', true],
+    [String.raw`specs\review-{api,ui}.md`, true],
+    ['!review.md', false],
+    ['(proposal|design).md', false],
+    [String.raw`specs\auth\spec.md`, false],
+    ['review-{api}.md', false],
+    ['proposal.md', false],
+    ['specs/auth/spec.md', false],
+  ])('classifies glob pattern %s as %s', (pattern, expected) => {
+    expect(isGlobPattern(pattern)).toBe(expected);
+  });
+
   it('resolves a direct file path when it exists', () => {
     const filePath = path.join(tempDir, 'proposal.md');
     fs.writeFileSync(filePath, 'content');
@@ -48,6 +80,108 @@ describe('artifact-graph/outputs', () => {
 
     expect(resolveArtifactOutputs(tempDir, 'proposal.md')).toEqual([]);
     expect(artifactOutputExists(tempDir, 'proposal.md')).toBe(false);
+  });
+
+  it('resolves a literal filename with a leading exclamation mark', () => {
+    const filePath = path.join(tempDir, '!review.md');
+    fs.writeFileSync(filePath, 'content');
+
+    expect(resolveArtifactOutputs(tempDir, '!review.md')).toEqual([canonical(filePath)]);
+    expect(artifactOutputExists(tempDir, '!review.md')).toBe(true);
+  });
+
+  it.skipIf(process.platform === 'win32').each([
+    '(proposal|design).md',
+    String.raw`foo\bar.md`,
+  ])('preserves the literal filename %s', (filename) => {
+    const filePath = path.join(tempDir, filename);
+    fs.writeFileSync(filePath, 'content');
+    fs.writeFileSync(path.join(tempDir, 'proposal.md'), 'other');
+    fs.mkdirSync(path.join(tempDir, 'foo'));
+    fs.writeFileSync(path.join(tempDir, 'foo', 'bar.md'), 'other');
+
+    expect(resolveArtifactOutputs(tempDir, filename)).toEqual([canonical(filePath)]);
+  });
+
+  it('resolves a negative extglob to files outside its alternatives', () => {
+    const notesPath = path.join(tempDir, 'notes.md');
+    for (const filename of ['proposal.md', 'design.md', 'notes.md']) {
+      fs.writeFileSync(path.join(tempDir, filename), 'content');
+    }
+
+    expect(resolveArtifactOutputs(tempDir, '!(proposal|design).md')).toEqual([
+      canonical(notesPath),
+    ]);
+  });
+
+  it.each([
+    'content/{safe,linked}/review.md',
+    'content/@(safe|linked)/review.md',
+    String.raw`content\{safe,linked}\review.md`,
+    '{content/safe,content/linked/deep}/review.md',
+    '{content/{safe,linked/deep},other}/review.md',
+  ])('confines directory pattern %s even without matching files', (pattern) => {
+    const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-outside-'));
+    fs.mkdirSync(path.join(tempDir, 'content', 'safe'), { recursive: true });
+    fs.symlinkSync(outsideDir, path.join(tempDir, 'content', 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir');
+    try {
+      expect(() => resolveArtifactOutputs(tempDir, pattern)).toThrow(
+        /outside the allowed directory/u
+      );
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([false, true])('rejects brace-expanded parent traversal before globbing (file exists: %s)', (exists) => {
+    const outsideDir = fs.mkdtempSync(path.join(path.dirname(tempDir), 'openspec-outside-'));
+    const pattern = `{safe,../${path.basename(outsideDir)}}/review.md`;
+    if (exists) fs.writeFileSync(path.join(outsideDir, 'review.md'), 'private');
+    const glob = vi.spyOn(fg, 'sync');
+    try {
+      expect(() => resolveArtifactOutputs(tempDir, pattern)).toThrow(
+        /outside the allowed directory/u
+      );
+      expect(glob).not.toHaveBeenCalled();
+    } finally {
+      glob.mockRestore();
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    'report-{draft}-{api,ui}.md',
+    'report-{draft}-{{api},ui}.md',
+  ])('resolves later and nested brace expansions in %s', (pattern) => {
+    const filePath = path.join(tempDir,
+      pattern.includes('{{api}') ? 'report-{draft}-{api}.md' : 'report-{draft}-api.md');
+    fs.writeFileSync(filePath, 'content');
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual([canonical(filePath)]);
+  });
+
+  it('resolves a brace range after a literal brace group', () => {
+    const filenames = [1, 2, 3, 4].map((index) => `report-{draft}-${index}.md`);
+    for (const filename of filenames) {
+      fs.writeFileSync(path.join(tempDir, filename), 'content');
+    }
+    fs.writeFileSync(path.join(tempDir, 'report-draft-1.md'), 'other');
+
+    const pattern = 'report-{draft}-{1..3}.md';
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual(
+      filenames.slice(0, 3).map((filename) => canonical(path.join(tempDir, filename)))
+    );
+    expect(artifactOutputExists(tempDir, pattern)).toBe(true);
+  });
+
+  it.each([
+    '{content/safe,other/deep}/review.md',
+    String.raw`{content\safe,other\deep}\review.md`,
+  ])('resolves confined cross-directory braces in %s', (pattern) => {
+    const filePath = path.join(tempDir, 'content', 'safe', 'review.md');
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, 'content');
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual([canonical(filePath)]);
   });
 
   it('resolves single-star nested globs to concrete files', () => {
@@ -94,6 +228,66 @@ describe('artifact-graph/outputs', () => {
       canonical(aPath),
       canonical(bPath),
     ]);
+  });
+
+  it('supports brace alternative glob patterns', () => {
+    const apiPath = path.join(tempDir, 'review-api.md');
+    const uiPath = path.join(tempDir, 'review-ui.md');
+    fs.writeFileSync(apiPath, 'content');
+    fs.writeFileSync(uiPath, 'content');
+
+    expect(resolveArtifactOutputs(tempDir, 'review-{api,ui}.md')).toEqual([
+      canonical(apiPath),
+      canonical(uiPath),
+    ]);
+    expect(artifactOutputExists(tempDir, 'review-{api,ui}.md')).toBe(true);
+  });
+
+  it('resolves a brace glob with Windows-style separators', () => {
+    const specsDir = path.join(tempDir, 'specs');
+    fs.mkdirSync(specsDir);
+    const apiPath = path.join(specsDir, 'review-api.md');
+    const uiPath = path.join(specsDir, 'review-ui.md');
+    fs.writeFileSync(apiPath, 'content');
+    fs.writeFileSync(uiPath, 'content');
+
+    expect(resolveArtifactOutputs(tempDir, String.raw`specs\review-{api,ui}.md`)).toEqual([
+      canonical(apiPath),
+      canonical(uiPath),
+    ]);
+  });
+
+  it('supports brace range glob patterns', () => {
+    const file1 = path.join(tempDir, 'file-1.md');
+    const file2 = path.join(tempDir, 'file-2.md');
+    const file4 = path.join(tempDir, 'file-4.md');
+    fs.writeFileSync(file1, 'content');
+    fs.writeFileSync(file2, 'content');
+    fs.writeFileSync(file4, 'content');
+
+    expect(resolveArtifactOutputs(tempDir, 'file-{1..3}.md')).toEqual([
+      canonical(file1),
+      canonical(file2),
+    ]);
+    expect(artifactOutputExists(tempDir, 'file-{1..3}.md')).toBe(true);
+  });
+
+  it.each(['@(proposal|design).md', '+(proposal|design).md'])('supports extglob %s', (pattern) => {
+    const proposalPath = path.join(tempDir, 'proposal.md');
+    fs.writeFileSync(proposalPath, 'content');
+    fs.writeFileSync(path.join(tempDir, 'readme.md'), 'content');
+
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual([
+      canonical(proposalPath),
+    ]);
+    expect(artifactOutputExists(tempDir, pattern)).toBe(true);
+  });
+
+  it('returns an empty list when dynamic brace or extglob pattern has no matches', () => {
+    expect(resolveArtifactOutputs(tempDir, 'review-{api,ui}.md')).toEqual([]);
+    expect(artifactOutputExists(tempDir, 'review-{api,ui}.md')).toBe(false);
+    expect(resolveArtifactOutputs(tempDir, '@(proposal|design).md')).toEqual([]);
+    expect(artifactOutputExists(tempDir, '@(proposal|design).md')).toBe(false);
   });
 
   it('canonicalizes resolved paths when the change directory is accessed through an alias', () => {

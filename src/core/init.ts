@@ -18,9 +18,12 @@ import {
   storePointerProblem,
 } from './project-config.js';
 import { findRepoPlanningRootSync } from './planning-home.js';
+import { ANCHORED_OPENSPEC_DIRS, ensureDirectoryAnchor } from './openspec-root.js';
 import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
+  getUniversalTool,
+  universalToolFallbackHint,
   OPENSPEC_DIR_NAME,
   AIToolOption,
   resolveToolIdAlias,
@@ -55,10 +58,12 @@ import {
   resolveToolSkillsDir,
   toolSupportsSkills,
   type ToolSkillStatus,
+  formatIdeRestart,
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
+import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import {
   resolveSharedSkillWriters,
   sharedSkillRootOwner,
@@ -148,7 +153,6 @@ type ValidatedInitTool = {
   skillsRoot: string;
   isGlobalSkillTarget: boolean;
   wasConfigured: boolean;
-  requiresIdeRestart?: boolean;
   writesSkills: boolean;
 };
 
@@ -630,8 +634,9 @@ export class InitCommand {
       if (detectedToolIds.size > 0) {
         return [...detectedToolIds];
       }
+      const fallbackHint = universalToolFallbackHint(validTools);
       throw new Error(
-        `No tools detected and no --tools flag provided. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...`
+        `No tools detected and no --tools flag provided. Valid tools:\n  ${validTools.join('\n  ')}\n\nUse --tools all, --tools none, or --tools claude,cursor,...${fallbackHint ? `\n${fallbackHint}` : ''}`
       );
     }
 
@@ -655,6 +660,7 @@ export class InitCommand {
         return {
           name: tool?.name || toolId,
           value: toolId,
+          searchAliases: tool?.searchAliases,
           configured,
           detected: detected && !configured,
           preSelected: configured || (shouldPreselectDetected && detected && !configured),
@@ -688,10 +694,19 @@ export class InitCommand {
       console.log(`Detected tool directories: ${detectedOnlyNames.join(', ')} (${detectionLabel})`);
     }
 
+    // A search that matches nothing is where someone whose assistant is not on
+    // the list gives up (#653), so name the vendor-neutral entry right there.
+    const universalTool = getUniversalTool();
+    const universalHint =
+      universalTool && validTools.includes(universalTool.value)
+        ? `Tool not listed? Clear the search and pick "${universalTool.name}".`
+        : undefined;
+
     const selectedTools = await searchableMultiSelect({
       message: `Select tools to set up (${validTools.length} available)`,
       pageSize: 15,
       choices: sortedChoices,
+      emptyHint: universalHint,
       validate: (selected: string[]) => selected.length > 0 || 'Select at least one tool',
     });
 
@@ -751,8 +766,9 @@ export class InitCommand {
     );
 
     if (invalidTokens.length > 0) {
+      const fallbackHint = universalToolFallbackHint([...availableSet]);
       throw new Error(
-        `Invalid tool(s): ${invalidTokens.join(', ')}. Available values: ${availableList}`
+        `Invalid tool(s): ${invalidTokens.join(', ')}. Available values: ${availableList}${fallbackHint ? `\n${fallbackHint}` : ''}`
       );
     }
 
@@ -843,7 +859,6 @@ export class InitCommand {
         skillsRoot: isGlobalSkillTarget ? skillsPath : projectPath,
         isGlobalSkillTarget,
         wasConfigured: preState?.configured ?? false,
-        requiresIdeRestart: tool.requiresIdeRestart,
         writesSkills: !tool.skillsDir || skillWriters.has(tool.value),
       });
     }
@@ -856,24 +871,6 @@ export class InitCommand {
   // ═══════════════════════════════════════════════════════════
 
   private async createDirectoryStructure(openspecPath: string, extendMode: boolean): Promise<void> {
-    if (extendMode) {
-      // In extend mode, just ensure directories exist without spinner
-      const directories = [
-        openspecPath,
-        path.join(openspecPath, 'specs'),
-        path.join(openspecPath, 'changes'),
-        path.join(openspecPath, 'changes', 'archive'),
-      ];
-
-      for (const dir of directories) {
-        FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
-        await FileSystemUtils.createDirectory(dir);
-      }
-      return;
-    }
-
-    const spinner = this.startSpinner('Creating OpenSpec structure...');
-
     const directories = [
       openspecPath,
       path.join(openspecPath, 'specs'),
@@ -881,15 +878,35 @@ export class InitCommand {
       path.join(openspecPath, 'changes', 'archive'),
     ];
 
+    if (extendMode) {
+      // In extend mode, just ensure directories exist without spinner
+      for (const dir of directories) {
+        FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
+        await FileSystemUtils.createDirectory(dir);
+      }
+      await this.writeGitkeepFiles(openspecPath);
+      return;
+    }
+
+    const spinner = this.startSpinner('Creating OpenSpec structure...');
+
     for (const dir of directories) {
       FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), dir);
       await FileSystemUtils.createDirectory(dir);
     }
 
+    await this.writeGitkeepFiles(openspecPath);
+
     spinner.stopAndPersist({
       symbol: PALETTE.white('▌'),
       text: PALETTE.white('OpenSpec structure created'),
     });
+  }
+
+  private async writeGitkeepFiles(openspecPath: string): Promise<void> {
+    for (const relativeDir of ANCHORED_OPENSPEC_DIRS) {
+      await ensureDirectoryAnchor(path.dirname(openspecPath), relativeDir);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1343,9 +1360,13 @@ export class InitCommand {
           // Tools with no slash surface (e.g. Rovo Dev) reference skills as
           // prose ("the openspec-propose skill"); phrase the hint so it reads
           // as an instruction rather than a dead command with an argument.
-          hint = usesNaturalLanguageSkillReferences(tool.value)
-            ? `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`
-            : `Start your first change: ${skillReference} "your idea"`;
+          if (usesNaturalLanguageSkillReferences(tool.value)) {
+            hint = `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`;
+          } else if (tool.value === 'codex') {
+            hint = `Start your first change: ${skillReference} "your idea" (Codex CLI or IDE); in the Codex desktop app, select ${skillReference.slice(1)} from Skills in the sidebar`;
+          } else {
+            hint = `Start your first change: ${skillReference} "your idea"`;
+          }
         } else {
           continue;
         }
@@ -1386,15 +1407,35 @@ export class InitCommand {
         )
       );
     }
+    let advertisedAnInvocation = true;
     if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
       // Nothing was generated for any tool: the correction above is the
       // whole story, so don't advertise an invocation that doesn't exist.
+      advertisedAnInvocation = false;
     } else if (activeWorkflows.includes('propose')) {
       printStartHints('/opsx:propose');
     } else if (activeWorkflows.includes('new')) {
       printStartHints('/opsx:new');
     } else {
       console.log("Done. Run 'openspec config profile' to configure your workflows.");
+      advertisedAnInvocation = false;
+    }
+
+    // Workflows the active profile left out. Setup is the only moment a user
+    // is told what exists, so name them here rather than let a missing
+    // command read as a broken install (#1076). Skipped when the branch above
+    // already pointed at `openspec config profile`, and when no tool received
+    // a workflow surface at all (no tools selected, or none that could take
+    // one) — there, adding workflows writes nothing, so naming them would
+    // point at the wrong problem.
+    if (advertisedAnInvocation && (commandsGenerated || skillsGenerated)) {
+      const optionalWorkflowsNote = formatOptionalWorkflowsNote(activeWorkflows);
+      if (optionalWorkflowsNote) {
+        console.log();
+        for (const line of optionalWorkflowsNote) {
+          console.log(chalk.dim(line));
+        }
+      }
     }
 
     // Links
@@ -1402,37 +1443,16 @@ export class InitCommand {
     console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     console.log(`Feedback:   ${chalk.cyan('https://github.com/Fission-AI/OpenSpec/issues')}`);
 
-    // Restart instruction only when at least one IDE/editor-resident tool
-    // actually received a generated surface. Two conditions, coupled to the SAME
-    // tool: (1) its commands/skills are loaded by a long-running editor process
-    // (CLI tools pick the files up immediately, so a restart line would be wrong
-    // for them — see #1067), and (2) a surface was actually generated for it
-    // under the active delivery (an IDE tool that generated nothing has nothing a
-    // restart would pick up, even if a co-configured CLI tool did generate).
-    // Wording follows what the IDE tool itself generated, not the global
-    // aggregate: it must not say "commands" when the IDE tool only got skills
-    // while a co-configured CLI tool got commands. Not "slash commands" either:
-    // Amazon Q's generated files are prompt-library entries invoked with @, so a
-    // restart line promising slash commands would be wrong for it.
-    const restartCommandsGenerated = successfulTools.some(
-      (tool) =>
-        tool.requiresIdeRestart &&
-        shouldGenerateCommandsForTool(tool.value, activeDelivery)
+    // Restart instruction for successfully configured IDE/editor-resident tools
+    // with a supported surface under the active delivery. The rule and wording live in
+    // formatIdeRestart so `update` says the same thing for the same event.
+    const restartHint = formatIdeRestart(
+      successfulTools.map((tool) => tool.value),
+      activeDelivery
     );
-    const restartSkillsGenerated = successfulTools.some(
-      (tool) =>
-        tool.requiresIdeRestart &&
-        shouldGenerateSkillsForTool(tool.value, activeDelivery)
-    );
-    if (restartCommandsGenerated || restartSkillsGenerated) {
+    if (restartHint) {
       console.log();
-      console.log(
-        chalk.white(
-          restartCommandsGenerated
-            ? 'Restart your IDE for the new commands to take effect.'
-            : 'Restart your IDE for the new skills to take effect.'
-        )
-      );
+      console.log(chalk.white(restartHint));
     }
 
     console.log();
