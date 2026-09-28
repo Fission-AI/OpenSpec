@@ -18,6 +18,7 @@ import {
   CommandAdapterRegistry,
 } from './command-generation/index.js';
 import {
+  getToolSkillStatus,
   getToolVersionStatus,
   getSkillTemplates,
   getCommandContents,
@@ -88,6 +89,7 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
 type LegacyUpgradeResult = {
   newlyConfiguredTools: string[];
   workflowOverrides: Partial<Record<string, readonly (typeof ALL_WORKFLOWS)[number][]>>;
+  failedTools?: ToolFailure[];
   deferredGlobalCleanup?: LegacyDetectionResult;
   /**
    * Tools whose skill generation was skipped because another tool already owns
@@ -96,6 +98,23 @@ type LegacyUpgradeResult = {
    */
   skippedSharedSkillTools?: string[];
 };
+
+type ToolFailure = { name: string; error: string };
+
+function throwIfUpdateFailed(failedTools: readonly ToolFailure[]): void {
+  if (failedTools.length > 0) {
+    throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
+  }
+}
+
+/**
+ * Checkout artifacts that are not real content drift: a UTF-8 BOM and the CRLF
+ * line endings a Windows clone with `core.autocrlf` reintroduces on every
+ * checkout of committed generated files.
+ */
+function normalizeGeneratedFile(content: string): string {
+  return content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+}
 
 /**
  * Options for the update command.
@@ -175,6 +194,7 @@ export class UpdateCommand {
       newlyConfiguredTools,
       workflowOverrides: legacyWorkflowOverrides,
       deferredGlobalCleanup,
+      failedTools: legacyUpgradeFailures = [],
     } = legacyUpgrade;
 
     // 5. Find configured tools
@@ -185,6 +205,7 @@ export class UpdateCommand {
       if (deferredGlobalCleanup) {
         await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
       }
+      throwIfUpdateFailed(legacyUpgradeFailures);
       if (declinedMigrations.length > 0) {
         // Not an unconfigured project — a configured one the user chose to
         // leave in its former directory. Saying "run init" would be wrong.
@@ -234,9 +255,16 @@ export class UpdateCommand {
       delivery,
       configuredTools
     );
+    const toolsWithDriftedSkills = this.findToolsWithDriftedSkills(
+      resolvedProjectPath,
+      configuredTools,
+      delivery,
+      (toolId) => legacyWorkflowOverrides[toolId] ?? desiredWorkflows
+    );
     const toolsToUpdateSet = new Set<string>([
       ...toolsNeedingVersionUpdate,
       ...toolsNeedingConfigSync,
+      ...toolsWithDriftedSkills,
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
@@ -252,6 +280,7 @@ export class UpdateCommand {
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
+      throwIfUpdateFailed(legacyUpgradeFailures);
       return;
     }
 
@@ -261,7 +290,12 @@ export class UpdateCommand {
     } else if (toolsToUpdateSet.size === 0) {
       console.log('No additional refresh needed after legacy migration.');
     } else {
-      this.displayUpdatePlan([...toolsToUpdateSet], statusByTool, toolsUpToDate);
+      this.displayUpdatePlan(
+        [...toolsToUpdateSet],
+        statusByTool,
+        toolsUpToDate,
+        new Set(toolsWithDriftedSkills)
+      );
     }
     console.log();
 
@@ -277,7 +311,7 @@ export class UpdateCommand {
     );
     const updatedTools: string[] = [];
     const updatedToolIds: string[] = [];
-    const failedTools: Array<{ name: string; error: string }> = [];
+    const failedTools: ToolFailure[] = [...legacyUpgradeFailures];
     const skillsInvocableCommandSkips: string[] = [];
     const zeroArtifactTools: string[] = [];
     let removedCommandCount = 0;
@@ -504,9 +538,7 @@ export class UpdateCommand {
     if (restartHint) {
       console.log(chalk.dim(restartHint));
     }
-    if (failedTools.length > 0) {
-      throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
-    }
+    throwIfUpdateFailed(failedTools);
   }
 
   private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
@@ -563,6 +595,53 @@ export class UpdateCommand {
   }
 
   /**
+   * Tools whose SKILL.md bodies no longer match what this CLI generates.
+   *
+   * Skill freshness was decided solely by the `generatedBy:` line, so a body
+   * edited after generation — a "helpful" PR touching `.claude/skills/**`, a
+   * dotfile sync, another agent — left `update` reporting the install healthy.
+   * Command files never had that gap: `areCommandFilesUpToDate` content-
+   * compares them, and the same comparison belongs on the higher-authority
+   * surface. A missing skill file is left to the profile-sync check, which
+   * already knows what a partial install means.
+   */
+  private findToolsWithDriftedSkills(
+    projectPath: string,
+    toolIds: string[],
+    delivery: Delivery,
+    workflowsForTool: (toolId: string) => readonly (typeof ALL_WORKFLOWS)[number][]
+  ): string[] {
+    return toolIds.filter((toolId) => {
+      const tool = AI_TOOLS.find((t) => t.value === toolId);
+      if (!tool || !toolSupportsSkills(tool)) return false;
+      if (!shouldGenerateSkillsForTool(tool.value, delivery)) return false;
+      // A shared skills root is generated with its owner's transformer, so
+      // only the owner may compare it. getToolSkillStatus settles ownership.
+      if (!getToolSkillStatus(projectPath, tool.value).configured) return false;
+
+      const skillsDir = resolveToolSkillsDir(projectPath, tool);
+      const transformer = getTransformerForTool(
+        tool.value,
+        delivery,
+        resolveCommandSurfaceCapability(tool.value),
+        resolveCommandInvocation(tool.value)
+      );
+
+      return getSkillTemplates(workflowsForTool(toolId)).some(({ template, dirName }) => {
+        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+        if (!fs.existsSync(skillFile)) return false;
+        try {
+          const existing = fs.readFileSync(skillFile, 'utf-8');
+          const generated = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+          return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
+        } catch {
+          return true;
+        }
+      });
+    });
+  }
+
+  /**
    * Display message when all tools are up to date.
    */
   private displayUpToDateMessage(toolStatuses: ToolVersionStatus[]): void {
@@ -579,13 +658,19 @@ export class UpdateCommand {
   private displayUpdatePlan(
     toolsToUpdate: string[],
     statusByTool: Map<string, ToolVersionStatus>,
-    upToDate: ToolVersionStatus[]
+    upToDate: ToolVersionStatus[],
+    driftedSkills: ReadonlySet<string> = new Set()
   ): void {
     const updates = toolsToUpdate.map((toolId) => {
       const status = statusByTool.get(toolId);
       if (status?.needsUpdate) {
         const fromVersion = status.generatedByVersion ?? 'unknown';
         return `${status.toolId} (${fromVersion} → ${OPENSPEC_VERSION})`;
+      }
+      // Say why: a user who edited a SKILL.md on purpose is owed the reason
+      // their edit is about to be overwritten.
+      if (driftedSkills.has(toolId)) {
+        return `${toolId} (skill files differ from the generated content)`;
       }
       return `${toolId} (config sync)`;
     });
@@ -1172,6 +1257,7 @@ export class UpdateCommand {
         return {
           name: tool?.name || toolId,
           value: toolId,
+          searchAliases: tool?.searchAliases,
           configured: false,
           preSelected: true, // Pre-select all detected legacy tools
         };
@@ -1201,6 +1287,7 @@ export class UpdateCommand {
     // Create skills/commands for selected tools using effective profile+delivery.
     const newlyConfigured: string[] = [];
     const skippedSharedSkillTools: string[] = [];
+    const failedTools: ToolFailure[] = [];
     const workflowOverrides: LegacyUpgradeResult['workflowOverrides'] = {};
     const arbitrationTools = [...new Set([...configuredTools, ...selectedTools])]
       .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
@@ -1301,7 +1388,9 @@ export class UpdateCommand {
         }
       } catch (error) {
         spinner.fail(`Failed to set up ${tool.name}`);
-        console.log(chalk.red(`  ${error instanceof Error ? error.message : String(error)}`));
+        const message = error instanceof Error ? error.message : String(error);
+        console.log(chalk.red(`  ${message}`));
+        failedTools.push({ name: tool.name, error: message });
       }
     }
 
@@ -1309,6 +1398,11 @@ export class UpdateCommand {
       console.log();
     }
 
-    return { newlyConfiguredTools: newlyConfigured, workflowOverrides, skippedSharedSkillTools };
+    return {
+      newlyConfiguredTools: newlyConfigured,
+      workflowOverrides,
+      skippedSharedSkillTools,
+      failedTools,
+    };
   }
 }

@@ -54,6 +54,8 @@ Establishes why the change is needed.
 The template the agent receives as the output format ([templates/proposal.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/proposal.md)):
 
 ```md
+# Proposal
+
 ## Why
 
 <!-- Explain the motivation for this change. What problem does this solve? Why now? -->
@@ -101,7 +103,19 @@ Sections:
 - **Impact**: Affected code, APIs, dependencies, or systems.
 
 IMPORTANT: The Capabilities section is critical. It creates the contract between
-proposal and specs phases. Research existing specs before filling this in.
+proposal and specs phases. Research existing specs before filling this in:
+run `openspec list --specs` for the project's capability inventory, then
+`openspec show "<spec-id>" --type spec --json --no-scenarios` for any that
+look related - that returns a capability's purpose and requirement texts
+without pulling whole spec files into context. Append `--store "<id>"` to
+both commands only for a registered standalone store, and keep `--type
+spec`: a change and a spec sharing a name is otherwise an ambiguous-item
+error. `openspec list` without `--specs` lists in-flight changes, not
+specs - it never shows what the project already covers. Reuse an existing
+capability's exact path instead of introducing a near-duplicate name.
+The filtered read is only an overview. Before deciding what is already
+covered or what should change, read each relevant spec in full, including
+scenarios, with `openspec show "<spec-id>" --type spec` (same `--store` rule).
 Each capability listed here will need a corresponding spec file.
 
 Every change must either declare at least one capability (new or
@@ -122,11 +136,15 @@ This is the foundation - specs, design, and tasks all build on this.
 
 Defines what behavior changes, with one delta spec per capability the proposal lists.
 
+Each delta spec is the `spec.md` inside its capability folder. `openspec validate` and `openspec archive` reject delta sections written in any other file under `specs/`, such as `specs/user-auth.md`, because archive never merges them.
+
 ### Structure
 
 The template the agent receives as the output format ([templates/spec.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/spec.md)):
 
 ```md
+# Spec Delta
+
 ## Purpose
 <!-- New capabilities only: one or two sentences (50+ characters) on what this capability is for. Delete this section for an existing capability. -->
 
@@ -168,7 +186,7 @@ Create one spec file per capability listed in the proposal's Capabilities sectio
 `<capability-path>` is the spec directory relative to `specs/` (for example,
 `user-auth` or `identity/user-auth`). Preserve the full path:
 - New capabilities: use the exact path from the proposal at `specs/<capability-path>/spec.md`. Any path segment newly introduced in the proposal must be kebab-case. Follow the project's existing organization; do not add a new domain level when the project uses a flat layout.
-- Modified capabilities: use the exact existing path from `openspec/specs/<capability-path>/` when creating the delta at `specs/<capability-path>/spec.md`. Do not move or rename the capability.
+- Modified capabilities: use the exact existing path from `openspec/specs/<capability-path>/` when creating the delta at `specs/<capability-path>/spec.md`. Run `openspec list --specs` to confirm that path before writing the delta, appending `--store "<id>"` only for a registered standalone store - a mistyped or invented path targets a capability that does not exist rather than the one you meant. Do not move or rename the capability.
 
 There must be at least one spec file unless the change's `.openspec.yaml`
 sets `skip_specs: true` (no spec-level behavior change) - `openspec validate`
@@ -188,7 +206,7 @@ Format requirements:
 - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
 - Every requirement MUST have at least one scenario.
 
-New capabilities only: start the delta spec with a `## Purpose` section -
+New capabilities only: the delta spec's first section is `## Purpose` -
 one or two sentences (50+ characters, or `openspec validate --strict`
 reports it as too brief) describing what the capability is for. Archive
 copies it into the main spec it creates; without it the new main spec is
@@ -196,10 +214,16 @@ left with a `TBD ... Update Purpose after archive` placeholder to fill in
 by hand. Do NOT add `## Purpose` to a delta for an existing capability -
 that spec already has one and the delta's is ignored. To change an
 existing capability's Purpose - including a leftover `TBD` placeholder -
-edit `openspec/specs/<capability-path>/spec.md` directly.
+edit `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
+directly. `planningHome.root` comes from the `openspec instructions ...
+--json` response. Always use it rather than a repo-relative path: it
+resolves to the store whenever the change lives in one - whether that
+came from `--store`, a project `store:` pointer, or a global default
+store - and to the current repository otherwise. Do not try to work out
+which case applies; the field already has.
 
 MODIFIED requirements workflow:
-1. Locate the existing requirement in openspec/specs/<capability-path>/spec.md
+1. Locate the existing requirement in `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (the same store-aware root as above)
 2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
 3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
 4. Ensure header text matches exactly (whitespace-insensitive)
@@ -207,8 +231,10 @@ MODIFIED requirements workflow:
 Common pitfall: Using MODIFIED with partial content loses detail at archive time.
 If adding new concerns without changing existing behavior, use ADDED instead.
 
-Example (a new capability, so it opens with `## Purpose`):
+Example (a new capability, so its first section is `## Purpose`):
 ```
+# Spec Delta
+
 ## Purpose
 
 Lets users take their data out of the product in a portable format.
@@ -241,6 +267,8 @@ Explains how to implement the change. Drafted only when the change needs one.
 The template the agent receives as the output format ([templates/design.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/design.md)):
 
 ```md
+# Design
+
 ## Context
 
 <!-- Current state and constraints that shape the approach. See proposal.md for motivation - don't restate it -->
@@ -305,6 +333,8 @@ Breaks the implementation into checkable tasks. [apply](#apply) tracks progress 
 The template the agent receives as the output format ([templates/tasks.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/tasks.md)):
 
 ```md
+# Tasks
+
 ## 1. <!-- Task Group Name -->
 
 - [ ] 1.1 <!-- Task description -->
@@ -328,29 +358,46 @@ would change what gets built, resolve them with the user first - do not
 bake an unstated assumption into the task list.
 
 **IMPORTANT: Follow the template below exactly.** The apply phase parses
-checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+checkbox format to track progress. A box holding only `x` counts as done,
+upper or lower case and with any spacing, so `- [ x]` is done too. Every
+other marker, including `- [~]`, `- [-]` and an empty `- []`, reads as
+unfinished. A line with no checkbox is not tracked at all.
 
 Guidelines:
 - Group related tasks under ## numbered headings
 - Each task MUST be a checkbox: `- [ ] X.Y Task description`
 - Tasks should be small enough to complete in one session
 - Order tasks by dependency (what must be done first?)
+- Each task MUST state how to verify completion (a test, command,
+  observable behavior, or delivered artifact). Put the verification in
+  that task's checkbox description. Use a separate verification task only
+  when it checks broader integration or system behavior that spans
+  multiple implementation tasks.
+- Each task group MUST land the tests and documentation its own work
+  calls for. Do NOT collect testing or documentation into a final group -
+  when a late group first exercises work from an early one, the failures
+  cascade back through every group in between and force rework. A group
+  whose work calls for neither, such as scaffolding or dependency setup,
+  carries neither. A final group is for integration checks only, not for
+  the tests and docs an earlier group owed.
 
 Example:
 ```
+# Tasks
+
 ## 1. Setup
 
-- [ ] 1.1 Create new module structure
-- [ ] 1.2 Add dependencies to package.json
+- [ ] 1.1 Create new module structure and verify expected files are present
+- [ ] 1.2 Add dependencies to package.json and verify package installation succeeds
 
 ## 2. Core Implementation
 
-- [ ] 2.1 Implement data export function
-- [ ] 2.2 Add CSV formatting utilities
+- [ ] 2.1 Implement data export function and verify the export test passes
+- [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
+- [ ] 2.3 Document the export API in docs/export.md and verify the documented command runs as written
 ```
 
 Reference specs for what needs to be built, design for how to build it.
-Each task should be verifiable - you know when it's done.
 ````
 
 ## Apply
