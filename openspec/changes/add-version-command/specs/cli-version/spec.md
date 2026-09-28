@@ -40,7 +40,9 @@ The system SHALL contact the configured package registry only when `openspec ver
 
 - **WHEN** a user runs `openspec version --check`
 - **AND** the registry reports a safe newer version
-- **THEN** the command reports the latest version and the appropriate update command for this install
+- **THEN** the command reports the latest version
+- **AND** reports the appropriate update command only when one exists for this install
+- **AND** human-readable output omits package-manager guidance when no such command exists
 - **AND** reports whether the existing self-upgrade path can safely update this copy
 - **AND** exits successfully
 
