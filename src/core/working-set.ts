@@ -45,9 +45,11 @@ export interface AssembleWorkingSetInput {
   topLevelStatus?: StoreDiagnostic[];
 }
 
-/** AVAILABLE = path present AND per-entry status empty. */
+/** A truncated index still resolves to a usable member. */
 export function isAvailableMember(member: WorkingSetMember): boolean {
-  return member.path !== undefined && member.status.length === 0;
+  return member.path !== undefined && member.status.every(
+    (diagnostic) => diagnostic.code === 'reference_index_truncated'
+  );
 }
 
 export function assembleWorkingSet(input: AssembleWorkingSetInput): WorkingSet {
@@ -63,15 +65,16 @@ export function assembleWorkingSet(input: AssembleWorkingSetInput): WorkingSet {
       });
       continue;
     }
-    members.push({
+    const member: WorkingSetMember = {
       role: 'referenced_store',
       id: entry.store_id,
       ...(entry.root !== undefined ? { path: entry.root } : {}),
-      ...(entry.root !== undefined && entry.status.length === 0
-        ? { fetch: fetchRecipe(entry.store_id) }
-        : {}),
       status: entry.status,
-    });
+    };
+    if (isAvailableMember(member)) {
+      member.fetch = fetchRecipe(entry.store_id);
+    }
+    members.push(member);
   }
 
   const status = (input.topLevelStatus ?? []).filter(

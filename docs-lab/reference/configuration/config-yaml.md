@@ -71,13 +71,19 @@ references:
     remote: git@github.com:acme/billing-specs.git
 ```
 
-A local entry uses `path`. The path is relative to the project root, must resolve to an ancestor or descendant, and that directory must contain an `openspec/` folder:
+A local entry uses `path`. The path is relative to the project root, must resolve to an ancestor or descendant, and that directory must contain an `openspec/` folder.
+
+In `packages/web/openspec/config.yaml`, connect the repository root:
 
 ```yaml
 references:
-  # From a package root, connect the repository root.
   - path: ../..
-  # From the repository root, connect a package root.
+```
+
+In the repository's `openspec/config.yaml`, connect the package root:
+
+```yaml
+references:
   - path: packages/web
 ```
 

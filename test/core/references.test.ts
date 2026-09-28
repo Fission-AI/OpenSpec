@@ -203,6 +203,32 @@ describe('reference index assembly', () => {
     ]);
   });
 
+  it('indexes a connected root without a config file', async () => {
+    const monorepo = mkdir('configless-monorepo');
+    fs.mkdirSync(path.join(monorepo, 'openspec', 'specs'), { recursive: true });
+    writeSpec(monorepo, 'shared-contract', '## Purpose\n\nShare repository behavior.\n');
+    const child = path.join(monorepo, 'packages', 'api');
+    createOpenSpecRoot(child);
+
+    const entries = await assembleReferenceIndex({
+      references: [{ path: '../..' }],
+      resolvedRoot: {
+        path: child,
+        source: 'nearest',
+        changesDir: path.join(child, 'openspec', 'changes'),
+        defaultSchema: 'spec-driven',
+      } as ResolvedOpenSpecRoot,
+      globalDataDir,
+    });
+
+    expect(entries[0]).toMatchObject({
+      local_path: '../..',
+      root: fs.realpathSync.native(monorepo),
+      specs: [{ id: 'shared-contract', summary: 'Share repository behavior.' }],
+      status: [],
+    });
+  });
+
   it('reports sibling paths instead of reading arbitrary local roots', async () => {
     const monorepo = mkdir('monorepo');
     const child = path.join(monorepo, 'packages', 'api');

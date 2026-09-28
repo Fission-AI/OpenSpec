@@ -60,6 +60,13 @@ export function isLocalReferenceEntry(
   return 'local_path' in entry;
 }
 
+function isUsableLocalRoot(inspection: Awaited<ReturnType<typeof inspectOpenSpecRoot>>): boolean {
+  return inspection.healthy || (
+    inspection.present === true &&
+    inspection.diagnostics.every((diagnostic) => diagnostic.code === 'openspec_config_missing')
+  );
+}
+
 /**
  * Shares the project-context cap: the rendered index is prompt material.
  * Measured in UTF-8 bytes against the XML rendering (the larger of the
@@ -459,7 +466,7 @@ export async function assembleReferenceIndex(
       const { root: referencedRoot, relation } = resolvedReference;
 
       const inspection = await inspectOpenSpecRoot(referencedRoot);
-      if (!inspection.healthy) {
+      if (!isUsableLocalRoot(inspection)) {
         entries.push({
           local_path: declaration.path,
           relation,
