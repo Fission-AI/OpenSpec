@@ -117,7 +117,7 @@ operations:
 
 During apply, the agent lints as it completes tasks. During archive, it closes with a summary.
 
-## Use shared specs in a monorepo
+## Connect roots in a monorepo
 
 When a package has its own `openspec/` folder, it can read shared specs, project context, and schemas from an OpenSpec root higher in the same repository:
 
@@ -137,6 +137,16 @@ The reference has four effects:
 - **Read-only access**: changes, spec merges, and archives still write to the package's `openspec/` folder.
 
 Rules and operation guidance do not carry down from the parent. OpenSpec also does not scan sibling packages or follow references from the parent. Use a [store](../multi-repo/stores.md) when the shared OpenSpec root is outside the package's directory hierarchy.
+
+For repository-level work that may affect a package, connect the package in the other direction:
+
+```yaml
+# openspec/config.yaml at the repository root
+references:
+  - path: packages/api
+```
+
+The repository root can now read the package specs. It does not inherit the package's context or schemas, and it cannot write into the package root. Add each package explicitly; OpenSpec does not scan the monorepo or follow another root's references.
 
 ## When config.yaml isn't enough
 

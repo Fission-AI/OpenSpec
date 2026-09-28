@@ -2,4 +2,4 @@
 "@fission-ai/openspec": minor
 ---
 
-Allow package-level OpenSpec roots to reference a co-located parent root for read-only specs, context, and schemas without changing where commands write.
+Connect co-located OpenSpec roots in a monorepo with explicit, read-only references. Packages can inherit context and schemas from an ancestor, and repository-level work can inspect descendant package specs without changing where commands write.

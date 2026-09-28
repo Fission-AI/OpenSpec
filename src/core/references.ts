@@ -24,7 +24,8 @@ import { getSpecIds } from '../utils/item-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import {
   MAX_CONTEXT_SIZE,
-  resolveLocalReferenceRoot,
+  resolveLocalReference,
+  type LocalReferenceRelation,
   type DeclarationEntry,
   type StoreDeclarationEntry,
 } from './project-config.js';
@@ -44,6 +45,7 @@ export interface StoreReferenceIndexEntry {
 
 export interface LocalReferenceIndexEntry {
   local_path: string;
+  relation?: LocalReferenceRelation;
   root?: string;
   specs?: ReferenceSpecEntry[];
   specs_path?: string;
@@ -337,7 +339,7 @@ export function escapeEnvelopeAttribute(value: string): string {
 function renderEntryLines(entry: ReferenceIndexEntry): string[] {
   const lines: string[] = [];
   const label = isLocalReferenceEntry(entry)
-    ? `Parent root ${escapeEnvelopeTags(sanitizeInline(entry.local_path, 200))}`
+    ? `${entry.relation === 'ancestor' ? 'Ancestor' : entry.relation === 'descendant' ? 'Descendant' : 'Local'} root ${escapeEnvelopeTags(sanitizeInline(entry.local_path, 200))}`
     : `Store ${entry.store_id}`;
 
   if (entry.root !== undefined) {
@@ -439,30 +441,33 @@ export async function assembleReferenceIndex(
   for (const declaration of declarations) {
     if ('path' in declaration) {
       const displayPath = sanitizeInline(declaration.path, 200);
-      const referencedRoot = resolveLocalReferenceRoot(input.resolvedRoot.path, declaration);
-      if (referencedRoot === null) {
+      const resolvedReference = resolveLocalReference(input.resolvedRoot.path, declaration);
+      if (resolvedReference === null) {
         entries.push({
           local_path: declaration.path,
           status: [
             warning(
               'reference_local_path_invalid',
-              `Local reference '${displayPath}' is not a usable parent OpenSpec root.`,
-              'Use a relative path to an ancestor directory that contains openspec/.'
+              `Local reference '${displayPath}' is not a usable connected OpenSpec root.`,
+              'Use a relative path to an ancestor or descendant directory that contains openspec/.'
             ),
           ],
         });
         continue;
       }
 
+      const { root: referencedRoot, relation } = resolvedReference;
+
       const inspection = await inspectOpenSpecRoot(referencedRoot);
       if (!inspection.healthy) {
         entries.push({
           local_path: declaration.path,
+          relation,
           root: referencedRoot,
           status: [
             warning(
               'reference_local_root_unhealthy',
-              `Parent OpenSpec root '${displayPath}' is not usable.`,
+              `Connected OpenSpec root '${displayPath}' is not usable.`,
               `Run openspec doctor from ${sanitizeInline(referencedRoot, Infinity)}.`
             ),
           ],
@@ -471,7 +476,7 @@ export async function assembleReferenceIndex(
       }
 
       if (!includeSpecs) {
-        entries.push({ local_path: declaration.path, root: referencedRoot, status: [] });
+        entries.push({ local_path: declaration.path, relation, root: referencedRoot, status: [] });
         continue;
       }
 
@@ -479,6 +484,7 @@ export async function assembleReferenceIndex(
       const specsPath = path.join(referencedRoot, 'openspec', 'specs');
       const entry: LocalReferenceIndexEntry = {
         local_path: declaration.path,
+        relation,
         root: referencedRoot,
         specs,
         specs_path: specsPath,
@@ -501,7 +507,7 @@ export async function assembleReferenceIndex(
         entry.status.push(
           warning(
             'reference_index_truncated',
-            `Parent root '${displayPath}' index truncated at the 50KB budget (${low} of ${specs.length} specs listed).`,
+            `Connected root '${displayPath}' index truncated at the 50KB budget (${low} of ${specs.length} specs listed).`,
             `List the rest from ${sanitizeInline(specsPath, Infinity)}.`
           )
         );

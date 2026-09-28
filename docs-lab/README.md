@@ -222,8 +222,8 @@ file's [Cutover](sources.md#cutover) section.
   `customize/schemas.md` still uses `console` fences with `$` prompts (lines 78, 114,
   137, 145; prompts at 24 and 115); the style guide should name the convention and
   that page should adopt it.
-- Monorepo: `customize/project-config.md` covers packages with their own roots reading
-  shared specs from a parent. Message-map row 37 remains a Gap for one root whose
+- Monorepo: `customize/project-config.md` covers explicit connections between the
+  repository root and packages with their own roots. Message-map row 37 remains a Gap for one root whose
   domains map to packages; that belongs in `guides/existing-codebases.md`.
 
 - `reference/cli.md` is fully drafted: the command table plus one section per real

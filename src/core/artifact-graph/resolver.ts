@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
 import {
   readLocalReferenceDeclarations,
-  resolveLocalReferenceRoot,
+  resolveLocalReference,
 } from '../project-config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { parseSchema, SchemaValidationError } from './schema.js';
@@ -60,9 +60,9 @@ export function getParentSchemaSources(projectRoot: string): ParentSchemaSource[
   const references = readLocalReferenceDeclarations(projectRoot);
   const sources: ParentSchemaSource[] = [];
   for (const reference of references) {
-    const root = resolveLocalReferenceRoot(projectRoot, reference);
-    if (root !== null) {
-      sources.push({ path: reference.path, dir: getProjectSchemasDir(root) });
+    const resolved = resolveLocalReference(projectRoot, reference);
+    if (resolved?.relation === 'ancestor') {
+      sources.push({ path: reference.path, dir: getProjectSchemasDir(resolved.root) });
     }
   }
   return sources;

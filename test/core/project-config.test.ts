@@ -7,7 +7,8 @@ import {
   OPERATION_IDS,
   readProjectConfig,
   readProjectConfigWithParents,
-  resolveLocalReferenceRoot,
+  readLocalReferenceDeclarations,
+  resolveLocalReference,
   validateConfigRules,
   suggestSchemas,
 } from '../../src/core/project-config.js';
@@ -636,6 +637,15 @@ rules:
         expect(readProjectConfig(tempDir)?.references).toEqual([{ path: '../..' }]);
       });
 
+      it('treats an entry with both id and path as a Store in every parser', () => {
+        writeConfig(
+          'schema: spec-driven\nreferences:\n  - { id: team-context, path: ../.. }\n'
+        );
+
+        expect(readProjectConfig(tempDir)?.references).toEqual([{ id: 'team-context' }]);
+        expect(readLocalReferenceDeclarations(tempDir)).toEqual([]);
+      });
+
       it('omits the field when absent or empty and warns on non-arrays', () => {
         writeConfig('schema: spec-driven\n');
         expect(readProjectConfig(tempDir)?.references).toBeUndefined();
@@ -671,6 +681,26 @@ rules:
         });
       });
 
+      it('does not inherit config from a referenced descendant', () => {
+        const parent = path.join(tempDir, 'repo');
+        const child = path.join(parent, 'packages', 'api');
+        fs.mkdirSync(path.join(parent, 'openspec'), { recursive: true });
+        fs.mkdirSync(path.join(child, 'openspec'), { recursive: true });
+        fs.writeFileSync(
+          path.join(parent, 'openspec', 'config.yaml'),
+          'schema: spec-driven\ncontext: Repository context\nreferences:\n  - path: packages/api\n'
+        );
+        fs.writeFileSync(
+          path.join(child, 'openspec', 'config.yaml'),
+          'schema: package-flow\ncontext: Package context\n'
+        );
+
+        expect(readProjectConfigWithParents(parent)).toMatchObject({
+          schema: 'spec-driven',
+          context: 'Repository context',
+        });
+      });
+
       it('accepts only relative ancestor OpenSpec roots', () => {
         const parent = path.join(tempDir, 'repo');
         const child = path.join(parent, 'packages', 'api');
@@ -679,12 +709,17 @@ rules:
         fs.mkdirSync(path.join(child, 'openspec'), { recursive: true });
         fs.mkdirSync(path.join(sibling, 'openspec'), { recursive: true });
 
-        expect(resolveLocalReferenceRoot(child, { path: '../..' })).toBe(
-          fs.realpathSync.native(parent)
-        );
-        expect(resolveLocalReferenceRoot(child, { path: '../web' })).toBeNull();
-        expect(resolveLocalReferenceRoot(child, { path: parent })).toBeNull();
-        expect(resolveLocalReferenceRoot(child, { path: '.' })).toBeNull();
+        expect(resolveLocalReference(child, { path: '../..' })).toEqual({
+          root: fs.realpathSync.native(parent),
+          relation: 'ancestor',
+        });
+        expect(resolveLocalReference(parent, { path: 'packages/api' })).toEqual({
+          root: fs.realpathSync.native(child),
+          relation: 'descendant',
+        });
+        expect(resolveLocalReference(child, { path: '../web' })).toBeNull();
+        expect(resolveLocalReference(child, { path: parent })).toBeNull();
+        expect(resolveLocalReference(child, { path: '.' })).toBeNull();
       });
 
       it('resolves parent paths from the canonical child when entered through a symlink', () => {
@@ -695,9 +730,21 @@ rules:
         fs.mkdirSync(path.join(child, 'openspec'), { recursive: true });
         fs.symlinkSync(child, alias, 'dir');
 
-        expect(resolveLocalReferenceRoot(alias, { path: '../..' })).toBe(
-          fs.realpathSync.native(parent)
-        );
+        expect(resolveLocalReference(alias, { path: '../..' })).toEqual({
+          root: fs.realpathSync.native(parent),
+          relation: 'ancestor',
+        });
+      });
+
+      it('rejects a descendant path whose symlink target leaves the hierarchy', () => {
+        const parent = path.join(tempDir, 'repo');
+        const outside = path.join(tempDir, 'outside');
+        fs.mkdirSync(path.join(parent, 'packages'), { recursive: true });
+        fs.mkdirSync(path.join(parent, 'openspec'), { recursive: true });
+        fs.mkdirSync(path.join(outside, 'openspec'), { recursive: true });
+        fs.symlinkSync(outside, path.join(parent, 'packages', 'escaped'), 'dir');
+
+        expect(resolveLocalReference(parent, { path: 'packages/escaped' })).toBeNull();
       });
 
       it('drops inherited context when the combined prompt would exceed 50KB', () => {

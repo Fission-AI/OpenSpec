@@ -161,6 +161,7 @@ describe('reference index assembly', () => {
     if (!('local_path' in entry)) throw new Error('expected local reference');
     expect(entry).toMatchObject({
       local_path: '../..',
+      relation: 'ancestor',
       root: fs.realpathSync.native(monorepo),
       specs: [{ id: 'shared-auth', summary: 'Keep authentication behavior consistent.' }],
       specs_path: path.join(fs.realpathSync.native(monorepo), 'openspec', 'specs'),
@@ -168,6 +169,38 @@ describe('reference index assembly', () => {
     });
     expect(renderReferencedStoresBlock(entries)).toContain('<referenced_roots>');
     expect(renderReferencedStoresSection(entries)).toContain('### Referenced Roots');
+  });
+
+  it('indexes an explicitly connected descendant root', async () => {
+    const monorepo = mkdir('monorepo');
+    createOpenSpecRoot(monorepo);
+    const child = path.join(monorepo, 'packages', 'api');
+    createOpenSpecRoot(child);
+    writeSpec(child, 'api-contract', '## Purpose\n\nDescribe the API package.\n');
+
+    const entries = await assembleReferenceIndex({
+      references: [{ path: 'packages/api' }],
+      resolvedRoot: {
+        path: monorepo,
+        source: 'nearest',
+        changesDir: path.join(monorepo, 'openspec', 'changes'),
+        specsDir: path.join(monorepo, 'openspec', 'specs'),
+        archiveDir: path.join(monorepo, 'openspec', 'changes', 'archive'),
+        defaultSchema: 'spec-driven',
+      },
+      globalDataDir,
+    });
+
+    expect(entries).toEqual([
+      {
+        local_path: 'packages/api',
+        relation: 'descendant',
+        root: fs.realpathSync.native(child),
+        specs: [{ id: 'api-contract', summary: 'Describe the API package.' }],
+        specs_path: path.join(fs.realpathSync.native(child), 'openspec', 'specs'),
+        status: [],
+      },
+    ]);
   });
 
   it('reports sibling paths instead of reading arbitrary local roots', async () => {

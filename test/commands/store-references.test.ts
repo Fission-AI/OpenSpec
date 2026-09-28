@@ -131,6 +131,7 @@ describe('store references in instructions (3.1)', () => {
     expect(payload.references).toEqual([
       {
         local_path: '../..',
+        relation: 'ancestor',
         root: fs.realpathSync.native(monorepo),
         specs: [{ id: 'shared-auth', summary: 'Shared authentication contract.' }],
         specs_path: path.join(fs.realpathSync.native(monorepo), 'openspec', 'specs'),
@@ -140,7 +141,7 @@ describe('store references in instructions (3.1)', () => {
     const context = parseJson(await runCLI(['context', '--json'], { cwd: child, env }));
     expect(context.members).toEqual([
       {
-        role: 'parent_root',
+        role: 'local_root',
         id: '../..',
         path: fs.realpathSync.native(monorepo),
         status: [],
@@ -149,6 +150,7 @@ describe('store references in instructions (3.1)', () => {
     const doctor = parseJson(await runCLI(['doctor', '--json'], { cwd: child, env }));
     expect(doctor.references[0]).toMatchObject({
       local_path: '../..',
+      relation: 'ancestor',
       root: fs.realpathSync.native(monorepo),
       status: [],
     });
@@ -156,8 +158,22 @@ describe('store references in instructions (3.1)', () => {
       fs.existsSync(path.join(monorepo, 'openspec', 'changes', 'add-api-auth'))
     ).toBe(false);
 
+    const deltaDir = path.join(
+      child,
+      'openspec',
+      'changes',
+      'add-api-auth',
+      'specs',
+      'api-auth'
+    );
+    fs.mkdirSync(deltaDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(deltaDir, 'spec.md'),
+      '## ADDED Requirements\n\n### Requirement: API authentication\nThe API SHALL authenticate requests.\n\n#### Scenario: Authenticated request\n- **WHEN** a valid token is supplied\n- **THEN** the request is accepted\n'
+    );
+
     const archive = await runCLI(
-      ['archive', 'add-api-auth', '--skip-specs', '--no-validate', '--yes', '--json'],
+      ['archive', 'add-api-auth', '--no-validate', '--yes', '--json'],
       { cwd: child, env }
     );
     expect(archive.exitCode).toBe(0);
@@ -166,7 +182,38 @@ describe('store references in instructions (3.1)', () => {
         name.endsWith('add-api-auth')
       )
     ).toBe(true);
+    expect(fs.existsSync(path.join(child, 'openspec', 'specs', 'api-auth', 'spec.md'))).toBe(true);
+    expect(fs.existsSync(path.join(monorepo, 'openspec', 'specs', 'api-auth'))).toBe(false);
     expect(fs.readdirSync(path.join(monorepo, 'openspec', 'changes', 'archive'))).toEqual([]);
+  });
+
+  it('lets repository-level work read explicitly connected package specs', async () => {
+    const monorepo = path.join(tempDir, 'connected-monorepo');
+    const child = path.join(monorepo, 'packages', 'api');
+    createOpenSpecRoot(monorepo);
+    createOpenSpecRoot(child);
+    writeSpec(child, 'api-contract', '## Purpose\n\nDescribe the API package.\n');
+    fs.writeFileSync(
+      path.join(monorepo, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nreferences:\n  - path: packages/api\n'
+    );
+
+    await createChange(monorepo, 'coordinate-api');
+    const result = await runCLI(
+      ['instructions', 'proposal', '--change', 'coordinate-api', '--json'],
+      { cwd: monorepo, env }
+    );
+
+    expect(parseJson(result).references).toEqual([
+      {
+        local_path: 'packages/api',
+        relation: 'descendant',
+        root: fs.realpathSync.native(child),
+        specs: [{ id: 'api-contract', summary: 'Describe the API package.' }],
+        specs_path: path.join(fs.realpathSync.native(child), 'openspec', 'specs'),
+        status: [],
+      },
+    ]);
   });
 
   it('omits the references field entirely when none are declared', async () => {

@@ -100,6 +100,13 @@ export interface LocalDeclarationEntry {
   path: string;
 }
 
+export type LocalReferenceRelation = 'ancestor' | 'descendant';
+
+export interface ResolvedLocalReference {
+  root: string;
+  relation: LocalReferenceRelation;
+}
+
 export type DeclarationEntry = StoreDeclarationEntry | LocalDeclarationEntry;
 
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
@@ -118,7 +125,11 @@ export function readLocalReferenceDeclarations(projectRoot: string): LocalDeclar
     const paths = new Set<string>();
     for (const entry of raw.references) {
       if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
-      const candidate = (entry as Record<string, unknown>).path;
+      const map = entry as Record<string, unknown>;
+      // Match parseDeclarationList: an entry with a string id is a Store
+      // declaration even if it also contains a path.
+      if (typeof map.id === 'string') continue;
+      const candidate = map.path;
       if (typeof candidate === 'string' && candidate.length > 0) {
         paths.add(candidate);
       }
@@ -286,13 +297,13 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
 
 /**
  * Resolve a committed local reference without letting it escape the monorepo
- * hierarchy. Only strict ancestors qualify: sibling/arbitrary filesystem
- * references remain the job of Stores.
+ * hierarchy. Strict ancestors and descendants qualify; siblings and arbitrary
+ * filesystem references remain the job of Stores.
  */
-export function resolveLocalReferenceRoot(
+export function resolveLocalReference(
   projectRoot: string,
   declaration: LocalDeclarationEntry
-): string | null {
+): ResolvedLocalReference | null {
   if (
     path.isAbsolute(declaration.path) ||
     path.win32.isAbsolute(declaration.path) ||
@@ -306,17 +317,23 @@ export function resolveLocalReferenceRoot(
   const candidate = FileSystemUtils.canonicalizeExistingPath(
     path.resolve(current, declaration.path)
   );
-  const relative = path.relative(candidate, current);
-  const isStrictAncestor =
+  const relationToCurrent = path.relative(candidate, current);
+  const relationToCandidate = path.relative(current, candidate);
+  const isWithin = (relative: string): boolean =>
     relative !== '' &&
     relative !== '..' &&
     !relative.startsWith(`..${path.sep}`) &&
     !path.isAbsolute(relative);
+  const relation: LocalReferenceRelation | null = isWithin(relationToCurrent)
+    ? 'ancestor'
+    : isWithin(relationToCandidate)
+      ? 'descendant'
+      : null;
 
-  if (!isStrictAncestor || !existsSync(path.join(candidate, 'openspec'))) {
+  if (relation === null || !existsSync(path.join(candidate, 'openspec'))) {
     return null;
   }
-  return candidate;
+  return { root: candidate, relation };
 }
 
 /**
@@ -329,9 +346,11 @@ export function readProjectConfigWithParents(projectRoot: string): ProjectConfig
   const local = readProjectConfig(projectRoot);
   const parentConfigs = (local?.references ?? [])
     .filter((entry): entry is LocalDeclarationEntry => 'path' in entry)
-    .map((entry) => resolveLocalReferenceRoot(projectRoot, entry))
-    .filter((root): root is string => root !== null)
-    .map((root) => readProjectConfig(root))
+    .map((entry) => resolveLocalReference(projectRoot, entry))
+    .filter((reference): reference is ResolvedLocalReference =>
+      reference !== null && reference.relation === 'ancestor'
+    )
+    .map((reference) => readProjectConfig(reference.root))
     .filter((config): config is ProjectConfig => config !== null);
 
   if (!local && parentConfigs.length === 0) {

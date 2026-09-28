@@ -1,9 +1,9 @@
 ## ADDED Requirements
 
-### Requirement: Reference a co-located parent root
+### Requirement: Reference a co-located OpenSpec root
 
-The system SHALL allow a project to declare a parent OpenSpec root with a
-relative-path entry in `references:`.
+The system SHALL allow a project to declare an ancestor or descendant OpenSpec
+root with a relative-path entry in `references:`.
 
 #### Scenario: Package references the monorepo root
 
@@ -12,9 +12,16 @@ relative-path entry in `references:`.
 - **THEN** instructions include an index of the parent root's specs
 - **AND** the parent root is identified as read-only context
 
-#### Scenario: Reference is not a parent
+#### Scenario: Repository root references a package
 
-- **WHEN** a local reference is absolute, self-referential, a sibling, a descendant, or missing an OpenSpec root
+- **WHEN** a repository config declares `references: [{ path: packages/api }]`
+- **AND** that path resolves to a descendant containing `openspec/`
+- **THEN** instructions include an index of the package root's specs
+- **AND** the package root is identified as read-only context
+
+#### Scenario: Reference is outside the hierarchy
+
+- **WHEN** a local reference is absolute, self-referential, a sibling, or missing an OpenSpec root
 - **THEN** OpenSpec reports the reference as unavailable
 - **AND** it does not read from that location
 
@@ -29,6 +36,11 @@ child without inheriting writable behavior or unrelated settings.
 - **THEN** parent context appears before child context in workflow instructions
 - **AND** the parent schema is available after child-local schemas in precedence
 - **AND** a child `schema:` value remains the default when present
+
+#### Scenario: Descendant configuration stays local
+
+- **WHEN** a repository root references a descendant package root
+- **THEN** the package context and schemas do not flow into the repository root
 
 #### Scenario: Combined context exceeds the prompt budget
 

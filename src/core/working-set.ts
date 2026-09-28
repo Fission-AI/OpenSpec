@@ -14,7 +14,7 @@ import {
 } from './references.js';
 import { toRootOutput, type ResolvedOpenSpecRoot } from './root-selection.js';
 
-export type WorkingSetRole = 'referenced_store' | 'parent_root';
+export type WorkingSetRole = 'referenced_store' | 'local_root';
 
 export interface WorkingSetMember {
   role: WorkingSetRole;
@@ -56,7 +56,7 @@ export function assembleWorkingSet(input: AssembleWorkingSetInput): WorkingSet {
   for (const entry of input.referenceEntries) {
     if (isLocalReferenceEntry(entry)) {
       members.push({
-        role: 'parent_root',
+        role: 'local_root',
         id: entry.local_path,
         ...(entry.root !== undefined ? { path: entry.root } : {}),
         status: entry.status,
@@ -99,7 +99,7 @@ export function buildCodeWorkspaceJson(workingSet: WorkingSet, rootName: string)
       continue;
     }
     folders.push({
-      name: member.role === 'parent_root' ? `parent:${member.id}` : `ref:${member.id}`,
+      name: member.role === 'local_root' ? `local:${member.id}` : `ref:${member.id}`,
       path: member.path!,
     });
   }

@@ -402,6 +402,20 @@ version: [[[invalid yaml
         description: 'Child flow',
       });
     });
+
+    it('does not inherit schemas from a referenced descendant', () => {
+      const monorepo = path.join(tempDir, 'repo');
+      const child = path.join(monorepo, 'packages', 'api');
+      writeSchema(child, 'package-flow', 'Package flow');
+      fs.mkdirSync(path.join(monorepo, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(monorepo, 'openspec', 'config.yaml'),
+        'references:\n  - { path: packages/api }\n'
+      );
+
+      expect(getSchemaDir('package-flow', monorepo)).toBeNull();
+      expect(listSchemas(monorepo)).not.toContain('package-flow');
+    });
   });
 
   // =========================================================================

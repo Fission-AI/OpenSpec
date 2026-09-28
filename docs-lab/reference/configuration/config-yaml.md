@@ -15,7 +15,7 @@ Each OpenSpec project keeps its config file at `openspec/config.yaml`, in the pr
 | `rules` | map: artifact ID → list of strings | No | Extra rules added to one artifact's built-in guidance |
 | `operations` | map: operation → guidance list | No | Advisory guidance for apply and archive work |
 | `store` | string | No | Fallback OpenSpec root when this openspec/ is config-only |
-| `references` | list | No | Stores or parent roots whose specs are indexed into instructions |
+| `references` | list | No | Stores or connected local roots whose specs are indexed into instructions |
 
 Invalid fields never fail a command. Each field is validated on its own, and a bad value is dropped with a warning.
 
@@ -60,7 +60,7 @@ A store id used as the OpenSpec root, consulted only when this openspec/ directo
 
 ### references
 
-Sources whose specs this project's work draws on. Store references add a spec index to instructions. A local parent reference also adds the parent's context and makes its schemas available as fallbacks. References never change root resolution or the write target.
+Sources whose specs this project's work draws on. Store and local references add a spec index to instructions. An ancestor reference also adds the ancestor's context and makes its schemas available as fallbacks. Descendant context and schemas stay local. References never change root resolution or the write target.
 
 A store entry is an id or a map with `id` and an optional `remote` clone source:
 
@@ -71,14 +71,17 @@ references:
     remote: git@github.com:acme/billing-specs.git
 ```
 
-A local entry uses `path`. The path is relative to the project root, must resolve to an ancestor, and that ancestor must contain an `openspec/` folder:
+A local entry uses `path`. The path is relative to the project root, must resolve to an ancestor or descendant, and that directory must contain an `openspec/` folder:
 
 ```yaml
 references:
+  # From a package root, connect the repository root.
   - path: ../..
+  # From the repository root, connect a package root.
+  - path: packages/web
 ```
 
-Absolute paths and paths to the current project, a sibling, or a descendant are rejected. Local references are one hop, so references declared by the parent are not followed.
+Absolute paths and paths to the current project or a sibling are rejected. Local references are one hop, so references declared by a connected root are not followed.
 
 ## Example
 
