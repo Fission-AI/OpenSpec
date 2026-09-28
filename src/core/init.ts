@@ -1087,6 +1087,52 @@ export class InitCommand {
     return formatLanguageContext(this.language);
   }
 
+  private async newConfigContext(openspecPath: string): Promise<string | undefined> {
+    const languageContext = this.languageContext();
+    const projectMdPath = path.join(openspecPath, 'project.md');
+
+    if (!this.canPromptInteractively() || !fs.existsSync(projectMdPath)) {
+      return languageContext;
+    }
+
+    let projectContext: string;
+    try {
+      FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), projectMdPath);
+      projectContext = await FileSystemUtils.readFile(projectMdPath);
+    } catch {
+      console.log(
+        chalk.yellow('Could not read openspec/project.md; leaving it for manual migration.')
+      );
+      return languageContext;
+    }
+
+    if (!projectContext.trim()) {
+      return languageContext;
+    }
+
+    const context = languageContext
+      ? `${projectContext}${projectContext.endsWith('\n') ? '\n' : '\n\n'}${languageContext}`
+      : projectContext;
+    if (Buffer.byteLength(context, 'utf8') > MAX_CONTEXT_SIZE) {
+      console.log(
+        chalk.yellow(
+          `Could not copy openspec/project.md: the resulting context exceeds the ${MAX_CONTEXT_SIZE / 1024}KB limit.`
+        )
+      );
+      return languageContext;
+    }
+
+    const { confirm } = await import('@inquirer/prompts');
+    const shouldCopy = await confirm({
+      message:
+        'Copy openspec/project.md into the new config.yaml context? ' +
+        'The project.md file will be kept.',
+      default: true,
+    });
+
+    return shouldCopy ? context : languageContext;
+  }
+
   private async assertLanguageCanBeApplied(
     projectPath: string,
     openspecPath: string
@@ -1131,11 +1177,11 @@ export class InitCommand {
       return 'exists';
     }
 
-
+    const context = await this.newConfigContext(openspecPath);
     try {
       const yamlContent = serializeConfig({
         schema: DEFAULT_SCHEMA,
-        context: this.languageContext(),
+        context,
       });
       FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), configPath);
       await FileSystemUtils.writeFile(configPath, yamlContent);
