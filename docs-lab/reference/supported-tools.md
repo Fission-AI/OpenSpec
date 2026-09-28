@@ -35,7 +35,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Hermes Agent | `hermes` | `.hermes/skills/` | `/openspec-apply-change` | none | none |
 | iFlow | `iflow` | `.iflow/skills/` | `/openspec-apply-change` | `.iflow/commands/` | `/opsx-apply` |
 | Junie | `junie` | `.junie/skills/` | `/openspec-apply-change` | `.junie/commands/` | `/opsx-apply` |
-| Kilo Code | `kilocode` | `.kilocode/skills/` | `/openspec-apply-change` | `.kilocode/workflows/` | `/opsx-apply` |
+| Kilo Code | `kilocode` | `.kilocode/skills/` | `/openspec-apply-change` | `.kilo/command/` | `/opsx-apply` |
 | Kimi Code | `kimi` | `.kimi-code/skills/` | `/skill:openspec-apply-change` | none | none |
 | Kiro | `kiro` | `.kiro/skills/` | `/openspec-apply-change` | `.kiro/prompts/` | `/opsx-apply` |
 | Lingma | `lingma` | `.lingma/skills/` | `/openspec-apply-change` | `.lingma/commands/opsx/` | `/opsx:apply` |
@@ -80,8 +80,12 @@ Skills stay in `.cline/skills/`.
 
 ### Codex
 
-- **Invocation**: type `$openspec-<skill>`. Codex does not recognize the
-  `/openspec-<skill>` form ([upstream issue](https://github.com/openai/codex/issues/11817)).
+- **CLI and IDE extension**: mention `$openspec-propose` with your idea, or run
+  `/skills` to select the skill. Codex does not recognize `/openspec-propose`
+  ([upstream issue](https://github.com/openai/codex/issues/11817)).
+- **Desktop app**: open Skills in the sidebar and select `openspec-propose`.
+  [OpenAI's skills documentation](https://learn.chatgpt.com/docs/build-skills)
+  describes both interfaces.
 - **No command files**: Codex runs skills directly, so init skips commands even when
   delivery includes them and prints `Commands skipped for: codex (uses skills)`.
 - **Shared folder**: Codex skills land in `.agents/skills/`, the same tree Antigravity,
@@ -102,8 +106,13 @@ Skills stay in `.cline/skills/`.
 
 ### GitHub Copilot
 
-Prompt files register as slash commands in the Copilot IDE extensions (VS Code,
-JetBrains, Visual Studio). Copilot CLI does not read `.github/prompts/`.
+- **IDE extensions (command delivery)**: VS Code, JetBrains, and Visual Studio load
+  `.github/prompts/opsx-<id>.prompt.md` as `/opsx-<id>`. If a command disappears
+  while its file still exists, restart the IDE.
+- **Copilot CLI (skill delivery)**: the CLI ignores `.github/prompts/` and loads
+  `.github/skills/openspec-*/SKILL.md` instead. Invoke a skill as
+  `/openspec-<skill>`. If a skill disappears while its file still exists, run
+  `/skills reload`, then `/skills info openspec-propose` to confirm discovery.
 
 ### Hermes Agent
 

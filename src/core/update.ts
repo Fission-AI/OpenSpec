@@ -89,6 +89,7 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
 type LegacyUpgradeResult = {
   newlyConfiguredTools: string[];
   workflowOverrides: Partial<Record<string, readonly (typeof ALL_WORKFLOWS)[number][]>>;
+  failedTools?: ToolFailure[];
   deferredGlobalCleanup?: LegacyDetectionResult;
   /**
    * Tools whose skill generation was skipped because another tool already owns
@@ -97,6 +98,14 @@ type LegacyUpgradeResult = {
    */
   skippedSharedSkillTools?: string[];
 };
+
+type ToolFailure = { name: string; error: string };
+
+function throwIfUpdateFailed(failedTools: readonly ToolFailure[]): void {
+  if (failedTools.length > 0) {
+    throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
+  }
+}
 
 /**
  * Checkout artifacts that are not real content drift: a UTF-8 BOM and the CRLF
@@ -185,6 +194,7 @@ export class UpdateCommand {
       newlyConfiguredTools,
       workflowOverrides: legacyWorkflowOverrides,
       deferredGlobalCleanup,
+      failedTools: legacyUpgradeFailures = [],
     } = legacyUpgrade;
 
     // 5. Find configured tools
@@ -195,6 +205,7 @@ export class UpdateCommand {
       if (deferredGlobalCleanup) {
         await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
       }
+      throwIfUpdateFailed(legacyUpgradeFailures);
       if (declinedMigrations.length > 0) {
         // Not an unconfigured project — a configured one the user chose to
         // leave in its former directory. Saying "run init" would be wrong.
@@ -269,6 +280,7 @@ export class UpdateCommand {
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
+      throwIfUpdateFailed(legacyUpgradeFailures);
       return;
     }
 
@@ -299,7 +311,7 @@ export class UpdateCommand {
     );
     const updatedTools: string[] = [];
     const updatedToolIds: string[] = [];
-    const failedTools: Array<{ name: string; error: string }> = [];
+    const failedTools: ToolFailure[] = [...legacyUpgradeFailures];
     const skillsInvocableCommandSkips: string[] = [];
     const zeroArtifactTools: string[] = [];
     let removedCommandCount = 0;
@@ -526,9 +538,7 @@ export class UpdateCommand {
     if (restartHint) {
       console.log(chalk.dim(restartHint));
     }
-    if (failedTools.length > 0) {
-      throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
-    }
+    throwIfUpdateFailed(failedTools);
   }
 
   private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
@@ -1277,6 +1287,7 @@ export class UpdateCommand {
     // Create skills/commands for selected tools using effective profile+delivery.
     const newlyConfigured: string[] = [];
     const skippedSharedSkillTools: string[] = [];
+    const failedTools: ToolFailure[] = [];
     const workflowOverrides: LegacyUpgradeResult['workflowOverrides'] = {};
     const arbitrationTools = [...new Set([...configuredTools, ...selectedTools])]
       .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
@@ -1377,7 +1388,9 @@ export class UpdateCommand {
         }
       } catch (error) {
         spinner.fail(`Failed to set up ${tool.name}`);
-        console.log(chalk.red(`  ${error instanceof Error ? error.message : String(error)}`));
+        const message = error instanceof Error ? error.message : String(error);
+        console.log(chalk.red(`  ${message}`));
+        failedTools.push({ name: tool.name, error: message });
       }
     }
 
@@ -1385,6 +1398,11 @@ export class UpdateCommand {
       console.log();
     }
 
-    return { newlyConfiguredTools: newlyConfigured, workflowOverrides, skippedSharedSkillTools };
+    return {
+      newlyConfiguredTools: newlyConfigured,
+      workflowOverrides,
+      skippedSharedSkillTools,
+      failedTools,
+    };
   }
 }

@@ -378,7 +378,7 @@ Save to the `resolvedOutputPath` from `openspec instructions design --change "<n
 
 Finally, we break the work into implementation tasks—checkboxes that drive the apply phase.
 
-These should be small, clear, and in logical order.
+These should be small, clear, and in logical order. Each group carries the tests and documentation for its own work - the last group is only for integration checks.
 ```
 
 **DO:** Generate tasks based on specs and design:
@@ -401,12 +401,17 @@ Here are the implementation tasks:
 
 ---
 
-Each checkbox becomes a unit of work in the apply phase. Ready to implement?
+Each checkbox becomes a unit of work in the apply phase. Does this task breakdown look right?
 ```
 
-**PAUSE** - Wait for user to confirm they're ready to implement.
+**PAUSE** - Wait for user approval/feedback.
 
-Save to the `resolvedOutputPath` from `openspec instructions tasks --change "<name>" --json`.
+After approval, save to the `resolvedOutputPath` from `openspec instructions tasks --change "<name>" --json`.
+
+Then ask:
+> "Tasks are saved. Ready to implement?"
+
+**PAUSE** - Wait for user to confirm before implementation.
 
 ---
 
