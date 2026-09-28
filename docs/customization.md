@@ -18,7 +18,6 @@ The `openspec/config.yaml` file is the easiest way to customize OpenSpec for you
 - **Inject project context** - AI sees your tech stack, conventions, etc.
 - **Add per-artifact rules** - Custom rules for specific artifacts
 - **Add per-operation guidance** - Advisory preferences for apply and archive work
-- **Reference a parent root** - Reuse shared monorepo specs, context, and schemas
 - **Remember integration choices** - e.g. the [GitHub Copilot cloud coding agent](supported-tools.md#github-copilot-cloud-coding-agent) opt-in
 
 ### Quick Setup
@@ -149,29 +148,6 @@ move (for bulk archive, before any batch write or move).
 This configuration does not change archive execution phases, user prompts,
 filesystem operations, semantic merge ownership, the direct `openspec archive`
 command, or the structure and output of artifact `rules`.
-
-### Reference a parent root in a monorepo
-
-Add a relative `path` entry when a package has its own OpenSpec root and needs
-read-only context from the repository root:
-
-```yaml
-# packages/api/openspec/config.yaml
-references:
-  - { path: ../.. }
-```
-
-The path starts at the package directory, not its `openspec/` directory. It must
-resolve to an ancestor that contains `openspec/`.
-
-- **Specs**: instructions list the parent root's specs and their file location.
-- **Context**: parent context appears before package context.
-- **Schemas**: package schemas take priority, then parent schemas.
-- **Writes**: changes, spec merges, and archives stay in the package root.
-
-Local references are one hop. OpenSpec does not discover sibling packages or
-follow references declared by the parent. Use a Store for a root outside the
-current directory hierarchy.
 
 ### Schema Resolution Order
 

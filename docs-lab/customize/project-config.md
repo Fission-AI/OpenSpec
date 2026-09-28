@@ -68,7 +68,7 @@ Three fields shape what the agent receives. Each field's exact contract (types, 
 | `rules` | Extra instructions for one artifact | Only that artifact's creation |
 | `operations` | Guidance for how a workflow step is carried out | Only `apply` and `archive` |
 
-config.yaml's other fields (`schema`, `store`, `references`) select which schema and which OpenSpec root a project uses. The contract page covers them.
+config.yaml's other fields (`schema`, `store`, `references`) select a schema, route work to a store, or add read-only specs from another OpenSpec root. The contract page covers them.
 
 The last column is exact, so a field reaches only the steps listed there. In particular, `verify` never receives `rules`. It checks the implementation against the artifacts as written.
 
@@ -116,6 +116,27 @@ operations:
 ```
 
 During apply, the agent lints as it completes tasks. During archive, it closes with a summary.
+
+## Use shared specs in a monorepo
+
+When a package has its own `openspec/` folder, it can read shared specs, project context, and schemas from an OpenSpec root higher in the same repository:
+
+```yaml
+# packages/api/openspec/config.yaml
+references:
+  - path: ../..
+```
+
+The path starts at the package directory, so `../..` points to the repository root in this example. That root must contain an `openspec/` folder.
+
+The reference has four effects:
+
+- **Specs**: instructions list the parent's specs and where to read them.
+- **Context**: parent context comes before the package's context.
+- **Schemas**: the package uses its own schemas first, then the parent's.
+- **Read-only access**: changes, spec merges, and archives still write to the package's `openspec/` folder.
+
+Rules and operation guidance do not carry down from the parent. OpenSpec also does not scan sibling packages or follow references from the parent. Use a [store](../multi-repo/stores.md) when the shared OpenSpec root is outside the package's directory hierarchy.
 
 ## When config.yaml isn't enough
 
