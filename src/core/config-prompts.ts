@@ -22,13 +22,13 @@ export function serializeConfig(config: Partial<ProjectConfig>): string {
   } else {
     // Context section with comments
     lines.push('# Project context (optional)');
-    lines.push('# This is shown to AI when creating artifacts.');
-    lines.push('# Add your tech stack, conventions, style guides, domain knowledge, etc.');
+    lines.push('# Add only details that should shape how OpenSpec artifacts are written.');
+    lines.push('# Include constraints an agent cannot infer by reading the code.');
+    lines.push('# Keep general project documentation and discoverable codebase facts out.');
     lines.push('# Example:');
     lines.push('#   context: |');
-    lines.push('#     Tech stack: TypeScript, React, Node.js');
-    lines.push('#     We use conventional commits');
-    lines.push('#     Domain: e-commerce platform');
+    lines.push('#     Designs and tasks must cover Windows, macOS, and Linux');
+    lines.push('#     Write all artifacts in Spanish');
     lines.push('');
   }
 

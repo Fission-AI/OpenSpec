@@ -77,9 +77,8 @@ A filled-in config.yaml:
 schema: spec-driven
 
 context: |
-  Tech stack: TypeScript, React, Node.js
-  We use conventional commits
-  Domain: e-commerce platform
+  Designs and tasks must cover Windows, macOS, and Linux
+  Write all artifacts in Spanish
 
 rules:
   proposal:

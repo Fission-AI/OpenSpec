@@ -35,8 +35,8 @@ For example, with a `context` field and the rule from the top of this page, here
 
   <!-- From your config.yaml: context -->
   <project_context>
-    Tech stack: TypeScript, Node.js
-    Domain: e-commerce platform
+    Designs and tasks must cover Windows, macOS, and Linux
+    Write all artifacts in Spanish
   </project_context>
 
   <!-- From your config.yaml: rules for tasks -->
@@ -79,11 +79,10 @@ The last column is exact, so a field reaches only the steps listed there. In par
 ```yaml
 context: |
   We ship cross-platform; designs and tasks must cover Windows, macOS, and Linux
-  Tech stack: TypeScript, Node.js, Commander.js
-  We use conventional commits
+  Write all artifacts in Spanish
 ```
 
-This is planning context, not project documentation. Add a fact when it should shape every plan, like the cross-platform line above. Leave out anything the agent can learn by reading the code.
+This is planning context, not project documentation. Add a fact when it should shape every artifact, like the cross-platform line above. Leave out anything the agent can learn by reading the code.
 
 **Another language**: because context reaches every artifact, it's also how you change the output language. One line, like `Write all artifacts in Spanish.`, switches every proposal, spec, and tasks file the workflows write.
 
