@@ -2,8 +2,13 @@ packages:
   - '.'
 
 allowBuilds:
-  esbuild@0.28.1: true
+  esbuild@0.28.2: true
 
+# The only declaration of these. A `pnpm.overrides` block in package.json does not
+# merge with this list — pnpm 10 uses it *instead of* this file (verified: a lone
+# entry there produced a lockfile with only that override). Dependabot rewrites
+# plain-name entries in package.json when it bumps the same package, so a mirrored
+# copy there both drifts and silently takes precedence over these advisory pins.
 overrides:
   brace-expansion@<=5.0.8: '>=5.0.9 <6'
   postcss@<8.5.23: '>=8.5.23 <9'
@@ -17,3 +22,7 @@ overrides:
   # (transitive via postcss). Remove once transitive nanoid is >=3.3.17
   # (check: pnpm why nanoid).
   nanoid@<3.3.17: '>=3.3.17 <4'
+  # GHSA-px8p-9vwx-vf98 — fflate `unzipSync` infinite loop on malformed ZIP64.
+  # Dev-only (transitive via @vitest/ui); never in the published CLI. Remove once
+  # transitive fflate is >=0.8.3 (check: pnpm why fflate).
+  fflate@<0.8.3: '>=0.8.3 <0.9'

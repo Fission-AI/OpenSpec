@@ -5,25 +5,57 @@ import { resolveArtifactOutputs, resolveSchema } from '../core/artifact-graph/in
 import { resolveSchemaForChange } from './change-metadata.js';
 
 /**
- * A Markdown task line: a `-`/`*` bullet carrying a `[ ]` or `[x]` checkbox.
+ * A Markdown task line: a list item carrying a checkbox that holds at most one
+ * non-whitespace marker - `[ ]`, `[x]`, `[]`, `[~]`, `[ x ]` all qualify - under
+ * any CommonMark list marker - `-`, `*`, `+`, or an ordered `1.` / `1)` of up
+ * to nine digits. Reading only `-` and `*` left an unchecked `1. [ ]` or
+ * `+ [ ]` task out of every count, so archive reported "✓ Complete" over it.
  *
  * Leading whitespace is allowed so nested sub-tasks count like their parents.
  * Anchoring at column 0 made `  - [ ] 1.1.1 ...` invisible to progress, to the
  * apply task list, and to archive's incomplete-task check, so a change with
  * unfinished sub-tasks reported "✓ Complete" and archived without a warning.
  *
+ * The marker is no longer restricted to ` `/`x`/`X`, because a checkbox this
+ * pattern rejects is a line that counts toward neither the numerator nor the
+ * denominator: a tasks.md whose remaining work was written `- [~] ...`
+ * reported "✓ Complete" and archived with no incomplete-task warning, and
+ * marking items `[~]` *shrank* the denominator instead of leaving them counted
+ * as not-done (#1761). An empty `[]` and a padded `[ x]` were lost the same
+ * silent way. Only `x`/`X` means done, so every unrecognised marker reads as
+ * not-done - the conservative default, and no new concept: OpenSpec does not
+ * adopt `[~]` or any other marker's meaning, it just stops dropping the line.
+ *
  * Permissive on purpose, and safe to keep that way: any character class
- * tightened here - the `\s` inside the brackets, which lets a tab or
- * non-breaking space stand for an empty box - drops lines that used to count,
- * and a task this parser drops is a task `openspec archive` stops warning about.
+ * tightened here drops lines that used to count, and a task this parser drops
+ * is a task `openspec archive` stops warning about. The cost of the wide class
+ * is over-counting - `- [1] ...` in a tasks file now reads as one unfinished
+ * task - which is a loud, correctable false positive, unlike the silent loss.
+ *
+ * Where the width stops, and why: the marker is one token, so a *multi*
+ * character bracket stays unmatched. Widening to `[^\]]*` would swallow the
+ * commonest bullet in Markdown - `- [Some doc](./doc.md)`, whose `]` is
+ * followed by `(`, not by a space - and turn every link list into phantom
+ * unfinished work. A dropped `- [WIP] ...` is the accepted residue of keeping
+ * link bullets out; report it as a bug in this trade, not in the marker set.
+ *
+ * One-character labels need the same guard, which the width alone does not
+ * give: `- [A](https://example.com)` and `- [1](./one)` are a link bullet and
+ * a reference-link bullet, not tasks, yet their label is a single token and
+ * would match. So the closing bracket may not be followed by `(` or `[`, the
+ * only two characters that continue Markdown link syntax. A checkbox is
+ * followed by its description or by end of line, and `- [x]done` still parses.
+ * The one exception is a whitespace-only box: `- [ ](...)` and `- [ ][...]`
+ * matched the strict pattern as unfinished tasks, so they still count. The guard
+ * may drop only lines that could never hide open work.
  *
  * Deliberately unanchored at the end: `.` does not match `\r`, so writing the
  * description group as `(.*)$` would reject every line of a CRLF tasks.md.
  */
-const TASK_LINE_PATTERN = /^\s*[-*]\s*\[([\sxX])\]\s*(.*)/;
+const TASK_LINE_PATTERN = /^\s*(?:[-*+]|\d{1,9}[.)])\s*\[(?:\s*([^\]\s]?)\s*\](?![([])|\s+\])\s*(.*)/;
 
 export interface ParsedTask {
-  /** Checkbox state: `[x]`/`[X]` is done, anything else is not. */
+  /** Checkbox state: `[x]`/`[X]` is done, every other marker (and none) is not. */
   done: boolean;
   /** Task text after the checkbox, trimmed (may be empty). */
   description: string;
@@ -45,7 +77,7 @@ export function parseTaskLines(content: string): ParsedTask[] {
   for (const line of content.split('\n')) {
     const match = line.match(TASK_LINE_PATTERN);
     if (match) {
-      tasks.push({ done: match[1].toLowerCase() === 'x', description: match[2].trim() });
+      tasks.push({ done: (match[1] ?? '').toLowerCase() === 'x', description: match[2].trim() });
     }
   }
 

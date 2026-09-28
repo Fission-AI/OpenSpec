@@ -15,7 +15,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Tool | `--tools` id | Skills | Skill invocation | Commands | Command invocation |
 |---|---|---|---|---|---|
 | Amazon Q Developer | `amazon-q` | `.amazonq/skills/` | `/openspec-apply-change` | `.amazonq/prompts/` | `@opsx-apply` |
-| Antigravity | `antigravity` | `.agent/skills/` | `/openspec-apply-change` | `.agent/workflows/` | `/opsx-apply` |
+| Antigravity | `antigravity` | `.agents/skills/` | `/openspec-apply-change` | `.agents/workflows/` | `/opsx-apply` |
 | Auggie (Augment CLI) | `auggie` | `.augment/skills/` | `/openspec-apply-change` | `.augment/commands/` | `/opsx-apply` |
 | Bob Shell | `bob` | `.bob/skills/` | `/openspec-apply-change` | `.bob/commands/` | `/opsx-apply` |
 | Claude Code | `claude` | `.claude/skills/` | `/openspec-apply-change` | `.claude/commands/opsx/` | `/opsx:apply` |
@@ -35,7 +35,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Hermes Agent | `hermes` | `.hermes/skills/` | `/openspec-apply-change` | none | none |
 | iFlow | `iflow` | `.iflow/skills/` | `/openspec-apply-change` | `.iflow/commands/` | `/opsx-apply` |
 | Junie | `junie` | `.junie/skills/` | `/openspec-apply-change` | `.junie/commands/` | `/opsx-apply` |
-| Kilo Code | `kilocode` | `.kilocode/skills/` | `/openspec-apply-change` | `.kilocode/workflows/` | `/opsx-apply` |
+| Kilo Code | `kilocode` | `.kilocode/skills/` | `/openspec-apply-change` | `.kilo/command/` | `/opsx-apply` |
 | Kimi Code | `kimi` | `.kimi-code/skills/` | `/skill:openspec-apply-change` | none | none |
 | Kiro | `kiro` | `.kiro/skills/` | `/openspec-apply-change` | `.kiro/prompts/` | `/opsx-apply` |
 | Lingma | `lingma` | `.lingma/skills/` | `/openspec-apply-change` | `.lingma/commands/opsx/` | `/opsx:apply` |
@@ -49,7 +49,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Trae | `trae` | `.trae/skills/` | `/openspec-apply-change` | `.trae/commands/` | `/opsx-apply` |
 | ZCode | `zcode` | `.zcode/skills/` | `/openspec-apply-change` | `.zcode/commands/opsx/` | `/opsx:apply` |
 | Zoo Code | `roocode` | `.roo/skills/` | `/openspec-apply-change` | `.roo/commands/` | `/opsx-apply` |
-| Shared `.agents` skills | `agents` | `.agents/skills/` | `/openspec-apply-change` | none | none |
+| Other / Universal | `agents` | `.agents/skills/` | `/openspec-apply-change` | none | none |
 
 - **Skill invocation**: whether a tool registers skills as typed entries is the tool's
   own behavior. The column shows the spelling OpenSpec uses in generated files and in
@@ -62,6 +62,17 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 
 A tool not listed here behaves exactly as its row reads.
 
+### Antigravity
+
+- **Current folder**: Antigravity v1.20.5 and later read workspace skills and
+  workflows from `.agents/`.
+- **Legacy folder**: after OpenSpec writes replacements, it removes equivalent
+  generated files from `.agent/`. Custom files and changed generated files stay in
+  `.agent/` for you to review.
+- **Shared skills**: Antigravity shares `.agents/skills/` with Codex, Zed Agent, and
+  the `agents` target. OpenSpec writes that skill tree once while still writing
+  Antigravity commands to `.agents/workflows/`.
+
 ### Cline
 
 Cline reads commands from `.clinerules/workflows/`, not from its `.cline/` folder.
@@ -69,13 +80,18 @@ Skills stay in `.cline/skills/`.
 
 ### Codex
 
-- **Invocation**: type `$openspec-<skill>`. Codex does not recognize the
-  `/openspec-<skill>` form ([upstream issue](https://github.com/openai/codex/issues/11817)).
+- **CLI and IDE extension**: mention `$openspec-propose` with your idea, or run
+  `/skills` to select the skill. Codex does not recognize `/openspec-propose`
+  ([upstream issue](https://github.com/openai/codex/issues/11817)).
+- **Desktop app**: open Skills in the sidebar and select `openspec-propose`.
+  [OpenAI's skills documentation](https://learn.chatgpt.com/docs/build-skills)
+  describes both interfaces.
 - **No command files**: Codex runs skills directly, so init skips commands even when
   delivery includes them and prints `Commands skipped for: codex (uses skills)`.
-- **Shared folder**: Codex skills land in `.agents/skills/`, the same tree the shared
-  `agents` target uses. Selecting both keeps one tree, and its handoffs spell both
-  `$openspec-*` and `/openspec-*`.
+- **Shared folder**: Codex skills land in `.agents/skills/`, the same tree Antigravity,
+  Zed Agent, and the `agents` target use. Selecting more than one keeps a single
+  compatible tree, and its handoffs spell both `$openspec-*` and `/openspec-*` when
+  Codex owns it.
 - **Legacy path**: skills installed under `.codex/skills/` by older versions are
   migrated on the next `openspec update`.
 
@@ -90,8 +106,13 @@ Skills stay in `.cline/skills/`.
 
 ### GitHub Copilot
 
-Prompt files register as slash commands in the Copilot IDE extensions (VS Code,
-JetBrains, Visual Studio). Copilot CLI does not read `.github/prompts/`.
+- **IDE extensions (command delivery)**: VS Code, JetBrains, and Visual Studio load
+  `.github/prompts/opsx-<id>.prompt.md` as `/opsx-<id>`. If a command disappears
+  while its file still exists, restart the IDE.
+- **Copilot CLI (skill delivery)**: the CLI ignores `.github/prompts/` and loads
+  `.github/skills/openspec-*/SKILL.md` instead. Invoke a skill as
+  `/openspec-<skill>`. If a skill disappears while its file still exists, run
+  `/skills reload`, then `/skills info openspec-propose` to confirm discovery.
 
 ### Hermes Agent
 
@@ -106,12 +127,17 @@ init prints this reminder after install.
 - **Safe across projects**: a commands-only delivery leaves the global skills in
   place, so one project's setting cannot remove skills another project uses.
 
-### Shared `.agents` skills
+### Other / Universal (shared `.agents` skills)
 
 - **When it fits**: any tool that reads the shared `.agents/skills/` folder,
-  including tools with no row in the matrix.
-- **Alongside other targets**: fine, since each target writes its own folder. Codex
-  shares this one; see the [Codex note](#codex).
+  including tools with no row in the matrix. It is the entry to pick when your
+  assistant is not listed. The init picker's search box finds it by `universal`,
+  `other`, `generic`, `custom`, `proprietary`, `unlisted`, `unsupported`,
+  `vendor-neutral`, or `agents.md`.
+- **Alongside other targets**: Antigravity, Codex, Zed Agent, and this target share
+  one physical skill tree. OpenSpec records one writer in `.openspec-target` and
+  writes the tree once per run. Each tool's separate command files are still
+  generated.
 - **What OpenSpec claims**: only the `openspec-*` folders and the
   `.openspec-target` marker. Anything else under `.agents/` is left alone.
 - **`AGENTS.md`**: not created or edited. The target is the `.agents/` folder, not

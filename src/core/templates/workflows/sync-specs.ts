@@ -6,16 +6,19 @@
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 export function getSyncSpecsSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-sync-specs',
-    description: 'Sync delta specs from a change to main specs. Use when the user wants to update main specs with changes from a delta spec, without archiving the change.',
+    description: 'Sync delta specs from an OpenSpec change to main specs. Use when the user wants to update main specs with changes from a delta spec, without archiving the change. Also use when the user says "openspec sync" or "opsx sync".',
     instructions: `Sync delta specs from a change to main specs.
 
 This is an **agent-driven** operation - you will read delta specs and directly edit main specs to apply the changes. This allows intelligent merging (e.g., adding a scenario without copying the entire requirement).
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
@@ -97,6 +100,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (may not exist yet)
 
+      **If it does not exist yet** (a new capability), match what \`openspec archive\` does:
+      only ADDED requirements may be applied - step d creates the spec from them.
+      MODIFIED and RENAMED have no requirement to act on, so stop the sync for that
+      capability and report that its main spec does not exist and only ADDED is allowed
+      for a new spec; never invent the missing requirement. REMOVED has nothing to
+      remove - skip it and warn.
+
    c. **Apply changes intelligently**:
 
       **ADDED Requirements:**
@@ -144,6 +154,14 @@ ${STORE_SELECTION_GUIDANCE}
         (this is what \`openspec archive\` does; it warns and moves on)
 
    d. **Create new main spec** if capability doesn't exist yet:
+      - Only when the delta has ADDED requirements to put in it and no MODIFIED or
+        RENAMED requirements blocked this capability in step b. Otherwise create nothing
+        and leave the specs directory untouched. For a REMOVED-only delta, if the change's
+        \`.openspec.yaml\` declares \`retire_capabilities: true\`, report it as already retired
+        and continue without recreating the spec. Without that marker, report the sync as blocked:
+        \`openspec archive\` rejects it with \`Spec must have at least one requirement\`.
+        An empty delta has no operations to sync; report it as blocked too.
+        Never write an empty \`## Requirements\` section.
       - Create \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\`
       - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
         (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
@@ -168,6 +186,8 @@ ${STORE_SELECTION_GUIDANCE}
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+# Spec Delta
+
 ## Purpose
 
 Only on a delta that introduces a brand-new capability. Seeds the new main spec.
@@ -279,6 +299,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 
 ${STORE_SELECTION_GUIDANCE}
 
+${PROJECT_ROOT_GUARD}
+
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
 **Input**: Optionally specify a change name after \`/opsx:sync\` (e.g., \`/opsx:sync add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
@@ -359,6 +381,13 @@ ${STORE_SELECTION_GUIDANCE}
 
    b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (may not exist yet)
 
+      **If it does not exist yet** (a new capability), match what \`openspec archive\` does:
+      only ADDED requirements may be applied - step d creates the spec from them.
+      MODIFIED and RENAMED have no requirement to act on, so stop the sync for that
+      capability and report that its main spec does not exist and only ADDED is allowed
+      for a new spec; never invent the missing requirement. REMOVED has nothing to
+      remove - skip it and warn.
+
    c. **Apply changes intelligently**:
 
       **ADDED Requirements:**
@@ -406,6 +435,14 @@ ${STORE_SELECTION_GUIDANCE}
         (this is what \`openspec archive\` does; it warns and moves on)
 
    d. **Create new main spec** if capability doesn't exist yet:
+      - Only when the delta has ADDED requirements to put in it and no MODIFIED or
+        RENAMED requirements blocked this capability in step b. Otherwise create nothing
+        and leave the specs directory untouched. For a REMOVED-only delta, if the change's
+        \`.openspec.yaml\` declares \`retire_capabilities: true\`, report it as already retired
+        and continue without recreating the spec. Without that marker, report the sync as blocked:
+        \`openspec archive\` rejects it with \`Spec must have at least one requirement\`.
+        An empty delta has no operations to sync; report it as blocked too.
+        Never write an empty \`## Requirements\` section.
       - Create \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\`
       - Add Purpose section: copy the delta's \`## Purpose\` body verbatim when it has one
         (this is what \`openspec archive\` does); only write a brief TBD placeholder when it does not
@@ -430,6 +467,8 @@ ${STORE_SELECTION_GUIDANCE}
 **Delta Spec Format Reference**
 
 \`\`\`markdown
+# Spec Delta
+
 ## Purpose
 
 Only on a delta that introduces a brand-new capability. Seeds the new main spec.

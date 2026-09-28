@@ -27,6 +27,7 @@ import { qoderAdapter } from '../../../src/core/command-generation/adapters/qode
 import { qwenAdapter } from '../../../src/core/command-generation/adapters/qwen.js';
 import { roocodeAdapter } from '../../../src/core/command-generation/adapters/roocode.js';
 import { traeAdapter } from '../../../src/core/command-generation/adapters/trae.js';
+import { codeassistantAdapter } from '../../../src/core/command-generation/adapters/codeassistant.js';
 import { zcodeAdapter } from '../../../src/core/command-generation/adapters/zcode.js';
 import type {
   CommandContent,
@@ -242,7 +243,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path', () => {
       const filePath = antigravityAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.agent', 'workflows', 'opsx-explore.md'));
+      expect(filePath).toBe(path.join('.agents', 'workflows', 'opsx-explore.md'));
     });
 
     it('should format file with description frontmatter', () => {
@@ -331,6 +332,9 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('name: "opsx-explore"');
       expect(output).toContain('description: "Enter explore mode for thinking"');
       expect(output).toContain('invokable: true');
+      expect(output).toContain(
+        '---\n\nThis workflow prompt is already active. Follow its instructions directly. Do not call a tool named after this workflow.\n\nThis is the command body.'
+      );
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
     });
@@ -514,7 +518,7 @@ describe('command-generation/adapters', () => {
 
     it('should generate correct file path', () => {
       const filePath = kilocodeAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.kilocode', 'workflows', 'opsx-explore.md'));
+      expect(filePath).toBe(path.join('.kilo', 'command', 'opsx-explore.md'));
     });
 
     it('should format file without frontmatter', () => {
@@ -1079,6 +1083,47 @@ describe('command-generation/adapters', () => {
         expect(filePath.length).toBeGreaterThan(0);
         expect(filePath.includes(path.sep) || filePath.includes('.')).toBe(true);
       }
+    });
+  });
+
+  describe('codeassistantAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(codeassistantAdapter.toolId).toBe('codeassistant');
+    });
+
+    it('should generate correct file path', () => {
+      const filePath = codeassistantAdapter.getFilePath('explore');
+      expect(filePath).toBe(path.join('.codeassistant', 'commands', 'opsx-explore.md'));
+    });
+
+    it('should generate correct file path for different command IDs', () => {
+      expect(codeassistantAdapter.getFilePath('new')).toBe(path.join('.codeassistant', 'commands', 'opsx-new.md'));
+      expect(codeassistantAdapter.getFilePath('bulk-archive')).toBe(path.join('.codeassistant', 'commands', 'opsx-bulk-archive.md'));
+    });
+
+    it('should format file with correct YAML frontmatter', () => {
+      const output = codeassistantAdapter.formatFile(sampleContent);
+
+      const frontmatter = output.match(/^---\n([\s\S]*?)\n---\n\n/);
+      expect(frontmatter).not.toBeNull();
+      expect(parseYaml(frontmatter![1])).toEqual({ description: sampleContent.description });
+      expect(output.slice(frontmatter![0].length)).toBe(`${sampleContent.body}\n`);
+    });
+
+    it('generates registered commands with hyphenated workflow references', () => {
+      const content: CommandContent = {
+        ...sampleContent,
+        body: 'Use /opsx:propose, /opsx:update, and /opsx:bulk-archive. Keep /opsx:unknown.',
+      };
+      const adapter = CommandAdapterRegistry.get('codeassistant');
+      expect(adapter).toBe(codeassistantAdapter);
+      const generated = generateCommand(content, adapter!);
+
+      expect(generated.path).toBe(path.join('.codeassistant', 'commands', 'opsx-explore.md'));
+      expect(generated.fileContent).toContain(
+        'Use /opsx-propose, /opsx-update, and /opsx-bulk-archive. Keep /opsx:unknown.'
+      );
+      expect(content.body).toContain('/opsx:propose');
     });
   });
 

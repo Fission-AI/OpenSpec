@@ -58,8 +58,6 @@ For example, with a `context` field and the rule from the top of this page, here
 
 Your config arrives first, then OpenSpec's built-in instruction and template. Rules add to the built-ins and never replace them. Edits to config.yaml reach the agent on the next run.
 
-[Workflow runs](../reference/architecture/workflow-runs.md) covers the full run, from invocation to written artifacts.
-
 ## The fields
 
 Three fields shape what the agent receives. Each field's exact contract (types, limits, validation) is in [Project configuration (config.yaml)](../reference/configuration/config-yaml.md).

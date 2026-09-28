@@ -3,9 +3,11 @@ import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
 import {
+  resolveSharedSkillWriters,
   sharedSkillRootOwnedByOther,
   sharedSkillRootOwner,
 } from '../../src/core/shared-skill-target.js';
+import { AI_TOOLS } from '../../src/core/config.js';
 
 /**
  * `.agents` is shared by the vendor-neutral `agents` target and Codex. When a
@@ -85,5 +87,33 @@ describe('sharedSkillRootOwnedByOther', () => {
     expect(sharedSkillRootOwner(projectPath, 'codex')).toBe('agents');
     // The owner is never "owned by another"; an unclaimed root has no owner.
     expect(sharedSkillRootOwner(projectPath, 'agents')).toBeUndefined();
+  });
+});
+
+describe('resolveSharedSkillWriters', () => {
+  const tools = (...ids: string[]) =>
+    ids.map((id) => AI_TOOLS.find((tool) => tool.value === id)!);
+
+  it.each([
+    ['antigravity', 'codex'],
+    ['codex', 'antigravity'],
+  ])('chooses Codex independently of explicit order: %s, %s', (first, second) => {
+    expect(
+      resolveSharedSkillWriters('/project-that-does-not-exist', tools(first, second))
+    ).toEqual(new Set(['codex']));
+  });
+
+  it('prefers an existing generic owner over an adapter-backed writer', async () => {
+    const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-shared-writer-'));
+    try {
+      const skillsRoot = path.join(projectPath, '.agents', 'skills');
+      await fs.mkdir(skillsRoot, { recursive: true });
+      await fs.writeFile(path.join(skillsRoot, '.openspec-target'), 'agents\n');
+      expect(resolveSharedSkillWriters(projectPath, tools('antigravity', 'agents'))).toEqual(
+        new Set(['agents'])
+      );
+    } finally {
+      await fs.rm(projectPath, { recursive: true, force: true });
+    }
   });
 });

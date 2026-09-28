@@ -130,6 +130,35 @@ describe('available-tools', () => {
       expect(toolValues).toContain('agents');
       expect(toolValues).not.toContain('codex');
       expect(toolValues).not.toContain('zed');
+      expect(toolValues).not.toContain('antigravity');
+    });
+
+    it('should detect Antigravity from its legacy .agent directory', async () => {
+      await fs.mkdir(path.join(testDir, '.agent'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toEqual(['antigravity']);
+      expect(tools[0].skillsDir).toBe('.agents');
+    });
+
+    it('should detect Antigravity from .agents/workflows', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'workflows'), { recursive: true });
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['antigravity']);
+    });
+
+    it('should retain Antigravity when another tool owns the shared skills root', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.agents', 'workflows'), { recursive: true });
+      await fs.writeFile(
+        path.join(testDir, '.agents', 'skills', '.openspec-target'),
+        'codex\n'
+      );
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual([
+        'antigravity',
+        'codex',
+      ]);
     });
 
     it('should detect Zed Agent from its project configuration directory', async () => {
@@ -502,6 +531,18 @@ describe('available-tools', () => {
       expect(ohMyPiTool).toBeDefined();
       expect(ohMyPiTool?.name).toBe('Oh My Pi');
       expect(ohMyPiTool?.skillsDir).toBe('.omp');
+    });
+
+    it('should detect SourceCraft Code Assistant when .codeassistant directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.codeassistant'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const toolValues = tools.map((t) => t.value);
+      expect(toolValues).toContain('codeassistant');
+
+      const codeassistantTool = tools.find((t) => t.value === 'codeassistant');
+      expect(codeassistantTool?.name).toBe('SourceCraft Code Assistant');
+      expect(codeassistantTool?.skillsDir).toBe('.codeassistant');
     });
   });
 });

@@ -22,6 +22,10 @@ function relativePathSchema(fieldName: string) {
 }
 
 // Artifact definition schema
+// Upper bound on artifacts in one schema. Keeps `validateNoCycles`' recursive
+// DFS well inside the stack limit for any accepted input.
+const MAX_ARTIFACTS = 1000;
+
 export const ArtifactSchema = z.object({
   id: z.string().min(1, { error: 'Artifact ID is required' }),
   generates: relativePathSchema('generates field'),
@@ -46,7 +50,15 @@ export const SchemaYamlSchema = z.object({
   name: z.string().min(1, { error: 'Schema name is required' }),
   version: z.number().int().positive({ error: 'Version must be a positive integer' }),
   description: z.string().optional(),
-  artifacts: z.array(ArtifactSchema).min(1, { error: 'At least one artifact required' }),
+  artifacts: z
+    .array(ArtifactSchema)
+    .min(1, { error: 'At least one artifact required' })
+    // Bounded so a hostile schema cannot drive the cycle-detection DFS past the
+    // V8 stack limit and crash with an uncaught RangeError instead of a
+    // validation error.
+    .max(MAX_ARTIFACTS, {
+      error: `A schema may declare at most ${MAX_ARTIFACTS} artifacts`,
+    }),
   // Optional apply phase configuration (for schema-aware apply instructions)
   apply: ApplyPhaseSchema.optional(),
 });

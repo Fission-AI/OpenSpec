@@ -28,6 +28,7 @@ import { kiroAdapter } from './adapters/kiro.js';
 import { ohMyPiAdapter } from './adapters/oh-my-pi.js';
 import { opencodeAdapter } from './adapters/opencode.js';
 import { piAdapter } from './adapters/pi.js';
+import { codeassistantAdapter } from './adapters/codeassistant.js';
 import { qoderAdapter } from './adapters/qoder.js';
 import { lingmaAdapter } from './adapters/lingma.js';
 import { qwenAdapter } from './adapters/qwen.js';
@@ -65,6 +66,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(ohMyPiAdapter);
     CommandAdapterRegistry.register(opencodeAdapter);
     CommandAdapterRegistry.register(piAdapter);
+    CommandAdapterRegistry.register(codeassistantAdapter);
     CommandAdapterRegistry.register(qoderAdapter);
     CommandAdapterRegistry.register(lingmaAdapter);
     CommandAdapterRegistry.register(qwenAdapter);

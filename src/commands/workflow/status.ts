@@ -19,6 +19,13 @@ import {
   formatChangeStatus,
   type ChangeStatus,
 } from '../../core/artifact-graph/index.js';
+import { resolveNextStep } from '../../core/change-status-policy.js';
+import { asStatus } from '../shared-output.js';
+import {
+  describeNestedChange,
+  findNestedChanges,
+} from '../../utils/nested-change.js';
+import type { StoreDiagnostic } from '../../core/store/errors.js';
 import {
   validateChangeExists,
   validateSchemaExists,
@@ -33,6 +40,7 @@ import {
 
 export interface StatusOptions {
   change?: string;
+  all?: boolean;
   schema?: string;
   store?: string;
   storePath?: string;
@@ -43,10 +51,30 @@ export interface StatusOptions {
 // Command Implementation
 // -----------------------------------------------------------------------------
 
+// A batch entry is either a fully loaded status or, for a change that failed
+// to load, the change name plus the diagnostic — the sweep never aborts.
+type BatchStatusEntry = ChangeStatus | { changeName: string; status: StoreDiagnostic[] };
+
+// The --all --json failure null-shape. Root-selection failures (handled in
+// resolveRootForCommand) and thrown errors (caught by the CLI wrapper) must
+// emit the same shape, so both call sites reference this one constant.
+export const BATCH_STATUS_FAILURE_PAYLOAD: Record<string, unknown> = {
+  changes: [],
+  root: null,
+};
+
 export async function statusCommand(options: StatusOptions): Promise<void> {
+  if (options.all && options.change) {
+    throw new Error('The --all and --change options are mutually exclusive.');
+  }
+
   // The root resolves (and the store banner prints) before the spinner starts
-  // so the two do not fight over stderr.
-  const root = await resolveRootForCommand(options, { json: options.json });
+  // so the two do not fight over stderr. The batch null-shape rides along so
+  // a root-selection failure under --all --json still carries `changes: []`.
+  const root = await resolveRootForCommand(options, {
+    json: options.json,
+    failurePayload: options.all ? BATCH_STATUS_FAILURE_PAYLOAD : undefined,
+  });
   if (!root) {
     return;
   }
@@ -59,9 +87,31 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     const rootOutput = toRootOutput(root);
     const newChangeHint = withStoreFlag(root, 'openspec new change <name>');
 
+    // One store-flag decision serves the JSON `nextSteps` sentence and the text
+    // `Next:` line, so a store-selected root can never carry `--store` in one
+    // and drop it from the other.
+    const storeOptions = isStoreSelectedRoot(root) ? { storeId: root.storeId } : {};
+
+    // Single definition of "load one change's status" so the batch and
+    // single-change payloads can never drift apart.
+    const loadStatus = (changeName: string): ChangeStatus =>
+      formatChangeStatus(
+        loadChangeContext(projectRoot, changeName, options.schema, {
+          changeDir: getChangeDir(planningHome, changeName),
+          planningHome,
+        }),
+        storeOptions
+      );
+
     // Handle no-changes case gracefully — status is informational,
     // so "no changes" is a valid state, not an error.
     if (!options.change) {
+      // Validate before the no-changes early return so a bogus --schema
+      // fails the same way whether or not any change exists yet.
+      if (options.all && options.schema) {
+        validateSchemaExists(options.schema, projectRoot);
+      }
+
       const available = await getAvailableChanges(projectRoot, root.changesDir);
       if (available.length === 0) {
         spinner?.stop();
@@ -78,10 +128,76 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
         console.log(`No active changes. Create one with: ${newChangeHint}`);
         return;
       }
-      // Changes exist but --change not provided
+
+      if (options.all) {
+        // readdir order is platform-dependent; sort for deterministic output,
+        // with the same comparator validate --all uses so the two batch
+        // commands order a given change set identically.
+        const entries: BatchStatusEntry[] = [];
+        // The sweep reads each directory straight through `loadStatus`, so a
+        // namespace folder wrapping nested changes would report a whole
+        // artifact plan for work that is not there (#1846). It carries the same
+        // per-change diagnostic a malformed change does.
+        const nestedByName = new Map(
+          (await findNestedChanges(root.changesDir, available)).map((finding) => [
+            finding.name,
+            finding,
+          ])
+        );
+        for (const changeName of available.sort((a, b) => a.localeCompare(b))) {
+          const nested = nestedByName.get(changeName);
+          if (nested) {
+            entries.push({
+              changeName,
+              status: [asStatus(new Error(describeNestedChange(nested)), 'change_error')],
+            });
+            continue;
+          }
+          try {
+            entries.push(loadStatus(changeName));
+          } catch (error) {
+            // One malformed change must not blank the sweep; carry its
+            // diagnostic in place and keep going.
+            entries.push({ changeName, status: [asStatus(error, 'change_error')] });
+          }
+        }
+
+        spinner?.stop();
+        const failed = entries.some((entry) => !('artifacts' in entry));
+
+        if (options.json) {
+          console.log(JSON.stringify({ changes: entries, root: rootOutput }, null, 2));
+          if (failed) {
+            process.exitCode = 1;
+          }
+          return;
+        }
+
+        entries.forEach((entry, index) => {
+          if (index > 0) {
+            console.log();
+          }
+          if ('artifacts' in entry) {
+            printStatusText(entry, storeOptions);
+          } else {
+            console.log(chalk.red(`✗ ${entry.changeName}: ${entry.status[0]?.message}`));
+          }
+        });
+        // A partial load is still a failed command in both output modes;
+        // JSON callers can parse the complete envelope independently of
+        // the process exit code.
+        if (failed) {
+          process.exitCode = 1;
+        }
+        return;
+      }
+
+      // Changes exist but neither --change nor --all provided. Name --all
+      // here too: it is the other way to answer this prompt, and a caller
+      // who wants every change should not have to find it in --help.
       spinner?.stop();
       throw new Error(
-        `Missing required option --change. Available changes:\n  ${available.join('\n  ')}`
+        `Missing required option --change (or --all for every active change). Available changes:\n  ${available.join('\n  ')}`
       );
     }
 
@@ -98,14 +214,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     }
 
     // loadChangeContext will auto-detect schema from metadata if not provided
-    const context = loadChangeContext(projectRoot, changeName, options.schema, {
-      changeDir: getChangeDir(planningHome, changeName),
-      planningHome,
-    });
-    const status = formatChangeStatus(
-      context,
-      isStoreSelectedRoot(root) ? { storeId: root.storeId } : {}
-    );
+    const status = loadStatus(changeName);
 
     spinner?.stop();
 
@@ -114,14 +223,19 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
       return;
     }
 
-    printStatusText(status);
+    printStatusText(status, storeOptions);
   } catch (error) {
     spinner?.stop();
     throw error;
   }
 }
 
-export function printStatusText(status: ChangeStatus): void {
+export interface PrintStatusTextOptions {
+  /** Selected store id, so the printed command carries `--store`. */
+  storeId?: string;
+}
+
+export function printStatusText(status: ChangeStatus, options: PrintStatusTextOptions = {}): void {
   const doneCount = status.artifacts.filter((a) => a.status === 'done').length;
   const skippedCount = status.artifacts.filter((a) => a.status === 'skipped').length;
   const total = status.artifacts.length - skippedCount;
@@ -151,8 +265,26 @@ export function printStatusText(status: ChangeStatus): void {
     console.log(line);
   }
 
-  if (status.isPlanningComplete) {
+  // Derived from the same inputs as the JSON `nextSteps` sentence, so the two
+  // surfaces always name the same command. Without this line the text surface
+  // reports state and no verb, which leaves someone resuming a change - after a
+  // lost session, or on a change they did not start - with nowhere to go.
+  const nextStep = resolveNextStep({
+    changeName: status.changeName,
+    artifactStatuses: status.artifacts,
+    allArtifactsComplete: status.isPlanningComplete,
+    ...(options.storeId ? { storeId: options.storeId } : {}),
+  });
+
+  if (status.isPlanningComplete || nextStep) {
     console.log();
+  }
+
+  if (status.isPlanningComplete) {
     console.log(chalk.green('All planning artifacts complete!'));
+  }
+
+  if (nextStep) {
+    console.log(`Next: ${nextStep.command}`);
   }
 }

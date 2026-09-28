@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
 import ora from 'ora';
-import { stringify as stringifyYaml, parseDocument } from 'yaml';
+import { stringify as stringifyYaml, parseDocument, isMap } from 'yaml';
 import {
   getSchemaDir,
   getProjectSchemasDir,
@@ -12,8 +12,13 @@ import {
   isSchemaDir,
   listSchemas,
 } from '../core/artifact-graph/resolver.js';
-import { parseSchema, SchemaValidationError } from '../core/artifact-graph/schema.js';
+import {
+  findApplyTracksWarning,
+  parseSchema,
+  SchemaValidationError,
+} from '../core/artifact-graph/schema.js';
 import type { SchemaYaml, Artifact } from '../core/artifact-graph/types.js';
+import { resolveConfigFilePath } from '../core/project-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 
 /**
@@ -226,13 +231,20 @@ function validateSchema(
     }
   }
 
-  // Dependency graph validation is already done by parseSchema
-  // (it throws on cycles and invalid references)
+  // Dependency graph validation is already done by parseSchema (it throws on
+  // cycles, invalid references, and an unknown apply.requires id)
   if (verbose) {
     console.log('  Dependency graph validation passed (via parseSchema)');
   }
 
-  return { valid: issues.length === 0, issues };
+  // An apply.tracks value that matches no generates value exactly still loads
+  // (apply reads the path as written), so it is a warning, not an error.
+  const tracksWarning = findApplyTracksWarning(schema);
+  if (tracksWarning) {
+    issues.push({ level: 'warning', path: 'apply.tracks', message: tracksWarning });
+  }
+
+  return { valid: !issues.some((issue) => issue.level === 'error'), issues };
 }
 
 /**
@@ -369,6 +381,100 @@ function fingerprintDir(dir: string): string {
   };
   walk(dir, '');
   return hash.digest('hex');
+}
+
+interface PreparedConfigUpdate {
+  path: string;
+  content: Buffer;
+  originalContent: Buffer | null;
+  originalMode: number | null;
+}
+
+/** @internal File-operation seam for transactional failure tests. */
+export const schemaInitFileOperations = {
+  renameSync: fs.renameSync,
+};
+
+async function prepareDefaultConfigUpdate(
+  projectRoot: string,
+  schemaName: string
+): Promise<PreparedConfigUpdate> {
+  const configPath =
+    resolveConfigFilePath(projectRoot) ??
+    path.join(projectRoot, 'openspec', 'config.yaml');
+  FileSystemUtils.assertProjectArtifactPath(projectRoot, configPath);
+
+  if (fs.existsSync(configPath)) {
+    const stats = fs.lstatSync(configPath);
+    if (stats.isSymbolicLink()) {
+      throw new Error(
+        `Cannot set the default schema: ${path.basename(configPath)} must be a regular file, not a symbolic link`
+      );
+    }
+    if (!stats.isFile()) {
+      throw new Error(
+        `Cannot set the default schema: ${path.basename(configPath)} must be a regular file`
+      );
+    }
+    if (
+      !(await FileSystemUtils.canWriteFile(configPath)) ||
+      !(await FileSystemUtils.canWriteFile(path.dirname(configPath)))
+    ) {
+      throw new Error(
+        `Cannot set the default schema: ${path.basename(configPath)} is not writable`
+      );
+    }
+
+    const originalContent = fs.readFileSync(configPath);
+    const config = parseDocument(originalContent.toString('utf-8'));
+    if (config.errors.length > 0) {
+      throw new Error(
+        `Cannot set the default schema: ${path.basename(configPath)} is invalid YAML`
+      );
+    }
+    if (config.contents !== null && !isMap(config.contents)) {
+      throw new Error(
+        `Cannot set the default schema: ${path.basename(configPath)} must contain a YAML object`
+      );
+    }
+    config.set('schema', schemaName);
+    config.delete('defaultSchema');
+
+    return {
+      path: configPath,
+      content: Buffer.from(config.toString()),
+      originalContent,
+      originalMode: stats.mode,
+    };
+  }
+
+  if (!(await FileSystemUtils.canWriteFile(configPath))) {
+    throw new Error(
+      `Cannot set the default schema: ${path.dirname(configPath)} is not writable`
+    );
+  }
+
+  return {
+    path: configPath,
+    content: Buffer.from(stringifyYaml({ schema: schemaName })),
+    originalContent: null,
+    originalMode: null,
+  };
+}
+
+function configMatchesPreparedState(prepared: PreparedConfigUpdate): boolean {
+  if (prepared.originalContent === null) {
+    return !fs.existsSync(prepared.path);
+  }
+  if (!fs.existsSync(prepared.path)) return false;
+
+  const stats = fs.lstatSync(prepared.path);
+  return (
+    stats.isFile() &&
+    !stats.isSymbolicLink() &&
+    stats.mode === prepared.originalMode &&
+    fs.readFileSync(prepared.path).equals(prepared.originalContent)
+  );
 }
 
 /**
@@ -645,6 +751,9 @@ export function registerSchemaCommand(program: Command): void {
         } else {
           if (result.valid) {
             console.log(`✓ Schema '${name}' is valid`);
+            for (const issue of result.issues) {
+              console.log(`  ${issue.level}: ${issue.message}`);
+            }
           } else {
             console.log(`✗ Schema '${name}' has errors:`);
             for (const issue of result.issues) {
@@ -1103,53 +1212,175 @@ export function registerSchemaCommand(program: Command): void {
           };
         }
 
-        // Replace only after all inputs have been collected and validated
-        if (schemaExists) {
-          if (spinner) spinner.start(`Removing existing schema '${name}'...`);
-          fs.rmSync(schemaDir, { recursive: true });
-        }
+        // Parse and serialize the config before staging any schema files. This
+        // makes malformed, non-object, linked, and read-only configs fail before
+        // an existing schema can be moved or a new one can appear.
+        const preparedConfig = options?.default
+          ? await prepareDefaultConfigUpdate(projectRoot, name)
+          : null;
+        const schemasDir = getProjectSchemasDir(projectRoot);
+        FileSystemUtils.assertProjectArtifactPath(projectRoot, schemaDir);
+        const authorizedSchemaFingerprint = schemaExists
+          ? fingerprintDir(schemaDir)
+          : null;
 
-        // Create schema directory
         if (spinner) spinner.start(`Creating schema '${name}'...`);
-        fs.mkdirSync(schemaDir, { recursive: true });
-
-        fs.writeFileSync(
-          path.join(schemaDir, 'schema.yaml'),
-          stringifyYaml(schema)
+        fs.mkdirSync(schemasDir, { recursive: true });
+        const schemaStagingDir = fs.mkdtempSync(
+          path.join(schemasDir, '.init-staging-')
         );
+        let configStagingDir: string | null = null;
+        let stagedConfigPath: string | null = null;
 
-        // Create template files in templates/ subdirectory (standard location)
-        const templatesDir = path.join(schemaDir, 'templates');
-        for (const artifact of selectedArtifacts) {
-          const templatePath = path.join(templatesDir, artifact.template);
-          const templateDir = path.dirname(templatePath);
+        try {
+          fs.writeFileSync(
+            path.join(schemaStagingDir, 'schema.yaml'),
+            stringifyYaml(schema)
+          );
 
-          if (!fs.existsSync(templateDir)) {
-            fs.mkdirSync(templateDir, { recursive: true });
+          const templatesDir = path.join(schemaStagingDir, 'templates');
+          for (const artifact of selectedArtifacts) {
+            const templatePath = path.join(templatesDir, artifact.template);
+            fs.mkdirSync(path.dirname(templatePath), { recursive: true });
+            fs.writeFileSync(templatePath, createDefaultTemplate(artifact.id));
           }
 
-          // Create default template content
-          const templateContent = createDefaultTemplate(artifact.id);
-          fs.writeFileSync(templatePath, templateContent);
-        }
+          const validation = validateSchema(schemaStagingDir);
+          if (!validation.valid) {
+            throw new Error(
+              `Generated schema failed validation: ${validation.issues
+                .map((issue) => issue.message)
+                .join('; ')}`
+            );
+          }
 
-        // Update config if --default
-        if (options?.default) {
-          const configPath = path.join(projectRoot, 'openspec', 'config.yaml');
-
-          if (fs.existsSync(configPath)) {
-            const { parse: parseYaml, stringify: stringifyYaml2 } = await import('yaml');
-            const configContent = fs.readFileSync(configPath, 'utf-8');
-            const config = parseYaml(configContent) || {};
-            config.defaultSchema = name;
-            fs.writeFileSync(configPath, stringifyYaml2(config));
-          } else {
-            // Create config file
-            const configDir = path.dirname(configPath);
-            if (!fs.existsSync(configDir)) {
-              fs.mkdirSync(configDir, { recursive: true });
+          if (preparedConfig) {
+            const configDir = path.dirname(preparedConfig.path);
+            configStagingDir = fs.mkdtempSync(
+              path.join(configDir, '.schema-init-config-')
+            );
+            stagedConfigPath = path.join(
+              configStagingDir,
+              path.basename(preparedConfig.path)
+            );
+            fs.writeFileSync(stagedConfigPath, preparedConfig.content);
+            if (preparedConfig.originalMode !== null) {
+              fs.chmodSync(stagedConfigPath, preparedConfig.originalMode);
             }
-            fs.writeFileSync(configPath, stringifyYaml({ defaultSchema: name }));
+          }
+
+          // Re-resolve both destinations immediately before the first move so
+          // a parent symlink swap during staging cannot redirect the commit.
+          FileSystemUtils.assertProjectArtifactPath(projectRoot, schemaDir);
+          if (preparedConfig) {
+            FileSystemUtils.assertProjectArtifactPath(projectRoot, preparedConfig.path);
+          }
+
+          const currentSchemaFingerprint = fs.existsSync(schemaDir)
+            ? fingerprintDir(schemaDir)
+            : null;
+          if (currentSchemaFingerprint !== authorizedSchemaFingerprint) {
+            throw new Error(
+              `Schema '${name}' changed on disk while initialization was being prepared. ` +
+                'Aborted to preserve those concurrent changes.'
+            );
+          }
+          if (preparedConfig && !configMatchesPreparedState(preparedConfig)) {
+            throw new Error(
+              `${path.basename(preparedConfig.path)} changed on disk while initialization was being prepared. ` +
+                'Aborted to preserve those concurrent changes.'
+            );
+          }
+
+          const token = `${process.pid}-${Date.now()}`;
+          const schemaBackup = `${schemaDir}.init-backup-${token}`;
+          const configBackup = preparedConfig
+            ? `${preparedConfig.path}.init-backup-${token}`
+            : null;
+          let schemaBackedUp = false;
+          let configBackedUp = false;
+          let schemaInstalled = false;
+          let configInstalled = false;
+
+          try {
+            if (schemaExists) {
+              schemaInitFileOperations.renameSync(schemaDir, schemaBackup);
+              schemaBackedUp = true;
+            }
+            if (preparedConfig && preparedConfig.originalContent !== null) {
+              schemaInitFileOperations.renameSync(preparedConfig.path, configBackup!);
+              configBackedUp = true;
+            }
+
+            schemaInitFileOperations.renameSync(schemaStagingDir, schemaDir);
+            schemaInstalled = true;
+            if (preparedConfig && stagedConfigPath) {
+              schemaInitFileOperations.renameSync(stagedConfigPath, preparedConfig.path);
+              configInstalled = true;
+            }
+          } catch (installError) {
+            const rollbackErrors: string[] = [];
+            try {
+              if (configInstalled && preparedConfig) {
+                fs.rmSync(preparedConfig.path, { force: true });
+              }
+              if (configBackedUp && preparedConfig && configBackup) {
+                schemaInitFileOperations.renameSync(configBackup, preparedConfig.path);
+              }
+            } catch (rollbackError) {
+              rollbackErrors.push(`config: ${(rollbackError as Error).message}`);
+            }
+            try {
+              if (schemaInstalled) {
+                fs.rmSync(schemaDir, { recursive: true, force: true });
+              }
+              if (schemaBackedUp) {
+                schemaInitFileOperations.renameSync(schemaBackup, schemaDir);
+              }
+            } catch (rollbackError) {
+              rollbackErrors.push(`schema: ${(rollbackError as Error).message}`);
+            }
+
+            if (rollbackErrors.length > 0) {
+              throw new Error(
+                `Schema initialization failed and rollback was incomplete (${rollbackErrors.join(', ')}). ` +
+                  `Recovery backups may remain beside ${schemaDir} and ${preparedConfig?.path ?? 'the config file'}.`,
+                { cause: installError }
+              );
+            }
+            throw installError;
+          }
+
+          // The transaction is committed. Cleanup cannot turn success into a
+          // false failure, so leave a recoverable backup and warn if removal is
+          // blocked instead of reporting that initialization failed.
+          for (const backup of [
+            schemaBackedUp ? schemaBackup : null,
+            configBackedUp ? configBackup : null,
+          ]) {
+            if (!backup) continue;
+            try {
+              fs.rmSync(backup, { recursive: true, force: true });
+            } catch (cleanupError) {
+              console.error(
+                `Warning: initialization succeeded, but the backup at ${backup} could not be removed: ${(cleanupError as Error).message}`
+              );
+            }
+          }
+        } catch (error) {
+          try {
+            fs.rmSync(schemaStagingDir, { recursive: true, force: true });
+          } catch {
+            // Best-effort cleanup must not hide the operation's real error.
+          }
+          throw error;
+        } finally {
+          if (configStagingDir) {
+            try {
+              fs.rmSync(configStagingDir, { recursive: true, force: true });
+            } catch {
+              // Best-effort cleanup. A committed config has already moved out.
+            }
           }
         }
 
@@ -1191,11 +1422,17 @@ export function registerSchemaCommand(program: Command): void {
 
 /**
  * Create default template content for an artifact.
+ *
+ * Every template opens with a top-level heading so the artifact it produces is
+ * a well-formed markdown document rather than a file whose first line is a
+ * section header (markdownlint MD041, #1138).
  */
 function createDefaultTemplate(artifactId: string): string {
   switch (artifactId) {
     case 'proposal':
-      return `## Why
+      return `# Proposal
+
+## Why
 
 <!-- Describe the motivation for this change -->
 
@@ -1217,7 +1454,9 @@ function createDefaultTemplate(artifactId: string): string {
 `;
 
     case 'specs':
-      return `## ADDED Requirements
+      return `# Spec Delta
+
+## ADDED Requirements
 
 ### Requirement: Example requirement
 
@@ -1229,7 +1468,9 @@ Description of the requirement.
 `;
 
     case 'design':
-      return `## Context
+      return `# Design
+
+## Context
 
 <!-- Background and context -->
 
@@ -1256,7 +1497,9 @@ Description and rationale.
 `;
 
     case 'tasks':
-      return `## Implementation Tasks
+      return `# Tasks
+
+## Implementation Tasks
 
 - [ ] Task 1
 - [ ] Task 2
@@ -1264,7 +1507,7 @@ Description and rationale.
 `;
 
     default:
-      return `## ${artifactId}
+      return `# ${artifactId}
 
 <!-- Add content here -->
 `;
