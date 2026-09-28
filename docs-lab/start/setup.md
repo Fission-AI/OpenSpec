@@ -34,6 +34,19 @@ Re-running init is safe:
 - Running init again with a new tool selected adds that tool.
 - The `--tools` flag skips the picker ([CLI reference](../reference/cli.md)).
 
+### Migrate an existing `project.md`
+
+When interactive init creates a new `openspec/config.yaml` and finds `openspec/project.md`, it asks:
+
+```
+? Copy openspec/project.md into the new config.yaml context? The project.md file will be kept. (Y/n)
+```
+
+- **Accept**: init copies the content into `context:` and keeps `project.md`.
+- **Decline**: init creates `config.yaml` without copying the content.
+- **Non-interactive runs**: init leaves the migration manual and prints the existing migration hint.
+- **Unreadable or oversized**: init skips content it cannot read or content that would exceed the 50 KB context limit. It keeps `project.md`.
+
 ## What init installs
 
 Running init creates two things in your project:

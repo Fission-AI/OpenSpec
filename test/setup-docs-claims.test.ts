@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { claudeAdapter } from '../src/core/command-generation/adapters/claude.js';
 import { AI_TOOLS } from '../src/core/config.js';
 import { CORE_WORKFLOWS } from '../src/core/profiles.js';
+import { MAX_CONTEXT_SIZE } from '../src/core/project-config.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SETUP = fs.readFileSync(
@@ -20,6 +21,29 @@ const CORE_SECTION = PROFILES.split('## The core set')[1].split(
 )[0];
 
 describe('setup documentation', () => {
+  it('documents the project.md migration boundaries', () => {
+    expect(SETUP).toContain(
+      'When interactive init creates a new `openspec/config.yaml` and finds `openspec/project.md`'
+    );
+    expect(SETUP).toContain(
+      '? Copy openspec/project.md into the new config.yaml context? The project.md file will be kept. (Y/n)'
+    );
+    expect(SETUP).toContain(
+      '**Accept**: init copies the content into `context:` and keeps `project.md`.'
+    );
+    expect(SETUP).toContain(
+      '**Decline**: init creates `config.yaml` without copying the content.'
+    );
+    expect(SETUP).toContain('**Non-interactive runs**: init leaves the migration manual');
+    expect(SETUP).toContain(
+      '**Unreadable or oversized**: init skips content it cannot read or content'
+    );
+    expect(SETUP).toContain(
+      `content that would exceed the ${MAX_CONTEXT_SIZE / 1024} KB context limit`
+    );
+    expect(SETUP).toContain('It keeps `project.md`.');
+  });
+
   it('keeps the Claude Code paths and recovery commands aligned with OpenSpec', () => {
     const claude = AI_TOOLS.find((tool) => tool.value === 'claude');
     const claudeCommandPath = claudeAdapter.getFilePath('<id>').split(path.sep).join('/');
