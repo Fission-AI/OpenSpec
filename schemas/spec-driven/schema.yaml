@@ -18,7 +18,19 @@ artifacts:
       - **Impact**: Affected code, APIs, dependencies, or systems.
 
       IMPORTANT: The Capabilities section is critical. It creates the contract between
-      proposal and specs phases. Research existing specs before filling this in.
+      proposal and specs phases. Research existing specs before filling this in:
+      run `openspec list --specs` for the project's capability inventory, then
+      `openspec show "<spec-id>" --type spec --json --no-scenarios` for any that
+      look related - that returns a capability's purpose and requirement texts
+      without pulling whole spec files into context. Append `--store "<id>"` to
+      both commands only for a registered standalone store, and keep `--type
+      spec`: a change and a spec sharing a name is otherwise an ambiguous-item
+      error. `openspec list` without `--specs` lists in-flight changes, not
+      specs - it never shows what the project already covers. Reuse an existing
+      capability's exact path instead of introducing a near-duplicate name.
+      The filtered read is only an overview. Before deciding what is already
+      covered or what should change, read each relevant spec in full, including
+      scenarios, with `openspec show "<spec-id>" --type spec` (same `--store` rule).
       Each capability listed here will need a corresponding spec file.
 
       Every change must either declare at least one capability (new or
@@ -63,7 +75,7 @@ artifacts:
       `<capability-path>` is the spec directory relative to `specs/` (for example,
       `user-auth` or `identity/user-auth`). Preserve the full path:
       - New capabilities: use the exact path from the proposal at `specs/<capability-path>/spec.md`. Any path segment newly introduced in the proposal must be kebab-case. Follow the project's existing organization; do not add a new domain level when the project uses a flat layout.
-      - Modified capabilities: use the exact existing path from `openspec/specs/<capability-path>/` when creating the delta at `specs/<capability-path>/spec.md`. Do not move or rename the capability.
+      - Modified capabilities: use the exact existing path from `openspec/specs/<capability-path>/` when creating the delta at `specs/<capability-path>/spec.md`. Run `openspec list --specs` to confirm that path before writing the delta, appending `--store "<id>"` only for a registered standalone store - a mistyped or invented path targets a capability that does not exist rather than the one you meant. Do not move or rename the capability.
 
       There must be at least one spec file unless the change's `.openspec.yaml`
       sets `skip_specs: true` (no spec-level behavior change) - `openspec validate`
@@ -83,7 +95,7 @@ artifacts:
       - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
       - Every requirement MUST have at least one scenario.
 
-      New capabilities only: start the delta spec with a `## Purpose` section -
+      New capabilities only: the delta spec's first section is `## Purpose` -
       one or two sentences (50+ characters, or `openspec validate --strict`
       reports it as too brief) describing what the capability is for. Archive
       copies it into the main spec it creates; without it the new main spec is
@@ -108,8 +120,10 @@ artifacts:
       Common pitfall: Using MODIFIED with partial content loses detail at archive time.
       If adding new concerns without changing existing behavior, use ADDED instead.
 
-      Example (a new capability, so it opens with `## Purpose`):
+      Example (a new capability, so its first section is `## Purpose`):
       ```
+      # Spec Delta
+
       ## Purpose
 
       Lets users take their data out of the product in a portable format.
@@ -181,7 +195,10 @@ artifacts:
       bake an unstated assumption into the task list.
 
       **IMPORTANT: Follow the template below exactly.** The apply phase parses
-      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+      checkbox format to track progress. A box holding only `x` counts as done,
+      upper or lower case and with any spacing, so `- [ x]` is done too. Every
+      other marker, including `- [~]`, `- [-]` and an empty `- []`, reads as
+      unfinished. A line with no checkbox is not tracked at all.
 
       Guidelines:
       - Group related tasks under ## numbered headings
@@ -193,9 +210,18 @@ artifacts:
         that task's checkbox description. Use a separate verification task only
         when it checks broader integration or system behavior that spans
         multiple implementation tasks.
+      - Each task group MUST land the tests and documentation its own work
+        calls for. Do NOT collect testing or documentation into a final group -
+        when a late group first exercises work from an early one, the failures
+        cascade back through every group in between and force rework. A group
+        whose work calls for neither, such as scaffolding or dependency setup,
+        carries neither. A final group is for integration checks only, not for
+        the tests and docs an earlier group owed.
 
       Example:
       ```
+      # Tasks
+
       ## 1. Setup
 
       - [ ] 1.1 Create new module structure and verify expected files are present
@@ -205,6 +231,7 @@ artifacts:
 
       - [ ] 2.1 Implement data export function and verify the export test passes
       - [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
+      - [ ] 2.3 Document the export API in docs/export.md and verify the documented command runs as written
       ```
 
       Reference specs for what needs to be built, design for how to build it.

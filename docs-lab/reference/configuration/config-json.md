@@ -15,8 +15,8 @@ The CLI keeps its machine-level settings at `~/.config/openspec/config.json` on 
 | `workflows` | list of strings | No | The workflow list a `custom` profile installs |
 | `featureFlags` | map: flag → boolean | No | Boolean feature toggles |
 | `defaultStore` | string | No | Machine-level fallback store for root resolution |
-| `openers` | list | No | The tools worksets open in, and how each is launched |
-| `telemetry` | map | No | State the CLI keeps: anonymous id and notice-seen |
+| `openers` | map: tool id → settings | No | The tools worksets open in, and how each is launched |
+| `telemetry` | map | No | Telemetry opt-out, anonymous id, and notice-seen state |
 
 ### profile
 
@@ -36,15 +36,49 @@ Boolean toggles keyed by flag name, set with `openspec config set featureFlags.<
 
 ### defaultStore
 
-The machine-level fallback store id for root resolution, consulted only when no `--store` flag, local `openspec/`, or project `store:` pointer resolves. The full ladder is [Root resolution](stores.md#root-resolution).
+The machine-level fallback store id for root resolution, consulted only when no `--store` flag, local `openspec/`, or project `store:` pointer resolves. The full ladder is [Root resolution](../../multi-repo/stores.md#where-artifacts-get-created-when-using-stores).
 
 ### openers
 
-The tools a workset can open in, and how each is launched. Entries are hand-edited and validated on use. Each may set `style` (`workspace-file` or `attach-dirs`), `label`, `command`, `args`, and `attach_flag`, and is merged over the built-in defaults.
+The tools a workset can open in, keyed by tool id. Edit `openers` in the global `config.json` with `openspec config edit` in your terminal.
+
+| Field | Contract |
+| --- | --- |
+| `style` | `workspace-file` or `attach-dirs`. Required for a new tool; optional for a built-in. |
+| `label` | Non-empty string shown in the tool picker. Defaults to the id for a new tool. |
+| `command` | Non-empty executable name or path. Defaults to the id for a new tool. Put arguments in `args`, not in this string. |
+| `args` | Array of strings passed before the workspace file or attach flags. Defaults to `[]` for a new tool. |
+| `attach_flag` | Non-empty string paired with each member path for `attach-dirs`. Defaults to `--add-dir` for a new tool. Ignored for `workspace-file`. |
+
+**Built-in overrides:** `code`, `cursor`, `claude`, and `codex` retain any fields you omit. Setting `args` replaces the entire argument list; `[]` clears it.
+
+**Launch styles:** `workspace-file` passes the generated `.code-workspace` path to the executable. `attach-dirs` passes one flag/path pair per member, including the primary member.
+
+**Availability:** `attach-dirs` openers, including Claude Code and Codex, are disabled by default. You cannot select or save them with `--tool`, and OpenSpec refuses to open a workset that already names one. Configuration overrides do not enable the `attach-dirs` launch style.
+
+**Validation:** unknown fields, invalid types, and a new tool without `style` fail when a workset command reads the opener table.
+
+This example adds VS Code Insiders and passes `--new-window` whenever the built-in VS Code opener launches:
+
+```json
+{
+  "openers": {
+    "code-insiders": {
+      "style": "workspace-file",
+      "label": "VS Code Insiders"
+    },
+    "code": {
+      "args": ["--new-window"]
+    }
+  }
+}
+```
+
+The corresponding `code-insiders` or `code` executable must be installed and available on `PATH`.
 
 ### telemetry
 
-State the CLI writes for telemetry: your anonymous id and whether the first-run notice was shown. It is not the opt-out. Disabling telemetry is an environment variable, on [Environment variables](environment-variables.md).
+The CLI stores your anonymous id and whether the first-run notice was shown. Set `telemetry.enabled` to `false` to disable telemetry. You can also opt out with `OPENSPEC_TELEMETRY=0` or `DO_NOT_TRACK=1` in your environment.
 
 ## Example
 

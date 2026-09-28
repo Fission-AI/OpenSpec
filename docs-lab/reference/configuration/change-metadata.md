@@ -20,7 +20,7 @@ Each change keeps its metadata at `openspec/changes/<change-name>/.openspec.yaml
 
 ### schema
 
-The workflow schema this change follows. It is set when the change is created and wins over the project config, so a change keeps its schema even if `openspec/config.yaml` changes afterwards. Valid names are listed in [Schemas](../schemas/index.md).
+The workflow schema this change follows. It is set when the change is created and wins over the project config, so a change keeps its schema even if `openspec/config.yaml` changes afterwards. Run [`openspec schemas`](../cli.md#openspec-schemas) to list the available schema names.
 
 ### initiative
 
@@ -36,11 +36,11 @@ Keys other than `store` and `id` are rejected. No command reads the link today.
 
 ### skip_specs
 
-Declares the change intentionally makes no spec deltas: a pure refactor, tooling, or docs change. With it set, validation accepts zero deltas, and artifacts that would generate spec files count as complete. Setting it while spec files exist under specs/ is a validation error. Its effect on deltas and archive is on [spec-driven](../schemas/spec-driven/index.md).
+Declares the change intentionally makes no spec deltas: a pure refactor, tooling, or docs change. With it set, validation accepts zero deltas, and artifacts that would generate spec files count as complete. Setting it while spec files exist under specs/ is a validation error.
 
 ### retire_capabilities
 
-Authorizes archive to retire a capability. When this change's REMOVED deltas take away the last requirement a capability has, archive deletes that capability's main spec instead of stopping. The flag exists because the deletion is only recoverable from git, so it stays the author's call. The archive behavior is on [spec-driven](../schemas/spec-driven/index.md).
+Authorizes archive to retire a capability. When this change's REMOVED deltas take away the last requirement a capability has, archive deletes that capability's main spec instead of stopping. The flag exists because the deletion is only recoverable from git, so it stays the author's call.
 
 ## Example
 

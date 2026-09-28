@@ -125,7 +125,7 @@ The scaffold is bare. Artifacts come from the built-in four ids only, and the ge
 
 A fork has two kinds of files to edit:
 
-- **templates/** change the skeleton of each document. Add a section to the tasks template and every new tasks.md starts with it.
+- **templates/** change the skeleton of each document. Add a section to the tasks template and every new tasks.md starts with it. Keep the `#` title on the first line: the artifact inherits it, so every generated file opens as a titled document.
 - **schema.yaml** changes the workflow itself: which artifacts exist, what each one requires first, and the instruction the agent gets when creating it.
 
 For example, to drop the design document for a leaner flow:

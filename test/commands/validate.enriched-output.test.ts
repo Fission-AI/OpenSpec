@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { execFileSync } from 'child_process';
+import { runCLI } from '../helpers/run-cli.js';
 
 describe('validate command enriched human output', () => {
   const projectRoot = process.cwd();
@@ -16,6 +17,143 @@ describe('validate command enriched human output', () => {
 
   afterEach(async () => {
     await fs.rm(testDir, { recursive: true, force: true });
+  });
+
+  const writeArchiveBlocker = async () => {
+    const mainDir = path.join(testDir, 'openspec', 'specs', 'widgets');
+    const changeDir = path.join(changesDir, 'c-archive');
+    const deltaDir = path.join(changeDir, 'specs', 'widgets');
+    await fs.mkdir(mainDir, { recursive: true });
+    await fs.mkdir(deltaDir, { recursive: true });
+    await fs.writeFile(path.join(mainDir, 'spec.md'), `# Widgets Specification
+
+## Purpose
+Define how widgets report their existing state consistently to all callers.
+
+## Requirements
+
+### Requirement: Existing state
+The system SHALL report the existing state.
+
+#### Scenario: Query state
+- **WHEN** queried
+- **THEN** the state is reported
+`);
+    await fs.writeFile(
+      path.join(changeDir, 'proposal.md'),
+      '# Widget update\n\n## Why\nUpdate widgets.\n\n## What Changes\n- Update state reporting\n'
+    );
+    await fs.writeFile(path.join(deltaDir, 'spec.md'), `## MODIFIED Requirements
+
+### Requirement: Future state
+The system SHALL report the future state.
+
+#### Scenario: Query state
+- **WHEN** queried
+- **THEN** the state is reported
+`);
+  };
+
+  const entryPoints = [
+    ['validate', 'c-archive'],
+    ['change', 'validate', 'c-archive'],
+    ['validate', '--changes'],
+    ['validate', '--all'],
+  ];
+
+  for (const strict of [false, true]) {
+    for (const args of entryPoints) {
+      const invocation = [...args, ...(strict ? ['--strict'] : [])];
+
+      it(`shows non-blocking archive advice for ${invocation.join(' ')}`, async () => {
+        await writeArchiveBlocker();
+
+        const result = await runCLI([...invocation, '--no-interactive'], { cwd: testDir });
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stderr).toContain('ℹ [INFO] widgets/spec.md: Archive would refuse this delta:');
+        expect(result.stderr).toContain('Future state');
+        expect(result.stderr).not.toContain('Next steps:');
+        expect(result.stdout).toMatch(/is valid|0 failed/);
+      });
+
+      it(`keeps archive advice structured and non-blocking for ${invocation.join(' ')} --json`, async () => {
+        await writeArchiveBlocker();
+
+        const result = await runCLI([...invocation, '--json', '--no-interactive'], { cwd: testDir });
+
+        expect(result.exitCode).toBe(0);
+        const output = JSON.parse(result.stdout);
+        const report = args[0] === 'change'
+          ? output
+          : output.items.find((item: { id: string }) => item.id === 'c-archive');
+        expect(report.valid).toBe(true);
+        expect(report.issues).toContainEqual(expect.objectContaining({
+          level: 'INFO',
+          path: 'widgets/spec.md',
+          message: expect.stringContaining('Archive would refuse this delta:'),
+        }));
+        expect(result.stderr).not.toContain('Archive would refuse this delta:');
+        if (args[0] !== 'change') expect(output.summary.totals.failed).toBe(0);
+      });
+    }
+  }
+
+  for (const args of [['validate', 'c-archive'], ['validate', '--changes']]) {
+    for (const json of [false, true]) {
+      it.skipIf(process.platform === 'win32')(
+        `reports an incomplete archive check without failing ${args.join(' ')}${json ? ' --json' : ''}`,
+        async () => {
+          await writeArchiveBlocker();
+          const deltaFile = path.join(changesDir, 'c-archive', 'specs', 'widgets', 'spec.md');
+          const delta = await fs.readFile(deltaFile, 'utf-8');
+          await fs.writeFile(deltaFile, delta.replace('## MODIFIED Requirements', '## ADDED Requirements'));
+          const mainFile = path.join(testDir, 'openspec', 'specs', 'widgets', 'spec.md');
+          const missingFile = path.join(testDir, 'missing-spec.md');
+          await fs.unlink(mainFile);
+          await fs.symlink(missingFile, mainFile);
+
+          const result = await runCLI(
+            [...args, '--strict', '--no-interactive', ...(json ? ['--json'] : [])],
+            { cwd: testDir }
+          );
+
+          if (json) {
+            const output = JSON.parse(result.stdout);
+            expect(output.items).toHaveLength(1);
+            expect(output.items[0].valid).toBe(true);
+            expect(output.items[0].issues).toContainEqual(expect.objectContaining({
+              level: 'INFO',
+              path: 'specs',
+              message: expect.stringContaining('Could not check archive merge conflicts:'),
+            }));
+            expect(output.summary.totals).toEqual({ items: 1, passed: 1, failed: 0 });
+          } else {
+            expect(result.stdout).toMatch(/is valid|0 failed/);
+            expect(result.stderr).toContain('ℹ [INFO] specs: Could not check archive merge conflicts:');
+            expect(result.stderr).not.toContain('Next steps:');
+          }
+          expect(result.exitCode).toBe(0);
+        }
+      );
+    }
+  }
+
+  it('preserves INFO severity in the deprecated command when another delta is invalid', async () => {
+    await writeArchiveBlocker();
+    const invalidDir = path.join(changesDir, 'c-archive', 'specs', 'broken');
+    await fs.mkdir(invalidDir, { recursive: true });
+    await fs.writeFile(
+      path.join(invalidDir, 'spec.md'),
+      '## ADDED Requirements\n\n### Requirement: Missing scenario\nThe system SHALL do something.\n'
+    );
+
+    const result = await runCLI(['change', 'validate', 'c-archive', '--no-interactive'], { cwd: testDir });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('ℹ [INFO] widgets/spec.md: Archive would refuse this delta:');
+    expect(result.stderr).toContain('[ERROR]');
+    expect(result.stderr).toContain('Next steps:');
   });
 
   it('prints Next steps footer and guidance on invalid change', async () => {

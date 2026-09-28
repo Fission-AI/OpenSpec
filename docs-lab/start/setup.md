@@ -41,7 +41,7 @@ Running init creates two things in your project:
 - An `openspec/` folder at the repo root
 - Workflow files (skills and commands) added to your AI tool's folder (`.agents/`, `.claude/`, etc.)
 
-Commit all of it like the rest of your source ([FAQ](../help/faq.md) covers why). Init changes nothing else in your repo (if it finds leftovers from an older OpenSpec version, it asks before cleaning them up).
+Commit all of it like the rest of your source. Init changes nothing else in your repo (if it finds leftovers from an older OpenSpec version, it asks before cleaning them up).
 
 ### The `openspec/` folder
 
@@ -55,7 +55,7 @@ openspec/
     └── archive/    completed changes move here
 ```
 
-[Concepts](../guides/concepts.md) explains both artifacts; [Project config](../customize/project-config.md) covers `config.yaml`.
+[Project config](../customize/project-config.md) covers `config.yaml`.
 
 ### The workflow files (skills and commands)
 
@@ -111,5 +111,27 @@ Config changes:
 ```
 
 Answering yes applies it to the current project on the spot. Other projects pick it up on their next `openspec update`. The setting is global, per machine.
+
+#### Claude Code doesn't show the workflows
+
+Claude Code loads OpenSpec workflows from one or both of these project paths, based on your delivery setting:
+
+- **Skills**: `.claude/skills/openspec-*/SKILL.md`
+- **Commands**: `.claude/commands/opsx/<id>.md`
+
+If the files are missing, refresh the project. In your terminal:
+
+```bash
+openspec update
+```
+
+If the command files exist but `/opsx:` shows no OpenSpec commands, update Claude Code and restart it. If commands still don't load, enable skills too. In your terminal:
+
+```bash
+openspec config set delivery both
+openspec update
+```
+
+Restart Claude Code, then run `/openspec-propose` in its chat. If only some workflows are missing, [change your profile](../customize/profiles.md#expanding-the-set-optional-workflows).
 
 Setup is done. The [Quickstart](quickstart.md) takes your first change from here.

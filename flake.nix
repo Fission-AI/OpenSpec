@@ -51,16 +51,17 @@
 
           pnpmDeps = final.fetchPnpmDeps {
             inherit (finalAttrs) pname version src;
-            pnpm = final.pnpm_9;
+            pnpm = final.pnpm_10;
             fetcherVersion = 3;
-            hash = "sha256-+qGFLSVLJ9faZOmfO6ZVBP525i5LRgwhsJat2vT7Aw8=";
+            hash = "sha256-ifgjl6/g7wpvcF4Ly/p+rxUbNEKiXF2u69CmpUM0olg=";
           };
 
           nativeBuildInputs = with final; [
+            installShellFiles
             nodejs_22
             npmHooks.npmInstallHook
             pnpmConfigHook
-            pnpm_9
+            pnpm_10
           ];
 
           buildPhase = ''
@@ -72,6 +73,21 @@
           '';
 
           dontNpmPrune = true;
+
+          # `openspec completion generate` renders a static command registry, so it
+          # needs no project and no network. Opting out of telemetry also disables
+          # the update check, keeping the build offline.
+          postInstall = final.lib.optionalString (final.stdenv.buildPlatform.canExecute final.stdenv.hostPlatform) ''
+            export OPENSPEC_TELEMETRY=0
+            completions=$(mktemp -d)
+            for shell in bash fish zsh; do
+              $out/bin/openspec completion generate "$shell" > "$completions/openspec.$shell"
+            done
+            installShellCompletion --cmd openspec \
+              --bash "$completions/openspec.bash" \
+              --fish "$completions/openspec.fish" \
+              --zsh "$completions/openspec.zsh"
+          '';
 
           meta = with final.lib; {
             description = "AI-native system for spec-driven development";
@@ -110,7 +126,7 @@
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
               nodejs_22
-              pnpm_9
+              pnpm_10
             ];
 
             shellHook = ''

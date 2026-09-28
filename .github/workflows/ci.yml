@@ -42,6 +42,10 @@ jobs:
               - 'pnpm-workspace.yaml'
               - 'scripts/update-flake.sh'
               - '.github/workflows/ci.yml'
+              # The Nix build runs `openspec completion generate`, so a change to
+              # the generator can break packaging without touching flake.nix.
+              - 'src/commands/completion.ts'
+              - 'src/core/completions/**'
 
   test_matrix:
     name: Test (${{ matrix.label }})
@@ -77,7 +81,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -132,7 +136,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -176,10 +180,35 @@ jobs:
           persist-credentials: false
 
       - name: Install Nix
-        uses: DeterminateSystems/nix-installer-action@ef8a148080ab6020fd15196c2084a2eea5ff2d25 # v22
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # v23
 
       - name: Setup Nix cache
-        uses: DeterminateSystems/magic-nix-cache-action@908b263ff629f4cc17666315b7fd3ec127c6244d # v14
+        uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+
+      # Run the update script before `nix build`, not after. The script recomputes
+      # the pnpmDeps hash from pnpm-lock.yaml and rewrites flake.nix in place, so a
+      # stale hash is reported here as the exact value to paste. Built first, the
+      # same staleness surfaces as pnpm's ERR_PNPM_NO_OFFLINE_TARBALL — which names
+      # a missing tarball, not the hash — and the script never runs to say otherwise.
+      # Every root lockfile change needs this value, and Dependabot cannot produce it.
+      - name: Verify pnpmDeps hash matches the lockfile
+        run: |
+          bash scripts/update-flake.sh
+          if git diff --quiet flake.nix; then
+            echo "✅ flake.nix pnpmDeps hash is up to date"
+            exit 0
+          fi
+          # Scoped to the pnpmDeps block: a bare first-match would report some other
+          # FOD's hash if one is ever added above it.
+          HASH=$(sed -n '/pnpmDeps = /,/};/p' flake.nix \
+            | sed -nE 's/.*hash = "(sha256-[^"]+)".*/\1/p' | head -1)
+          git diff flake.nix
+          echo "::error file=flake.nix::Stale pnpmDeps hash. Set pnpmDeps.hash to $HASH and push."
+          exit 1
+
+      - name: Restore flake.nix
+        if: always()
+        run: git checkout -- flake.nix || true
 
       - name: Test downstream overlay composition
         run: |
@@ -230,6 +259,19 @@ jobs:
             echo "Error: openspec binary not found in build output"
             exit 1
           fi
+          for completion in \
+            "share/bash-completion/completions/openspec.bash" \
+            "share/fish/vendor_completions.d/openspec.fish" \
+            "share/zsh/site-functions/_openspec"; do
+            if [ ! -s "result/$completion" ]; then
+              echo "Error: completion script missing or empty: $completion"
+              exit 1
+            fi
+          done
+          if [ "$(head -1 result/share/zsh/site-functions/_openspec)" != "#compdef openspec" ]; then
+            echo "Error: zsh completion is not autoloadable (missing #compdef header)"
+            exit 1
+          fi
           echo "✅ Build output verified"
 
       - name: Test binary execution
@@ -241,30 +283,6 @@ jobs:
             exit 1
           fi
           echo "✅ Binary execution successful"
-
-      - name: Validate update script
-        shell: bash
-        run: |
-          echo "Testing update-flake.sh script..."
-          bash scripts/update-flake.sh | tee "$RUNNER_TEMP/update-flake.log"
-          if grep -q "Warning: flake.nix doesn't use dynamic version" "$RUNNER_TEMP/update-flake.log"; then
-            echo "Error: update-flake.sh did not recognize the dynamic package version"
-            exit 1
-          fi
-          echo "✅ Update script executed successfully"
-
-      - name: Check flake.nix modifications
-        run: |
-          if git diff --quiet flake.nix; then
-            echo "ℹ️  flake.nix unchanged (hash already up-to-date)"
-          else
-            echo "✅ flake.nix was updated by script"
-            git diff flake.nix
-          fi
-
-      - name: Restore flake.nix
-        if: always()
-        run: git checkout -- flake.nix || true
 
   validate-changesets:
     name: Validate Release Tracking
@@ -283,10 +301,14 @@ jobs:
           changed_changesets="$(git diff --name-only --diff-filter=ACMRT origin/main...HEAD -- '.changeset/*.md' ':!.changeset/README.md')"
           if [[ -n "$changed_changesets" ]]; then
             echo "has_changesets=true" >> "$GITHUB_OUTPUT"
+            # Run-unique delimiter: the value is a list of PR-authored paths, so a
+            # fixed "EOF" would let a crafted path close the block early and append
+            # its own key=value outputs.
+            delim="EOF_$(openssl rand -hex 16)"
             {
-              echo "files<<EOF"
+              echo "files<<$delim"
               echo "$changed_changesets"
-              echo "EOF"
+              echo "$delim"
             } >> "$GITHUB_OUTPUT"
           else
             echo "has_changesets=false" >> "$GITHUB_OUTPUT"
@@ -295,13 +317,13 @@ jobs:
 
       - name: Setup pnpm
         if: steps.changed-changesets.outputs.has_changesets == 'true'
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - name: Setup Node.js
         if: steps.changed-changesets.outputs.has_changesets == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '20.19.0'
+          node-version: '24'
           cache: 'pnpm'
 
       - name: Install dependencies
