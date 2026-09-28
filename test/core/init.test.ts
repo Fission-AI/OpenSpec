@@ -156,42 +156,7 @@ describe('InitCommand', () => {
       expect(content).toContain('schema: spec-driven');
     });
 
-    it('should offer to copy legacy project.md into a new config context', async () => {
-      const openspecPath = path.join(testDir, 'openspec');
-      const projectMdPath = path.join(openspecPath, 'project.md');
-      const projectContext = '# Project conventions\n\nUse pnpm and TypeScript.\n';
-      await fs.mkdir(openspecPath, { recursive: true });
-      await fs.writeFile(projectMdPath, projectContext);
-      searchableMultiSelectMock.mockResolvedValue(['claude']);
-
-      const initCommand = new InitCommand({ force: true });
-      vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
-      await initCommand.execute(testDir);
-
-      expect(confirmMock).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringContaining('project.md') })
-      );
-      expect(readProjectConfig(testDir)?.context).toBe(projectContext);
-      expect(await fs.readFile(projectMdPath, 'utf-8')).toBe(projectContext);
-    });
-
-    it('should leave project.md out of config context when migration is declined', async () => {
-      const openspecPath = path.join(testDir, 'openspec');
-      const projectMdPath = path.join(openspecPath, 'project.md');
-      await fs.mkdir(openspecPath, { recursive: true });
-      await fs.writeFile(projectMdPath, '# Keep this here\n');
-      searchableMultiSelectMock.mockResolvedValue(['claude']);
-      confirmMock.mockResolvedValue(false);
-
-      const initCommand = new InitCommand({ force: true });
-      vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
-      await initCommand.execute(testDir);
-
-      expect(readProjectConfig(testDir)?.context).toBeUndefined();
-      expect(await fs.readFile(projectMdPath, 'utf-8')).toBe('# Keep this here\n');
-    });
-
-    it('should keep the project.md migration hint in non-interactive init', async () => {
+    it('should guide project.md migration without copying or deleting it', async () => {
       const openspecPath = path.join(testDir, 'openspec');
       const projectMdPath = path.join(openspecPath, 'project.md');
       await fs.mkdir(openspecPath, { recursive: true });
@@ -202,43 +167,9 @@ describe('InitCommand', () => {
       expect(readProjectConfig(testDir)?.context).toBeUndefined();
       expect(await fs.readFile(projectMdPath, 'utf-8')).toBe('# Migrate me later\n');
       expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
-        'move any useful content to config.yaml'
+        'Ask your AI assistant'
       );
       expect(confirmMock).not.toHaveBeenCalled();
-    });
-
-    it('should preserve project.md at the exact context size limit without a final newline', async () => {
-      const openspecPath = path.join(testDir, 'openspec');
-      const projectContext = 'x'.repeat(MAX_CONTEXT_SIZE);
-      await fs.mkdir(openspecPath, { recursive: true });
-      await fs.writeFile(path.join(openspecPath, 'project.md'), projectContext);
-      searchableMultiSelectMock.mockResolvedValue(['claude']);
-
-      const initCommand = new InitCommand({ force: true });
-      vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
-      await initCommand.execute(testDir);
-
-      expect(readProjectConfig(testDir)?.context).toBe(projectContext);
-    });
-
-    it('should not copy project.md when it would exceed the context size limit', async () => {
-      const openspecPath = path.join(testDir, 'openspec');
-      const projectMdPath = path.join(openspecPath, 'project.md');
-      const projectContext = 'x'.repeat(MAX_CONTEXT_SIZE + 1);
-      await fs.mkdir(openspecPath, { recursive: true });
-      await fs.writeFile(projectMdPath, projectContext);
-      searchableMultiSelectMock.mockResolvedValue(['claude']);
-
-      const initCommand = new InitCommand({ force: true });
-      vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
-      await initCommand.execute(testDir);
-
-      expect(readProjectConfig(testDir)?.context).toBeUndefined();
-      expect(await fs.readFile(projectMdPath, 'utf-8')).toBe(projectContext);
-      expect(confirmMock).not.toHaveBeenCalled();
-      expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
-        'resulting context exceeds the 50KB limit'
-      );
     });
 
     it('should add the requested artifact language to a new config', async () => {
@@ -1412,23 +1343,19 @@ describe('InitCommand', () => {
       );
     });
 
-    it('should not prompt or change project files if config.yaml already exists', async () => {
+    it('should not create config.yaml if it already exists', async () => {
+      // Pre-create config.yaml
       const openspecDir = path.join(testDir, 'openspec');
       await fs.mkdir(openspecDir, { recursive: true });
       const configPath = path.join(openspecDir, 'config.yaml');
-      const projectMdPath = path.join(openspecDir, 'project.md');
       const existingContent = 'schema: custom-schema\n';
-      const projectContext = '# Keep this here\n';
       await fs.writeFile(configPath, existingContent);
-      await fs.writeFile(projectMdPath, projectContext);
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
-      vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
       await initCommand.execute(testDir);
 
-      expect(await fs.readFile(configPath, 'utf-8')).toBe(existingContent);
-      expect(await fs.readFile(projectMdPath, 'utf-8')).toBe(projectContext);
-      expect(confirmMock).not.toHaveBeenCalled();
+      const content = await fs.readFile(configPath, 'utf-8');
+      expect(content).toBe(existingContent);
     });
 
     it('should handle non-existent target directory', async () => {

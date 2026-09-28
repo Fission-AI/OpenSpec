@@ -1185,11 +1185,14 @@ export function formatProjectMdMigrationHint(): string {
   lines.push('  • openspec/project.md');
   lines.push(chalk.dim('    We won\'t delete this file. It may contain useful project context.'));
   lines.push('');
-  lines.push(chalk.dim('    The new openspec/config.yaml has a "context:" section for planning'));
-  lines.push(chalk.dim('    context. This is included in every OpenSpec request and works more'));
-  lines.push(chalk.dim('    reliably than the old project.md approach.'));
+  lines.push(chalk.dim('    Ask your AI assistant:'));
   lines.push('');
-  lines.push(chalk.dim('    Review project.md, move any useful content to config.yaml\'s context'));
-  lines.push(chalk.dim('    section, then delete the file when ready.'));
+  lines.push(chalk.dim('    Review openspec/project.md and migrate its useful content to'));
+  lines.push(chalk.dim('    openspec/config.yaml. Keep context concise: include only project-wide'));
+  lines.push(chalk.dim('    facts needed for every planning request. Move artifact-specific'));
+  lines.push(chalk.dim('    guidance into rules for the matching artifacts. Leave out generic,'));
+  lines.push(chalk.dim('    outdated, or verbose material. Do not delete project.md.'));
+  lines.push('');
+  lines.push(chalk.dim('    Review config.yaml, then delete project.md when ready.'));
   return lines.join('\n');
 }

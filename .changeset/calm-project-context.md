@@ -1,5 +1,5 @@
 ---
-'@fission-ai/openspec': minor
+'@fission-ai/openspec': patch
 ---
 
-Offer to copy legacy `project.md` content into a new `config.yaml` during interactive init.
+Guide users through an AI-assisted migration from legacy `project.md` to `config.yaml`.

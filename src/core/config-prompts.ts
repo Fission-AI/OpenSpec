@@ -14,7 +14,7 @@ export function serializeConfig(config: Partial<ProjectConfig>): string {
   lines.push('');
 
   if (config.context !== undefined) {
-    lines.push(`context: ${config.context.endsWith('\n') ? '|' : '|-'}`);
+    lines.push('context: |');
     for (const line of config.context.split('\n')) {
       lines.push(`  ${line}`);
     }

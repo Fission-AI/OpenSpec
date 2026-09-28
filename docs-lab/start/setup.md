@@ -36,16 +36,18 @@ Re-running init is safe:
 
 ### Migrate an existing `project.md`
 
-When interactive init creates a new `openspec/config.yaml` and finds `openspec/project.md`, it asks:
+Init does not copy legacy `openspec/project.md` into `config.yaml`. It keeps the file and prints an AI-assisted migration request.
+
+In your AI chat:
 
 ```
-? Copy openspec/project.md into the new config.yaml context? The project.md file will be kept. (Y/n)
+Review openspec/project.md and migrate its useful content to openspec/config.yaml.
+Keep context concise: include only project-wide facts needed for every planning request.
+Move artifact-specific guidance into rules for the matching artifacts.
+Leave out generic, outdated, or verbose material. Do not delete project.md.
 ```
 
-- **Accept**: init copies the content into `context:` and keeps `project.md`.
-- **Decline**: init creates `config.yaml` without copying the content.
-- **Non-interactive runs**: init leaves the migration manual and prints the existing migration hint.
-- **Unreadable or oversized**: init skips content it cannot read or content that would exceed the 50 KB context limit. It keeps `project.md`.
+Review `config.yaml`, then delete `project.md` when ready.
 
 ## What init installs
 
