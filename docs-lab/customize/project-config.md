@@ -74,7 +74,7 @@ The last column is exact, so a field reaches only the steps listed there. In par
 
 ### context
 
-`context` is project information that should shape every artifact and workflow step:
+`context` is project information that should shape every artifact, plus apply and archive:
 
 ```yaml
 context: |

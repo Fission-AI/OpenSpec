@@ -11,7 +11,7 @@ Each OpenSpec project keeps its config file at `openspec/config.yaml`, in the pr
 | Key | Type | Required | Effect |
 | --- | --- | --- | --- |
 | `schema` | string | Yes | The workflow schema this project's changes follow |
-| `context` | string | No | Injected into every artifact's instructions |
+| `context` | string | No | Injected into every artifact, apply, and archive |
 | `rules` | map: artifact ID → list of strings | No | Extra rules added to one artifact's built-in guidance |
 | `operations` | map: operation → guidance list | No | Advisory guidance for apply and archive work |
 | `store` | string | No | Fallback OpenSpec root when this openspec/ is config-only |

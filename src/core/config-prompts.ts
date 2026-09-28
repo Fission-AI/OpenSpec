@@ -22,13 +22,13 @@ export function serializeConfig(config: Partial<ProjectConfig>): string {
   } else {
     // Context section with comments
     lines.push('# Project context (optional)');
-    lines.push('# This is shown to AI when creating artifacts.');
-    lines.push('# Add your tech stack, conventions, style guides, domain knowledge, etc.');
+    lines.push('# This is shown to AI when creating artifacts and during apply and archive.');
+    lines.push('# Add durable constraints the AI cannot reliably learn from the code.');
     lines.push('# Example:');
     lines.push('#   context: |');
-    lines.push('#     Tech stack: TypeScript, React, Node.js');
-    lines.push('#     We use conventional commits');
-    lines.push('#     Domain: e-commerce platform');
+    lines.push('#     Public API changes must remain backward compatible for one minor release');
+    lines.push('#     Customer-visible changes need rollout and rollback plans');
+    lines.push('#     The desktop app must work offline after first sign-in');
     lines.push('');
   }
 

@@ -144,7 +144,7 @@ describe('InitCommand', () => {
       },
     );
 
-    it('should create config.yaml with default schema', async () => {
+    it('should create config.yaml with default schema and durable context guidance', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
 
       await initCommand.execute(testDir);
@@ -154,6 +154,17 @@ describe('InitCommand', () => {
 
       const content = await fs.readFile(configPath, 'utf-8');
       expect(content).toContain('schema: spec-driven');
+      expect(content).toContain(
+        '# This is shown to AI when creating artifacts and during apply and archive.'
+      );
+      expect(content).toContain(
+        '# Add durable constraints the AI cannot reliably learn from the code.'
+      );
+      expect(content).toContain(
+        '#     Public API changes must remain backward compatible for one minor release'
+      );
+      expect(content).not.toContain('Tech stack:');
+      expect(content).not.toContain('We use conventional commits');
     });
 
     it('should add the requested artifact language to a new config', async () => {
