@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { FeedbackCommand } from '../../src/commands/feedback.js';
-import { execSync, execFileSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
-// Mock child_process functions
+// Every subprocess the command runs — the gh lookup, the auth probe, and the
+// issue creation — goes through execFileSync; there is no shell anywhere.
 vi.mock('child_process', () => ({
-  execSync: vi.fn(),
   execFileSync: vi.fn(),
 }));
 
@@ -13,8 +13,24 @@ describe('FeedbackCommand', () => {
   let consoleLogSpy: any;
   let consoleErrorSpy: any;
   let processExitSpy: any;
-  const mockExecSync = execSync as unknown as ReturnType<typeof vi.fn>;
   const mockExecFileSync = execFileSync as unknown as ReturnType<typeof vi.fn>;
+  // The availability probes are answered by setGhProbes; everything else is the
+  // `gh issue create` call, so assertions below can index its calls directly.
+  const ghIssueSync = vi.fn();
+
+  function setGhProbes({ installed = true, authenticated = true } = {}): void {
+    mockExecFileSync.mockImplementation((file: string, args: string[], options?: any) => {
+      if (file === 'which' || file === 'where') {
+        if (!installed) throw new Error('Command not found');
+        return Buffer.from('/usr/local/bin/gh');
+      }
+      if (file === 'gh' && args[0] === 'auth') {
+        if (!authenticated) throw new Error('Not authenticated');
+        return Buffer.from('Logged in');
+      }
+      return ghIssueSync(file, args, options);
+    });
+  }
 
   beforeEach(() => {
     feedbackCommand = new FeedbackCommand();
@@ -24,6 +40,7 @@ describe('FeedbackCommand', () => {
       throw new Error(`process.exit(${code})`);
     });
     vi.clearAllMocks();
+    ghIssueSync.mockReset();
   });
 
   afterEach(() => {
@@ -36,22 +53,14 @@ describe('FeedbackCommand', () => {
       const originalPlatform = process.platform;
       Object.defineProperty(process, 'platform', { value: 'darwin' });
 
-      mockExecSync.mockImplementation((cmd: string) => {
-        if (cmd === 'which gh') {
-          return Buffer.from('/usr/local/bin/gh');
-        }
-        if (cmd === 'gh auth status') {
-          return Buffer.from('Logged in');
-        }
-        return '';
-      });
+      setGhProbes();
 
-      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/123\n');
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/123\n');
 
       await feedbackCommand.execute('Test');
 
       // Verify 'which gh' was called
-      expect(mockExecSync).toHaveBeenCalledWith('which gh', expect.any(Object));
+      expect(mockExecFileSync).toHaveBeenCalledWith('which', ['gh'], expect.any(Object));
 
       // Restore original platform
       Object.defineProperty(process, 'platform', { value: originalPlatform });
@@ -62,34 +71,36 @@ describe('FeedbackCommand', () => {
       const originalPlatform = process.platform;
       Object.defineProperty(process, 'platform', { value: 'win32' });
 
-      mockExecSync.mockImplementation((cmd: string) => {
-        if (cmd === 'where gh') {
-          return Buffer.from('C:\\Program Files\\GitHub CLI\\gh.exe');
-        }
-        if (cmd === 'gh auth status') {
-          return Buffer.from('Logged in');
-        }
-        return '';
-      });
+      setGhProbes();
 
-      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/123\n');
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/123\n');
 
       await feedbackCommand.execute('Test');
 
       // Verify 'where gh' was called
-      expect(mockExecSync).toHaveBeenCalledWith('where gh', expect.any(Object));
+      expect(mockExecFileSync).toHaveBeenCalledWith('where', ['gh'], expect.any(Object));
 
       // Restore original platform
       Object.defineProperty(process, 'platform', { value: originalPlatform });
     });
 
+    it('probes gh without a shell', async () => {
+      setGhProbes();
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/123\n');
+
+      await feedbackCommand.execute('Test');
+
+      // Free-form issue text sits right next to these probes, so none of them
+      // may spawn a shell: every call passes argv as an array.
+      for (const [, args] of mockExecFileSync.mock.calls) {
+        expect(Array.isArray(args)).toBe(true);
+      }
+      expect(mockExecFileSync).toHaveBeenCalledWith('gh', ['auth', 'status'], expect.any(Object));
+    });
+
     it('should handle missing gh CLI with fallback', async () => {
       // Simulate gh not installed
-      mockExecSync.mockImplementation((cmd: string) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          throw new Error('Command not found');
-        }
-      });
+      setGhProbes({ installed: false });
 
       try {
         await feedbackCommand.execute('Test feedback');
@@ -116,14 +127,7 @@ describe('FeedbackCommand', () => {
 
     it('should handle unauthenticated gh CLI with fallback', async () => {
       // Simulate gh installed but not authenticated
-      mockExecSync.mockImplementation((cmd: string) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          return Buffer.from('/usr/local/bin/gh');
-        }
-        if (cmd === 'gh auth status') {
-          throw new Error('Not authenticated');
-        }
-      });
+      setGhProbes({ authenticated: false });
 
       try {
         await feedbackCommand.execute('Test feedback');
@@ -154,22 +158,14 @@ describe('FeedbackCommand', () => {
       const issueUrl = 'https://github.com/Fission-AI/OpenSpec/issues/123';
 
       // Simulate gh installed and authenticated
-      mockExecSync.mockImplementation((cmd: string, options?: any) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          return Buffer.from('/usr/local/bin/gh');
-        }
-        if (cmd === 'gh auth status') {
-          return Buffer.from('Logged in');
-        }
-        return '';
-      });
+      setGhProbes();
 
-      mockExecFileSync.mockReturnValue(`${issueUrl}\n`);
+      ghIssueSync.mockReturnValue(`${issueUrl}\n`);
 
       await feedbackCommand.execute('Great tool!');
 
       // Should call gh with correct arguments using execFileSync
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      expect(ghIssueSync).toHaveBeenCalledWith(
         'gh',
         [
           'issue',
@@ -198,53 +194,99 @@ describe('FeedbackCommand', () => {
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining(issueUrl)
       );
-    });
 
-    it('should include --body flag when body is provided', async () => {
-      const issueUrl = 'https://github.com/Fission-AI/OpenSpec/issues/124';
-
-      mockExecSync.mockImplementation((cmd: string, options?: any) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          return Buffer.from('/usr/local/bin/gh');
-        }
-        if (cmd === 'gh auth status') {
-          return Buffer.from('Logged in');
-        }
-        return '';
-      });
-
-      mockExecFileSync.mockReturnValue(`${issueUrl}\n`);
-
-      await feedbackCommand.execute('Title here', { body: 'Detailed description' });
-
-      // Verify body is included in the arguments
-      expect(mockExecFileSync).toHaveBeenCalledWith(
-        'gh',
-        expect.arrayContaining([
-          '--body',
-          expect.stringContaining('Detailed description'),
-        ]),
-        expect.any(Object)
+      // Only one attempt, and no note about a dropped label
+      expect(ghIssueSync).toHaveBeenCalledTimes(1);
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("without the 'feedback' label")
       );
     });
 
-    it('should format title with "Feedback:" prefix', async () => {
-      mockExecSync.mockImplementation((cmd: string, options?: any) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          return Buffer.from('/usr/local/bin/gh');
-        }
-        if (cmd === 'gh auth status') {
-          return Buffer.from('Logged in');
-        }
-        return '';
-      });
+    it('should preserve message and body whitespace in the issue body', async () => {
+      const issueUrl = 'https://github.com/Fission-AI/OpenSpec/issues/124';
 
-      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/125\n');
+      setGhProbes();
+
+      ghIssueSync.mockReturnValue(`${issueUrl}\n`);
+
+      const message = '  Title here  ';
+      const details = '    const x = 1;  ';
+      await feedbackCommand.execute(message, { body: details });
+
+      const args = ghIssueSync.mock.calls[0][1] as string[];
+      const body = args[args.indexOf('--body') + 1];
+      expect(body).toContain(
+        `## Summary\n\n${message}\n\n## Details\n\n${details}\n\n---`
+      );
+    });
+
+    it('should preserve the full message in the body and shorten a long title', async () => {
+      setGhProbes();
+
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/125\n');
+
+      const message =
+        'Generated workflows declare too few allowed tools,\nso headless runs cannot write files and silently fail.';
+      await feedbackCommand.execute(message);
+
+      const args = ghIssueSync.mock.calls[0][1] as string[];
+      const title = args[args.indexOf('--title') + 1];
+      const body = args[args.indexOf('--body') + 1];
+
+      expect(title).toBe(
+        'Feedback: Generated workflows declare too few allowed tools, so…'
+      );
+      expect(title.length).toBeLessThanOrEqual(72);
+      expect(title).not.toMatch(/[\r\n]/);
+      expect(body).toContain(`## Summary\n\n${message}`);
+    });
+
+    it('should not split Unicode grapheme clusters when shortening a title', async () => {
+      setGhProbes();
+
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/125\n');
+
+      const family = '👨‍👩‍👧‍👦';
+      const message = family.repeat(20);
+      await feedbackCommand.execute(message);
+
+      const args = ghIssueSync.mock.calls[0][1] as string[];
+      const title = args[args.indexOf('--title') + 1];
+      const summary = title.slice('Feedback: '.length, -1);
+
+      expect(Array.from(title).length).toBeLessThanOrEqual(72);
+      expect(title.endsWith('…')).toBe(true);
+      expect(summary).toMatch(/^(?:👨‍👩‍👧‍👦)+$/u);
+    });
+
+    it('should enforce the title limit at the exact boundary', async () => {
+      setGhProbes();
+
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/125\n');
+
+      await feedbackCommand.execute('x'.repeat(62));
+      await feedbackCommand.execute('x'.repeat(63));
+
+      const exactArgs = ghIssueSync.mock.calls[0][1] as string[];
+      const shortenedArgs = ghIssueSync.mock.calls[1][1] as string[];
+      const exactTitle = exactArgs[exactArgs.indexOf('--title') + 1];
+      const shortenedTitle = shortenedArgs[shortenedArgs.indexOf('--title') + 1];
+
+      expect(exactTitle).toBe(`Feedback: ${'x'.repeat(62)}`);
+      expect(Array.from(exactTitle)).toHaveLength(72);
+      expect(shortenedTitle).toBe(`Feedback: ${'x'.repeat(61)}…`);
+      expect(Array.from(shortenedTitle)).toHaveLength(72);
+    });
+
+    it('should format title with "Feedback:" prefix', async () => {
+      setGhProbes();
+
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/125\n');
 
       await feedbackCommand.execute('Test message');
 
       // Verify title has "Feedback:" prefix
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      expect(ghIssueSync).toHaveBeenCalledWith(
         'gh',
         expect.arrayContaining([
           '--title',
@@ -255,22 +297,14 @@ describe('FeedbackCommand', () => {
     });
 
     it('should include metadata in issue body', async () => {
-      mockExecSync.mockImplementation((cmd: string, options?: any) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          return Buffer.from('/usr/local/bin/gh');
-        }
-        if (cmd === 'gh auth status') {
-          return Buffer.from('Logged in');
-        }
-        return '';
-      });
+      setGhProbes();
 
-      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/126\n');
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/126\n');
 
       await feedbackCommand.execute('Test', { body: 'Body text' });
 
       // Verify metadata is included in body
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      expect(ghIssueSync).toHaveBeenCalledWith(
         'gh',
         expect.arrayContaining([
           '--body',
@@ -281,22 +315,14 @@ describe('FeedbackCommand', () => {
     });
 
     it('should add feedback label to the issue', async () => {
-      mockExecSync.mockImplementation((cmd: string, options?: any) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          return Buffer.from('/usr/local/bin/gh');
-        }
-        if (cmd === 'gh auth status') {
-          return Buffer.from('Logged in');
-        }
-        return '';
-      });
+      setGhProbes();
 
-      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/127\n');
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/127\n');
 
       await feedbackCommand.execute('Test');
 
       // Verify feedback label is added
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      expect(ghIssueSync).toHaveBeenCalledWith(
         'gh',
         expect.arrayContaining([
           '--label',
@@ -309,56 +335,156 @@ describe('FeedbackCommand', () => {
 
   describe('error handling', () => {
     it('should handle gh CLI execution failure', async () => {
-      mockExecSync.mockImplementation((cmd: string, options?: any) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          return Buffer.from('/usr/local/bin/gh');
-        }
-        if (cmd === 'gh auth status') {
-          return Buffer.from('Logged in');
-        }
-        return '';
-      });
+      setGhProbes();
 
       // Mock execFileSync to throw error
-      mockExecFileSync.mockImplementation(() => {
+      ghIssueSync.mockImplementation(() => {
         const error: any = new Error('Network error');
         error.status = 1;
         error.stderr = Buffer.from('Error: Network connectivity issue');
         throw error;
       });
 
-      try {
-        await feedbackCommand.execute('Test');
-      } catch (error: any) {
-        // Should exit with the same code as gh CLI
-        expect(error.message).toBe('process.exit(1)');
-      }
+      await expect(feedbackCommand.execute('Test')).rejects.toThrow(
+        'process.exit(1)'
+      );
 
       // Should display the error from gh CLI
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         expect.stringContaining('Network connectivity issue')
       );
+
+      // A non-label failure must NOT be retried
+      expect(ghIssueSync).toHaveBeenCalledTimes(1);
+
+      // ...and must not discard the typed feedback: the manual-submission
+      // fallback (formatted text + pre-filled URL) is shown like the
+      // missing-gh and unauthenticated flows.
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Please submit your feedback manually:')
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('github.com/Fission-AI/OpenSpec/issues/new')
+      );
+    });
+
+    it('should not retry when the feedback text mentions the label error', async () => {
+      setGhProbes();
+
+      // gh fails for an unrelated reason. Node puts the whole command line —
+      // including the user's own words — into error.message, so only stderr
+      // may decide whether this was a label failure.
+      ghIssueSync.mockImplementation((_cmd: string, args: string[]) => {
+        const error: any = new Error(
+          `Command failed: gh ${args.join(' ')}\nerror connecting to api.github.com`
+        );
+        error.status = 1;
+        error.stderr = Buffer.from('error connecting to api.github.com');
+        throw error;
+      });
+
+      await expect(
+        feedbackCommand.execute('gh could not add label bug report')
+      ).rejects.toThrow('process.exit(1)');
+
+      expect(ghIssueSync).toHaveBeenCalledTimes(1);
+      expect(consoleLogSpy).not.toHaveBeenCalledWith(
+        expect.stringContaining("without the 'feedback' label")
+      );
+    });
+
+    it('should retry without the label when the repo does not define it', async () => {
+      const issueUrl = 'https://github.com/Fission-AI/OpenSpec/issues/129';
+
+      setGhProbes();
+
+      // gh resolves label names before creating the issue, so a repo without
+      // the label fails with no issue created
+      ghIssueSync.mockImplementation((_cmd: string, args: string[]) => {
+        if (args.includes('--label')) {
+          const error: any = new Error('gh failed');
+          error.status = 1;
+          error.stderr = Buffer.from(
+            'could not add label: labels not found: feedback'
+          );
+          throw error;
+        }
+        return `${issueUrl}\n`;
+      });
+
+      await feedbackCommand.execute('Test');
+
+      expect(ghIssueSync).toHaveBeenCalledTimes(2);
+
+      // First attempt asks for the label
+      expect(ghIssueSync).toHaveBeenNthCalledWith(
+        1,
+        'gh',
+        expect.arrayContaining(['--label', 'feedback']),
+        expect.any(Object)
+      );
+
+      // Retry drops it
+      expect(ghIssueSync).toHaveBeenNthCalledWith(
+        2,
+        'gh',
+        expect.not.arrayContaining(['--label']),
+        expect.any(Object)
+      );
+
+      // The feedback still lands as an issue, and the user is told the label
+      // was not applied
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Feedback submitted successfully')
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining(issueUrl)
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining("without the 'feedback' label")
+      );
+    });
+
+    it('should preserve gh exit code when the unlabeled retry also fails', async () => {
+      setGhProbes();
+
+      ghIssueSync.mockImplementation((_cmd: string, args: string[]) => {
+        const error: any = new Error('gh failed');
+
+        if (args.includes('--label')) {
+          error.status = 1;
+          error.stderr = Buffer.from(
+            'could not add label: labels not found: feedback'
+          );
+        } else {
+          error.status = 4;
+          error.stderr = Buffer.from('Error: issues are disabled');
+        }
+
+        throw error;
+      });
+
+      await expect(feedbackCommand.execute('Test')).rejects.toThrow(
+        'process.exit(4)'
+      );
+
+      expect(ghIssueSync).toHaveBeenCalledTimes(2);
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        expect.stringContaining('issues are disabled')
+      );
     });
 
     it('should handle quotes in title and body without escaping (no shell injection)', async () => {
-      mockExecSync.mockImplementation((cmd: string, options?: any) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          return Buffer.from('/usr/local/bin/gh');
-        }
-        if (cmd === 'gh auth status') {
-          return Buffer.from('Logged in');
-        }
-        return '';
-      });
+      setGhProbes();
 
-      mockExecFileSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/128\n');
+      ghIssueSync.mockReturnValue('https://github.com/Fission-AI/OpenSpec/issues/128\n');
 
       await feedbackCommand.execute('Test with "quotes"', {
         body: 'Body with "quotes"',
       });
 
       // Verify quotes are passed as-is (no escaping needed with execFileSync)
-      expect(mockExecFileSync).toHaveBeenCalledWith(
+      expect(ghIssueSync).toHaveBeenCalledWith(
         'gh',
         expect.arrayContaining([
           '--title',
@@ -373,14 +499,13 @@ describe('FeedbackCommand', () => {
 
   describe('formatted feedback output', () => {
     it('should display formatted feedback with proper structure', async () => {
-      mockExecSync.mockImplementation((cmd: string) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          throw new Error('Command not found');
-        }
-      });
+      setGhProbes({ installed: false });
+
+      const message =
+        'Generated workflows declare too few allowed tools,\nso headless runs cannot write files and silently fail.';
 
       try {
-        await feedbackCommand.execute('Test message', { body: 'Test body' });
+        await feedbackCommand.execute(message, { body: 'Test body' });
       } catch (error: any) {
         // Expected to exit
       }
@@ -390,7 +515,9 @@ describe('FeedbackCommand', () => {
         expect.stringContaining('--- FORMATTED FEEDBACK ---')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Title: Feedback: Test message')
+        expect.stringContaining(
+          'Title: Feedback: Generated workflows declare too few allowed tools, so…'
+        )
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('Labels: feedback')
@@ -398,14 +525,16 @@ describe('FeedbackCommand', () => {
       expect(consoleLogSpy).toHaveBeenCalledWith(
         expect.stringContaining('--- END FEEDBACK ---')
       );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining(`## Summary\n\n${message}`)
+      );
+      expect(consoleLogSpy).toHaveBeenCalledWith(
+        expect.stringContaining('## Details\n\nTest body')
+      );
     });
 
     it('should generate correct manual submission URL', async () => {
-      mockExecSync.mockImplementation((cmd: string) => {
-        if (cmd === 'which gh' || cmd === 'where gh') {
-          throw new Error('Command not found');
-        }
-      });
+      setGhProbes({ installed: false });
 
       try {
         await feedbackCommand.execute('Test');
@@ -413,10 +542,23 @@ describe('FeedbackCommand', () => {
         // Expected to exit
       }
 
-      // Verify URL is shown
-      const urlCall = consoleLogSpy.mock.calls.find((call: any[]) =>
-        call[0]?.includes('https://github.com/Fission-AI/OpenSpec/issues/new')
-      );
+      // Verify URL is shown. Match on the parsed origin and path rather than a
+      // substring, so a lookalike host in the output cannot satisfy the check.
+      const urlCall = consoleLogSpy.mock.calls.find((call: any[]) => {
+        const found = /https?:\/\/\S+/.exec(String(call[0] ?? ''));
+        if (!found) {
+          return false;
+        }
+        try {
+          const parsed = new URL(found[0]);
+          return (
+            parsed.origin === 'https://github.com' &&
+            parsed.pathname === '/Fission-AI/OpenSpec/issues/new'
+          );
+        } catch {
+          return false;
+        }
+      });
       expect(urlCall).toBeDefined();
 
       // Verify URL has proper parameters

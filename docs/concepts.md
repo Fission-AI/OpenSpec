@@ -190,7 +190,7 @@ openspec/changes/add-dark-mode/
 ├── proposal.md           # Why and what
 ├── design.md             # How (technical approach)
 ├── tasks.md              # Implementation checklist
-├── .openspec.yaml        # Change metadata (optional)
+├── .openspec.yaml        # Change metadata (optional): schema, created, skip_specs, retire_capabilities
 └── specs/                # Delta specs
     └── ui/
         └── spec.md       # What's changing in ui/spec.md
@@ -341,6 +341,8 @@ Tasks are the **implementation checklist** — concrete steps with checkboxes.
 - Group related tasks under headings
 - Use hierarchical numbering (1.1, 1.2, etc.)
 - Keep tasks small enough to complete in one session
+- State how each task is verified (a test, command, or observable result)
+- Land the tests and documentation each group's work calls for inside that group, not in a final catch-up group
 - Check tasks off as you complete them
 
 ## Delta Specs
@@ -392,7 +394,8 @@ The system MUST expire sessions after 15 minutes of inactivity.
 |---------|---------|------------------------|
 | `## ADDED Requirements` | New behavior | Appended to main spec |
 | `## MODIFIED Requirements` | Changed behavior | Replaces existing requirement |
-| `## REMOVED Requirements` | Deprecated behavior | Deleted from main spec |
+| `## REMOVED Requirements` | Deprecated behavior | Deleted from main spec; removing the last requirement retires the capability and deletes its spec file, when the change declares `retire_capabilities: true` |
+| `## Purpose` | What a brand-new capability is for | Seeds the Purpose of the main spec being created; ignored when the spec already exists |
 
 ### Why Deltas Instead of Full Specs
 

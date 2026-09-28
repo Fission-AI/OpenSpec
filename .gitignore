@@ -148,6 +148,7 @@ CLAUDE.md
 
 # Pnpm
 .pnpm-store/
+/package-lock.json
 result
 
 # OpenCode
@@ -156,3 +157,12 @@ opencode.json
 
 # Codex
 .codex/
+
+# Bob
+.bob/
+
+# Trae
+.trae/
+
+# Cursor
+.cursor/

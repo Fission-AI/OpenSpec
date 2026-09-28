@@ -9,6 +9,7 @@ import {
   getNewChangeSkillTemplate,
   getContinueChangeSkillTemplate,
   getApplyChangeSkillTemplate,
+  getUpdateChangeSkillTemplate,
   getFfChangeSkillTemplate,
   getSyncSpecsSkillTemplate,
   getArchiveChangeSkillTemplate,
@@ -20,6 +21,7 @@ import {
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
   getOpsxApplyCommandTemplate,
+  getOpsxUpdateCommandTemplate,
   getOpsxFfCommandTemplate,
   getOpsxSyncCommandTemplate,
   getOpsxArchiveCommandTemplate,
@@ -30,6 +32,30 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
+import {
+  assertWorkflowConditionalsResolved,
+  resolveOptionalWorkflows,
+} from '../templates/optional-workflow.js';
+import { ALL_WORKFLOWS } from '../profiles.js';
+import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
+
+/**
+ * The workflow set a template body is rendered against.
+ *
+ * `workflowFilter` is both the list of workflows to install and the set a
+ * template may refer to, so resolving optional-workflow conditionals here —
+ * the one place every generation path (init, update, migration, the skills.sh
+ * distribution) already funnels through — keeps a reference to an uninstalled
+ * workflow out of every generated file (#1734, umbrella #919).
+ *
+ * With no filter, every workflow is installed (that is what an unfiltered call
+ * means), so the installed branch is kept.
+ */
+function resolveInstalledWorkflows(
+  workflowFilter?: readonly string[]
+): ReadonlySet<string> {
+  return new Set<string>(workflowFilter ?? ALL_WORKFLOWS);
+}
 
 /**
  * Skill template with directory name and workflow ID mapping.
@@ -59,6 +85,7 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getNewChangeSkillTemplate(), dirName: 'openspec-new-change', workflowId: 'new' },
     { template: getContinueChangeSkillTemplate(), dirName: 'openspec-continue-change', workflowId: 'continue' },
     { template: getApplyChangeSkillTemplate(), dirName: 'openspec-apply-change', workflowId: 'apply' },
+    { template: getUpdateChangeSkillTemplate(), dirName: 'openspec-update-change', workflowId: 'update' },
     { template: getFfChangeSkillTemplate(), dirName: 'openspec-ff-change', workflowId: 'ff' },
     { template: getSyncSpecsSkillTemplate(), dirName: 'openspec-sync-specs', workflowId: 'sync' },
     { template: getArchiveChangeSkillTemplate(), dirName: 'openspec-archive-change', workflowId: 'archive' },
@@ -68,10 +95,16 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     { template: getOpsxProposeSkillTemplate(), dirName: 'openspec-propose', workflowId: 'propose' },
   ];
 
-  if (!workflowFilter) return all;
+  const installed = resolveInstalledWorkflows(workflowFilter);
+  const selected = workflowFilter ? all.filter(entry => installed.has(entry.workflowId)) : all;
 
-  const filterSet = new Set(workflowFilter);
-  return all.filter(entry => filterSet.has(entry.workflowId));
+  return selected.map(entry => ({
+    ...entry,
+    template: {
+      ...entry.template,
+      instructions: resolveOptionalWorkflows(entry.template.instructions, installed),
+    },
+  }));
 }
 
 /**
@@ -85,6 +118,7 @@ export function getCommandTemplates(workflowFilter?: readonly string[]): Command
     { template: getOpsxNewCommandTemplate(), id: 'new' },
     { template: getOpsxContinueCommandTemplate(), id: 'continue' },
     { template: getOpsxApplyCommandTemplate(), id: 'apply' },
+    { template: getOpsxUpdateCommandTemplate(), id: 'update' },
     { template: getOpsxFfCommandTemplate(), id: 'ff' },
     { template: getOpsxSyncCommandTemplate(), id: 'sync' },
     { template: getOpsxArchiveCommandTemplate(), id: 'archive' },
@@ -94,10 +128,16 @@ export function getCommandTemplates(workflowFilter?: readonly string[]): Command
     { template: getOpsxProposeCommandTemplate(), id: 'propose' },
   ];
 
-  if (!workflowFilter) return all;
+  const installed = resolveInstalledWorkflows(workflowFilter);
+  const selected = workflowFilter ? all.filter(entry => installed.has(entry.id)) : all;
 
-  const filterSet = new Set(workflowFilter);
-  return all.filter(entry => filterSet.has(entry.id));
+  return selected.map(entry => ({
+    ...entry,
+    template: {
+      ...entry.template,
+      content: resolveOptionalWorkflows(entry.template.content, installed),
+    },
+  }));
 }
 
 /**
@@ -133,9 +173,15 @@ export function generateSkillContent(
     ? transformInstructions(template.instructions)
     : template.instructions;
 
+  assertWorkflowConditionalsResolved(
+    instructions,
+    `Skill '${template.name}' was generated without resolving its optional-workflow blocks`
+  );
+
   return `---
 name: ${template.name}
 description: ${template.description}
+allowed-tools: ${OPENSPEC_CLI_ALLOWED_TOOLS}
 license: ${template.license || 'MIT'}
 compatibility: ${template.compatibility || 'Requires openspec CLI.'}
 metadata:
