@@ -52,7 +52,7 @@
               inherit (finalAttrs) pname version src;
               pnpm = pkgs.pnpm_10;
               fetcherVersion = 3;
-              hash = "sha256-ifgjl6/g7wpvcF4Ly/p+rxUbNEKiXF2u69CmpUM0olg=";
+              hash = "sha256-gPGdwmj4oLb/j3D/BGNCaI0hFfrHKCjH4I71UYzmhfk=";
             };
 
             nativeBuildInputs = with pkgs; [

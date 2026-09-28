@@ -187,8 +187,8 @@ jobs:
         with:
           # Dependabot runs cannot access the FlakeHub credentials available to
           # regular CI, so keep those runs on the GitHub Actions cache.
-          use-flakehub: ${{ github.actor == 'dependabot[bot]' && 'disabled' || 'no-preference' }}
-          use-gha-cache: ${{ github.actor == 'dependabot[bot]' && 'enabled' || 'no-preference' }}
+          use-flakehub: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && 'disabled' || 'no-preference' }}
+          use-gha-cache: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && 'enabled' || 'no-preference' }}
 
       # Run the update script before `nix build`, not after. The script recomputes
       # the pnpmDeps hash from pnpm-lock.yaml and rewrites flake.nix in place, so a
