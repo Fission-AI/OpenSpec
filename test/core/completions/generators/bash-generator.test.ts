@@ -332,6 +332,23 @@ describe('BashGenerator', () => {
       expect(script).toContain('compgen -f');
     });
 
+    it('should handle positional arguments for schema names', () => {
+      const commands: CommandDefinition[] = [
+        {
+          name: 'schema',
+          description: 'Manage schemas',
+          acceptsPositional: true,
+          positionalType: 'schema-name',
+          flags: [],
+        },
+      ];
+
+      const script = generator.generate(commands);
+
+      expect(script).toContain('_openspec_complete_schemas');
+      expect(script).toContain('openspec __complete schemas 2>/dev/null');
+    });
+
     it('should generate dynamic completion helper for changes', () => {
       const commands: CommandDefinition[] = [
         {

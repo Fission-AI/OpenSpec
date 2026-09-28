@@ -2,46 +2,50 @@
  * OpenCode Command Adapter
  *
  * Formats commands for OpenCode following its frontmatter specification.
- * OpenCode custom commands live in the global home directory
- * (~/.config/opencode/commands/) and are not shared through the repository.
- * The OPENCODE_HOME env var can override the default ~/.config/opencode location.
  */
 
-import os from 'os';
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
-import { transformToHyphenCommands } from '../../../utils/command-references.js';
+import { escapeYamlValue } from '../yaml.js';
 
-/**
- * Returns the OpenCode home directory.
- * Respects the OPENCODE_HOME env var, defaulting to ~/.config/opencode.
- */
-function getOpenCodeHome(): string {
-  const envHome = process.env.OPENCODE_HOME?.trim();
-  return path.resolve(envHome ? envHome : path.join(os.homedir(), '.config', 'opencode'));
+const OPENCODE_INPUT_BLOCK = /^\*\*Input\*\*:[^\r\n]*(?:\r?\n(?!\r?\n)[^\r\n]*)*/m;
+const OPENCODE_NO_INPUT = /^\*\*Input\*\*:\s*None required\b/im;
+const OPENCODE_ARGUMENT_PLACEHOLDER = /\$(?:ARGUMENTS\b|[1-9]\d*\b)/;
+
+function injectOpenCodeArgs(body: string): string {
+  if (OPENCODE_ARGUMENT_PLACEHOLDER.test(body) || OPENCODE_NO_INPUT.test(body)) {
+    return body;
+  }
+
+  const eol = body.includes('\r\n') ? '\r\n' : '\n';
+  return body.replace(
+    OPENCODE_INPUT_BLOCK,
+    (input) => `${input}${eol}**Provided arguments**: $ARGUMENTS`
+  );
 }
 
 /**
  * OpenCode adapter for command generation.
- * File path: <OPENCODE_HOME>/commands/opsx-<id>.md (absolute, global)
- * Frontmatter: description
+ * File path: .opencode/commands/opsx-<id>.md by default, or
+ * <OPENCODE_CONFIG_DIR>/commands/opsx-<id>.md when explicitly configured.
+ * Frontmatter: description. $ARGUMENTS is injected after the complete input
+ * contract because OpenCode only passes arguments through explicit placeholders.
  */
 export const opencodeAdapter: ToolCommandAdapter = {
   toolId: 'opencode',
 
   getFilePath(commandId: string): string {
-    return path.join(getOpenCodeHome(), 'commands', `opsx-${commandId}.md`);
+    const configDir = process.env.OPENCODE_CONFIG_DIR;
+    const root = configDir ? path.resolve(configDir) : '.opencode';
+    return path.join(root, 'commands', `opsx-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {
-    // Transform command references from colon to hyphen format for OpenCode
-    const transformedBody = transformToHyphenCommands(content.body);
-
     return `---
-description: ${content.description}
+description: ${escapeYamlValue(content.description)}
 ---
 
-${transformedBody}
+${injectOpenCodeArgs(content.body)}
 `;
   },
 };

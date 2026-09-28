@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
+import { parseSchema } from '../../../src/core/artifact-graph/schema.js';
 import {
   loadTemplate,
   loadChangeContext,
@@ -9,6 +10,28 @@ import {
   formatChangeStatus,
   TemplateLoadError,
 } from '../../../src/core/artifact-graph/instruction-loader.js';
+
+const PACKAGED_SCHEMAS_DIR = path.join(__dirname, '..', '..', '..', 'schemas');
+
+/** Every artifact of every packaged schema, with the template it generates from. */
+function packagedArtifacts(): Array<[schema: string, artifactId: string, template: string]> {
+  return fs
+    .readdirSync(PACKAGED_SCHEMAS_DIR, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      const schemaPath = path.join(PACKAGED_SCHEMAS_DIR, entry.name, 'schema.yaml');
+      const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
+      return schema.artifacts.map(
+        (artifact): [string, string, string] => [entry.name, artifact.id, artifact.template]
+      );
+    });
+}
+
+/** First line and the line under it, on normalized endings (the repo may be checked out CRLF). */
+function openingLines(template: string): [string, string] {
+  const [firstLine = '', secondLine = ''] = template.replace(/\r\n?/g, '\n').split('\n');
+  return [firstLine, secondLine];
+}
 
 describe('instruction-loader', () => {
   describe('loadTemplate', () => {
@@ -18,6 +41,50 @@ describe('instruction-loader', () => {
 
       expect(template).toContain('## Why');
       expect(template).toContain('## What Changes');
+      expect(template).toContain('specs/<capability-path>/spec.md');
+      expect(template).toContain('<existing-capability-path>');
+      expect(template).toContain('exact existing path under openspec/specs/');
+    });
+
+    // Artifacts inherit the template's opening line, so every packaged template
+    // starts the document with an `# ` title instead of a section header.
+    // Without it every generated proposal.md, design.md, spec.md and tasks.md
+    // trips markdownlint MD041 (#1138).
+    it.each(packagedArtifacts())(
+      'opens the %s schema\'s %s template with a title',
+      (schemaName, _artifactId, templateName) => {
+        const [firstLine, secondLine] = openingLines(loadTemplate(schemaName, templateName));
+
+        expect(firstLine).toMatch(/^# \S/);
+        expect(secondLine).toBe('');
+      }
+    );
+
+    describe('spec-driven titles', () => {
+      const TITLES: Record<string, string> = {
+        proposal: '# Proposal',
+        specs: '# Spec Delta',
+        design: '# Design',
+        tasks: '# Tasks',
+      };
+
+      const artifacts = packagedArtifacts().filter(([schemaName]) => schemaName === 'spec-driven');
+
+      // Pins the wording, not just the shape: a template retitled by accident
+      // would pass the guard above.
+      it.each(artifacts)('titles %s\'s %s artifact', (schemaName, artifactId, templateName) => {
+        const [firstLine] = openingLines(loadTemplate(schemaName, templateName));
+
+        expect(firstLine).toBe(TITLES[artifactId]);
+      });
+
+      // And the table covers the whole schema, so a new artifact cannot be
+      // added without deciding what its document is called.
+      it('names every artifact the schema declares', () => {
+        expect(artifacts.map(([, artifactId]) => artifactId).sort()).toEqual(
+          Object.keys(TITLES).sort()
+        );
+      });
     });
 
     it('should throw TemplateLoadError for non-existent template', () => {
@@ -40,6 +107,35 @@ describe('instruction-loader', () => {
         expect(err).toBeInstanceOf(TemplateLoadError);
         expect((err as TemplateLoadError).templatePath).toContain('nonexistent.md');
       }
+    });
+
+    it('should reject a template symlink that escapes its schema', () => {
+      if (process.platform === 'win32') return;
+
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-template-boundary-'));
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'custom');
+      const templatesDir = path.join(schemaDir, 'templates');
+      const outsideFile = path.join(tempDir, 'outside.md');
+      fs.mkdirSync(templatesDir, { recursive: true });
+      fs.writeFileSync(path.join(schemaDir, 'schema.yaml'), 'name: custom\n');
+      fs.writeFileSync(outsideFile, 'private');
+      fs.symlinkSync(outsideFile, path.join(templatesDir, 'proposal.md'));
+
+      try {
+        expect(() => loadTemplate('custom', 'proposal.md', tempDir)).toThrow(
+          /outside the allowed directory/u
+        );
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+    });
+
+    it('should reject Windows-style template traversal on Windows', () => {
+      if (process.platform !== 'win32') return;
+
+      expect(() => loadTemplate('spec-driven', '..\\outside.md')).toThrow(
+        TemplateLoadError
+      );
     });
   });
 
@@ -122,6 +218,81 @@ describe('instruction-loader', () => {
 
       expect(context.schemaName).toBe('spec-driven');
     });
+
+    it('should mark specs complete when metadata declares skip_specs', () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      fs.writeFileSync(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+
+      const context = loadChangeContext(tempDir, 'my-change');
+
+      expect(context.completed.has('specs')).toBe(true);
+      expect(context.skippedArtifacts?.has('specs')).toBe(true);
+      // Only specs-producing artifacts are synthesized; the rest still
+      // depend on their files existing.
+      expect(context.completed.has('tasks')).toBe(false);
+      expect(context.completed.has('design')).toBe(false);
+
+      // Status must render the synthesized completion as skipped, not done.
+      const status = formatChangeStatus(context);
+      const specsStatus = status.artifacts.find((a) => a.id === 'specs');
+      expect(specsStatus?.status).toBe('skipped');
+      const proposalStatus = status.artifacts.find((a) => a.id === 'proposal');
+      expect(proposalStatus?.status).toBe('done');
+
+      // Instructions for the skipped artifact carry the marker so agents are
+      // warned instead of told to create conflicting spec files.
+      expect(generateInstructions(context, 'specs').skipped).toBe(true);
+      expect(generateInstructions(context, 'design').skipped).toBeUndefined();
+    });
+
+    it('should skip artifacts whose generates path carries a ./ prefix', () => {
+      // './specs/...' globs identically to 'specs/...' everywhere else, so
+      // the skip set must normalize before its prefix test.
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'dot-specs');
+      fs.mkdirSync(schemaDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(schemaDir, 'schema.yaml'),
+        [
+          'name: dot-specs',
+          'version: 1',
+          'description: schema writing generates with a ./ prefix',
+          'artifacts:',
+          '  - id: specs',
+          '    generates: "./specs/**/*.md"',
+          '    description: delta specs',
+          '    template: specs.md',
+          '    requires: []',
+        ].join('\n')
+      );
+      fs.writeFileSync(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: dot-specs\nskip_specs: true\n'
+      );
+
+      const context = loadChangeContext(tempDir, 'my-change');
+
+      expect(context.completed.has('specs')).toBe(true);
+      expect(context.skippedArtifacts?.has('specs')).toBe(true);
+    });
+
+    it('should not mark specs complete without skip_specs', () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      fs.writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: spec-driven\n');
+
+      const context = loadChangeContext(tempDir, 'my-change');
+
+      expect(context.completed.has('specs')).toBe(false);
+    });
   });
 
   describe('generateInstructions', () => {
@@ -177,9 +348,8 @@ describe('instruction-loader', () => {
       const context = loadChangeContext(tempDir, 'my-change');
       const instructions = generateInstructions(context, 'proposal');
 
-      // proposal unlocks specs and design
-      expect(instructions.unlocks).toContain('specs');
-      expect(instructions.unlocks).toContain('design');
+      // proposal unlocks specs and design, in the schema's declared order
+      expect(instructions.unlocks).toEqual(['specs', 'design']);
     });
 
     it('should have empty dependencies for root artifact', () => {
@@ -315,6 +485,19 @@ rules:
         // Check design artifact (no rules configured) has undefined rules
         const designInstructions = generateInstructions(context, 'design', tempDir);
         expect(designInstructions.rules).toBeUndefined();
+      });
+
+      it('should not inherit rules from the rule map prototype', () => {
+        const context = loadChangeContext(tempDir, 'my-change');
+        const inheritedRules = Object.create({
+          proposal: ['Inherited rule'],
+        }) as Record<string, string[]>;
+
+        const instructions = generateInstructions(context, 'proposal', tempDir, {
+          projectConfig: { rules: inheritedRules },
+        });
+
+        expect(instructions.rules).toBeUndefined();
       });
 
       it('should return undefined rules when empty array', () => {
@@ -524,6 +707,7 @@ rules:
 
       expect(status.changeName).toBe('my-change');
       expect(status.schemaName).toBe('spec-driven');
+      expect(status.isPlanningComplete).toBe(false);
       expect(status.isComplete).toBe(false);
 
       // proposal has no deps, should be ready
@@ -563,7 +747,7 @@ rules:
       expect(specs?.outputPath).toBe('specs/**/*.md');
     });
 
-    it('should report isComplete true when all done', () => {
+    it('should report planning completion without removing the compatibility alias', () => {
       const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
       fs.mkdirSync(changeDir, { recursive: true });
       fs.mkdirSync(path.join(changeDir, 'specs'), { recursive: true });
@@ -577,8 +761,30 @@ rules:
       const context = loadChangeContext(tempDir, 'my-change');
       const status = formatChangeStatus(context);
 
+      expect(status.isPlanningComplete).toBe(true);
       expect(status.isComplete).toBe(true);
+      expect(status.isComplete).toBe(status.isPlanningComplete);
       expect(status.artifacts.every(a => a.status === 'done')).toBe(true);
+    });
+
+    it('should count skipped artifacts as planning-complete without creating them', () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+      fs.writeFileSync(path.join(changeDir, 'proposal.md'), '# Proposal');
+      fs.writeFileSync(path.join(changeDir, 'design.md'), '# Design');
+      fs.writeFileSync(path.join(changeDir, 'tasks.md'), '# Tasks');
+
+      const context = loadChangeContext(tempDir, 'my-change');
+      const status = formatChangeStatus(context);
+
+      expect(status.isPlanningComplete).toBe(true);
+      expect(status.isComplete).toBe(true);
+      expect(status.artifacts.find(a => a.id === 'specs')?.status).toBe('skipped');
+      expect(fs.existsSync(path.join(changeDir, 'specs'))).toBe(false);
     });
 
     it('should show blocked artifacts with missing dependencies', () => {
@@ -590,6 +796,30 @@ rules:
       expect(tasks?.status).toBe('blocked');
       expect(tasks?.missingDeps).toContain('specs');
       expect(tasks?.missingDeps).toContain('design');
+    });
+
+    it('should expose each artifact\'s requires edges regardless of status', () => {
+      const changeDir = path.join(tempDir, 'openspec', 'changes', 'my-change');
+      fs.mkdirSync(changeDir, { recursive: true });
+      // Prewritten-tasks scenario: only tasks.md exists. `tasks` reads `done`
+      // by file existence, but its specs/design dependencies were never written.
+      fs.writeFileSync(path.join(changeDir, 'tasks.md'), '# Tasks');
+
+      const context = loadChangeContext(tempDir, 'my-change');
+      const status = formatChangeStatus(context);
+
+      // A done artifact must still carry its requires edges so callers can
+      // compute the transitive required set (alfred's PR #1412 blocker).
+      const tasks = status.artifacts.find(a => a.id === 'tasks');
+      expect(tasks?.status).toBe('done');
+      expect(tasks?.requires).toEqual(expect.arrayContaining(['specs', 'design']));
+
+      // proposal has no dependencies -> empty edges, not undefined.
+      const proposal = status.artifacts.find(a => a.id === 'proposal');
+      expect(proposal?.requires).toEqual([]);
+
+      // Every artifact carries the field, whatever its status.
+      expect(status.artifacts.every(a => Array.isArray(a.requires))).toBe(true);
     });
 
     it('should sort artifacts in build order', () => {

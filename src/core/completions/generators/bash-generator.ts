@@ -1,4 +1,9 @@
-import { CompletionGenerator, CommandDefinition, FlagDefinition } from '../types.js';
+import {
+  CompletionGenerator,
+  CommandDefinition,
+  FlagDefinition,
+  PositionalDefinition,
+} from '../types.js';
 import { BASH_DYNAMIC_HELPERS } from '../templates/bash-templates.js';
 
 /**
@@ -109,14 +114,14 @@ complete -F _openspec_completion openspec
 
       for (const subcmd of cmd.subcommands) {
         lines.push(`${indent}  ${subcmd.name})`);
-        lines.push(...this.generateArgumentCompletion(subcmd, indent + '    '));
+        lines.push(...this.generateArgumentCompletion(subcmd, indent + '    ', 3));
         lines.push(`${indent}    ;;`);
       }
 
       lines.push(`${indent}esac`);
     } else {
       // No subcommands, just complete arguments
-      lines.push(...this.generateArgumentCompletion(cmd, indent));
+      lines.push(...this.generateArgumentCompletion(cmd, indent, 2));
     }
 
     return lines;
@@ -125,7 +130,11 @@ complete -F _openspec_completion openspec
   /**
    * Generate argument completion (flags and positional arguments)
    */
-  private generateArgumentCompletion(cmd: CommandDefinition, indent: string): string[] {
+  private generateArgumentCompletion(
+    cmd: CommandDefinition,
+    indent: string,
+    firstPositionalWordIndex: number
+  ): string[] {
     const lines: string[] = [];
 
     // Check for flag completion
@@ -145,7 +154,14 @@ complete -F _openspec_completion openspec
     }
 
     // Handle positional completions
-    if (cmd.acceptsPositional) {
+    if (cmd.positionals && cmd.positionals.length > 0) {
+      lines.push(...this.generateIndexedPositionalCompletion(
+        cmd.positionals,
+        cmd.flags,
+        firstPositionalWordIndex,
+        indent
+      ));
+    } else if (cmd.acceptsPositional) {
       lines.push(...this.generatePositionalCompletion(cmd.positionalType, indent));
     }
 
@@ -168,6 +184,9 @@ complete -F _openspec_completion openspec
       case 'change-or-spec-id':
         lines.push(`${indent}_openspec_complete_items`);
         break;
+      case 'schema-name':
+        lines.push(`${indent}_openspec_complete_schemas`);
+        break;
       case 'shell':
         lines.push(`${indent}local shells="zsh bash fish powershell"`);
         lines.push(`${indent}COMPREPLY=($(compgen -W "$shells" -- "$cur"))`);
@@ -178,6 +197,73 @@ complete -F _openspec_completion openspec
     }
 
     return lines;
+  }
+
+  private generateIndexedPositionalCompletion(
+    positionals: PositionalDefinition[],
+    flags: FlagDefinition[],
+    firstPositionalWordIndex: number,
+    indent: string
+  ): string[] {
+    const lines: string[] = [];
+    const valueFlagCases = this.generateValueFlagCases(flags);
+
+    if (valueFlagCases.length > 0) {
+      lines.push(`${indent}case "$prev" in`);
+      lines.push(`${indent}  ${valueFlagCases.join('|')}) return 0 ;;`);
+      lines.push(`${indent}esac`);
+      lines.push('');
+    }
+
+    lines.push(`${indent}local positional_index=0`);
+    lines.push(`${indent}local skip_next=0`);
+    lines.push(`${indent}local i`);
+    lines.push(`${indent}for ((i = ${firstPositionalWordIndex}; i < cword; i++)); do`);
+    lines.push(`${indent}  if [[ $skip_next -eq 1 ]]; then`);
+    lines.push(`${indent}    skip_next=0`);
+    lines.push(`${indent}    continue`);
+    lines.push(`${indent}  fi`);
+    lines.push(`${indent}  case "\${words[i]}" in`);
+
+    if (valueFlagCases.length > 0) {
+      lines.push(`${indent}    ${valueFlagCases.join('|')}) skip_next=1 ;;`);
+      lines.push(`${indent}    ${valueFlagCases.map((flag) => `${flag}=*`).join('|')}) ;;`);
+    }
+
+    lines.push(`${indent}    -*) ;;`);
+    lines.push(`${indent}    *) ((positional_index++)) ;;`);
+    lines.push(`${indent}  esac`);
+    lines.push(`${indent}done`);
+    lines.push('');
+    lines.push(`${indent}case "$positional_index" in`);
+
+    for (const [index, positional] of positionals.entries()) {
+      const completion = this.generateIndexedPositionalCase(positional, indent + '  ');
+      if (completion.length === 0) continue;
+      lines.push(`${indent}  ${index})`);
+      lines.push(...completion);
+      lines.push(`${indent}    ;;`);
+    }
+
+    lines.push(`${indent}esac`);
+
+    return lines;
+  }
+
+  private generateValueFlagCases(flags: FlagDefinition[]): string[] {
+    return flags
+      .filter((flag) => flag.takesValue)
+      .flatMap((flag) => [
+        `--${flag.name}`,
+        ...(flag.short ? [`-${flag.short}`] : []),
+      ]);
+  }
+
+  private generateIndexedPositionalCase(
+    positional: PositionalDefinition,
+    indent: string
+  ): string[] {
+    return this.generatePositionalCompletion(positional.type, indent);
   }
 
 

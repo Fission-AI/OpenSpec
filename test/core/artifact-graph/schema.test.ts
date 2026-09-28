@@ -203,5 +203,67 @@ artifacts:
       const schema = parseSchema(yaml);
       expect(schema.artifacts[0].requires).toEqual([]);
     });
+
+    it.each([
+      ['generates', '../outside.md'],
+      ['generates', String.raw`..\outside.md`],
+      ['generates', '/tmp/outside.md'],
+      ['generates', String.raw`C:\outside.md`],
+      ['template', '../outside.md'],
+      ['template', String.raw`..\outside.md`],
+    ])('should reject an escaping %s path', (field, unsafePath) => {
+      const yaml = `
+name: test
+version: 1
+artifacts:
+  - id: proposal
+    generates: ${field === 'generates' ? JSON.stringify(unsafePath) : 'proposal.md'}
+    description: Test
+    template: ${field === 'template' ? JSON.stringify(unsafePath) : 'proposal.md'}
+`;
+
+      expect(() => parseSchema(yaml)).toThrow(/relative path inside/u);
+    });
+
+    it('should reject an apply tracking path outside the change', () => {
+      const yaml = `
+name: test
+version: 1
+artifacts:
+  - id: tasks
+    generates: tasks.md
+    description: Test
+    template: tasks.md
+apply:
+  requires: [tasks]
+  tracks: ../../outside.md
+`;
+
+      expect(() => parseSchema(yaml)).toThrow(/relative path inside/u);
+    });
+  });
+
+  describe('resource bounds', () => {
+    it('rejects a schema with more artifacts than the cycle check can walk', () => {
+      // A long `requires` chain drove the recursive cycle-detection DFS past the
+      // V8 stack limit, so the CLI died with an uncaught RangeError instead of a
+      // validation error.
+      const artifacts = Array.from({ length: 1001 }, (_, index) => `
+  - id: a${index}
+    generates: a${index}.md
+    description: Artifact ${index}
+    template: templates/a${index}.md
+    requires:${index === 0 ? ' []' : `
+      - a${index - 1}`}`).join('');
+
+      const yaml = `
+name: huge-schema
+version: 1
+artifacts:${artifacts}
+`;
+
+      expect(() => parseSchema(yaml)).toThrow(SchemaValidationError);
+      expect(() => parseSchema(yaml)).toThrow(/at most 1000 artifacts/);
+    });
   });
 });

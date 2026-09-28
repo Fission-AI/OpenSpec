@@ -16,8 +16,7 @@ describe('artifact-graph/state', () => {
   });
 
   beforeEach(() => {
-    tempDir = path.join(os.tmpdir(), `openspec-state-test-${Date.now()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-state-test-'));
   });
 
   afterEach(() => {
@@ -169,6 +168,64 @@ describe('artifact-graph/state', () => {
       expect(completed.has('specs')).toBe(true);
       expect(completed.has('design')).toBe(false);
       expect(completed.has('tasks')).toBe(false);
+    });
+
+    it('should detect brace expansion pattern as complete and unblock dependent artifact', () => {
+      const schema = createSchema([
+        {
+          id: 'review',
+          generates: 'review-{api,ui}.md',
+          description: 'Review',
+          template: 't.md',
+          requires: [],
+        },
+        {
+          id: 'signoff',
+          generates: 'signoff.md',
+          description: 'Signoff',
+          template: 't.md',
+          requires: ['review'],
+        },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      fs.writeFileSync(path.join(tempDir, 'review-api.md'), 'content');
+
+      const completed = detectCompleted(graph, tempDir);
+      expect(completed.has('review')).toBe(true);
+      expect(completed.has('signoff')).toBe(false);
+
+      const next = graph.getNextArtifacts(completed);
+      expect(next).toEqual(['signoff']);
+    });
+
+    it('should detect extglob pattern as complete and unblock dependent artifact', () => {
+      const schema = createSchema([
+        {
+          id: 'spec',
+          generates: '@(proposal|design).md',
+          description: 'Spec',
+          template: 't.md',
+          requires: [],
+        },
+        {
+          id: 'tasks',
+          generates: 'tasks.md',
+          description: 'Tasks',
+          template: 't.md',
+          requires: ['spec'],
+        },
+      ]);
+      const graph = ArtifactGraph.fromSchema(schema);
+
+      fs.writeFileSync(path.join(tempDir, 'proposal.md'), 'content');
+
+      const completed = detectCompleted(graph, tempDir);
+      expect(completed.has('spec')).toBe(true);
+      expect(completed.has('tasks')).toBe(false);
+
+      const next = graph.getNextArtifacts(completed);
+      expect(next).toEqual(['tasks']);
     });
   });
 });

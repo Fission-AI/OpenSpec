@@ -1,11 +1,36 @@
+import * as path from 'node:path';
 import { z } from 'zod';
 
+function relativePathSchema(fieldName: string) {
+  return z
+    .string()
+    .min(1, { error: `${fieldName} is required` })
+    .superRefine((value, ctx) => {
+      const segments = value.split(/[\\/]+/u);
+      const isDrivePath = /^[A-Za-z]:/u.test(value);
+      const isAbsolute =
+        path.posix.isAbsolute(value) || path.win32.isAbsolute(value) || isDrivePath;
+      const escapes = segments.includes('..');
+
+      if (isAbsolute || escapes || value.includes('\0')) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `${fieldName} must be a relative path inside its allowed directory`,
+        });
+      }
+    });
+}
+
 // Artifact definition schema
+// Upper bound on artifacts in one schema. Keeps `validateNoCycles`' recursive
+// DFS well inside the stack limit for any accepted input.
+const MAX_ARTIFACTS = 1000;
+
 export const ArtifactSchema = z.object({
   id: z.string().min(1, { error: 'Artifact ID is required' }),
-  generates: z.string().min(1, { error: 'generates field is required' }),
+  generates: relativePathSchema('generates field'),
   description: z.string(),
-  template: z.string().min(1, { error: 'template field is required' }),
+  template: relativePathSchema('template field'),
   instruction: z.string().optional(),
   requires: z.array(z.string()).default([]),
 });
@@ -15,7 +40,7 @@ export const ApplyPhaseSchema = z.object({
   // Artifact IDs that must exist before apply is available
   requires: z.array(z.string()).min(1, { error: 'At least one required artifact' }),
   // Path to file with checkboxes for progress (relative to change dir), or null if no tracking
-  tracks: z.string().nullable().optional(),
+  tracks: relativePathSchema('apply.tracks').nullable().optional(),
   // Custom guidance for the apply phase
   instruction: z.string().optional(),
 });
@@ -25,7 +50,15 @@ export const SchemaYamlSchema = z.object({
   name: z.string().min(1, { error: 'Schema name is required' }),
   version: z.number().int().positive({ error: 'Version must be a positive integer' }),
   description: z.string().optional(),
-  artifacts: z.array(ArtifactSchema).min(1, { error: 'At least one artifact required' }),
+  artifacts: z
+    .array(ArtifactSchema)
+    .min(1, { error: 'At least one artifact required' })
+    // Bounded so a hostile schema cannot drive the cycle-detection DFS past the
+    // V8 stack limit and crash with an uncaught RangeError instead of a
+    // validation error.
+    .max(MAX_ARTIFACTS, {
+      error: `A schema may declare at most ${MAX_ARTIFACTS} artifacts`,
+    }),
   // Optional apply phase configuration (for schema-aware apply instructions)
   apply: ApplyPhaseSchema.optional(),
 });
@@ -34,24 +67,6 @@ export const SchemaYamlSchema = z.object({
 export type Artifact = z.infer<typeof ArtifactSchema>;
 export type ApplyPhase = z.infer<typeof ApplyPhaseSchema>;
 export type SchemaYaml = z.infer<typeof SchemaYamlSchema>;
-
-// Per-change metadata schema
-// Note: schema field is validated at parse time against available schemas
-// using a lazy import to avoid circular dependencies
-export const ChangeMetadataSchema = z.object({
-  // Required: which workflow schema this change uses
-  schema: z.string().min(1, { message: 'schema is required' }),
-
-  // Optional: creation timestamp (ISO date string)
-  created: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, {
-      message: 'created must be YYYY-MM-DD format',
-    })
-    .optional(),
-});
-
-export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;
 
 // Runtime state types (not Zod - internal only)
 
@@ -62,4 +77,3 @@ export type CompletedSet = Set<string>;
 export interface BlockedArtifacts {
   [artifactId: string]: string[];
 }
-
