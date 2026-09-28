@@ -7,8 +7,9 @@ body:
       value: |
         Thanks for reporting this.
 
-        Already have OpenSpec installed and an agent open? `openspec feedback "..."`
-        drafts and files this for you, with the version and platform filled in.
+        You can also run `openspec feedback "your report"` to submit an issue
+        immediately with your version and platform, or get a submission link
+        if GitHub CLI is unavailable or unauthenticated.
 
   - type: textarea
     id: what_happened
@@ -44,7 +45,7 @@ body:
     id: version
     attributes:
       label: OpenSpec version
-      description: Output of `openspec --version`.
+      description: Output of `openspec --version`, or "unknown" if installation failed or the command cannot run.
       placeholder: '1.11.0'
     validations:
       required: true

@@ -1,3 +1,4 @@
+# Keep the prefilled blank-issue URL from `openspec feedback` working.
 blank_issues_enabled: true
 contact_links:
   - name: Core design change

@@ -2,7 +2,7 @@ Closes #
 
 <!--
 No issue yet? Every change starts with one (CONTRIBUTING step 1).
-Run `openspec feedback "..."` from your project, or open one here:
+Run `openspec feedback "your report"` to submit immediately, or open one here:
 https://github.com/Fission-AI/OpenSpec/issues/new/choose
 
 Already discussed instead of filed? Replace the line above with a link to the discussion.
@@ -16,7 +16,7 @@ Already discussed instead of filed? Replace the line above with a link to the di
 
 <!--
 The failing-then-passing test, repro steps, or before/after output.
-CI runs exactly these:
+Run the core checks for code changes:
   pnpm build && pnpm test && pnpm exec tsc --noEmit && pnpm lint
 -->
 
