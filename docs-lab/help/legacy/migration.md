@@ -15,4 +15,12 @@ once the prose lands. -->
 
 ## Migrating a project
 
+### Back up custom content before cleanup
+
+Files listed under **Files to remove** are deleted entirely. Back up any custom content before accepting cleanup.
+
+- **`openspec/AGENTS.md`**: detected by existence alone; cleanup does not inspect its contents.
+- **Root-level `AGENTS.md`, `CLAUDE.md`, and other config files**: cleanup removes OpenSpec marker blocks and preserves content outside those blocks.
+- **Legacy command directories**: cleanup preserves files it does not recognize as generated commands.
+
 ## Behavior differences

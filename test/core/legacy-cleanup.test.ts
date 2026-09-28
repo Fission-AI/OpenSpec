@@ -946,7 +946,8 @@ ${OPENSPEC_MARKERS.end}`);
       expect(summary).toContain('Files to update');
       expect(summary).toContain('• CLAUDE.md');
       // Should NOT be in removals
-      expect(summary).not.toContain('No user content to preserve');
+      expect(summary).not.toContain('Files to remove');
+      expect(summary).not.toContain('Back up any custom content');
     });
 
     it('should format files to be updated', () => {
@@ -985,6 +986,7 @@ ${OPENSPEC_MARKERS.end}`);
       const summary = formatDetectionSummary(detection);
       expect(summary).toContain('Files to remove');
       expect(summary).toContain('• .claude/commands/openspec/');
+      expect(summary).toContain('These files will be deleted entirely. Back up any custom content before proceeding:');
     });
 
     it('should format slash command files', () => {
@@ -1003,9 +1005,10 @@ ${OPENSPEC_MARKERS.end}`);
       const summary = formatDetectionSummary(detection);
       expect(summary).toContain('Files to remove');
       expect(summary).toContain('• .cursor/commands/openspec-proposal.md');
+      expect(summary).toContain('These files will be deleted entirely. Back up any custom content before proceeding:');
     });
 
-    it('should format openspec/AGENTS.md', () => {
+    it('should warn that openspec/AGENTS.md will be deleted entirely without claiming it has no user content', () => {
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
@@ -1021,6 +1024,8 @@ ${OPENSPEC_MARKERS.end}`);
       const summary = formatDetectionSummary(detection);
       expect(summary).toContain('Files to remove');
       expect(summary).toContain('• openspec/AGENTS.md');
+      expect(summary).toContain('These files will be deleted entirely. Back up any custom content before proceeding:');
+      expect(summary).not.toContain('No user content to preserve');
     });
 
     it('should include attention section for project.md', () => {
