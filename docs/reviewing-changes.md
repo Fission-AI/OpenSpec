@@ -120,28 +120,6 @@ It flags issues as CRITICAL, WARNING, or SUGGESTION, and it does **not** block a
 
 `/opsx:verify` is in the expanded profile. If you don't have it, turn it on with `openspec config profile` (then `openspec update`), or just re-read the change and the diff yourself.
 
-## Right-size the review
-
-Not every change earns the full pass. A one-file typo fix deserves a twenty-second skim. A change that touches auth, payments, or data you can't recover deserves every question above. The point was never ceremony — it's spending your attention where a mistake would be expensive, and skimming where it wouldn't.
-
-## The two-minute checklist
-
-- [ ] The proposal's intent matches what I asked for.
-- [ ] Nothing extra has crept into the scope.
-- [ ] Every requirement is specific enough to test.
-- [ ] Every requirement has a scenario that actually exercises it.
-- [ ] The case I care about most is covered.
-- [ ] Tasks map to requirements; nothing is mysterious or out of scope.
-- [ ] I'd be comfortable if the AI built exactly this and nothing more.
-
-If all seven pass, run `/opsx:apply` with confidence. If any fail, that's not a setback — it's the two minutes doing its job.
-
-## Where to go next
-
-- [Writing Good Specs](writing-specs.md) — the flip side: how to draft requirements and scenarios worth approving.
-- [Editing & Iterating on a Change](editing-changes.md) — the mechanics of changing a plan after you've started.
-- [Workflows](workflows.md) — where review fits in the larger loop.
-
 ## Optional: map requirements to evidence
 
 For changes with several verification environments, a short evidence table can
@@ -163,11 +141,12 @@ For example, consider a fictional client that suppresses extra probes for
 | RX-01 | Traffic age is 60,000 ms | Boundary test on the same source | PASS if suppression expires |
 | RX-02 | A send succeeds, but no traffic is received | Negative test | PASS if sending does not refresh receive evidence |
 | RX-03 | The connection target changes | Reset scenario | PASS if old receive evidence is discarded |
-| RX-04 | The client runs on a device | Observation tied to the installed artifact and test environment | NOT RUN until that observation exists |
+| RX-01 | Repeat the timeout boundaries on a device | Observation tied to the installed artifact and environment | PASS if suppression holds at 59,999 ms and expires at 60,000 ms; otherwise FAIL |
 
 These are illustrative expectations, not results from a real device. A passing
 host test covers its scenario; it does not fill the device-observation row.
-If the change only promises host-tested behavior, do not add a device gate.
+Keep the device row NOT RUN until the observation exists. If the change only
+promises host-tested behavior, do not add a device gate.
 
 An evidence reference should let the reviewer find:
 
@@ -188,13 +167,35 @@ Before reusing a result, consider these cases:
 
 | What changed or is missing? | Review action |
 |----------------------------|---------------|
-| Requirement meaning changed | Reassess scenario coverage for the new revision |
+| Requirement meaning changed | Reassess coverage and obtain new evidence for changed expectations |
 | Tested artifact differs from the candidate | Obtain evidence for the candidate |
 | Test environment differs from the promised environment | Keep that acceptance gap visible |
-| The same report is linked twice | Do not count it as two distinct checks |
+| The same result is linked twice | Count it once; one report may contain distinct test results |
 | Result is missing or unknown | Preserve NOT RUN or UNKNOWN; do not infer PASS |
 | Only unrelated documentation changed | Reuse may be reasonable under an explicit project policy |
 
 Archiving and release acceptance remain separate decisions. This table does
 not change OpenSpec's archive behavior. If a project requires enforcement, its
 existing CI or release process must enforce that policy; prose alone cannot.
+
+## Right-size the review
+
+Not every change earns the full pass. A one-file typo fix deserves a twenty-second skim. A change that touches auth, payments, or data you can't recover deserves every question above. The point was never ceremony — it's spending your attention where a mistake would be expensive, and skimming where it wouldn't.
+
+## The two-minute checklist
+
+- [ ] The proposal's intent matches what I asked for.
+- [ ] Nothing extra has crept into the scope.
+- [ ] Every requirement is specific enough to test.
+- [ ] Every requirement has a scenario that actually exercises it.
+- [ ] The case I care about most is covered.
+- [ ] Tasks map to requirements; nothing is mysterious or out of scope.
+- [ ] I'd be comfortable if the AI built exactly this and nothing more.
+
+If all seven pass, run `/opsx:apply` with confidence. If any fail, that's not a setback — it's the two minutes doing its job.
+
+## Where to go next
+
+- [Writing Good Specs](writing-specs.md) — the flip side: how to draft requirements and scenarios worth approving.
+- [Editing & Iterating on a Change](editing-changes.md) — the mechanics of changing a plan after you've started.
+- [Workflows](workflows.md) — where review fits in the larger loop.
