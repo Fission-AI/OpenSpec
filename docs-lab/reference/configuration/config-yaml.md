@@ -23,7 +23,7 @@ What to write in these fields is covered in [Project configuration](../../custom
 
 ### schema
 
-The workflow schema every change in this project follows. Valid values are `spec-driven` or a schema name the project defines. The names are listed in [Schemas](../schemas/index.md).
+The workflow schema every change in this project follows. Valid values are `spec-driven` or a schema name the project defines. Run [`openspec schemas`](../cli.md#openspec-schemas) to list the available schema names.
 
 ### context
 
@@ -56,7 +56,7 @@ Only `apply` and `archive` are read.
 
 ### store
 
-A store id used as the OpenSpec root, consulted only when this openspec/ directory is config-only (no specs/ or changes/). It is a fallback, never an override. The full ladder is [Root resolution](stores.md#root-resolution).
+A store id used as the OpenSpec root, consulted only when this openspec/ directory is config-only (no specs/ or changes/). It is a fallback, never an override. The full ladder is [Root resolution](../../multi-repo/stores.md#where-artifacts-get-created-when-using-stores).
 
 ### references
 

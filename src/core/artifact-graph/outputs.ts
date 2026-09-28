@@ -3,11 +3,31 @@ import * as path from 'node:path';
 import fg from 'fast-glob';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
+const EXTGLOB_RE = /[!*+?@]\([^(]*\)/u;
+const BRACE_EXPANSION_SEPARATORS_RE = /,|\.\./u;
+
+function hasBraceExpansion(pattern: string): boolean {
+  const openings: number[] = [];
+  for (let index = 0; index < pattern.length; index += 1) {
+    if (pattern[index] === '{') openings.push(index);
+    if (pattern[index] !== '}') continue;
+    const opening = openings.pop();
+    if (opening !== undefined && BRACE_EXPANSION_SEPARATORS_RE.test(pattern.slice(opening, index))) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
- * Checks if a path contains glob pattern characters.
+ * Recognizes artifact globs while preserving literal output filenames.
  */
 export function isGlobPattern(pattern: string): boolean {
-  return pattern.includes('*') || pattern.includes('?') || pattern.includes('[');
+  // Keep the original wildcard rules and recognize brace expansions and extglobs.
+  // Its full dynamic predicate also reinterprets literal !, parentheses, and backslashes.
+  const normalized = FileSystemUtils.toPosixPath(pattern);
+  return normalized.includes('*') || normalized.includes('?') || normalized.includes('[')
+    || EXTGLOB_RE.test(normalized) || hasBraceExpansion(normalized);
 }
 
 /**
@@ -108,20 +128,30 @@ export function resolveArtifactOutputs(changeDir: string, generates: string): st
   }
 
   const normalizedPattern = FileSystemUtils.toPosixPath(generates);
-  assertGlobDirectoryTraversal(
-    changeDir,
-    changeDir,
-    normalizedPattern.split('/').slice(0, -1)
-  );
+  const globOptions = {
+    cwd: changeDir,
+    onlyFiles: true,
+    absolute: true,
+    // Preserve linked artifact directories; confine traversal and concrete matches.
+    followSymbolicLinks: true,
+  };
+  // Task generation expands braces without accessing the filesystem. Validate
+  // every task base before globbing, including paths introduced by expansion.
+  const tasks = fg.generateTasks(normalizedPattern, globOptions);
+  for (const task of tasks) {
+    FileSystemUtils.assertPathWithin(changeDir, path.resolve(changeDir, task.base));
+  }
+  for (const task of tasks) {
+    for (const positivePattern of task.positive) {
+      assertGlobDirectoryTraversal(
+        changeDir,
+        changeDir,
+        positivePattern.split('/').slice(0, -1)
+      );
+    }
+  }
   const matches = fg
-    .sync(normalizedPattern, {
-      cwd: changeDir,
-      onlyFiles: true,
-      absolute: true,
-      // Preserve existing support for linked artifact directories. Every
-      // concrete match is canonically confined below before it is returned.
-      followSymbolicLinks: true,
-    })
+    .sync(normalizedPattern, globOptions)
     .map((match) => {
       const normalizedMatch = path.normalize(match);
       FileSystemUtils.assertPathWithin(changeDir, normalizedMatch);

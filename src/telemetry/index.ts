@@ -20,9 +20,10 @@
  * versions and broke installs (#1390).
  */
 import { randomUUID } from 'crypto';
-import { getGlobalConfig } from '../core/global-config.js';
+import { getGlobalConfig, isGlobalConfigUnreadable } from '../core/global-config.js';
 import { isCiEnvironment } from '../utils/ci.js';
 import { getTelemetryConfig, updateTelemetryConfig } from './config.js';
+import { isTelemetryOptedOutByEnv } from './opt-out.js';
 
 // PostHog API key - public key for client-side analytics
 // This is safe to embed as it only allows sending events, not reading data
@@ -64,23 +65,21 @@ async function safeTelemetryFetch(url: string, options: RequestInit): Promise<Re
  * Check if telemetry is enabled.
  *
  * Precedence (first match wins):
- * 1. OPENSPEC_TELEMETRY=0 → disabled
- * 2. DO_NOT_TRACK=1 → disabled
+ * 1. OPENSPEC_TELEMETRY set to anything but an on-value (1/true/yes/on) → disabled
+ * 2. DO_NOT_TRACK set to anything but an off-value (0/false/no/off) → disabled
  * 3. CI set to a truthy/on value → disabled (same rule as version-check)
  * 4. global config telemetry.enabled === false → disabled
- * 5. otherwise enabled (unset config means on; opt-out model)
+ * 5. global config file exists but cannot be parsed → disabled
+ * 6. otherwise enabled (unset config means on; opt-out model)
  *
  * Kept synchronous so call sites need not become async. Reads config via
  * sync getGlobalConfig() rather than async getTelemetryConfig().
  */
 export function isTelemetryEnabled(): boolean {
-  // Check explicit opt-out
-  if (process.env.OPENSPEC_TELEMETRY === '0') {
-    return false;
-  }
-
-  // Respect DO_NOT_TRACK standard
-  if (process.env.DO_NOT_TRACK === '1') {
+  // Explicit opt-out, and the DO_NOT_TRACK standard. Both are read
+  // tolerantly (see opt-out.ts): an opt-out that only worked for one exact
+  // spelling would leave users tracked who believe they are not.
+  if (isTelemetryOptedOutByEnv()) {
     return false;
   }
 
@@ -91,6 +90,12 @@ export function isTelemetryEnabled(): boolean {
 
   // Global config opt-out (env/CI remain hard overrides above)
   if (getGlobalConfig().telemetry?.enabled === false) {
+    return false;
+  }
+
+  // A config file that cannot be parsed reads as defaults, which carry no
+  // opt-out, but the file itself may hold one. Unknown is not consent.
+  if (isGlobalConfigUnreadable()) {
     return false;
   }
 
@@ -161,6 +166,14 @@ export async function trackCommand(commandName: string, version: string): Promis
   }
 
   try {
+    // Disclosure before collection. A --json run defers the notice (printing
+    // it would corrupt machine-readable output), and for a user whose runs
+    // are all --json it may never have appeared — so nothing is sent, and no
+    // anonymous id is created, until the notice has actually been shown.
+    if (!(await getTelemetryConfig()).noticeSeen) {
+      return;
+    }
+
     const userId = await getOrCreateAnonymousId();
 
     sendEvent(userId, 'command_executed', {

@@ -127,6 +127,77 @@ describe('ArchiveCommand', () => {
       await expect(fs.access(changeDir)).rejects.toThrow();
     });
 
+    describe('a namespace folder holding nested changes (#1846)', () => {
+      async function seedNamespaceFolder(): Promise<string> {
+        const nested = path.join(tempDir, 'openspec', 'changes', 'mobile', 'refresh-token');
+        await fs.mkdir(nested, { recursive: true });
+        await fs.writeFile(path.join(nested, 'proposal.md'), '# Refresh token\n');
+        await fs.writeFile(path.join(nested, 'tasks.md'), '- [ ] Not done\n');
+        return nested;
+      }
+
+      it('is refused instead of archived, so the nested change is not buried', async () => {
+        const nested = await seedNamespaceFolder();
+
+        await expect(
+          archiveCommand.execute('mobile', { yes: true, skipSpecs: true })
+        ).rejects.toThrow(/not a change/);
+
+        // The nested change is untouched and nothing was written to the archive.
+        await expect(fs.access(path.join(nested, 'tasks.md'))).resolves.toBeUndefined();
+        await expect(
+          fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))
+        ).resolves.toEqual([]);
+      });
+
+      it('names the nested directory and the way out', async () => {
+        await seedNamespaceFolder();
+
+        await expect(
+          archiveCommand.execute('mobile', { yes: true, skipSpecs: true })
+        ).rejects.toThrow(/openspec\/changes\/mobile\/refresh-token\//);
+      });
+
+      it('carries a machine-readable diagnostic in --json mode', async () => {
+        await seedNamespaceFolder();
+
+        await archiveCommand
+          .execute('mobile', { yes: true, skipSpecs: true, json: true })
+          .catch(() => undefined);
+
+        const calls = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls;
+        const payload = JSON.parse(String(calls[calls.length - 1][0]));
+        expect(payload.archive).toBeNull();
+        expect(payload.status).toEqual([
+          expect.objectContaining({
+            severity: 'error',
+            code: 'archive_change_is_namespace_folder',
+          }),
+        ]);
+        expect(process.exitCode).toBe(1);
+      });
+
+      it('still archives an ordinary change that happens to have subdirectories', async () => {
+        const changeDir = path.join(tempDir, 'openspec', 'changes', 'add-auth');
+        await fs.mkdir(path.join(changeDir, 'specs', 'auth'), { recursive: true });
+        await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done\n');
+        await fs.writeFile(
+          path.join(changeDir, 'specs', 'auth', 'spec.md'),
+          '## ADDED Requirements\n'
+        );
+
+        await archiveCommand.execute('add-auth', {
+          yes: true,
+          skipSpecs: true,
+          noValidate: true,
+        });
+
+        await expect(
+          fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))
+        ).resolves.toEqual([`${formatLocalDate()}-add-auth`]);
+      });
+    });
+
     it('retains the complete copied archive when fallback source cleanup partially fails', async () => {
       const changeName = 'fallback-cleanup-failure';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -698,6 +769,32 @@ describe('ArchiveCommand', () => {
 
       expect(console.log).toHaveBeenCalledWith(
         expect.stringContaining('Warning: 2 incomplete task(s) found')
+      );
+    });
+
+    it('detects tasks written with an unrecognised marker (#1761 data-safety gate)', async () => {
+      // Before the fix the marker had to be ` `, `x` or `X`; every other
+      // checkbox character was dropped from the count entirely, so a change
+      // whose remaining work was written `- [~] ...` archived with no warning.
+      const changeName = 'unknown-marker-feature';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        [
+          '## 1. Implementation',
+          '- [x] 1.1 Done',
+          '- [~] 1.2 Deferred, not done',
+          '- [-] 1.3 Cancelled, not done',
+          '- [] 1.4 Empty box, not done',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Warning: 3 incomplete task(s) found')
       );
     });
 
@@ -2146,10 +2243,61 @@ New feature description.
       await expect(fs.access(claimPath)).resolves.not.toThrow();
     });
 
+    it('releases its archive claim when the path stat has no Windows device id', async () => {
+      const changeName = 'windows-archive-claim-release';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      const archiveName = `${formatLocalDate()}-${changeName}`;
+      const claimPath = archiveClaimPath(archiveName);
+      const realLstat = fs.lstat.bind(fs);
+      // Match the claim by file name rather than by full path. The command
+      // stats the resolved real path, so a literal comparison against the
+      // temp-dir path misses on macOS (/var -> /private/var) and on Windows
+      // short paths, leaving the mock inert and the regression unexercised.
+      let maskedDeviceIds = 0;
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        const stats = await realLstat(target, options as any);
+        if (path.basename(String(target)) !== '.openspec-archive.lock') {
+          return stats;
+        }
+        maskedDeviceIds += 1;
+        return { ...stats, dev: 0n };
+      });
+
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
+
+      // Guards the assertion below: without this the test passes even when the
+      // mock never intercepts, which is how it originally went vacuous.
+      expect(maskedDeviceIds).toBeGreaterThan(0);
+      await expect(fs.access(claimPath)).rejects.toMatchObject({ code: 'ENOENT' });
+    });
+
+    it('keeps a claim when its inode changes after reading on a zero-device stat', async () => {
+      const changeName = 'changed-archive-claim-identity';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      const claimPath = archiveClaimPath(`${formatLocalDate()}-${changeName}`);
+      const realLstat = fs.lstat.bind(fs);
+      let claimStats = 0;
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+        const stats = await realLstat(target, options as any);
+        if (path.basename(String(target)) !== '.openspec-archive.lock') return stats;
+        claimStats += 1;
+        return { ...stats, dev: 0n, ino: claimStats === 2 ? stats.ino + 1n : stats.ino };
+      });
+
+      await archiveCommand.execute(changeName, { yes: true, skipSpecs: true });
+
+      expect(claimStats).toBe(2);
+      await expect(fs.access(claimPath)).resolves.not.toThrow();
+    });
+
     // Windows defers deletion of an open file until its original handle closes,
     // so unlink-and-recreate cannot model a persistent replacement there.
     it.skipIf(process.platform === 'win32')(
-      'does not unlink a claim entry replaced by another process',
+      'does not unlink a replaced claim when path stats omit the device id',
       async () => {
         const changeName = 'replaced-archive-claim';
         const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
@@ -2157,7 +2305,14 @@ New feature description.
         const archiveName = `${formatLocalDate()}-${changeName}`;
         const claimPath = archiveClaimPath(archiveName);
         const realRename = fs.rename.bind(fs);
+        const realLstat = fs.lstat.bind(fs);
         onTestFinished(() => vi.restoreAllMocks());
+        vi.spyOn(fs, 'lstat').mockImplementation(async (target, options) => {
+          const stats = await realLstat(target, options as any);
+          return path.basename(String(target)) === '.openspec-archive.lock'
+            ? { ...stats, dev: 0n }
+            : stats;
+        });
         let replaced = false;
         vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
           if (
@@ -2383,7 +2538,7 @@ The system will log all events.
       }
     });
 
-    it('should proceed with archive when user declines spec updates', async () => {
+    it.each(['legacy', 'MODIFIED', 'RENAMED', 'REMOVED'])('archives when the user declines %s sync', async (operation) => {
       const { confirmPrompt: confirm } = await import('../../src/utils/interactive.js');
       const mockConfirm = confirm as unknown as ReturnType<typeof vi.fn>;
       
@@ -2392,8 +2547,21 @@ The system will log all events.
       const changeSpecDir = path.join(changeDir, 'specs', 'test-capability');
       await fs.mkdir(changeSpecDir, { recursive: true });
       
-      // Create valid spec in change
-      const specContent = `# Test Capability Spec
+      // These deltas cannot build a new main spec. Declining sync must still
+      // archive them without creating one, including the legacy no-operations case.
+      const specContent = operation === 'RENAMED'
+        ? '## RENAMED Requirements\n- FROM: `### Requirement: Old name`\n- TO: `### Requirement: New name`\n'
+        : operation !== 'legacy'
+          ? `## ${operation} Requirements
+
+### Requirement: Test capability
+The system SHALL provide test capability.
+
+#### Scenario: Basic test
+- **WHEN** an action occurs
+- **THEN** the expected result happens
+`
+          : `# Test Capability Spec
 
 ## Purpose
 This is a test capability specification.
@@ -2434,6 +2602,10 @@ Then expected result happens`;
       const archives = await fs.readdir(archiveDir);
       expect(archives.length).toBe(1);
       expect(archives[0]).toMatch(new RegExp(`\\d{4}-\\d{2}-\\d{2}-${changeName}`));
+      expect(process.exitCode).not.toBe(1);
+      await expect(
+        fs.readFile(path.join(archiveDir, archives[0], 'specs', 'test-capability', 'spec.md'), 'utf-8')
+      ).resolves.toBe(specContent);
     });
 
     it('warns about absorbed content before asking to apply the destructive spec update', async () => {
@@ -4421,6 +4593,623 @@ The system SHALL do the thing differently.
       expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
     });
 
+    // #1780: a repository that wraps its prose at a column limit writes every
+    // long scenario bullet over two lines. The continuation line is part of the
+    // bullet, but it was counted as content the merge could not name - so a
+    // wrapped spec could not be retired at all, and the same count suppressed
+    // the hint that told an unmarked author the marker exists.
+    it('still retires a spec whose scenario bullets wrap onto a second line', async () => {
+      const changeName = 'retire-wrapped-bullet';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers, wrapped at the',
+        "repository's column limit like every other paragraph in this file.",
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the outstanding count becomes zero and the completions are recorded',
+        '  rather than the earned total being reduced',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+    });
+
+    it('still retires a spec whose scenarios are bulleted with +', async () => {
+      // `+` is a list marker like `-` and `*`. Naming only two of the three
+      // made every bullet in such a spec unaccounted content, so the
+      // capability could not be retired at all - and `openspec validate
+      // --specs` passes the file without a word, so nothing said why.
+      const changeName = 'retire-plus-bulleted';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '+ **WHEN** a consumer imports the layer',
+        '+ **THEN** the layer resolves, wrapped at the column limit like every other',
+        '  paragraph in this file',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+    });
+
+    it('refuses an authored note that opens with a number too long to be a marker', async () => {
+      // `1234567890.` is past CommonMark's nine-digit cap, so it opens a
+      // paragraph rather than a list. Either reading refuses this note, since a
+      // bullet below the scenarios is the author's own too; the case is pinned
+      // so the shared marker definition cannot start deleting it.
+      const changeName = 'retire-long-number-note';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the layer resolves',
+        '',
+        '1234567890. Migration note: keep the escrow keys until the audit closes.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+    });
+
+    it('still retires when a scenario bullet wraps without indenting the continuation', async () => {
+      // Not every wrap indents. A lazy continuation is part of the bullet above
+      // it the same way an indented one is, and inside a scenario's bullet run
+      // a sibling bullet written in that position is already read as the
+      // scenario's own - so reading this line as loose content refused specs
+      // for a spelling difference.
+      const changeName = 'retire-lazy-wrapped-bullet';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the outstanding count becomes zero and the completions are recorded',
+        'rather than the earned total being reduced',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+    });
+
+    it('does not lazily absorb prose below a note bulleted after the scenarios', async () => {
+      // The lazy allowance is for a scenario's own bullet run. Past the blank
+      // line that ends it the author's note is the author's, and so is the line
+      // that wraps it - both must be named rather than deleted with the file.
+      const changeName = 'retire-lazy-note-after-scenarios';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        REQUIREMENT,
+        '',
+        '- IMPORTANT: escrow keys live in the "legacy" vault; rotate them before',
+        'anyone deletes this capability.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('anyone deletes'));
+    });
+    it('still retires when a nested list item wraps, and when a tab does the indenting', async () => {
+      const changeName = 'retire-wrapped-nested-bullet';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** these happen in order:',
+        '  1. the layer loads from the cache written by the previous run, or from disk',
+        '     when that cache is cold',
+        '\t2. the consumer proceeds',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+        true
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+    });
+
+    it.each([
+      { what: 'an ATX heading', line: '  ### Data Migration Notes' },
+      { what: 'a raw HTML heading', line: '  <h2>Data Migration Notes</h2>' },
+      { what: 'a setext heading', line: '  Data Migration Notes\n  --------------------' },
+    ])('still refuses $what indented directly under a scenario bullet', async ({ what, line }) => {
+      // Continuation is for wrapped prose. A heading is a heading wherever it
+      // sits, so indenting a section under a bullet must not smuggle it past
+      // the audit and delete it with the file.
+      const changeName = `retire-indented-heading-${what.split(' ')[1]}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the legacy layer is available',
+        line,
+        '  Export the escrow table by hand first.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Data Migration Notes')
+      );
+    });
+    it.each([
+      { what: 'an ATX heading', body: ['## Data Migration Notes', 'Export the escrow table by hand first.'] },
+      { what: 'a setext heading', body: ['Data Migration Notes', '--------------------', 'Export the escrow table by hand first.'] },
+      { what: 'a raw HTML heading', body: ['<h2>Data Migration Notes</h2>', 'Export the escrow table by hand first.'] },
+    ])('still refuses $what opened with no blank line after the scenario bullets', async ({ what, body }) => {
+      // The lazy allowance must not reach past a heading. A section opened
+      // directly under the bullets is a section however tightly it is written,
+      // and deleting the file would take it.
+      const changeName = `retire-tight-heading-${what.split(' ')[1]}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the legacy layer is available',
+        ...body,
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('Data Migration Notes')
+      );
+    });
+
+    it('reads a wrapped bullet the same way when the spec uses CRLF line endings', async () => {
+      const changeName = 'retire-wrapped-bullet-crlf';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        [
+          '# legacy-layer Specification',
+          '',
+          '## Purpose',
+          PURPOSE,
+          '',
+          '## Requirements',
+          '',
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          '- **WHEN** a consumer imports the layer',
+          '- **THEN** the outstanding count becomes zero and the completions are recorded',
+          '  rather than the earned total being reduced',
+          '',
+        ].join('\r\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+    });
+    it('names only the real leftover in a wrapped multi-requirement spec', async () => {
+      // The report is what an author acts on, so a wrapped spec must not bury
+      // the one line that matters under a list of its own continuations.
+      const changeName = 'retire-wrapped-multi';
+      const removeBoth = [
+        '# Legacy Layer - Changes',
+        '',
+        '## REMOVED Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        '**Reason**: The capability is retired.',
+        '**Migration**: None; consumers already moved off it.',
+        '',
+        '### Requirement: The system SHALL report legacy usage',
+        '**Reason**: The capability is retired.',
+        '**Migration**: None; consumers already moved off it.',
+        '',
+      ].join('\n');
+      await createChange(changeName, 'legacy-layer', removeBoth);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers, wrapped at the',
+        "repository's column limit like every other paragraph in this file.",
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the outstanding count becomes zero and the completions are recorded',
+        '  rather than the earned total being reduced',
+        '',
+        '### Requirement: The system SHALL report legacy usage',
+        'The system SHALL report legacy usage to the operator.',
+        '',
+        '#### Scenario: Usage is reported',
+        '- **WHEN** the nightly job runs',
+        '- **THEN** every consumer still importing the layer is listed in the report',
+        'along with the last time it did so',
+        '',
+        '- IMPORTANT: escrow keys live in the "legacy" vault; rotate before deleting.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      const refusal = (console.log as unknown as ReturnType<typeof vi.fn>).mock.calls
+        .map((call) => String(call[0]))
+        .find((line) => line.includes('cannot safely account for'));
+      expect(refusal).toContain('escrow keys');
+      expect(refusal).not.toContain('column limit');
+      expect(refusal).not.toContain('earned total');
+      expect(refusal).not.toContain('last time it did so');
+    });
+    it.each([
+      { what: 'a blockquote', body: ['> IMPORTANT: escrow keys live in the "legacy" vault.'], named: 'escrow keys' },
+      { what: 'a thematic break', body: ['***', 'IMPORTANT: escrow keys live in the "legacy" vault.'], named: 'escrow keys' },
+      { what: 'a table', body: ['| key | vault |', '| --- | ----- |', '| escrow | legacy |'], named: 'escrow' },
+      { what: 'a nested list', body: ['- IMPORTANT: escrow keys live in the "legacy" vault.'], named: 'escrow keys' },
+    ])('does not lazily absorb $what written flush against the scenario bullets', async ({ what, body, named }) => {
+      // CommonMark lets each of these interrupt a paragraph, so one written
+      // with no blank line after a bullet opens something new rather than
+      // continuing the bullet - and deleting the file would take it.
+      //
+      // The nested-list case is the one exception in kind: a sibling bullet in
+      // that position has always been read as the scenario's own, which is what
+      // makes the lazy allowance safe. It is here to pin that behavior, not to
+      // change it.
+      const changeName = `retire-lazy-block-${what.split(' ')[1]}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the legacy layer is available',
+        ...body,
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      if (what === 'a nested list') {
+        // Pinned, not asserted as desirable: unchanged from before the lazy
+        // allowance existed.
+        await expect(fs.access(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
+        return;
+      }
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining(named));
+    });
+
+    it.each([
+      { where: 'flush against the bullet', fence: ['```sh', 'openspec archive legacy', '```'] },
+      { where: 'indented inside the bullet', fence: ['  ```sh', '  openspec archive legacy', '  ```'] },
+    ])('does not lazily absorb a note written under a fence $where', async ({ where, fence }) => {
+      // A fence ends the paragraph wherever it sits, so the line after it is
+      // not continuing the bullet however tightly it is written.
+      const changeName = `retire-lazy-after-fence-${where.split(' ')[0]}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the legacy layer is available',
+        ...fence,
+        'IMPORTANT: escrow keys live in the "legacy" vault.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+    });
+
+    it('does not lazily absorb a note written under an indented quote in the bullet', async () => {
+      // The quote is inside the item, so it is not named - but it closed the
+      // bullet's paragraph, and the unindented line below it is new content.
+      const changeName = 'retire-lazy-after-indented-quote';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** the legacy layer is available',
+        '  > and the operator is told which consumers are still importing it',
+        'IMPORTANT: escrow keys live in the "legacy" vault.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+    });
+    it.each([
+      { what: 'an ATX heading', body: ['     ## Retention'], named: 'Retention' },
+      { what: 'a setext heading', body: ['     Retention', '     ---------'], named: 'Retention' },
+      { what: 'an unindented note', body: ['IMPORTANT: escrow keys live in the "legacy" vault.'], named: 'escrow keys' },
+    ])('still refuses $what written under a wide ordered marker', async ({ what, body, named }) => {
+      // A marker as wide as `100. ` puts the item's content past the three
+      // columns a Markdown construct is allowed at the file's left margin, so
+      // reading these lines against that margin saw five spaces of nothing and
+      // absorbed them. They are classified as the item sees them - which is
+      // also what tells the audit that the nested item closed the outer
+      // bullet's paragraph, so the unindented note below it is not a wrap.
+      const changeName = `retire-wide-marker-${what.split(' ')[1]}`;
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: The system SHALL provide a legacy layer',
+        'The system SHALL provide a legacy layer to existing consumers.',
+        '',
+        '#### Scenario: Layer is available',
+        '- **WHEN** a consumer imports the layer',
+        '- **THEN** these happen in order:',
+        '  100. the layer loads',
+        ...body,
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining(named));
+    });
+    it('names the marker for an unmarked change whose scenario bullets wrap', async () => {
+      // The hint was gated on there being nothing unaccounted for, so a wrapped
+      // spec got the bare `must have at least one requirement` abort and the
+      // author never learned the retirement path existed.
+      const changeName = 'retire-wrapped-bullet-unmarked';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL, {
+        declareRetirement: false,
+      });
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      await fs.writeFile(
+        path.join(mainSpecDir, 'spec.md'),
+        [
+          '# legacy-layer Specification',
+          '',
+          '## Purpose',
+          PURPOSE,
+          '',
+          '## Requirements',
+          '',
+          '### Requirement: The system SHALL provide a legacy layer',
+          'The system SHALL provide a legacy layer to existing consumers.',
+          '',
+          '#### Scenario: Layer is available',
+          '- **WHEN** a consumer imports the layer',
+          '- **THEN** the outstanding count becomes zero and the completions are recorded',
+          '  rather than the earned total being reduced',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('add `retire_capabilities: true`')
+      );
+    });
+
+    it('still refuses a note indented below a blank line after the scenarios', async () => {
+      // Indentation alone is not continuation: a blank line ends the list item,
+      // so what follows is the author's own note however it is indented. The
+      // wrapped-bullet allowance must not swallow it.
+      const changeName = 'retire-indented-note-after-blank';
+      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'legacy-layer');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const spec = [
+        '# legacy-layer Specification',
+        '',
+        '## Purpose',
+        PURPOSE,
+        '',
+        '## Requirements',
+        '',
+        REQUIREMENT,
+        '',
+        '  IMPORTANT: escrow keys live in the "legacy" vault; rotate before deleting.',
+        '',
+      ].join('\n');
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      expect(process.exitCode).toBe(1);
+      await expect(fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8')).resolves.toBe(spec);
+      expect(console.log).toHaveBeenCalledWith(expect.stringContaining('escrow keys'));
+    });
     it('still retires a spec whose requirement uses lists and code examples', async () => {
       // The guard must not refuse ordinary spec prose: a numbered list, a fenced
       // example, and a statement opening with inline code are all a
@@ -4766,22 +5555,35 @@ The system SHALL do the thing differently.
       );
     });
 
-    it('archives a REMOVED-only delta whose main spec was already deleted', async () => {
+    it.each([true, false])('handles an already-deleted main spec with retirement declared: %s', async (declareRetirement) => {
       // The issue's second dead end: pre-deleting the spec made the delta look
       // like a create, which landed on an empty spec and failed the same way.
       const changeName = 'retire-already-gone';
-      await createChange(changeName, 'legacy-layer', REMOVE_ALL);
+      const changeDir = await createChange(changeName, 'legacy-layer', REMOVE_ALL, { declareRetirement });
 
       await archiveCommand.execute(changeName, { yes: true });
 
-      expect(process.exitCode).not.toBe(1);
       // Nothing was recreated.
       await expect(
         fs.access(path.join(tempDir, 'openspec', 'specs', 'legacy-layer'))
       ).rejects.toThrow();
-      await expect(
-        fs.access(path.join(tempDir, 'openspec', 'changes', changeName))
-      ).rejects.toThrow();
+      if (declareRetirement) {
+        expect(process.exitCode).not.toBe(1);
+        await expect(fs.access(changeDir)).rejects.toThrow();
+        const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+        const [archivedName] = await fs.readdir(archiveDir);
+        await expect(
+          fs.readFile(path.join(archiveDir, archivedName, 'specs', 'legacy-layer', 'spec.md'), 'utf-8')
+        ).resolves.toBe(REMOVE_ALL);
+      } else {
+        expect(process.exitCode).toBe(1);
+        expect(console.log).toHaveBeenCalledWith(
+          expect.stringContaining(VALIDATION_MESSAGES.SPEC_NO_REQUIREMENTS)
+        );
+        await expect(fs.readFile(path.join(changeDir, 'specs', 'legacy-layer', 'spec.md'), 'utf-8'))
+          .resolves.toBe(REMOVE_ALL);
+        expect(await fs.readdir(path.join(tempDir, 'openspec', 'changes', 'archive'))).toEqual([]);
+      }
     });
 
     // The requirement-block count and the validator do NOT agree on what a
@@ -5967,11 +6769,14 @@ The system SHALL provide a replacement behavior.
       const realRename = fs.rename.bind(fs);
       onTestFinished(() => vi.restoreAllMocks());
       vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const src = String(source);
+        const dest = String(destination);
         if (
-          String(source).endsWith(
-            `${path.sep}openspec${path.sep}changes${path.sep}${changeName}`
-          )
+          src.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)
         ) {
+          if (dest.includes(`${path.sep}.openspec-move-`)) {
+            throw Object.assign(new Error('staging denied'), { code: 'EACCES' });
+          }
           throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
         }
         return realRename(source, destination);
@@ -6000,6 +6805,412 @@ The system SHALL provide a replacement behavior.
       ).rejects.toThrow();
       expect(
         (await fs.readdir(path.dirname(changeDir))).some((entry) =>
+          entry.startsWith('.openspec-move-')
+        )
+      ).toBe(false);
+    });
+
+    it('does not leave an empty capability directory when a create is rolled back', async () => {
+      const changeName = 'eperm-create-rollback-prunes';
+      const changeDir = await createChange(
+        changeName,
+        'write-feedback',
+        `## ADDED Requirements
+
+### Requirement: Write feedback is captured
+The system SHALL capture write feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** write feedback arrives
+- **THEN** it is stored
+`
+      );
+      const capabilityDir = path.join(tempDir, 'openspec', 'specs', 'write-feedback');
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const src = String(source);
+        const dest = String(destination);
+        if (
+          src.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)
+        ) {
+          if (dest.includes(`${path.sep}.openspec-move-`)) {
+            throw Object.assign(new Error('staging denied'), { code: 'EACCES' });
+          }
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).rejects.toThrow(/Could not safely stage/);
+
+      await expect(fs.access(path.join(capabilityDir, 'spec.md'))).rejects.toThrow();
+      await expect(fs.access(capabilityDir)).rejects.toThrow();
+      await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+
+    it('archives a source that already contains a claim-suffixed filename', async () => {
+      // A fixed claim suffix collided with a real source file ending in it:
+      // claiming `collision` renamed it over `collision.openspec-claim`, and
+      // that file's own turn then failed with ENOENT after part of the live
+      // source was gone. The suffix is drawn per move and checked against the
+      // entries being removed, so a valid tree like this archives normally.
+      const changeName = 'eperm-claim-suffix-collision';
+      const changeDir = await createChange(
+        changeName,
+        'collision-feedback',
+        `## ADDED Requirements
+
+### Requirement: Collision feedback is captured
+The system SHALL capture collision feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** collision feedback arrives
+- **THEN** it is stored
+`
+      );
+      await fs.writeFile(path.join(changeDir, 'collision'), 'plain entry\n');
+      await fs.writeFile(
+        path.join(changeDir, 'collision.openspec-claim'),
+        'entry that looks like a claim\n'
+      );
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (
+          String(source).endsWith(
+            `${path.sep}openspec${path.sep}changes${path.sep}${changeName}`
+          )
+        ) {
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true })
+      ).resolves.not.toThrow();
+
+      // The source is gone and both files made it into the archive intact.
+      await expect(fs.access(changeDir)).rejects.toThrow();
+      const archived = path.join(
+        tempDir,
+        'openspec',
+        'changes',
+        'archive',
+        `${formatLocalDate()}-${changeName}`
+      );
+      await expect(fs.readFile(path.join(archived, 'collision'), 'utf-8')).resolves.toBe(
+        'plain entry\n'
+      );
+      await expect(
+        fs.readFile(path.join(archived, 'collision.openspec-claim'), 'utf-8')
+      ).resolves.toBe('entry that looks like a claim\n');
+    });
+
+    it('keeps an edit to an already-verified file, and retains the destination', async () => {
+      // The window alfred flagged: the copy and both fingerprints are behind
+      // us, and an editor rewrites a file that is already in the verified set.
+      // The destination holds the older bytes, so removing that file would
+      // delete the only copy of the newer ones and still report success.
+      // Cleanup claims each file by renaming it before reading, then compares
+      // the claimed bytes against the copy, so this aborts instead.
+      const changeName = 'eperm-late-edit-preserved';
+      const changeDir = await createChange(
+        changeName,
+        'edit-feedback',
+        `## ADDED Requirements
+
+### Requirement: Edit feedback is captured
+The system SHALL capture edit feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** edit feedback arrives
+- **THEN** it is stored
+`
+      );
+      const deltaPath = path.join(changeDir, 'specs', 'edit-feedback', 'spec.md');
+      const newBytes = '# Rewritten while the move was finishing.\n';
+
+      const realRename = fs.rename.bind(fs);
+      const realWriteFile = fs.writeFile.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+
+      let edited = false;
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const from = String(source);
+        if (
+          from.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)
+        ) {
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        // The claim rename for the delta: land the edit just before it, so the
+        // bytes we claim are the new ones and the copy still holds the old.
+        if (!edited && from.endsWith(`${path.sep}spec.md`) && from.includes(changeName)) {
+          edited = true;
+          await realWriteFile(from, newBytes);
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+        /could not remove the source|retained for recovery/i
+      );
+
+      expect(edited).toBe(true);
+      // The newer bytes are still on disk, under their own path.
+      await expect(fs.readFile(deltaPath, 'utf-8')).resolves.toBe(newBytes);
+      // No claim file is left behind, whatever suffix this move drew.
+      await expect(
+        fs.readdir(path.dirname(deltaPath))
+      ).resolves.toEqual(['spec.md']);
+      // The complete copy is retained for recovery.
+      await expect(
+        fs.access(
+          path.join(
+            tempDir,
+            'openspec',
+            'changes',
+            'archive',
+            `${formatLocalDate()}-${changeName}`,
+            'specs',
+            'edit-feedback',
+            'spec.md'
+          )
+        )
+      ).resolves.not.toThrow();
+    });
+
+    it('keeps a file added after verification, and retains the destination', async () => {
+      // The unstaged fallback copies from the live change directory: the
+      // archive claim covers the destination, not the source. Cleanup must
+      // therefore delete only the entries it verified, never whatever happens
+      // to be there when it runs.
+      const changeName = 'eperm-late-write-preserved';
+      const changeDir = await createChange(
+        changeName,
+        'write-feedback',
+        `## ADDED Requirements
+
+### Requirement: Write feedback is captured
+The system SHALL capture write feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** write feedback arrives
+- **THEN** it is stored
+`
+      );
+      const lateFile = path.join(changeDir, 'late-arrival.md');
+
+      const realRename = fs.rename.bind(fs);
+      const realRmdir = fs.rmdir.bind(fs);
+      // archive works in realpaths, which on macOS carry a /private prefix the
+      // temp dir does not.
+      const resolvedChangeDir = await fs.realpath(changeDir);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (
+          String(source).endsWith(
+            `${path.sep}openspec${path.sep}changes${path.sep}${changeName}`
+          )
+        ) {
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      // Land the write in the window the listing has already closed: the
+      // verified entries are being removed, so the copy and both fingerprint
+      // checks are already behind us. rmdir of a subdirectory only happens
+      // inside that removal.
+      let arrived = false;
+      vi.spyOn(fs, 'rmdir').mockImplementation(async (target, options) => {
+        const t = String(target);
+        if (
+          !arrived &&
+          (t === resolvedChangeDir || t.startsWith(resolvedChangeDir + path.sep))
+        ) {
+          arrived = true;
+          await fs.writeFile(lateFile, 'Written while the move was finishing.\n');
+        }
+        return realRmdir(target, options);
+      });
+
+      await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+        /could not remove the source|retained for recovery/i
+      );
+
+      expect(arrived).toBe(true);
+      // The late write survives, and the complete copy is still there.
+      await expect(fs.readFile(lateFile, 'utf-8')).resolves.toContain(
+        'Written while the move was finishing.'
+      );
+      await expect(
+        fs.access(
+          path.join(
+            tempDir,
+            'openspec',
+            'changes',
+            'archive',
+            `${formatLocalDate()}-${changeName}`,
+            'specs',
+            'write-feedback',
+            'spec.md'
+          )
+        )
+      ).resolves.not.toThrow();
+    });
+
+    it('keeps a capability directory that already existed when a create is rolled back', async () => {
+      // Pruning is only ever taking back a directory this write created. One
+      // the user already had carries their own mode and ACLs.
+      const changeName = 'eperm-create-rollback-keeps-existing-dir';
+      await createChange(
+        changeName,
+        'write-feedback',
+        `## ADDED Requirements
+
+### Requirement: Write feedback is captured
+The system SHALL capture write feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** write feedback arrives
+- **THEN** it is stored
+`
+      );
+      const capabilityDir = path.join(tempDir, 'openspec', 'specs', 'write-feedback');
+      await fs.mkdir(capabilityDir, { recursive: true });
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const src = String(source);
+        const dest = String(destination);
+        if (src.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)) {
+          if (dest.includes(`${path.sep}.openspec-move-`)) {
+            throw Object.assign(new Error('staging denied'), { code: 'EACCES' });
+          }
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+        /Could not safely stage/
+      );
+
+      // The spec the rollback undid is gone; the directory the user had stays.
+      await expect(fs.access(path.join(capabilityDir, 'spec.md'))).rejects.toThrow();
+      await expect(fs.access(capabilityDir)).resolves.not.toThrow();
+    });
+
+    it('keeps a pre-existing ancestor when a nested capability create is rolled back', async () => {
+      // `platform/` already existed and `platform/session-layout/` did not.
+      // Only the leaf is ours to take back; walking up to the specs root would
+      // delete the user's directory too.
+      const changeName = 'eperm-nested-rollback-keeps-ancestor';
+      await createChange(
+        changeName,
+        'platform/session-layout',
+        `## ADDED Requirements
+
+### Requirement: Session layout is described
+The system SHALL describe the session layout.
+
+#### Scenario: Layout is read
+- **WHEN** the layout is requested
+- **THEN** it is returned
+`
+      );
+      const ancestorDir = path.join(tempDir, 'openspec', 'specs', 'platform');
+      const capabilityDir = path.join(ancestorDir, 'session-layout');
+      await fs.mkdir(ancestorDir, { recursive: true });
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        const src = String(source);
+        const dest = String(destination);
+        if (src.endsWith(`${path.sep}openspec${path.sep}changes${path.sep}${changeName}`)) {
+          if (dest.includes(`${path.sep}.openspec-move-`)) {
+            throw Object.assign(new Error('staging denied'), { code: 'EACCES' });
+          }
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
+        /Could not safely stage/
+      );
+
+      // The leaf this write created is gone; the ancestor the user had stays.
+      await expect(fs.access(capabilityDir)).rejects.toThrow();
+      await expect(fs.access(ancestorDir)).resolves.not.toThrow();
+    });
+
+    it('archives via copy when EPERM prevents both dest rename and staging', async () => {
+      const changeName = 'eperm-copy-without-staging';
+      const changeDir = await createChange(
+        changeName,
+        'write-feedback',
+        `## ADDED Requirements
+
+### Requirement: Write feedback is captured
+The system SHALL capture write feedback.
+
+#### Scenario: Feedback is stored
+- **WHEN** write feedback arrives
+- **THEN** it is stored
+`
+      );
+      const target = path.join(
+        tempDir,
+        'openspec',
+        'specs',
+        'write-feedback',
+        'spec.md'
+      );
+
+      const realRename = fs.rename.bind(fs);
+      onTestFinished(() => vi.restoreAllMocks());
+      vi.spyOn(fs, 'rename').mockImplementation(async (source, destination) => {
+        if (
+          String(source).endsWith(
+            `${path.sep}openspec${path.sep}changes${path.sep}${changeName}`
+          )
+        ) {
+          throw Object.assign(new Error('directory is busy'), { code: 'EPERM' });
+        }
+        return realRename(source, destination);
+      });
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      await expect(fs.access(changeDir)).rejects.toThrow();
+      await expect(fs.readFile(target, 'utf-8')).resolves.toContain(
+        '### Requirement: Write feedback is captured'
+      );
+      await expect(
+        fs.access(
+          path.join(
+            tempDir,
+            'openspec',
+            'changes',
+            'archive',
+            `${formatLocalDate()}-${changeName}`,
+            'specs',
+            'write-feedback',
+            'spec.md'
+          )
+        )
+      ).resolves.not.toThrow();
+      expect(
+        (await fs.readdir(path.dirname(path.dirname(changeDir)))).some((entry) =>
           entry.startsWith('.openspec-move-')
         )
       ).toBe(false);
@@ -7470,6 +8681,72 @@ This change exists to document greeting behavior thoroughly for the team, which 
 
       // The change was not archived.
       await expect(fs.access(changeDir)).resolves.not.toThrow();
+    });
+  });
+  // Every packaged template opens with an `# ` heading so the artifacts an
+  // agent writes are complete markdown documents (#1138). The delta spec is the
+  // one artifact archive reads back, so its title must stay inert: it belongs to
+  // the delta, not to the main spec archive builds from it.
+  describe('templates opening with a title (#1138)', () => {
+    it('keeps the delta spec title out of the main spec it creates', async () => {
+      const changeName = 'add-widget';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(path.join(changeDir, 'specs', 'widget'), { recursive: true });
+      await fs.writeFile(
+        path.join(changeDir, 'proposal.md'),
+        [
+          '# Proposal',
+          '',
+          '## Why',
+          'Widgets are the one thing this product cannot assemble today.',
+          '',
+          '## What Changes',
+          '- Add the widget capability.',
+          '',
+        ].join('\n')
+      );
+      await fs.writeFile(
+        path.join(changeDir, 'tasks.md'),
+        ['# Tasks', '', '## 1. Build', '', '- [x] 1.1 Build it', ''].join('\n')
+      );
+      await fs.writeFile(
+        path.join(changeDir, 'specs', 'widget', 'spec.md'),
+        [
+          '# Spec Delta',
+          '',
+          '## Purpose',
+          'Lets users assemble widgets from parts in a repeatable way.',
+          '',
+          '## ADDED Requirements',
+          '',
+          '### Requirement: User can build a widget',
+          'The system SHALL let a user build a widget.',
+          '',
+          '#### Scenario: Successful build',
+          '- **WHEN** a user requests a widget',
+          '- **THEN** the system builds it',
+          '',
+        ].join('\n')
+      );
+
+      await archiveCommand.execute(changeName, { yes: true });
+
+      const mainSpec = await fs.readFile(
+        path.join(tempDir, 'openspec', 'specs', 'widget', 'spec.md'),
+        'utf-8'
+      );
+
+      // The main spec keeps its own generated title, and only that one.
+      expect(mainSpec.split('\n').filter((line) => line.startsWith('# '))).toEqual([
+        '# widget Specification',
+      ]);
+      // The delta's title is gone entirely, not demoted to a lower level.
+      expect(mainSpec).not.toMatch(/^#+\s+Spec Delta\s*$/m);
+      // The delta's title did not displace the Purpose archive carries over.
+      expect(mainSpec).toContain(
+        '## Purpose\nLets users assemble widgets from parts in a repeatable way.'
+      );
+      expect(mainSpec).toContain('### Requirement: User can build a widget');
     });
   });
 });

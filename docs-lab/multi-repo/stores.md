@@ -196,7 +196,7 @@ OpenSpec writes artifacts to one of two places: your project's `openspec/` folde
 3. **The `store:` line in your project.** How a store-only project records its store.
 4. **`defaultStore` on your machine.** The fallback when none of the above applies.
 
-Whichever applied, OpenSpec's first output line names the folder it acted on (`Using OpenSpec root: ...`). The exact rules, including the error cases, are in [Configuration › Stores](../reference/configuration/stores.md).
+When OpenSpec selects a store, it prints `Using OpenSpec root: ...` before the command output.
 
 ### The `store:` line (store-only projects)
 

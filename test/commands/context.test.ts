@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
+import { readProjectConfig } from '../../src/core/project-config.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { createOpenSpecRoot } from '../helpers/openspec-fixtures.js';
 import { snapshotDirectory as snapshot } from '../helpers/fs-snapshot.js';
@@ -228,6 +229,117 @@ describe('openspec context (4.1)', () => {
     const payload = parseJson(noRoot);
     expect(payload.root).toBeNull();
     expect(payload.members).toEqual([]);
-    expect(payload.status[0].code).toBeDefined();
+    expect(payload.status[0].code).toBe('no_root_with_registered_stores');
+  });
+
+  it('reports initialization guidance without creating anything in a fresh directory (#1651)', async () => {
+    const bare = path.join(tempDir, 'fresh-project');
+    fs.mkdirSync(bare);
+    const freshEnv = { ...env, XDG_DATA_HOME: path.join(tempDir, 'empty-data') };
+    const before = snapshot(tempDir);
+
+    const context = await runCLI(['context', '--json'], { cwd: bare, env: freshEnv });
+    expect(context.exitCode).toBe(1);
+    const payload = parseJson(context);
+    expect(payload.root).toBeNull();
+    expect(payload.status).toEqual([expect.objectContaining({
+      code: 'no_openspec_root',
+      fix: expect.stringContaining('openspec init'),
+    })]);
+    expect(snapshot(tempDir)).toEqual(before);
+  });
+
+  it.each(['nested local', 'legacy local', 'pointer', 'explicit store', 'global default'])(
+    'preserves the %s root through context, change creation, and proposal instructions (#1651)',
+    async (selection) => {
+      const project = path.join(tempDir, 'proposal-project');
+      const cwd = path.join(project, 'src', 'nested');
+      fs.mkdirSync(cwd, { recursive: true });
+      let selectedRoot = storeRoot;
+      let source = 'store';
+      let expectedContext: string | undefined = 'Selected store context';
+      const storeArgs = selection === 'explicit store' ? ['--store', 'team-context'] : [];
+
+      fs.writeFileSync(
+        path.join(storeRoot, 'openspec', 'config.yaml'),
+        'schema: spec-driven\ncontext: Selected store context\n'
+      );
+
+      if (selection === 'nested local' || selection === 'legacy local') {
+        selectedRoot = project;
+        source = 'nearest';
+        if (selection === 'legacy local') {
+          fs.mkdirSync(path.join(project, 'openspec', 'specs'), { recursive: true });
+          fs.mkdirSync(path.join(project, 'openspec', 'changes'), { recursive: true });
+          fs.writeFileSync(path.join(project, 'openspec', 'project.md'), '# Legacy project\n');
+          expectedContext = undefined;
+        } else {
+          createOpenSpecRoot(project);
+          expectedContext = 'Selected local context';
+          fs.writeFileSync(
+            path.join(project, 'openspec', 'config.yaml'),
+            'schema: spec-driven\ncontext: Selected local context\n'
+          );
+        }
+      } else if (selection === 'pointer') {
+        source = 'declared';
+        fs.mkdirSync(path.join(project, 'openspec'));
+        fs.writeFileSync(
+          path.join(project, 'openspec', 'config.yaml'),
+          'store: team-context\ncontext: Do not use pointer-local context\n'
+        );
+      } else if (selection === 'global default') {
+        source = 'global_default';
+        fs.mkdirSync(path.join(tempDir, 'config', 'openspec'), { recursive: true });
+        fs.writeFileSync(
+          path.join(tempDir, 'config', 'openspec', 'config.json'),
+          JSON.stringify({ defaultStore: 'team-context' }) + '\n'
+        );
+      } else {
+        // An explicit store must beat even an initialized local root.
+        createOpenSpecRoot(project);
+      }
+
+      const before = snapshot(tempDir);
+      const context = await runCLI(['context', '--json', ...storeArgs], { cwd, env });
+      expect(context.exitCode).toBe(0);
+      expect(readProjectConfig(parseJson(context).root.path)?.context).toBe(expectedContext);
+      expect(snapshot(tempDir)).toEqual(before);
+
+      const created = await runCLI(['new', 'change', 'add-auth', '--json', ...storeArgs], { cwd, env });
+      expect(created.exitCode).toBe(0);
+      const instructions = await runCLI(
+        ['instructions', 'proposal', '--change', 'add-auth', '--json', ...storeArgs],
+        { cwd, env }
+      );
+      expect(instructions.exitCode).toBe(0);
+
+      for (const result of [context, created, instructions]) {
+        const root = parseJson(result).root;
+        expect(fs.realpathSync.native(root.path)).toBe(fs.realpathSync.native(selectedRoot));
+        expect(root.source).toBe(source);
+        expect(root.store_id).toBe(selectedRoot === storeRoot ? 'team-context' : undefined);
+      }
+      expect(parseJson(instructions).context).toBe(expectedContext);
+      expect(fs.existsSync(path.join(selectedRoot, 'openspec', 'changes', 'add-auth', '.openspec.yaml'))).toBe(true);
+      expect(fs.existsSync(path.join(cwd, 'openspec'))).toBe(false);
+      if (selectedRoot !== project) {
+        expect(fs.existsSync(path.join(project, 'openspec', 'changes', 'add-auth'))).toBe(false);
+      }
+    },
+    CONTEXT_MATRIX_TIMEOUT_MS
+  );
+
+  it('rejects an invalid selected store without falling back to an initialized local root', async () => {
+    const project = path.join(tempDir, 'local-project');
+    createOpenSpecRoot(project);
+    const before = snapshot(tempDir);
+
+    const context = await runCLI(['context', '--json', '--store', 'missing-store'], { cwd: project, env });
+
+    expect(context.exitCode).toBe(1);
+    expect(parseJson(context).root).toBeNull();
+    expect(parseJson(context).status).toEqual([expect.objectContaining({ code: 'unknown_store' })]);
+    expect(snapshot(tempDir)).toEqual(before);
   });
 });

@@ -168,6 +168,19 @@ describe('migration', () => {
     expect(config.workflows).toEqual(['explore']);
   });
 
+  it.each(['[]\n', 'null\n', '{ "profile": "custom", }\n'])(
+    'leaves a config that is not a readable JSON object (%j) alone instead of failing',
+    async (content) => {
+      await writeSkill(projectDir, 'openspec-explore');
+      const configPath = getGlobalConfigPath();
+      await fsp.mkdir(path.dirname(configPath), { recursive: true });
+      await fsp.writeFile(configPath, content, 'utf-8');
+
+      expect(() => captureMigrationLogs(projectDir, [ensureClaudeTool()])).not.toThrow();
+      expect(fs.readFileSync(configPath, 'utf-8')).toBe(content);
+    }
+  );
+
   it('does not migrate when no managed workflow artifacts are detected', async () => {
     migrateIfNeeded(projectDir, [ensureClaudeTool()]);
 
