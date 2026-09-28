@@ -34,6 +34,15 @@ describe('available-tools', () => {
       expect(tools[0].skillsDir).toBe('.claude');
     });
 
+    it('should identify the Bob integration by its product name', async () => {
+      await fs.mkdir(path.join(testDir, '.bob'), { recursive: true });
+
+      const tool = getAvailableTools(testDir).find((candidate) => candidate.value === 'bob');
+
+      expect(tool?.name).toBe('IBM Bob');
+      expect(tool?.successLabel).toBe('IBM Bob');
+    });
+
     it('should detect MiniMax Code only from managed skills in the user-home target', async () => {
       const globalSkill = path.join(
         testDir,

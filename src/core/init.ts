@@ -69,7 +69,7 @@ import {
   sharedSkillRootOwner,
   writeSharedSkillTarget,
 } from './shared-skill-target.js';
-import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared, cleanupLegacyBobCommandFiles } from './migration.js';
+import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
   resolveCommandInvocation,
@@ -1043,9 +1043,6 @@ export class InitCommand {
         }
         const kept = keptInPlaceNotice(migration);
         if (kept) console.log(chalk.dim(kept));
-      }
-      if (tool.value === 'bob') {
-        cleanupLegacyBobCommandFiles(projectPath);
       }
     }
 
