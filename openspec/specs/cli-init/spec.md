@@ -52,7 +52,7 @@ The command SHALL configure AI coding assistants with skills and slash commands 
 
 - **WHEN** user selects tools and confirms
 - **THEN** generate skills in `.<tool>/skills/` directory for each selected tool
-- **AND** generate slash commands in `.<tool>/commands/opsx/` directory for each selected tool
+- **AND** generate slash commands for each selected tool with a command adapter, at that adapter's own path (for example `.claude/commands/opsx/<id>.md` or `.cursor/commands/opsx-<id>.md`)
 - **AND** create `openspec/config.yaml` with default schema setting
 
 ### Requirement: Interactive Mode
@@ -85,10 +85,9 @@ The command SHALL provide clear, actionable next steps upon successful initializ
   - "Created: <tools>" for newly configured tools
   - "Refreshed: <tools>" for already-configured tools that were updated
   - Count of skills and commands generated
-- **AND** display getting started section with:
-  - `/opsx:new` - Start a new change
-  - `/opsx:continue` - Create the next artifact
-  - `/opsx:apply` - Implement tasks
+- **AND** display a getting started section naming an installed onboarding workflow (for example `/opsx:propose` - Start a change)
+- **AND** spell each command the way the configured tool registers it: `/opsx-<id>` for tools whose command files are named `opsx-<id>`, and the tool's skill invocation (`$openspec-<skill>` for Codex, `/skill:openspec-<skill>` for Kimi Code, `/openspec-<skill>` otherwise) for tools that receive no command files
+- **AND** print one labeled line per distinct form when the selected tools disagree
 - **AND** display links to documentation and feedback
 
 #### Scenario: Displaying restart instruction
@@ -226,10 +225,10 @@ The command SHALL generate opsx slash commands only for selected tools that have
 - **AND** command-file generation SHALL be skipped for that tool
 - **AND** the command output SHALL include `Commands skipped for: <tool-id> (no adapter)`
 
-#### Scenario: Kimi CLI skips command-file generation
+#### Scenario: Kimi Code skips command-file generation
 
-- **WHEN** the user selects Kimi CLI during initialization
-- **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.kimi'`
+- **WHEN** the user selects Kimi Code during initialization
+- **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.kimi-code'`
 - **AND** command-file generation SHALL be skipped because no Kimi adapter is registered
 
 ### Requirement: Config File Generation
@@ -249,6 +248,35 @@ The command SHALL create an OpenSpec config file with schema settings.
 - **AND** `openspec/config.yaml` already exists
 - **THEN** preserve the existing config file
 - **AND** display "(exists)" indicator in output
+
+### Requirement: Artifact Language Configuration
+
+The command SHALL let users configure the artifact language during initialization without changing existing project guidance.
+
+#### Scenario: Configuring language for a new project
+
+- **WHEN** the user runs `openspec init --language <language>` and no OpenSpec config exists
+- **THEN** create `openspec/config.yaml` with context instructing agents to write artifacts in the selected language
+- **AND** keep OpenSpec structural headings and `SHALL`/`MUST` requirement keywords in English
+- **AND** make the language context available to artifact instructions
+
+#### Scenario: Protecting existing project context
+
+- **WHEN** the user runs `openspec init --language <language>` and an OpenSpec config already exists without the same generated language guidance
+- **THEN** fail before changing project files
+- **AND** direct the user to edit the existing config context
+
+#### Scenario: Rejecting an unsafe language value
+
+- **WHEN** the `--language` value is empty, multiline, contains control characters, or would exceed the project context size limit
+- **THEN** fail before creating OpenSpec files
+- **AND** explain why the value is invalid
+
+#### Scenario: Language config cannot be written
+
+- **WHEN** the user runs `openspec init --language <language>` and the new config cannot be written
+- **THEN** fail instead of reporting successful initialization
+- **AND** avoid creating unrelated tool files when writability can be determined in advance
 
 ### Requirement: Experimental Command Alias
 

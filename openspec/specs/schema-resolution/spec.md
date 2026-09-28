@@ -2,7 +2,6 @@
 
 ## Purpose
 Define project-local schema resolution behavior, including precedence order (project-local, then user override, then package built-in) and backward-compatible fallback when `projectRoot` is not provided.
-
 ## Requirements
 ### Requirement: Project-local schema resolution
 
@@ -93,14 +92,14 @@ The `openspec schemas` command SHALL display the source of each schema.
 
 ### Requirement: Use config schema as default for new changes
 
-The system SHALL use the schema field from `openspec/config.yaml` as the default when creating new changes without explicit `--schema` flag.
+The system SHALL use the schema field from `openspec/config.yaml` as the default when creating new changes without explicit `--schema` flag and no planning-home default applies.
 
 #### Scenario: Create change without --schema flag and config exists
-- **WHEN** user runs `openspec new change foo` and config contains `schema: "tdd"`
+- **WHEN** user runs `openspec new change foo`, no planning-home default applies, and config contains `schema: "tdd"`
 - **THEN** system creates change with schema "tdd"
 
 #### Scenario: Create change without --schema flag and no config
-- **WHEN** user runs `openspec new change foo` and no config file exists
+- **WHEN** user runs `openspec new change foo`, no planning-home default applies, and no config file exists
 - **THEN** system creates change with default schema "spec-driven"
 
 #### Scenario: Create change with explicit --schema flag
@@ -109,7 +108,7 @@ The system SHALL use the schema field from `openspec/config.yaml` as the default
 
 ### Requirement: Resolve schema with updated precedence order
 
-The system SHALL resolve the schema for a change using the following precedence order: CLI flag, change metadata, project config, hardcoded default.
+The system SHALL resolve the schema for a change using the following precedence order: CLI flag, change metadata, planning-home default, project config, hardcoded default.
 
 #### Scenario: CLI flag is provided
 - **WHEN** user runs command with `--schema custom`
@@ -120,11 +119,11 @@ The system SHALL resolve the schema for a change using the following precedence 
 - **THEN** system uses "bound" from change metadata
 
 #### Scenario: Only project config specifies schema
-- **WHEN** no CLI flag or change metadata, but config has `schema: tdd`
+- **WHEN** no CLI flag, change metadata, or planning-home default exists, but config has `schema: tdd`
 - **THEN** system uses "tdd" from project config
 
 #### Scenario: No schema specified anywhere
-- **WHEN** no CLI flag, change metadata, or project config
+- **WHEN** no CLI flag, change metadata, planning-home default, or project config
 - **THEN** system uses hardcoded default "spec-driven"
 
 ### Requirement: Support project-local schema names in config

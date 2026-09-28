@@ -32,15 +32,29 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **WHEN** looking up the `cursor` tool
 - **THEN** `skillsDir` SHALL be `.cursor`
 
-#### Scenario: Windsurf paths defined
+#### Scenario: Devin Desktop paths defined
 
-- **WHEN** looking up the `windsurf` tool
-- **THEN** `skillsDir` SHALL be `.windsurf`
+- **WHEN** looking up the `devin` tool
+- **THEN** `skillsDir` SHALL be `.devin`
 
-#### Scenario: Kimi CLI paths defined
+#### Scenario: Legacy Windsurf tool ID
+
+- **WHEN** initializing with `openspec init --tools windsurf`
+- **THEN** the `windsurf` alias SHALL resolve to `devin`
+- **AND** when skill delivery is enabled, skills SHALL be generated under `.devin/skills/`, not `.windsurf/skills/`
+
+#### Scenario: Kimi Code paths defined
 
 - **WHEN** looking up the `kimi` tool
-- **THEN** `skillsDir` SHALL be `.kimi`
+- **THEN** `skillsDir` SHALL be `.kimi-code`
+- **AND** OpenSpec-managed skills remaining under the legacy `.kimi/skills` directory SHALL be migrated to `.kimi-code/skills` during init and update, preserving user files
+
+#### Scenario: Hermes Agent paths defined
+
+- **WHEN** looking up the `hermes` tool
+- **THEN** `skillsDir` SHALL be `.hermes`
+- **AND** `setupNote` SHALL explain that project `.hermes/skills` must be added to `skills.external_dirs` in `~/.hermes/config.yaml`
+- **AND** `openspec init` and `openspec update` SHALL display the note whenever `hermes` is configured
 
 #### Scenario: Tools without skillsDir
 

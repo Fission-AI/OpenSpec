@@ -35,6 +35,39 @@ async function getSpecFiles(): Promise<string[]> {
 }
 
 describe('source-of-truth specs normalization', () => {
+  it('reports duplicate canonical requirement names', () => {
+    const content = [
+      '# Capability',
+      '',
+      '## Purpose',
+      'A purpose.',
+      '',
+      '## Requirements',
+      '',
+      '### Requirement: Same name',
+      'The first definition.',
+      '',
+      '#### Scenario: First',
+      '- **WHEN** something happens',
+      '- **THEN** the first result occurs',
+      '',
+      '### Requirement: Same name',
+      'The second definition.',
+      '',
+      '#### Scenario: Second',
+      '- **WHEN** something else happens',
+      '- **THEN** the second result occurs',
+      '',
+    ].join('\n');
+
+    expect(findMainSpecStructureIssues(content)).toEqual([
+      expect.objectContaining({
+        kind: 'duplicate-requirement',
+        message: expect.stringContaining('Same name'),
+      }),
+    ]);
+  });
+
   it('enforces required sections and bans hidden requirements, placeholders, and delta headers', async () => {
     const files = await getSpecFiles();
     expect(files.length).toBeGreaterThan(0);

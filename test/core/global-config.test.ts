@@ -21,8 +21,7 @@ describe('global-config', () => {
 
   beforeEach(() => {
     // Create temp directory for tests
-    tempDir = path.join(os.tmpdir(), `openspec-global-config-test-${Date.now()}`);
-    fs.mkdirSync(tempDir, { recursive: true });
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-global-config-test-'));
 
     // Save original env
     originalEnv = { ...process.env };

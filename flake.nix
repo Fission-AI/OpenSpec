@@ -39,6 +39,7 @@
                 ./test
                 ./package.json
                 ./pnpm-lock.yaml
+                ./pnpm-workspace.yaml
                 ./tsconfig.json
                 ./build.js
                 ./vitest.config.ts
@@ -49,16 +50,17 @@
 
             pnpmDeps = pkgs.fetchPnpmDeps {
               inherit (finalAttrs) pname version src;
-              pnpm = pkgs.pnpm_9;
+              pnpm = pkgs.pnpm_10;
               fetcherVersion = 3;
-              hash = "sha256-9s2kdvd7svK4hofnD66HkDc86WTQeayfF5y7L2dmjNg=";
+              hash = "sha256-ifgjl6/g7wpvcF4Ly/p+rxUbNEKiXF2u69CmpUM0olg=";
             };
 
             nativeBuildInputs = with pkgs; [
-              nodejs_20
+              installShellFiles
+              nodejs_22
               npmHooks.npmInstallHook
               pnpmConfigHook
-              pnpm_9
+              pnpm_10
             ];
 
             buildPhase = ''
@@ -70,6 +72,21 @@
             '';
 
             dontNpmPrune = true;
+
+            # `openspec completion generate` renders a static command registry, so it
+            # needs no project and no network. Opting out of telemetry also disables
+            # the update check, keeping the build offline.
+            postInstall = lib.optionalString (pkgs.stdenv.buildPlatform.canExecute pkgs.stdenv.hostPlatform) ''
+              export OPENSPEC_TELEMETRY=0
+              completions=$(mktemp -d)
+              for shell in bash fish zsh; do
+                $out/bin/openspec completion generate "$shell" > "$completions/openspec.$shell"
+              done
+              installShellCompletion --cmd openspec \
+                --bash "$completions/openspec.bash" \
+                --fish "$completions/openspec.fish" \
+                --zsh "$completions/openspec.zsh"
+            '';
 
             meta = with pkgs.lib; {
               description = "AI-native system for spec-driven development";
@@ -97,8 +114,8 @@
         {
           default = pkgs.mkShell {
             buildInputs = with pkgs; [
-              nodejs_20
-              pnpm_9
+              nodejs_22
+              pnpm_10
             ];
 
             shellHook = ''

@@ -5,11 +5,75 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { onlyWithWorkflow, optionalWorkflow } from '../optional-workflow.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
+
+/**
+ * The tutorial names other workflows throughout. Which of them exist depends
+ * on the profile, so each mention is resolved at generation time (see
+ * optional-workflow.ts) instead of being listed with an "if installed" caveat
+ * the reader has to check for themselves.
+ */
+const EXPLORE_MODE_NOTE = optionalWorkflow(
+  'explore',
+  'Explore mode (`/opsx:explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.',
+  'Investigating before implementing is worth doing whenever a problem needs thinking through.'
+);
+
+/**
+ * The command-reference tables. Every row is dropped along with its line when
+ * the profile does not install that workflow, so the table lists exactly the
+ * commands the reader can run — and stays a valid table either way.
+ */
+const COMMAND_REFERENCE_ROWS = [
+  onlyWithWorkflow('propose', ' | `/opsx:propose` | Create a change and generate all artifacts |'),
+  onlyWithWorkflow('explore', ' | `/opsx:explore` | Think through problems before/during work  |'),
+  onlyWithWorkflow('apply', ' | `/opsx:apply`   | Implement tasks from a change              |'),
+  onlyWithWorkflow('archive', ' | `/opsx:archive` | Archive a completed change                 |'),
+  onlyWithWorkflow('new', ' | `/opsx:new`     | Start a new change, one artifact at a time |'),
+  onlyWithWorkflow('continue', ' | `/opsx:continue` | Continue working on an existing change    |'),
+  onlyWithWorkflow('ff', ' | `/opsx:ff`      | Fast-forward: create all artifacts at once |'),
+  onlyWithWorkflow('verify', ' | `/opsx:verify`  | Verify implementation matches artifacts    |'),
+].join('\n');
+
+const QUICK_REFERENCE_ROWS = [
+  onlyWithWorkflow('propose', ' | `/opsx:propose <name>`  | Create a change and generate all artifacts |'),
+  onlyWithWorkflow('explore', ' | `/opsx:explore`         | Think through problems (no code changes)   |'),
+  onlyWithWorkflow('apply', ' | `/opsx:apply <name>`    | Implement tasks                            |'),
+  onlyWithWorkflow('archive', ' | `/opsx:archive <name>`  | Archive when done                          |'),
+  onlyWithWorkflow('new', ' | `/opsx:new <name>`      | Start a new change, step by step           |'),
+  onlyWithWorkflow('continue', ' | `/opsx:continue <name>` | Continue an existing change                |'),
+  onlyWithWorkflow('ff', ' | `/opsx:ff <name>`       | Fast-forward: all artifacts at once        |'),
+  onlyWithWorkflow('verify', ' | `/opsx:verify <name>`   | Verify implementation                      |'),
+].join('\n');
+
+/**
+ * Resume hints for a user stopping mid-tutorial. Both are optional, so the
+ * sentence that introduces them stands on its own without either.
+ */
+const RESUME_HINTS = [
+  onlyWithWorkflow('continue', '- `/opsx:continue <name>` - Resume artifact creation'),
+  onlyWithWorkflow('apply', '- `/opsx:apply <name>` - Jump to implementation (if tasks exist)'),
+].join('\n');
+
+/** Where the tutorial points once it is over. */
+const NEXT_STEP_INVITE = optionalWorkflow(
+  'propose',
+  'Try `/opsx:propose` on something you actually want to build. You\'ve got the rhythm now!',
+  'Try this on something you actually want to build. You\'ve got the rhythm now!'
+);
+
+const QUICK_REFERENCE_INVITE = optionalWorkflow(
+  'propose',
+  'Try `/opsx:propose` to start your first change.',
+  'Ask me to start your first change whenever you are ready.'
+);
 
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-onboard',
-    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work.',
+    description: 'Guided onboarding for OpenSpec - walk through a complete workflow cycle with narration and real codebase work. Also use when the user says "openspec onboard" or "opsx onboard".',
     instructions: getOnboardInstructions(),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
@@ -19,6 +83,10 @@ export function getOnboardSkillTemplate(): SkillTemplate {
 
 function getOnboardInstructions(): string {
   return `Guide the user through their first complete OpenSpec workflow cycle. This is a teaching experience—you'll do real work in their codebase while explaining each step.
+
+${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 ---
 
@@ -161,7 +229,7 @@ Spend 1-2 minutes investigating the relevant code:
 │   [Optional: ASCII diagram if helpful]  │
 └─────────────────────────────────────────┘
 
-Explore mode (\`/opsx:explore\`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
+${EXPLORE_MODE_NOTE}
 
 Now let's create a change to hold our work.
 \`\`\`
@@ -176,7 +244,7 @@ Now let's create a change to hold our work.
 \`\`\`
 ## Creating a Change
 
-A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives in \`openspec/changes/<name>/\` and holds your artifacts—proposal, specs, design, tasks.
+A "change" in OpenSpec is a container for all the thinking and planning around a piece of work. It lives at the \`changeRoot\` reported by \`openspec status --change "<name>" --json\` and holds your artifacts—proposal, specs, design, tasks.
 
 Let me create one for our task.
 \`\`\`
@@ -188,11 +256,11 @@ openspec new change "<derived-name>"
 
 **SHOW:**
 \`\`\`
-Created: \`openspec/changes/<name>/\`
+Created: <changeRoot from status JSON>
 
 The folder structure:
 \`\`\`
-openspec/changes/<name>/
+<changeRoot>/
 ├── proposal.md    ← Why we're doing this (empty, we'll fill it)
 ├── design.md      ← How we'll build it (empty)
 ├── specs/         ← Detailed requirements (empty)
@@ -217,10 +285,17 @@ I'll draft one based on our task.
 
 **DO:** Draft the proposal content (don't save yet):
 
+\`<capability-path>\` is the spec directory relative to \`specs/\` (for example,
+\`user-auth\` or \`identity/user-auth\`). Use the exact existing path for modified
+capabilities. For new capabilities, follow the project's established spec
+organization.
+
 \`\`\`
 Here's a draft proposal:
 
 ---
+
+# Proposal
 
 ## Why
 
@@ -233,10 +308,11 @@ Here's a draft proposal:
 ## Capabilities
 
 ### New Capabilities
-- \`<capability-name>\`: [brief description]
+- \`<capability-path>\`: [brief description]
 
 ### Modified Capabilities
 <!-- If modifying existing behavior -->
+- \`<existing-capability-path>\`: [brief description]
 
 ## Impact
 
@@ -254,7 +330,7 @@ After approval, save the proposal:
 \`\`\`bash
 openspec instructions proposal --change "<name>" --json
 \`\`\`
-Then write the content to \`openspec/changes/<name>/proposal.md\`.
+Then write the content to the \`resolvedOutputPath\` from \`openspec instructions proposal --change "<name>" --json\`.
 
 \`\`\`
 Proposal saved. This is your "why" document—you can always come back and refine it as understanding evolves.
@@ -275,12 +351,10 @@ Specs define **what** we're building in precise, testable terms. They use a requ
 For a small task like this, we might only need one spec file.
 \`\`\`
 
-**DO:** Create the spec file:
+**DO:** Resolve where the spec file should be created:
 \`\`\`bash
-# Unix/macOS
-mkdir -p openspec/changes/<name>/specs/<capability-name>
-# Windows (PowerShell)
-# New-Item -ItemType Directory -Force -Path "openspec/changes/<name>/specs/<capability-name>"
+openspec instructions specs --change "<name>" --json
+# Use resolvedOutputPath from the JSON. If it is a glob, choose the concrete file path using the schema instruction and the change's context.
 \`\`\`
 
 Draft the spec content:
@@ -289,6 +363,8 @@ Draft the spec content:
 Here's the spec:
 
 ---
+
+# Spec Delta
 
 ## ADDED Requirements
 
@@ -307,7 +383,7 @@ Here's the spec:
 This format—WHEN/THEN/AND—makes requirements testable. You can literally read them as test cases.
 \`\`\`
 
-Save to \`openspec/changes/<name>/specs/<capability>/spec.md\`.
+Save to the concrete file path chosen from \`resolvedOutputPath\`.
 
 ---
 
@@ -328,6 +404,8 @@ For small changes, this might be brief. That's fine—not every change needs dee
 Here's the design:
 
 ---
+
+# Design
 
 ## Context
 
@@ -352,7 +430,7 @@ Here's the design:
 For a small task, this captures the key decisions without over-engineering.
 \`\`\`
 
-Save to \`openspec/changes/<name>/design.md\`.
+Save to the \`resolvedOutputPath\` from \`openspec instructions design --change "<name>" --json\`.
 
 ---
 
@@ -364,7 +442,7 @@ Save to \`openspec/changes/<name>/design.md\`.
 
 Finally, we break the work into implementation tasks—checkboxes that drive the apply phase.
 
-These should be small, clear, and in logical order.
+These should be small, clear, and in logical order. Each group carries the tests and documentation for its own work - the last group is only for integration checks.
 \`\`\`
 
 **DO:** Generate tasks based on specs and design:
@@ -374,23 +452,30 @@ Here are the implementation tasks:
 
 ---
 
+# Tasks
+
 ## 1. [Category or file]
 
-- [ ] 1.1 [Specific task]
-- [ ] 1.2 [Specific task]
+- [ ] 1.1 [Specific task] — verify: [test, command, observable behavior, or delivered artifact]
+- [ ] 1.2 [Specific task] — verify: [test, command, observable behavior, or delivered artifact]
 
-## 2. Verify
+## 2. Integration Verification
 
-- [ ] 2.1 [Verification step]
+- [ ] 2.1 Verify [broader integration or system behavior] with [end-to-end test or observable result]
 
 ---
 
-Each checkbox becomes a unit of work in the apply phase. Ready to implement?
+Each checkbox becomes a unit of work in the apply phase. Does this task breakdown look right?
 \`\`\`
 
-**PAUSE** - Wait for user to confirm they're ready to implement.
+**PAUSE** - Wait for user approval/feedback.
 
-Save to \`openspec/changes/<name>/tasks.md\`.
+After approval, save to the \`resolvedOutputPath\` from \`openspec instructions tasks --change "<name>" --json\`.
+
+Then ask:
+> "Tasks are saved. Ready to implement?"
+
+**PAUSE** - Wait for user to confirm before implementation.
 
 ---
 
@@ -434,19 +519,19 @@ The change is implemented! One more step—let's archive it.
 \`\`\`
 ## Archiving
 
-When a change is complete, we archive it. This moves it from \`openspec/changes/\` to \`openspec/changes/archive/YYYY-MM-DD-<name>/\`.
+When a change is complete, we archive it. The archive path is derived from \`planningHome.changesDir\` and the date.
 
 Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
 \`\`\`
 
-**DO:**
+**DO:** Archive the change (\`--yes\` answers the confirmation prompts, which you cannot answer from a tool call):
 \`\`\`bash
-openspec archive "<name>"
+openspec archive "<name>" --yes
 \`\`\`
 
 **SHOW:**
 \`\`\`
-Archived to: \`openspec/changes/archive/YYYY-MM-DD-<name>/\`
+Archived to: \`<planningHome.changesDir>/archive/<target-name>/\` (the target name prepends today's date, unless the name already starts with a \`YYYY-MM-DD-\` prefix — then it is kept as-is, no second date)
 
 The change is now part of your project's history. The code is in your codebase, the decision record is preserved.
 \`\`\`
@@ -475,29 +560,17 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ## Command Reference
 
-**Core workflow:**
+**The commands you have installed:**
 
- | Command           | What it does                               |
- |-------------------|--------------------------------------------|
- | \`/opsx:propose\` | Create a change and generate all artifacts |
- | \`/opsx:explore\` | Think through problems before/during work  |
- | \`/opsx:apply\`   | Implement tasks from a change              |
- | \`/opsx:archive\` | Archive a completed change                 |
-
-**Additional commands:**
-
- | Command            | What it does                                             |
- |--------------------|----------------------------------------------------------|
- | \`/opsx:new\`      | Start a new change, step through artifacts one at a time |
- | \`/opsx:continue\` | Continue working on an existing change                   |
- | \`/opsx:ff\`       | Fast-forward: create all artifacts at once               |
- | \`/opsx:verify\`   | Verify implementation matches artifacts                  |
+ | Command          | What it does                               |
+ |------------------|--------------------------------------------|
+${COMMAND_REFERENCE_ROWS}
 
 ---
 
 ## What's Next?
 
-Try \`/opsx:propose\` on something you actually want to build. You've got the rhythm now!
+${NEXT_STEP_INVITE}
 \`\`\`
 
 ---
@@ -509,11 +582,10 @@ Try \`/opsx:propose\` on something you actually want to build. You've got the rh
 If the user says they need to stop, want to pause, or seem disengaged:
 
 \`\`\`
-No problem! Your change is saved at \`openspec/changes/<name>/\`.
+No problem! Your change is saved at the \`changeRoot\` reported by \`openspec status --change "<name>" --json\`.
 
-To pick up where we left off later:
-- \`/opsx:continue <name>\` - Resume artifact creation
-- \`/opsx:apply <name>\` - Jump to implementation (if tasks exist)
+To pick up where we left off later, \`openspec status --change "<name>" --json\` shows exactly where the change stands.
+${RESUME_HINTS}
 
 The work won't be lost. Come back whenever you're ready.
 \`\`\`
@@ -527,25 +599,13 @@ If the user says they just want to see the commands or skip the tutorial:
 \`\`\`
 ## OpenSpec Quick Reference
 
-**Core workflow:**
+**The commands you have installed:**
 
  | Command                  | What it does                               |
  |--------------------------|--------------------------------------------|
- | \`/opsx:propose <name>\` | Create a change and generate all artifacts |
- | \`/opsx:explore\`        | Think through problems (no code changes)   |
- | \`/opsx:apply <name>\`   | Implement tasks                            |
- | \`/opsx:archive <name>\` | Archive when done                          |
+${QUICK_REFERENCE_ROWS}
 
-**Additional commands:**
-
- | Command                   | What it does                        |
- |---------------------------|-------------------------------------|
- | \`/opsx:new <name>\`      | Start a new change, step by step    |
- | \`/opsx:continue <name>\` | Continue an existing change         |
- | \`/opsx:ff <name>\`       | Fast-forward: all artifacts at once |
- | \`/opsx:verify <name>\`   | Verify implementation               |
-
-Try \`/opsx:propose\` to start your first change.
+${QUICK_REFERENCE_INVITE}
 \`\`\`
 
 Exit gracefully.

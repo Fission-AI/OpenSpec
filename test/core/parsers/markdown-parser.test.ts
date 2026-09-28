@@ -328,7 +328,7 @@ Then result`;
       expect(spec.requirements[0].text).toBe('The system SHALL use heading text when no content');
     });
 
-    it('should extract requirement text from first non-empty content line', () => {
+    it('should extract the full requirement body, not only the first content line', () => {
       const content = `# Test Spec
 
 ## Purpose
@@ -348,8 +348,212 @@ Then result`;
 
       const parser = new MarkdownParser(content);
       const spec = parser.parseSpec('test');
-      
-      expect(spec.requirements[0].text).toBe('This is the actual requirement text.');
+
+      // Body spans both lines up to the first scenario (the #361 fix); the
+      // reader no longer drops everything after line one.
+      expect(spec.requirements[0].text).toBe(
+        'This is the actual requirement text.\nThis is additional description.'
+      );
+    });
+  });
+
+  describe('requirement body reading fidelity', () => {
+    it('captures a normative keyword that wraps onto a later body line (#361)', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for wrapped keyword handling.
+
+## Requirements
+
+### Requirement: Wrapped keyword
+The system performs the described behavior and it
+continues onto a second line where SHALL appears.
+
+#### Scenario: Test
+Given test
+When action
+Then result`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toContain('SHALL appears');
+      expect(spec.requirements[0].text).toContain('The system performs the described behavior');
+    });
+
+    it('skips **metadata**: lines before the description (#418)', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for metadata-first requirements.
+
+## Requirements
+
+### Requirement: Metadata first
+**ID**: REQ-FILE-001
+**Priority**: P1 (High)
+The system MUST persist the uploaded file.
+
+#### Scenario: Test
+Given test
+When action
+Then result`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toBe('The system MUST persist the uploaded file.');
+    });
+
+    it('keeps a metadata-only body as the requirement text', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for metadata-only requirement bodies.
+
+## Requirements
+
+### Requirement: Constraint style
+**Constraint**: The system MUST respond within the configured deadline.
+
+#### Scenario: Test
+Given test
+When action
+Then result`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      // Metadata lines are skipped only when other body text remains; when the
+      // whole body is metadata, the metadata IS the body.
+      expect(spec.requirements[0].text).toBe(
+        '**Constraint**: The system MUST respond within the configured deadline.'
+      );
+    });
+
+    it('ignores a fenced code block that precedes the prose line (#312)', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for fence-before-prose handling.
+
+## Requirements
+
+### Requirement: Fence first
+\`\`\`bash
+# this is a shell comment, not the requirement text
+echo hello
+\`\`\`
+The system SHALL handle fenced examples before the prose line.
+
+#### Scenario: Test
+Given test
+When action
+Then result`;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toBe(
+        'The system SHALL handle fenced examples before the prose line.'
+      );
+      expect(spec.requirements[0].scenarios).toHaveLength(1);
+    });
+
+    it('does not count a #### Scenario inside a fenced example as a real scenario', () => {
+      const content = `# Test Spec
+
+## Purpose
+Test overview for fenced scenario handling.
+
+## Requirements
+
+### Requirement: Fenced scenario only
+The system SHALL do something real.
+
+\`\`\`markdown
+#### Scenario: not a real scenario
+- **WHEN** a reader studies the example
+- **THEN** it stays inside the fence
+\`\`\``;
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toBe('The system SHALL do something real.');
+      expect(spec.requirements[0].scenarios).toHaveLength(0);
+    });
+
+    it('reads a wrapped body the same way under CRLF line endings', () => {
+      const content = [
+        '# Test Spec',
+        '',
+        '## Purpose',
+        'Test overview for CRLF body extraction.',
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: Wrapped keyword',
+        'The system performs the described behavior and it',
+        'continues onto a second line where SHALL appears.',
+        '',
+        '#### Scenario: Test',
+        'Given test',
+        'When action',
+        'Then result',
+      ].join('\r\n');
+
+      const parser = new MarkdownParser(content);
+      const spec = parser.parseSpec('test');
+
+      expect(spec.requirements[0].text).toBe(
+        'The system performs the described behavior and it\ncontinues onto a second line where SHALL appears.'
+      );
+    });
+  });
+  // Every packaged template now opens the artifact with an `# ` title (#1138).
+  // A title changes the section tree - `## Purpose` becomes a child of the
+  // title rather than a root - so pin that the parsers read the document the
+  // same either way. Main specs have carried a title all along; this says the
+  // change artifacts can too.
+  describe('an artifact title is inert (#1138)', () => {
+    const SPEC_BODY = `## Purpose
+Lets users assemble widgets from parts in a repeatable way.
+
+## Requirements
+
+### Requirement: User can build a widget
+The system SHALL let a user build a widget.
+
+#### Scenario: Successful build
+- **WHEN** a user requests a widget
+- **THEN** the system builds it
+`;
+
+    const PROPOSAL_BODY = `## Why
+Widgets are the one thing this product cannot assemble today.
+
+## What Changes
+- Add the widget capability.
+`;
+
+    it('parses a spec the same with and without one', () => {
+      const untitled = new MarkdownParser(SPEC_BODY).parseSpec('widget');
+      const titled = new MarkdownParser(`# widget Specification\n\n${SPEC_BODY}`).parseSpec(
+        'widget'
+      );
+
+      expect(titled).toEqual(untitled);
+    });
+
+    it('parses a proposal the same with and without one', () => {
+      const untitled = new MarkdownParser(PROPOSAL_BODY).parseChange('add-widget');
+      const titled = new MarkdownParser(`# Proposal\n\n${PROPOSAL_BODY}`).parseChange(
+        'add-widget'
+      );
+
+      expect(titled).toEqual(untitled);
     });
   });
 });
