@@ -241,8 +241,11 @@ export class InitCommand {
       );
     }
 
-    // Check for legacy artifacts and handle cleanup
-    const deferredLegacyCleanup = await this.handleLegacyCleanup(projectPath, extendMode);
+    // Pointer repos keep their local planning files untouched. Normal init may
+    // still remove OpenSpec-managed artifacts from older layouts.
+    const deferredLegacyCleanup = integrationsOnly
+      ? null
+      : await this.handleLegacyCleanup(projectPath, extendMode);
 
     // Migrate OpenSpec-managed skills left in renamed tool directories
     // (e.g. .kimi -> .kimi-code) before detection so they stay recognized.

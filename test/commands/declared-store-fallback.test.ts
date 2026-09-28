@@ -156,6 +156,8 @@ describe('declared store fallback (3.2)', () => {
   });
 
   it('installs integrations in a pointer repo without creating a local planning root', async () => {
+    const legacyAgentsPath = path.join(pointerRepo, 'openspec', 'AGENTS.md');
+    fs.writeFileSync(legacyAgentsPath, 'Keep this pointer-repo file.\n');
     const before = snapshot(pointerRepo);
     const initialized = await runCLI(['init', '.', '--tools', 'claude'], {
       cwd: pointerRepo,
@@ -169,6 +171,7 @@ describe('declared store fallback (3.2)', () => {
     );
     expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'specs'))).toBe(false);
     expect(fs.existsSync(path.join(pointerRepo, 'openspec', 'changes'))).toBe(false);
+    expect(fs.readFileSync(legacyAgentsPath, 'utf8')).toBe('Keep this pointer-repo file.\n');
 
     expect(before.get('openspec/config.yaml')).toBe('store: team-context\n');
   });
