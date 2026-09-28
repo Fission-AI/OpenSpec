@@ -223,11 +223,10 @@ describe('InitCommand', () => {
 
     it('should not copy project.md when it would exceed the context size limit', async () => {
       const openspecPath = path.join(testDir, 'openspec');
+      const projectMdPath = path.join(openspecPath, 'project.md');
+      const projectContext = 'x'.repeat(MAX_CONTEXT_SIZE + 1);
       await fs.mkdir(openspecPath, { recursive: true });
-      await fs.writeFile(
-        path.join(openspecPath, 'project.md'),
-        'x'.repeat(MAX_CONTEXT_SIZE + 1)
-      );
+      await fs.writeFile(projectMdPath, projectContext);
       searchableMultiSelectMock.mockResolvedValue(['claude']);
 
       const initCommand = new InitCommand({ force: true });
@@ -235,6 +234,7 @@ describe('InitCommand', () => {
       await initCommand.execute(testDir);
 
       expect(readProjectConfig(testDir)?.context).toBeUndefined();
+      expect(await fs.readFile(projectMdPath, 'utf-8')).toBe(projectContext);
       expect(confirmMock).not.toHaveBeenCalled();
       expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
         'resulting context exceeds the 50KB limit'
@@ -1412,19 +1412,23 @@ describe('InitCommand', () => {
       );
     });
 
-    it('should not create config.yaml if it already exists', async () => {
-      // Pre-create config.yaml
+    it('should not prompt or change project files if config.yaml already exists', async () => {
       const openspecDir = path.join(testDir, 'openspec');
       await fs.mkdir(openspecDir, { recursive: true });
       const configPath = path.join(openspecDir, 'config.yaml');
+      const projectMdPath = path.join(openspecDir, 'project.md');
       const existingContent = 'schema: custom-schema\n';
+      const projectContext = '# Keep this here\n';
       await fs.writeFile(configPath, existingContent);
+      await fs.writeFile(projectMdPath, projectContext);
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
+      vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
       await initCommand.execute(testDir);
 
-      const content = await fs.readFile(configPath, 'utf-8');
-      expect(content).toBe(existingContent);
+      expect(await fs.readFile(configPath, 'utf-8')).toBe(existingContent);
+      expect(await fs.readFile(projectMdPath, 'utf-8')).toBe(projectContext);
+      expect(confirmMock).not.toHaveBeenCalled();
     });
 
     it('should handle non-existent target directory', async () => {
