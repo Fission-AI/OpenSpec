@@ -103,6 +103,16 @@ describe('default proposal guidance', () => {
     );
     expect(template).toMatch(/Do not name\s+implementation tasks or proposal sections/);
     expect(template).toContain('Avoid broad catch-all names');
+
+    const reference = fs.readFileSync(
+      path.join(repoRoot, 'docs-lab', 'reference', 'schemas', 'spec-driven', 'index.md'),
+      'utf-8'
+    );
+    expect(reference).toMatch(
+      /Name each capability for a cohesive system\s+behavior that can own related requirements as the system evolves/
+    );
+    expect(reference).toMatch(/Do not name\s+implementation tasks or proposal sections/);
+    expect(reference).toContain('Avoid broad catch-all names');
   });
 });
 
