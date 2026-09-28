@@ -71,9 +71,26 @@ The agent SHALL reconcile main specs with delta specs using the delta operation 
 
 #### Scenario: New capability spec
 - **WHEN** delta spec exists for a capability not in main specs
+- **AND** it has ADDED requirements and no MODIFIED or RENAMED requirements
 - **THEN** create new main spec file at `openspec/specs/<capability-path>/spec.md`, preserving the delta's path relative to `specs/`
 - **AND** copy the delta's `## Purpose` body into it when the delta has one, matching what `openspec archive` does
 - **AND** write a brief TBD placeholder Purpose only when the delta has none
+
+#### Scenario: MODIFIED or RENAMED against a capability with no main spec
+- **WHEN** delta contains `## MODIFIED Requirements` or `## RENAMED Requirements`
+- **AND** the capability has no main spec yet
+- **THEN** stop the sync for that capability and report that only ADDED requirements are allowed for a new spec, matching what `openspec archive` does
+- **AND** never invent the missing requirement
+- **AND** skip any `## REMOVED Requirements` with a warning, since there is nothing to remove
+
+#### Scenario: Nothing to put in a new spec
+- **WHEN** a delta targets a capability with no main spec
+- **AND** the delta has no `## ADDED Requirements` to seed it with
+- **THEN** create no main spec and leave the specs directory untouched
+- **AND** for a REMOVED-only delta with `retire_capabilities: true` in the change's `.openspec.yaml`, report the capability as already retired and continue without recreating it
+- **AND** without that marker, report a REMOVED-only sync as blocked, matching `openspec archive`, which aborts with `Spec must have at least one requirement`
+- **AND** report an empty delta as blocked because it has no operations to sync
+- **AND** never write an empty `## Requirements` section
 
 #### Scenario: Merged main spec keeps canonical structure
 - **WHEN** the agent writes a main spec during sync

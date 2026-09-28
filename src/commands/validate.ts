@@ -1,6 +1,12 @@
 import ora from 'ora';
 import path from 'path';
+import {
+  describeNestedChange,
+  findNestedChangesIn,
+  NESTED_CHANGE_ISSUE_MARKER,
+} from '../utils/nested-change.js';
 import { Validator } from '../core/validation/validator.js';
+import type { ValidationIssue } from '../core/validation/types.js';
 import { VALIDATION_MESSAGES } from '../core/validation/constants.js';
 import {
   resolveRootForCommand,
@@ -16,6 +22,7 @@ import { nearestMatches } from '../utils/match.js';
 import { promises as fs } from 'fs';
 import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { folderStyleNameProblem } from '../core/id.js';
 
 type ItemType = 'change' | 'spec';
 
@@ -24,6 +31,7 @@ interface ExecuteOptions {
   changes?: boolean;
   specs?: boolean;
   archived?: boolean;
+  report?: string;
   type?: string;
   strict?: boolean;
   json?: boolean;
@@ -42,9 +50,65 @@ interface BulkItemResult {
   durationMs: number;
 }
 
+type BulkScope = 'all' | 'changes' | 'specs' | 'archived';
+
+interface BulkValidationResult<T extends BulkItemResult = BulkItemResult> {
+  items: T[];
+  summary: {
+    totals: { items: number; passed: number; failed: number };
+    byType: Partial<Record<ItemType, { items: number; passed: number; failed: number }>>;
+  };
+  root: ReturnType<typeof toRootOutput>;
+}
+
+/** Findings are a distinct report, not a partial full-v1 items collection. */
+export function projectValidationFindings<T extends BulkItemResult>(full: BulkValidationResult<T>, scope: BulkScope) {
+  const itemFindings = full.items.filter(item => item.issues.length > 0);
+  return {
+    report: {
+      kind: 'validation-findings' as const,
+      version: '1.0' as const,
+      scope,
+      returnedItems: itemFindings.length,
+      totalItems: full.summary.totals.items,
+    },
+    itemFindings,
+    summary: full.summary,
+    root: full.root,
+  };
+}
+
 export class ValidateCommand {
   async execute(itemName: string | undefined, options: ExecuteOptions = {}): Promise<void> {
     const bulk = options.all || options.changes || options.specs;
+    let findingsScope: BulkScope | undefined;
+    if (options.report !== undefined) {
+      const message = options.report !== 'full' && options.report !== 'findings'
+        ? `Unknown validation report '${options.report}'.`
+        : itemName !== undefined
+          ? 'A validation report cannot be combined with an item name.'
+          : options.archived && bulk
+            ? 'A validation report cannot combine archived and active scopes.'
+            : !options.archived && !bulk
+              ? 'A validation report requires an explicit bulk scope.'
+              : undefined;
+      if (message) {
+        const fix = 'Use --report full|findings with --all, --changes, --specs, or --archived, without an item name. Do not combine archived and active scopes.';
+        if (options.json) {
+          console.log(JSON.stringify({ status: [{ severity: 'error', code: 'invalid_validation_report_request', message, fix }] }, null, 2));
+        } else {
+          console.error(`Error: ${message}`);
+          console.error(`Fix: ${fix}`);
+        }
+        process.exitCode = 1;
+        return;
+      }
+      if (options.report === 'findings') {
+        findingsScope = options.archived ? 'archived'
+          : options.all || (options.changes && options.specs) ? 'all'
+            : options.changes ? 'changes' : 'specs';
+      }
+    }
     const root = await resolveRootForCommand(options, {
       json: options.json,
       ...(bulk ? { allowImplicitRoot: false } : {}),
@@ -63,6 +127,7 @@ export class ValidateCommand {
       await this.runArchivedTaskValidation(root, {
         json: !!options.json,
         noInteractive: resolveNoInteractive(options),
+        findingsScope,
       });
       return;
     }
@@ -72,7 +137,7 @@ export class ValidateCommand {
       await this.runBulkValidation(root, {
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,
-      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, noInteractive: resolveNoInteractive(options) });
+      }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, noInteractive: resolveNoInteractive(options), findingsScope });
       return;
     }
 
@@ -212,11 +277,63 @@ export class ValidateCommand {
     await this.validateByType(root, type, itemName, opts);
   }
 
+  /**
+   * A namespace folder wrapping nested change directories has no deltas of its
+   * own and never will. The usual "add a delta spec" error points the author at
+   * a directory that is not the change, so the nesting is reported instead
+   * (#1846). Returns undefined for every ordinary change.
+   */
+  private async nestedChangeReport(
+    root: ResolvedOpenSpecRoot,
+    id: string
+  ): Promise<{ valid: false; issues: ValidationIssue[] } | undefined> {
+    const nested = await findNestedChangesIn(root.changesDir, id);
+    if (!nested) return undefined;
+    return {
+      valid: false,
+      issues: [{ level: 'ERROR', path: 'file', message: describeNestedChange(nested) }],
+    };
+  }
+
   private async validateByType(root: ResolvedOpenSpecRoot, type: ItemType, id: string, opts: { strict: boolean; json: boolean }): Promise<void> {
+    // `--type` skips the membership check above, so the name still has to be
+    // guarded before it is joined onto a directory. `show` already rejects a
+    // traversing id.
+    //
+    // Spec ids are nested (`specs/<area>/<capability>/spec.md`, #1353), so the
+    // guard runs per segment - rejecting the whole id for containing a `/`
+    // would break every nested capability, including the hint that
+    // `validate --specs` prints. Change names are flat, so they keep the
+    // whole-value check.
+    const nameProblem =
+      type === 'change'
+        ? folderStyleNameProblem(id, 'Change name')
+        : (id.split('/').map((segment) => folderStyleNameProblem(segment, 'Spec id')).find(Boolean) ?? null);
+    if (nameProblem) {
+      if (opts.json) {
+        console.log(
+          JSON.stringify(
+            { status: [{ severity: 'error', code: 'invalid_item', message: nameProblem }] },
+            null,
+            2
+          )
+        );
+      } else {
+        console.error(nameProblem);
+      }
+      process.exitCode = 1;
+      return;
+    }
     const validator = new Validator(opts.strict);
     if (type === 'change') {
       const changeDir = path.join(root.changesDir, id);
       const start = Date.now();
+      const nestedReport = await this.nestedChangeReport(root, id);
+      if (nestedReport) {
+        this.printReport('change', id, nestedReport, Date.now() - start, opts.json, root);
+        process.exitCode = 1;
+        return;
+      }
       const report = await validator.validateChangeDeltaSpecs(changeDir, {
         mainSpecsDir: root.specsDir,
         projectRoot: root.path,
@@ -245,11 +362,12 @@ export class ValidateCommand {
       console.log(`${type === 'change' ? 'Change' : 'Specification'} '${id}' is valid`);
     } else {
       console.error(`${type === 'change' ? 'Change' : 'Specification'} '${id}' has issues`);
-      for (const issue of report.issues) {
-        const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
-        const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
-        console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
-      }
+    }
+    for (const issue of report.issues) {
+      const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
+      console.error(`${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
+    }
+    if (!report.valid) {
       this.printNextSteps(type, id, root, report.issues);
     }
   }
@@ -266,7 +384,13 @@ export class ValidateCommand {
     const invalidMarkerIssue = issues.some(i =>
       i.message.includes(VALIDATION_MESSAGES.CHANGE_SKIP_SPECS_INVALID_METADATA)
     );
-    if (type === 'change' && conflictIssue) {
+    // A namespace folder has no deltas to author, so the delta-authoring
+    // bullets below would point at a directory that is not the change (#1846).
+    const nestedIssue = issues.some(i => i.message.includes(NESTED_CHANGE_ISSUE_MARKER));
+    if (type === 'change' && nestedIssue) {
+      bullets.push('- Move each nested change directly under openspec/changes/, folding the namespace into its name');
+      bullets.push('- Only specs may be nested by domain; change directories are always flat');
+    } else if (type === 'change' && conflictIssue) {
       bullets.push('- This change declares skip_specs (no spec deltas): delete the files under specs/, or remove skip_specs from .openspec.yaml if requirements do change');
       bullets.push('- skip_specs is only honored when .openspec.yaml is valid change metadata (schema: <name> naming a known schema is required)');
     } else if (type === 'change' && invalidMarkerIssue) {
@@ -285,7 +409,38 @@ export class ValidateCommand {
     bullets.forEach(b => console.error(`  ${b}`));
   }
 
-  private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean }): Promise<void> {
+  private printFindingsReport(full: BulkValidationResult, scope: BulkScope, json: boolean, root: ResolvedOpenSpecRoot): void {
+    const findings = projectValidationFindings(full, scope);
+    if (json) {
+      console.log(JSON.stringify(findings, null, 2));
+      return;
+    }
+    console.log(`Scope: ${scope} (${findings.report.totalItems} items)`);
+    if (findings.itemFindings.length === 0) {
+      console.log('No item findings.');
+    }
+    for (const item of findings.itemFindings) {
+      console.error(`${item.type}/${item.id}`);
+      for (const issue of item.issues) {
+        console.error(`  [${issue.level}] ${issue.path}: ${issue.message}`);
+      }
+    }
+    const totals = findings.summary.totals;
+    console.log(`Totals: ${totals.passed} passed, ${totals.failed} failed (${totals.items} items)`);
+    if (scope !== 'archived') this.printBulkDetails(full.items, root);
+  }
+
+  private printBulkDetails(results: BulkItemResult[], root: ResolvedOpenSpecRoot): void {
+    const firstFailure = results.find((res) => !res.valid);
+    if (firstFailure) {
+      const storeFlag = isStoreSelectedRoot(root) ? ` --store ${root.storeId}` : '';
+      console.log(
+        `Details: openspec validate ${firstFailure.id} --type ${firstFailure.type}${storeFlag}`
+      );
+    }
+  }
+
+  private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean; findingsScope?: BulkScope }): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? this.listChangeIds(root) : Promise.resolve<string[]>([]),
@@ -302,6 +457,16 @@ export class ValidateCommand {
       queue.push(async () => {
         const start = Date.now();
         const changeDir = path.join(root.changesDir, id);
+        const nestedReport = await this.nestedChangeReport(root, id);
+        if (nestedReport) {
+          return {
+            id,
+            type: 'change' as const,
+            valid: false,
+            issues: nestedReport.issues,
+            durationMs: Date.now() - start,
+          };
+        }
         const report = await validator.validateChangeDeltaSpecs(changeDir, {
           mainSpecsDir: root.specsDir,
           projectRoot: root.path,
@@ -331,7 +496,9 @@ export class ValidateCommand {
         },
       } as const;
 
-      if (opts.json) {
+      if (opts.findingsScope) {
+        this.printFindingsReport({ items: [], summary, root: toRootOutput(root) }, opts.findingsScope, opts.json, root);
+      } else if (opts.json) {
         const out = { items: [] as BulkItemResult[], summary, version: '1.0', root: toRootOutput(root) };
         console.log(JSON.stringify(out, null, 2));
       } else {
@@ -387,22 +554,22 @@ export class ValidateCommand {
       },
     } as const;
 
-    if (opts.json) {
+    if (opts.findingsScope) {
+      this.printFindingsReport({ items: results, summary, root: toRootOutput(root) }, opts.findingsScope, opts.json, root);
+    } else if (opts.json) {
       const out = { items: results, summary, version: '1.0', root: toRootOutput(root) };
       console.log(JSON.stringify(out, null, 2));
     } else {
       for (const res of results) {
         if (res.valid) console.log(`✓ ${res.type}/${res.id}`);
         else console.error(`✗ ${res.type}/${res.id}`);
+        for (const issue of res.issues) {
+          const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
+          console.error(`  ${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
+        }
       }
       console.log(`Totals: ${summary.totals.passed} passed, ${summary.totals.failed} failed (${summary.totals.items} items)`);
-      const firstFailure = results.find((res) => !res.valid);
-      if (firstFailure) {
-        const storeFlag = isStoreSelectedRoot(root) ? ` --store ${root.storeId}` : '';
-        console.log(
-          `Details: openspec validate ${firstFailure.id} --type ${firstFailure.type}${storeFlag}`
-        );
-      }
+      this.printBulkDetails(results, root);
     }
 
     process.exitCode = failed > 0 ? 1 : 0;
@@ -443,7 +610,7 @@ export class ValidateCommand {
    */
   private async runArchivedTaskValidation(
     root: ResolvedOpenSpecRoot,
-    opts: { json: boolean; noInteractive?: boolean }
+    opts: { json: boolean; noInteractive?: boolean; findingsScope?: BulkScope }
   ): Promise<void> {
     // List first (may throw on a real archive-read failure), then start the
     // spinner so a thrown error never leaves a spinner spinning.
@@ -501,6 +668,12 @@ export class ValidateCommand {
       totals: { items: results.length, passed, failed },
       byType: { change: summarizeType(results, 'change') },
     } as const;
+
+    if (opts.findingsScope) {
+      this.printFindingsReport({ items: results, summary, root: toRootOutput(root) }, opts.findingsScope, opts.json, root);
+      process.exitCode = failed > 0 ? 1 : 0;
+      return;
+    }
 
     if (opts.json) {
       const out = { items: results, summary, version: '1.0', root: toRootOutput(root) };

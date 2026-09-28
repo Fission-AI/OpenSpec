@@ -7,6 +7,8 @@ import {
 } from '../../src/utils/command-references.js';
 import type { CommandInvocation } from '../../src/core/command-generation/invocation.js';
 import { getApplyChangeSkillTemplate } from '../../src/core/templates/workflows/apply-change.js';
+import { resolveOptionalWorkflows } from '../../src/core/templates/optional-workflow.js';
+import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 
 const FLAT_SLASH: CommandInvocation = { style: 'flat', prefix: '/' };
 const FLAT_AT: CommandInvocation = { style: 'flat', prefix: '@' };
@@ -234,8 +236,8 @@ describe('getSkillReferenceTransformer', () => {
     expect(transformer('/opsx:unknown-command')).toBe('/opsx:unknown-command');
   });
 
-  it('uses natural-language references for Rovo Dev, which has no slash surface', () => {
-    const transformer = getSkillReferenceTransformer('rovodev');
+  it.each(['rovodev', 'codeassistant'])('uses natural-language skill references for %s', (toolId) => {
+    const transformer = getSkillReferenceTransformer(toolId);
     expect(transformer('/opsx:propose')).toBe('the openspec-propose skill');
     expect(transformer('Run `/opsx:apply` then /opsx:archive')).toBe(
       'Run `the openspec-apply-change skill` then the openspec-archive-change skill'
@@ -347,6 +349,35 @@ describe('apply skill template generates valid per-target invocations', () => {
     expect(skill).toContain('archive this change with `/opsx:archive`');
     // No bare, non-transformable skill-name prose remains.
     expect(skill).not.toContain('suggest using openspec-continue-change');
+  });
+
+  // The blocked-state answer for an installation without `continue` (#1734).
+  // The conditional's fallback has to stand on its own: the agent gets no
+  // workflow to hand off to, so it needs the whole CLI recovery, not a
+  // shortened version of the installed branch.
+  it('gives the full CLI recovery when continue is not installed', () => {
+    const withoutContinue = resolveOptionalWorkflows(
+      skill,
+      new Set(ALL_WORKFLOWS.filter((id) => id !== 'continue'))
+    );
+    const blocked = withoutContinue.slice(
+      withoutContinue.indexOf('If `state: "blocked"`'),
+      withoutContinue.indexOf('If `state: "all_done"`')
+    );
+
+    expect(blocked).not.toContain('/opsx:continue');
+    expect(blocked).toContain('pause implementation');
+    expect(blocked).toContain('If `missingArtifacts` is non-empty');
+    expect(blocked).toContain('openspec status --change "<name>" --json');
+    expect(blocked).toContain('next `ready` artifact (not `skipped` or `blocked`)');
+    expect(blocked).toContain('openspec instructions "<artifact-id>" --change "<name>" --json');
+    expect(blocked).toContain('Keep the selected `--store <id>` on both commands');
+    expect(blocked).toContain(
+      'Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file'
+    );
+    expect(blocked).toContain(
+      'Do not assume another artifact is ready or start implementation while blocked'
+    );
   });
 
   const cases = [

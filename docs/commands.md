@@ -78,7 +78,7 @@ AI:  Created openspec/changes/add-dark-mode/
 
 ### `/opsx:explore`
 
-> **Start here when you're unsure.** Explore is a no-stakes thinking partner: it reads your codebase, compares options, and sharpens a fuzzy idea into a concrete plan before any change exists. It ships in the default profile. For the full case and more examples, see the [Explore First](explore.md) guide.
+> **Start here when you're unsure.** Explore is a no-stakes thinking partner: it reads your codebase, compares options, and sharpens a fuzzy idea into a concrete plan before any code gets written. It ships in the default profile. For the full case and more examples, see the [Explore First](explore.md) guide.
 
 Think through ideas, investigate problems, and clarify requirements before committing to a change.
 
@@ -97,6 +97,7 @@ Think through ideas, investigate problems, and clarify requirements before commi
 - Investigates the codebase to answer questions
 - Compares options and approaches
 - Creates visual diagrams to clarify thinking
+- Captures the exploration when you ask, or when you say yes to its offer: scaffolds a change with `openspec new change` and writes the planning artifacts you name, or updates an existing change's artifacts
 - Can transition to `/opsx:propose` (default) or `/opsx:new` (expanded workflow) when insights crystallize
 
 **Example:**
@@ -119,14 +120,20 @@ AI:  Let me investigate your current auth setup...
 
      Your API already has CORS configured. Which direction interests you?
 
-You: Let's go with JWT. Can we start a change for that?
+You: Let's go with JWT.
 
-AI:  Ready when you are. Run /opsx:propose add-jwt-auth to begin.
+AI:  That's a decision worth keeping. Want me to start a change called
+     add-jwt-auth? Just the change folder, nothing else yet.
+
+You: Yes.
+
+AI:  Started openspec/changes/add-jwt-auth/. Say the word and I'll
+     write the proposal, specs, and tasks from what we just worked out.
 ```
 
 **Tips:**
 - Use when requirements are unclear or you need to investigate
-- No artifacts are created during exploration
+- It never writes code, and writes nothing else unless you ask, or say yes when it offers
 - Good for comparing multiple approaches before deciding
 - Can read files and search the codebase
 
@@ -345,7 +352,13 @@ Revise a change's existing planning artifacts and keep them coherent with one an
 - Applies your requested revision, or reviews the artifacts for contradictions if you didn't name one
 - Reconciles the other existing artifacts in any direction (a design edit may ripple back to the proposal)
 - Confirms every edit with you before writing, one artifact at a time
-- Ends by recommending the next step: `/opsx:continue` (artifacts missing), `/opsx:apply` (carry a revised plan into code), or `/opsx:archive` (all done)
+- Ends by recommending the next step: `/opsx:continue` (unstarted artifacts), `/opsx:apply` (carry a revised plan into code), or `/opsx:archive` (all done)
+
+**Missing files:**
+
+- For a glob artifact such as `specs/**/*.md` with at least one existing file, update can propose a missing companion file. It uses the schema's instructions and asks you to confirm the concrete path before creating it.
+- Artifacts with no files yet remain with `/opsx:continue`. Intentionally skipped artifacts stay untouched.
+- New files must stay inside the change directory. If a file appears at the confirmed path before creation, update stops instead of overwriting it.
 
 **Example:**
 
@@ -366,7 +379,7 @@ AI:  Reading add-dark-mode artifacts...
 
 **Tips:**
 
-- It won't create missing artifacts - that's `/opsx:continue`
+- It won't start an artifact with no existing files. Enable `/opsx:continue` for that, or use `openspec status` and `openspec instructions` if that optional workflow isn't installed.
 - If the change was already implemented, follow up with `/opsx:apply` so the code matches the revised plan
 - If your revision changes the *intent* of the change, start fresh with a new change instead (see [When to Update vs. Start Fresh](opsx.md#when-to-update-vs-start-fresh))
 
@@ -673,7 +686,7 @@ Different AI tools use slightly different command syntax. Use the format that ma
 |--------------------------|----------------|---------------|
 | `.../commands/opsx/<id>.*` | `/opsx:propose`, `/opsx:apply` | Claude Code, Gemini CLI, Crush |
 | `.../opsx-<id>.*` | `/opsx-propose`, `/opsx-apply` | Cursor, Devin Desktop, Copilot (IDE), Trae, Oh My Pi |
-| none — skills only | `/openspec-propose`, `/openspec-apply-change` | CodeArts, ForgeCode, Grok Build, Hermes, MiniMax Code, Mistral Vibe, Zed Agent, shared `.agents` |
+| none — skills only | `/openspec-propose`, `/openspec-apply-change` | CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, Zed Agent, shared `.agents` |
 | none — Kimi Code | `/skill:openspec-propose` | Kimi Code |
 | none — Codex CLI | `$openspec-propose` | Codex |
 
