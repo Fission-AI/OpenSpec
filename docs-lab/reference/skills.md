@@ -101,7 +101,7 @@ other.
 | Contract | Description |
 |---|---|
 | **Arguments** | A change proposal name, optional, plus the revision you want. With no revision stated it runs a coherence review: artifacts checked against each other for contradictions, gaps, and duplication. |
-| **Creates** | Nothing new. Edits only artifact files that already exist. Missing artifacts are `openspec-continue-change`'s job. Without that skill (the core profile leaves it out), it points to `openspec status` and `openspec instructions` instead. Never code. |
+| **Creates** | Edits artifact files that already exist. One exception: for an artifact written as a glob, such as `specs/**/*.md`, that already has at least one file, it can add a missing companion file once you confirm the path. An artifact with no files yet is `openspec-continue-change`'s job. Without that skill (the core profile leaves it out), it points to `openspec status` and `openspec instructions` instead. Never code. |
 | **Response** | Shows each proposed revision and writes it only after you confirm, one artifact at a time. Ends with what was revised and the next step; implementation waits for `openspec-apply-change`. |
 
 ## openspec-sync-specs

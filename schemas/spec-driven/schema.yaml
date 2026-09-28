@@ -210,6 +210,13 @@ artifacts:
         that task's checkbox description. Use a separate verification task only
         when it checks broader integration or system behavior that spans
         multiple implementation tasks.
+      - Each task group MUST land the tests and documentation its own work
+        calls for. Do NOT collect testing or documentation into a final group -
+        when a late group first exercises work from an early one, the failures
+        cascade back through every group in between and force rework. A group
+        whose work calls for neither, such as scaffolding or dependency setup,
+        carries neither. A final group is for integration checks only, not for
+        the tests and docs an earlier group owed.
 
       Example:
       ```
@@ -224,6 +231,7 @@ artifacts:
 
       - [ ] 2.1 Implement data export function and verify the export test passes
       - [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
+      - [ ] 2.3 Document the export API in docs/export.md and verify the documented command runs as written
       ```
 
       Reference specs for what needs to be built, design for how to build it.
