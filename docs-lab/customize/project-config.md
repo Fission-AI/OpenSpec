@@ -74,17 +74,17 @@ The last column is exact, so a field reaches only the steps listed there. In par
 
 ### context
 
-`context` is what the agent should know up front when planning a change, whether it's creating an artifact, applying tasks, or archiving:
+`context` is background the agent receives when it creates an artifact, applies tasks, or archives a change.
 
 ```yaml
 context: |
-  We ship cross-platform; designs and tasks must cover Windows, macOS, and Linux
+  We ship cross-platform. Designs and tasks must cover Windows, macOS, and Linux
   Write all artifacts in Spanish
 ```
 
-This is planning context, not project documentation. Add a fact when it should shape every artifact, like the cross-platform line above. Leave out anything the agent can learn by reading the code.
+Use `context` for facts and constraints that should shape workflow output. Keep durable project documentation in the project's documentation files, and leave out anything the agent can learn by reading the code.
 
-**Another language**: because context reaches every artifact, it's also how you change the output language. One line, like `Write all artifacts in Spanish.`, switches every proposal, spec, and tasks file the workflows write.
+**Another language**: because context reaches every artifact, you can add `Write all artifacts in Spanish.` to instruct the agent to write proposal, spec, design, and tasks artifacts in Spanish.
 
 ### rules
 

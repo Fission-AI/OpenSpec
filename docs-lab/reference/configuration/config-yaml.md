@@ -83,7 +83,7 @@ context: |
 rules:
   proposal:
     - Keep proposals under 500 words
-    - Always include a "Non-goals" section
+    - Always state what is out of scope
   tasks:
     - Break tasks into chunks of max 2 hours
 
