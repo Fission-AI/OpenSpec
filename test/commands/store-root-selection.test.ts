@@ -10,6 +10,7 @@ import {
 import { writeStoreMetadataState } from '../../src/core/store/foundation.js';
 import { runCLI, type RunCLIResult } from '../helpers/run-cli.js';
 import { cleanupTempPath } from '../helpers/temp-cleanup.js';
+import { writeSpec } from '../helpers/openspec-fixtures.js';
 
 const VALID_DELTA_SPEC = `## ADDED Requirements
 
@@ -122,6 +123,72 @@ describe('store root selection for normal commands', () => {
   function expectNoLocalOpenSpec(): void {
     expect(fs.existsSync(path.join(appRepo, 'openspec'))).toBe(false);
   }
+
+  it.each(['local', 'store', 'declared', 'global_default'] as const)(
+    'discovers and reads capabilities in the %s root using the generated guidance (#1689)',
+    async (source) => {
+      const selectedRoot = source === 'local' ? appRepo : storeRoot;
+      const storeArgs = source === 'store' ? ['--store', 'team-context'] : [];
+      if (source === 'local' || source === 'store') {
+        createOpenSpecRoot(appRepo);
+      } else if (source === 'declared') {
+        fs.mkdirSync(path.join(appRepo, 'openspec'), { recursive: true });
+        fs.writeFileSync(path.join(appRepo, 'openspec', 'config.yaml'), 'store: team-context\n');
+      } else {
+        const configDir = path.join(tempDir, 'config', 'openspec');
+        fs.mkdirSync(configDir, { recursive: true });
+        fs.writeFileSync(path.join(configDir, 'config.json'), JSON.stringify({ defaultStore: 'team-context' }));
+      }
+
+      const spec = '# Billing\n\n## Purpose\nBills from the selected root.\n\n## Requirements\n\n### Requirement: Billing\nThe system SHALL bill.\n\n#### Scenario: Bills\n- **WHEN** due\n- **THEN** billed\n';
+      writeSpec(selectedRoot, 'billing', spec);
+      writeSpec(selectedRoot, 'billing/invoices', spec);
+      createChange(selectedRoot, 'billing');
+      if (source === 'store') {
+        // A missing --store on the read must not silently return local content.
+        writeSpec(appRepo, 'billing', spec.replace('SHALL bill', 'SHALL use local billing'));
+        writeSpec(appRepo, 'local-only', spec);
+      }
+
+      const changes = await runCLI(['list', '--json', ...storeArgs], { cwd: appRepo, env });
+      expect(changes.exitCode).toBe(0);
+      expect(parseJson(changes).changes.map((change: any) => change.name)).toEqual(['billing']);
+
+      const inventory = await runCLI(['list', '--specs', '--json', ...storeArgs], { cwd: appRepo, env });
+      expect(inventory.exitCode).toBe(0);
+      const json = parseJson(inventory);
+      expect(json.specs).toEqual([
+        { id: 'billing', requirementCount: 1 },
+        { id: 'billing/invoices', requirementCount: 1 },
+      ]);
+      expect(json.root).toEqual({
+        path: selectedRoot,
+        source: source === 'local' ? 'nearest' : source,
+        ...(source === 'local' ? {} : { store_id: 'team-context' }),
+      });
+
+      for (const { id } of json.specs) {
+        const shown = await runCLI(
+          ['show', id, '--type', 'spec', '--json', '--no-scenarios', ...storeArgs],
+          { cwd: appRepo, env }
+        );
+        expect(shown.exitCode).toBe(0);
+        expect(parseJson(shown)).toMatchObject({
+          id,
+          overview: 'Bills from the selected root.',
+          requirementCount: 1,
+          requirements: [{ text: 'The system SHALL bill.', scenarios: [] }],
+          root: json.root,
+        });
+
+        // The overview omits scenarios; decisions use the complete spec.
+        const full = await runCLI(['show', id, '--type', 'spec', ...storeArgs], { cwd: appRepo, env });
+        expect(full.exitCode).toBe(0);
+        expect(full.stdout.trim()).toBe(spec.trim());
+      }
+    },
+    30_000
+  );
 
   describe('selecting a registered store by id', () => {
     it('creates a change only in the store and names the root on stderr', async () => {
@@ -313,24 +380,6 @@ operations:
         root: { path: storeRoot, store_id: 'team-context' },
       });
       expectNoLocalOpenSpec();
-    });
-
-    it('lists specs from the store with minimal JSON support', async () => {
-      const specDir = path.join(storeRoot, 'openspec', 'specs', 'billing');
-      fs.mkdirSync(specDir, { recursive: true });
-      fs.writeFileSync(
-        path.join(specDir, 'spec.md'),
-        '# billing\n\n## Purpose\nBills.\n\n## Requirements\n\n### Requirement: Billing SHALL work\nThe system SHALL bill.\n\n#### Scenario: Bills\n- **WHEN** due\n- **THEN** billed\n'
-      );
-
-      const result = await runCLI(['list', '--specs', '--json', '--store', 'team-context'], {
-        cwd: appRepo,
-        env,
-      });
-      expect(result.exitCode).toBe(0);
-      const json = parseJson(result);
-      expect(json.specs).toEqual([{ id: 'billing', requirementCount: 1 }]);
-      expect(json.root.store_id).toBe('team-context');
     });
 
     it('runs bulk validation against the selected store', async () => {
@@ -604,6 +653,79 @@ operations:
       expect(json.root.source).toBe('implicit');
     });
 
+    // Creating a change in a directory that was never set up silently
+    // materializes `openspec/` there (#1645). The creation stays zero-config,
+    // but a human who did not mean to adopt this directory has to be told.
+    it('says so when the first change creates the root in an unset-up directory', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      const created = await runCLI(['new', 'change', 'adopt-me'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(created.exitCode).toBe(0);
+      const firstOutput = created.stdout + created.stderr;
+      expect(firstOutput).toContain('no OpenSpec root was found here');
+      // Naming the directory it created is the point: the reader has to know
+      // what to delete if this was not the project they meant. The path is
+      // relative to where the command ran, so it reads the same on Windows.
+      expect(firstOutput).toContain('created at openspec/.');
+      expect(firstOutput).toContain('openspec init');
+      expect(fs.existsSync(path.join(appRepo, 'openspec', 'changes', 'adopt-me'))).toBe(true);
+
+      // The root exists now, so the notice must not repeat on every change.
+      const second = await runCLI(['new', 'change', 'already-adopted'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(second.exitCode).toBe(0);
+      expect(second.stdout + second.stderr).not.toContain('no OpenSpec root was found here');
+    });
+
+    // Run from a subdirectory and the subdirectory is what gets adopted - the
+    // note has to name that directory, not the repository above it.
+    it('names the directory it actually adopted when run from a subdirectory', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+      const nested = path.join(appRepo, 'services', 'billing');
+      fs.mkdirSync(nested, { recursive: true });
+
+      const created = await runCLI(['new', 'change', 'adopt-the-subdir'], {
+        cwd: nested,
+        env: isolatedEnv,
+      });
+      expect(created.exitCode).toBe(0);
+      expect(created.stdout + created.stderr).toContain('created at openspec/.');
+
+      expect(fs.existsSync(path.join(nested, 'openspec', 'changes', 'adopt-the-subdir'))).toBe(
+        true
+      );
+      expect(fs.existsSync(path.join(appRepo, 'openspec'))).toBe(false);
+    });
+
+    it('keeps the notice out of JSON output', async () => {
+      const isolatedEnv = {
+        ...env,
+        XDG_DATA_HOME: path.join(tempDir, 'data-empty'),
+      };
+
+      const result = await runCLI(['new', 'change', 'adopt-me-quietly', '--json'], {
+        cwd: appRepo,
+        env: isolatedEnv,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).not.toContain('no OpenSpec root was found here');
+
+      // `root.source` is how a caller in JSON mode learns the same fact.
+      const json = parseJson(result);
+      expect(json.root.source).toBe('implicit');
+    });
+
     it('keeps list working for a legacy project.md root when no stores are registered', async () => {
       const isolatedEnv = {
         ...env,
@@ -681,6 +803,28 @@ operations:
           })
         );
       }
+    });
+
+    // The generated workflows read `root` from `openspec list --json` to decide
+    // whether a project is set up (#1645). That answer has to stay honest when
+    // stores are registered but this directory has no root of its own -
+    // an implicit root here would read as "set up" and the workflow would
+    // scaffold a change into an unrelated repository.
+    it('reports a missing root as JSON when only stores are registered', async () => {
+      const result = await runCLI(['list', '--json'], { cwd: appRepo, env });
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toBe('');
+
+      const json = parseJson(result);
+      expect(json.root).toBeNull();
+      expect(json.changes).toEqual([]);
+      expect(json.status[0]).toEqual(
+        expect.objectContaining({
+          severity: 'error',
+          code: 'no_root_with_registered_stores',
+        })
+      );
     });
 
     it('still accepts an existing root with no items', async () => {

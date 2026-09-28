@@ -115,7 +115,7 @@ See [Supported Tools](supported-tools.md) for the exact paths per tool, and [Mig
 
 Quick checks, fastest first:
 
-1. **Type a slash in your AI chat.** Start typing `/opsx` and watch for autocomplete suggestions. If they appear, you're set. On a skills-only tool (Codex, Kimi Code, CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, Warp, Zed Agent, or the shared `.agents` target) `/opsx` never completes even on a healthy install — try the skill name from the table above instead. Rovo Dev CLI has no slash-command surface, so ask it to use the skill by name.
+1. **Type a slash in your AI chat.** Start typing `/opsx` and watch for autocomplete suggestions. If they appear, you're set. On a skills-only tool (Codex, Kimi Code, CodeArts, ForgeCode, Hermes, MiniMax Code, Mistral Vibe, Warp, Zed Agent, or the shared `.agents` target) `/opsx` never completes even on a healthy install — try the skill name from the table above instead. Rovo Dev CLI does not expose OpenSpec skills as slash commands, so ask it to use the skill by name.
 2. **Look for the files.** For Claude Code, check that `.claude/skills/` contains `openspec-*` folders. Other tools use their own directories ([Supported Tools](supported-tools.md) lists them).
 3. **Re-run setup.** From your project root, run `openspec update`. This regenerates the skill and command files for whatever tools you configured.
 4. **Restart your assistant.** Many tools scan for skills and commands at startup, so a fresh window can be the missing step.

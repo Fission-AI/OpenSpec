@@ -11,7 +11,8 @@ import path from 'path';
 import chalk from 'chalk';
 import {
   extractRequirementsSection,
-  findMissingCurrentScenarios,
+  diffScenarioNames,
+  describeScenarioBalance,
   foldRequirementName,
   parseDeltaSpec,
   normalizeRequirementName,
@@ -28,6 +29,7 @@ import {
 } from './validation/constants.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { matchLineEnding } from '../utils/line-endings.js';
 
 // -----------------------------------------------------------------------------
 // Types
@@ -55,7 +57,11 @@ function isLexicallyWithin(allowedDirectory: string, targetPath: string): boolea
   );
 }
 
-function resolveTrustedSpecPath(specsRoot: string, specPath: string): {
+function resolveTrustedSpecPath(
+  specsRoot: string,
+  specPath: string,
+  projectRoot?: string
+): {
   root: string;
   file: string;
 } {
@@ -78,6 +84,17 @@ function resolveTrustedSpecPath(specsRoot: string, specPath: string): {
     // Freeze their canonical location as the trust root so later swaps are
     // rejected while a nested spec.md link still cannot escape.
     const root = FileSystemUtils.canonicalizeExistingPath(path.dirname(specPath));
+    // An external capability link is deliberate and supported (see
+    // assertDiscoveredSpecPath), so it is not refused here. What was wrong is
+    // that the write was silent: the CLI reported the in-project path while
+    // writing somewhere else entirely, so a link swapped underneath a repo
+    // left nothing on screen to notice. Name the real destination instead.
+    if (projectRoot && !isLexicallyWithin(FileSystemUtils.canonicalizeExistingPath(projectRoot), root)) {
+      process.emitWarning(
+        `Capability '${path.basename(path.dirname(specPath))}' links outside the project; writing to ${root}`,
+        'OpenSpecExternalSpecWrite'
+      );
+    }
     const file = path.join(root, path.basename(specPath));
     FileSystemUtils.assertPathWithin(root, file);
     return { root, file };
@@ -110,7 +127,14 @@ export async function findSpecUpdates(changeDir: string, mainSpecsDir: string): 
   for (const { id, specFile } of discovered) {
     const targetFile = path.join(mainSpecsDir, ...id.split('/'), 'spec.md');
     const source = resolveTrustedSpecPath(changeSpecsDir, specFile);
-    const target = resolveTrustedSpecPath(mainSpecsDir, targetFile);
+    // Main specs always live at `<project root>/openspec/specs`, so the
+    // project root is the grandparent - a linked capability directory may not
+    // leave it.
+    const target = resolveTrustedSpecPath(
+      mainSpecsDir,
+      targetFile,
+      path.dirname(path.dirname(mainSpecsDir))
+    );
 
     // Check if target exists
     let exists = false;
@@ -197,6 +221,35 @@ export async function buildUpdatedSpec(
   // Parse deltas from the change spec file
   const plan = parseDeltaSpec(changeContent);
   const specName = update.id;
+
+  // A FROM:/TO: line that never formed a pair means the RENAMED section does not
+  // say what the author meant. Refuse rather than apply the pairing the reader
+  // happened to form: with interleaved lines that pairing renames a requirement
+  // the delta never named, under a name written for a different one.
+  if (plan.unpairedRenames.length > 0) {
+    const first = plan.unpairedRenames[0];
+    const missing = first.side === 'FROM' ? 'TO' : 'FROM';
+    throw new Error(
+      `${specName} validation failed - RENAMED entry on line ${first.line} has no matching ${missing}: ` +
+        `for header "### Requirement: ${first.name}". ` +
+        `Write each rename as a FROM: line followed immediately by its TO: line.`
+    );
+  }
+
+  // A well-formed requirement written outside every delta section is not
+  // applied. Say so here as well as in validate: archive is the last point at
+  // which the author can still notice, and the block reads exactly like one
+  // that would have applied.
+  for (const orphan of plan.orphanedRequirements) {
+    const where = orphan.section
+      ? `under "## ${orphan.section}"`
+      : 'above the first "## " section';
+    warn(
+      `${specName} - requirement "${orphan.name}" (line ${orphan.line}) is ${where}, ` +
+        `which is not a delta section, so it was not applied. ` +
+        `Move it under ADDED/MODIFIED/REMOVED/RENAMED Requirements.`
+    );
+  }
 
   // Pre-validate duplicates within sections
   const addedNames = new Set<string>();
@@ -412,6 +465,17 @@ export async function buildUpdatedSpec(
     if (nameToBlock.has(to)) {
       throw new Error(`${specName} RENAMED failed for header "### Requirement: ${r.to}" - target already exists`);
     }
+    // A target that differs from another requirement only in case or interior
+    // whitespace would leave two copies of one requirement. The source itself
+    // is exempt, so a case-only rename of a requirement stays allowed.
+    const targetNearMiss = [...nameToBlock.keys()].find(
+      (k) => k !== from && foldRequirementName(k) === foldRequirementName(to)
+    );
+    if (targetNearMiss !== undefined) {
+      throw new Error(
+        `${specName} RENAMED failed for header "### Requirement: ${r.to}" - "### Requirement: ${nameToBlock.get(targetNearMiss)!.name}" already exists and differs only in case or spacing; choose a distinct name`
+      );
+    }
     const block = nameToBlock.get(from)!;
     const newHeader = `### Requirement: ${to}`;
     const rawLines = block.raw.split('\n');
@@ -475,10 +539,10 @@ export async function buildUpdatedSpec(
         `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - header mismatch in content`
       );
     }
-    const missingScenarios = findMissingCurrentScenarios(currentBlock, mod);
-    if (missingScenarios.length > 0) {
+    const scenarioDiff = diffScenarioNames(currentBlock, mod);
+    if (scenarioDiff.missing.length > 0) {
       throw new Error(
-        `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - current spec contains scenario(s) not present in the modified block: ${missingScenarios.map(name => `"${name}"`).join(', ')}. Refresh the change spec before archiving to avoid dropping scenarios.`
+        `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - current spec contains scenario(s) not present in the modified block: ${scenarioDiff.missing.map(name => `"${name}"`).join(', ')}. ${describeScenarioBalance(scenarioDiff)} Refresh the change spec before archiving to avoid dropping scenarios.`
       );
     }
     // Identical content means the modification was already synced to the
@@ -504,6 +568,17 @@ export async function buildUpdatedSpec(
         continue;
       }
       throw new Error(`${specName} ADDED failed for header "### Requirement: ${add.name}" - already exists`);
+    }
+    // A name that differs from an existing requirement only in case or
+    // interior whitespace is that requirement written again: adding it would
+    // leave two contradicting copies in the spec. Like the exact check above,
+    // this compares against the spec as it stands after the earlier operations,
+    // so a variant of a requirement this delta removed or renamed away is fine.
+    const nearMiss = [...nameToBlock.keys()].find((k) => foldRequirementName(k) === foldRequirementName(key));
+    if (nearMiss !== undefined) {
+      throw new Error(
+        `${specName} ADDED failed for header "### Requirement: ${add.name}" - "### Requirement: ${nameToBlock.get(nearMiss)!.name}" already exists and differs only in case or spacing; use MODIFIED with that exact header to change it, or choose a distinct name`
+      );
     }
     nameToBlock.set(key, add);
     addedApplied++;
@@ -565,11 +640,12 @@ export async function buildUpdatedSpec(
   // glued the heading to the Purpose paragraph and the first requirement, so
   // every archive rewrote a well-formatted spec into that shape. Separate
   // non-empty slices with one blank line instead.
-  const rebuilt = [parts.before.trimEnd(), parts.headerLine, reqBody, parts.after.trim()]
-    .filter((s) => s !== '')
-    .join('\n\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trimEnd() + '\n';
+  const rebuilt =
+    collapseBlankRunsOutsideFences(
+      [parts.before.trimEnd(), parts.headerLine, reqBody, parts.after.trim()]
+        .filter((s) => s !== '')
+        .join('\n\n')
+    ).trimEnd() + '\n';
 
   return {
     rebuilt,
@@ -616,6 +692,78 @@ function firstForeignTail(raw: string): { heading: string; raw: string } | undef
     }
   }
   return undefined;
+}
+
+/**
+ * The column a line's content starts at, tabs expanded to a four-column stop.
+ * `prefix` is the text that precedes the content: a line's indentation, or a
+ * list item's indentation together with its marker.
+ */
+function contentColumn(prefix: string): number {
+  let column = 0;
+  for (const char of prefix) column += char === '\t' ? 4 - (column % 4) : 1;
+  return column;
+}
+
+/**
+ * A line that opens a block of its own: a blockquote, a thematic break, a list
+ * item, a table row, or raw HTML. CommonMark lets each of these interrupt a
+ * paragraph, so one written flush against a bullet starts something new rather
+ * than continuing it - and the audit has to name it rather than let it be
+ * deleted with the file. Headings interrupt too and are checked separately,
+ * since they are refused however they are indented.
+ */
+const INTERRUPTS_PARAGRAPH =
+  /^ {0,3}(?:>|(?:[-*_][ \t]*){3,}$|(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)|[<|])/;
+
+/**
+ * A list item, spelled the way CommonMark spells one, with its marker and the
+ * space after it captured so a caller can measure the item's content column.
+ *
+ * Every marker, and only those. `+` is a list marker like `-` and `*`: a spec
+ * bulleted that way validates like any other, and naming only two of the three
+ * made every one of its scenario bullets unaccounted content, so such a
+ * capability could not be retired at all.
+ *
+ * The nine-digit cap is the other half of "only those": CommonMark stops an
+ * ordered marker at nine digits, so `1234567890.` opens a paragraph, not a
+ * list. It changes no verdict here, because a line this pattern rejects is
+ * weighed by the same rules either way; it is here so the audit and
+ * INTERRUPTS_PARAGRAPH cannot disagree about what a marker is. A line one of
+ * them calls a bullet and the other does not is read as both at once, and that
+ * disagreement is what a shared definition removes.
+ *
+ * Content after the marker is not required, so an empty `- ` still reads as
+ * the bullet it is rather than falling through to the leftovers. The captured
+ * group is the indent plus the marker plus its trailing space, which is the
+ * item's content column.
+ */
+const LIST_ITEM = /^(\s*(?:[-*+]|\d{1,9}[.)])\s+)/;
+
+/**
+ * Drop up to `columns` visual columns of leading whitespace, so a line inside a
+ * list item is classified by what it is *within* that item. A `## Retention`
+ * indented under `100. Step` is a heading; measured against the file's left
+ * margin instead, it reads as five spaces of nothing and was absorbed as
+ * continuation. A tab straddling the boundary is consumed whole, which can only
+ * make a line look more like a construct - the direction that refuses.
+ */
+function dropIndent(line: string, columns: number): string {
+  let column = 0;
+  let index = 0;
+  while (index < line.length && column < columns) {
+    const char = line[index];
+    if (char === ' ') column += 1;
+    else if (char === '\t') column += 4 - (column % 4);
+    else break;
+    index++;
+  }
+  return line.slice(index);
+}
+
+/** A heading in any form a spec can write one, ATX or raw HTML. */
+function isHeadingLine(line: string): boolean {
+  return /^ {0,3}#{1,6}(?:[ \t]|$)/.test(line) || /^\s*<h[1-6]\b/i.test(line);
 }
 
 /**
@@ -704,35 +852,101 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
     // operational note below the last scenario be deleted unmentioned.
     let inScenarioBullets = false;
     let bulletsSeen = false;
+    // The content column of the list item the previous line opened or
+    // continued, or null when the last line was not part of one. A line
+    // indented to that column continues the item it sits under (#1780) - a
+    // repository that wraps its prose at a column limit writes most scenario
+    // bullets over two lines, and counting the second line as loose content
+    // made every such capability unretirable. Reset by a blank line, so an
+    // indented note written below the scenarios is still the author's own.
+    let listContentIndent: number | null = null;
+    // Whether the bullet's paragraph is still open, so a line that does not
+    // indent can still be continuing it. Closed by anything that ends a
+    // paragraph: a blank line, a fence, a heading, or a block of its own.
+    let paragraphOpen = false;
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
       if (!line.trim()) {
         // Only a blank that follows actual bullets closes the run, so a blank
         // between a scenario header and its first bullet is not a boundary.
         if (bulletsSeen) inScenarioBullets = false;
+        listContentIndent = null;
+        paragraphOpen = false;
         continue;
       }
       if (index === 0) continue; // the `### Requirement:` header itself
+      const indent = contentColumn(/^[ \t]*/.exec(line)![0]);
+      // Indented to the item's content column: inside the item, whatever it
+      // holds - a nested list, a table, an indented quote.
+      const insideItem = listContentIndent !== null && indent >= listContentIndent;
+      // Every syntax test below reads the line as the item sees it. A wide
+      // marker (`100. `) pushes its content past the three columns Markdown
+      // constructs are allowed, so measuring from the file's left margin missed
+      // headings and block starts written inside such an item.
+      const withinItem = insideItem ? dropIndent(line, listContentIndent!) : line;
+      // Not indented at all, but continuing the bullet's own paragraph inside a
+      // scenario's unbroken bullet run - how a hand-wrapped bullet is usually
+      // written. Absorbing it widens nothing: a sibling bullet in that same
+      // position is already read as the scenario's own, and a lazy line is part
+      // of the bullet above it where a sibling is merely next to it. Outside
+      // the run the indent is required, so a note bulleted below the scenarios
+      // and its own wrapped lines stay the author's.
+      const lazilyContinuesBullet =
+        paragraphOpen && inScenarioBullets && !INTERRUPTS_PARAGRAPH.test(withinItem);
+      // A heading is a heading wherever it sits, so neither form absorbs one:
+      // `firstForeignTail` names the ATX spelling and the `before` pass names
+      // the raw HTML, and indenting a section under a bullet must not smuggle
+      // it past the audit.
+      const continuesListItem = (insideItem || lazilyContinuesBullet) && !isHeadingLine(withinItem);
       // Fenced lines render as a code block inside the requirement, so they are
       // its own content however they are spelled - a `### Requirement:` in an
       // example is not a heading to any reader. Flagging them made a spec that
       // merely documents a command unretirable.
-      if (mask[index]) continue;
+      if (mask[index]) {
+        // A fence that starts left of the item's content column has ended it,
+        // and a fence ends the paragraph wherever it sits - so what follows is
+        // not a lazy continuation of anything.
+        if (!insideItem) listContentIndent = null;
+        paragraphOpen = false;
+        continue;
+      }
+      // Checked ahead of the continuation branch: a setext underline turns the
+      // line above it into a heading, and indenting the pair under a bullet
+      // must not absorb them any more than an indented `#` line is absorbed.
       if (
         index > 1 &&
-        /^ {0,3}(?:=+|-+)\s*$/.test(line) &&
+        /^ {0,3}(?:=+|-+)\s*$/.test(withinItem) &&
         lines[index - 1].trim()
       ) {
         leftovers.push(lines[index - 1].trim());
+        listContentIndent = null;
+        paragraphOpen = false;
         continue;
       }
+      // A continuation of the list item above: indented to its content column
+      // with no blank line between. Whatever the item is, this line is part of
+      // it - accounted for when the item was, and already reported when it was
+      // not, so nothing is deleted unmentioned either way.
+      if (continuesListItem) {
+        // An indented nested list or quote is still inside the item, but it
+        // ended the bullet's paragraph - so a later unindented line is not
+        // continuing that paragraph either.
+        paragraphOpen = !INTERRUPTS_PARAGRAPH.test(withinItem);
+        continue;
+      }
+      // Any other line closes the item; a bullet opens the next one. The
+      // content column is the marker's own indent plus the marker itself, so a
+      // nested list and its own wrapped lines stay inside the item too.
+      const bullet = line.match(LIST_ITEM);
+      listContentIndent = bullet ? contentColumn(bullet[1]) : null;
+      paragraphOpen = bullet !== null;
       if (/^ {0,3}####\s+Scenario:/i.test(line)) {
         seenScenario = true;
         inScenarioBullets = true;
         bulletsSeen = false;
         continue;
       }
-      if (/^\s*(?:[-*]|\d+[.)])\s/.test(line)) {
+      if (bullet) {
         if (inScenarioBullets) {
           bulletsSeen = true;
           continue;
@@ -750,6 +964,44 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
   }
 
   return [...new Set(leftovers)];
+}
+
+/**
+ * Collapse runs of blank lines to a single blank line - everywhere except
+ * inside a fenced code block.
+ *
+ * The normalisation exists to tidy the seams between the slices this function
+ * rejoins. Applying it to the whole document also rewrote the inside of fenced
+ * code blocks, so a requirement documenting a sample with two consecutive blank
+ * lines had that sample silently edited on every archive. That matters for
+ * whitespace-significant content, and every other structural pass in this
+ * module is already fence-aware via `buildCodeFenceMask`.
+ *
+ * Only a truly empty line counts as blank, exactly as the `/\n{3,}/` it
+ * replaces did: a line of spaces was never collapsed and still is not.
+ */
+function collapseBlankRunsOutsideFences(content: string): string {
+  const lines = content.split('\n');
+  const mask = buildCodeFenceMask(lines);
+  const kept: string[] = [];
+  let blankRun = 0;
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index];
+    if (mask[index]) {
+      blankRun = 0;
+      kept.push(line);
+      continue;
+    }
+    if (line === '') {
+      blankRun++;
+      if (blankRun > 1) continue;
+      kept.push(line);
+      continue;
+    }
+    blankRun = 0;
+    kept.push(line);
+  }
+  return kept.join('\n');
 }
 
 function normalizeBlockRaw(raw: string): string {
@@ -939,7 +1191,7 @@ async function isInsideRealDir(realPath: string, dir: string): Promise<boolean> 
  * needs fd-relative syscalls Node does not expose, and it requires local write
  * access to `openspec/specs` during an archive.
  */
-async function pruneEmptyDirs(startDir: string, boundaryDir: string): Promise<void> {
+export async function pruneEmptyDirs(startDir: string, boundaryDir: string): Promise<void> {
   let boundary: string;
   try {
     boundary = await fs.realpath(boundaryDir);
@@ -993,11 +1245,24 @@ export async function writeUpdatedSpec(
   // Create target directory if needed
   const targetDir = path.dirname(update.target);
   await fs.mkdir(targetDir, { recursive: true });
+
+  // The parsers normalize CRLF to LF on read, so `rebuilt` is always LF. Write
+  // it back with the convention the file already used, or a Windows checkout
+  // (core.autocrlf=true) sees every line of the spec change when one
+  // requirement moved. A spec that does not exist yet stays LF.
+  // Only a missing file means "no convention to match". Swallowing every error
+  // would read an existing but unreadable spec as absent and rewrite it as LF.
+  const previous = await fs.readFile(update.target, 'utf-8').catch((error) => {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  });
+  const toWrite = previous === undefined ? rebuilt : matchLineEnding(rebuilt, previous);
+
   await options.beforeMutate?.();
   // Preserve the established in-place write semantics: symlink referents,
   // hard-linked specs, ACLs, extended attributes, and filesystems without hard
   // links must continue to behave as they did before capability retirement.
-  await fs.writeFile(update.target, rebuilt);
+  await fs.writeFile(update.target, toWrite);
   if (options.silent) return;
 
   const specName = update.id;
@@ -1011,14 +1276,34 @@ export async function writeUpdatedSpec(
 /** Blank out `<!-- ... -->` spans, preserving line count so indices stay aligned. */
 function maskHtmlComments(content: string): string {
   const blank = (text: string) => text.replace(/[^\n]/g, ' ');
-  // `--!>` is a comment terminator as well as `-->`.
-  const masked = content.replace(/<!--[\s\S]*?--!?>/g, blank);
-  // A comment that is never closed runs to end of file, so everything after it
-  // is commented out too. Without this an unterminated `<!--` above a
-  // `## Purpose` left the commented-out header looking real (#1413).
-  const unterminated = masked.indexOf('<!--');
-  if (unterminated === -1) return masked;
-  return masked.slice(0, unterminated) + blank(masked.slice(unterminated));
+  // Linear scan: every character is visited once. A `/<!--[\s\S]*?--!?>/g`
+  // replace re-scans to end of file from every `<!--`, which is quadratic on a
+  // spec dense in comment openers.
+  let out = '';
+  let index = 0;
+  for (;;) {
+    const open = content.indexOf('<!--', index);
+    if (open === -1) return out + content.slice(index);
+    out += content.slice(index, open);
+    // `--!>` is a comment terminator as well as `-->`.
+    let close = -1;
+    for (let i = open + 4; i < content.length; i++) {
+      if (content.startsWith('-->', i)) {
+        close = i + 3;
+        break;
+      }
+      if (content.startsWith('--!>', i)) {
+        close = i + 4;
+        break;
+      }
+    }
+    // A comment that is never closed runs to end of file, so everything after
+    // it is commented out too. Without this an unterminated `<!--` above a
+    // `## Purpose` left the commented-out header looking real (#1413).
+    if (close === -1) return out + blank(content.slice(open));
+    out += blank(content.slice(open, close));
+    index = close;
+  }
 }
 
 /**

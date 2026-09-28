@@ -122,12 +122,18 @@ Solo, OpenSpec keeps you and your AI honest on a single repo. On a team, the har
 
 ## Quick Start
 
-**Requires Node.js 20.19.0 or higher.**
+**Requires Node.js 20.19.0 or higher.** Homebrew installs it as a dependency.
 
 Install OpenSpec globally:
 
 ```bash
 npm install -g @fission-ai/openspec@latest
+```
+
+Or install the official [Homebrew formula](https://formulae.brew.sh/formula/openspec) on macOS or Linux:
+
+```bash
+brew install openspec
 ```
 
 Then navigate to your project directory and initialize:
@@ -137,11 +143,11 @@ cd your-project
 openspec init
 ```
 
-> **Want your AI to do it?** Paste the [setup prompt](docs/installation.md#install-with-your-ai-assistant) into your coding assistant — it installs the CLI, runs `openspec init`, and verifies the result.
+> **Want your AI to do it?** Paste the [setup prompt](docs-lab/start/installation.md#install-with-your-ai-assistant) into your coding assistant — it installs the CLI, runs `openspec init`, and verifies the result.
 
 Now talk to your AI:
 
-- **Not sure what to build yet?** Start with `/opsx:explore`, a no-stakes thinking partner that reads your code, weighs options, and shapes a plan before anything is written. ([Explore guide](docs/explore.md))
+- **Not sure what to build yet?** Start with `/opsx:explore`, a no-stakes thinking partner that reads your code, weighs options, and shapes a plan before any code gets written. ([Explore guide](docs/explore.md))
 - **Already know what you want?** Go straight to `/opsx:propose <what-you-want-to-build>`.
 
 Both are in the default profile. If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), select it with `openspec config profile` and apply with `openspec update`.
@@ -151,7 +157,7 @@ Both are in the default profile. If you want the expanded workflow (`/opsx:new`,
 > [!NOTE]
 > Not sure if your tool is supported? [View the full list](docs/supported-tools.md) – we support 30+ tools and growing.
 >
-> Also works with pnpm, yarn, bun, and nix. [See installation options](docs/installation.md).
+> Also works with Homebrew, pnpm, yarn, bun, and Nix. [See installation options](docs-lab/start/installation.md).
 
 ## Docs
 
@@ -208,6 +214,12 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 npm install -g @fission-ai/openspec@latest
 ```
 
+If you installed OpenSpec with Homebrew:
+
+```bash
+brew upgrade openspec
+```
+
 **Refresh agent instructions**
 
 Run this inside each project to regenerate AI guidance and ensure the latest slash commands are active:
@@ -224,21 +236,9 @@ openspec update
 
 ## Contributing
 
-**Small fixes** — Bug fixes, typo corrections, and minor improvements can be submitted directly as PRs.
+Open a discussion (for core design changes) or an issue before you open a PR, and link the issue or discussion from the PR. New features, significant refactors, and architectural changes need an OpenSpec change proposal first.
 
-**Larger changes** — For new features, significant refactors, or architectural changes, please submit an OpenSpec change proposal first so we can align on intent and goals before implementation begins.
-
-When writing proposals, keep the OpenSpec philosophy in mind: we serve a wide variety of users across different coding agents, models, and use cases. Changes should work well for everyone.
-
-**AI-generated code is welcome** — as long as it's been tested and verified. PRs containing AI-generated code should mention the coding agent and model used (e.g., "Generated with Claude Code using claude-opus-4-5-20251101").
-
-### Development
-
-- Install dependencies: `pnpm install`
-- Build: `pnpm run build`
-- Test: `pnpm test`
-- Develop CLI locally: `pnpm run dev` or `pnpm run dev:cli`
-- Conventional commits (one-line): `type(scope): subject`
+→ **[CONTRIBUTING.md](CONTRIBUTING.md)**: the full process, from first issue to merged PR
 
 ## Other
 

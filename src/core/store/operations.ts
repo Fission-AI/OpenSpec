@@ -36,6 +36,7 @@ import {
 } from './foundation.js';
 import { StoreError, type StoreDiagnostic, makeStoreDiagnostic } from './errors.js';
 import {
+  GIT_EXEC_OPTIONS,
   assertGitCommitIdentity,
   commitStoreFiles,
   gitDirectoryHasTrackedFiles,
@@ -291,12 +292,11 @@ async function findContainingGitRepositoryRoot(storeRoot: string): Promise<strin
   };
 
   try {
-    const { stdout } = await execFileAsync('git', [
-      '-C',
-      nearestParent,
-      'rev-parse',
-      '--show-toplevel',
-    ]);
+    const { stdout } = await execFileAsync(
+      'git',
+      ['-C', nearestParent, 'rev-parse', '--show-toplevel'],
+      GIT_EXEC_OPTIONS
+    );
     return gitRootContainsStore(stdout.trim());
   } catch {
     let current = nearestParent;
@@ -457,7 +457,7 @@ async function resolveBackendWithObservedOrigin(
 }
 
 async function prepareSetupPlan(
-  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository' | 'remote'>
+  input: Pick<SetupStoreInput, 'id' | 'path' | 'initGit' | 'allowInsideGitRepository' | 'remote'>
 ): Promise<StoreSetupPlan> {
   const id = validateStoreId(input.id ?? '');
   if (input.remote !== undefined && input.remote.length === 0) {
@@ -481,9 +481,10 @@ async function prepareSetupPlan(
   }
 
   // Stores may be Git-backed, but creating one inside an implementation
-  // repo is almost always an accidental nested-repo setup.
+  // repo is almost always an accidental nested-repo setup. --no-init-git
+  // creates no repository, so there is nothing to nest.
   await assertSetupPathIsNotNestedInGitRepo(storeRoot, {
-    allowInsideGitRepository: input.allowInsideGitRepository,
+    allowInsideGitRepository: input.allowInsideGitRepository || input.initGit === false,
   });
 
   let metadata: Awaited<ReturnType<typeof readStoreMetadataForOperation>> = null;
@@ -557,7 +558,7 @@ export function resolveSetupGitEnabled(
 }
 
 export async function prepareStoreSetup(
-  input: Pick<SetupStoreInput, 'id' | 'path' | 'allowInsideGitRepository' | 'remote'>
+  input: Pick<SetupStoreInput, 'id' | 'path' | 'initGit' | 'allowInsideGitRepository' | 'remote'>
 ): Promise<PreparedStoreSetup> {
   const plan = await prepareSetupPlan(input);
 
@@ -948,6 +949,40 @@ async function assertSafeToDeleteStoreRoot(storeRoot: string, id: string): Promi
   return { exists: true };
 }
 
+/**
+ * Deleting a store root takes everything under it, including any other
+ * store registered inside it (a shared store vendored as a submodule, for
+ * example). `store remove <id>` never asked for that store to go.
+ */
+function assertNoRegisteredStoreInside(
+  storeRoot: string,
+  id: string,
+  others: Array<{ id: string; storeRoot: string }>
+): void {
+  const root = normalizeRegistryPathForComparison(storeRoot);
+  const nested = others.filter((other) => {
+    const relative = path.relative(root, normalizeRegistryPathForComparison(other.storeRoot));
+    return (
+      relative.length > 0 &&
+      relative !== '..' &&
+      !relative.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relative)
+    );
+  });
+  if (nested.length === 0) return;
+
+  const listed = nested.map((other) => `'${other.id}' (${other.storeRoot})`).join(', ');
+  const unregister = nested.map((other) => `openspec store unregister ${other.id}`).join(', then ');
+  throw new StoreError(
+    `Store remove refuses to delete ${storeRoot}: it contains ${nested.length === 1 ? 'another registered store' : 'other registered stores'}: ${listed}.`,
+    'store_remove_contains_registered_store',
+    {
+      target: 'store.root',
+      fix: `Unregister or remove ${nested.length === 1 ? 'that store' : 'those stores'} first (${unregister}), or run "openspec store unregister ${id}" to forget '${id}' without deleting files.`,
+    }
+  );
+}
+
 export async function removeStore(
   target: PreparedStoreCleanup
 ): Promise<StoreCleanupResult> {
@@ -963,9 +998,12 @@ export async function removeStore(
     id,
     expectedBackend: target.backend,
     globalDataDir: target.globalDataDir,
-    beforeCommit: async (entry) => {
+    beforeCommit: async (entry, remaining) => {
       const safeTarget = await assertSafeToDeleteStoreRoot(entry.storeRoot, id);
       rootMissing = !safeTarget.exists;
+      if (safeTarget.exists) {
+        assertNoRegisteredStoreInside(entry.storeRoot, id, remaining);
+      }
     },
   });
 
