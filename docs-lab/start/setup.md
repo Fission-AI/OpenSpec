@@ -42,8 +42,9 @@ In your AI chat:
 
 ```
 Review openspec/project.md and migrate its useful content to openspec/config.yaml.
-Keep context concise: include only project-wide facts needed for every planning request.
+Keep context concise: include only project-wide facts needed during artifact creation, apply, and archive.
 Move artifact-specific guidance into rules for the matching artifacts.
+Move guidance for apply or archive into the matching operations entry.
 Leave out generic, outdated, or verbose material. Do not delete project.md.
 ```
 

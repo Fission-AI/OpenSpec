@@ -1189,9 +1189,10 @@ export function formatProjectMdMigrationHint(): string {
   lines.push('');
   lines.push(chalk.dim('    Review openspec/project.md and migrate its useful content to'));
   lines.push(chalk.dim('    openspec/config.yaml. Keep context concise: include only project-wide'));
-  lines.push(chalk.dim('    facts needed for every planning request. Move artifact-specific'));
-  lines.push(chalk.dim('    guidance into rules for the matching artifacts. Leave out generic,'));
-  lines.push(chalk.dim('    outdated, or verbose material. Do not delete project.md.'));
+  lines.push(chalk.dim('    facts needed during artifact creation, apply, and archive. Move'));
+  lines.push(chalk.dim('    artifact-specific guidance into rules for the matching artifacts.'));
+  lines.push(chalk.dim('    Move guidance for apply or archive into the matching operations entry.'));
+  lines.push(chalk.dim('    Leave out generic, outdated, or verbose material. Do not delete project.md.'));
   lines.push('');
   lines.push(chalk.dim('    Review config.yaml, then delete project.md when ready.'));
   return lines.join('\n');
