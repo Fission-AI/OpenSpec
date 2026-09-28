@@ -99,8 +99,8 @@ Requirement headers SHALL serve as unique identifiers for programmatic matching 
 
 - **WHEN** processing delta changes
 - **THEN** use the `### Requirement: [Name]` header as the unique identifier
-- **AND** strip a trailing run of `#` characters only when a space or tab precedes it, then trim surrounding whitespace
-- **AND** compare headers with case-sensitive equality after normalization
+- **AND** strip a closing run of `#` characters when a space or tab precedes it and only spaces or tabs follow it, then trim surrounding whitespace
+- **AND** compare normalized requirement names with case-sensitive equality
 
 #### Scenario: Handling requirement renames
 
