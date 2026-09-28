@@ -6,7 +6,7 @@
  */
 
 import { AI_TOOLS, type AIToolOption } from './config.js';
-import { getGlobalConfig, getGlobalConfigPath, saveGlobalConfig, type Delivery } from './global-config.js';
+import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlobalConfig, type Delivery } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import {
   resolveCommandInvocation,
@@ -560,6 +560,12 @@ function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
  * - If profile field already exists: no-op.
  */
 export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): void {
+  // A config that cannot be parsed, or is not a JSON object, is never saved
+  // over; skip migration rather than fail init or update on it.
+  if (isGlobalConfigUnreadable()) {
+    return;
+  }
+
   const config = getGlobalConfig();
 
   // Check raw config file for profile field presence

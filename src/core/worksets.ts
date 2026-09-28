@@ -300,7 +300,7 @@ export function withWorkset(
   state: WorksetsState,
   workset: Workset
 ): WorksetsState {
-  if (state.worksets[workset.name] !== undefined) {
+  if (Object.prototype.hasOwnProperty.call(state.worksets, workset.name)) {
     throw new StoreError(
       `Workset '${workset.name}' already exists.`,
       'workset_exists',
@@ -327,7 +327,7 @@ export function withoutWorkset(
   state: WorksetsState,
   name: string
 ): WorksetsState {
-  if (state.worksets[name] === undefined) {
+  if (!Object.prototype.hasOwnProperty.call(state.worksets, name)) {
     throw worksetNotFoundError(name, state);
   }
 
@@ -374,8 +374,10 @@ export function listWorksets(state: WorksetsState): Workset[] {
 }
 
 export function getWorkset(state: WorksetsState, name: string): Workset | null {
-  const entry = state.worksets[name];
-  return entry === undefined ? null : toWorkset(name, entry);
+  if (!Object.prototype.hasOwnProperty.call(state.worksets, name)) {
+    return null;
+  }
+  return toWorkset(name, state.worksets[name]);
 }
 
 /**

@@ -271,17 +271,23 @@ async function ensureDefaultConfig(
   });
 }
 
-async function ensureDirectoryAnchor(
+export async function ensureDirectoryAnchor(
   storeRoot: string,
   relativeDir: string,
-  ledger: CreatedPathLedgerEntry[]
+  ledger: CreatedPathLedgerEntry[] = []
 ): Promise<void> {
   const directory = path.join(storeRoot, relativeDir);
   if ((await fs.readdir(directory)).length > 0) return;
 
   const relativePath = `${relativeDir}/${DIRECTORY_ANCHOR_FILE_NAME}`;
   const absolutePath = path.join(directory, DIRECTORY_ANCHOR_FILE_NAME);
-  await fs.writeFile(absolutePath, '', 'utf-8');
+  try {
+    // A file or symlink may appear after readdir. Never replace or follow it.
+    await fs.writeFile(absolutePath, '', { encoding: 'utf-8', flag: 'wx' });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return;
+    throw error;
+  }
   ledger.push({
     relativePath: relativeArtifact(relativePath, 'file'),
     absolutePath,

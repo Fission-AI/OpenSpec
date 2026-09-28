@@ -189,3 +189,61 @@ describe('ChangeCommand.show/validate', () => {
     await expect(cmd.validate(path.join('..', '..', 'outside'))).rejects.toThrow(/not found at/u);
   });
 });
+
+describe('ChangeCommand title from the packaged proposal template (#1138)', () => {
+  // The spec-driven template opens every proposal with the same `# Proposal`
+  // heading. That names the document, not the change, so it must not become
+  // the title of every change.
+  let cmd: ChangeCommand;
+  let tempRoot: string;
+  let originalCwd: string;
+
+  beforeAll(async () => {
+    cmd = new ChangeCommand();
+    originalCwd = process.cwd();
+    tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-change-template-title-'));
+    const proposals: Record<string, string> = {
+      'templated-change': '# Proposal\n\n## Why\nTemplate shape.\n\n## What Changes\n- **auth:** Add requirement\n',
+      'named-change': '# Proposal: Named Change\n\n## Why\nNamed.\n\n## What Changes\n- **auth:** Add requirement\n',
+    };
+    for (const [name, proposal] of Object.entries(proposals)) {
+      const dir = path.join(tempRoot, 'openspec', 'changes', name);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, 'proposal.md'), proposal, 'utf-8');
+    }
+    process.chdir(tempRoot);
+  });
+
+  afterAll(async () => {
+    process.chdir(originalCwd);
+    await fs.rm(tempRoot, { recursive: true, force: true });
+  });
+
+  async function captureLog(fn: () => Promise<void>): Promise<string> {
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg?: any, ...args: any[]) => {
+      logs.push([msg, ...args].filter(Boolean).join(' '));
+    };
+    try {
+      await fn();
+    } finally {
+      console.log = origLog;
+    }
+    return logs.join('\n');
+  }
+
+  it('show --json falls back to the change id for a bare `# Proposal` title', async () => {
+    const parsed = JSON.parse(await captureLog(() => cmd.show('templated-change', { json: true })));
+    expect(parsed.title).toBe('templated-change');
+  });
+
+  it('list --json falls back to the change id and keeps authored titles', async () => {
+    const parsed = JSON.parse(await captureLog(() => cmd.list({ json: true })));
+    const titles = Object.fromEntries(parsed.map((c: { id: string; title: string }) => [c.id, c.title]));
+    expect(titles).toEqual({
+      'named-change': 'Proposal: Named Change',
+      'templated-change': 'templated-change',
+    });
+  });
+});
