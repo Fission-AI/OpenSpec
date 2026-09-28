@@ -77,6 +77,21 @@ openspec init --tools none           # openspec/ structure only, no tool files
 
 With no `--tools`, init prompts you to pick tools in an interactive terminal. Outside one, it sets up the tools it detects in the project. With none detected it exits 1 and lists the valid ids.
 
+**Store-only repositories**
+
+When `openspec/config.yaml` contains a `store:` line and the repo has no local specs or changes, run init from the repository root:
+
+```bash
+# install Claude Code integration files in the code repo
+openspec init --tools claude
+```
+
+- **Integration files**: written in the code repo.
+- **`openspec/config.yaml`**: preserved byte-for-byte.
+- **`openspec/specs/` and `openspec/changes/`**: not created in the code repo.
+
+Running init from a subdirectory exits 1 and tells you to run it from the repository root. `--language` also exits 1 because the language belongs in the external store's config. Run init in the store root or edit that config directly.
+
 **Arguments**
 
 | Argument | What it is |
@@ -88,6 +103,7 @@ With no `--tools`, init prompts you to pick tools in an interactive terminal. Ou
 | Flag | Effect |
 |---|---|
 | `--tools <tools>` | Comma-separated tool ids, `all`, or `none`. Skips the picker. Ids are listed in [Supported tools](supported-tools.md). |
+| `--language <language>` | Add a language instruction to a new project config. Rejected when the repo's `store:` line points to an external store. |
 | `--force` | Remove files from older OpenSpec layouts without asking. Interactive runs otherwise confirm the cleanup first. |
 | `--profile <profile>` | Override the global config profile for this run: `core` (the standard workflow set) or `custom` (the workflows saved in global config). |
 | `--no-animation` | Show a static welcome screen instead of the animated one. |
@@ -117,7 +133,7 @@ Restart your IDE for the new commands to take effect.
 **Exit codes**
 
 - `0`: setup completed.
-- `1`: invalid `--tools` or `--profile` value, or a non-interactive run with no tools detected and no `--tools`.
+- `1`: invalid `--tools` or `--profile` value, a non-interactive run with no tools detected and no `--tools`, or an invalid store-only invocation.
 
 ## openspec update
 
