@@ -652,7 +652,7 @@ Each active change also shows its schema and artifact states below its task prog
 | No marker | It is blocked by a missing dependency. |
 | `(skipped)` | The change skips it. |
 
-If a workflow cannot be loaded, view prints a warning and keeps that change's task progress visible. Run `openspec status --change <name>` to inspect the workflow separately.
+If a workflow cannot be loaded, view prints a warning and keeps that change's task progress visible. Run `openspec status --change <name>` to inspect the workflow separately. After `openspec view --store <id>`, pass the same `--store <id>` to status.
 
 **Exit codes**
 
