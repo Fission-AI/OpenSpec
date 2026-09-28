@@ -5,7 +5,9 @@
 
 ## Prerequisites
 
-OpenSpec is a Node.js CLI. You need version 20.19.0 or newer.
+OpenSpec runs on Node.js 20.19.0 or newer. Homebrew installs Node.js as a
+dependency, and the Nix package includes the runtime. Check your installed version
+before using another install method.
 
 In your terminal:
 
@@ -13,7 +15,9 @@ In your terminal:
 node --version
 ```
 
-If that prints `v20.19.0` or higher, you're set. If not, install a newer Node from [nodejs.org](https://nodejs.org) or through your version manager (nvm, fnm, asdf, volta).
+If that prints `v20.19.0` or higher, you're set. If not, install a newer Node from
+[nodejs.org](https://nodejs.org) or through your version manager (nvm, fnm, asdf,
+volta). You can skip this check when you install with Homebrew or Nix.
 
 The workflow itself runs inside an AI coding tool: Claude Code, Cursor, or any other tool on the [supported list](../reference/supported-tools.md).
 
@@ -52,6 +56,16 @@ In your terminal:
 ```npm
 npm install -g @fission-ai/openspec@latest
 ```
+
+### Homebrew
+
+Homebrew installs OpenSpec and its Node.js dependency on macOS or Linux. In your terminal:
+
+```bash
+brew install openspec
+```
+
+The formula is published in [homebrew-core](https://formulae.brew.sh/formula/openspec), so you don't need to add a tap.
 
 ### Yarn
 
@@ -123,7 +137,7 @@ When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update
 
 
 > [!WARNING]
-> On Deno, re-run the [Deno install](#deno) with `-f`; it won't overwrite the installed command without it. On Nix, use `nix profile upgrade openspec`.
+> On Homebrew, run `brew upgrade openspec`. On Deno, re-run the [Deno install](#deno) with `-f`; it won't overwrite the installed command without it. On Nix, use `nix profile upgrade openspec`.
 
 > [!NOTE]
 > A global npm install belongs to one Node installation. Switch Node versions with nvm and the `openspec` command doesn't come along, so install it again under the new version.
@@ -144,7 +158,7 @@ openspec completion uninstall
 npm uninstall -g @fission-ai/openspec
 ```
 
-On Deno: `deno uninstall --global openspec`. On Nix: `nix profile remove openspec`. Your shell should no longer find `openspec`.
+On Homebrew: `brew uninstall openspec`. On Deno: `deno uninstall --global openspec`. On Nix: `nix profile remove openspec`. Your shell should no longer find `openspec`.
 
 **3. Delete what's left, or keep it.**
 
