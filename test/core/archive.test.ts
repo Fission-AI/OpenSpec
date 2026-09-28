@@ -127,6 +127,28 @@ describe('ArchiveCommand', () => {
       await expect(fs.access(changeDir)).rejects.toThrow();
     });
 
+    it('includes a sanitized unknown-metadata warning in JSON output', async () => {
+      const changeName = 'unknown-metadata-json';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\n"owner\\u001b[31m": team-a\n'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true, json: true });
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+        .flat()
+        .map(String);
+      const jsonLine = logCalls.find((entry) => entry.trimStart().startsWith('{'));
+      expect(jsonLine).toBeDefined();
+      const warning = JSON.parse(jsonLine!).archive.warnings[0] as string;
+      expect(warning).toContain('owner [31m');
+      expect(warning).not.toMatch(/[\u0000-\u001f\u007f-\u009f]/);
+    });
+
     describe('a namespace folder holding nested changes (#1846)', () => {
       async function seedNamespaceFolder(): Promise<string> {
         const nested = path.join(tempDir, 'openspec', 'changes', 'mobile', 'refresh-token');

@@ -20,7 +20,7 @@ export const InitiativeLinkSchema = z.object({
 
 export type InitiativeLink = z.infer<typeof InitiativeLinkSchema>;
 
-/** Top-level keys ChangeMetadataSchema recognises. Anything else is ignored. */
+/** Top-level keys ChangeMetadataSchema recognizes. Anything else is ignored. */
 export const CHANGE_METADATA_KNOWN_KEYS = [
   'schema',
   'created',
