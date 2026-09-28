@@ -1,16 +1,11 @@
 /**
  * GigaCode Command Adapter
  *
- * Formats commands for GigaCode (Sber's CLI coding agent, a fork of Qwen
- * Code). GigaCode reuses Qwen Code's file formats: Markdown custom
- * commands with a `description` frontmatter field, read from
- * `.gigacode/commands/`.
+ * Formats commands for GigaCode using its Markdown custom command format.
+ * Project commands live in `.gigacode/commands/` and accept an optional
+ * `description` field in YAML frontmatter.
  *
- * Note: GigaCode's public docs do not enumerate the custom-command file
- * format directly; this mirrors Qwen Code's current Markdown spec per the
- * fork relationship (Qwen Code deprecated TOML in favor of Markdown — see
- * qwen.ts). If GigaCode's own format ever diverges from Qwen Code's,
- * update this adapter to match.
+ * @see https://gitverse.ru/docs/ai/ai-assistant-gigacode/gigacode-cli/commands
  */
 
 import path from 'path';
