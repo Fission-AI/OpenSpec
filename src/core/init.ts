@@ -1084,7 +1084,7 @@ export class InitCommand {
 
   private languageContext(): string | undefined {
     if (!this.language) return undefined;
-    return formatLanguageContext(this.language);
+    return `${formatLanguageContext(this.language)}\n`;
   }
 
   private async newConfigContext(openspecPath: string): Promise<string | undefined> {
@@ -1098,6 +1098,15 @@ export class InitCommand {
     let projectContext: string;
     try {
       FileSystemUtils.assertProjectArtifactPath(path.dirname(openspecPath), projectMdPath);
+      const languageSize = languageContext ? Buffer.byteLength(languageContext, 'utf8') + 1 : 0;
+      if (fs.statSync(projectMdPath).size > MAX_CONTEXT_SIZE - languageSize) {
+        console.log(
+          chalk.yellow(
+            `Could not copy openspec/project.md: the resulting context exceeds the ${MAX_CONTEXT_SIZE / 1024}KB limit.`
+          )
+        );
+        return languageContext;
+      }
       projectContext = await FileSystemUtils.readFile(projectMdPath);
     } catch {
       console.log(

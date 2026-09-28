@@ -207,6 +207,20 @@ describe('InitCommand', () => {
       expect(confirmMock).not.toHaveBeenCalled();
     });
 
+    it('should preserve project.md at the exact context size limit without a final newline', async () => {
+      const openspecPath = path.join(testDir, 'openspec');
+      const projectContext = 'x'.repeat(MAX_CONTEXT_SIZE);
+      await fs.mkdir(openspecPath, { recursive: true });
+      await fs.writeFile(path.join(openspecPath, 'project.md'), projectContext);
+      searchableMultiSelectMock.mockResolvedValue(['claude']);
+
+      const initCommand = new InitCommand({ force: true });
+      vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+      await initCommand.execute(testDir);
+
+      expect(readProjectConfig(testDir)?.context).toBe(projectContext);
+    });
+
     it('should not copy project.md when it would exceed the context size limit', async () => {
       const openspecPath = path.join(testDir, 'openspec');
       await fs.mkdir(openspecPath, { recursive: true });
