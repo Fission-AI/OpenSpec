@@ -6,6 +6,7 @@ import { createRequire } from 'module';
 import chalk from 'chalk';
 import { isCiEnvironment } from '../utils/ci.js';
 import { isTelemetryOptedOutByEnv } from '../telemetry/opt-out.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 import { getGlobalConfig, isGlobalConfigUnreadable } from './global-config.js';
 
 const require = createRequire(import.meta.url);
@@ -347,8 +348,8 @@ export function isProjectLocalInstall(
     process.platform === 'win32' ? value.toLowerCase() : value;
 
   try {
-    let dir = path.resolve(projectPath);
-    const target = normalize(installDir);
+    let dir = FileSystemUtils.canonicalizeExistingPath(projectPath);
+    const target = normalize(FileSystemUtils.canonicalizeExistingPath(installDir));
 
     for (;;) {
       if (target.startsWith(normalize(path.join(dir, 'node_modules') + path.sep))) {
@@ -532,10 +533,15 @@ function detectGlobalPackageManager(installDir: string | null): PackageManager |
 
   const segments = installDir.split(/[\\/]/).map((segment) => segment.toLowerCase());
   const has = (...names: string[]) => names.some((name) => segments.includes(name));
-  if (has('.volta') || (has('volta') && has('tools') && has('image'))) return 'volta';
-  if (has('.pnpm-global') || (has('pnpm') && has('global'))) return 'pnpm';
-  if (has('yarn') && has('global')) return 'yarn';
-  if (has('.bun') && has('install') && has('global')) return 'bun';
+  const hasSequence = (...names: string[]) =>
+    segments.some((_, index) => names.every((name, offset) => segments[index + offset] === name));
+
+  if (hasSequence('.volta', 'tools', 'image') || hasSequence('volta', 'tools', 'image')) {
+    return 'volta';
+  }
+  if (has('.pnpm-global') || hasSequence('pnpm', 'global')) return 'pnpm';
+  if (hasSequence('yarn', 'global') || hasSequence('yarn', 'data', 'global')) return 'yarn';
+  if (hasSequence('.bun', 'install', 'global')) return 'bun';
   return null;
 }
 

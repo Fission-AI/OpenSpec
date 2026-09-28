@@ -31,5 +31,5 @@
 
 ## 6. Final verification
 
-- [ ] 6.1 Run `pnpm build`, the focused version-check and CLI tests, `pnpm test`, `pnpm exec tsc --noEmit`, and `pnpm lint`.
-- [ ] 6.2 Run `openspec validate add-version-command --strict` and confirm every planning artifact is complete.
+- [x] 6.1 Run `pnpm build`, the focused version-check and CLI tests, `pnpm test`, `pnpm exec tsc --noEmit`, and `pnpm lint`.
+- [x] 6.2 Run `openspec validate add-version-command --strict` and confirm every planning artifact is complete.

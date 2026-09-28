@@ -548,6 +548,53 @@ describe('getCliInstallInfo', () => {
       scope: null,
     });
   });
+
+  it('classifies project installs through aliases while preserving the reported path', () => {
+    const realProject = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-version-project-'));
+    const aliasProject = `${realProject}-alias`;
+    const relativeInstall = path.join(
+      'node_modules',
+      '.pnpm',
+      '@fission-ai+openspec',
+      'node_modules',
+      '@fission-ai',
+      'openspec'
+    );
+    const realInstall = path.join(realProject, relativeInstall);
+    fs.mkdirSync(realInstall, { recursive: true });
+
+    try {
+      fs.symlinkSync(realProject, aliasProject, process.platform === 'win32' ? 'junction' : 'dir');
+      const aliasedInstall = path.join(aliasProject, relativeInstall);
+
+      expect(getCliInstallInfo(aliasedInstall, realProject)).toEqual({
+        location: aliasedInstall,
+        packageManager: 'pnpm',
+        scope: 'project',
+      });
+    } finally {
+      fs.rmSync(aliasProject, { recursive: true, force: true });
+      fs.rmSync(realProject, { recursive: true, force: true });
+    }
+  });
+
+  it('does not infer global ownership from unrelated path segments', () => {
+    const unrelated = path.join(
+      HOME_ROOT,
+      'pnpm',
+      'projects',
+      'global',
+      'node_modules',
+      '@fission-ai',
+      'openspec'
+    );
+
+    expect(getCliInstallInfo(unrelated, PROJECT_ROOT)).toEqual({
+      location: unrelated,
+      packageManager: null,
+      scope: null,
+    });
+  });
 });
 
 describe('buildVersionReportLines', () => {

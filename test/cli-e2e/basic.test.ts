@@ -122,15 +122,17 @@ describe('openspec CLI e2e basics', () => {
 
       expectJsonOnlyOutput(result);
       expect(result.stdout).not.toMatch(/\u001b\[/);
-      expect(JSON.parse(result.stdout)).toEqual({
+      const output = JSON.parse(result.stdout);
+      expect(output).toEqual({
         schemaVersion: 1,
         version: expect.any(String),
         install: {
-          location: cliProjectRoot,
+          location: expect.any(String),
           packageManager: null,
           scope: 'source',
         },
       });
+      expect(await fs.realpath(output.install.location)).toBe(await fs.realpath(cliProjectRoot));
     });
 
     it('reports a disabled update check as data and exits successfully', async () => {
