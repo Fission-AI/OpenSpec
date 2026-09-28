@@ -27,4 +27,4 @@ Run the core checks for code changes:
 ---
 
 - [ ] Ran `pnpm changeset` if this affects users, and committed the file
-- [ ] If a coding agent wrote this, named the agent and model below, and verified the result myself
+- [ ] If a coding agent wrote this, named the agent and model in the Notes section, and verified the result myself
