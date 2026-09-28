@@ -8,6 +8,7 @@ import { execFile } from 'child_process';
 import { createRequire } from 'module';
 import {
   compareVersions,
+  checkForCliUpdate,
   getAvailableCliUpdate,
   registryUrl,
   getInstallDir,
@@ -27,6 +28,9 @@ import {
   rerunUpdateWithUpgradedCli,
   buildCliUpdateLines,
   displayCliUpdateNote,
+  getCliInstallInfo,
+  getCliUpdateCommand,
+  buildVersionReportLines,
 } from '../../src/core/version-check.js';
 
 const require = createRequire(import.meta.url);
@@ -150,6 +154,13 @@ describe('getAvailableCliUpdate', () => {
     await expect(getAvailableCliUpdate()).resolves.toBe(bumpMajor(OPENSPEC_VERSION));
   });
 
+  it('returns a structured available result for the version command', async () => {
+    await expect(checkForCliUpdate()).resolves.toEqual({
+      status: 'available',
+      latest: bumpMajor(OPENSPEC_VERSION),
+    });
+  });
+
   it('asks the dist-tag endpoint, and never with an Accept type it answers 406 for', async () => {
     await getAvailableCliUpdate();
 
@@ -167,9 +178,17 @@ describe('getAvailableCliUpdate', () => {
     await expect(getAvailableCliUpdate()).resolves.toBeNull();
   });
 
+  it('returns a structured current result for the version command', async () => {
+    serveVersion(OPENSPEC_VERSION);
+    await expect(checkForCliUpdate()).resolves.toEqual({
+      status: 'current',
+      latest: OPENSPEC_VERSION,
+    });
+  });
+
   it('returns null when the registry is unreachable', async () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
-    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'offline', latest: null });
   });
 
   it('follows a redirect, as mirrors and corporate front-ends send', async () => {
@@ -250,7 +269,7 @@ describe('getAvailableCliUpdate', () => {
       res.writeHead(200, { 'content-type': 'application/json' });
       res.end('<html>proxy login</html>');
     };
-    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'offline', latest: null });
   });
 
   it('rejects a version that is not plain SemVer', async () => {
@@ -303,7 +322,7 @@ describe('getAvailableCliUpdate', () => {
     };
 
     const startedAt = Date.now();
-    await expect(getAvailableCliUpdate()).resolves.toBeNull();
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'offline', latest: null });
     expect(Date.now() - startedAt).toBeLessThan(5000);
   }, 10000);
 
@@ -327,6 +346,7 @@ describe('getAvailableCliUpdate', () => {
       ['OPENSPEC_TELEMETRY', 'OFF'],
     ] as const) {
       process.env[key] = value;
+      await expect(checkForCliUpdate()).resolves.toEqual({ status: 'disabled', latest: null });
       await expect(getAvailableCliUpdate()).resolves.toBeNull();
       delete process.env[key];
     }
@@ -436,6 +456,144 @@ describe('getAvailableCliUpdate', () => {
 
     process.env.npm_config_registry = 'https://npm.internal.example.com/';
     expect(registryUrl()).toBe('https://npm.internal.example.com/@fission-ai/openspec/latest');
+  });
+
+  it('reports a rejected registry as disabled without making a request', async () => {
+    process.env.npm_config_registry = 'http://169.254.169.254/';
+
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'disabled', latest: null });
+    expect(requests).toHaveLength(0);
+  });
+});
+
+describe('getCliInstallInfo', () => {
+  it('reports known global package managers and their update commands', () => {
+    const cases: Array<[string, string]> = [
+      [path.join(npmGlobalRoots()[0], '@fission-ai', 'openspec'), 'npm'],
+      [path.join(HOME_ROOT, 'Library', 'pnpm', 'global', '5', 'node_modules', 'pkg'), 'pnpm'],
+      [path.join(HOME_ROOT, '.bun', 'install', 'global', 'node_modules', 'pkg'), 'bun'],
+      [path.join(HOME_ROOT, '.volta', 'tools', 'image', 'packages', 'x', 'pkg'), 'volta'],
+      [path.join(HOME_ROOT, '.config', 'yarn', 'global', 'node_modules', 'pkg'), 'yarn'],
+      ['C:\\Users\\me\\AppData\\Local\\Volta\\tools\\image\\pkg', 'volta'],
+      ['C:\\Users\\me\\AppData\\Local\\pnpm\\global\\5\\pkg', 'pnpm'],
+      ['C:\\Users\\me\\AppData\\Local\\Yarn\\Data\\global\\pkg', 'yarn'],
+    ];
+
+    for (const [installDir, packageManager] of cases) {
+      const install = getCliInstallInfo(installDir, PROJECT_ROOT);
+      expect(install).toEqual({ location: installDir, packageManager, scope: 'global' });
+      expect(getCliUpdateCommand(install)).toContain('@fission-ai/openspec@latest');
+    }
+  });
+
+  it('reports project and temporary installs without inventing update commands', () => {
+    const projectInstall = path.join(
+      PROJECT_ROOT,
+      'node_modules',
+      '.pnpm',
+      '@fission-ai+openspec',
+      'node_modules',
+      '@fission-ai',
+      'openspec'
+    );
+    const temporaryInstall = path.join(
+      HOME_ROOT,
+      '.npm',
+      '_npx',
+      'abc',
+      'node_modules',
+      '@fission-ai',
+      'openspec'
+    );
+
+    const project = getCliInstallInfo(projectInstall, PROJECT_ROOT);
+    expect(project).toEqual({
+      location: projectInstall,
+      packageManager: 'pnpm',
+      scope: 'project',
+    });
+    expect(getCliUpdateCommand(project)).toBeNull();
+
+    const temporary = getCliInstallInfo(temporaryInstall, PROJECT_ROOT);
+    expect(temporary).toEqual({
+      location: temporaryInstall,
+      packageManager: 'npm',
+      scope: 'temporary',
+    });
+    expect(getCliUpdateCommand(temporary)).toBeNull();
+  });
+
+  it('reports source and unknown installs honestly', () => {
+    const clone = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-version-source-'));
+    try {
+      fs.writeFileSync(path.join(clone, '.git'), 'gitdir: elsewhere\n');
+      expect(getCliInstallInfo(clone, PROJECT_ROOT)).toEqual({
+        location: clone,
+        packageManager: null,
+        scope: 'source',
+      });
+    } finally {
+      fs.rmSync(clone, { recursive: true, force: true });
+    }
+
+    const unknown = path.join(HOME_ROOT, 'portable', '@fission-ai', 'openspec');
+    expect(getCliInstallInfo(unknown, PROJECT_ROOT)).toEqual({
+      location: unknown,
+      packageManager: null,
+      scope: null,
+    });
+    expect(getCliInstallInfo(null, PROJECT_ROOT)).toEqual({
+      location: null,
+      packageManager: null,
+      scope: null,
+    });
+  });
+});
+
+describe('buildVersionReportLines', () => {
+  const globalInstall = {
+    location: '/opt/lib/node_modules/@fission-ai/openspec',
+    packageManager: 'npm' as const,
+    scope: 'global' as const,
+  };
+
+  it('renders local information and available update guidance', () => {
+    expect(buildVersionReportLines('1.13.2', globalInstall)).toEqual([
+      'OpenSpec 1.13.2 (npm, global)',
+    ]);
+    expect(
+      buildVersionReportLines(
+        '1.13.2',
+        globalInstall,
+        { status: 'available', latest: '1.14.0' },
+        'npm install -g @fission-ai/openspec@latest'
+      )
+    ).toEqual([
+      'OpenSpec 1.13.2 (npm, global)',
+      'Update available: 1.14.0',
+      '  npm install -g @fission-ai/openspec@latest',
+    ]);
+  });
+
+  it.each([
+    ['current', '1.13.2', 'OpenSpec is up to date.'],
+    ['disabled', null, 'Update check disabled.'],
+    ['offline', null, 'Could not check for updates.'],
+  ] as const)('renders the %s update status', (status, latest, message) => {
+    expect(buildVersionReportLines('1.13.2', globalInstall, { status, latest })).toEqual([
+      'OpenSpec 1.13.2 (npm, global)',
+      message,
+    ]);
+  });
+
+  it('omits unknown install details and unavailable package-manager guidance', () => {
+    expect(
+      buildVersionReportLines(
+        '1.13.2',
+        { location: '/portable/openspec', packageManager: null, scope: null },
+        { status: 'available', latest: '1.14.0' }
+      )
+    ).toEqual(['OpenSpec 1.13.2', 'Update available: 1.14.0']);
   });
 });
 

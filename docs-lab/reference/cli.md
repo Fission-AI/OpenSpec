@@ -50,6 +50,7 @@ Your agent runs most of these during the workflow.
 
 | Command | What it does |
 |---|---|
+| [`openspec version`](#openspec-version) | Report the installed version and optionally check for an update. |
 | [`openspec feedback`](#openspec-feedback) | Submit feedback about OpenSpec. |
 | [`openspec completion`](#openspec-completion) | Install or generate shell completions. |
 
@@ -2136,6 +2137,92 @@ In an interactive terminal, remove shows the workset and asks you to confirm. Wi
 ```
 Removed workset 'checkout'. Member folders were not touched.
 ```
+
+## openspec version
+
+Reports the running OpenSpec version and how this copy was installed.
+
+```bash
+openspec version                 # local version and install details
+openspec version --json          # structured local report
+openspec version --check         # also check the registry for an update
+openspec version --check --json  # structured local and update report
+```
+
+Without `--check`, this command is local and does not contact a registry. It works outside an OpenSpec project. The existing `openspec --version` flag remains the shortest form and prints only the bare version number.
+
+**Options**
+
+| Flag | Effect |
+|---|---|
+| `--json` | Print one versioned JSON document instead of text. |
+| `--check` | Check the configured registry for a newer release. |
+
+**Output**
+
+For a global npm install:
+
+```text
+OpenSpec 1.13.2 (npm, global)
+```
+
+The install scope is `global`, `project`, `temporary` for an ephemeral runner such as npx, or `source` for a checkout. OpenSpec omits details it cannot identify instead of guessing.
+
+`--json` keeps unknown details as explicit `null` values:
+
+```json
+{
+  "schemaVersion": 1,
+  "version": "1.13.2",
+  "install": {
+    "location": "/opt/homebrew/lib/node_modules/@fission-ai/openspec",
+    "packageManager": "npm",
+    "scope": "global"
+  }
+}
+```
+
+With `--check`, an available update adds the latest version and a command when OpenSpec can identify a safe command for that install:
+
+```text
+OpenSpec 1.13.2 (npm, global)
+Update available: 1.14.0
+  npm install -g @fission-ai/openspec@latest
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "version": "1.13.2",
+  "install": {
+    "location": "/opt/homebrew/lib/node_modules/@fission-ai/openspec",
+    "packageManager": "npm",
+    "scope": "global"
+  },
+  "update": {
+    "status": "available",
+    "latest": "1.14.0",
+    "command": "npm install -g @fission-ai/openspec@latest",
+    "canSelfUpgrade": true
+  }
+}
+```
+
+Update status values:
+
+| Status | Meaning |
+|---|---|
+| `available` | The registry returned a safe version newer than the running version. |
+| `current` | The check completed and found no newer version. |
+| `disabled` | An existing privacy or update-check setting blocked registry access. `latest` is `null`. |
+| `offline` | The registry was unavailable or returned an unusable response. `latest` is `null`. |
+
+`DO_NOT_TRACK`, telemetry opt-outs, `OPENSPEC_NO_UPDATE_CHECK`, CI detection, and rejected non-HTTPS registry overrides disable the check. Disabled and offline checks still exit 0 because update availability is advisory. This command never upgrades OpenSpec; `canSelfUpgrade` only reports whether the existing `openspec update` path could safely upgrade this copy.
+
+**Exit codes**
+
+- `0`: the local report printed, including disabled or offline update checks.
+- `1`: command syntax was invalid, such as the unsupported `--upgrade` option.
 
 ## openspec feedback
 
