@@ -139,7 +139,7 @@ export class ListCommand {
 
       // Read the parent even for --archived: Windows can report ENOENT for
       // changes/archive when changes is a file, hiding a malformed root.
-      const entries = await readChangeDirectoryEntries(changesDir);
+      await readChangeDirectoryEntries(changesDir);
       const activeDirs = !archived || all ? activeChangeNames(changesDir)
         .map(name => ({ name, parent: changesDir, archived: false })) : [];
       const archiveEntries = includeArchived ? await readChangeDirectoryEntries(archiveDir) : [];
@@ -165,8 +165,7 @@ export class ListCommand {
       // is listed as what it is, so the nesting stops failing silently (#1846).
       const nestedFindings = await findNestedChanges(
         changesDir,
-        activeDirs.map((changeDir) => changeDir.name).filter((name) =>
-          entries.some((entry) => entry.isDirectory() && entry.name === name))
+        activeDirs.map((changeDir) => changeDir.name)
       );
       const nestedByName = new Map<string, NestedChangeFinding>(
         nestedFindings.map((finding) => [finding.name, finding])
