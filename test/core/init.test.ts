@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { parse as parseToml } from 'smol-toml';
 import { parse as parseYaml } from 'yaml';
 import { InitCommand } from '../../src/core/init.js';
 import { saveGlobalConfig, getGlobalConfig } from '../../src/core/global-config.js';
@@ -757,6 +758,32 @@ describe('InitCommand', () => {
         logCalls.some(
           (entry) => entry.includes('Commands skipped for: amp') && entry.includes('(no adapter)')
         )
+      ).toBe(true);
+    });
+
+    it('should support GSD through project skills without writing subagent definitions', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'gsd', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+      expect(await directoryExists(path.join(testDir, '.gsd', 'agents'))).toBe(false);
+
+      const skillContent = await fs.readFile(skillFile, 'utf-8');
+      expect(skillContent).toContain('the openspec-propose skill');
+      expect(skillContent).not.toContain('/opsx:propose');
+
+      const logCalls = vi.mocked(console.log).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: gsd') && entry.includes('(no adapter)'),
+        ),
       ).toBe(true);
     });
 
@@ -1685,17 +1712,48 @@ describe('InitCommand', () => {
       }
     );
 
-    it('should generate Gemini CLI commands as TOML files', async () => {
-      const initCommand = new InitCommand({ tools: 'gemini', force: true });
+    it.each(['gemini', 'easycode'])('should generate %s core skills and parseable TOML commands', async (toolId) => {
+      const initCommand = new InitCommand({ tools: toolId, force: true });
       await initCommand.execute(testDir);
 
-      const cmdFile = path.join(testDir, '.gemini', 'commands', 'opsx', 'explore.toml');
-      expect(await fileExists(cmdFile)).toBe(true);
+      const commandsDir = path.join(testDir, `.${toolId}`, 'commands', 'opsx');
+      const commandIds = ['apply', 'archive', 'explore', 'propose', 'sync', 'update'];
+      expect((await fs.readdir(commandsDir)).sort()).toEqual(commandIds.map((id) => `${id}.toml`));
+      for (const commandId of commandIds) {
+        const content = parseToml(await fs.readFile(path.join(commandsDir, `${commandId}.toml`), 'utf-8'));
+        expect(content.description).toEqual(expect.any(String));
+        expect(content.prompt).toContain('openspec');
+      }
 
-      const content = await fs.readFile(cmdFile, 'utf-8');
-      expect(content).toContain('description =');
-      expect(content).toContain('prompt =');
+      const skillFile = path.join(testDir, `.${toolId}`, 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fs.readFile(skillFile, 'utf-8')).toContain('name: openspec-explore');
     });
+
+    it.each(['both', 'skills', 'commands'] as const)(
+      'should honor EasyCode custom workflows with delivery=%s',
+      async (delivery) => {
+        saveGlobalConfig({ featureFlags: {}, profile: 'custom', delivery, workflows: ['explore', 'new'] });
+        await new InitCommand({ tools: 'easycode', force: true }).execute(testDir);
+
+        const skillsDir = path.join(testDir, '.easycode', 'skills');
+        for (const skillName of ['openspec-explore', 'openspec-new-change']) {
+          expect(await fileExists(path.join(skillsDir, skillName, 'SKILL.md'))).toBe(delivery !== 'commands');
+        }
+        expect(await fileExists(path.join(skillsDir, 'openspec-propose', 'SKILL.md'))).toBe(false);
+
+        const commandsDir = path.join(testDir, '.easycode', 'commands', 'opsx');
+        if (delivery === 'skills') {
+          expect(await directoryExists(commandsDir)).toBe(false);
+        } else {
+          expect((await fs.readdir(commandsDir)).sort()).toEqual(['explore.toml', 'new.toml']);
+          for (const filename of ['explore.toml', 'new.toml']) {
+            const content = parseToml(await fs.readFile(path.join(commandsDir, filename), 'utf-8'));
+            expect(content.description).toEqual(expect.any(String));
+            expect(content.prompt).toContain('openspec');
+          }
+        }
+      }
+    );
 
     it('should generate Devin workflows for the retired windsurf id', async () => {
       const initCommand = new InitCommand({ tools: 'windsurf', force: true });

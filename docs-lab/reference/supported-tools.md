@@ -32,11 +32,13 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Cursor | `cursor` | `.cursor/skills/` | `/openspec-apply-change` | `.cursor/commands/` | `/opsx-apply` |
 | DeepSeek Harness | `dsh` | `.dsh/skills/` | `/openspec-apply-change` | none | none |
 | Devin Desktop (formerly Windsurf) | `devin` | `.devin/skills/` | `/openspec-apply-change` | `.devin/workflows/` | `/opsx-apply` |
+| EasyCode | `easycode` | `.easycode/skills/` | `/openspec-apply-change` | `.easycode/commands/opsx/` | `/opsx:apply` |
 | Factory Droid | `factory` | `.factory/skills/` | `/openspec-apply-change` | `.factory/commands/` | `/opsx-apply` |
 | ForgeCode | `forgecode` | `.forge/skills/` | `/openspec-apply-change` | none | none |
 | Gemini CLI | `gemini` | `.gemini/skills/` | `/openspec-apply-change` | `.gemini/commands/opsx/` | `/opsx:apply` |
 | GigaCode | `gigacode` | `.gigacode/skills/` | `/openspec-apply-change` | `.gigacode/commands/` | `/opsx-apply` |
 | GitHub Copilot | `github-copilot` | `.github/skills/` | `/openspec-apply-change` | `.github/prompts/` | `/opsx-apply` |
+| GSD | `gsd` | `.agents/skills/` | ask for `openspec-apply-change` | none | none |
 | Hermes Agent | `hermes` | `.hermes/skills/` | `/openspec-apply-change` | none | none |
 | iFlow | `iflow` | `.iflow/skills/` | `/openspec-apply-change` | `.iflow/commands/` | `/opsx-apply` |
 | Junie | `junie` | `.junie/skills/` | `/openspec-apply-change` | `.junie/commands/` | `/opsx-apply` |
@@ -53,6 +55,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Qwen Code | `qwen` | `.qwen/skills/` | `/openspec-apply-change` | `.qwen/commands/` | `/opsx-apply` |
 | Trae | `trae` | `.trae/skills/` | `/openspec-apply-change` | `.trae/commands/` | `/opsx-apply` |
 | [Veai](https://veai.ru/docs/veai/download) | `veai` | `.veai/skills/` | `/openspec-apply-change` | none | none |
+| Warp | `warp` | `.warp/skills/` | `/openspec-apply-change` | none | none |
 | ZCode | `zcode` | `.zcode/skills/` | `/openspec-apply-change` | `.zcode/commands/opsx/` | `/opsx:apply` |
 | Zoo Code | `roocode` | `.roo/skills/` | `/openspec-apply-change` | `.roo/commands/` | `/opsx-apply` |
 | Other / Universal | `agents` | `.agents/skills/` | `/openspec-apply-change` | none | none |
@@ -60,9 +63,9 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 - **Skill invocation**: whether a tool registers skills as typed entries is the tool's
   own behavior. The column shows the spelling OpenSpec uses in generated files and in
   the hint init prints. Check your tool's docs if typing it does nothing.
-- **Command file formats**: most tools take `.md` command files. Gemini CLI takes
-  `.toml`, Continue `.prompt`, and Code Studio, Kiro, and GitHub Copilot `.prompt.md`.
-  The spelling you type is the same either way.
+- **Command file formats**: most tools take `.md` command files. EasyCode and Gemini
+  CLI take `.toml`, Continue `.prompt`, and Code Studio, Kiro, and GitHub Copilot
+  `.prompt.md`. The spelling you type is the same either way.
 
 ## Per-tool notes
 
@@ -140,6 +143,15 @@ Skills stay in `.cline/skills/`.
   `/openspec-<skill>`. If a skill disappears while its file still exists, run
   `/skills reload`, then `/skills info openspec-propose` to confirm discovery.
 
+### GSD
+
+- **Project skills**: GSD reads OpenSpec workflows from
+  [`.agents/skills/`](https://github.com/open-gsd/gsd-pi/blob/main/docs/user-docs/skills.md).
+- **Invocation**: ask GSD to use the `openspec-<workflow>` skill. GSD can also select
+  a matching skill through its skill discovery setting.
+- **No subagent files**: [`.gsd/agents/`](https://github.com/open-gsd/gsd-pi/blob/main/docs/user-docs/subagents.md)
+  contains GSD subagent definitions. OpenSpec does not write workflow skills there.
+
 ### Hermes Agent
 
 Hermes loads skills only from `~/.hermes/skills/` by default. Add the project's
@@ -152,6 +164,13 @@ init prints this reminder after install.
   the repo.
 - **Safe across projects**: a commands-only delivery leaves the global skills in
   place, so one project's setting cannot remove skills another project uses.
+
+### Warp
+
+- **Skills always**: skills go to `.warp/skills/` even when delivery is `commands`,
+  because Warp has no command files and invokes skills directly.
+- **What OpenSpec claims**: only `.warp/skills/`. Warp settings and `WARP.md` are
+  not created or edited.
 
 ### Other / Universal (shared `.agents` skills)
 
