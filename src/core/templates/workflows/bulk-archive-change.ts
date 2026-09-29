@@ -258,7 +258,7 @@ ${PROJECT_ROOT_GUARD}
       remaining confirmed changes. Do not fall back to a shell move or bypass
       validation; an existing archive must remain intact.
 
-      The CLI derives \`<target-name>\`: it keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Record the returned \`archive.path\`.
+      The preflight target is advisory: the CLI derives \`<target-name>\` at invocation time. It keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Record the returned \`archive.path\`.
       Preserve the earlier per-delta sync outcomes; \`archive.specsUpdated\` is
       false for this move-only invocation, not evidence that inline sync was skipped.
 
@@ -376,7 +376,7 @@ No active changes found. Create a new change to get started.
 - Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses the current date, computed once in step 3d and reused at the move: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
+- Archive directory target uses the current date, previewed in step 3d and derived by the CLI at the move: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
 - Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
 - If sync is requested, ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven)', 'perform the delta-to-main-spec merge inline (agent-driven)')} for each change with included delta specs
@@ -631,7 +631,7 @@ ${PROJECT_ROOT_GUARD}
       remaining confirmed changes. Do not fall back to a shell move or bypass
       validation; an existing archive must remain intact.
 
-      The CLI derives \`<target-name>\`: it keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Record the returned \`archive.path\`.
+      The preflight target is advisory: the CLI derives \`<target-name>\` at invocation time. It keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Record the returned \`archive.path\`.
       Preserve the earlier per-delta sync outcomes; \`archive.specsUpdated\` is
       false for this move-only invocation, not evidence that inline sync was skipped.
 
@@ -749,7 +749,7 @@ No active changes found. Create a new change to get started.
 - Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses the current date, computed once in step 3d and reused at the move: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
+- Archive directory target uses the current date, previewed in step 3d and derived by the CLI at the move: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
 - Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
 - If sync is requested, ${SYNC_GUARDRAIL} for each change with included delta specs
