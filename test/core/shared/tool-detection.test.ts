@@ -53,6 +53,7 @@ describe('tool-detection', () => {
       expect(tools).toContain('codeartsagent');
       expect(tools).toContain('cursor');
       expect(tools).toContain('devin');
+      expect(tools).toContain('gsd');
       expect(tools).toContain('dsh');
       // `--tools all` resolves to exactly this list, so `agents` being here is what
       // puts the shared target in an `--tools all` run.
@@ -397,6 +398,7 @@ Content here
     // cline — a directory that is not the tool's skillsDir at all.
     it.each([
       ['gemini', path.join('.gemini', 'commands', 'opsx', 'explore.toml')],
+      ['easycode', path.join('.easycode', 'commands', 'opsx', 'explore.toml')],
       ['cursor', path.join('.cursor', 'commands', 'opsx-explore.md')],
       ['cline', path.join('.clinerules', 'workflows', 'opsx-explore.md')],
     ])('should fingerprint commands-only %s installs', async (toolId, explorePath) => {

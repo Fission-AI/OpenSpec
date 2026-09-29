@@ -24,14 +24,17 @@ describe('available-tools', () => {
       expect(tools).toEqual([]);
     });
 
-    it('should detect a single tool directory', async () => {
-      await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
+    it.each([
+      ['claude', 'Claude Code'],
+      ['easycode', 'EasyCode'],
+    ])('should detect a single %s tool directory', async (toolId, name) => {
+      await fs.mkdir(path.join(testDir, `.${toolId}`), { recursive: true });
 
       const tools = getAvailableTools(testDir);
       expect(tools).toHaveLength(1);
-      expect(tools[0].value).toBe('claude');
-      expect(tools[0].name).toBe('Claude Code');
-      expect(tools[0].skillsDir).toBe('.claude');
+      expect(tools[0].value).toBe(toolId);
+      expect(tools[0].name).toBe(name);
+      expect(tools[0].skillsDir).toBe(`.${toolId}`);
     });
 
     it('should identify the Bob integration by its product name', async () => {
@@ -199,6 +202,14 @@ describe('available-tools', () => {
       await fs.mkdir(path.join(testDir, '.zed'), { recursive: true });
 
       expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['zed']);
+    });
+
+    it('should detect GSD from its project directory', async () => {
+      await fs.mkdir(path.join(testDir, '.gsd'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((tool) => tool.value)).toEqual(['gsd']);
+      expect(tools[0].skillsDir).toBe('.agents');
     });
 
     it('should not detect the shared agents target from a bare .agents directory', async () => {
