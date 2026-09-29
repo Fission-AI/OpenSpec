@@ -1,0 +1,19 @@
+import { describe, expect, it } from 'vitest';
+
+import { serializeConfig } from '../../src/core/config-prompts.js';
+
+describe('config prompts', () => {
+  it('guides agents toward context they cannot infer from the codebase', () => {
+    const config = serializeConfig({ schema: 'spec-driven' });
+
+    expect(config).toContain('constraints that should guide OpenSpec artifacts and workflows');
+    expect(config).toContain('constraints an agent cannot infer by reading the code');
+    expect(config).toContain('Keep general project documentation and discoverable codebase facts out');
+    expect(config).toContain('Designs and tasks must cover Windows, macOS, and Linux');
+    expect(config).toContain('Write all artifacts in Spanish');
+    expect(config).toContain('Always state what is out of scope');
+    expect(config).not.toContain('Always include a "Non-goals" section');
+    expect(config).not.toContain('Add your tech stack');
+    expect(config).not.toContain('Domain: e-commerce platform');
+  });
+});
