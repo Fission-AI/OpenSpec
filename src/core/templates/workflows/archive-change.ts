@@ -165,11 +165,11 @@ ${PROJECT_ROOT_GUARD}
    Nothing has moved, so the user can fix the blocking condition or re-run the sync.
 
    After the sync writes each main spec, verify its structure against the canonical sync contract:
-   - The file MUST start with a \`# <capability> Specification\` title.
+   - A new main spec starts with a \`# <capability> Specification\` title. An existing main spec keeps its title exactly as it is.
    - Preserve existing \`## Purpose\` sections completely untouched for established main specs.
    - For a new main spec, copy the delta \`## Purpose\` verbatim. Warn only if the purpose text is shorter than standard validation expects. Do not regenerate or rewrite existing authored purpose. If no usable \`## Purpose\` is provided, use the existing TBD Purpose behavior and warning.
    - Verify that no delta-style section headers (\`## ADDED Requirements\`, \`## MODIFIED Requirements\`, \`## REMOVED Requirements\`, \`## RENAMED Requirements\`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
-   - Ensure all requirement blocks use \`### Requirement:\` headings and scenario blocks use \`#### Scenario:\` headings under a unified \`## Requirements\` section.
+   - Requirement blocks the sync wrote or changed use \`### Requirement:\` headings, and their scenarios use \`#### Scenario:\` headings, under the spec's \`## Requirements\` section. Leave content the delta does not mention exactly as it is.
 
    Then re-run the comparison from the top of this step, including the explicitly retired, missing-spec case, against every capability that has a delta spec in \`artifactPaths.specs.existingOutputPaths\` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
    - ADDED requirements present
@@ -377,11 +377,11 @@ ${PROJECT_ROOT_GUARD}
    Nothing has moved, so the user can fix the blocking condition or re-run the sync.
 
    After the sync writes each main spec, verify its structure against the canonical sync contract:
-   - The file MUST start with a \`# <capability> Specification\` title.
+   - A new main spec starts with a \`# <capability> Specification\` title. An existing main spec keeps its title exactly as it is.
    - Preserve existing \`## Purpose\` sections completely untouched for established main specs.
    - For a new main spec, copy the delta \`## Purpose\` verbatim. Warn only if the purpose text is shorter than standard validation expects. Do not regenerate or rewrite existing authored purpose. If no usable \`## Purpose\` is provided, use the existing TBD Purpose behavior and warning.
    - Verify that no delta-style section headers (\`## ADDED Requirements\`, \`## MODIFIED Requirements\`, \`## REMOVED Requirements\`, \`## RENAMED Requirements\`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
-   - Ensure all requirement blocks use \`### Requirement:\` headings and scenario blocks use \`#### Scenario:\` headings under a unified \`## Requirements\` section.
+   - Requirement blocks the sync wrote or changed use \`### Requirement:\` headings, and their scenarios use \`#### Scenario:\` headings, under the spec's \`## Requirements\` section. Leave content the delta does not mention exactly as it is.
 
    Then re-run the comparison from the top of this step, including the explicitly retired, missing-spec case, against every capability that has a delta spec in \`artifactPaths.specs.existingOutputPaths\` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
    - ADDED requirements present
