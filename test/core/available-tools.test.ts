@@ -34,6 +34,15 @@ describe('available-tools', () => {
       expect(tools[0].skillsDir).toBe('.claude');
     });
 
+    it('should identify the Bob integration by its product name', async () => {
+      await fs.mkdir(path.join(testDir, '.bob'), { recursive: true });
+
+      const tool = getAvailableTools(testDir).find((candidate) => candidate.value === 'bob');
+
+      expect(tool?.name).toBe('IBM Bob');
+      expect(tool?.successLabel).toBe('IBM Bob');
+    });
+
     it('should detect MiniMax Code only from managed skills in the user-home target', async () => {
       const globalSkill = path.join(
         testDir,
@@ -141,6 +150,12 @@ describe('available-tools', () => {
       expect(tools[0].skillsDir).toBe('.agents');
     });
 
+    it('should detect Amp from its project configuration directory', async () => {
+      await fs.mkdir(path.join(testDir, '.amp'), { recursive: true });
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['amp']);
+    });
+
     it('should detect Antigravity from .agents/workflows', async () => {
       await fs.mkdir(path.join(testDir, '.agents', 'workflows'), { recursive: true });
 
@@ -201,6 +216,13 @@ describe('available-tools', () => {
       await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'zed\n');
 
       expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['zed']);
+    });
+
+    it('should use the shared-root marker to detect a configured Amp target', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'amp\n');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toEqual(['amp']);
     });
 
     it('should preserve a global tool while reconciling a shared project root', async () => {
@@ -485,6 +507,16 @@ describe('available-tools', () => {
       expect(toolValues).not.toContain('codeartsagent');
     });
 
+    it('should detect AtomCode when .atomcode directory exists', async () => {
+      await fs.mkdir(path.join(testDir, '.atomcode'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const atomcode = tools.find((t) => t.value === 'atomcode');
+      expect(atomcode).toBeDefined();
+      expect(atomcode?.name).toBe('AtomCode');
+      expect(atomcode?.skillsDir).toBe('.atomcode');
+    });
+
     it('should detect ZCode when .zcode directory exists', async () => {
       await fs.mkdir(path.join(testDir, '.zcode'), { recursive: true });
 
@@ -531,6 +563,38 @@ describe('available-tools', () => {
       expect(ohMyPiTool).toBeDefined();
       expect(ohMyPiTool?.name).toBe('Oh My Pi');
       expect(ohMyPiTool?.skillsDir).toBe('.omp');
+    });
+
+    it('should detect DeepSeek Harness when .dsh/skills exists', async () => {
+      // dsh discovers skills from <project>/.dsh/skills, its rank-100 project root.
+      await fs.mkdir(path.join(testDir, '.dsh', 'skills'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      const dsh = tools.find((t) => t.value === 'dsh');
+      expect(dsh).toMatchObject({
+        name: 'DeepSeek Harness',
+        skillsDir: '.dsh',
+      });
+    });
+
+    it('should detect DeepSeek Harness from a bare .dsh project directory', async () => {
+      // .dsh is DeepSeek Harness's project config root, so its presence is a
+      // meaningful signal even before any skill directory exists.
+      await fs.mkdir(path.join(testDir, '.dsh'), { recursive: true });
+
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).toContain('dsh');
+    });
+
+    it('should not detect DeepSeek Harness when no .dsh signal exists', () => {
+      const tools = getAvailableTools(testDir);
+      expect(tools.map((t) => t.value)).not.toContain('dsh');
+    });
+
+    it('should not detect DeepSeek Harness when .dsh is a regular file', async () => {
+      await fs.writeFile(path.join(testDir, '.dsh'), 'not a tool directory');
+
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).not.toContain('dsh');
     });
 
     it('should detect SourceCraft Code Assistant when .codeassistant directory exists', async () => {

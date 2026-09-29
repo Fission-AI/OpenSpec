@@ -162,3 +162,9 @@ Sharing a schema means copying its folder.
 - **From the community**: the [community catalog](https://github.com/Fission-AI/OpenSpec/blob/main/docs/customization.md#community-schemas) lists shared schemas. Copy one into `openspec/schemas/<name>` and it works like your own.
 
 We're working on a schema registry, public and private, so schemas can be installed by name instead of copied by hand.
+
+### Use OpenSpec with Superpowers
+
+The community-maintained [`superpowers-bridge`](https://github.com/JiangWay/openspec-schemas/tree/main/superpowers-bridge) schema connects OpenSpec artifacts to [Superpowers](https://github.com/obra/superpowers) execution skills. Follow the bridge's installation and compatibility notes before copying it into your project.
+
+The bridge is released outside OpenSpec. OpenSpec does not test or version its Superpowers integration.

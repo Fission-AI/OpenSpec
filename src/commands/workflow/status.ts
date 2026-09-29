@@ -242,6 +242,11 @@ export function printStatusText(status: ChangeStatus, options: PrintStatusTextOp
 
   console.log(`Change: ${status.changeName}`);
   console.log(`Schema: ${status.schemaName}`);
+  if (status.warnings) {
+    for (const warning of status.warnings) {
+      console.log(chalk.yellow(`Warning: ${warning}`));
+    }
+  }
   if (status.changeRoot) {
     console.log(`Change root: ${status.changeRoot}`);
   }
