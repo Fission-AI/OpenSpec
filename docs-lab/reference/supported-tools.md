@@ -36,6 +36,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Gemini CLI | `gemini` | `.gemini/skills/` | `/openspec-apply-change` | `.gemini/commands/opsx/` | `/opsx:apply` |
 | GigaCode | `gigacode` | `.gigacode/skills/` | `/openspec-apply-change` | `.gigacode/commands/` | `/opsx-apply` |
 | GitHub Copilot | `github-copilot` | `.github/skills/` | `/openspec-apply-change` | `.github/prompts/` | `/opsx-apply` |
+| GSD | `gsd` | `.agents/skills/` | ask for `openspec-apply-change` | none | none |
 | Hermes Agent | `hermes` | `.hermes/skills/` | `/openspec-apply-change` | none | none |
 | iFlow | `iflow` | `.iflow/skills/` | `/openspec-apply-change` | `.iflow/commands/` | `/opsx-apply` |
 | Junie | `junie` | `.junie/skills/` | `/openspec-apply-change` | `.junie/commands/` | `/opsx-apply` |
@@ -138,6 +139,15 @@ Skills stay in `.cline/skills/`.
   `.github/skills/openspec-*/SKILL.md` instead. Invoke a skill as
   `/openspec-<skill>`. If a skill disappears while its file still exists, run
   `/skills reload`, then `/skills info openspec-propose` to confirm discovery.
+
+### GSD
+
+- **Project skills**: GSD reads OpenSpec workflows from
+  [`.agents/skills/`](https://github.com/open-gsd/gsd-pi/blob/main/docs/user-docs/skills.md).
+- **Invocation**: ask GSD to use the `openspec-<workflow>` skill. GSD can also select
+  a matching skill through its skill discovery setting.
+- **No subagent files**: [`.gsd/agents/`](https://github.com/open-gsd/gsd-pi/blob/main/docs/user-docs/subagents.md)
+  contains GSD subagent definitions. OpenSpec does not write workflow skills there.
 
 ### Hermes Agent
 

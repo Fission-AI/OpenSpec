@@ -53,6 +53,7 @@ describe('tool-detection', () => {
       expect(tools).toContain('codeartsagent');
       expect(tools).toContain('cursor');
       expect(tools).toContain('devin');
+      expect(tools).toContain('gsd');
       expect(tools).toContain('dsh');
       // `--tools all` resolves to exactly this list, so `agents` being here is what
       // puts the shared target in an `--tools all` run.

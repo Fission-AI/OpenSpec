@@ -760,6 +760,32 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support GSD through project skills without writing subagent definitions', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      const initCommand = new InitCommand({ tools: 'gsd', force: true });
+      await initCommand.execute(testDir);
+
+      const skillFile = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+      expect(await directoryExists(path.join(testDir, '.gsd', 'agents'))).toBe(false);
+
+      const skillContent = await fs.readFile(skillFile, 'utf-8');
+      expect(skillContent).toContain('the openspec-propose skill');
+      expect(skillContent).not.toContain('/opsx:propose');
+
+      const logCalls = vi.mocked(console.log).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: gsd') && entry.includes('(no adapter)'),
+        ),
+      ).toBe(true);
+    });
+
     it('should install MiniMax Code skills only in the user-home target', async () => {
       saveGlobalConfig({
         featureFlags: {},

@@ -85,7 +85,7 @@ const SKILL_INVOCATION_PREFIX: Record<string, string> = {
  * Skill references for these tools are spelled as prose ("the openspec-propose
  * skill") so skills-only delivery does not advertise unregistered commands.
  */
-const NATURAL_LANGUAGE_SKILL_TOOLS = new Set<string>(['rovodev', 'codeassistant']);
+const NATURAL_LANGUAGE_SKILL_TOOLS = new Set<string>(['gsd', 'rovodev', 'codeassistant']);
 
 /**
  * Whether a tool references skills by natural language rather than a slash
