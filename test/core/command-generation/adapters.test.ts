@@ -9,6 +9,7 @@ import { claudeAdapter } from '../../../src/core/command-generation/adapters/cla
 import { clineAdapter } from '../../../src/core/command-generation/adapters/cline.js';
 import { commandCodeAdapter } from '../../../src/core/command-generation/adapters/command-code.js';
 import { codebuddyAdapter } from '../../../src/core/command-generation/adapters/codebuddy.js';
+import { codeStudioAdapter } from '../../../src/core/command-generation/adapters/codestudio.js';
 import { continueAdapter } from '../../../src/core/command-generation/adapters/continue.js';
 import { costrictAdapter } from '../../../src/core/command-generation/adapters/costrict.js';
 import { crushAdapter } from '../../../src/core/command-generation/adapters/crush.js';
@@ -469,6 +470,27 @@ describe('command-generation/adapters', () => {
       expect(output).toContain('argument-hint: "[command arguments]"');
       expect(output).toContain('---\n\n');
       expect(output).toContain('This is the command body.');
+    });
+  });
+
+  describe('codeStudioAdapter', () => {
+    it('should have correct toolId', () => {
+      expect(codeStudioAdapter.toolId).toBe('codestudio');
+    });
+
+    it('should generate a project prompt path', () => {
+      expect(codeStudioAdapter.getFilePath('explore')).toBe(
+        path.join('.codestudio', 'prompts', 'opsx-explore.prompt.md')
+      );
+    });
+
+    it('should format a prompt with description frontmatter', () => {
+      const output = codeStudioAdapter.formatFile(sampleContent);
+      const frontmatter = output.match(/^---\n([\s\S]*?)\n---\n\n/);
+
+      expect(frontmatter).not.toBeNull();
+      expect(parseYaml(frontmatter![1])).toEqual({ description: sampleContent.description });
+      expect(output.slice(frontmatter![0].length)).toBe(`${sampleContent.body}\n`);
     });
   });
 
@@ -1298,7 +1320,7 @@ describe('command-generation/adapters', () => {
       // Verify all adapters produce valid paths
       const adapters = [
         amazonQAdapter, antigravityAdapter, atomcodeAdapter, auggieAdapter, bobAdapter, clineAdapter,
-        codebuddyAdapter, continueAdapter, costrictAdapter,
+        codebuddyAdapter, codeStudioAdapter, continueAdapter, costrictAdapter,
         crushAdapter, easycodeAdapter, factoryAdapter, geminiAdapter, githubCopilotAdapter, gigacodeAdapter,
         iflowAdapter, kilocodeAdapter, kiroAdapter, lingmaAdapter, ohMyPiAdapter,
         opencodeAdapter, piAdapter, qoderAdapter, qwenAdapter, roocodeAdapter,
