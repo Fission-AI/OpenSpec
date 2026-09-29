@@ -31,6 +31,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Cursor | `cursor` | `.cursor/skills/` | `/openspec-apply-change` | `.cursor/commands/` | `/opsx-apply` |
 | DeepSeek Harness | `dsh` | `.dsh/skills/` | `/openspec-apply-change` | none | none |
 | Devin Desktop (formerly Windsurf) | `devin` | `.devin/skills/` | `/openspec-apply-change` | `.devin/workflows/` | `/opsx-apply` |
+| EasyCode | `easycode` | `.easycode/skills/` | `/openspec-apply-change` | `.easycode/commands/opsx/` | `/opsx:apply` |
 | Factory Droid | `factory` | `.factory/skills/` | `/openspec-apply-change` | `.factory/commands/` | `/opsx-apply` |
 | ForgeCode | `forgecode` | `.forge/skills/` | `/openspec-apply-change` | none | none |
 | Gemini CLI | `gemini` | `.gemini/skills/` | `/openspec-apply-change` | `.gemini/commands/opsx/` | `/opsx:apply` |
@@ -60,9 +61,9 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 - **Skill invocation**: whether a tool registers skills as typed entries is the tool's
   own behavior. The column shows the spelling OpenSpec uses in generated files and in
   the hint init prints. Check your tool's docs if typing it does nothing.
-- **Command file formats**: most tools take `.md` command files. Gemini CLI takes
-  `.toml`, Continue `.prompt`, Kiro and GitHub Copilot `.prompt.md`. The spelling you
-  type is the same either way.
+- **Command file formats**: most tools take `.md` command files. EasyCode and Gemini
+  CLI take `.toml`, Continue `.prompt`, Kiro and GitHub Copilot `.prompt.md`. The
+  spelling you type is the same either way.
 
 ## Per-tool notes
 
