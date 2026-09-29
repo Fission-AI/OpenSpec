@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
+import { discoverListLibraries, type ListLibrary } from './list-discovery.js';
 import path from 'path';
-import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
+import { getTaskProgressForChange, getTaskProgressDetailForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { readFileSync, type Dirent } from 'fs';
 import { MarkdownParser } from './parsers/markdown-parser.js';
 import type { RootOutput } from './root-selection.js';
@@ -27,6 +28,7 @@ interface ListOptions {
   root?: RootOutput;
   archived?: boolean;
   all?: boolean;
+  recursive?: boolean;
 }
 
 function isMissingPathError(error: unknown): boolean {
@@ -125,6 +127,81 @@ function formatRelativeTime(date: Date): string {
 
 export class ListCommand {
   async execute(targetPath: string = '.', mode: 'changes' | 'specs' = 'changes', options: ListOptions = {}): Promise<void> {
+    if (options.recursive) {
+      const libraries = await discoverListLibraries(targetPath);
+      if (options.json && libraries.length === 1 && libraries[0].diagnostic) {
+        throw new Error(libraries[0].diagnostic);
+      }
+      if (libraries.length > 1 || libraries.some(library => library.diagnostic) || (!options.json && libraries.length > 0)) {
+        await this.executeLibraries(libraries, mode, options);
+        return;
+      }
+      if (libraries.length === 1) {
+        targetPath = libraries[0].path;
+        if (options.root) options = { ...options, root: { ...options.root, path: targetPath } };
+      }
+    }
+    await this.executeSingle(targetPath, mode, options);
+  }
+
+  private async executeLibraries(libraries: ListLibrary[], mode: 'changes' | 'specs', options: ListOptions): Promise<void> {
+    const groups = [];
+    for (const library of libraries) {
+      let payload: Record<string, any> = { [mode]: [] };
+      let diagnostic = library.diagnostic;
+      if (!diagnostic) {
+        try {
+          await this.executeSingle(library.path, mode, { ...options, json: true, root: undefined }, text => {
+            payload = JSON.parse(text);
+          });
+        } catch (error) {
+          diagnostic = `${(error as Error).message}. Check this library's layout and read permissions.`;
+        }
+      }
+      groups.push({ ...library, payload, diagnostic });
+    }
+    const entries = groups.flatMap(group => group.payload[mode].map((entry: object) => ({ ...entry, library: group.library })));
+    const diagnostics = groups.filter(group => group.diagnostic).map(group => ({
+      library: group.library, code: 'library_read_error', message: group.diagnostic,
+    }));
+    const warnings = groups.flatMap(group => (group.payload.warnings ?? []).map((warning: object) => ({ ...warning, library: group.library })));
+    if (options.json) {
+      console.log(JSON.stringify({
+        [mode]: entries,
+        ...(options.root ? { root: options.root } : {}),
+        roots: groups.map(group => ({ path: group.path, library: group.library })),
+        ...(diagnostics.length ? { diagnostics } : {}),
+        ...(warnings.length ? { warnings } : {}),
+      }, null, 2));
+    } else {
+      const heading = mode === 'specs' ? 'Specs' : options.archived ? 'Archived changes' : 'Changes';
+      console.log(`${heading} — ${groups.length} libraries, ${entries.length} ${mode}`);
+      for (const group of groups) {
+        console.log(`\n${group.library}${group.library === 'openspec/' ? ' (root)' : ''}`);
+        if (group.diagnostic) {
+          console.log(`  Error: ${group.diagnostic}`);
+          continue;
+        }
+        const items = group.payload[mode];
+        if (!items.length) console.log(mode === 'specs' ? '  No specs found.' : options.archived ? '  No archived changes found.' : options.all ? '  No changes found.' : '  No active changes found.');
+        const width = Math.max(0, ...items.map((item: any) => (item.name ?? item.id).length));
+        for (const item of items) {
+          const name = item.name ?? item.id;
+          const status = mode === 'specs' ? `requirements ${item.requirementCount}` : item.nested ? 'not a change' : formatTaskStatus({ total: item.totalTasks, completed: item.completedTasks });
+          const suffix = mode === 'specs' ? status : `${status.padEnd(12)}  ${formatRelativeTime(new Date(item.lastModified))}${item.archived ? '  archived' : ''}`;
+          if (width + suffix.length + 7 > (process.stdout.columns ?? 100)) {
+            console.log(`  ${name}\n    ${suffix}`);
+          } else {
+            console.log(`  ${name.padEnd(width)}     ${suffix}`);
+          }
+        }
+        for (const warning of group.payload.warnings ?? []) console.log(`  Warning: ${warning.message}`);
+      }
+    }
+    if (diagnostics.length) process.exitCode = 1;
+  }
+
+  private async executeSingle(targetPath: string, mode: 'changes' | 'specs', options: ListOptions, output: (text: string) => void = console.log): Promise<void> {
     const { sort = 'recent', json = false, root, archived = false, all = false } = options;
 
     if (mode === 'specs' && (archived || all)) {
@@ -150,9 +227,9 @@ export class ListCommand {
 
       if (changeDirs.length === 0) {
         if (json) {
-          console.log(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
+          output(JSON.stringify({ changes: [], ...(root ? { root } : {}) }, null, 2));
         } else {
-          console.log(all ? 'No changes found.' : archived ? 'No archived changes found.' : 'No active changes found.');
+          output(all ? 'No changes found.' : archived ? 'No archived changes found.' : 'No active changes found.');
         }
         return;
       }
@@ -172,7 +249,13 @@ export class ListCommand {
       );
 
       for (const changeDir of changeDirs) {
-        const progress = await getTaskProgressForChange(changeDir.parent, changeDir.name, targetPath);
+        const detail = options.recursive
+          ? await getTaskProgressDetailForChange(changeDir.parent, changeDir.name, targetPath)
+          : undefined;
+        const progress = detail ?? await getTaskProgressForChange(changeDir.parent, changeDir.name, targetPath);
+        if (detail?.unreadable.length) {
+          throw new Error(`Cannot read task files for ${changeDir.name}`);
+        }
         const changePath = path.join(changeDir.parent, changeDir.name);
         const lastModified = await getLastModified(changePath, changeDir.archived);
         changes.push({
@@ -213,7 +296,7 @@ export class ListCommand {
           nested: finding.nested,
           message: describeNestedChange(finding)
         }));
-        console.log(JSON.stringify({
+        output(JSON.stringify({
           changes: jsonOutput,
           ...(warnings.length > 0 ? { warnings } : {}),
           ...(root ? { root } : {})
@@ -227,8 +310,8 @@ export class ListCommand {
         { heading: 'Archived Changes:', changes: changes.filter(change => change.archived) }
       ].filter(group => group.changes.length > 0);
       for (const [index, group] of groups.entries()) {
-        if (index > 0) console.log('');
-        console.log(group.heading);
+        if (index > 0) output('');
+        output(group.heading);
         const padding = '  ';
         const nameWidth = Math.max(...group.changes.map(c => c.name.length));
         for (const change of group.changes) {
@@ -237,12 +320,12 @@ export class ListCommand {
             ? 'not a change'
             : formatTaskStatus({ total: change.totalTasks, completed: change.completedTasks });
           const timeAgo = formatRelativeTime(change.lastModified);
-          console.log(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
+          output(`${padding}${paddedName}     ${status.padEnd(12)}  ${timeAgo}`);
         }
       }
       for (const finding of nestedFindings) {
-        console.log('');
-        console.log(`Warning: ${describeNestedChange(finding)}`);
+        output('');
+        output(`Warning: ${describeNestedChange(finding)}`);
       }
       return;
     }
@@ -251,11 +334,12 @@ export class ListCommand {
     const specsDir = path.join(targetPath, 'openspec', 'specs');
     try {
       await fs.access(specsDir);
-    } catch {
+    } catch (error) {
+      if (!isMissingPathError(error)) throw error;
       if (json) {
-        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+        output(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
       } else {
-        console.log('No specs found.');
+        output('No specs found.');
       }
       return;
     }
@@ -263,9 +347,9 @@ export class ListCommand {
     const discovered = await discoverSpecFiles(specsDir);
     if (discovered.length === 0) {
       if (json) {
-        console.log(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
+        output(JSON.stringify({ specs: [], ...(root ? { root } : {}) }, null, 2));
       } else {
-        console.log('No specs found.');
+        output('No specs found.');
       }
       return;
     }
@@ -278,7 +362,8 @@ export class ListCommand {
         const parser = new MarkdownParser(content);
         const spec = parser.parseSpec(id);
         specs.push({ id, requirementCount: spec.requirements.length });
-      } catch {
+      } catch (error) {
+        if (options.recursive) throw error;
         // If spec cannot be read or parsed, include with 0 count
         specs.push({ id, requirementCount: 0 });
       }
@@ -287,16 +372,16 @@ export class ListCommand {
     specs.sort((a, b) => a.id.localeCompare(b.id));
 
     if (json) {
-      console.log(JSON.stringify({ specs, ...(root ? { root } : {}) }, null, 2));
+      output(JSON.stringify({ specs, ...(root ? { root } : {}) }, null, 2));
       return;
     }
 
-    console.log('Specs:');
+    output('Specs:');
     const padding = '  ';
     const nameWidth = Math.max(...specs.map(s => s.id.length));
     for (const spec of specs) {
       const padded = spec.id.padEnd(nameWidth);
-      console.log(`${padding}${padded}     requirements ${spec.requirementCount}`);
+      output(`${padding}${padded}     requirements ${spec.requirementCount}`);
     }
   }
 }

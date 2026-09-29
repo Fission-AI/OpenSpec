@@ -270,10 +270,10 @@ describe('openspec view root resolution', () => {
   );
 
   it(
-    'refuses a rootless directory exactly when list does',
+    'keeps view selection unchanged while list discovers a legacy local library',
     async () => {
-      // view is no longer the odd command out: where a registered store makes
-      // list demand --store, view now gives the same actionable error.
+      // Recursive listing can browse legacy libraries without changing view's
+      // registered-store selection behavior.
       const legacy = path.join(base, 'legacy-with-store');
       await fs.mkdir(path.join(legacy, 'openspec'), { recursive: true });
       await fs.writeFile(
@@ -292,8 +292,11 @@ describe('openspec view root resolution', () => {
         timeoutMs: TIMEOUT_MS,
       });
 
-      expect(view.exitCode).toBe(list.exitCode);
+      expect(view.exitCode).toBe(1);
       expect(view.stderr).toContain(STORE_ID);
+      expect(list.exitCode).toBe(0);
+      expect(list.stdout).toContain('openspec/ (root)');
+      expect(list.stdout).toContain('No active changes');
     },
     TIMEOUT_MS
   );
