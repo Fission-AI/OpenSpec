@@ -223,6 +223,23 @@ No active changes. Create one with: openspec new change <name> --store team-plan
 - **Commit it**: teammates who clone your project get the line too. They still need the store registered on their machine ([step 3 of Set up a store](#set-up-a-store)), or OpenSpec errors and tells them to register it.
 - **Next to real folders**: if your project also has `specs/` or `changes/` folders, OpenSpec uses those and ignores the line, with a warning.
 
+### Install integrations in a store-only repo
+
+Run init from the code repo's root to install AI tool integration files without moving planning back into that repo:
+
+```bash
+# inside web-app, at the repository root
+openspec init --tools claude
+```
+
+- **Integration files**: written in the code repo.
+- **`openspec/config.yaml`**: preserved byte-for-byte, including the `store:` line.
+- **`openspec/specs/` and `openspec/changes/`**: not created in the code repo.
+
+OpenSpec refuses this command from a subdirectory of the code repo. Run it from the repository root.
+
+OpenSpec also refuses `--language` here because the language belongs in the external store's config. Run init in the store root or edit that config directly.
+
 ### `defaultStore` on your machine
 
 Set it once if every project you work in uses the same store. OpenSpec falls back to it when it finds no flag, no local `openspec/` folder, and no `store:` line:
