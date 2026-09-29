@@ -1,5 +1,6 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import { resolveChangeDir } from './change-directory.js';
 import { artifactOutputExists } from '../core/artifact-graph/outputs.js';
 import { resolveSchema } from '../core/artifact-graph/resolver.js';
 import { METADATA_FILENAME, resolveSchemaForChange } from './change-metadata.js';
@@ -7,10 +8,11 @@ import { hasAnyFileUnder } from './spec-discovery.js';
 
 /**
  * Files that only ever sit at the root of a change directory. Their presence
- * inside a directory that is *not* directly under `changes/` is one of the two
+ * inside a directory that is *not* directly under `changes/`, `changes/proposed/`
+ * or `changes/approved/` is one of the two
  * signals that someone laid a change out in a namespace folder
  * (`changes/<area>/<name>/`), which OpenSpec does not support: a change is a
- * directory directly under `changes/` and nothing else (#1846).
+ * directory directly under one of those roots (#1846).
  *
  * The list is deliberately short. Every entry is written by OpenSpec itself for
  * the default schema - `.openspec.yaml` by `openspec new change` for *every*
@@ -38,9 +40,9 @@ const DELTA_SPECS_DIR = 'specs';
  */
 const MAX_NESTING_DEPTH = 3;
 
-/** A namespace folder under `changes/` and the change directories buried in it. */
+/** A namespace folder in an active change root and the changes buried in it. */
 export interface NestedChangeFinding {
-  /** The directory name directly under `changes/` that is not a change. */
+  /** The active directory's bare name that is not a change. */
   name: string;
   /**
    * Slash-separated paths of the nested change directories, relative to
@@ -149,7 +151,7 @@ async function collectNested(
 }
 
 /**
- * Reports whether the directory `changes/<name>/` is a namespace folder holding
+ * Reports whether the resolved active change directory is a namespace folder holding
  * one or more nested change directories rather than a change of its own.
  *
  * Returns undefined for every ordinary change, including a scaffolded one with
@@ -163,13 +165,14 @@ export async function findNestedChangesIn(
   // read as nested changes and offered up for renaming. `list`, `status` and
   // `validate` already exclude it; `change show` does not.
   if (name === 'archive' || name.startsWith('.')) return undefined;
-  const dir = path.join(changesDir, name);
+  const dir = resolveChangeDir(changesDir, name);
   // changes/ is always <root>/openspec/changes, for project and store roots.
   const projectRoot = path.resolve(changesDir, '..', '..');
   if (await looksLikeChange(dir, projectRoot)) return undefined;
   if (await hasOwnFile(dir)) return undefined;
   const nested: string[] = [];
-  await collectNested(dir, name, 1, nested, projectRoot);
+  const prefix = path.relative(changesDir, dir).split(path.sep).join('/');
+  await collectNested(dir, prefix, 1, nested, projectRoot);
   if (nested.length === 0) return undefined;
   return { name, nested: nested.sort() };
 }
@@ -209,7 +212,8 @@ export function describeNestedChange(finding: NestedChangeFinding): string {
   const example = flatten(finding.nested[0]);
   return (
     `"${finding.name}" ${NESTED_CHANGE_ISSUE_MARKER} ${list}. ` +
-    'A change must be a directory directly under openspec/changes/, so those ' +
+    'A change must be a directory directly under openspec/changes/proposed/, ' +
+    'openspec/changes/approved/, or the legacy openspec/changes/ root, so those ' +
     'nested directories are invisible to OpenSpec while the folder around them ' +
     'is reported as a change. Nested paths are supported under openspec/specs/ ' +
     `only. Rename each nested change to a flat name (for example "${example}").`

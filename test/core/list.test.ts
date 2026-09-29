@@ -531,6 +531,36 @@ Regular text that should be ignored
         expect(payload.changes.find((c: { name: string }) => c.name === 'add-auth')).not.toHaveProperty('nested');
       });
 
+      it.each(['proposed', 'approved'])('warns about nested changes under %s', async (stage) => {
+        const changesDir = await seedNestedChange();
+        await fs.mkdir(path.join(changesDir, stage));
+        await fs.rename(path.join(changesDir, 'mobile'), path.join(changesDir, stage, 'mobile'));
+        await fs.rename(path.join(changesDir, 'add-auth'), path.join(changesDir, stage, 'add-auth'));
+
+        await new ListCommand().execute(tempDir, 'changes', { json: true });
+
+        const payload = JSON.parse(logOutput.join('\n'));
+        expect(payload.warnings).toEqual([
+          expect.objectContaining({
+            code: 'nested_change_directory',
+            name: 'mobile',
+            nested: [`${stage}/mobile/refresh-token`],
+            message: expect.stringContaining(`openspec/changes/${stage}/mobile/refresh-token/`),
+          }),
+        ]);
+        expect(payload.changes).toContainEqual(
+          expect.objectContaining({ name: 'mobile', nested: [`${stage}/mobile/refresh-token`] })
+        );
+        expect(payload.changes.find((c: { name: string }) => c.name === 'add-auth')).not.toHaveProperty('nested');
+
+        logOutput = [];
+        await new ListCommand().execute(tempDir);
+        expect(logOutput.some(line => line.includes('mobile') && line.includes('not a change'))).toBe(true);
+        expect(logOutput.find(line => line.startsWith('Warning:'))).toContain(
+          `openspec/changes/${stage}/mobile/refresh-token/`
+        );
+      });
+
       it('keeps nested-change warnings when --all also lists archived changes', async () => {
         const changesDir = await seedNestedChange();
         await fs.mkdir(path.join(changesDir, 'archive', '2026-09-28-shipped'), {
