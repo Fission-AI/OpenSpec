@@ -19,7 +19,7 @@ export function resolveCommandSurfaceCapability(toolId: string): CommandSurfaceC
     return 'adapter-backed';
   }
 
-  if (toolId === 'codex') {
+  if (toolId === 'codex' || toolId === 'warp') {
     return 'skills-invocable';
   }
 

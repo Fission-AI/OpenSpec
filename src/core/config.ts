@@ -88,6 +88,7 @@ export const AI_TOOLS: AIToolOption[] = [
   { name: 'Zoo Code', value: 'roocode', available: true, successLabel: 'Zoo Code', skillsDir: '.roo', requiresIdeRestart: true },
   { name: 'Trae', value: 'trae', available: true, successLabel: 'Trae', skillsDir: '.trae', requiresIdeRestart: true },
   { name: 'Veai', value: 'veai', available: true, successLabel: 'Veai', skillsDir: '.veai' },
+  { name: 'Warp', value: 'warp', available: true, successLabel: 'Warp', skillsDir: '.warp', detectionPaths: ['.warp', 'WARP.md'] },
   { name: 'Zed Agent', value: 'zed', available: true, successLabel: 'Zed Agent', skillsDir: '.agents', detectionPaths: ['.zed', '.agents/skills'] },
   { name: 'ZCode', value: 'zcode', available: true, successLabel: 'ZCode', skillsDir: '.zcode' },
   // Vendor-neutral target for assistants that read the shared `.agents` root.
