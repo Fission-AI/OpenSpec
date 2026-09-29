@@ -1046,7 +1046,8 @@ ${OPENSPEC_MARKERS.end}`);
       expect(summary).toContain('• openspec/project.md');
       expect(summary).toContain('won\'t delete this file');
       expect(summary).toContain('config.yaml');
-      expect(summary).toContain('"context:"');
+      expect(summary).toContain('Ask your AI assistant');
+      expect(summary).toContain('rules for the matching artifacts');
     });
 
     it('should include attention section with other legacy artifacts', () => {
@@ -1148,19 +1149,26 @@ ${OPENSPEC_MARKERS.end}`);
       expect(hint).toContain('openspec/project.md');
       expect(hint).toContain('won\'t delete this file');
       expect(hint).toContain('config.yaml');
-      expect(hint).toContain('"context:"');
+      expect(hint).toContain('Ask your AI assistant');
     });
 
-    it('should include actionable instructions', () => {
+    it('should include a pasteable AI-assisted migration request', () => {
       const hint = formatProjectMdMigrationHint();
-      expect(hint).toContain('move any useful content');
-      expect(hint).toContain('delete the file when ready');
+      expect(hint).toContain('Review openspec/project.md');
+      expect(hint).toContain('migrate its useful content to');
+      expect(hint).toContain('Do not delete project.md');
+      expect(hint).toContain('Review config.yaml, then delete project.md when ready');
     });
 
-    it('should explain the new context section benefits', () => {
+    it('should guide the agent to distill and route the content', () => {
       const hint = formatProjectMdMigrationHint();
-      expect(hint).toContain('included in every OpenSpec request');
-      expect(hint).toContain('reliably');
+      expect(hint).toContain('Keep context concise');
+      expect(hint).toContain('only project-wide');
+      expect(hint).toContain('artifact creation, apply, and archive');
+      expect(hint).toContain('rules for the matching artifacts');
+      expect(hint).toContain('matching operations entry');
+      expect(hint).toContain('Leave out generic');
+      expect(hint).toContain('outdated, or verbose material');
     });
   });
 

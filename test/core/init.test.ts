@@ -156,6 +156,22 @@ describe('InitCommand', () => {
       expect(content).toContain('schema: spec-driven');
     });
 
+    it('should guide project.md migration without copying or deleting it', async () => {
+      const openspecPath = path.join(testDir, 'openspec');
+      const projectMdPath = path.join(openspecPath, 'project.md');
+      await fs.mkdir(openspecPath, { recursive: true });
+      await fs.writeFile(projectMdPath, '# Migrate me later\n');
+
+      await new InitCommand({ tools: 'none', force: true }).execute(testDir);
+
+      expect(readProjectConfig(testDir)?.context).toBeUndefined();
+      expect(await fs.readFile(projectMdPath, 'utf-8')).toBe('# Migrate me later\n');
+      expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
+        'Ask your AI assistant'
+      );
+      expect(confirmMock).not.toHaveBeenCalled();
+    });
+
     it('should add the requested artifact language to a new config', async () => {
       const initCommand = new InitCommand({
         tools: 'none',
