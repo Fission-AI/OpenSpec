@@ -602,13 +602,23 @@ describe('command-generation/adapters', () => {
 
     it.each([undefined, ''])('should keep project-local commands with config directory %s', (value) => {
       vi.stubEnv('OPENCODE_CONFIG_DIR', value);
+      vi.stubEnv('OPENSPEC_OPENCODE_SHARED_COMMANDS', '1');
       expect(opencodeAdapter.getFilePath('explore')).toBe(
         path.join('.opencode', 'commands', 'opsx-explore.md')
       );
     });
 
-    it.each([path.resolve('shared config'), 'relative-config'])('should respect OPENCODE_CONFIG_DIR=%s', (value) => {
+    it('should ignore OPENCODE_CONFIG_DIR without the OpenSpec shared-commands opt-in', () => {
+      vi.stubEnv('OPENCODE_CONFIG_DIR', path.resolve('shared config'));
+      vi.stubEnv('OPENSPEC_OPENCODE_SHARED_COMMANDS', undefined);
+      expect(opencodeAdapter.getFilePath('explore')).toBe(
+        path.join('.opencode', 'commands', 'opsx-explore.md')
+      );
+    });
+
+    it.each([path.resolve('shared config'), 'relative-config'])('should respect OPENCODE_CONFIG_DIR=%s when opted in', (value) => {
       vi.stubEnv('OPENCODE_CONFIG_DIR', value);
+      vi.stubEnv('OPENSPEC_OPENCODE_SHARED_COMMANDS', '1');
       expect(opencodeAdapter.getFilePath('explore')).toBe(
         path.join(path.resolve(value), 'commands', 'opsx-explore.md')
       );

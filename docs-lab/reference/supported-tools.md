@@ -129,18 +129,21 @@ init prints this reminder after install.
 
 ### OpenCode
 
-Commands use the project-local `.opencode/commands/` folder by default.
-Set [`OPENCODE_CONFIG_DIR`](https://opencode.ai/docs/config/#custom-directory)
-for both OpenSpec and OpenCode to share commands across projects:
+Commands use the project-local `.opencode/commands/` folder by default, even when
+`OPENCODE_CONFIG_DIR` is set. To share commands across projects, opt in with
+`OPENSPEC_OPENCODE_SHARED_COMMANDS=1` and set
+[`OPENCODE_CONFIG_DIR`](https://opencode.ai/docs/config/#custom-directory)
+for both OpenSpec and OpenCode:
 
 ```bash
 export OPENCODE_CONFIG_DIR="$HOME/.config/opencode"
+export OPENSPEC_OPENCODE_SHARED_COMMANDS=1
 openspec init --tools opencode
 ```
 
 - **Command path**: `$OPENCODE_CONFIG_DIR/commands/opsx-<id>.md`. Relative values
   resolve from the current working directory. Skills stay in `.opencode/skills/`.
-- **Updates**: keep the variable set when running `openspec update`. OpenSpec
+- **Updates**: keep both variables set when running `openspec update`. OpenSpec
   overwrites selected shared commands with the current project's generated content.
 - **Cleanup**: deselecting a workflow or choosing skills-only delivery preserves
   shared commands. Remove unused shared files manually after checking other projects.

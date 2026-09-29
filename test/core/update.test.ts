@@ -119,6 +119,7 @@ describe('UpdateCommand', () => {
 
   it('should refresh shared OpenCode commands without pruning other workflows', async () => {
     process.env.OPENCODE_CONFIG_DIR = path.join(testDir, 'shared-opencode');
+    process.env.OPENSPEC_OPENCODE_SHARED_COMMANDS = '1';
     vi.spyOn(console, 'log').mockImplementation(() => {});
     await new InitCommand({ tools: 'opencode' }).execute(testDir);
     const commandsDir = path.join(process.env.OPENCODE_CONFIG_DIR, 'commands');

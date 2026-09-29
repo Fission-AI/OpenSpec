@@ -68,6 +68,7 @@ describe('profile sync drift detection', () => {
   it.each(['commands', 'both'] as const)('ignores extra shared OpenCode commands with %s delivery but detects missing selected commands', (delivery) => {
     const sharedRoot = path.join(tempDir, 'shared-opencode');
     vi.stubEnv('OPENCODE_CONFIG_DIR', sharedRoot);
+    vi.stubEnv('OPENSPEC_OPENCODE_SHARED_COMMANDS', '1');
     const commandsDir = path.join(sharedRoot, 'commands');
     fs.mkdirSync(commandsDir, { recursive: true });
     const selectedCommand = path.join(commandsDir, 'opsx-explore.md');

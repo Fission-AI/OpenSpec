@@ -506,6 +506,10 @@ function scanInstalledWorkflowArtifacts(
     for (const workflowId of ALL_WORKFLOWS) {
       const commandPath = adapter.getFilePath(workflowId);
       const candidates = [commandPath];
+      // A shared command root does not hide the project's own commands.
+      if (path.isAbsolute(commandPath) && tool.skillsDir) {
+        candidates.push(path.join(tool.skillsDir, 'commands', path.basename(commandPath)));
+      }
       if (tool.skillsDir) {
         for (const root of legacyRoots) {
           const legacyPath = legacyCommandPath(commandPath, tool.skillsDir, root);

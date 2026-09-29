@@ -3,7 +3,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
 import { InitCommand } from '../../src/core/init.js';
-import { saveGlobalConfig, getGlobalConfig } from '../../src/core/global-config.js';
+import { UpdateCommand } from '../../src/core/update.js';
+import { saveGlobalConfig, getGlobalConfig, getGlobalConfigPath } from '../../src/core/global-config.js';
 import { MAX_CONTEXT_SIZE, readProjectConfig } from '../../src/core/project-config.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
@@ -1766,6 +1767,7 @@ describe('InitCommand - profile and detection features', () => {
   it('should install OpenCode commands in the explicit shared directory and keep skills local', async () => {
     const configDir = path.join(configTempDir, 'shared-opencode');
     process.env.OPENCODE_CONFIG_DIR = configDir;
+    process.env.OPENSPEC_OPENCODE_SHARED_COMMANDS = '1';
     await new InitCommand({ tools: 'opencode' }).execute(testDir);
 
     const command = path.join(configDir, 'commands', 'opsx-propose.md');
@@ -1776,6 +1778,30 @@ describe('InitCommand - profile and detection features', () => {
     saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
     await new InitCommand({ tools: 'opencode' }).execute(testDir);
     expect(await fileExists(command)).toBe(true);
+  });
+
+  it('should keep OpenCode commands project-local when only OPENCODE_CONFIG_DIR is set', async () => {
+    const configDir = path.join(configTempDir, 'shared-opencode');
+    process.env.OPENCODE_CONFIG_DIR = configDir;
+    delete process.env.OPENSPEC_OPENCODE_SHARED_COMMANDS;
+    const readDelivery = async () =>
+      (await fileExists(getGlobalConfigPath()))
+        ? JSON.parse(await fs.readFile(getGlobalConfigPath(), 'utf-8')).delivery
+        : undefined;
+    const localCommand = path.join(testDir, '.opencode', 'commands', 'opsx-propose.md');
+
+    await new InitCommand({ tools: 'opencode' }).execute(testDir);
+    expect(await fileExists(localCommand)).toBe(true);
+    expect(await readDelivery()).toBeUndefined();
+
+    await fs.writeFile(localCommand, 'stale command');
+    await new UpdateCommand({ force: true }).execute(testDir);
+    expect(await fs.readFile(localCommand, 'utf-8')).not.toBe('stale command');
+    expect(await readDelivery()).not.toBe('skills');
+    expect(await fileExists(configDir)).toBe(false);
+
+    await new InitCommand({ tools: 'claude' }).execute(testDir);
+    expect(await fileExists(path.join(testDir, '.claude', 'commands', 'opsx', 'propose.md'))).toBe(true);
   });
 
   it('should auto-cleanup legacy artifacts in non-interactive mode without --force', async () => {

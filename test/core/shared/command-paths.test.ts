@@ -16,6 +16,7 @@ describe('resolveCommandArtifactPath', () => {
     await fs.mkdir(project);
     await fs.mkdir(shared);
     vi.stubEnv('OPENCODE_CONFIG_DIR', shared);
+    vi.stubEnv('OPENSPEC_OPENCODE_SHARED_COMMANDS', '1');
   });
 
   afterEach(async () => {
@@ -30,6 +31,12 @@ describe('resolveCommandArtifactPath', () => {
     expect(() => resolveCommandArtifactPath(project, 'opencode', path.join(root, 'outside.md'))).toThrow();
     expect(() => resolveCommandArtifactPath(project, 'opencode', path.join(shared, 'config.json'))).toThrow();
     vi.stubEnv('OPENCODE_CONFIG_DIR', undefined);
+    expect(() => resolveCommandArtifactPath(project, 'opencode', command)).toThrow();
+  });
+
+  it('rejects shared writes when OPENCODE_CONFIG_DIR is set without the OpenSpec opt-in', () => {
+    vi.stubEnv('OPENSPEC_OPENCODE_SHARED_COMMANDS', undefined);
+    const command = path.join(shared, 'commands', 'opsx-explore.md');
     expect(() => resolveCommandArtifactPath(project, 'opencode', command)).toThrow();
   });
 
