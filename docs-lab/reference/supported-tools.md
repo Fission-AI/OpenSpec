@@ -24,6 +24,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Cline | `cline` | `.cline/skills/` | `/openspec-apply-change` | `.clinerules/workflows/` | `/opsx-apply` |
 | CodeArts | `codeartsagent` | `.codeartsdoer/skills/` | `/openspec-apply-change` | none | none |
 | CodeBuddy Code (CLI) | `codebuddy` | `.codebuddy/skills/` | `/openspec-apply-change` | `.codebuddy/commands/opsx/` | `/opsx:apply` |
+| Code Studio | `codestudio` | `.codestudio/skills/` | `/openspec-apply-change` | `.codestudio/prompts/` | `/opsx-apply` |
 | Codex | `codex` | `.agents/skills/` | `$openspec-apply-change` | none | none |
 | Continue | `continue` | `.continue/skills/` | `/openspec-apply-change` | `.continue/prompts/` | `/opsx-apply` |
 | CoStrict | `costrict` | `.cospec/skills/` | `/openspec-apply-change` | `.cospec/openspec/commands/` | `/opsx-apply` |
@@ -37,6 +38,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Gemini CLI | `gemini` | `.gemini/skills/` | `/openspec-apply-change` | `.gemini/commands/opsx/` | `/opsx:apply` |
 | GigaCode | `gigacode` | `.gigacode/skills/` | `/openspec-apply-change` | `.gigacode/commands/` | `/opsx-apply` |
 | GitHub Copilot | `github-copilot` | `.github/skills/` | `/openspec-apply-change` | `.github/prompts/` | `/opsx-apply` |
+| Grok Build | `grok` | `.grok/skills/` | `/openspec-apply-change` | none | none |
 | GSD | `gsd` | `.agents/skills/` | ask for `openspec-apply-change` | none | none |
 | Hermes Agent | `hermes` | `.hermes/skills/` | `/openspec-apply-change` | none | none |
 | iFlow | `iflow` | `.iflow/skills/` | `/openspec-apply-change` | `.iflow/commands/` | `/opsx-apply` |
@@ -63,8 +65,8 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
   own behavior. The column shows the spelling OpenSpec uses in generated files and in
   the hint init prints. Check your tool's docs if typing it does nothing.
 - **Command file formats**: most tools take `.md` command files. EasyCode and Gemini
-  CLI take `.toml`, Continue `.prompt`, Kiro and GitHub Copilot `.prompt.md`. The
-  spelling you type is the same either way.
+  CLI take `.toml`, Continue `.prompt`, and Code Studio, Kiro, and GitHub Copilot
+  `.prompt.md`. The spelling you type is the same either way.
 
 ## Per-tool notes
 
