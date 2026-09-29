@@ -2,6 +2,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getGlobalDataDir } from '../global-config.js';
+import {
+  readLocalReferenceDeclarations,
+  resolveLocalReference,
+} from '../project-config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { parseSchema, SchemaValidationError } from './schema.js';
 import type { SchemaYaml } from './types.js';
@@ -44,6 +48,24 @@ export function getUserSchemasDir(): string {
  */
 export function getProjectSchemasDir(projectRoot: string): string {
   return path.join(projectRoot, 'openspec', 'schemas');
+}
+
+export interface ParentSchemaSource {
+  path: string;
+  dir: string;
+}
+
+/** Local parent schema directories, in declaration order and one hop deep. */
+export function getParentSchemaSources(projectRoot: string): ParentSchemaSource[] {
+  const references = readLocalReferenceDeclarations(projectRoot);
+  const sources: ParentSchemaSource[] = [];
+  for (const reference of references) {
+    const resolved = resolveLocalReference(projectRoot, reference);
+    if (resolved?.relation === 'ancestor') {
+      sources.push({ path: reference.path, dir: getProjectSchemasDir(resolved.root) });
+    }
+  }
+  return sources;
 }
 
 /**
@@ -153,6 +175,12 @@ export function getSchemaDir(
     const projectDir = getSchemaCandidateDir(getProjectSchemasDir(projectRoot), name);
     if (projectDir) {
       return projectDir;
+    }
+    for (const source of getParentSchemaSources(projectRoot)) {
+      const inheritedDir = getSchemaCandidateDir(source.dir, name);
+      if (inheritedDir) {
+        return inheritedDir;
+      }
     }
   }
 
@@ -270,8 +298,12 @@ export function listSchemas(projectRoot?: string): string[] {
 
   // Add project-local schemas (if projectRoot provided)
   if (projectRoot) {
-    const projectDir = getProjectSchemasDir(projectRoot);
-    if (fs.existsSync(projectDir)) {
+    const projectDirs = [
+      getProjectSchemasDir(projectRoot),
+      ...getParentSchemaSources(projectRoot).map((source) => source.dir),
+    ];
+    for (const projectDir of projectDirs) {
+      if (!fs.existsSync(projectDir)) continue;
       for (const entry of fs.readdirSync(projectDir, { withFileTypes: true })) {
         if (isSchemaDir(projectDir, entry)) {
           const schemaPath = path.join(projectDir, entry.name, 'schema.yaml');
@@ -293,7 +325,8 @@ export interface SchemaInfo {
   name: string;
   description: string;
   artifacts: string[];
-  source: 'project' | 'user' | 'package';
+  source: 'project' | 'parent' | 'user' | 'package';
+  reference?: string;
 }
 
 /**
@@ -321,6 +354,29 @@ export function listSchemasWithInfo(projectRoot?: string): SchemaInfo[] {
                 description: schema.description || '',
                 artifacts: schema.artifacts.map((a) => a.id),
                 source: 'project',
+              });
+              seenNames.add(entry.name);
+            } catch {
+              // Skip invalid schemas
+            }
+          }
+        }
+      }
+    }
+    for (const source of getParentSchemaSources(projectRoot)) {
+      if (!fs.existsSync(source.dir)) continue;
+      for (const entry of fs.readdirSync(source.dir, { withFileTypes: true })) {
+        if (isSchemaDir(source.dir, entry) && !seenNames.has(entry.name)) {
+          const schemaPath = path.join(source.dir, entry.name, 'schema.yaml');
+          if (fs.existsSync(schemaPath)) {
+            try {
+              const schema = parseSchema(fs.readFileSync(schemaPath, 'utf-8'));
+              schemas.push({
+                name: entry.name,
+                description: schema.description || '',
+                artifacts: schema.artifacts.map((a) => a.id),
+                source: 'parent',
+                reference: source.path,
               });
               seenNames.add(entry.name);
             } catch {

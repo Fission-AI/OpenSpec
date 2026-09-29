@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as yaml from 'yaml';
 import { ChangeMetadataSchema, type ChangeMetadata } from '../core/change-metadata/index.js';
 import { listSchemas, resolveSchema } from '../core/artifact-graph/resolver.js';
-import { readProjectConfig, type ProjectConfig } from '../core/project-config.js';
+import { readProjectConfigWithParents, type ProjectConfig } from '../core/project-config.js';
 
 export const METADATA_FILENAME = '.openspec.yaml';
 
@@ -192,7 +192,7 @@ export function resolveSchemaForChange(
     }
   } else {
     try {
-      const config = readProjectConfig(projectRoot);
+      const config = readProjectConfigWithParents(projectRoot);
       if (config?.schema) {
         return config.schema;
       }

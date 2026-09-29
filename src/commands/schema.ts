@@ -9,6 +9,7 @@ import {
   getProjectSchemasDir,
   getUserSchemasDir,
   getPackageSchemasDir,
+  getParentSchemaSources,
   isSchemaDir,
   listSchemas,
 } from '../core/artifact-graph/resolver.js';
@@ -24,7 +25,7 @@ import { FileSystemUtils } from '../utils/file-system.js';
 /**
  * Schema source location type
  */
-type SchemaSource = 'project' | 'user' | 'package';
+type SchemaSource = 'project' | 'parent' | 'user' | 'package';
 
 /**
  * Result of checking a schema location
@@ -71,6 +72,15 @@ function checkAllLocations(
     path: projectDir,
     exists: fs.existsSync(projectSchemaPath),
   });
+
+  for (const parent of getParentSchemaSources(projectRoot)) {
+    const parentDir = path.join(parent.dir, name);
+    locations.push({
+      source: 'parent',
+      path: parentDir,
+      exists: fs.existsSync(path.join(parentDir, 'schema.yaml')),
+    });
+  }
 
   // User location
   const userDir = path.join(getUserSchemasDir(), name);
@@ -550,6 +560,7 @@ export function registerSchemaCommand(program: Command): void {
             // Group by source
             const bySource = {
               project: schemas.filter((s) => s.source === 'project'),
+              parent: schemas.filter((s) => s.source === 'parent'),
               user: schemas.filter((s) => s.source === 'user'),
               package: schemas.filter((s) => s.source === 'package'),
             };
@@ -557,6 +568,16 @@ export function registerSchemaCommand(program: Command): void {
             if (bySource.project.length > 0) {
               console.log('\nProject schemas:');
               for (const schema of bySource.project) {
+                const shadowInfo = schema.shadows.length > 0
+                  ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
+                  : '';
+                console.log(`  ${schema.name}${shadowInfo}`);
+              }
+            }
+
+            if (bySource.parent.length > 0) {
+              console.log('\nParent schemas:');
+              for (const schema of bySource.parent) {
                 const shadowInfo = schema.shadows.length > 0
                   ? ` (shadows: ${schema.shadows.map((s) => s.source).join(', ')})`
                   : '';

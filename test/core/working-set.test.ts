@@ -86,4 +86,32 @@ describe('working-set assembly (4.1)', () => {
     });
     expect(buildCodeWorkspaceJson(workingSet, 'team-context').endsWith('\n')).toBe(true);
   });
+
+  it('keeps members with a truncated index available', () => {
+    const workingSet = assembleWorkingSet({
+      root,
+      referenceEntries: [
+        {
+          local_path: '../..',
+          root: '/team',
+          status: [warn('reference_index_truncated')],
+        },
+        {
+          store_id: 'large-store',
+          root: '/large-store',
+          status: [warn('reference_index_truncated')],
+        },
+      ],
+    });
+
+    expect(workingSet.members.every(isAvailableMember)).toBe(true);
+    expect(workingSet.members[1].fetch).toBe(
+      'openspec show <spec-id> --type spec --store large-store'
+    );
+    expect(JSON.parse(buildCodeWorkspaceJson(workingSet, 'team-context')).folders).toEqual([
+      { name: 'team-context', path: '/team/store' },
+      { name: 'local:../..', path: '/team' },
+      { name: 'ref:large-store', path: '/large-store' },
+    ]);
+  });
 });

@@ -1,12 +1,11 @@
 /**
  * Referenced-store index assembly (slice 3.1).
  *
- * A root's `openspec/config.yaml` may declare `references:` — store ids
- * whose specs the root's work draws on. Instructions output carries an
- * INDEX of those stores' specs (id, one-line summary, fetch recipe via
- * `--store`), built live from the registered checkouts at assembly time.
- * Content is never inlined; root resolution is never affected; problems
- * degrade to `warning` diagnostics instead of failing generation.
+ * A root's `openspec/config.yaml` may declare `references:`: registered store
+ * ids or co-located parent roots whose specs the root's work draws on.
+ * Instructions carry an index built live at assembly time. Content is never
+ * inlined; root resolution is never affected; problems degrade to warning
+ * diagnostics instead of failing generation.
  */
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
@@ -20,21 +19,52 @@ import {
 } from './store/foundation.js';
 import { getStoreRootForBackend } from './store/registry.js';
 import { inspectRegisteredStore, type ResolvedOpenSpecRoot } from './root-selection.js';
+import { inspectOpenSpecRoot } from './openspec-root.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { MAX_CONTEXT_SIZE, type DeclarationEntry } from './project-config.js';
+import {
+  MAX_CONTEXT_SIZE,
+  resolveLocalReference,
+  type LocalReferenceRelation,
+  type DeclarationEntry,
+  type StoreDeclarationEntry,
+} from './project-config.js';
 
 export interface ReferenceSpecEntry {
   id: string;
   summary: string;
 }
 
-export interface ReferenceIndexEntry {
+export interface StoreReferenceIndexEntry {
   store_id: string;
   root?: string;
   specs?: ReferenceSpecEntry[];
   fetch?: string;
   status: StoreDiagnostic[];
+}
+
+export interface LocalReferenceIndexEntry {
+  local_path: string;
+  relation?: LocalReferenceRelation;
+  root?: string;
+  specs?: ReferenceSpecEntry[];
+  specs_path?: string;
+  status: StoreDiagnostic[];
+}
+
+export type ReferenceIndexEntry = StoreReferenceIndexEntry | LocalReferenceIndexEntry;
+
+export function isLocalReferenceEntry(
+  entry: ReferenceIndexEntry
+): entry is LocalReferenceIndexEntry {
+  return 'local_path' in entry;
+}
+
+function isUsableLocalRoot(inspection: Awaited<ReturnType<typeof inspectOpenSpecRoot>>): boolean {
+  return inspection.healthy || (
+    inspection.present === true &&
+    inspection.diagnostics.every((diagnostic) => diagnostic.code === 'openspec_config_missing')
+  );
 }
 
 /**
@@ -203,8 +233,10 @@ function specLine(spec: ReferenceSpecEntry): string {
  * budget's measuring stick (it is the larger rendering).
  */
 export function renderReferencedStoresBlock(entries: ReferenceIndexEntry[]): string {
+  const hasLocalRoot = entries.some(isLocalReferenceEntry);
+  const tag = hasLocalRoot ? 'referenced_roots' : 'referenced_stores';
   const lines: string[] = [
-    '<referenced_stores>',
+    `<${tag}>`,
     '<!-- Read-only upstream context. Fetch what you need; cite what you use. -->',
   ];
 
@@ -212,14 +244,15 @@ export function renderReferencedStoresBlock(entries: ReferenceIndexEntry[]): str
     lines.push(...renderEntryLines(entry));
   }
 
-  lines.push('</referenced_stores>');
+  lines.push(`</${tag}>`);
   return lines.join('\n');
 }
 
 /** Pure renderer for the apply-instructions markdown section. */
 export function renderReferencedStoresSection(entries: ReferenceIndexEntry[]): string {
+  const hasLocalRoot = entries.some(isLocalReferenceEntry);
   const lines: string[] = [
-    '### Referenced Stores',
+    hasLocalRoot ? '### Referenced Roots' : '### Referenced Stores',
     '',
     'Read-only upstream context. Fetch what you need; cite what you use.',
     '',
@@ -312,13 +345,23 @@ export function escapeEnvelopeAttribute(value: string): string {
 
 function renderEntryLines(entry: ReferenceIndexEntry): string[] {
   const lines: string[] = [];
+  const label = isLocalReferenceEntry(entry)
+    ? `${entry.relation === 'ancestor' ? 'Ancestor' : entry.relation === 'descendant' ? 'Descendant' : 'Local'} root ${escapeEnvelopeTags(sanitizeInline(entry.local_path, 200))}`
+    : `Store ${entry.store_id}`;
 
   if (entry.root !== undefined) {
-    lines.push(`Store ${entry.store_id} (${entry.root}):`);
+    const renderedRoot = isLocalReferenceEntry(entry)
+      ? escapeEnvelopeTags(sanitizeInline(entry.root, Infinity))
+      : entry.root;
+    lines.push(`${label} (${renderedRoot}):`);
     for (const spec of entry.specs ?? []) {
       lines.push(specLine(spec));
     }
-    if (entry.fetch) {
+    if (isLocalReferenceEntry(entry) && entry.specs_path) {
+      lines.push(
+        `  Read specs from: ${escapeEnvelopeTags(sanitizeInline(entry.specs_path, Infinity))}`
+      );
+    } else if (!isLocalReferenceEntry(entry) && entry.fetch) {
       lines.push(`  Fetch: ${entry.fetch}`);
     }
     // Diagnostics on a resolved entry (e.g. truncation) render message
@@ -331,7 +374,7 @@ function renderEntryLines(entry: ReferenceIndexEntry): string[] {
     }
   } else {
     for (const diagnostic of entry.status) {
-      lines.push(`Store ${entry.store_id}: ${diagnostic.message}`);
+      lines.push(`${label}: ${diagnostic.message}`);
       if (diagnostic.fix) {
         lines.push(`  Fix: ${diagnostic.fix}`);
       }
@@ -377,11 +420,15 @@ export async function assembleReferenceIndex(
     return [];
   }
 
+  const storeDeclarations = declarations.filter(
+    (entry): entry is StoreDeclarationEntry => 'id' in entry
+  );
+
   // null means the registry itself was unreadable (corrupt file).
   let registryEntries: ReturnType<typeof listStoreRegistryEntries> | null;
   if (input.registryEntries !== undefined) {
     registryEntries = input.registryEntries;
-  } else {
+  } else if (storeDeclarations.length > 0) {
     try {
       const registry = await readStoreRegistryState(
         input.globalDataDir ? { globalDataDir: input.globalDataDir } : {}
@@ -390,13 +437,92 @@ export async function assembleReferenceIndex(
     } catch {
       registryEntries = null;
     }
+  } else {
+    registryEntries = [];
   }
   const includeSpecs = input.includeSpecs !== false;
 
   const resolvedRootPath = FileSystemUtils.canonicalizeExistingPath(input.resolvedRoot.path);
   const entries: ReferenceIndexEntry[] = [];
 
-  for (const { id, remote } of declarations) {
+  for (const declaration of declarations) {
+    if ('path' in declaration) {
+      const displayPath = sanitizeInline(declaration.path, 200);
+      const resolvedReference = resolveLocalReference(input.resolvedRoot.path, declaration);
+      if (resolvedReference === null) {
+        entries.push({
+          local_path: declaration.path,
+          status: [
+            warning(
+              'reference_local_path_invalid',
+              `Local reference '${displayPath}' is not a usable connected OpenSpec root.`,
+              'Use a relative path to an ancestor or descendant directory that contains openspec/.'
+            ),
+          ],
+        });
+        continue;
+      }
+
+      const { root: referencedRoot, relation } = resolvedReference;
+
+      const inspection = await inspectOpenSpecRoot(referencedRoot);
+      if (!isUsableLocalRoot(inspection)) {
+        entries.push({
+          local_path: declaration.path,
+          relation,
+          root: referencedRoot,
+          status: [
+            warning(
+              'reference_local_root_unhealthy',
+              `Connected OpenSpec root '${displayPath}' is not usable.`,
+              `Run openspec doctor from ${sanitizeInline(referencedRoot, Infinity)}.`
+            ),
+          ],
+        });
+        continue;
+      }
+
+      if (!includeSpecs) {
+        entries.push({ local_path: declaration.path, relation, root: referencedRoot, status: [] });
+        continue;
+      }
+
+      const specs = await collectSpecEntries(referencedRoot);
+      const specsPath = path.join(referencedRoot, 'openspec', 'specs');
+      const entry: LocalReferenceIndexEntry = {
+        local_path: declaration.path,
+        relation,
+        root: referencedRoot,
+        specs,
+        specs_path: specsPath,
+        status: [],
+      };
+      entries.push(entry);
+      if (renderedByteSize(entries) > MAX_RENDERED_INDEX_SIZE) {
+        let low = 0;
+        let high = specs.length;
+        while (low < high) {
+          const mid = Math.ceil((low + high) / 2);
+          entry.specs = specs.slice(0, mid);
+          if (renderedByteSize(entries) > MAX_RENDERED_INDEX_SIZE) {
+            high = mid - 1;
+          } else {
+            low = mid;
+          }
+        }
+        entry.specs = specs.slice(0, low);
+        entry.status.push(
+          warning(
+            'reference_index_truncated',
+            `Connected root '${displayPath}' index truncated at the 50KB budget (${low} of ${specs.length} specs listed).`,
+            `List the rest from ${sanitizeInline(specsPath, Infinity)}.`
+          )
+        );
+      }
+      continue;
+    }
+
+    const { id, remote } = declaration;
     // Registry-independent checks come first: an invalid id is an
     // invalid id (and a self-reference is omittable) even when the
     // registry is corrupt. The declared remote is only consulted after

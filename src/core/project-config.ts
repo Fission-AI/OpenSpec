@@ -4,6 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import { z } from 'zod';
 
 import { getStoreMetadataPath } from './store/foundation.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 export const OPERATION_IDS = ['apply', 'archive'] as const;
 export type OperationId = (typeof OPERATION_IDS)[number];
@@ -63,7 +64,7 @@ export const ProjectConfigSchema = z.object({
     .optional()
     .describe('Per-operation advisory guidance'),
 
-  // Note: the `references` field (id strings or {id, remote} maps) is
+  // Note: the `references` field (store ids, {id, remote}, or {path} maps) is
   // deliberately absent here — readProjectConfig parses and normalizes
   // it by hand (see DeclarationEntry below); a schema entry nothing
   // parses would only drift from the real behavior.
@@ -88,15 +89,56 @@ export const ProjectConfigSchema = z.object({
 });
 
 /** Normalized in-memory shape of a referenced store declaration. */
-export interface DeclarationEntry {
+export interface StoreDeclarationEntry {
   id: string;
   /** Clone source rendered into onboarding fixes. */
   remote?: string;
 }
 
+/** A co-located parent OpenSpec root, relative to the declaring project root. */
+export interface LocalDeclarationEntry {
+  path: string;
+}
+
+export type LocalReferenceRelation = 'ancestor' | 'descendant';
+
+export interface ResolvedLocalReference {
+  root: string;
+  relation: LocalReferenceRelation;
+}
+
+export type DeclarationEntry = StoreDeclarationEntry | LocalDeclarationEntry;
+
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema> & {
   references?: DeclarationEntry[];
 };
+
+/** Warning-silent local-reference read for schema lookup's synchronous hot path. */
+export function readLocalReferenceDeclarations(projectRoot: string): LocalDeclarationEntry[] {
+  const configPath = resolveConfigFilePath(projectRoot);
+  if (configPath === null) return [];
+
+  try {
+    const raw = parseYaml(readFileSync(configPath, 'utf-8')) as Record<string, unknown> | null;
+    if (!raw || typeof raw !== 'object' || !Array.isArray(raw.references)) return [];
+
+    const paths = new Set<string>();
+    for (const entry of raw.references) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+      const map = entry as Record<string, unknown>;
+      // Match parseDeclarationList: an entry with a string id is a Store
+      // declaration even if it also contains a path.
+      if (typeof map.id === 'string') continue;
+      const candidate = map.path;
+      if (typeof candidate === 'string' && candidate.length > 0) {
+        paths.add(candidate);
+      }
+    }
+    return [...paths].map((referencePath) => ({ path: referencePath }));
+  } catch {
+    return [];
+  }
+}
 
 export interface OperationInputs {
   context?: string;
@@ -183,13 +225,11 @@ function parseOperations(raw: unknown): OperationsConfig | undefined {
 }
 
 /**
- * Parser for `references:` declarations: string entries or
- * {id, remote} maps, normalized to DeclarationEntry[]. Dedup keys on
- * id and keeps the first position; the first entry carrying a remote
- * supplies it (a later duplicate fills a missing remote, never
- * overrides). Invalid entries drop with a warning like other resilient
- * fields; returns undefined when the field is absent or normalizes to
- * empty.
+ * Parser for `references:` declarations: store ids, {id, remote} maps, or
+ * {path} maps for local parent roots, normalized to DeclarationEntry[].
+ * Duplicates keep their first position; a later store entry may fill a missing
+ * remote but never override one. Invalid entries drop with a warning like
+ * other resilient fields; returns undefined when absent or empty.
  */
 function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
   const fieldName = 'references';
@@ -197,11 +237,13 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
     return undefined;
   }
   if (!Array.isArray(raw)) {
-    console.warn(`Invalid '${fieldName}' field in config (must be an array of store ids)`);
+    console.warn(
+      `Invalid '${fieldName}' field in config (must be an array of store ids or parent paths)`
+    );
     return undefined;
   }
 
-  const byId = new Map<string, DeclarationEntry>();
+  const declarations = new Map<string, DeclarationEntry>();
   let droppedEntries = false;
   let droppedRemotes = false;
 
@@ -218,6 +260,8 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
         } else if (candidate.remote !== undefined) {
           droppedRemotes = true; // remote dropped, id kept
         }
+      } else if (typeof candidate.path === 'string' && candidate.path.length > 0) {
+        declaration = { path: candidate.path };
       }
     }
 
@@ -226,10 +270,16 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
       continue;
     }
 
-    const existing = byId.get(declaration.id);
+    const key = 'id' in declaration ? `store:${declaration.id}` : `path:${declaration.path}`;
+    const existing = declarations.get(key);
     if (!existing) {
-      byId.set(declaration.id, declaration);
-    } else if (existing.remote === undefined && declaration.remote !== undefined) {
+      declarations.set(key, declaration);
+    } else if (
+      'id' in existing &&
+      'id' in declaration &&
+      existing.remote === undefined &&
+      declaration.remote !== undefined
+    ) {
       existing.remote = declaration.remote;
     }
   }
@@ -242,7 +292,91 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
       `Some '${fieldName}' remotes are not non-empty strings; the ids are kept without a clone source`
     );
   }
-  return byId.size > 0 ? [...byId.values()] : undefined;
+  return declarations.size > 0 ? [...declarations.values()] : undefined;
+}
+
+/**
+ * Resolve a committed local reference without letting it escape the monorepo
+ * hierarchy. Strict ancestors and descendants qualify; siblings and arbitrary
+ * filesystem references remain the job of Stores.
+ */
+export function resolveLocalReference(
+  projectRoot: string,
+  declaration: LocalDeclarationEntry
+): ResolvedLocalReference | null {
+  if (
+    path.isAbsolute(declaration.path) ||
+    path.win32.isAbsolute(declaration.path) ||
+    /^[A-Za-z]:/u.test(declaration.path) ||
+    declaration.path.includes('\0')
+  ) {
+    return null;
+  }
+
+  const current = FileSystemUtils.canonicalizeExistingPath(projectRoot);
+  const candidate = FileSystemUtils.canonicalizeExistingPath(
+    path.resolve(current, declaration.path)
+  );
+  const relationToCurrent = path.relative(candidate, current);
+  const relationToCandidate = path.relative(current, candidate);
+  const isWithin = (relative: string): boolean =>
+    relative !== '' &&
+    relative !== '..' &&
+    !relative.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(relative);
+  const relation: LocalReferenceRelation | null = isWithin(relationToCurrent)
+    ? 'ancestor'
+    : isWithin(relationToCandidate)
+      ? 'descendant'
+      : null;
+
+  if (relation === null || !existsSync(path.join(candidate, 'openspec'))) {
+    return null;
+  }
+  return { root: candidate, relation };
+}
+
+/**
+ * Effective config for workflow generation. A local root keeps every local
+ * setting; parent context is prepended and the nearest declared schema wins.
+ * References, rules, operation guidance, and integration settings never flow
+ * down implicitly.
+ */
+export function readProjectConfigWithParents(projectRoot: string): ProjectConfig | null {
+  const local = readProjectConfig(projectRoot);
+  const parentConfigs = (local?.references ?? [])
+    .filter((entry): entry is LocalDeclarationEntry => 'path' in entry)
+    .map((entry) => resolveLocalReference(projectRoot, entry))
+    .filter((reference): reference is ResolvedLocalReference =>
+      reference !== null && reference.relation === 'ancestor'
+    )
+    .map((reference) => readProjectConfig(reference.root))
+    .filter((config): config is ProjectConfig => config !== null);
+
+  if (!local && parentConfigs.length === 0) {
+    return null;
+  }
+
+  const inheritedSchema = parentConfigs.find((config) => config.schema)?.schema;
+  const contexts = [
+    ...parentConfigs.map((config) => config.context),
+    local?.context,
+  ].filter((context): context is string => context !== undefined && context.trim().length > 0);
+  let context = contexts.length > 0 ? contexts.join('\n\n') : undefined;
+  if (context !== undefined && Buffer.byteLength(context, 'utf-8') > MAX_CONTEXT_SIZE) {
+    console.warn(
+      `Inherited context exceeds the ${MAX_CONTEXT_SIZE / 1024}KB limit; using only the child root context.`
+    );
+    context = local?.context;
+  }
+
+  return {
+    ...local,
+    ...(local?.schema === undefined && inheritedSchema !== undefined
+      ? { schema: inheritedSchema }
+      : {}),
+    ...(context !== undefined ? { context } : {}),
+  } as ProjectConfig;
 }
 
 export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index

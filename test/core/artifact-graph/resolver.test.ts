@@ -350,6 +350,74 @@ version: [[[invalid yaml
     });
   });
 
+  describe('schema inheritance from a local parent root', () => {
+    function writeSchema(root: string, name: string, description: string): string {
+      const dir = path.join(root, 'openspec', 'schemas', name);
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'schema.yaml'),
+        `name: ${name}\nversion: 1\ndescription: ${description}\nartifacts:\n  - id: brief\n    generates: brief.md\n    description: Brief\n    template: brief.md\n`
+      );
+      return dir;
+    }
+
+    it('resolves parent schemas after child-local schemas', () => {
+      const monorepo = path.join(tempDir, 'repo');
+      const child = path.join(monorepo, 'packages', 'api');
+      const parentSchema = writeSchema(monorepo, 'team-flow', 'Parent flow');
+      fs.mkdirSync(path.join(child, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(child, 'openspec', 'config.yaml'),
+        'references:\n  - { path: ../.. }\n'
+      );
+
+      expect(getSchemaDir('team-flow', child)).toBe(
+        fs.realpathSync.native(parentSchema)
+      );
+      expect(listSchemas(child)).toContain('team-flow');
+      expect(listSchemasWithInfo(child)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: 'team-flow',
+            source: 'parent',
+            reference: '../..',
+          }),
+        ])
+      );
+    });
+
+    it('lets a child-local schema shadow the parent schema', () => {
+      const monorepo = path.join(tempDir, 'repo');
+      const child = path.join(monorepo, 'packages', 'api');
+      writeSchema(monorepo, 'team-flow', 'Parent flow');
+      const childSchema = writeSchema(child, 'team-flow', 'Child flow');
+      fs.writeFileSync(
+        path.join(child, 'openspec', 'config.yaml'),
+        'references:\n  - { path: ../.. }\n'
+      );
+
+      expect(getSchemaDir('team-flow', child)).toBe(childSchema);
+      expect(listSchemasWithInfo(child).find((schema) => schema.name === 'team-flow')).toMatchObject({
+        source: 'project',
+        description: 'Child flow',
+      });
+    });
+
+    it('does not inherit schemas from a referenced descendant', () => {
+      const monorepo = path.join(tempDir, 'repo');
+      const child = path.join(monorepo, 'packages', 'api');
+      writeSchema(child, 'package-flow', 'Package flow');
+      fs.mkdirSync(path.join(monorepo, 'openspec'), { recursive: true });
+      fs.writeFileSync(
+        path.join(monorepo, 'openspec', 'config.yaml'),
+        'references:\n  - { path: packages/api }\n'
+      );
+
+      expect(getSchemaDir('package-flow', monorepo)).toBeNull();
+      expect(listSchemas(monorepo)).not.toContain('package-flow');
+    });
+  });
+
   // =========================================================================
   // Project-local schema tests
   // =========================================================================

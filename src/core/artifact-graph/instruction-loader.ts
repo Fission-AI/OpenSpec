@@ -17,7 +17,11 @@ import {
   type ActionContext,
   type PlanningHomeSummary,
 } from '../change-status-policy.js';
-import { readProjectConfig, validateConfigRules, type ProjectConfig } from '../project-config.js';
+import {
+  readProjectConfigWithParents,
+  validateConfigRules,
+  type ProjectConfig,
+} from '../project-config.js';
 import type { ReferenceIndexEntry } from '../references.js';
 import type { PlanningHome } from '../planning-home.js';
 import type { ChangeMetadata } from '../change-metadata/index.js';
@@ -352,7 +356,7 @@ export function generateInstructions(
   let projectConfig = options.projectConfig ?? null;
   if (options.projectConfig === undefined && effectiveProjectRoot) {
     try {
-      projectConfig = readProjectConfig(effectiveProjectRoot);
+      projectConfig = readProjectConfigWithParents(effectiveProjectRoot);
     } catch {
       // If config read fails, continue without config
     }

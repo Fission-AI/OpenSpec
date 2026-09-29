@@ -34,7 +34,7 @@ maintain.
 | How should a user handle git across the loop: branching, commits, PRs? | Only archive-vs-PR ordering is owned, by [Guides › Adopting › Teams](guides/teams.md); README TODO proposes a guide | Gap |
 | What does a good change look like? | `guides/examples.md` is parked until real archived changes can fill it (README TODO); no published owner | Gap |
 | How should a user adopt OpenSpec on code that already exists? | [Guides › Adopting › Existing codebases](guides/existing-codebases.md) | Skeleton |
-| How should a user run OpenSpec in a monorepo? | Legacy `docs/existing-projects.md` owned it (one `openspec/` at the repo root, domains map to packages); likely home is [Guides › Adopting › Existing codebases](guides/existing-codebases.md), with [Multi-repo › Stores](multi-repo/stores.md) taking packages treated as separate repos | Gap |
+| How should a user run OpenSpec in a monorepo? | [Customize › Project configuration](customize/project-config.md) covers explicit connections between a repository root and packages with their own roots; one root with domains mapped to packages still belongs in [Guides › Adopting › Existing codebases](guides/existing-codebases.md) | Gap |
 | How do we explain what's customizable in OpenSpec? | [Customize › Overview](customize/overview.md) | Answered |
 | How does a user pick the right customization level, and when should they escalate from config to schemas? | [Customize › Overview](customize/overview.md), the "Not sure which to use?" section | Answered |
 | How should a user choose which workflows are installed? | [Customize › Profiles](customize/profiles.md) | Answered |
