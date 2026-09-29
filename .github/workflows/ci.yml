@@ -184,6 +184,11 @@ jobs:
 
       - name: Setup Nix cache
         uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7 # v15
+        with:
+          # Dependabot runs cannot access the FlakeHub credentials available to
+          # regular CI, so keep those runs on the GitHub Actions cache.
+          use-flakehub: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && 'disabled' || 'no-preference' }}
+          use-gha-cache: ${{ github.event.pull_request.user.login == 'dependabot[bot]' && 'enabled' || 'no-preference' }}
 
       # Run the update script before `nix build`, not after. The script recomputes
       # the pnpmDeps hash from pnpm-lock.yaml and rewrites flake.nix in place, so a
