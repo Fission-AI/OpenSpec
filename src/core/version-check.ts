@@ -6,6 +6,7 @@ import { createRequire } from 'module';
 import chalk from 'chalk';
 import { isCiEnvironment } from '../utils/ci.js';
 import { isTelemetryOptedOutByEnv } from '../telemetry/opt-out.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 import { getGlobalConfig, isGlobalConfigUnreadable } from './global-config.js';
 
 const require = createRequire(import.meta.url);
@@ -277,20 +278,41 @@ function fetchLatestVersion(): Promise<string | null> {
   });
 }
 
+export type CliUpdateStatus = 'available' | 'current' | 'disabled' | 'offline';
+
+export interface CliUpdateCheck {
+  status: CliUpdateStatus;
+  latest: string | null;
+}
+
 /**
- * Returns the published version when the installed CLI is behind it, otherwise
- * null. Never throws and never blocks for longer than the request timeout.
+ * Checks the registry while preserving enough detail for callers to explain
+ * why no newer version was reported. Never throws.
  */
-export async function getAvailableCliUpdate(): Promise<string | null> {
-  if (!isCheckEnabled()) return null;
+export async function checkForCliUpdate(): Promise<CliUpdateCheck> {
+  if (!isCheckEnabled() || registryUrl() === null) {
+    return { status: 'disabled', latest: null };
+  }
 
   try {
     const latest = await fetchLatestVersion();
-    if (!latest) return null;
-    return compareVersions(latest, OPENSPEC_VERSION) > 0 ? latest : null;
+    if (!latest) return { status: 'offline', latest: null };
+    return {
+      status: compareVersions(latest, OPENSPEC_VERSION) > 0 ? 'available' : 'current',
+      latest,
+    };
   } catch {
-    return null;
+    return { status: 'offline', latest: null };
   }
+}
+
+/**
+ * Returns the published version when the installed CLI is behind it, otherwise
+ * null. Kept as the compatibility surface used by `openspec update`.
+ */
+export async function getAvailableCliUpdate(): Promise<string | null> {
+  const result = await checkForCliUpdate();
+  return result.status === 'available' ? result.latest : null;
 }
 
 /**
@@ -326,8 +348,8 @@ export function isProjectLocalInstall(
     process.platform === 'win32' ? value.toLowerCase() : value;
 
   try {
-    let dir = path.resolve(projectPath);
-    const target = normalize(installDir);
+    let dir = FileSystemUtils.canonicalizeExistingPath(projectPath);
+    const target = normalize(FileSystemUtils.canonicalizeExistingPath(installDir));
 
     for (;;) {
       if (target.startsWith(normalize(path.join(dir, 'node_modules') + path.sep))) {
@@ -468,29 +490,33 @@ export function isSourceCheckout(installDir: string | null): boolean {
 }
 
 export type PackageManager = 'npm' | 'pnpm' | 'bun' | 'yarn' | 'volta';
+export type InstallScope = 'global' | 'project' | 'temporary' | 'source';
+
+export interface CliInstallInfo {
+  location: string | null;
+  packageManager: PackageManager | null;
+  scope: InstallScope | null;
+}
+
+function detectKnownPackageManager(installDir: string | null): PackageManager | null {
+  const segments = (installDir ?? '').split(/[\\/]/).map((segment) => segment.toLowerCase());
+  const has = (...names: string[]) => names.some((name) => segments.includes(name));
+
+  if (has('.volta') || (has('volta') && has('tools') && has('image'))) return 'volta';
+  if (has('.bun', '_bunx', 'bun-cache')) return 'bun';
+  if (has('_npx')) return 'npm';
+  if (has('.pnpm', '.pnpm-global', 'pnpm-cache')) return 'pnpm';
+  if (has('pnpm') && has('global', 'dlx', 'store')) return 'pnpm';
+  if (has('.yarn') || (has('yarn') && has('global'))) return 'yarn';
+  return null;
+}
 
 /**
  * The package manager that owns this copy, so the printed command is one the
  * user's setup will actually honor.
  */
 export function detectPackageManager(installDir: string | null): PackageManager {
-  // Lowercased because the Windows directories are capitalized and undotted:
-  // %LOCALAPPDATA%\\Volta, \\Yarn\\Data, \\pnpm-cache.
-  const segments = (installDir ?? '').split(/[\\/]/).map((segment) => segment.toLowerCase());
-  const has = (...names: string[]) => names.some((name) => segments.includes(name));
-
-  // The undotted spelling exists for Windows (%LOCALAPPDATA%\Volta), whose
-  // layout nests tools\image; require both segments so a user or project
-  // directory merely named "volta" (even one with its own "tools" dir) does
-  // not steal the install.
-  if (has('.volta') || (has('volta') && has('tools') && has('image'))) return 'volta';
-  if (has('.bun')) return 'bun';
-  // These two need a corroborating segment: a directory merely named "pnpm" or
-  // "yarn" (a user's home, a project) is not a global install of one.
-  if (has('.pnpm-global', 'pnpm-cache')) return 'pnpm';
-  if (has('pnpm') && has('global', 'dlx', 'store')) return 'pnpm';
-  if (has('.yarn') || (has('yarn') && has('global'))) return 'yarn';
-  return 'npm';
+  return detectKnownPackageManager(installDir) ?? 'npm';
 }
 
 const GLOBAL_UPGRADE_COMMANDS: Record<PackageManager, string> = {
@@ -500,6 +526,88 @@ const GLOBAL_UPGRADE_COMMANDS: Record<PackageManager, string> = {
   yarn: `yarn global add ${PACKAGE_NAME}@latest`,
   volta: `volta install ${PACKAGE_NAME}@latest`,
 };
+
+function detectGlobalPackageManager(installDir: string | null): PackageManager | null {
+  if (isNpmGlobalInstall(installDir)) return 'npm';
+  if (!installDir) return null;
+
+  const segments = installDir.split(/[\\/]/).map((segment) => segment.toLowerCase());
+  const has = (...names: string[]) => names.some((name) => segments.includes(name));
+  const hasSequence = (...names: string[]) =>
+    segments.some((_, index) => names.every((name, offset) => segments[index + offset] === name));
+
+  if (hasSequence('.volta', 'tools', 'image') || hasSequence('volta', 'tools', 'image')) {
+    return 'volta';
+  }
+  if (has('.pnpm-global') || hasSequence('pnpm', 'global')) return 'pnpm';
+  if (hasSequence('yarn', 'global') || hasSequence('yarn', 'data', 'global')) return 'yarn';
+  if (hasSequence('.bun', 'install', 'global')) return 'bun';
+  return null;
+}
+
+/** Describes the running copy without guessing when its owner is ambiguous. */
+export function getCliInstallInfo(
+  installDir: string | null = getInstallDir(),
+  projectPath: string = '.'
+): CliInstallInfo {
+  if (!installDir) {
+    return { location: null, packageManager: null, scope: null };
+  }
+  if (isSourceCheckout(installDir)) {
+    return { location: installDir, packageManager: null, scope: 'source' };
+  }
+  if (isEphemeralRunnerInstall(installDir)) {
+    return {
+      location: installDir,
+      packageManager: detectKnownPackageManager(installDir),
+      scope: 'temporary',
+    };
+  }
+  if (isProjectLocalInstall(installDir, projectPath)) {
+    return {
+      location: installDir,
+      packageManager: detectKnownPackageManager(installDir),
+      scope: 'project',
+    };
+  }
+
+  const packageManager = detectGlobalPackageManager(installDir);
+  return {
+    location: installDir,
+    packageManager,
+    scope: packageManager ? 'global' : null,
+  };
+}
+
+/** Returns a safe update command only for an install with known global ownership. */
+export function getCliUpdateCommand(install: CliInstallInfo): string | null {
+  if (install.scope !== 'global' || install.packageManager === null) return null;
+  return GLOBAL_UPGRADE_COMMANDS[install.packageManager];
+}
+
+/** Builds the concise human-readable form of the version report. */
+export function buildVersionReportLines(
+  version: string,
+  install: CliInstallInfo,
+  update?: CliUpdateCheck,
+  command: string | null = null
+): string[] {
+  const details = [install.packageManager, install.scope].filter(Boolean).join(', ');
+  const lines = [`OpenSpec ${version}${details ? ` (${details})` : ''}`];
+  if (!update) return lines;
+
+  if (update.status === 'available') {
+    lines.push(`Update available: ${update.latest}`);
+    if (command) lines.push(`  ${command}`);
+  } else if (update.status === 'current') {
+    lines.push('OpenSpec is up to date.');
+  } else if (update.status === 'disabled') {
+    lines.push('Update check disabled.');
+  } else {
+    lines.push('Could not check for updates.');
+  }
+  return lines;
+}
 
 /**
  * Builds the hint, with the upgrade command chosen for how this copy of the CLI

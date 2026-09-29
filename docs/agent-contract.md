@@ -52,7 +52,7 @@ deliberately remains the compatibility bare array documented in §4.13:
 `warnings` (omitted when empty) reports directories under `changes/` that are not changes. Today the only code is `nested_change_directory`: a namespace folder wrapping change directories, which OpenSpec cannot address because a change is always a directory directly under `changes/`. The same entry carries `nested` on the listed change, whose `status` is then meaningless. Do not treat such an entry as a change; report the message and leave the directories alone.
 
 ### 4.2 `show <item> --json`
-Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id", "title", "overview", "requirementCount", "requirements": [...], "metadata": { "version", "format", "sourcePath"? }, "root" }`.
+Change: `{ "id", "title", "deltaCount", "deltas": [...], "root" }`. Spec: `{ "id", "title", "overview", "requirementCount", "requirements": [...], "metadata": { "version", "format", "sourcePath"? }, "root" }`. A requirement, in a spec or in a change delta's `requirement`/`requirements`, is `{ "name", "text", "scenarios": [ { "name", "rawText" } ] }`. A requirement `name` is its header without `Requirement:` and without a closing `#` run, the exact name archive matches MODIFIED/REMOVED/RENAMED entries against. A scenario `name` is its level-4 header without `Scenario:` and without a closing `#` run, the name the MODIFIED scenario-loss check compares.
 
 ### 4.3 `validate --json`
 `{ "items": [ { "id", "type": "change"|"spec", "valid", "issues": [ { "level", "path", "message", "line"?, "column"? } ], "durationMs" } ], "summary": { "totals": {items,passed,failed}, "byType": {...} }, "version": "1.0", "root" }`. Exit 1 when any item fails.

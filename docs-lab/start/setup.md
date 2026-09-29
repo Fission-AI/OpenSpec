@@ -34,6 +34,22 @@ Re-running init is safe:
 - Running init again with a new tool selected adds that tool.
 - The `--tools` flag skips the picker ([CLI reference](../reference/cli.md)).
 
+### Migrate an existing `project.md`
+
+Init does not copy legacy `openspec/project.md` into `config.yaml`. It keeps the file and prints an AI-assisted migration request.
+
+In your AI chat:
+
+```
+Review openspec/project.md and migrate its useful content to openspec/config.yaml.
+Keep context concise: include only project-wide facts needed during artifact creation, apply, and archive.
+Move artifact-specific guidance into rules for the matching artifacts.
+Move guidance for apply or archive into the matching operations entry.
+Leave out generic, outdated, or verbose material. Do not delete project.md.
+```
+
+Review `config.yaml`, then delete `project.md` when ready.
+
 ## What init installs
 
 Running init creates two things in your project:

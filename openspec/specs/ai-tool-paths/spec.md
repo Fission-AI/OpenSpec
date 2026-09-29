@@ -56,6 +56,13 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **AND** `setupNote` SHALL explain that project `.hermes/skills` must be added to `skills.external_dirs` in `~/.hermes/config.yaml`
 - **AND** `openspec init` and `openspec update` SHALL display the note whenever `hermes` is configured
 
+#### Scenario: DeepSeek Harness paths defined
+
+- **WHEN** looking up the `dsh` tool
+- **THEN** `skillsDir` SHALL be `.dsh`
+- **AND** auto-detection SHALL require `.dsh` to be a directory
+- **AND** OpenSpec SHALL write dsh skills under `<projectRoot>/.dsh/skills/` using platform-native path joining
+
 #### Scenario: Warp paths and detection defined
 
 - **WHEN** looking up the `warp` tool
