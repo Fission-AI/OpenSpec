@@ -147,8 +147,10 @@ openspec init --tools opencode
   overwrites selected shared commands with the current project's generated content.
 - **Cleanup**: deselecting a workflow or choosing skills-only delivery preserves
   shared commands. Remove unused shared files manually after checking other projects.
-- **Existing local commands**: these remain in place and can override shared
-  commands. Remove the local files if you want OpenCode to use the shared versions.
+- **Existing local commands**: OpenCode loads `$OPENCODE_CONFIG_DIR` after the
+  project's `.opencode/` folder, so a shared command replaces a project-local command
+  with the same name. OpenSpec leaves existing local `opsx-*` files in place; remove
+  them to avoid stale duplicates.
 
 ### Other / Universal (shared `.agents` skills)
 
