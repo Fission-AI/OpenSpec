@@ -3,19 +3,16 @@ import { promises as fs, realpathSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  getArchiveChangeSkillTemplate,
-  getBulkArchiveChangeSkillTemplate,
   getOpsxArchiveCommandTemplate,
-  getOpsxBulkArchiveCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
-import { generateSkillContent } from '../../../src/core/shared/skill-generation.js';
+import { generateSkillContent, getSkillTemplates, getCommandTemplates } from '../../../src/core/shared/skill-generation.js';
 import { runCLI } from '../../helpers/run-cli.js';
 
 const surfaces = [
-  ['archive skill', generateSkillContent(getArchiveChangeSkillTemplate(), 'test')],
-  ['archive command', getOpsxArchiveCommandTemplate().content],
-  ['bulk archive skill', generateSkillContent(getBulkArchiveChangeSkillTemplate(), 'test')],
-  ['bulk archive command', getOpsxBulkArchiveCommandTemplate().content],
+  ['archive skill', generateSkillContent(getSkillTemplates().find(entry => entry.workflowId === 'archive')!.template, 'test')],
+  ['archive command', getCommandTemplates().find(entry => entry.id === 'archive')!.template.content],
+  ['bulk archive skill', generateSkillContent(getSkillTemplates().find(entry => entry.workflowId === 'bulk-archive')!.template, 'test')],
+  ['bulk archive command', getCommandTemplates().find(entry => entry.id === 'bulk-archive')!.template.content],
 ] as const;
 
 describe('archive workflows delegate the final move to the CLI', () => {
