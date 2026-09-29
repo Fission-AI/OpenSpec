@@ -4,6 +4,10 @@ import path from 'path';
 import { Validator } from '../../src/core/validation/validator.js';
 import { loadChangeContext } from '../../src/core/artifact-graph/instruction-loader.js';
 import { METADATA_FILENAME } from '../../src/utils/change-metadata.js';
+import {
+  CHANGE_METADATA_KNOWN_KEYS,
+  ChangeMetadataSchema,
+} from '../../src/core/change-metadata/schema.js';
 
 const PROPOSAL = `# Test Change
 
@@ -14,6 +18,14 @@ This is a sufficiently long explanation to pass the why length requirement for v
 Pure internal refactor with no spec-level behavior change.`;
 
 describe('unrecognized keys in .openspec.yaml', () => {
+  it('knows exactly the keys ChangeMetadataSchema defines', () => {
+    // A key added to the schema but not to this list would warn on, and fail
+    // --strict for, every change that uses it.
+    expect([...CHANGE_METADATA_KNOWN_KEYS].sort()).toEqual(
+      Object.keys(ChangeMetadataSchema.shape).sort()
+    );
+  });
+
   const testDir = path.join(process.cwd(), 'test-validation-unknown-metadata-tmp');
 
   beforeEach(async () => {
