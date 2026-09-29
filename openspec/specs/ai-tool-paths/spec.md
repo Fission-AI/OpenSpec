@@ -63,6 +63,11 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **AND** auto-detection SHALL require `.dsh` to be a directory
 - **AND** OpenSpec SHALL write dsh skills under `<projectRoot>/.dsh/skills/` using platform-native path joining
 
+#### Scenario: Grok Build paths defined
+
+- **WHEN** looking up the `grok` tool
+- **THEN** `skillsDir` SHALL be `.grok`
+
 #### Scenario: Warp paths and detection defined
 
 - **WHEN** looking up the `warp` tool
