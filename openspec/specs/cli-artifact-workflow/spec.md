@@ -183,17 +183,6 @@ The system SHALL provide consistent output formatting.
 - **WHEN** loading change state takes time
 - **THEN** the system displays a spinner during loading
 
-### Requirement: Experimental Isolation
-The system SHALL implement artifact workflow commands in isolation for easy removal.
-
-#### Scenario: Single file implementation
-- **WHEN** artifact workflow feature is implemented
-- **THEN** all commands are in `src/commands/artifact-workflow.ts`
-
-#### Scenario: Help text marking
-- **WHEN** user runs `--help` on any artifact workflow command
-- **THEN** help text indicates the command is experimental
-
 ### Requirement: Schema Apply Block
 
 The system SHALL support an `apply` block in schema definitions that controls when and how implementation begins.

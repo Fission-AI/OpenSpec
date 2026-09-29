@@ -50,6 +50,7 @@ Your agent runs most of these during the workflow.
 
 | Command | What it does |
 |---|---|
+| [`openspec version`](#openspec-version) | Report the installed version and optionally check for an update. |
 | [`openspec feedback`](#openspec-feedback) | Submit feedback about OpenSpec. |
 | [`openspec completion`](#openspec-completion) | Install or generate shell completions. |
 
@@ -77,6 +78,21 @@ openspec init --tools none           # openspec/ structure only, no tool files
 
 With no `--tools`, init prompts you to pick tools in an interactive terminal. Outside one, it sets up the tools it detects in the project. With none detected it exits 1 and lists the valid ids.
 
+**Store-only repositories**
+
+When `openspec/config.yaml` contains a `store:` line and the repo has no local specs or changes, run init from the repository root:
+
+```bash
+# install Claude Code integration files in the code repo
+openspec init --tools claude
+```
+
+- **Integration files**: written in the code repo.
+- **`openspec/config.yaml`**: preserved byte-for-byte.
+- **`openspec/specs/` and `openspec/changes/`**: not created in the code repo.
+
+Running init from a subdirectory exits 1 and tells you to run it from the repository root. `--language` also exits 1 because the language belongs in the external store's config. Run init in the store root or edit that config directly.
+
 **Arguments**
 
 | Argument | What it is |
@@ -88,6 +104,7 @@ With no `--tools`, init prompts you to pick tools in an interactive terminal. Ou
 | Flag | Effect |
 |---|---|
 | `--tools <tools>` | Comma-separated tool ids, `all`, or `none`. Skips the picker. Ids are listed in [Supported tools](supported-tools.md). |
+| `--language <language>` | Add a language instruction to a new project config. Rejected when the repo's `store:` line points to an external store. |
 | `--force` | Remove files from older OpenSpec layouts without asking. Interactive runs otherwise confirm the cleanup first. |
 | `--profile <profile>` | Override the global config profile for this run: `core` (the standard workflow set) or `custom` (the workflows saved in global config). |
 | `--no-animation` | Show a static welcome screen instead of the animated one. |
@@ -117,7 +134,7 @@ Restart your IDE for the new commands to take effect.
 **Exit codes**
 
 - `0`: setup completed.
-- `1`: invalid `--tools` or `--profile` value, or a non-interactive run with no tools detected and no `--tools`.
+- `1`: invalid `--tools` or `--profile` value, a non-interactive run with no tools detected and no `--tools`, or an invalid store-only invocation.
 
 ## openspec update
 
@@ -557,9 +574,11 @@ A change with `--json` is delta-shaped:
       "operation": "ADDED",
       "description": "Add requirement: The API SHALL limit each client to 100 requests per minute.",
       "requirement": {
+        "name": "Rate limit",
         "text": "The API SHALL limit each client to 100 requests per minute.",
         "scenarios": [
           {
+            "name": "Client exceeds the limit",
             "rawText": "- **WHEN** a client sends its 101st request within a minute\n- **THEN** the API responds 429"
           }
         ]
@@ -574,9 +593,11 @@ A change with `--json` is delta-shaped:
 }
 ```
 
+Each requirement carries its `name`, the header text after `Requirement:`. This is the name archive matches MODIFIED, REMOVED and RENAMED entries against. Each scenario carries its `name`, the header text after `Scenario:`. A closing `#` run on either header is not part of the name.
+
 `--json --diff` keeps this top-level shape. A MODIFIED delta gains a `diff` string, a `warning` string, or both. Other operations are unchanged. An empty `diff` string means the main and delta blocks are textually identical.
 
-A spec with `--json` lists its requirements with scenarios:
+A spec with `--json` lists its requirements with scenarios. Requirements and scenarios carry the same `name` fields as change JSON:
 
 ```json
 {
@@ -586,9 +607,11 @@ A spec with `--json` lists its requirements with scenarios:
   "requirementCount": 1,
   "requirements": [
     {
+      "name": "Health endpoint",
       "text": "The API SHALL expose a health endpoint.",
       "scenarios": [
         {
+          "name": "Health check succeeds",
           "rawText": "- **WHEN** a client requests GET /health\n- **THEN** the API responds 200"
         }
       ]
@@ -661,6 +684,21 @@ Use openspec list --changes or openspec list --specs for detailed views
 ```
 
 A `Task Progress` summary line appears when any change has tasks underway.
+
+Each active change also shows its schema and artifact states below its task progress bar:
+
+```text
+    └─ [spec-driven] proposal✓ specs→ design→ tasks✓
+```
+
+| Marker | Artifact state |
+|---|---|
+| `✓` | Its output exists. An existing tasks artifact is done even when its checklist is unfinished. |
+| `→` | It is ready to create. |
+| No marker | It is blocked by a missing dependency. |
+| `(skipped)` | The change skips it. |
+
+If a workflow cannot be loaded, view prints a warning and keeps that change's task progress visible. Run `openspec status --change <name>` to inspect the workflow separately. After `openspec view --store <id>`, pass the same `--store <id>` to status.
 
 **Exit codes**
 
@@ -1312,6 +1350,8 @@ With `--json`, each form returns one object. The artifact form starts:
 ```
 
 and continues with `outputPath`, `existingOutputPaths`, the full `instruction` and `template` strings, `dependencies`, `unlocks`, and `root`. The `apply` form carries `contextFiles`, `progress`, `tasks`, `taskTrackingConfigured`, `state` (`blocked`, `ready`, `all_done`), and `instruction`.
+
+Each `tasks` entry carries `id`, `description`, `done`, `sourcePath`, and `line`. `sourcePath` is the absolute path to the tracked file that supplied the task. `line` is the task checkbox's one-based line number in that file.
 
 `taskTrackingConfigured` is always a boolean: `true` when the schema sets a non-null [`apply.tracks`](schemas/schema-yaml.md#tracks), even if no file matches, and `false` otherwise. If a matched tracking file cannot be read, `unavailableTrackingFiles` contains its absolute `path` and error `reason`. This field is omitted when every matched file is readable. Readable files still contribute to `tasks` and `progress`, but `state` cannot be `all_done` until every matched file is read.
 
@@ -2159,6 +2199,92 @@ In an interactive terminal, remove shows the workset and asks you to confirm. Wi
 ```
 Removed workset 'checkout'. Member folders were not touched.
 ```
+
+## openspec version
+
+Reports the running OpenSpec version and how this copy was installed.
+
+```bash
+openspec version                 # local version and install details
+openspec version --json          # structured local report
+openspec version --check         # also check the registry for an update
+openspec version --check --json  # structured local and update report
+```
+
+Without `--check`, this command is local and does not contact a registry. It works outside an OpenSpec project. The existing `openspec --version` flag remains the shortest form and prints only the bare version number.
+
+**Options**
+
+| Flag | Effect |
+|---|---|
+| `--json` | Print one versioned JSON document instead of text. |
+| `--check` | Check the configured registry for a newer release. |
+
+**Output**
+
+For a global npm install:
+
+```text
+OpenSpec 1.13.2 (npm, global)
+```
+
+The install scope is `global`, `project`, `temporary` for an ephemeral runner such as npx, or `source` for a checkout. OpenSpec omits details it cannot identify instead of guessing.
+
+`--json` keeps unknown details as explicit `null` values:
+
+```json
+{
+  "schemaVersion": 1,
+  "version": "1.13.2",
+  "install": {
+    "location": "/opt/homebrew/lib/node_modules/@fission-ai/openspec",
+    "packageManager": "npm",
+    "scope": "global"
+  }
+}
+```
+
+With `--check`, an available update adds the latest version and a command when OpenSpec can identify a safe command for that install:
+
+```text
+OpenSpec 1.13.2 (npm, global)
+Update available: 1.14.0
+  npm install -g @fission-ai/openspec@latest
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "version": "1.13.2",
+  "install": {
+    "location": "/opt/homebrew/lib/node_modules/@fission-ai/openspec",
+    "packageManager": "npm",
+    "scope": "global"
+  },
+  "update": {
+    "status": "available",
+    "latest": "1.14.0",
+    "command": "npm install -g @fission-ai/openspec@latest",
+    "canSelfUpgrade": true
+  }
+}
+```
+
+Update status values:
+
+| Status | Meaning |
+|---|---|
+| `available` | The registry returned a safe version newer than the running version. |
+| `current` | The check completed and found no newer version. |
+| `disabled` | An existing privacy or update-check setting blocked registry access. `latest` is `null`. |
+| `offline` | The registry was unavailable or returned an unusable response. `latest` is `null`. |
+
+`DO_NOT_TRACK`, telemetry opt-outs, `OPENSPEC_NO_UPDATE_CHECK`, CI detection, and rejected non-HTTPS registry overrides disable the check. Disabled and offline checks still exit 0 because update availability is advisory. This command never upgrades OpenSpec; `canSelfUpgrade` only reports whether the existing `openspec update` path could safely upgrade this copy.
+
+**Exit codes**
+
+- `0`: the local report printed, including disabled or offline update checks.
+- `1`: command syntax was invalid, such as the unsupported `--upgrade` option.
 
 ## openspec feedback
 

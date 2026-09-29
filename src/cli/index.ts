@@ -16,6 +16,11 @@ import {
   rerunUpdateWithUpgradedCli,
   displayUpgradeCommand,
   isSourceCheckout,
+  checkForCliUpdate,
+  getCliInstallInfo,
+  getCliUpdateCommand,
+  canSelfUpgrade,
+  buildVersionReportLines,
 } from '../core/version-check.js';
 import { ListCommand } from '../core/list.js';
 import { ArchiveCommand, type ArchiveOptions } from '../core/archive.js';
@@ -168,6 +173,41 @@ program
 
 // Global options
 program.option('--no-color', 'Disable color output');
+
+program
+  .command('version')
+  .description('Report the installed OpenSpec version and update availability')
+  .option('--json', 'Output as JSON')
+  .option('--check', 'Check the registry for a newer version')
+  .action(async (options: { json?: boolean; check?: boolean }) => {
+    const install = getCliInstallInfo();
+    const update = options.check ? await checkForCliUpdate() : undefined;
+    const command = update?.status === 'available' ? getCliUpdateCommand(install) : null;
+    const output = {
+      schemaVersion: 1,
+      version,
+      install,
+      ...(update
+        ? {
+            update: {
+              ...update,
+              command,
+              canSelfUpgrade:
+                update.status === 'available'
+                  ? canSelfUpgrade(install.location, process.cwd())
+                  : false,
+            },
+          }
+        : {}),
+    };
+
+    if (options.json) {
+      console.log(JSON.stringify(output, null, 2));
+      return;
+    }
+
+    console.log(buildVersionReportLines(version, install, update, command).join('\n'));
+  });
 
 // Apply global flags and telemetry before any command runs
 // Note: preAction receives (thisCommand, actionCommand) where:

@@ -59,4 +59,7 @@ affected_areas:
 
 The file is validated whenever a command writes or reads it. A write that fails validation throws and writes nothing. Reading an existing file fails on invalid YAML, a field that breaks its contract, or a schema name that is not available. A missing file is not an error, and the change is treated as having no metadata.
 
-Unlike [config.yaml](config-yaml.md), bad values are never dropped with a warning. A metadata error stops the command. The one exception is unknown top-level keys, which are ignored rather than rejected.
+Unlike [config.yaml](config-yaml.md), bad values are never dropped with a warning. A metadata error stops the command.
+
+- **Unknown top-level keys**: OpenSpec ignores them. `status`, `instructions`, `validate`, and `archive` report that they have no effect. JSON output carries the warning in its structured result.
+- **Strict validation**: `openspec validate --strict` treats an unknown-key warning as a failure.
