@@ -211,6 +211,15 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   );
   console.log();
 
+  if (instructions.warnings) {
+    for (const warning of instructions.warnings) {
+      console.log('<warning>');
+      console.log(escapeEnvelopeTags(warning));
+      console.log('</warning>');
+      console.log();
+    }
+  }
+
   // Artifacts skipped via skip_specs get no creation directive: emitting the
   // task/template anyway would prompt an agent to write spec files that
   // validate then rejects as conflicting with the marker.
@@ -680,13 +689,16 @@ export async function generateApplyInstructions(
     instruction += `\nTask completion is not verified because tracking evidence was unavailable:\n${unavailableDetails}`;
   }
 
-  const warnings = await collectApplyWarnings({
-    state,
-    schema,
-    changeDir,
-    changeName,
-    skippedArtifacts: context.skippedArtifacts,
-  });
+  const warnings = [
+    ...(context.warnings ?? []),
+    ...(await collectApplyWarnings({
+      state,
+      schema,
+      changeDir,
+      changeName,
+      skippedArtifacts: context.skippedArtifacts,
+    })),
+  ];
 
   return {
     changeName,
