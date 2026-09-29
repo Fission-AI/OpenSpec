@@ -37,6 +37,10 @@ export class ViewCommand {
     if (changesData.active.length > 0) {
       console.log(chalk.bold.cyan('\nActive Changes'));
       console.log('─'.repeat(60));
+      const maxNameLength = Math.min(
+        48,
+        Math.max(30, ...changesData.active.map((change) => change.name.length))
+      );
       changesData.active.forEach((change) => {
         const progressBar = this.createProgressBar(change.progress.completed, change.progress.total);
         const percentage =
@@ -45,7 +49,7 @@ export class ViewCommand {
             : 0;
 
         console.log(
-          `  ${chalk.yellow('◉')} ${chalk.bold(change.name.padEnd(30))} ${progressBar} ${chalk.dim(`${percentage}%`)}`
+          `  ${chalk.yellow('◉')} ${chalk.bold(change.name.padEnd(maxNameLength))} ${progressBar} ${chalk.dim(`${percentage}%`)}`
         );
       });
     }
