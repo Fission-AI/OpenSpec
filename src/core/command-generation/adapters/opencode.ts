@@ -7,6 +7,7 @@
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 import { escapeYamlValue } from '../yaml.js';
+import { getOpenCodeSharedRoot } from '../../shared/command-paths.js';
 
 const OPENCODE_INPUT_BLOCK = /^\*\*Input\*\*:[^\r\n]*(?:\r?\n(?!\r?\n)[^\r\n]*)*/m;
 const OPENCODE_NO_INPUT = /^\*\*Input\*\*:\s*None required\b/im;
@@ -26,7 +27,8 @@ function injectOpenCodeArgs(body: string): string {
 
 /**
  * OpenCode adapter for command generation.
- * File path: .opencode/commands/opsx-<id>.md
+ * File path: .opencode/commands/opsx-<id>.md by default, or
+ * <OPENCODE_CONFIG_DIR>/commands/opsx-<id>.md when OPENSPEC_OPENCODE_SHARED_COMMANDS=1.
  * Frontmatter: description. $ARGUMENTS is injected after the complete input
  * contract because OpenCode only passes arguments through explicit placeholders.
  */
@@ -34,7 +36,8 @@ export const opencodeAdapter: ToolCommandAdapter = {
   toolId: 'opencode',
 
   getFilePath(commandId: string): string {
-    return path.join('.opencode', 'commands', `opsx-${commandId}.md`);
+    const root = getOpenCodeSharedRoot() ?? '.opencode';
+    return path.join(root, 'commands', `opsx-${commandId}.md`);
   },
 
   formatFile(content: CommandContent): string {

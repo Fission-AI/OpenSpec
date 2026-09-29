@@ -157,6 +157,8 @@ export function hasToolProfileOrDeliveryDrift(
     for (const workflow of ALL_WORKFLOWS) {
       if (desiredWorkflowSet.has(workflow)) continue;
       const cmdPath = adapter.getFilePath(workflow);
+      // Shared commands are preserved for other projects.
+      if (path.isAbsolute(cmdPath)) continue;
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
       if (fs.existsSync(fullPath)) {
         return true;
@@ -165,6 +167,8 @@ export function hasToolProfileOrDeliveryDrift(
   } else if (shouldReconcileCommandFilesForTool(toolId, delivery) && adapter) {
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
+      // Shared commands are preserved for other projects.
+      if (path.isAbsolute(cmdPath)) continue;
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
       if (fs.existsSync(fullPath)) {
         return true;
@@ -216,7 +220,9 @@ function getInstalledWorkflowsForTool(
     if (adapter) {
       for (const workflow of ALL_WORKFLOWS) {
         const cmdPath = adapter.getFilePath(workflow);
-        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
+        // Shared commands can belong to other projects; they are not local extras.
+        if (path.isAbsolute(cmdPath)) continue;
+        const fullPath = path.join(projectPath, cmdPath);
         if (fs.existsSync(fullPath)) {
           installed.add(workflow);
         }

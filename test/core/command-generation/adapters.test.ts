@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import path from 'path';
 import { amazonQAdapter } from '../../../src/core/command-generation/adapters/amazon-q.js';
 import { antigravityAdapter } from '../../../src/core/command-generation/adapters/antigravity.js';
@@ -594,13 +594,34 @@ describe('command-generation/adapters', () => {
   });
 
   describe('opencodeAdapter', () => {
+    afterEach(() => vi.unstubAllEnvs());
+
     it('should have correct toolId', () => {
       expect(opencodeAdapter.toolId).toBe('opencode');
     });
 
-    it('should generate correct file path', () => {
-      const filePath = opencodeAdapter.getFilePath('explore');
-      expect(filePath).toBe(path.join('.opencode', 'commands', 'opsx-explore.md'));
+    it.each([undefined, ''])('should keep project-local commands with config directory %s', (value) => {
+      vi.stubEnv('OPENCODE_CONFIG_DIR', value);
+      vi.stubEnv('OPENSPEC_OPENCODE_SHARED_COMMANDS', '1');
+      expect(opencodeAdapter.getFilePath('explore')).toBe(
+        path.join('.opencode', 'commands', 'opsx-explore.md')
+      );
+    });
+
+    it('should ignore OPENCODE_CONFIG_DIR without the OpenSpec shared-commands opt-in', () => {
+      vi.stubEnv('OPENCODE_CONFIG_DIR', path.resolve('shared config'));
+      vi.stubEnv('OPENSPEC_OPENCODE_SHARED_COMMANDS', undefined);
+      expect(opencodeAdapter.getFilePath('explore')).toBe(
+        path.join('.opencode', 'commands', 'opsx-explore.md')
+      );
+    });
+
+    it.each([path.resolve('shared config'), 'relative-config'])('should respect OPENCODE_CONFIG_DIR=%s when opted in', (value) => {
+      vi.stubEnv('OPENCODE_CONFIG_DIR', value);
+      vi.stubEnv('OPENSPEC_OPENCODE_SHARED_COMMANDS', '1');
+      expect(opencodeAdapter.getFilePath('explore')).toBe(
+        path.join(path.resolve(value), 'commands', 'opsx-explore.md')
+      );
     });
 
     it('should format file with description frontmatter', () => {

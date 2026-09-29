@@ -504,7 +504,15 @@ function scanInstalledWorkflowArtifacts(
       : [];
 
     for (const workflowId of ALL_WORKFLOWS) {
-      const commandPath = adapter.getFilePath(workflowId);
+      const adapterPath = adapter.getFilePath(workflowId);
+      // A shared command root (OpenCode's opt-in) also holds other projects'
+      // commands, so only this project's own copy is evidence of its install.
+      const commandPath = path.isAbsolute(adapterPath)
+        ? tool.skillsDir
+          ? path.join(tool.skillsDir, 'commands', path.basename(adapterPath))
+          : undefined
+        : adapterPath;
+      if (!commandPath) continue;
       const candidates = [commandPath];
       if (tool.skillsDir) {
         for (const root of legacyRoots) {

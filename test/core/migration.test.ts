@@ -136,6 +136,38 @@ describe('migration', () => {
     expect(config.workflows).toEqual(['explore', 'apply']);
   });
 
+  it('keeps both delivery for project OpenCode commands when OPENCODE_CONFIG_DIR is set', async () => {
+    process.env.OPENCODE_CONFIG_DIR = path.join(configHome, 'shared-opencode');
+    await writeSkill(projectDir, 'openspec-explore', '.opencode');
+    await fsp.mkdir(path.join(projectDir, '.opencode', 'commands'), { recursive: true });
+    await fsp.writeFile(path.join(projectDir, '.opencode', 'commands', 'opsx-explore.md'), '# command\n');
+
+    for (const optIn of [undefined, '1']) {
+      if (optIn) process.env.OPENSPEC_OPENCODE_SHARED_COMMANDS = optIn;
+      else delete process.env.OPENSPEC_OPENCODE_SHARED_COMMANDS;
+      await fsp.rm(configHome, { recursive: true, force: true });
+      migrateIfNeeded(projectDir, [requireTool('opencode')]);
+      expect(readRawConfig().delivery).toBe('both');
+    }
+  });
+
+  it('ignores shared OpenCode commands that another project installed', async () => {
+    const sharedRoot = path.join(configHome, 'shared-opencode');
+    process.env.OPENCODE_CONFIG_DIR = sharedRoot;
+    process.env.OPENSPEC_OPENCODE_SHARED_COMMANDS = '1';
+    await fsp.mkdir(path.join(sharedRoot, 'commands'), { recursive: true });
+    await fsp.writeFile(path.join(sharedRoot, 'commands', 'opsx-apply.md'), '# other project\n');
+    await writeSkill(projectDir, 'openspec-explore', '.opencode');
+    await fsp.mkdir(path.join(projectDir, '.opencode', 'commands'), { recursive: true });
+    await fsp.writeFile(path.join(projectDir, '.opencode', 'commands', 'opsx-explore.md'), '# command\n');
+
+    migrateIfNeeded(projectDir, [requireTool('opencode')]);
+
+    const config = readRawConfig();
+    expect(config.workflows).toEqual(['explore']);
+    expect(config.delivery).toBe('both');
+  });
+
   it('does not migrate when profile is already explicitly configured', async () => {
     saveGlobalConfig({
       featureFlags: {},

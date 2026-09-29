@@ -5,6 +5,7 @@
  * Supports profile-aware updates, delivery changes, migration, and smart update detection.
  */
 
+import { resolveCommandArtifactPath } from './shared/command-paths.js';
 import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -386,8 +387,9 @@ export class UpdateCommand {
             const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
-              const commandFile = FileSystemUtils.resolveProjectArtifactPath(
+              const commandFile = resolveCommandArtifactPath(
                 resolvedProjectPath,
+                tool.value,
                 cmd.path
               );
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
@@ -901,7 +903,9 @@ export class UpdateCommand {
     if (!adapter) return 0;
 
     for (const workflow of ALL_WORKFLOWS) {
+      // Shared commands may still be used by other projects.
       const cmdPath = adapter.getFilePath(workflow);
+      if (path.isAbsolute(cmdPath)) continue;
       const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {
@@ -935,7 +939,9 @@ export class UpdateCommand {
 
     for (const workflow of ALL_WORKFLOWS) {
       if (desiredSet.has(workflow)) continue;
+      // Shared commands may still be used by other projects.
       const cmdPath = adapter.getFilePath(workflow);
+      if (path.isAbsolute(cmdPath)) continue;
       const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {
@@ -1365,8 +1371,9 @@ export class UpdateCommand {
             const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
-              const commandFile = FileSystemUtils.resolveProjectArtifactPath(
+              const commandFile = resolveCommandArtifactPath(
                 projectPath,
+                tool.value,
                 cmd.path
               );
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);

@@ -5,6 +5,7 @@
  * This is the unified setup command that replaces both the old init and experimental commands.
  */
 
+import { resolveCommandArtifactPath } from './shared/command-paths.js';
 import path from 'path';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -1001,7 +1002,7 @@ export class InitCommand {
             const generatedCommands = generateCommands(commandContents, adapter);
 
             for (const cmd of generatedCommands) {
-              const commandFile = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmd.path);
+              const commandFile = resolveCommandArtifactPath(projectPath, tool.value, cmd.path);
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
           }
@@ -1494,7 +1495,9 @@ export class InitCommand {
     if (!adapter) return 0;
 
     for (const workflow of ALL_WORKFLOWS) {
+      // Shared commands may still be used by other projects.
       const cmdPath = adapter.getFilePath(workflow);
+      if (path.isAbsolute(cmdPath)) continue;
       const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {

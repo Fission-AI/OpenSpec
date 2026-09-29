@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
 import { InitCommand } from '../../src/core/init.js';
-import { getConfiguredToolsForProfileSync } from '../../src/core/profile-sync-drift.js';
+import { getConfiguredToolsForProfileSync, hasToolProfileOrDeliveryDrift } from '../../src/core/profile-sync-drift.js';
 import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
@@ -115,6 +115,32 @@ describe('UpdateCommand', () => {
 
     // Clean up test directory
     await fs.rm(testDir, { recursive: true, force: true });
+  });
+
+  it('should refresh shared OpenCode commands without pruning other workflows', async () => {
+    process.env.OPENCODE_CONFIG_DIR = path.join(testDir, 'shared-opencode');
+    process.env.OPENSPEC_OPENCODE_SHARED_COMMANDS = '1';
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    await new InitCommand({ tools: 'opencode' }).execute(testDir);
+    const commandsDir = path.join(process.env.OPENCODE_CONFIG_DIR, 'commands');
+    const explorePath = path.join(commandsDir, 'opsx-explore.md');
+    const proposePath = path.join(commandsDir, 'opsx-propose.md');
+    await fs.writeFile(explorePath, 'stale command');
+    setMockConfig({ featureFlags: {}, profile: 'custom', delivery: 'both', workflows: ['explore'] });
+    await new UpdateCommand({ force: true }).execute(testDir);
+    expect(await fs.readFile(explorePath, 'utf-8')).not.toBe('stale command');
+    expect(await FileSystemUtils.fileExists(proposePath)).toBe(true);
+    expect(hasToolProfileOrDeliveryDrift(testDir, 'opencode', ['explore'], 'both')).toBe(false);
+    await fs.unlink(explorePath);
+    expect(hasToolProfileOrDeliveryDrift(testDir, 'opencode', ['explore'], 'both')).toBe(true);
+    await new UpdateCommand().execute(testDir);
+    expect(await FileSystemUtils.fileExists(explorePath)).toBe(true);
+
+    setMockConfig({ featureFlags: {}, profile: 'custom', delivery: 'skills', workflows: ['explore'] });
+    await new UpdateCommand({ force: true }).execute(testDir);
+    expect(await FileSystemUtils.fileExists(explorePath)).toBe(true);
+    expect(await FileSystemUtils.fileExists(proposePath)).toBe(true);
+    expect(hasToolProfileOrDeliveryDrift(testDir, 'opencode', ['explore'], 'skills')).toBe(false);
   });
 
   describe('basic validation', () => {
