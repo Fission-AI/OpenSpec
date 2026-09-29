@@ -32,6 +32,8 @@ export interface TaskItem {
   id: string;
   description: string;
   done: boolean;
+  sourcePath: string;
+  line: number;
 }
 
 export interface ApplyInstructions {

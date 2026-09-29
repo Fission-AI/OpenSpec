@@ -991,7 +991,15 @@ operations:
       expect(JSON.stringify(json)).not.toContain('Artifact-only rule');
       expect(json.state).toBe('ready');
       expect(json.progress).toEqual({ total: 1, complete: 0, remaining: 1 });
-      expect(json.tasks).toEqual([{ id: '1', description: 'Task 1', done: false }]);
+      expect(json.tasks).toEqual([
+        {
+          id: '1',
+          description: 'Task 1',
+          done: false,
+          sourcePath: canonical(path.join(changesDir, 'apply-inputs', 'tasks.md')),
+          line: 2,
+        },
+      ]);
       expect(json.contextFiles).toBeDefined();
       expect(json.root).toBeDefined();
     });
