@@ -103,6 +103,74 @@ describe('openspec CLI e2e basics', () => {
     expect(result.stdout.trim()).toBe(pkg.version);
   });
 
+  describe('version command', () => {
+    it('reports local version and source install details outside an OpenSpec project', async () => {
+      const cwd = await fs.mkdtemp(path.join(tmpdir(), 'openspec-version-empty-'));
+      tempRoots.push(cwd);
+      const pkgRaw = await fs.readFile(path.join(cliProjectRoot, 'package.json'), 'utf-8');
+      const pkg = JSON.parse(pkgRaw);
+
+      const result = await runCLI(['version'], { cwd });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe(`OpenSpec ${pkg.version} (source)\n`);
+      expect(result.stderr).toBe('');
+    });
+
+    it('prints one schema-versioned JSON document without checking the network', async () => {
+      const result = await runCLI(['version', '--json']);
+
+      expectJsonOnlyOutput(result);
+      expect(result.stdout).not.toMatch(/\u001b\[/);
+      const output = JSON.parse(result.stdout);
+      expect(output).toEqual({
+        schemaVersion: 1,
+        version: expect.any(String),
+        install: {
+          location: expect.any(String),
+          packageManager: null,
+          scope: 'source',
+        },
+      });
+      expect(await fs.realpath(output.install.location)).toBe(await fs.realpath(cliProjectRoot));
+    });
+
+    it('reports a disabled update check as data and exits successfully', async () => {
+      const result = await runCLI(['version', '--check', '--json'], {
+        env: { OPENSPEC_NO_UPDATE_CHECK: '1' },
+      });
+
+      expectJsonOnlyOutput(result);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        schemaVersion: 1,
+        update: {
+          status: 'disabled',
+          latest: null,
+          command: null,
+          canSelfUpgrade: false,
+        },
+      });
+    });
+
+    it('renders the disabled check for people', async () => {
+      const result = await runCLI(['version', '--check'], {
+        env: { OPENSPEC_NO_UPDATE_CHECK: '1' },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toMatch(/^OpenSpec \S+ \(source\)\nUpdate check disabled\.\n$/);
+      expect(result.stderr).toBe('');
+    });
+
+    it('rejects upgrades without invoking a package manager', async () => {
+      const result = await runCLI(['version', '--upgrade']);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain("error: unknown option '--upgrade'");
+    });
+  });
+
   it('validates the tmp-init fixture with --all --json', async () => {
     const projectDir = await prepareFixture('tmp-init');
     const result = await runCLI(['validate', '--all', '--json'], { cwd: projectDir });
