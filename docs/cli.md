@@ -430,7 +430,27 @@ All workset state lives under the global data dir's `worksets/` folder (the save
 
 ### `openspec list`
 
-List changes or specs in your project.
+List changes or specs in the selected local library and all valid descendant libraries.
+
+**Scope:** From a project, listing starts at its nearest selected OpenSpec root.
+From a directory without a local root, listing discovers libraries below the current directory.
+Run from a product directory to list that product's library and its descendants.
+`--store <id>` lists only the selected store. Project store pointers also retain their selected-store scope.
+
+**Discovery:** Libraries with `specs/`, `changes/`, a config file, or the older `project.md` layout are supported.
+Discovery skips dependencies, build and cache directories, virtual environments, worktrees, and OpenSpec planning contents.
+Directory symlinks are not followed.
+
+**Output:** Local libraries have relative path headings and a compact total.
+Empty libraries remain visible. An unreadable or malformed library gets an actionable diagnostic;
+readable libraries remain in the results. Diagnostics set a nonzero exit code.
+Long rows place progress and recency below the name on narrow terminals.
+
+**JSON:** A single library keeps the existing JSON shape.
+Aggregated results retain the `changes` or `specs` array, add `library` to every entry,
+and add `roots` with each library's relative label and canonical project path.
+Duplicate item names in different libraries remain distinct.
+Library failures appear in `diagnostics`. Nested-change warnings retain their owning `library`.
 
 ```
 openspec list [options]
@@ -458,11 +478,16 @@ openspec list --specs
 openspec list --json
 ```
 
-**Output (text):**
+**Output (text, excerpt from a temporary sample repository):**
 
 ```
-Changes:
-  add-dark-mode     No tasks      just now
+Changes — 4 libraries, 4 changes
+
+openspec/ (root)
+  publish-index       ✓ Complete    2m ago
+  migrate-catalog     2/7 tasks     2m ago
+
+...
 ```
 
 ---

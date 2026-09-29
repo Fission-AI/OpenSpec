@@ -124,6 +124,40 @@ describe('store root selection for normal commands', () => {
     expect(fs.existsSync(path.join(appRepo, 'openspec'))).toBe(false);
   }
 
+  it('lists descendants without a root even with a stale default store', async () => {
+    const child = path.join(appRepo, 'product');
+    createOpenSpecRoot(child);
+    createChange(child, 'visible');
+    const configDir = path.join(tempDir, 'config', 'openspec');
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(path.join(configDir, 'config.json'), JSON.stringify({ defaultStore: 'missing-store' }));
+    const result = await runCLI(['list', '--json'], { cwd: appRepo, env });
+    expect(result.exitCode).toBe(0);
+    expect(parseJson(result).changes.map((item: any) => item.name)).toEqual(['visible']);
+    expect(parseJson(result).root.path).toBe(fs.realpathSync.native(child));
+  });
+
+  it('scopes explicit stores and product cwd while root listing includes descendants', async () => {
+    createOpenSpecRoot(appRepo);
+    createChange(appRepo, 'root-only');
+    const child = path.join(appRepo, 'product');
+    createOpenSpecRoot(child);
+    createChange(child, 'child-only');
+    createChange(storeRoot, 'store-only');
+    const storeChild = path.join(storeRoot, 'unrelated');
+    createOpenSpecRoot(storeChild);
+    createChange(storeChild, 'not-in-selected-store');
+    const all = await runCLI(['list', '--changes', '--json'], { cwd: appRepo, env });
+    expect(all.exitCode).toBe(0);
+    expect(parseJson(all).changes.map((item: any) => item.name)).toEqual(['root-only', 'child-only']);
+    const product = await runCLI(['list', '--json'], { cwd: child, env });
+    expect(parseJson(product).changes.map((item: any) => item.name)).toEqual(['child-only']);
+    const selected = await runCLI(['list', '--store', 'team-context', '--json'], { cwd: appRepo, env });
+    expect(selected.exitCode).toBe(0);
+    expect(parseJson(selected).changes.map((item: any) => item.name)).toEqual(['store-only']);
+    expect(parseJson(selected).roots).toBeUndefined();
+  });
+
   it.each(['local', 'store', 'declared', 'global_default'] as const)(
     'discovers and reads capabilities in the %s root using the generated guidance (#1689)',
     async (source) => {

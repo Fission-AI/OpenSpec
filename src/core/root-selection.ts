@@ -281,7 +281,7 @@ export async function inspectRegisteredStore(
  * make $HOME a phantom root that captures every command under the
  * home tree.
  */
-function findQualifyingRootSync(startPath: string): string | null {
+export function findQualifyingRootSync(startPath: string): string | null {
   let candidate = findRepoPlanningRootSync(startPath);
   while (candidate) {
     const { hasPlanningShape, pointer } = classifyOpenSpecDir(candidate);
