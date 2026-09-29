@@ -34,6 +34,12 @@ describe('command-generation/registry', () => {
       expect(adapter?.toolId).toBe('junie');
     });
 
+    it('should return AtomCode adapter for "atomcode"', () => {
+      const adapter = CommandAdapterRegistry.get('atomcode');
+      expect(adapter).toBeDefined();
+      expect(adapter?.toolId).toBe('atomcode');
+    });
+
     it('should return ZCode adapter for "zcode"', () => {
       const adapter = CommandAdapterRegistry.get('zcode');
       expect(adapter).toBeDefined();
@@ -85,6 +91,7 @@ describe('command-generation/registry', () => {
       const toolIds = adapters.map((a) => a.toolId);
 
       expect(toolIds).toContain('zcode');
+      expect(toolIds).toContain('atomcode');
     });
   });
 
@@ -96,6 +103,7 @@ describe('command-generation/registry', () => {
       expect(CommandAdapterRegistry.has('devin')).toBe(true);
       expect(CommandAdapterRegistry.has('junie')).toBe(true);
       expect(CommandAdapterRegistry.has('zcode')).toBe(true);
+      expect(CommandAdapterRegistry.has('atomcode')).toBe(true);
       expect(CommandAdapterRegistry.has('codex')).toBe(false);
     });
 
