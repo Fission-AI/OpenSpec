@@ -47,6 +47,7 @@ describe('command-generation/registry', () => {
 
     it('should return undefined for skills-only tools without adapters', () => {
       expect(CommandAdapterRegistry.get('codeartsagent')).toBeUndefined();
+      expect(CommandAdapterRegistry.get('dsh')).toBeUndefined();
       expect(CommandAdapterRegistry.get('hermes')).toBeUndefined();
       expect(CommandAdapterRegistry.get('kimi')).toBeUndefined();
     });
