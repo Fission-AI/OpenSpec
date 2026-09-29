@@ -207,6 +207,91 @@ Old instructions content
       consoleSpy.mockRestore();
     });
 
+    it('should refresh configured DeepSeek Harness skills and stay idempotent', async () => {
+      const skillsDir = path.join(testDir, '.dsh', 'skills');
+      const skillFile = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(skillFile), { recursive: true });
+
+      const oldSkillContent = `---
+name: openspec-explore (old)
+description: Old description
+license: MIT
+compatibility: Requires openspec CLI.
+metadata:
+  author: openspec
+  version: "0.9"
+---
+
+Old instructions content
+`;
+      await fs.writeFile(skillFile, oldSkillContent);
+
+      await updateCommand.execute(testDir);
+
+      const refreshed = await fs.readFile(skillFile, 'utf-8');
+      expect(refreshed).toContain('name: openspec-explore');
+      expect(refreshed).not.toContain('Old instructions content');
+      expect(refreshed).toContain('license: MIT');
+
+      const beforeSecondUpdate = await fs.stat(skillFile);
+      const consoleSpy = vi.spyOn(console, 'log');
+      await updateCommand.execute(testDir);
+      expect(consoleSpy.mock.calls.flat().map(String).join('\n')).toContain('up to date');
+      consoleSpy.mockRestore();
+
+      expect(await fs.readFile(skillFile, 'utf-8')).toBe(refreshed);
+      expect((await fs.stat(skillFile)).mtimeMs).toBe(beforeSecondUpdate.mtimeMs);
+    });
+
+    it.each(['profile', 'delivery'] as const)(
+      'should preserve custom DeepSeek Harness and shared skills when changing %s',
+      async (setting) => {
+        const customFiles = [
+          path.join(testDir, '.dsh', 'skills', 'my-custom-skill', 'SKILL.md'),
+          path.join(testDir, '.dsh', 'skills', 'openspec-user-notes', 'SKILL.md'),
+          path.join(testDir, '.agents', 'skills', 'shared-custom-skill', 'SKILL.md'),
+        ];
+        for (const file of customFiles) {
+          await fs.mkdir(path.dirname(file), { recursive: true });
+          await fs.writeFile(file, 'custom skill instructions');
+        }
+
+        await new InitCommand({ tools: 'dsh', force: true }).execute(testDir);
+        const skillsDir = path.join(testDir, '.dsh', 'skills');
+        expect(await FileSystemUtils.fileExists(
+          path.join(skillsDir, 'openspec-apply-change', 'SKILL.md')
+        )).toBe(true);
+
+        setMockConfig(setting === 'profile'
+          ? { featureFlags: {}, profile: 'custom', workflows: ['explore'], delivery: 'both' }
+          : { featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+        const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        await updateCommand.execute(testDir);
+
+        const expectedSkills = ['my-custom-skill', 'openspec-user-notes'];
+        if (setting === 'profile') {
+          expectedSkills.push('openspec-explore');
+        } else {
+          const correction = consoleSpy.mock.calls.flat().map(String)
+            .find((entry) => entry.includes('No skills or commands remain'));
+          expect(correction).toContain('DeepSeek Harness');
+          expect(correction).toContain('openspec config set delivery both');
+        }
+        expect((await fs.readdir(skillsDir)).sort()).toEqual(expectedSkills.sort());
+        expect(await FileSystemUtils.directoryExists(path.join(testDir, '.dsh', 'commands'))).toBe(false);
+        expect(await fs.readdir(path.join(testDir, '.agents', 'skills'))).toEqual(['shared-custom-skill']);
+
+        consoleSpy.mockClear();
+        await updateCommand.execute(testDir);
+        expect(consoleSpy.mock.calls.flat().map(String).join('\n')).not.toContain('Updating 1 tool(s)');
+        expect((await fs.readdir(skillsDir)).sort()).toEqual(expectedSkills.sort());
+        for (const file of customFiles) {
+          expect(await fs.readFile(file, 'utf-8')).toBe('custom skill instructions');
+        }
+      }
+    );
+
     it('should update MiniMax Code skills without touching unrelated global skills', async () => {
       const skillsDir = path.join(testDir, 'home', '.minimax', 'skills');
       const exploreSkill = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
@@ -625,6 +710,21 @@ metadata:
           entry.includes('Force updating 1 tool(s): codex')
         )
       ).toBe(true);
+    });
+
+    it('should refresh an Amp-owned shared skill tree', async () => {
+      await new InitCommand({ tools: 'amp', force: true }).execute(testDir);
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      const skillFile = path.join(skillsDir, 'openspec-propose', 'SKILL.md');
+      await fs.writeFile(skillFile, 'stale Amp skill');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('amp\n');
+      const updated = await fs.readFile(skillFile, 'utf-8');
+      expect(updated).toContain('name: openspec-propose');
+      expect(updated).toContain('/openspec-apply-change');
+      expect(updated).not.toContain('stale Amp skill');
     });
 
     it('should refresh Antigravity workflows without rewriting Codex-owned shared skills', async () => {
@@ -1448,6 +1548,34 @@ metadata:
       expect(exists).toBe(true);
 
       const content = await fs.readFile(qwenCmd, 'utf-8');
+      expect(content).toContain('---');
+      expect(content).toContain('description:');
+    });
+
+    it('should update GigaCode tool with correct command format', async () => {
+      // Set up GigaCode
+      const gigacodeSkillsDir = path.join(testDir, '.gigacode', 'skills');
+      await fs.mkdir(path.join(gigacodeSkillsDir, 'openspec-explore'), {
+        recursive: true,
+      });
+      await fs.writeFile(
+        path.join(gigacodeSkillsDir, 'openspec-explore', 'SKILL.md'),
+        'old'
+      );
+
+      await updateCommand.execute(testDir);
+
+      // Check GigaCode command format (Markdown) - flat path structure like Qwen: opsx-<id>.md
+      const gigacodeCmd = path.join(
+        testDir,
+        '.gigacode',
+        'commands',
+        'opsx-explore.md'
+      );
+      const exists = await FileSystemUtils.fileExists(gigacodeCmd);
+      expect(exists).toBe(true);
+
+      const content = await fs.readFile(gigacodeCmd, 'utf-8');
       expect(content).toContain('---');
       expect(content).toContain('description:');
     });
@@ -3418,6 +3546,70 @@ More user content after markers.
   });
 
   describe('profile-aware updates', () => {
+    it.each(['both', 'skills', 'commands'] as const)(
+      'should sync AtomCode profile and %s delivery while preserving custom files',
+      async (delivery) => {
+        setMockConfig({
+          featureFlags: {}, profile: 'custom', delivery: 'both', workflows: ['explore', 'new'],
+        });
+        await new InitCommand({ tools: 'atomcode', force: true }).execute(testDir);
+
+        const skillsDir = path.join(testDir, '.atomcode', 'skills');
+        const commandsDir = path.join(testDir, '.atomcode', 'commands');
+        const customSkill = path.join(skillsDir, 'my-custom-skill', 'SKILL.md');
+        const customCommand = path.join(commandsDir, 'opsx-custom.md');
+        await fs.mkdir(path.dirname(customSkill), { recursive: true });
+        await fs.writeFile(customSkill, 'my custom skill');
+        await fs.writeFile(customCommand, 'my custom command');
+
+        setMockConfig({ featureFlags: {}, profile: 'core', delivery });
+        await updateCommand.execute(testDir);
+
+        expect(await FileSystemUtils.fileExists(
+          path.join(skillsDir, 'openspec-new-change', 'SKILL.md')
+        )).toBe(false);
+        expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-new.md'))).toBe(false);
+        expect(await FileSystemUtils.fileExists(
+          path.join(skillsDir, 'openspec-propose', 'SKILL.md')
+        )).toBe(delivery !== 'commands');
+        expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-propose.md')))
+          .toBe(delivery !== 'skills');
+        expect(await FileSystemUtils.fileExists(
+          path.join(skillsDir, 'openspec-explore', 'SKILL.md')
+        )).toBe(delivery !== 'commands');
+        expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-explore.md')))
+          .toBe(delivery !== 'skills');
+        expect(await fs.readFile(customSkill, 'utf-8')).toBe('my custom skill');
+        expect(await fs.readFile(customCommand, 'utf-8')).toBe('my custom command');
+        expect(getConfiguredToolsForProfileSync(testDir)).toContain('atomcode');
+
+        const consoleSpy = vi.spyOn(console, 'log');
+        await updateCommand.execute(testDir);
+        expect(consoleSpy.mock.calls.flat().map(String).some((line) => line.includes('up to date')))
+          .toBe(true);
+      }
+    );
+
+    it('should detect and repair an AtomCode commands-only install', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+      const commandsDir = path.join(testDir, '.atomcode', 'commands');
+      const commandFile = path.join(commandsDir, 'opsx-explore.md');
+      await fs.mkdir(commandsDir, { recursive: true });
+      await fs.writeFile(commandFile, '---\ndescription: old command\n---\nold body');
+
+      expect(getConfiguredToolsForProfileSync(testDir)).toContain('atomcode');
+      expect(scanInstalledWorkflows(testDir, ['atomcode'])).toEqual(['explore']);
+
+      await updateCommand.execute(testDir);
+
+      const content = await fs.readFile(commandFile, 'utf-8');
+      expect(content).toContain('name: opsx-explore');
+      expect(content).toContain('$ARGUMENTS');
+      expect(content).not.toContain('old body');
+      expect(await FileSystemUtils.fileExists(path.join(commandsDir, 'opsx-propose.md'))).toBe(true);
+      expect(await FileSystemUtils.directoryExists(path.join(testDir, '.atomcode', 'skills'))).toBe(false);
+    });
+
     it('should generate only profile workflows when custom profile is set', async () => {
       // Set custom profile with only explore and new
       setMockConfig({

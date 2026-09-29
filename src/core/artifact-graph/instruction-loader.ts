@@ -8,7 +8,12 @@ import {
   resolveArtifactOutputPath,
   resolveArtifactOutputs,
 } from './outputs.js';
-import { readChangeMetadata, resolveSchemaForChange } from '../../utils/change-metadata.js';
+import {
+  formatUnknownChangeMetadataKeysMessage,
+  readChangeMetadata,
+  readUnknownChangeMetadataKeys,
+  resolveSchemaForChange,
+} from '../../utils/change-metadata.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   buildActionContext,
@@ -59,6 +64,8 @@ export interface ChangeContext {
   planningHome?: PlanningHome;
   /** Parsed change metadata, when present */
   metadata?: ChangeMetadata;
+  /** Non-fatal metadata diagnostics for text and JSON command surfaces */
+  warnings?: string[];
   /**
    * Artifact IDs counted as complete only because the change declares
    * skip_specs, not because their files exist. Kept separate so status can
@@ -114,6 +121,8 @@ export interface ArtifactInstructions {
   skipped?: boolean;
   /** Present only when skipped: tells the consumer not to create the artifact */
   warning?: string;
+  /** Non-fatal metadata diagnostics */
+  warnings?: string[];
 }
 
 /**
@@ -187,6 +196,8 @@ export interface ChangeStatus {
   applyRequires: string[];
   /** Status of each artifact */
   artifacts: ArtifactStatus[];
+  /** Non-fatal metadata diagnostics */
+  warnings?: string[];
 }
 
 export interface ArtifactPathSummary {
@@ -273,6 +284,11 @@ export function loadChangeContext(
   );
 
   const metadata = readChangeMetadata(changeDir, projectRoot) ?? undefined;
+  const unknownMetadataKeys = readUnknownChangeMetadataKeys(changeDir);
+  const warnings =
+    unknownMetadataKeys.length > 0
+      ? [formatUnknownChangeMetadataKeysMessage(unknownMetadataKeys)]
+      : [];
   const resolvedSchemaName = resolveSchemaForChange(changeDir, schemaName, projectRoot, {
     metadata: metadata ?? null,
     projectConfig: options.projectConfig,
@@ -305,6 +321,7 @@ export function loadChangeContext(
     projectRoot,
     ...(options.planningHome ? { planningHome: options.planningHome } : {}),
     ...(metadata ? { metadata } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
     ...(skippedArtifacts.size > 0 ? { skippedArtifacts } : {}),
   };
 }
@@ -398,6 +415,7 @@ export function generateInstructions(
     context: configContext,
     rules: configRules,
     ...(options.references !== undefined ? { references: options.references } : {}),
+    ...(context.warnings ? { warnings: context.warnings } : {}),
     ...(context.skippedArtifacts?.has(artifact.id)
       ? { skipped: true, warning: SKIP_SPECS_INSTRUCTIONS_WARNING }
       : {}),
@@ -536,5 +554,6 @@ export function formatChangeStatus(
       artifactIds,
     }),
     artifacts: artifactStatuses,
+    ...(context.warnings ? { warnings: context.warnings } : {}),
   };
 }
