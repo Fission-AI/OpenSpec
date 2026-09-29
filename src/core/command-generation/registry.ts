@@ -8,6 +8,7 @@
 import type { ToolCommandAdapter } from './types.js';
 import { amazonQAdapter } from './adapters/amazon-q.js';
 import { antigravityAdapter } from './adapters/antigravity.js';
+import { atomcodeAdapter } from './adapters/atomcode.js';
 import { auggieAdapter } from './adapters/auggie.js';
 import { bobAdapter } from './adapters/bob.js';
 import { claudeAdapter } from './adapters/claude.js';
@@ -23,6 +24,7 @@ import { easycodeAdapter } from './adapters/easycode.js';
 import { factoryAdapter } from './adapters/factory.js';
 import { geminiAdapter } from './adapters/gemini.js';
 import { githubCopilotAdapter } from './adapters/github-copilot.js';
+import { gigacodeAdapter } from './adapters/gigacode.js';
 import { iflowAdapter } from './adapters/iflow.js';
 import { junieAdapter } from './adapters/junie.js';
 import { kilocodeAdapter } from './adapters/kilocode.js';
@@ -48,6 +50,7 @@ export class CommandAdapterRegistry {
   static {
     CommandAdapterRegistry.register(amazonQAdapter);
     CommandAdapterRegistry.register(antigravityAdapter);
+    CommandAdapterRegistry.register(atomcodeAdapter);
     CommandAdapterRegistry.register(auggieAdapter);
     CommandAdapterRegistry.register(bobAdapter);
     CommandAdapterRegistry.register(claudeAdapter);
@@ -63,6 +66,7 @@ export class CommandAdapterRegistry {
     CommandAdapterRegistry.register(factoryAdapter);
     CommandAdapterRegistry.register(geminiAdapter);
     CommandAdapterRegistry.register(githubCopilotAdapter);
+    CommandAdapterRegistry.register(gigacodeAdapter);
     CommandAdapterRegistry.register(iflowAdapter);
     CommandAdapterRegistry.register(junieAdapter);
     CommandAdapterRegistry.register(kilocodeAdapter);

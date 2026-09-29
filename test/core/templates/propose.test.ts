@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, expect, it } from 'vitest';
@@ -77,6 +78,41 @@ describe('propose preamble', () => {
         expect(preamble, `${label} preamble is missing the "${id}" artifact`).toContain(id);
       }
     }
+  });
+});
+
+describe('default proposal guidance', () => {
+  it('frames new capabilities as durable behavior boundaries (#1965)', () => {
+    const proposal = defaultSchema.artifacts.find(artifact => artifact.id === 'proposal');
+    expect(proposal).toBeDefined();
+    expect(proposal!.instruction).toContain(
+      'Name each capability for a durable system behavior'
+    );
+    expect(proposal!.instruction).toContain(
+      'not the work in this change'
+    );
+    expect(proposal!.instruction).toContain('own related requirements as the system evolves');
+    expect(proposal!.instruction).toContain('avoid broad catch-all capabilities');
+
+    const template = fs.readFileSync(
+      path.join(repoRoot, 'schemas', 'spec-driven', 'templates', 'proposal.md'),
+      'utf-8'
+    );
+    expect(template).toMatch(
+      /Name each capability for a cohesive system\s+behavior that can own related requirements as the system evolves/
+    );
+    expect(template).toMatch(/Do not name\s+implementation tasks or proposal sections/);
+    expect(template).toContain('Avoid broad catch-all names');
+
+    const reference = fs.readFileSync(
+      path.join(repoRoot, 'docs-lab', 'reference', 'schemas', 'spec-driven', 'index.md'),
+      'utf-8'
+    );
+    expect(reference).toMatch(
+      /Name each capability for a cohesive system\s+behavior that can own related requirements as the system evolves/
+    );
+    expect(reference).toMatch(/Do not name\s+implementation tasks or proposal sections/);
+    expect(reference).toContain('Avoid broad catch-all names');
   });
 });
 

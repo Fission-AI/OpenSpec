@@ -2,6 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { Validator } from '../../src/core/validation/validator.js';
+import {
+  MAX_REQUIREMENT_TEXT_LENGTH,
+  VALIDATION_MESSAGES,
+} from '../../src/core/validation/constants.js';
 import { 
   ScenarioSchema, 
   RequirementSchema, 
@@ -224,6 +228,38 @@ Then they see an error message`;
       
       expect(report.valid).toBe(true);
       expect(report.summary.errors).toBe(0);
+    });
+
+    it('flags requirement descriptions only after the documented length limit', async () => {
+      const requirementPrefix = 'The system SHALL ';
+      const validateLength = (length: number) => new Validator().validateSpecContent(
+        'requirement-length-boundary',
+        `# Requirement length boundary
+
+## Purpose
+This specification checks the exact requirement description length boundary.
+
+## Requirements
+
+### Requirement: Boundary
+${requirementPrefix}${'x'.repeat(length - requirementPrefix.length)}
+
+#### Scenario: Boundary is checked
+- **WHEN** the requirement is validated
+- **THEN** the configured length boundary is applied`
+      );
+
+      const atLimit = await validateLength(MAX_REQUIREMENT_TEXT_LENGTH);
+      const overLimit = await validateLength(MAX_REQUIREMENT_TEXT_LENGTH + 1);
+
+      expect(atLimit.issues).not.toContainEqual(
+        expect.objectContaining({ message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG })
+      );
+      expect(overLimit.issues).toContainEqual({
+        level: 'INFO',
+        path: 'requirements[0]',
+        message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG,
+      });
     });
 
     it('should detect missing overview section', async () => {

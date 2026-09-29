@@ -34,4 +34,14 @@ describe('skill-paths', () => {
       path.join('/home/alex', '.minimax', 'skills')
     );
   });
+
+  it('resolves DeepSeek Harness skills under the project .dsh root', () => {
+    const dsh = AI_TOOLS.find((tool) => tool.value === 'dsh');
+    expect(dsh && toolSupportsSkills(dsh)).toBe(true);
+    if (!dsh || !toolSupportsSkills(dsh)) return;
+
+    expect(resolveToolSkillsDir('/repo/app', dsh)).toBe(
+      path.join('/repo/app', '.dsh', 'skills')
+    );
+  });
 });

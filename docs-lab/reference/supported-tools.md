@@ -15,9 +15,11 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Tool | `--tools` id | Skills | Skill invocation | Commands | Command invocation |
 |---|---|---|---|---|---|
 | Amazon Q Developer | `amazon-q` | `.amazonq/skills/` | `/openspec-apply-change` | `.amazonq/prompts/` | `@opsx-apply` |
+| Amp | `amp` | `.agents/skills/` | `/openspec-apply-change` | none | none |
 | Antigravity | `antigravity` | `.agents/skills/` | `/openspec-apply-change` | `.agents/workflows/` | `/opsx-apply` |
+| AtomCode | `atomcode` | `.atomcode/skills/` | `/openspec-apply-change` | `.atomcode/commands/` | `/opsx-apply` |
 | Auggie (Augment CLI) | `auggie` | `.augment/skills/` | `/openspec-apply-change` | `.augment/commands/` | `/opsx-apply` |
-| Bob Shell | `bob` | `.bob/skills/` | `/openspec-apply-change` | `.bob/commands/` | `/opsx-apply` |
+| IBM Bob | `bob` | `.bob/skills/` | `/openspec-apply-change` | `.bob/commands/` | `/opsx-apply` |
 | Claude Code | `claude` | `.claude/skills/` | `/openspec-apply-change` | `.claude/commands/opsx/` | `/opsx:apply` |
 | Cline | `cline` | `.cline/skills/` | `/openspec-apply-change` | `.clinerules/workflows/` | `/opsx-apply` |
 | CodeArts | `codeartsagent` | `.codeartsdoer/skills/` | `/openspec-apply-change` | none | none |
@@ -27,11 +29,13 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | CoStrict | `costrict` | `.cospec/skills/` | `/openspec-apply-change` | `.cospec/openspec/commands/` | `/opsx-apply` |
 | Crush | `crush` | `.crush/skills/` | `/openspec-apply-change` | `.crush/commands/opsx/` | `/opsx:apply` |
 | Cursor | `cursor` | `.cursor/skills/` | `/openspec-apply-change` | `.cursor/commands/` | `/opsx-apply` |
+| DeepSeek Harness | `dsh` | `.dsh/skills/` | `/openspec-apply-change` | none | none |
 | Devin Desktop (formerly Windsurf) | `devin` | `.devin/skills/` | `/openspec-apply-change` | `.devin/workflows/` | `/opsx-apply` |
 | EasyCode | `easycode` | `.easycode/skills/` | `/openspec-apply-change` | `.easycode/commands/opsx/` | `/opsx:apply` |
 | Factory Droid | `factory` | `.factory/skills/` | `/openspec-apply-change` | `.factory/commands/` | `/opsx-apply` |
 | ForgeCode | `forgecode` | `.forge/skills/` | `/openspec-apply-change` | none | none |
 | Gemini CLI | `gemini` | `.gemini/skills/` | `/openspec-apply-change` | `.gemini/commands/opsx/` | `/opsx:apply` |
+| GigaCode | `gigacode` | `.gigacode/skills/` | `/openspec-apply-change` | `.gigacode/commands/` | `/opsx-apply` |
 | GitHub Copilot | `github-copilot` | `.github/skills/` | `/openspec-apply-change` | `.github/prompts/` | `/opsx-apply` |
 | Hermes Agent | `hermes` | `.hermes/skills/` | `/openspec-apply-change` | none | none |
 | iFlow | `iflow` | `.iflow/skills/` | `/openspec-apply-change` | `.iflow/commands/` | `/opsx-apply` |
@@ -48,6 +52,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Qoder | `qoder` | `.qoder/skills/` | `/openspec-apply-change` | `.qoder/commands/opsx/` | `/opsx:apply` |
 | Qwen Code | `qwen` | `.qwen/skills/` | `/openspec-apply-change` | `.qwen/commands/` | `/opsx-apply` |
 | Trae | `trae` | `.trae/skills/` | `/openspec-apply-change` | `.trae/commands/` | `/opsx-apply` |
+| [Veai](https://veai.ru/docs/veai/download) | `veai` | `.veai/skills/` | `/openspec-apply-change` | none | none |
 | ZCode | `zcode` | `.zcode/skills/` | `/openspec-apply-change` | `.zcode/commands/opsx/` | `/opsx:apply` |
 | Zoo Code | `roocode` | `.roo/skills/` | `/openspec-apply-change` | `.roo/commands/` | `/opsx-apply` |
 | Other / Universal | `agents` | `.agents/skills/` | `/openspec-apply-change` | none | none |
@@ -63,6 +68,13 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 
 A tool not listed here behaves exactly as its row reads.
 
+### Amp
+
+- **Project skills**: Amp reads OpenSpec skills from `.agents/skills/`.
+- **No command files**: Amp runs skills directly, so init skips command generation.
+- **Shared folder**: Amp shares `.agents/skills/` with Antigravity, Codex, Zed Agent,
+  and the `agents` target. OpenSpec writes the skill tree once.
+
 ### Antigravity
 
 - **Current folder**: Antigravity v1.20.5 and later read workspace skills and
@@ -70,8 +82,8 @@ A tool not listed here behaves exactly as its row reads.
 - **Legacy folder**: after OpenSpec writes replacements, it removes equivalent
   generated files from `.agent/`. Custom files and changed generated files stay in
   `.agent/` for you to review.
-- **Shared skills**: Antigravity shares `.agents/skills/` with Codex, Zed Agent, and
-  the `agents` target. OpenSpec writes that skill tree once while still writing
+- **Shared skills**: Antigravity shares `.agents/skills/` with Amp, Codex, Zed Agent,
+  and the `agents` target. OpenSpec writes that skill tree once while still writing
   Antigravity commands to `.agents/workflows/`.
 
 ### Cline
@@ -89,12 +101,25 @@ Skills stay in `.cline/skills/`.
   describes both interfaces.
 - **No command files**: Codex runs skills directly, so init skips commands even when
   delivery includes them and prints `Commands skipped for: codex (uses skills)`.
-- **Shared folder**: Codex skills land in `.agents/skills/`, the same tree Antigravity,
-  Zed Agent, and the `agents` target use. Selecting more than one keeps a single
-  compatible tree, and its handoffs spell both `$openspec-*` and `/openspec-*` when
-  Codex owns it.
+- **Shared folder**: Codex skills land in `.agents/skills/`, the same tree Amp,
+  Antigravity, Zed Agent, and the `agents` target use. Selecting more than one keeps a
+  single compatible tree, and its handoffs spell both `$openspec-*` and `/openspec-*`
+  when Codex owns it.
 - **Legacy path**: skills installed under `.codex/skills/` by older versions are
   migrated on the next `openspec update`.
+
+### DeepSeek Harness
+
+- **Project root**: DSH uses the nearest `.git` ancestor, or the current directory
+  outside Git. Run `openspec init --tools dsh` there. For a nested OpenSpec project,
+  add the absolute path to its `.dsh/skills/` directory to DSH's `customSkillDirs`.
+  Git-root skills still win if names overlap
+  ([upstream discovery rules](https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/skill/skill-filesystem)).
+- **Priority**: `.dsh/skills/` takes precedence over same-named skills in
+  `.agents/skills/`.
+- **Delivery**: use `skills` or `both`. With `commands`, no DSH workflows are
+  installed. Change delivery with `openspec config profile`, then rerun
+  `openspec init --tools dsh`.
 
 ### Devin Desktop (formerly Windsurf)
 
@@ -135,7 +160,7 @@ init prints this reminder after install.
   assistant is not listed. The init picker's search box finds it by `universal`,
   `other`, `generic`, `custom`, `proprietary`, `unlisted`, `unsupported`,
   `vendor-neutral`, or `agents.md`.
-- **Alongside other targets**: Antigravity, Codex, Zed Agent, and this target share
+- **Alongside other targets**: Amp, Antigravity, Codex, Zed Agent, and this target share
   one physical skill tree. OpenSpec records one writer in `.openspec-target` and
   writes the tree once per run. Each tool's separate command files are still
   generated.

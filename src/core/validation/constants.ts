@@ -52,7 +52,7 @@ export const VALIDATION_MESSAGES = {
     'writes for a new capability, or a `TBD`/`TODO` marker left in its place). Replace it with what this ' +
     'capability is for, editing the main spec directly: a `## Purpose` in a delta is read only when the ' +
     'capability is created, so it cannot replace this one.',
-  REQUIREMENT_TOO_LONG: `Requirement text is very long (>${MAX_REQUIREMENT_TEXT_LENGTH} characters). Consider breaking it down.`,
+  REQUIREMENT_TOO_LONG: `Requirement text is very long (>${MAX_REQUIREMENT_TEXT_LENGTH} characters). Move examples and edge cases into scenarios, or split it into separate requirements that each state one behavior.`,
   DELTA_DESCRIPTION_TOO_BRIEF: 'Delta description is too brief',
   DELTA_MISSING_REQUIREMENTS: 'Delta should include requirements',
   
