@@ -426,12 +426,14 @@ Config updated. Run `openspec update` in your projects to apply.
 Lists changes, or specs with `--specs`.
 
 ```bash
-openspec list           # changes, most recently modified first
-openspec list --specs   # specs with requirement counts
-openspec list --json    # machine-readable, includes the resolved root
+openspec list                    # active changes, most recently modified first
+openspec list --archived         # archived changes
+openspec list --all              # active and archived changes
+openspec list --specs            # specs with requirement counts
+openspec list --json             # machine-readable, includes the resolved root
 ```
 
-Rows come from `openspec/changes/` and `openspec/specs/` under the resolved root. The `archive/` folder is skipped.
+Rows come from `openspec/changes/` and `openspec/specs/` under the resolved root. The default change listing skips `openspec/changes/archive/`.
 
 **Options**
 
@@ -439,6 +441,8 @@ Rows come from `openspec/changes/` and `openspec/specs/` under the resolved root
 |---|---|
 | `--specs` | List specs instead of changes. |
 | `--changes` | List changes. This is the default. |
+| `--archived` | List only archived changes. Can't be combined with `--specs`. |
+| `--all` | List active and archived changes. Can't be combined with `--specs`. Takes precedence over `--archived`. |
 | `--sort <order>` | `recent` (last modified first) or `name`. Default: `recent`. Specs always sort by name. |
 | `--json` | Print JSON instead of the table. |
 | `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
@@ -450,6 +454,16 @@ One row per change: name, task status, last modified. The status column reads `N
 ```
 Changes:
   add-rate-limit     No tasks      just now
+```
+
+`--all` groups active and archived changes under separate headings. Each group uses the selected sort order:
+
+```
+Changes:
+  add-rate-limit     No tasks      just now
+
+Archived Changes:
+  2026-08-10-add-login     ✓ Complete    2d ago
 ```
 
 ```
@@ -477,7 +491,9 @@ Specs:
 }
 ```
 
-An empty listing prints `No active changes found.` or `No specs found.` and still exits 0.
+With `--archived` or `--all`, every change object includes an `archived` boolean. The combined array uses the selected sort order. An archived change can still have an `in-progress` status when its tracked task file has unchecked tasks. Without either flag, the JSON shape stays unchanged.
+
+An empty listing prints `No active changes found.`, `No archived changes found.`, `No changes found.`, or `No specs found.` and still exits 0.
 
 A change is a directory directly under `openspec/changes/`. Unlike specs, changes cannot be nested in a namespace folder. A folder like `changes/mobile/` that only wraps a change (`changes/mobile/refresh-token/`) is listed with the status `not a change`, followed by a warning that names the nested directories. `--json` marks that entry with a `nested` array and adds a top-level `warnings` array. `show`, `status`, `validate` and `archive` refuse the folder with the same message. To fix it, move the change up and fold the namespace into its name:
 
@@ -627,7 +643,9 @@ Prints a one-screen dashboard of specs and changes.
 openspec view   # project summary in one screen
 ```
 
-view prints the dashboard once and exits. It reads no keystrokes. Changes group by task progress: Draft (no tasks yet), Active (tasks underway, with a progress bar and percent), Completed (every task checked). Specs list with requirement counts, largest first.
+view prints the dashboard once and exits. It reads no keystrokes. Changes group by task progress: Draft (no tasks yet), Active (tasks underway, with a progress bar and percent), Completed (every task checked), and Archived. Specs list with requirement counts, largest first.
+
+Archived changes appear by directory name in alphabetical order. They do not contribute to the Draft, Active, Completed, or Task Progress totals.
 
 **Options**
 
@@ -646,10 +664,15 @@ Summary:
   ● Draft Changes: 1
   ● Active Changes: 0 in progress
   ● Completed Changes: 0
+  ● Archived Changes: 1
 
 Draft Changes
 ────────────────────────────────────────────────────────────
   ○ add-rate-limit
+
+Archived Changes
+────────────────────────────────────────────────────────────
+  ◦ 2026-08-10-add-login
 
 Specifications
 ────────────────────────────────────────────────────────────

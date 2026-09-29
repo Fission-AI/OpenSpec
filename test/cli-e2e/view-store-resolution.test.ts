@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { runCLI } from '../helpers/run-cli.js';
@@ -90,6 +90,10 @@ beforeAll(async () => {
   await fs.mkdir(specDir, { recursive: true });
   await fs.writeFile(path.join(specDir, 'spec.md'), SPEC);
 
+  const archiveDir = path.join(storeRoot, 'openspec', 'changes', 'archive', '2026-08-27-store-history');
+  await fs.mkdir(archiveDir, { recursive: true });
+  await fs.writeFile(path.join(archiveDir, 'tasks.md'), '- [x] Shipped\n');
+
   const schemaDir = path.join(storeRoot, 'openspec', 'schemas', SCHEMA_NAME);
   await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
   await fs.writeFile(path.join(schemaDir, 'schema.yaml'), STORE_SCHEMA);
@@ -148,6 +152,8 @@ describe('openspec view root resolution', () => {
       expect(result.stdout).toContain('billing');
       expect(result.stdout).toContain('Active Changes: 2 in progress');
       expect(result.stdout).toContain('Task Progress: 2/4 (50% complete)');
+      expect(result.stdout).toContain('Archived Changes: 1');
+      expect(result.stdout).toContain('2026-08-27-store-history');
       const lines = result.stdout.split(/\r?\n/);
 
       for (const changeName of ['billing-update', 'billing-refactor']) {
@@ -175,6 +181,56 @@ describe('openspec view root resolution', () => {
     },
     TIMEOUT_MS
   );
+
+  it.each([{ flags: [] }, { flags: ['--store', STORE_ID] }])(
+    'lists archive entries from the selected store with flags $flags',
+    async ({ flags }) => {
+      const result = await runCLI(['list', '--archived', '--json', ...flags], {
+        cwd: pointerProject,
+        env,
+        timeoutMs: TIMEOUT_MS,
+      });
+
+      expect(result.exitCode, result.stderr).toBe(0);
+      const output = JSON.parse(result.stdout);
+      expect(output.changes).toEqual([
+        expect.objectContaining({ name: '2026-08-27-store-history', archived: true, totalTasks: 1 }),
+      ]);
+      expect(realpathSync.native(output.root.path)).toBe(realpathSync.native(storeRoot));
+    },
+    TIMEOUT_MS
+  );
+
+  it('browses archives when the selected store was registered through a directory alias', async () => {
+    const aliasRoot = path.join(base, 'store-alias');
+    await fs.symlink(storeRoot, aliasRoot, process.platform === 'win32' ? 'junction' : 'dir');
+    const aliasEnv = {
+      ...env,
+      XDG_CONFIG_HOME: path.join(base, 'alias-home', 'config'),
+      XDG_DATA_HOME: path.join(base, 'alias-home', 'data'),
+    };
+    const registered = await runCLI(['store', 'register', aliasRoot], {
+      cwd: base, env: aliasEnv, timeoutMs: TIMEOUT_MS,
+    });
+    expect(registered.exitCode, registered.stderr).toBe(0);
+
+    const listed = await runCLI(['list', '--archived', '--json', '--store', STORE_ID], {
+      cwd: base, env: aliasEnv, timeoutMs: TIMEOUT_MS,
+    });
+    expect(listed.exitCode, listed.stderr).toBe(0);
+    const output = JSON.parse(listed.stdout);
+    expect(realpathSync.native(output.root.path)).toBe(realpathSync.native(storeRoot));
+    expect(output.changes).toEqual([
+      expect.objectContaining({ name: '2026-08-27-store-history', archived: true, totalTasks: 1 }),
+    ]);
+
+    const viewed = await runCLI(['view', '--store', STORE_ID], {
+      cwd: base, env: aliasEnv, timeoutMs: TIMEOUT_MS,
+    });
+    expect(viewed.exitCode, viewed.stderr).toBe(0);
+    expect(viewed.stdout).toContain('Archived Changes: 1');
+    expect(viewed.stdout).toContain('2026-08-27-store-history');
+  }, TIMEOUT_MS);
 
   it(
     'still renders an openspec/ directory that predates config.yaml',
