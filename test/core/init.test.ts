@@ -731,6 +731,34 @@ describe('InitCommand', () => {
       ).toBe(true);
     });
 
+    it('should support Amp through its shared Agent Skills directory', async () => {
+      saveGlobalConfig({
+        featureFlags: {},
+        profile: 'core',
+        delivery: 'both',
+      });
+
+      await new InitCommand({ tools: 'amp', force: true }).execute(testDir);
+
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      const skillFile = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
+      expect(await fileExists(skillFile)).toBe(true);
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('amp\n');
+
+      const skillContent = await fs.readFile(skillFile, 'utf-8');
+      expect(skillContent).toContain('name: openspec-explore');
+      expect(skillContent).toContain('/openspec-');
+      expect(skillContent).not.toContain('/opsx:');
+      expect(await directoryExists(path.join(testDir, '.agents', 'commands'))).toBe(false);
+
+      const logCalls = vi.mocked(console.log).mock.calls.flat().map(String);
+      expect(
+        logCalls.some(
+          (entry) => entry.includes('Commands skipped for: amp') && entry.includes('(no adapter)')
+        )
+      ).toBe(true);
+    });
+
     it('should install MiniMax Code skills only in the user-home target', async () => {
       saveGlobalConfig({
         featureFlags: {},
