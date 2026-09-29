@@ -2217,6 +2217,20 @@ describe('InitCommand - profile and detection features', () => {
     expect(startHint).not.toContain('/opsx:propose');
   });
 
+  it('should install Veai as a skills-only tool', async () => {
+    const initCommand = new InitCommand({ tools: 'veai', force: true });
+    await initCommand.execute(testDir);
+
+    const skillFile = path.join(testDir, '.veai', 'skills', 'openspec-apply-change', 'SKILL.md');
+    expect(await fileExists(skillFile)).toBe(true);
+    expect(await directoryExists(path.join(testDir, '.veai', 'commands'))).toBe(false);
+
+    const skillContent = await fs.readFile(skillFile, 'utf-8');
+    expect(skillContent).toContain('/openspec-');
+    expect(skillContent).not.toContain('/opsx:');
+    expect(skillContent).not.toContain('/opsx-');
+  });
+
   it('should name the workflows the core profile leaves out (#1076)', async () => {
     const initCommand = new InitCommand({ tools: 'claude', force: true });
     await initCommand.execute(testDir);
