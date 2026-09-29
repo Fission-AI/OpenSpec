@@ -32,6 +32,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | ForgeCode | `forgecode` | `.forge/skills/` | `/openspec-apply-change` | none | none |
 | Gemini CLI | `gemini` | `.gemini/skills/` | `/openspec-apply-change` | `.gemini/commands/opsx/` | `/opsx:apply` |
 | GitHub Copilot | `github-copilot` | `.github/skills/` | `/openspec-apply-change` | `.github/prompts/` | `/opsx-apply` |
+| Grok Build | `grok` | `.grok/skills/` | `/openspec-apply-change` | `.grok/commands/` | `/opsx-apply` |
 | Hermes Agent | `hermes` | `.hermes/skills/` | `/openspec-apply-change` | none | none |
 | iFlow | `iflow` | `.iflow/skills/` | `/openspec-apply-change` | `.iflow/commands/` | `/opsx-apply` |
 | Junie | `junie` | `.junie/skills/` | `/openspec-apply-change` | `.junie/commands/` | `/opsx-apply` |
