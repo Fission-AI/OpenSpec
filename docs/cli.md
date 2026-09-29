@@ -445,6 +445,7 @@ Directory symlinks are not followed.
 Empty libraries remain visible. An unreadable or malformed library gets an actionable diagnostic;
 readable libraries remain in the results. Diagnostics set a nonzero exit code.
 Long rows place progress and recency below the name on narrow terminals.
+Terminal colors highlight library headings and progress. Use `--no-color` for plain output.
 
 **JSON:** A single library keeps the existing JSON shape.
 Aggregated results retain the `changes` or `specs` array, add `library` to every entry,
