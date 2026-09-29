@@ -101,6 +101,38 @@ describe('recursive library listing', () => {
     expect(result.diagnostics).toHaveLength(1);
     expect(result.diagnostics[0].library).toBe('blocked/openspec/');
   });
+  it.each(['realpath', 'readdir'] as const)('contains inaccessible or vanished traversal directories during %s', async (operation) => {
+    await library('', ['root-change']);
+    await library('healthy', ['nested-change']);
+    const original = fs[operation].bind(fs);
+    const failures = ['EACCES', 'EPERM', 'ENOENT'];
+    const blocked = new Map<string, string>();
+    for (const code of failures) {
+      const dir = path.join(base, code);
+      await fs.mkdir(dir);
+      blocked.set(dir, code);
+    }
+    vi.spyOn(fs, operation).mockImplementation(((target: any, options: any) => {
+      const code = blocked.get(String(target));
+      if (code) return Promise.reject(Object.assign(new Error(code), { code }));
+      return (original as any)(target, options);
+    }) as any);
+    await list('changes', true);
+    expect(JSON.parse(lines[0]).changes.map((item: any) => item.name)).toEqual(['root-change', 'nested-change']);
+  });
+  it('propagates base access failures and unexpected traversal errors', async () => {
+    const child = path.join(base, 'child');
+    await fs.mkdir(child);
+    const original = fs.readdir.bind(fs);
+    const failure = Object.assign(new Error('Read failure'), { code: 'EIO' });
+    const read = vi.spyOn(fs, 'readdir').mockImplementation(((target: any, options: any) => {
+      if (String(target) === child) return Promise.reject(failure);
+      return original(target, options);
+    }) as any);
+    await expect(discoverListLibraries(base)).rejects.toBe(failure);
+    read.mockRejectedValueOnce(Object.assign(new Error('Permission denied'), { code: 'EACCES' }));
+    await expect(discoverListLibraries(base)).rejects.toMatchObject({ code: 'EACCES' });
+  });
   it('recognizes config-only and legacy roots while ignoring an empty openspec directory', async () => {
     for (const relative of ['config-only', 'legacy', 'not-a-library']) {
       await fs.mkdir(path.join(base, relative, 'openspec'), { recursive: true });

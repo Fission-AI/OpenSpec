@@ -1,4 +1,4 @@
-import { promises as fs } from 'node:fs';
+import { promises as fs, type Dirent } from 'node:fs';
 import path from 'node:path';
 import { resolveOpenSpecRoot, findQualifyingRootSync, emitStoreRootBanner, type StoreSelectorOptions, type ResolvedOpenSpecRoot } from './root-selection.js';
 import { classifyOpenSpecDir } from './project-config.js';
@@ -22,10 +22,18 @@ export async function discoverListLibraries(start: string): Promise<ListLibrary[
   const libraries: ListLibrary[] = [];
   const seen = new Set<string>();
   async function walk(dir: string): Promise<void> {
-    const physical = await fs.realpath(dir);
-    if (seen.has(physical)) return;
-    seen.add(physical);
-    const entries = await fs.readdir(dir, { withFileTypes: true });
+    let physical: string;
+    let entries: Dirent[];
+    try {
+      physical = await fs.realpath(dir);
+      if (seen.has(physical)) return;
+      seen.add(physical);
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (dir !== base && (code === 'EACCES' || code === 'EPERM' || code === 'ENOENT')) return;
+      throw error;
+    }
     const candidate = entries.find(entry => entry.name === 'openspec' && !entry.isSymbolicLink());
     if (candidate) {
       const library = path.relative(base, path.join(dir, 'openspec')).split(path.sep).join('/') + '/';
