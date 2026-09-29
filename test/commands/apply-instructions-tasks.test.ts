@@ -82,8 +82,20 @@ ${tracked ? '  tracks: checklist.md\n' : ''}`
     expect(instructions.contextFiles).toEqual({ implementation: [fs.realpathSync.native(checklist)] });
     expect(instructions.taskTrackingConfigured).toBe(tracked);
     expect(instructions.tasks).toEqual(tracked ? [
-      { id: '1', description: 'Finished task', done: true },
-      { id: '2', description: 'Pending task', done: false },
+      {
+        id: '1',
+        description: 'Finished task',
+        done: true,
+        sourcePath: fs.realpathSync.native(checklist),
+        line: 1,
+      },
+      {
+        id: '2',
+        description: 'Pending task',
+        done: false,
+        sourcePath: fs.realpathSync.native(checklist),
+        line: 2,
+      },
     ] : []);
     expect(instructions.progress).toEqual(tracked
       ? { total: 2, complete: 1, remaining: 1 }
@@ -123,9 +135,27 @@ ${tracked ? '  tracks: checklist.md\n' : ''}`
       fs.realpathSync.native(frontendTasks),
     ]);
     expect(instructions.tasks).toEqual([
-      { id: '1', description: 'Finished backend task', done: true },
-      { id: '2', description: 'Finished frontend task', done: true },
-      { id: '3', description: 'Pending frontend task', done: false },
+      {
+        id: '1',
+        description: 'Finished backend task',
+        done: true,
+        sourcePath: fs.realpathSync.native(backendTasks),
+        line: 1,
+      },
+      {
+        id: '2',
+        description: 'Finished frontend task',
+        done: true,
+        sourcePath: fs.realpathSync.native(frontendTasks),
+        line: 1,
+      },
+      {
+        id: '3',
+        description: 'Pending frontend task',
+        done: false,
+        sourcePath: fs.realpathSync.native(frontendTasks),
+        line: 2,
+      },
     ]);
     expect(instructions.progress).toEqual({ total: 3, complete: 2, remaining: 1 });
     expect(instructions.state).toBe('ready');
@@ -147,7 +177,13 @@ ${tracked ? '  tracks: checklist.md\n' : ''}`
     const instructions = await generateApplyInstructions(tempDir, 'my-change');
 
     expect(instructions.tasks).toEqual([
-      { id: '1', description: 'Finished frontend task', done: true },
+      {
+        id: '1',
+        description: 'Finished frontend task',
+        done: true,
+        sourcePath: fs.realpathSync.native(frontendTasks),
+        line: 1,
+      },
     ]);
     expect(instructions.progress).toEqual({ total: 1, complete: 1, remaining: 0 });
     expect(instructions.unavailableTrackingFiles).toEqual([

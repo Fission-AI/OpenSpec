@@ -182,9 +182,9 @@ The `openspec config profile` command SHALL provide an action-first interactive 
 
 - **WHEN** user runs `openspec config profile` interactively
 - **THEN** the first prompt SHALL offer:
-  - `Change delivery + workflows`
-  - `Change delivery only`
-  - `Change workflows only`
+  - `Delivery and workflows`
+  - `Delivery only`
+  - `Workflows only`
   - `Keep current settings (exit)`
 
 #### Scenario: Delivery prompt marks current selection

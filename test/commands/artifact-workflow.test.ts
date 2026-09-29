@@ -127,6 +127,34 @@ describe('artifact-workflow CLI commands', () => {
       expect(proposalArtifact.status).toBe('done');
     });
 
+    it('keeps unknown metadata warnings inside status and instructions JSON', async () => {
+      const changeDir = await createTestChange('unknown-metadata-json', ['proposal']);
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_design: true\n'
+      );
+
+      const statusResult = await runCLI(
+        ['status', '--change', 'unknown-metadata-json', '--json'],
+        { cwd: tempDir }
+      );
+      expect(statusResult.exitCode).toBe(0);
+      expect(statusResult.stderr).toBe('');
+      expect(JSON.parse(statusResult.stdout).warnings).toEqual([
+        expect.stringContaining('skip_design'),
+      ]);
+
+      const instructionsResult = await runCLI(
+        ['instructions', 'design', '--change', 'unknown-metadata-json', '--json'],
+        { cwd: tempDir }
+      );
+      expect(instructionsResult.exitCode).toBe(0);
+      expect(instructionsResult.stderr).toBe('');
+      expect(JSON.parse(instructionsResult.stdout).warnings).toEqual([
+        expect.stringContaining('skip_design'),
+      ]);
+    });
+
     it('recommends specs before design for a proposal-only change', async () => {
       await createTestChange('order-change');
 
@@ -991,7 +1019,15 @@ operations:
       expect(JSON.stringify(json)).not.toContain('Artifact-only rule');
       expect(json.state).toBe('ready');
       expect(json.progress).toEqual({ total: 1, complete: 0, remaining: 1 });
-      expect(json.tasks).toEqual([{ id: '1', description: 'Task 1', done: false }]);
+      expect(json.tasks).toEqual([
+        {
+          id: '1',
+          description: 'Task 1',
+          done: false,
+          sourcePath: canonical(path.join(changesDir, 'apply-inputs', 'tasks.md')),
+          line: 2,
+        },
+      ]);
       expect(json.contextFiles).toBeDefined();
       expect(json.root).toBeDefined();
     });
