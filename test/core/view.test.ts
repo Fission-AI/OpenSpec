@@ -256,13 +256,18 @@ describe('ViewCommand', () => {
     }
   );
 
-  it('reports an archive path that is a file instead of silently showing no archives', async () => {
+  it('still renders the dashboard when the archive path is a file', async () => {
     const changesDir = path.join(tempDir, 'openspec', 'changes');
-    await fs.mkdir(changesDir, { recursive: true });
+    await fs.mkdir(path.join(changesDir, 'active-change'), { recursive: true });
+    await fs.writeFile(path.join(changesDir, 'active-change', 'tasks.md'), '- [x] Done\n- [ ] Pending\n');
     await fs.writeFile(path.join(changesDir, 'archive'), 'Not a directory');
 
-    await expect(new ViewCommand().execute(tempDir)).rejects.toMatchObject({ code: 'ENOTDIR' });
-    expect(logOutput.map(stripAnsi).join('\n')).not.toContain('Archived Changes: 0');
+    await new ViewCommand().execute(tempDir);
+
+    const lines = logOutput.map(stripAnsi);
+    expect(lines.join('\n')).toContain('Active Changes: 1 in progress');
+    expect(lines.join('\n')).toContain('Archived Changes: 0');
+    expect(lines).not.toContain('\nArchived Changes');
   });
 
   it.skipIf(process.platform === 'win32')('surfaces unreadable archive directories', async ({ skip }) => {

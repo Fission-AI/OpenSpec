@@ -110,7 +110,10 @@ export class ViewCommand {
         .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
         .map((entry) => ({ name: entry.name }));
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      // A missing archive, or an `archive` path that is a file, has no archived
+      // changes to show; neither should break the rest of the dashboard.
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
         throw error;
       }
     }

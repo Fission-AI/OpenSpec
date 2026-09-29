@@ -157,13 +157,15 @@ describe('openspec CLI e2e basics', () => {
     await fs.mkdir(changeDir);
     await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done\n');
     await fs.writeFile(path.join(changesDir, 'reference.md'), 'Shared notes\n');
-    await fs.symlink('../reference.md', path.join(changeDir, 'notes.md'));
+    await fs.symlink(path.join('..', 'reference.md'), path.join(changeDir, 'notes.md'));
 
     const before = await runCLI(['list', '--json'], { cwd: projectDir });
     expectJsonOnlyOutput(before);
     const archived = await runCLI(['archive', changeName, '--skip-specs', '--yes'], { cwd: projectDir });
     expect(archived.exitCode, archived.stderr).toBe(0);
-    await expect(fs.stat(path.join(changesDir, 'archive', changeName, 'notes.md'))).rejects.toMatchObject({ code: 'ENOENT' });
+    const archivedNotes = path.join(changesDir, 'archive', changeName, 'notes.md');
+    expect((await fs.lstat(archivedNotes)).isSymbolicLink()).toBe(true);
+    await expect(fs.stat(archivedNotes)).rejects.toMatchObject({ code: 'ENOENT' });
 
     const result = await runCLI(['list', '--archived', '--json'], { cwd: projectDir });
 

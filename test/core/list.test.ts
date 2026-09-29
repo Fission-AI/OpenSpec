@@ -533,6 +533,28 @@ Regular text that should be ignored
         );
       });
 
+      it('does not mark an archived change as nested when an active namespace shares its name', async () => {
+        const changesDir = await seedNestedChange();
+        await fs.mkdir(path.join(changesDir, 'archive', 'mobile'), { recursive: true });
+        await fs.writeFile(path.join(changesDir, 'archive', 'mobile', 'tasks.md'), '- [x] Done\n');
+
+        await new ListCommand().execute(tempDir, 'changes', { all: true, json: true });
+
+        const payload = JSON.parse(logOutput.join('\n'));
+        const mobiles = payload.changes.filter((c: { name: string }) => c.name === 'mobile');
+        expect(mobiles.find((c: { archived: boolean }) => !c.archived)).toMatchObject({
+          nested: ['mobile/refresh-token'],
+        });
+        const archivedMobile = mobiles.find((c: { archived: boolean }) => c.archived);
+        expect(archivedMobile).toMatchObject({ status: 'complete' });
+        expect(archivedMobile).not.toHaveProperty('nested');
+
+        logOutput = [];
+        await new ListCommand().execute(tempDir, 'changes', { all: true, sort: 'name' });
+        const archivedSection = logOutput.slice(logOutput.indexOf('Archived Changes:'));
+        expect(archivedSection).toContain('  mobile     ✓ Complete    just now');
+      });
+
       it('omits warnings from --json when nothing is nested', async () => {
         const changesDir = path.join(tempDir, 'openspec', 'changes');
         await fs.mkdir(path.join(changesDir, 'add-auth'), { recursive: true });

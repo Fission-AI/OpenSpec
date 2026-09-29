@@ -181,7 +181,7 @@ export class ListCommand {
           totalTasks: progress.total,
           lastModified,
           archived: changeDir.archived,
-          ...(nestedByName.has(changeDir.name)
+          ...(!changeDir.archived && nestedByName.has(changeDir.name)
             ? { nested: nestedByName.get(changeDir.name)!.nested }
             : {})
         });
