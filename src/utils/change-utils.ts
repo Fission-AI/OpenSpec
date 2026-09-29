@@ -1,4 +1,5 @@
 import path from 'path';
+import { execFileSync } from 'node:child_process';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
 import { formatLocalDate } from './date.js';
@@ -21,7 +22,26 @@ export interface CreateChangeOptions {
   /** Directory that should contain the change directories */
   changesDir?: string;
   /** Additional metadata to persist in the change's .openspec.yaml */
-  metadata?: Partial<Pick<ChangeMetadata, 'goal' | 'affected_areas' | 'initiative'>>;
+  metadata?: Partial<Pick<ChangeMetadata, 'goal' | 'affected_areas' | 'initiative' | 'author'>>;
+}
+
+/**
+ * Resolves `git config user.name` for the given project root.
+ * Returns undefined when git is unavailable, the project isn't a git
+ * repo, or no name is configured - callers treat all of those the same
+ * (author metadata simply stays unset).
+ */
+function resolveAuthorFromGitConfig(projectRoot: string): string | undefined {
+  try {
+    const name = execFileSync('git', ['config', 'user.name'], {
+      cwd: projectRoot,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+    return name.length > 0 ? name : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -194,11 +214,14 @@ export async function createChange(
   }
 
   // Write metadata file with schema and creation date
+  const { author: authorOverride, ...restMetadata } = options.metadata ?? {};
+  const author = authorOverride || resolveAuthorFromGitConfig(projectRoot);
   writeChangeMetadata(changeDir, {
     schema: schemaName,
     created: formatLocalDate(),
     ...(skipsSpecs ? { skip_specs: true } : {}),
-    ...options.metadata,
+    ...restMetadata,
+    ...(author ? { author } : {}),
   }, projectRoot);
 
   return { schema: schemaName, changeDir };

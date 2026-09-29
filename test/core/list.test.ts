@@ -175,6 +175,45 @@ Regular text that should be ignored
       expect(changeLines[2]).toContain('zebra');
     });
 
+    it('should print a header row with Priority first when priority is set', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'with-metadata'), { recursive: true });
+      await fs.writeFile(
+        path.join(changesDir, 'with-metadata', '.openspec.yaml'),
+        'schema: spec-driven\npriority: high\nauthor: Jane Doe\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes');
+
+      const headerLine = logOutput[1];
+      expect(headerLine).toBeDefined();
+      const priorityIndex = headerLine.indexOf('Priority');
+      const nameIndex = headerLine.indexOf('Name');
+      const statusIndex = headerLine.indexOf('Status');
+      const modifiedIndex = headerLine.indexOf('Modified');
+      const authorIndex = headerLine.indexOf('Author');
+      expect(priorityIndex).toBeGreaterThanOrEqual(0);
+      expect(priorityIndex).toBeLessThan(nameIndex);
+      expect(nameIndex).toBeLessThan(statusIndex);
+      expect(statusIndex).toBeLessThan(modifiedIndex);
+      expect(modifiedIndex).toBeLessThan(authorIndex);
+    });
+
+    it('should not print a header row when no change sets priority or author', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'plain'), { recursive: true });
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes');
+
+      expect(logOutput.some(line => line.includes('Name') && line.includes('Status'))).toBe(false);
+      const row = logOutput[1];
+      expect(row).toContain('plain');
+      expect(row).not.toContain('Priority');
+      expect(row).not.toContain('Author');
+    });
+
     it('should handle multiple changes with various states', async () => {
       const changesDir = path.join(tempDir, 'openspec', 'changes');
       
@@ -379,5 +418,80 @@ Regular text that should be ignored
         'cli-change',
       ]);
     }, 60_000);
+
+    it('should show priority and author columns when set in .openspec.yaml', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'with-metadata'), { recursive: true });
+      await fs.writeFile(
+        path.join(changesDir, 'with-metadata', '.openspec.yaml'),
+        'schema: spec-driven\npriority: high\nauthor: Jane Doe\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes');
+
+      expect(
+        logOutput.some(
+          line => line.includes('with-metadata') && line.includes('high') && line.includes('Jane Doe')
+        )
+      ).toBe(true);
+    });
+
+    it('should render a row unchanged when neither priority nor author is set', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'no-metadata'), { recursive: true });
+      await fs.writeFile(
+        path.join(changesDir, 'no-metadata', '.openspec.yaml'),
+        'schema: spec-driven\n'
+      );
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes');
+
+      const line = logOutput.find(l => l.includes('no-metadata'));
+      expect(line).toBeDefined();
+      expect(line).not.toContain('undefined');
+    });
+
+    it('should not leave trailing whitespace on rows without priority/author when a sibling row has them', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'with-metadata'), { recursive: true });
+      await fs.writeFile(
+        path.join(changesDir, 'with-metadata', '.openspec.yaml'),
+        'schema: spec-driven\npriority: high\nauthor: Jane Doe\n'
+      );
+      await fs.mkdir(path.join(changesDir, 'bare'), { recursive: true });
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes');
+
+      const bareLine = logOutput.find(l => l.includes('bare'));
+      expect(bareLine).toBeDefined();
+      expect(bareLine).toBe(bareLine?.trimEnd());
+    });
+
+    it('should include priority and author in --json output only when set', async () => {
+      const changesDir = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(path.join(changesDir, 'with-metadata'), { recursive: true });
+      await fs.writeFile(
+        path.join(changesDir, 'with-metadata', '.openspec.yaml'),
+        'schema: spec-driven\npriority: medium\nauthor: Jane Doe\n'
+      );
+      await fs.mkdir(path.join(changesDir, 'without-metadata'), { recursive: true });
+
+      const listCommand = new ListCommand();
+      await listCommand.execute(tempDir, 'changes', { json: true });
+
+      const parsed = JSON.parse(logOutput.join(''));
+      const withMetadata = parsed.changes.find((c: any) => c.name === 'with-metadata');
+      const withoutMetadata = parsed.changes.find((c: any) => c.name === 'without-metadata');
+
+      expect(withMetadata.priority).toBe('medium');
+      expect(withMetadata.author).toBe('Jane Doe');
+      expect(withoutMetadata.priority).toBeUndefined();
+      expect(withoutMetadata.author).toBeUndefined();
+      expect('priority' in withoutMetadata).toBe(false);
+      expect('author' in withoutMetadata).toBe(false);
+    });
   });
 });

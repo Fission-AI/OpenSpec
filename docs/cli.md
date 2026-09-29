@@ -724,6 +724,7 @@ or `00001-add-auth`.
 |--------|-------------|
 | `--description <text>` | Description to add to `README.md` |
 | `--goal <text>` | Optional goal metadata to store with the change |
+| `--author <name>` | Optional author metadata to store with the change (default: `git config user.name`) |
 | `--schema <name>` | Workflow schema to use |
 | `--store <id>` | Store id to use as the OpenSpec root (a store is a standalone OpenSpec repo you've registered) |
 | `--json` | Output JSON |
