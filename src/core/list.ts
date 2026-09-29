@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import { discoverListLibraries, type ListLibrary } from './list-discovery.js';
 import path from 'path';
+import chalk from 'chalk';
 import { getTaskProgressForChange, getTaskProgressDetailForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { readFileSync, type Dirent } from 'fs';
 import { MarkdownParser } from './parsers/markdown-parser.js';
@@ -175,27 +176,33 @@ export class ListCommand {
       }, null, 2));
     } else {
       const heading = mode === 'specs' ? 'Specs' : options.archived ? 'Archived changes' : 'Changes';
-      console.log(`${heading} — ${groups.length} libraries, ${entries.length} ${mode}`);
+      console.log(`${chalk.bold(heading)} ${chalk.dim(`— ${groups.length} libraries, ${entries.length} ${mode}`)}`);
       for (const group of groups) {
-        console.log(`\n${group.library}${group.library === 'openspec/' ? ' (root)' : ''}`);
+        console.log(`\n${chalk.bold.cyan(group.library)}${group.library === 'openspec/' ? chalk.dim(' (root)') : ''}`);
         if (group.diagnostic) {
-          console.log(`  Error: ${group.diagnostic}`);
+          console.log(chalk.red(`  Error: ${group.diagnostic}`));
           continue;
         }
         const items = group.payload[mode];
-        if (!items.length) console.log(mode === 'specs' ? '  No specs found.' : options.archived ? '  No archived changes found.' : options.all ? '  No changes found.' : '  No active changes found.');
+        if (!items.length) console.log(chalk.dim(mode === 'specs' ? '  No specs found.' : options.archived ? '  No archived changes found.' : options.all ? '  No changes found.' : '  No active changes found.'));
         const width = Math.max(0, ...items.map((item: any) => (item.name ?? item.id).length));
         for (const item of items) {
           const name = item.name ?? item.id;
           const status = mode === 'specs' ? `requirements ${item.requirementCount}` : item.nested ? 'not a change' : formatTaskStatus({ total: item.totalTasks, completed: item.completedTasks });
-          const suffix = mode === 'specs' ? status : `${status.padEnd(12)}  ${formatRelativeTime(new Date(item.lastModified))}${item.archived ? '  archived' : ''}`;
-          if (width + suffix.length + 7 > (process.stdout.columns ?? 100)) {
+          const recency = mode === 'changes' ? formatRelativeTime(new Date(item.lastModified)) : '';
+          const archiveLabel = item.archived ? '  archived' : '';
+          const plainSuffix = mode === 'specs' ? status : `${status.padEnd(12)}  ${recency}${archiveLabel}`;
+          const statusColor = mode === 'specs' ? chalk.blue : item.nested ? chalk.yellow
+            : item.totalTasks === 0 ? chalk.dim : item.completedTasks === item.totalTasks ? chalk.green : chalk.yellow;
+          const suffix = mode === 'specs' ? statusColor(status)
+            : `${statusColor(status.padEnd(12))}  ${chalk.dim(recency + archiveLabel)}`;
+          if (width + plainSuffix.length + 7 > (process.stdout.columns ?? 100)) {
             console.log(`  ${name}\n    ${suffix}`);
           } else {
             console.log(`  ${name.padEnd(width)}     ${suffix}`);
           }
         }
-        for (const warning of group.payload.warnings ?? []) console.log(`  Warning: ${warning.message}`);
+        for (const warning of group.payload.warnings ?? []) console.log(chalk.yellow(`  Warning: ${warning.message}`));
       }
     }
     if (diagnostics.length) process.exitCode = 1;
