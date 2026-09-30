@@ -33,6 +33,11 @@ export interface ChangeNextStepsInput {
 export interface ActionContextInput {
   projectRoot: string;
   artifactIds: string[];
+  /**
+   * Set when the root is a store: the store holds the planning artifacts,
+   * and `implementationRoot` is the project that declares it, if any.
+   */
+  store?: { id: string; implementationRoot?: string };
 }
 
 export function summarizePlanningHome(
@@ -56,9 +61,40 @@ export function buildActionContext(input: ActionContextInput): ActionContext {
     sourceOfTruth: 'repo',
     planningArtifacts: input.artifactIds,
     linkedContext: [],
-    allowedEditRoots: [input.projectRoot],
+    ...editScope(input),
     requiresAffectedAreaSelection: false,
-    constraints: ['Repo-local change artifacts and implementation edits are scoped to this project.'],
+  };
+}
+
+/**
+ * A store holds planning artifacts only; implementation happens in the
+ * project that declares it. Without a declaring project the CLI cannot know
+ * the implementation repo, so it says so instead of naming the store (#2013).
+ */
+function editScope(input: ActionContextInput): Pick<ActionContext, 'allowedEditRoots' | 'constraints'> {
+  if (!input.store) {
+    return {
+      allowedEditRoots: [input.projectRoot],
+      constraints: ['Repo-local change artifacts and implementation edits are scoped to this project.'],
+    };
+  }
+
+  const planning = `Change artifacts live in store '${input.store.id}' (${input.projectRoot}).`;
+  const { implementationRoot } = input.store;
+  if (implementationRoot) {
+    return {
+      allowedEditRoots: [implementationRoot, input.projectRoot],
+      constraints: [
+        `${planning} Implementation edits belong to ${implementationRoot}, which declares this store.`,
+      ],
+    };
+  }
+
+  return {
+    allowedEditRoots: [input.projectRoot],
+    constraints: [
+      `${planning} No project on the current path declares this store, so ask the user which repository implementation edits belong to.`,
+    ],
   };
 }
 

@@ -473,7 +473,7 @@ function getUnlockedArtifacts(graph: ArtifactGraph, artifactId: string): string[
  */
 export function formatChangeStatus(
   context: ChangeContext,
-  options: { storeId?: string } = {}
+  options: { storeId?: string; implementationRoot?: string } = {}
 ): ChangeStatus {
   // Load schema to get apply phase configuration
   const schema = resolveSchema(context.schemaName, context.projectRoot);
@@ -552,6 +552,16 @@ export function formatChangeStatus(
     actionContext: buildActionContext({
       projectRoot: context.projectRoot,
       artifactIds,
+      ...(options.storeId
+        ? {
+            store: {
+              id: options.storeId,
+              ...(options.implementationRoot
+                ? { implementationRoot: options.implementationRoot }
+                : {}),
+            },
+          }
+        : {}),
     }),
     artifacts: artifactStatuses,
     ...(context.warnings ? { warnings: context.warnings } : {}),
