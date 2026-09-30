@@ -56,20 +56,23 @@ export function summarizePlanningHome(
 }
 
 export function buildActionContext(input: ActionContextInput): ActionContext {
+  const scope = editScope(input);
+  // Keys stay in the published contract order.
   return {
     mode: 'repo-local',
     sourceOfTruth: 'repo',
     planningArtifacts: input.artifactIds,
     linkedContext: [],
-    ...editScope(input),
+    allowedEditRoots: scope.allowedEditRoots,
     requiresAffectedAreaSelection: false,
+    constraints: scope.constraints,
   };
 }
 
 /**
- * A store holds planning artifacts only; implementation happens in the
- * project that declares it. Without a declaring project the CLI cannot know
- * the implementation repo, so it says so instead of naming the store (#2013).
+ * A store holds planning artifacts only. The CLI does not route tasks to
+ * repos, so it names the declaring project on the current path as the edit
+ * root and has the agent ask before going anywhere else (#2013).
  */
 function editScope(input: ActionContextInput): Pick<ActionContext, 'allowedEditRoots' | 'constraints'> {
   if (!input.store) {
@@ -85,7 +88,7 @@ function editScope(input: ActionContextInput): Pick<ActionContext, 'allowedEditR
     return {
       allowedEditRoots: [implementationRoot, input.projectRoot],
       constraints: [
-        `${planning} Implementation edits belong to ${implementationRoot}, which declares this store.`,
+        `${planning} Implementation edits go in ${implementationRoot}, the project on the current path that declares this store; ask the user before editing any other repository.`,
       ],
     };
   }
@@ -93,7 +96,7 @@ function editScope(input: ActionContextInput): Pick<ActionContext, 'allowedEditR
   return {
     allowedEditRoots: [input.projectRoot],
     constraints: [
-      `${planning} No project on the current path declares this store, so ask the user which repository implementation edits belong to.`,
+      `${planning} OpenSpec could not determine which repository implements this change; ask the user which repository to edit, and make implementation edits there.`,
     ],
   };
 }

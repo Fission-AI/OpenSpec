@@ -59,8 +59,18 @@ describe('status actionContext for store-selected roots (#2013)', () => {
     const context = await actionContext([], appRepo);
 
     expect(context.allowedEditRoots).toEqual([appRepo, storeRoot]);
-    expect(context.constraints.join(' ')).not.toContain('scoped to this project');
-    expect(context.constraints.join(' ')).toContain(appRepo);
+    expect(context.constraints).toEqual([
+      `Change artifacts live in store 'plans' (${storeRoot}). Implementation edits go in ${appRepo}, the project on the current path that declares this store; ask the user before editing any other repository.`,
+    ]);
+  });
+
+  it('finds the declaring repo from a subdirectory of it', async () => {
+    const deep = path.join(appRepo, 'src', 'deep');
+    fs.mkdirSync(deep, { recursive: true });
+
+    const context = await actionContext([], deep);
+
+    expect(context.allowedEditRoots).toEqual([appRepo, storeRoot]);
   });
 
   it('lists the declaring repo with an explicit --store from that repo (issue repro)', async () => {
@@ -76,9 +86,9 @@ describe('status actionContext for store-selected roots (#2013)', () => {
     const context = await actionContext(['--store', 'plans'], elsewhere);
 
     expect(context.allowedEditRoots).toEqual([storeRoot]);
-    const constraints = context.constraints.join(' ');
-    expect(constraints).not.toContain('scoped to this project');
-    expect(constraints).toContain('ask the user');
+    expect(context.constraints).toEqual([
+      `Change artifacts live in store 'plans' (${storeRoot}). OpenSpec could not determine which repository implements this change; ask the user which repository to edit, and make implementation edits there.`,
+    ]);
   });
 
   it('does not borrow a repo that declares a different store', async () => {
@@ -89,6 +99,29 @@ describe('status actionContext for store-selected roots (#2013)', () => {
     expect(context.allowedEditRoots).toEqual([storeRoot]);
   });
 
+  it('does not borrow a real planning root whose store pointer is ignored', async () => {
+    const repo = path.join(tempDir, 'local');
+    createOpenSpecRoot(repo);
+    fs.writeFileSync(path.join(repo, 'openspec', 'config.yaml'), 'store: plans\n');
+
+    const context = await actionContext(['--store', 'plans'], repo);
+
+    expect(context.allowedEditRoots).toEqual([storeRoot]);
+  });
+
+  it('gives every change in status --all the same edit roots', async () => {
+    fs.mkdirSync(path.join(storeRoot, 'openspec', 'changes', 'add-billing'), { recursive: true });
+
+    const result = await runCLI(['status', '--all', '--json'], { cwd: appRepo, env });
+
+    expect(result.exitCode).toBe(0);
+    const { changes } = JSON.parse(result.stdout);
+    expect(changes.map((entry: any) => entry.actionContext.allowedEditRoots)).toEqual([
+      [appRepo, storeRoot],
+      [appRepo, storeRoot],
+    ]);
+  });
+
   it('keeps the repo-local context byte-stable', async () => {
     const repo = path.join(tempDir, 'local');
     createOpenSpecRoot(repo);
@@ -96,7 +129,8 @@ describe('status actionContext for store-selected roots (#2013)', () => {
 
     const context = await actionContext([], repo);
 
-    expect(context).toEqual({
+    // toEqual ignores key order; the serialized form pins it too.
+    expect(JSON.stringify(context)).toBe(JSON.stringify({
       mode: 'repo-local',
       sourceOfTruth: 'repo',
       planningArtifacts: ['proposal', 'specs', 'design', 'tasks'],
@@ -104,6 +138,6 @@ describe('status actionContext for store-selected roots (#2013)', () => {
       allowedEditRoots: [repo],
       requiresAffectedAreaSelection: false,
       constraints: ['Repo-local change artifacts and implementation edits are scoped to this project.'],
-    });
+    }));
   });
 });
