@@ -33,6 +33,11 @@ export interface ChangeNextStepsInput {
 export interface ActionContextInput {
   projectRoot: string;
   artifactIds: string[];
+  /**
+   * Set when the root is a store: the store holds the planning artifacts,
+   * and `implementationRoot` is the project that declares it, if any.
+   */
+  store?: { id: string; implementationRoot?: string };
 }
 
 export function summarizePlanningHome(
@@ -51,14 +56,48 @@ export function summarizePlanningHome(
 }
 
 export function buildActionContext(input: ActionContextInput): ActionContext {
+  const scope = editScope(input);
+  // Keys stay in the published contract order.
   return {
     mode: 'repo-local',
     sourceOfTruth: 'repo',
     planningArtifacts: input.artifactIds,
     linkedContext: [],
-    allowedEditRoots: [input.projectRoot],
+    allowedEditRoots: scope.allowedEditRoots,
     requiresAffectedAreaSelection: false,
-    constraints: ['Repo-local change artifacts and implementation edits are scoped to this project.'],
+    constraints: scope.constraints,
+  };
+}
+
+/**
+ * A store holds planning artifacts only. The CLI does not route tasks to
+ * repos, so it names the declaring project on the current path as the edit
+ * root and has the agent ask before going anywhere else (#2013).
+ */
+function editScope(input: ActionContextInput): Pick<ActionContext, 'allowedEditRoots' | 'constraints'> {
+  if (!input.store) {
+    return {
+      allowedEditRoots: [input.projectRoot],
+      constraints: ['Repo-local change artifacts and implementation edits are scoped to this project.'],
+    };
+  }
+
+  const planning = `Change artifacts live in store '${input.store.id}' (${input.projectRoot}).`;
+  const { implementationRoot } = input.store;
+  if (implementationRoot) {
+    return {
+      allowedEditRoots: [implementationRoot, input.projectRoot],
+      constraints: [
+        `${planning} Implementation edits go in ${implementationRoot}, the project on the current path that declares this store; ask the user before editing any other repository.`,
+      ],
+    };
+  }
+
+  return {
+    allowedEditRoots: [input.projectRoot],
+    constraints: [
+      `${planning} OpenSpec could not determine which repository implements this change; ask the user which repository to edit, and make implementation edits there.`,
+    ],
   };
 }
 
