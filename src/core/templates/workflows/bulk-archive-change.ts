@@ -270,15 +270,15 @@ ${PROJECT_ROOT_GUARD}
 
 9. **Display summary**
 
-   Show final results:
+   Show final results using each successful change's recorded \`archive.path\`:
 
    \`\`\`markdown
    ## Bulk Archive Complete
 
    Archived 3 changes:
-   - schema-management-cli -> archive/2026-01-19-schema-management-cli/
-   - project-config -> archive/2026-01-19-project-config/
-   - add-oauth -> archive/2026-01-19-add-oauth/
+   - schema-management-cli -> <archive.path returned for schema-management-cli>
+   - project-config -> <archive.path returned for project-config>
+   - add-oauth -> <archive.path returned for add-oauth>
 
    Skipped 1 change:
    - add-verify-skill (user chose not to archive incomplete)
@@ -334,8 +334,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/<target-name-1>/
-- <change-2> -> archive/<target-name-2>/
+- <change-1> -> <archive.path returned for change-1>
+- <change-2> -> <archive.path returned for change-2>
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -348,7 +348,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/<target-name-1>/
+- <change-1> -> <archive.path returned for change-1>
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -643,15 +643,15 @@ ${PROJECT_ROOT_GUARD}
 
 9. **Display summary**
 
-   Show final results:
+   Show final results using each successful change's recorded \`archive.path\`:
 
    \`\`\`markdown
    ## Bulk Archive Complete
 
    Archived 3 changes:
-   - schema-management-cli -> archive/2026-01-19-schema-management-cli/
-   - project-config -> archive/2026-01-19-project-config/
-   - add-oauth -> archive/2026-01-19-add-oauth/
+   - schema-management-cli -> <archive.path returned for schema-management-cli>
+   - project-config -> <archive.path returned for project-config>
+   - add-oauth -> <archive.path returned for add-oauth>
 
    Skipped 1 change:
    - add-verify-skill (user chose not to archive incomplete)
@@ -707,8 +707,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/<target-name-1>/
-- <change-2> -> archive/<target-name-2>/
+- <change-1> -> <archive.path returned for change-1>
+- <change-2> -> <archive.path returned for change-2>
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -721,7 +721,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/<target-name-1>/
+- <change-1> -> <archive.path returned for change-1>
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
