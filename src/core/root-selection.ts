@@ -485,9 +485,9 @@ export function isStoreSelectedRoot(
 }
 
 /**
- * The project on the current path whose `store:` pointer names `storeId` —
- * the repo a store-backed change is implemented in. Null when the nearest
- * root is a real planning root or points at a different store.
+ * The project on the current path whose `store:` pointer names `storeId`,
+ * as a canonical path (the root walk resolves aliases). Null when the
+ * nearest root is a real planning root or points at a different store.
  */
 export function findDeclaringProjectRoot(
   storeId: string,
@@ -501,7 +501,7 @@ export function findDeclaringProjectRoot(
   if (hasPlanningShape || pointer.value !== storeId) {
     return null;
   }
-  return FileSystemUtils.canonicalizeExistingPath(nearestRoot);
+  return nearestRoot;
 }
 
 /**

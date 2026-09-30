@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
+import { findDeclaringProjectRoot } from '../../src/core/root-selection.js';
 import { runCLI } from '../helpers/run-cli.js';
 import { createOpenSpecRoot } from '../helpers/openspec-fixtures.js';
 
@@ -70,6 +71,17 @@ describe('status actionContext for store-selected roots (#2013)', () => {
 
     const context = await actionContext([], deep);
 
+    expect(context.allowedEditRoots).toEqual([appRepo, storeRoot]);
+  });
+
+  it('reports the canonical declaring repo when reached through an alias', async () => {
+    const alias = path.join(tempDir, 'app-alias');
+    fs.symlinkSync(appRepo, alias, process.platform === 'win32' ? 'junction' : 'dir');
+
+    // Direct call: the start path keeps the alias spelling on every platform.
+    expect(findDeclaringProjectRoot('plans', alias)).toBe(appRepo);
+
+    const context = await actionContext([], alias);
     expect(context.allowedEditRoots).toEqual([appRepo, storeRoot]);
   });
 
