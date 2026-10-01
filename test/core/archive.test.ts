@@ -7553,7 +7553,7 @@ The system SHALL provide a new behavior.
         tempDir, 'openspec', 'changes', 'archive', `${formatLocalDate()}-${changeName}`
       );
       const realRename = fs.rename.bind(fs);
-      const realRm = fs.rm.bind(fs);
+      const realRmdir = fs.rmdir.bind(fs);
       const realUnlink = fs.unlink.bind(fs);
       onTestFinished(() => vi.restoreAllMocks());
       let stagedSource: string | undefined;
@@ -7567,14 +7567,16 @@ The system SHALL provide a new behavior.
         }
         return realRename(source, destination);
       });
-      vi.spyOn(fs, 'rm').mockImplementation(async (candidate, options) => {
-        if (String(candidate).includes(`${path.sep}changes${path.sep}.openspec-move-`)) {
+      // Source removal claims and deletes each verified entry, then removes the
+      // staged root last; deny that final step so a partly removed staged
+      // source is left behind.
+      vi.spyOn(fs, 'rmdir').mockImplementation(async (candidate, options) => {
+        if (path.basename(String(candidate)).startsWith('.openspec-move-')) {
           stagedSource = String(candidate);
-          await realUnlink(path.join(stagedSource, 'tasks.md'));
           sourceCleanupDenied = true;
           throw Object.assign(new Error('partial source cleanup'), { code: 'EACCES' });
         }
-        return realRm(candidate, options);
+        return realRmdir(candidate, options);
       });
       vi.spyOn(fs, 'unlink').mockImplementation(async (candidate) => {
         if (String(candidate).includes('.openspec-retire-')) {
