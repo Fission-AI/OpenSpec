@@ -257,6 +257,8 @@ ${PROJECT_ROOT_GUARD}
       recording success. On failure, record the diagnostics and continue with the
       remaining confirmed changes. Do not fall back to a shell move or bypass
       validation; an existing archive must remain intact.
+      Report any main specs step 8a already synced for this change: those writes
+      stay in place, and a retry after the fix reads them as already synced.
 
       The preflight target is advisory: the CLI derives \`<target-name>\` at invocation time. It keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Record the returned \`archive.path\`.
       Preserve the earlier per-delta sync outcomes; \`archive.specsUpdated\` is
@@ -630,6 +632,8 @@ ${PROJECT_ROOT_GUARD}
       recording success. On failure, record the diagnostics and continue with the
       remaining confirmed changes. Do not fall back to a shell move or bypass
       validation; an existing archive must remain intact.
+      Report any main specs step 8a already synced for this change: those writes
+      stay in place, and a retry after the fix reads them as already synced.
 
       The preflight target is advisory: the CLI derives \`<target-name>\` at invocation time. It keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Record the returned \`archive.path\`.
       Preserve the earlier per-delta sync outcomes; \`archive.specsUpdated\` is
