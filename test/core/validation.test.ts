@@ -256,10 +256,35 @@ ${requirementPrefix}${'x'.repeat(length - requirementPrefix.length)}
         expect.objectContaining({ message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG })
       );
       expect(overLimit.issues).toContainEqual({
-        level: 'INFO',
+        level: 'WARNING',
         path: 'requirements[0]',
         message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG,
       });
+    });
+
+    it('fails strict validation, but not normal validation, on an overlong requirement (#1976)', async () => {
+      const spec = `# Overlong requirement
+
+## Purpose
+This specification checks how strict mode treats an overlong requirement description.
+
+## Requirements
+
+### Requirement: Overlong
+The system SHALL ${'x'.repeat(MAX_REQUIREMENT_TEXT_LENGTH)}
+
+#### Scenario: Overlong is checked
+- **WHEN** the requirement is validated
+- **THEN** the length finding is reported`;
+
+      const normal = await new Validator().validateSpecContent('overlong', spec);
+      const strict = await new Validator(true).validateSpecContent('overlong', spec);
+
+      expect(normal.valid).toBe(true);
+      expect(strict.valid).toBe(false);
+      expect(strict.issues).toEqual([
+        expect.objectContaining({ level: 'WARNING', message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG }),
+      ]);
     });
 
     it('should detect missing overview section', async () => {

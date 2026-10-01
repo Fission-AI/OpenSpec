@@ -820,7 +820,7 @@ export class Validator {
     spec.requirements.forEach((req, index) => {
       if (req.text.length > MAX_REQUIREMENT_TEXT_LENGTH) {
         issues.push({
-          level: 'INFO',
+          level: 'WARNING',
           path: `requirements[${index}]`,
           message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG,
         });

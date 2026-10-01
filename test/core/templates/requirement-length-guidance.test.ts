@@ -22,8 +22,8 @@ describe('specs instruction requirement length (#1976)', () => {
     expect(instruction).toContain(`${MAX_REQUIREMENT_TEXT_LENGTH} characters or fewer`);
     expect(instruction).toContain('split a requirement that covers several behaviors');
     // Existing requirements under MODIFIED must be copied whole (scenario-loss
-    // validation rejects a split), and the limit is only an INFO hint.
-    expect(instruction).toContain('This is an informational hint, not an error.');
+    // validation rejects a split), and the limit is a warning that fails --strict.
+    expect(instruction).toContain('`openspec validate --strict` fails on it.');
     expect(instruction).toContain('Under MODIFIED, keep the existing requirement block whole');
   });
 });
