@@ -195,6 +195,8 @@ ${PROJECT_ROOT_GUARD}
    stop. Do not fall back to a shell move or bypass validation. If the destination
    already exists, leave it intact and suggest a different change name or resolving
    the collision before retrying.
+   If step 4 already synced main specs, say so in the failure report: those
+   writes stay in place, and a retry after the fix reads them as already synced.
 
    The CLI derives \`<target-name>\`: it keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Use the returned \`archive.path\` as the archive location.
    Preserve the step 4 sync outcome in the summary: \`archive.specsUpdated\` is
@@ -411,6 +413,8 @@ ${PROJECT_ROOT_GUARD}
    stop. Do not fall back to a shell move or bypass validation. If the destination
    already exists, leave it intact and suggest a different change name or resolving
    the collision before retrying.
+   If step 4 already synced main specs, say so in the failure report: those
+   writes stay in place, and a retry after the fix reads them as already synced.
 
    The CLI derives \`<target-name>\`: it keeps the change name when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise it prepends the current date. Use the returned \`archive.path\` as the archive location.
    Preserve the step 4 sync outcome in the summary: \`archive.specsUpdated\` is
