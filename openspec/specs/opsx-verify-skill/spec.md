@@ -81,6 +81,11 @@ The agent SHALL support `--adversarial` as an explicit opt-in mode of the existi
 - **AND** any lower-priority `UNCHECKED` remainder is still reported explicitly
 - **AND** the report does not claim exhaustive proof
 
+#### Scenario: Adversarial readiness never overrides a blocking baseline
+- **WHEN** adversarial mode is enabled
+- **AND** the baseline final assessment does not claim readiness because of CRITICAL issues or not verified checks
+- **THEN** the report states the change is not ready even when every checked claim is `SUPPORTED`
+
 ### Requirement: Completeness Verification
 The agent SHALL verify that all required work has been completed.
 

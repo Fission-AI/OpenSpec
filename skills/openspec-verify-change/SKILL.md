@@ -233,6 +233,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - Add an `UNCHECKED` remainder section, distinguishing important claims skipped because of the budget from lower-priority claims not selected
    - End with the adversarial readiness from claim outcomes above. This readiness is independent of CRITICAL/WARNING/SUGGESTION issue counts
    - Do not use the baseline "All checks passed" terminal line as the adversarial readiness result
+   - Adversarial readiness can only tighten the baseline Final Assessment, never loosen it: if the baseline assessment does not claim readiness (CRITICAL issues or not verified checks), state that the change is not ready even when every checked claim is `SUPPORTED`
 
 **Verification Heuristics**
 

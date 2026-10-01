@@ -60,6 +60,9 @@ describe('verify adversarial mode', () => {
       expect(content, variant).toContain(
         'Do not use the baseline "All checks passed" terminal line as the adversarial readiness result'
       );
+      expect(content, variant).toContain(
+        'Adversarial readiness can only tighten the baseline Final Assessment, never loosen it'
+      );
     }
   });
 
