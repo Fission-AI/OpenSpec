@@ -508,6 +508,62 @@ Then result`;
     });
   });
 
+  describe('validateChangeDeltaSpecs requirement length (#1976)', () => {
+    const requirementPrefix = 'The system SHALL ';
+    const writeDelta = async (name: string, section: 'ADDED' | 'MODIFIED', length: number) => {
+      const changeDir = path.join(testDir, name);
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'spec.md'),
+        `## ${section} Requirements
+
+### Requirement: Long
+${requirementPrefix}${'x'.repeat(length - requirementPrefix.length)}
+
+#### Scenario: Long is checked
+- **WHEN** the change is validated
+- **THEN** the length finding is reported`
+      );
+      return changeDir;
+    };
+
+    it('fails strict, but not normal, validation on an overlong ADDED requirement', async () => {
+      const changeDir = await writeDelta('added-long', 'ADDED', MAX_REQUIREMENT_TEXT_LENGTH + 1);
+
+      const normal = await new Validator().validateChangeDeltaSpecs(changeDir);
+      const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      expect(normal.valid).toBe(true);
+      expect(strict.valid).toBe(false);
+      expect(strict.issues).toEqual([
+        expect.objectContaining({
+          level: 'WARNING',
+          message: `ADDED "Long": ${VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG}`,
+        }),
+      ]);
+    });
+
+    it('accepts an ADDED requirement at the limit', async () => {
+      const changeDir = await writeDelta('added-at-limit', 'ADDED', MAX_REQUIREMENT_TEXT_LENGTH);
+
+      const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      expect(strict.valid).toBe(true);
+      expect(strict.issues).toEqual([]);
+    });
+
+    it('does not flag an overlong MODIFIED requirement, which keeps the existing text whole', async () => {
+      const changeDir = await writeDelta('modified-long', 'MODIFIED', MAX_REQUIREMENT_TEXT_LENGTH + 1);
+
+      const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      expect(strict.issues.map((i) => i.message)).not.toContainEqual(
+        expect.stringContaining(VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG)
+      );
+    });
+  });
+
   describe('validateChangeDeltaSpecs with metadata', () => {
     it('rejects a delta that both renames and removes the same requirement', async () => {
       // Parity with archive: apply-time rejects this contradiction, so
