@@ -97,6 +97,27 @@ describe('archive workflows delegate the final move to the CLI', () => {
       await expect(fs.readdir(destination)).resolves.toEqual(state === 'empty' ? [] : ['existing.txt']);
       await expect(fs.readFile(path.join(root, 'openspec/specs/capability/spec.md'), 'utf8')).resolves.toBe(mainSpec);
     });
+
+    // The CLI validates deltas even with --skip-specs, and it runs after the
+    // workflow's inline sync. A delta the agent merged but the validator rejects
+    // therefore leaves main specs written and the change active; the workflow
+    // must say so instead of only relaying the CLI error.
+    it(`${surface}: reports main specs already synced when CLI validation blocks the move`, async () => {
+      await write(
+        `openspec/changes/${name}/specs/capability/spec.md`,
+        '## ADDED Requirements\n\n### Requirement: Feature\nThe system SHALL provide the feature.\n'
+      );
+
+      const result = await runCLI(commandArgs(content), { cwd: root });
+      expect(result.exitCode).toBe(1);
+      const report = JSON.parse(result.stdout);
+      expect(report.archive).toBeNull();
+      expect(report.status).toContainEqual(expect.objectContaining({ code: 'archive_validation_failed' }));
+      await expect(fs.readFile(path.join(root, 'openspec/changes', name, 'tasks.md'), 'utf8')).resolves.toBe('- [x] Finished\n');
+      await expect(fs.readFile(path.join(root, 'openspec/specs/capability/spec.md'), 'utf8')).resolves.toBe(mainSpec);
+
+      expect(content.replace(/\s+/g, " ")).toMatch(/already synced[^.]*: those writes stay in place, and a retry after the fix reads them as already synced\./);
+    });
   }
 
   it('keeps the existing archive intact in the command collision-recovery example', () => {
