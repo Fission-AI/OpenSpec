@@ -222,6 +222,25 @@ describe('top-level validate command', () => {
     expect(strict.exitCode).toBe(1);
   });
 
+  it('keeps --all passing for a comment-only config or keys left empty, which every command already tolerates', async () => {
+    const configPath = path.join(testDir, 'openspec', 'config.yaml');
+
+    await fs.writeFile(configPath, ['# schema: spec-driven', '# rules:', '#   proposal:', '#     - later', ''].join('\n'), 'utf-8');
+    const commentOnly = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(commentOnly.exitCode).toBe(0);
+    expect(JSON.parse(commentOnly.stdout.trim()).config).toEqual({ path: 'openspec/config.yaml', valid: true, issues: [] });
+
+    await fs.writeFile(configPath, ['schema: spec-driven', 'context:', 'rules:', '#  proposal:', '#    - later', ''].join('\n'), 'utf-8');
+    const emptyKeys = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(emptyKeys.exitCode).toBe(0);
+    const out = JSON.parse(emptyKeys.stdout.trim());
+    expect(out.config.valid).toBe(true);
+    expect(out.config.issues.map((issue: { level: string; path: string }) => [issue.level, issue.path])).toEqual([
+      ['WARNING', 'context'],
+      ['WARNING', 'rules'],
+    ]);
+  });
+
   it('includes config problems in the findings report', async () => {
     await fs.writeFile(path.join(testDir, 'openspec', 'config.yaml'), ['rules:', '  proposal: "not an array"', ''].join('\n'), 'utf-8');
 

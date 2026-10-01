@@ -122,12 +122,22 @@ export function loadOperationInputs(
 
 type FieldWarn = (path: string, message: string, level?: 'error' | 'warning') => void;
 
+/**
+ * A key left empty in YAML (`rules:` with every entry commented out, a bare
+ * `-` item) parses to null. Dropping it loses nothing the author wrote, so it
+ * is a warning rather than an error: it must not newly fail `validate` for a
+ * config every command has always tolerated.
+ */
+function lossLevel(value: unknown): 'error' | 'warning' {
+  return value === null ? 'warning' : 'error';
+}
+
 function parseOperations(raw: unknown, warn: FieldWarn = (_path, message) => console.warn(message)): OperationsConfig | undefined {
   if (raw === undefined) {
     return undefined;
   }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    warn('operations', `Invalid 'operations' field in config (must be object)`);
+    warn('operations', `Invalid 'operations' field in config (must be object)`, lossLevel(raw));
     return undefined;
   }
 
@@ -148,7 +158,8 @@ function parseOperations(raw: unknown, warn: FieldWarn = (_path, message) => con
     if (!value || typeof value !== 'object' || Array.isArray(value)) {
       warn(
         `operations.${operationId}`,
-        `Invalid 'operations.${operationId}' field in config (must be object), ignoring this operation`
+        `Invalid 'operations.${operationId}' field in config (must be object), ignoring this operation`,
+        lossLevel(value)
       );
       continue;
     }
@@ -171,7 +182,8 @@ function parseOperations(raw: unknown, warn: FieldWarn = (_path, message) => con
     if (!guidanceResult.success) {
       warn(
         `operations.${operationId}.guidance`,
-        `Guidance for operation '${operationId}' must be an array of strings, ignoring this operation's guidance`
+        `Guidance for operation '${operationId}' must be an array of strings, ignoring this operation's guidance`,
+        lossLevel(operation.guidance)
       );
       continue;
     }
@@ -180,7 +192,8 @@ function parseOperations(raw: unknown, warn: FieldWarn = (_path, message) => con
     if (guidance.length < guidanceResult.data.length) {
       warn(
         `operations.${operationId}.guidance`,
-        `Some guidance for operation '${operationId}' are empty strings, ignoring them`
+        `Some guidance for operation '${operationId}' are empty strings, ignoring them`,
+        'warning'
       );
     }
     if (guidance.length > 0) {
@@ -206,7 +219,7 @@ function parseDeclarationList(raw: unknown, warn: FieldWarn = (_path, message) =
     return undefined;
   }
   if (!Array.isArray(raw)) {
-    warn(fieldName, `Invalid '${fieldName}' field in config (must be an array of store ids)`);
+    warn(fieldName, `Invalid '${fieldName}' field in config (must be an array of store ids)`, lossLevel(raw));
     return undefined;
   }
 
@@ -270,54 +283,6 @@ const KNOWN_CONFIG_FIELDS = new Set([
 ]);
 
 /**
- * Build the warning for an artifact whose `rules:` list is not an array of
- * strings. Names the offending index and what YAML actually produced there, so
- * a config that silently loses an entire rule set can be fixed without
- * bisecting the list by hand. A bare `-` item containing an unquoted ": " is the
- * common cause: YAML reads it as a mapping, so the hint points at quoting.
- */
-function describeRulesShapeError(artifactId: string, rules: unknown): string {
-  const base = `Rules for '${artifactId}' must be an array of strings, ignoring this artifact's rules`;
-
-  if (!Array.isArray(rules)) {
-    return `${base}. rules.${artifactId} is ${describeYamlType(rules)}`;
-  }
-
-  const bad = rules
-    .map((rule, index) => ({ rule, index }))
-    .filter(({ rule }) => typeof rule !== 'string');
-
-  if (bad.length === 0) {
-    return base;
-  }
-
-  // Name every offending index with its own shape, so a mixed list does not
-  // have to be re-bisected one item at a time.
-  const details = bad
-    .map(({ rule, index }) => `rules.${artifactId}[${index}] is ${describeYamlType(rule)}`)
-    .join('; ');
-
-  // A bare `-` item with an unquoted ": " is the common cause: YAML reads it as
-  // a mapping. Say so rather than leaving the reader to work out the quoting.
-  const hasMapping = bad.some(({ rule }) => rule !== null && typeof rule === 'object' && !Array.isArray(rule));
-  const hint = hasMapping
-    ? ' — an unquoted ": " makes YAML read the item as a key/value pair; quote the whole scalar to keep it a string.'
-    : '';
-
-  return `${base}. ${details}${hint}`;
-}
-
-/** Name a YAML value's shape in a warning, e.g. "a mapping" or "a number". */
-function describeYamlType(value: unknown): string {
-  if (value === null) return 'null';
-  if (Array.isArray(value)) return 'a nested list';
-  const type = typeof value;
-  if (type === 'object') return 'a mapping';
-  if (type === 'number' || type === 'boolean') return `a ${type}`;
-  return `a ${type}`;
-}
-
-/**
  * Read and parse openspec/config.yaml from project root.
  * Uses resilient parsing - validates each field independently using Zod safeParse.
  * Returns null if file doesn't exist.
@@ -344,7 +309,7 @@ export interface ProjectConfigProblem {
    * `error`: configured content was lost (unparseable file, a dropped rule,
    * context, store, ...). `warning`: nothing was lost — an unknown operation id
    * or an unknown field was ignored, which is how a config written for a newer
-   * CLI is meant to degrade on an older one.
+   * CLI is meant to degrade on an older one, or a key was left empty.
    */
   level: 'error' | 'warning';
   /** Config path the problem refers to (e.g. `rules.proposal[0]`), or `file` for whole-file failures. */
@@ -375,13 +340,16 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
  */
 export function inspectProjectConfig(projectRoot: string): ProjectConfigInspection {
   const problems: ProjectConfigProblem[] = [];
-  const { configPath, config } = parseProjectConfig(projectRoot, (problem) => problems.push(problem));
+  const { configPath, config } = parseProjectConfig(projectRoot, (problem) => problems.push(problem), {
+    reportUnknownFields: true,
+  });
   return { configPath, config, problems };
 }
 
 function parseProjectConfig(
   projectRoot: string,
-  report: (problem: ProjectConfigProblem) => void
+  report: (problem: ProjectConfigProblem) => void,
+  options: { reportUnknownFields?: boolean } = {}
 ): { configPath: string | null; config: ProjectConfig | null } {
   const warn: FieldWarn = (path, message, level = 'error') => report({ kind: 'field', level, path, message });
   const configPath = resolveConfigFilePath(projectRoot);
@@ -393,9 +361,15 @@ function parseProjectConfig(
     const content = readFileSync(configPath, 'utf-8');
     const raw = parseYaml(content);
 
+    // An empty or comment-only file parses to null/undefined: it configures
+    // nothing, so it is treated like a missing config, not as a broken one.
+    if (raw === null || raw === undefined) {
+      return { configPath, config: null };
+    }
+
     // `typeof [] === 'object'`: a top-level sequence has no config fields, so
     // without this it would parse to an empty config with no problem reported.
-    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    if (typeof raw !== 'object' || Array.isArray(raw)) {
       report({ kind: 'parse', level: 'error', path: 'file', message: `openspec/config.yaml is not a valid YAML object` });
       return { configPath, config: null };
     }
@@ -408,7 +382,7 @@ function parseProjectConfig(
     if (schemaResult.success) {
       config.schema = schemaResult.data;
     } else if (raw.schema !== undefined) {
-      warn('schema', `Invalid 'schema' field in config (must be non-empty string)`);
+      warn('schema', `Invalid 'schema' field in config (must be non-empty string)`, lossLevel(raw.schema));
     }
 
     // Parse context field with size limit
@@ -427,7 +401,7 @@ function parseProjectConfig(
           config.context = contextResult.data;
         }
       } else {
-        warn('context', `Invalid 'context' field in config (must be string)`);
+        warn('context', `Invalid 'context' field in config (must be string)`, lossLevel(raw.context));
       }
     }
 
@@ -459,7 +433,8 @@ function parseProjectConfig(
                 const hint = isYamlMapping(rule) ? '; quote the rule if it contains ": "' : '';
                 warn(
                   `rules.${artifactId}[${index}]`,
-                  `rules.${artifactId}[${index}] is not a string (found ${describeYamlValue(rule)}), ignoring this rule${hint}`
+                  `rules.${artifactId}[${index}] is not a string (found ${describeYamlValue(rule)}), ignoring this rule${hint}`,
+                  lossLevel(rule)
                 );
               }
             });
@@ -470,11 +445,16 @@ function parseProjectConfig(
             if (emptyRules > 0) {
               warn(
                 `rules.${artifactId}`,
-                `Some rules for '${artifactId}' are empty strings, ignoring them`
+                `Some rules for '${artifactId}' are empty strings, ignoring them`,
+                'warning'
               );
             }
           } else {
-            warn(`rules.${artifactId}`, describeRulesShapeError(artifactId, rules));
+            warn(
+              `rules.${artifactId}`,
+              `Rules for '${artifactId}' must be an array of strings, ignoring this artifact's rules. rules.${artifactId} is ${describeYamlValue(rules)}`,
+              lossLevel(rules)
+            );
           }
         }
 
@@ -482,7 +462,7 @@ function parseProjectConfig(
           config.rules = parsedRules;
         }
       } else {
-        warn('rules', `Invalid 'rules' field in config (must be object)`);
+        warn('rules', `Invalid 'rules' field in config (must be object)`, lossLevel(raw.rules));
       }
     }
 
@@ -505,7 +485,8 @@ function parseProjectConfig(
       } else {
         warn(
           'store',
-          `Ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string)`
+          `Ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string)`,
+          lossLevel(raw.store)
         );
       }
     }
@@ -521,10 +502,10 @@ function parseProjectConfig(
         if (typeof cloudAgent === 'boolean') {
           config.githubCopilot = { cloudAgent };
         } else if (cloudAgent !== undefined) {
-          warn('githubCopilot.cloudAgent', `Invalid 'githubCopilot.cloudAgent' field in config (must be a boolean)`);
+          warn('githubCopilot.cloudAgent', `Invalid 'githubCopilot.cloudAgent' field in config (must be a boolean)`, lossLevel(cloudAgent));
         }
       } else {
-        warn('githubCopilot', `Invalid 'githubCopilot' field in config (must be an object)`);
+        warn('githubCopilot', `Invalid 'githubCopilot' field in config (must be an object)`, lossLevel(raw.githubCopilot));
       }
     }
 
@@ -533,8 +514,10 @@ function parseProjectConfig(
     // (nothing the parser understood was lost) so `validate --strict` can
     // reject it while a config written for a newer CLI still degrades on an
     // older one. `targets` is the retired name of `references` and stays
-    // silent, as it always has.
-    for (const key of Object.keys(raw)) {
+    // silent, as it always has. Only `inspectProjectConfig` (validate) reports
+    // these: every other command reads the config through `readProjectConfig`
+    // and has always ignored unknown keys silently.
+    for (const key of options.reportUnknownFields ? Object.keys(raw) : []) {
       if (!KNOWN_CONFIG_FIELDS.has(key)) {
         warn(
           key,

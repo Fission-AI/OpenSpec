@@ -484,25 +484,24 @@ rules:
 
         const config = readProjectConfig(tempDir);
 
-        // Unchanged behavior: the malformed artifact's whole rule set is still
-        // dropped, and its well-formed siblings are untouched.
+        // Only the malformed item is dropped (#1891): its well-formed siblings in
+        // the same list and in other artifacts are kept.
         expect(config).toEqual({
           schema: 'spec-driven',
           rules: {
+            proposal: ['Valid rule', 'Another valid rule'],
             specs: ['Requirements are declarative SHALL statements'],
           },
         });
 
-        const warned = consoleWarnSpy.mock.calls
-          .map((call) => call[0] as string)
-          .find((message) => message.includes("Rules for 'proposal'")) as string;
-        // Points at the exact index instead of making the reader bisect by hand.
-        expect(warned).toContain('rules.proposal[1] is a mapping');
-        // And says why, plus how to fix it.
-        expect(warned).toContain('unquoted ": "');
-        expect(warned).toContain('quote the whole scalar');
+        const warnings = consoleWarnSpy.mock.calls.map((call) => call[0] as string);
+        expect(warnings).toHaveLength(1);
+        // Points at the exact index instead of making the reader bisect by hand,
+        // and says how to fix it.
+        expect(warnings[0]).toContain('rules.proposal[1] is not a string (found a mapping');
+        expect(warnings[0]).toContain('quote the rule if it contains ": "');
         // The well-formed artifact is not implicated.
-        expect(warned).not.toContain('rules.specs');
+        expect(warnings[0]).not.toContain('rules.specs');
       });
 
       it('should list every offending index when a rules list has more than one bad item', () => {
@@ -522,18 +521,19 @@ rules:
 `
         );
 
-        readProjectConfig(tempDir);
+        const config = readProjectConfig(tempDir);
 
-        const warned = consoleWarnSpy.mock.calls
-          .map((call) => call[0] as string)
-          .find((message) => message.includes("Rules for 'proposal'")) as string;
-        expect(warned).toContain('rules.proposal[0] is a mapping');
-        expect(warned).toContain('rules.proposal[2] is a mapping');
-        expect(warned).toContain('rules.proposal[3] is a number');
-        expect(warned).toContain('rules.proposal[4] is null');
-        expect(warned).toContain('rules.proposal[5] is a nested list');
+        expect(config?.rules).toEqual({ proposal: ['Valid rule'] });
+        const warnings = consoleWarnSpy.mock.calls.map((call) => call[0] as string);
+        expect(warnings).toEqual([
+          expect.stringContaining('rules.proposal[0] is not a string (found a mapping'),
+          expect.stringContaining('rules.proposal[2] is not a string (found a mapping'),
+          expect.stringContaining('rules.proposal[3] is not a string (found a number)'),
+          expect.stringContaining('rules.proposal[4] is not a string (found null)'),
+          expect.stringContaining('rules.proposal[5] is not a string (found a list)'),
+        ]);
         // The valid sibling between them is not reported.
-        expect(warned).not.toContain('rules.proposal[1]');
+        expect(warnings.join('\n')).not.toContain('rules.proposal[1]');
       });
 
       it('keeps well-formed rules and names the offending item when one rule is not a string (#1891)', () => {
@@ -1260,6 +1260,55 @@ operations:
       ]);
       expect(inspection.problems[0].message).toContain('Supported fields: schema, context, rules');
       expect(inspection.problems[0].message).not.toContain('targets');
+      // Other commands read the config through readProjectConfig, which has
+      // always ignored unknown keys silently; only validate reports them.
+      expect(readProjectConfig(tempDir)).toEqual({ schema: 'spec-driven' });
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('treats an empty or comment-only config like a missing one', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      const configPath = path.join(configDir, 'config.yaml');
+
+      for (const body of ['', '# schema: spec-driven\n# rules:\n#   proposal:\n#     - later\n']) {
+        fs.writeFileSync(configPath, body);
+        expect(inspectProjectConfig(tempDir)).toEqual({ configPath, config: null, problems: [] });
+        expect(readProjectConfig(tempDir)).toBeNull();
+      }
+      expect(consoleWarnSpy).not.toHaveBeenCalled();
+    });
+
+    it('grades keys left empty in YAML as warnings, not errors: nothing written was lost', () => {
+      const configDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(configDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(configDir, 'config.yaml'),
+        [
+          'schema: spec-driven',
+          'context:',
+          'rules:',
+          '  proposal:',
+          '  design:',
+          '    - Keep it short',
+          '    -',
+          '    - ""',
+          'operations:',
+          '  apply:',
+          '    guidance:',
+          '  archive:',
+          'store:',
+          'githubCopilot:',
+          'references:',
+          '',
+        ].join('\n')
+      );
+
+      const inspection = inspectProjectConfig(tempDir);
+
+      expect(inspection.config).toEqual({ schema: 'spec-driven', rules: { design: ['Keep it short'] } });
+      expect(inspection.problems.length).toBeGreaterThan(0);
+      expect(inspection.problems.filter((p) => p.level === 'error')).toEqual([]);
     });
 
     it('returns an empty problem list for a healthy config', () => {
