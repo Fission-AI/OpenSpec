@@ -485,6 +485,26 @@ export function isStoreSelectedRoot(
 }
 
 /**
+ * The project on the current path whose `store:` pointer names `storeId`,
+ * as a canonical path (the root walk resolves aliases). Null when the
+ * nearest root is a real planning root or points at a different store.
+ */
+export function findDeclaringProjectRoot(
+  storeId: string,
+  startPath: string = process.cwd()
+): string | null {
+  const nearestRoot = findQualifyingRootSync(startPath);
+  if (!nearestRoot) {
+    return null;
+  }
+  const { hasPlanningShape, pointer } = classifyOpenSpecDir(nearestRoot);
+  if (hasPlanningShape || pointer.value !== storeId) {
+    return null;
+  }
+  return nearestRoot;
+}
+
+/**
  * Human-mode verification signal for a selected store. Written to stderr so
  * raw-Markdown and agent-consumed stdout payloads stay clean.
  */

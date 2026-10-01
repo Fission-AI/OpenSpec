@@ -12,8 +12,12 @@ allowBuilds:
 overrides:
   postcss: ^8.5.28
   sharp: ^0.35.3
-  brace-expansion@<=5.0.8: '>=5.0.9 <6'
-  fast-uri@<3.1.6: ^3.1.6
+  # GHSA-6j4f-fj2g-mc7p, GHSA-qhr7-859c-m2p7, GHSA-q2hr-2g5m-vwhr — brace-expansion
+  # DoS via nested or comma-heavy brace groups. Dev-only (serve > serve-handler >
+  # minimatch); never in the static site.
+  brace-expansion@<5.0.12: '>=5.0.12 <6'
+  # GHSA-hrr3-gc8f-f4qj — fast-uri. Dev-only (serve > ajv).
+  fast-uri@<3.1.8: ^3.1.8
   # GHSA-2v37-7h3g-55p8 / CVE-2026-67213 — nanoid infinite loop on size=0. Build-time
   # only (transitive via postcss); this is a statically exported site with no server
   # runtime. Remove once transitive nanoid is >=3.3.17 (check: pnpm why nanoid).
