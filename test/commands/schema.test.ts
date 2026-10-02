@@ -5,12 +5,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { runCLI } from '../helpers/run-cli.js';
 
-async function runSchemaCommand(
-  args: string[],
-  schemaModule?: typeof import('../../src/commands/schema.js')
-): Promise<void> {
-  const { registerSchemaCommand } =
-    schemaModule ?? (await import('../../src/commands/schema.js'));
+async function runSchemaCommand(args: string[]): Promise<void> {
+  const { registerSchemaCommand } = await import('../../src/cli/commands/schema.js');
   const program = new Command();
   registerSchemaCommand(program);
   await program.parseAsync(['node', 'openspec', 'schema', ...args]);
@@ -442,10 +438,7 @@ artifacts:
       return { schemaDir, before: snapshotTree(schemaDir) };
     }
 
-    async function runDefaultInit(
-      force: boolean,
-      schemaModule?: typeof import('../../src/commands/schema.js')
-    ): Promise<void> {
+    async function runDefaultInit(force: boolean): Promise<void> {
       await runSchemaCommand(
         [
           'init',
@@ -455,8 +448,7 @@ artifacts:
           'proposal,specs,tasks',
           '--default',
           '--json',
-        ],
-        schemaModule
+        ]
       );
     }
 
@@ -630,8 +622,7 @@ artifacts:
       const configPath = path.join(tempDir, 'openspec', 'config.yaml');
       const configBytes = Buffer.from('schema: existing\ncontext: keep me\n');
       fs.writeFileSync(configPath, configBytes);
-      const schemaModule = await import('../../src/commands/schema.js');
-      const { schemaInitFileOperations } = schemaModule;
+      const { schemaInitFileOperations } = await import('../../src/commands/schema.js');
       const renameSync = schemaInitFileOperations.renameSync;
       const renameCalls: Array<[string, string]> = [];
       schemaInitFileOperations.renameSync = (source, destination) => {
@@ -643,7 +634,7 @@ artifacts:
       };
 
       try {
-        await runDefaultInit(true, schemaModule);
+        await runDefaultInit(true);
       } finally {
         schemaInitFileOperations.renameSync = renameSync;
       }

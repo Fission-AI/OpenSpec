@@ -3,8 +3,6 @@
  * report. Read-only — it answers "are the roots this work relates to
  * available on this machine?" and never clones, syncs, or repairs.
  */
-import { Command, Option } from 'commander';
-
 import {
   resolveRootForCommand,
   type ResolvedOpenSpecRoot,
@@ -23,8 +21,6 @@ import {
   type InspectRelationshipsInput,
   type RelationshipHealth,
 } from '../core/relationship-health.js';
-import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
-import { COMMON_FLAGS } from '../core/completions/shared-flags.js';
 import { emitFailure, printJson } from './shared-output.js';
 import * as path from 'node:path';
 
@@ -182,38 +178,30 @@ function printHumanHealth(health: RelationshipHealth, declaredReferenceCount: nu
   }
 }
 
-export function registerDoctorCommand(program: Command): void {
-  const description =
-    COMMAND_REGISTRY.find((entry) => entry.name === 'doctor')?.description ??
-    'Report relationship health for the resolved OpenSpec root';
+export interface DoctorOptions {
+  store?: string;
+  storePath?: string;
+  json?: boolean;
+}
 
-  program
-    .command('doctor')
-    .description(description)
-    .option('--store <id>', COMMON_FLAGS.store.description)
-    .addOption(
-      new Option('--store-path <path>', 'Removed; register the store and use --store').hideHelp()
-    )
-    .option('--json', 'Output as JSON')
-    .action(async (options: { store?: string; storePath?: string; json?: boolean }) => {
-      try {
-        const root = await resolveRootForCommand(
-          { store: options.store, storePath: options.storePath },
-          { json: options.json, failurePayload: FAILURE_PAYLOAD, allowImplicitRoot: false }
-        );
-        if (!root) {
-          return;
-        }
+export async function doctorCommand(options: DoctorOptions): Promise<void> {
+  try {
+    const root = await resolveRootForCommand(
+      { store: options.store, storePath: options.storePath },
+      { json: options.json, failurePayload: FAILURE_PAYLOAD, allowImplicitRoot: false }
+    );
+    if (!root) {
+      return;
+    }
 
-        const { health, declaredReferenceCount } = await gatherHealth(root);
+    const { health, declaredReferenceCount } = await gatherHealth(root);
 
-        if (options.json) {
-          printJson(health);
-          return;
-        }
-        printHumanHealth(health, declaredReferenceCount);
-      } catch (error) {
-        emitFailure(options.json, FAILURE_PAYLOAD, error, 'doctor_failed');
-      }
-    });
+    if (options.json) {
+      printJson(health);
+      return;
+    }
+    printHumanHealth(health, declaredReferenceCount);
+  } catch (error) {
+    emitFailure(options.json, FAILURE_PAYLOAD, error, 'doctor_failed');
+  }
 }
