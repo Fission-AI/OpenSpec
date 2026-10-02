@@ -68,15 +68,6 @@ export class ViewCommand {
       });
     }
 
-    // Display archived changes
-    if (changesData.archived.length > 0) {
-      console.log(chalk.bold.gray('\nArchived Changes'));
-      console.log('─'.repeat(60));
-      changesData.archived.forEach((change) => {
-        console.log(chalk.gray(`  ◦ ${change.name}`));
-      });
-    }
-
     // Display specifications
     if (specsData.length > 0) {
       console.log(chalk.bold.blue('\nSpecifications'));
@@ -101,32 +92,17 @@ export class ViewCommand {
     draft: Array<{ name: string }>;
     active: Array<{ name: string; progress: { total: number; completed: number }; workflowStatus?: ChangeStatus }>;
     completed: Array<{ name: string }>;
-    archived: Array<{ name: string }>;
   }> {
     const changesDir = path.join(openspecDir, 'changes');
     const projectRoot = path.dirname(openspecDir);
 
     if (!fs.existsSync(changesDir)) {
-      return { draft: [], active: [], completed: [], archived: [] };
+      return { draft: [], active: [], completed: [] };
     }
 
     const draft: Array<{ name: string }> = [];
     const active: Array<{ name: string; progress: { total: number; completed: number }; workflowStatus?: ChangeStatus }> = [];
     const completed: Array<{ name: string }> = [];
-    let archived: Array<{ name: string }> = [];
-
-    try {
-      archived = fs.readdirSync(path.join(changesDir, 'archive'), { withFileTypes: true })
-        .filter((entry) => entry.isDirectory() && !entry.name.startsWith('.'))
-        .map((entry) => ({ name: entry.name }));
-    } catch (error) {
-      // A missing archive, or an `archive` path that is a file, has no archived
-      // changes to show; neither should break the rest of the dashboard.
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code !== 'ENOENT' && code !== 'ENOTDIR') {
-        throw error;
-      }
-    }
 
     const entries = fs.readdirSync(changesDir, { withFileTypes: true });
 
@@ -169,9 +145,8 @@ export class ViewCommand {
       return a.name.localeCompare(b.name);
     });
     completed.sort((a, b) => a.name.localeCompare(b.name));
-    archived.sort((a, b) => a.name.localeCompare(b.name));
 
-    return { draft, active, completed, archived };
+    return { draft, active, completed };
   }
 
   private async getSpecsData(openspecDir: string): Promise<Array<{ name: string; requirementCount: number }>> {
@@ -200,7 +175,7 @@ export class ViewCommand {
   }
 
   private displaySummary(
-    changesData: { draft: any[]; active: any[]; completed: any[]; archived: any[] },
+    changesData: { draft: any[]; active: any[]; completed: any[] },
     specsData: any[]
   ): void {
     const totalChanges =
@@ -233,7 +208,6 @@ export class ViewCommand {
       `  ${chalk.yellow('●')} Active Changes: ${chalk.bold(changesData.active.length)} in progress`
     );
     console.log(`  ${chalk.green('●')} Completed Changes: ${chalk.bold(changesData.completed.length)}`);
-    console.log(`  ${chalk.gray('●')} Archived Changes: ${chalk.bold(changesData.archived.length)}`);
 
     if (totalTasks > 0) {
       const overallProgress = Math.round((completedTasks / totalTasks) * 100);

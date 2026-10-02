@@ -152,8 +152,8 @@ describe('openspec view root resolution', () => {
       expect(result.stdout).toContain('billing');
       expect(result.stdout).toContain('Active Changes: 2 in progress');
       expect(result.stdout).toContain('Task Progress: 2/4 (50% complete)');
-      expect(result.stdout).toContain('Archived Changes: 1');
-      expect(result.stdout).toContain('2026-08-27-store-history');
+      expect(result.stdout).not.toContain('Archived');
+      expect(result.stdout).not.toContain('2026-08-27-store-history');
       const lines = result.stdout.split(/\r?\n/);
 
       for (const changeName of ['billing-update', 'billing-refactor']) {
@@ -228,8 +228,8 @@ describe('openspec view root resolution', () => {
       cwd: base, env: aliasEnv, timeoutMs: TIMEOUT_MS,
     });
     expect(viewed.exitCode, viewed.stderr).toBe(0);
-    expect(viewed.stdout).toContain('Archived Changes: 1');
-    expect(viewed.stdout).toContain('2026-08-27-store-history');
+    expect(viewed.stdout).toContain('Active Changes: 2 in progress');
+    expect(viewed.stdout).not.toContain('2026-08-27-store-history');
   }, TIMEOUT_MS);
 
   it(
