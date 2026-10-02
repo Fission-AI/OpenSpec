@@ -21,7 +21,7 @@ describe('verify-change templates', () => {
       expect(body, label).toContain('`artifactPaths.<id>.outputPath`');
       expect(body, label).toContain('under `specs/`');
       expect(body, label).toContain('`contextFiles.<id>`');
-      expect(body, label).toContain('`design.md`');
+      expect(body, label).toContain('is or ends in `design.md`');
     }
   });
 

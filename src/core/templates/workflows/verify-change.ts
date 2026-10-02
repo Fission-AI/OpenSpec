@@ -135,7 +135,7 @@ ${PROJECT_ROOT_GUARD}
 7. **Verify Coherence**
 
    **Design Adherence**:
-   - If the schema defines no design artifact (no artifact whose \`artifactPaths.<id>.outputPath\` is \`design.md\`), report **Design Adherence** as not applicable.
+   - If the schema defines no design artifact (no artifact with id \`design\`, and none whose \`artifactPaths.<id>.outputPath\` is or ends in \`design.md\`), report **Design Adherence** as not applicable.
    - If the design artifact's \`contextFiles.<id>\` file exists:
      - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
      - Verify implementation follows those decisions
@@ -345,7 +345,7 @@ ${PROJECT_ROOT_GUARD}
 7. **Verify Coherence**
 
    **Design Adherence**:
-   - If the schema defines no design artifact (no artifact whose \`artifactPaths.<id>.outputPath\` is \`design.md\`), report **Design Adherence** as not applicable.
+   - If the schema defines no design artifact (no artifact with id \`design\`, and none whose \`artifactPaths.<id>.outputPath\` is or ends in \`design.md\`), report **Design Adherence** as not applicable.
    - If the design artifact's \`contextFiles.<id>\` file exists:
      - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
      - Verify implementation follows those decisions
