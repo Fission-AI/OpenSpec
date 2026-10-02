@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -12,7 +12,6 @@ import { cliProjectRoot, ensureCliBuilt } from '../helpers/run-cli.js';
 // implementation; everything else loads on demand.
 
 const binPath = path.join(cliProjectRoot, 'bin', 'openspec.js');
-const distRoot = path.join(cliProjectRoot, 'dist');
 const hookUrl = pathToFileURL(
   path.join(cliProjectRoot, 'test', 'helpers', 'record-loaded-modules.mjs')
 ).href;
@@ -51,7 +50,11 @@ afterAll(() => {
   }
 });
 
-function loadedModules(args: string[]): { own: string[]; packages: Set<string> } {
+function loadedModules(args: string[]): {
+  own: string[];
+  packages: Set<string>;
+  status: number | null;
+} {
   const workDir = mkdtempSync(path.join(os.tmpdir(), 'openspec-startup-'));
   workDirs.push(workDir);
   const logFile = path.join(workDir, 'modules.log');
@@ -71,6 +74,10 @@ function loadedModules(args: string[]): { own: string[]; packages: Set<string> }
   });
   expect(result.error).toBeUndefined();
 
+  // Loaded module URLs use real paths, so compare against the real dist/ path
+  // in case the checkout path goes through a symlink or a Windows short name.
+  const distRoot = realpathSync.native(path.join(cliProjectRoot, 'dist'));
+
   const urls = readFileSync(logFile, 'utf-8').split('\n').filter(Boolean);
   const own: string[] = [];
   const packages = new Set<string>();
@@ -86,7 +93,10 @@ function loadedModules(args: string[]): { own: string[]; packages: Set<string> }
       own.push(path.relative(distRoot, file).split(path.sep).join('/'));
     }
   }
-  return { own, packages };
+  // An empty list means the paths didn't match, and every absence check
+  // below would pass without checking anything.
+  expect(own).not.toEqual([]);
+  return { own, packages, status: result.status };
 }
 
 function implementationsLoaded(own: string[]): string[] {
@@ -100,8 +110,9 @@ describe('CLI startup loads only what the command needs', () => {
     '`openspec %s` loads the command definitions and nothing else',
     async (invocation) => {
       await ensureCliBuilt();
-      const { own, packages } = loadedModules(invocation.split(' '));
+      const { own, packages, status } = loadedModules(invocation.split(' '));
 
+      expect(status).toBe(0);
       expect([...packages]).toEqual(['commander']);
       expect(implementationsLoaded(own)).toEqual([]);
     }
