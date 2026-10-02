@@ -1,5 +1,15 @@
 # @fission-ai/openspec
 
+## 1.14.1
+
+### Patch Changes
+
+- [#2025](https://github.com/Fission-AI/OpenSpec/pull/2025) [`bfa670e`](https://github.com/Fission-AI/OpenSpec/commit/bfa670eda91c6cd998d42248ceab2b565db932ff) Thanks [@TabishB](https://github.com/TabishB)! - The CLI starts faster: each command now loads its implementation only when it runs. `openspec --version` and `--help` load 24 modules instead of 485, and commands such as `config list`, `store list` and `doctor` load only what they use, which matters most where Node loads modules slowly, such as Windows. Output, help text, shell completions, exit codes and telemetry are unchanged.
+
+- [#2020](https://github.com/Fission-AI/OpenSpec/pull/2020) [`760584b`](https://github.com/Fission-AI/OpenSpec/commit/760584ba9a6e2aa5906edf082ecd465a53cf6618) Thanks [@clay-good](https://github.com/clay-good)! - A requirement description over 500 characters is now a warning instead of an informational hint, so `openspec validate --strict` fails on it and CI can enforce the limit. The check also covers ADDED requirements in a change, so `openspec validate <change> --strict` catches a new overlong requirement before archive. Normal validation and archive are unchanged: they still pass when this is the only finding. The specs instruction now explains how to split an existing long requirement without losing its scenarios.
+
+- [#2031](https://github.com/Fission-AI/OpenSpec/pull/2031) [`2500d6d`](https://github.com/Fission-AI/OpenSpec/commit/2500d6da971336167548b53731a35b2127df35ac) Thanks [@TabishB](https://github.com/TabishB)! - `openspec view` no longer lists or counts archived changes. In projects with many archived changes, the list pushed active work off the screen. The dashboard shows current work again, and `openspec list --archived` still shows archived changes on request.
+
 ## 1.14.0
 
 ### Minor Changes
