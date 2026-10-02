@@ -897,7 +897,7 @@ describe('interactive compose cancellation (in-process)', () => {
   async function runCreate(promptsModule: Record<string, unknown>): Promise<void> {
     vi.doMock('@inquirer/prompts', () => promptsModule);
     const { registerWorksetCommand } = await import(
-      '../../src/commands/workset.js'
+      '../../src/cli/commands/workset.js'
     );
     const { Command } = await import('commander');
     const program = new Command();
@@ -1043,7 +1043,7 @@ describe('interactive compose cancellation (in-process)', () => {
       confirm: vi.fn(async () => false),
     }));
     const { registerWorksetCommand } = await import(
-      '../../src/commands/workset.js'
+      '../../src/cli/commands/workset.js'
     );
     const { Command } = await import('commander');
 

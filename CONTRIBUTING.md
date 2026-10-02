@@ -37,6 +37,15 @@ Those four commands are what CI runs, so a green local run means a green CI run.
 
 Run `pnpm changeset` if your change affects users, and commit the file it generates.
 
+### Keep the CLI's startup fast
+
+Editors, agents and OpenSpec Desktop run the CLI many times, and each call pays for every module it loads before the command runs. Before this rule, `openspec --version` loaded 485 modules: about 0.5 s per call on a Windows machine. So a command loads only the command definitions and its own code:
+
+- **Definitions** (name, options, help text) go in `src/cli/index.ts` or `src/cli/commands/<name>.ts`. Import nothing heavy there: no zod, yaml, fast-glob, ora, and no other command's code.
+- **The command's code** goes in `src/commands/<name>.ts` or `src/core/`, loaded inside the action with `await import()`.
+
+`test/cli-e2e/startup-modules.test.ts` checks which modules each command loads, and fails if a definition starts pulling in an implementation. When you add a command, add it to that test's list.
+
 ## 4. Open the PR
 
 - Branch off `main` in your fork.

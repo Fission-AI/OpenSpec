@@ -5,7 +5,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 
 async function runConfigCommand(args: string[]): Promise<void> {
-  const { registerConfigCommand } = await import('../../src/commands/config.js');
+  const { registerConfigCommand } = await import('../../src/cli/commands/config.js');
   const program = new Command();
   registerConfigCommand(program);
   await program.parseAsync(['node', 'openspec', 'config', ...args]);
