@@ -1,3 +1,4 @@
+import { resolveChangeDir } from '../utils/change-directory.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import chalk from 'chalk';
@@ -36,15 +37,6 @@ async function isDefinitelyMissing(target: string): Promise<boolean> {
     .access(target)
     .then(() => false)
     .catch((error: NodeJS.ErrnoException) => error?.code === 'ENOENT');
-}
-
-/**
- * A change is a directory directly under changes/. Rejecting anything else up
- * front keeps a traversing name (`../..`) from reading a proposal outside the
- * changes directory, and keeps the missing-proposal message honest.
- */
-function isChangeDirectoryName(changesPath: string, changeDir: string): boolean {
-  return path.dirname(path.resolve(changeDir)) === path.resolve(changesPath);
 }
 
 /** One requirement of one delta spec, paired with its main-spec counterpart. */
@@ -116,12 +108,8 @@ export class ChangeCommand {
       }
     }
 
-    const changeDir = path.join(changesPath, changeName);
+    const changeDir = resolveChangeDir(changesPath, changeName);
     const proposalPath = path.join(changeDir, 'proposal.md');
-
-    if (!isChangeDirectoryName(changesPath, changeDir)) {
-      throw new Error(`Change "${changeName}" not found at ${proposalPath}`);
-    }
 
     try {
       await fs.access(proposalPath);
@@ -200,7 +188,7 @@ export class ChangeCommand {
     changeName: string,
     changesPath: string
   ): Promise<{ capabilities: string[]; results: RequirementDiff[] }> {
-    const specsDir = path.join(changesPath, changeName, 'specs');
+    const specsDir = path.join(resolveChangeDir(changesPath, changeName), 'specs');
     const mainSpecsDir = this.getSpecsPath();
 
     // Same discovery ChangeParser uses, so a nested capability (specs/<area>/<id>)
@@ -432,7 +420,7 @@ export class ChangeCommand {
     if (options?.json) {
       const changeDetails = await Promise.all(
         changes.map(async (changeName) => {
-          const changeDir = path.join(changesPath, changeName);
+          const changeDir = resolveChangeDir(changesPath, changeName);
           const proposalPath = path.join(changeDir, 'proposal.md');
 
           // Resolve task progress through the shared tracked-tasks helper so
@@ -483,7 +471,7 @@ export class ChangeCommand {
 
       // Long format: id: title and minimal counts
       for (const changeName of sorted) {
-        const changeDir = path.join(changesPath, changeName);
+        const changeDir = resolveChangeDir(changesPath, changeName);
         const proposalPath = path.join(changeDir, 'proposal.md');
         const { total, completed } = await getTaskProgressForChange(changesPath, changeName, process.cwd());
         const taskStatusText = total > 0 ? ` [tasks ${completed}/${total}]` : '';
@@ -531,10 +519,7 @@ export class ChangeCommand {
       }
     }
     
-    const changeDir = path.join(changesPath, changeName);
-    if (!isChangeDirectoryName(changesPath, changeDir)) {
-      throw new Error(`Change "${changeName}" not found at ${changeDir}`);
-    }
+    const changeDir = resolveChangeDir(changesPath, changeName);
     try {
       await fs.access(changeDir);
     } catch {
