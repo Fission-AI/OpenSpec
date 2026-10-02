@@ -643,9 +643,9 @@ Prints a one-screen dashboard of specs and changes.
 openspec view   # project summary in one screen
 ```
 
-view prints the dashboard once and exits. It reads no keystrokes. Changes group by task progress: Draft (no tasks yet), Active (tasks underway, with a progress bar and percent), Completed (every task checked), and Archived. Specs list with requirement counts, largest first.
+view prints the dashboard once and exits. It reads no keystrokes. Changes group by task progress: Draft (no tasks yet), Active (tasks underway, with a progress bar and percent), Completed (every task checked). Specs list with requirement counts, largest first.
 
-Archived changes appear by directory name in alphabetical order. They do not contribute to the Draft, Active, Completed, or Task Progress totals.
+Archived changes are left out, so the dashboard stays one screen however many you archive. Run `openspec list --archived` to see them.
 
 **Options**
 
@@ -664,15 +664,10 @@ Summary:
   ● Draft Changes: 1
   ● Active Changes: 0 in progress
   ● Completed Changes: 0
-  ● Archived Changes: 1
 
 Draft Changes
 ────────────────────────────────────────────────────────────
   ○ add-rate-limit
-
-Archived Changes
-────────────────────────────────────────────────────────────
-  ◦ 2026-08-10-add-login
 
 Specifications
 ────────────────────────────────────────────────────────────
