@@ -6,9 +6,6 @@ import { MarkdownParser } from './parsers/markdown-parser.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import { loadChangeContext, formatChangeStatus, type ChangeStatus } from './artifact-graph/index.js';
 
-// A one-screen dashboard for a person, showing current work only. Don't add
-// archived changes or anything else that grows with project history (#2030).
-// See the cli-view spec.
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
     const openspecDir = path.join(targetPath, 'openspec');

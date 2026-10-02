@@ -46,17 +46,6 @@ Editors, agents and OpenSpec Desktop run the CLI many times, and each call pays 
 
 `test/cli-e2e/startup-modules.test.ts` checks which modules each command loads, and fails if a definition starts pulling in an implementation. When you add a command, add it to that test's list.
 
-### Keep human views about current work
-
-Some commands are for a person reading a terminal, like `openspec view`. Agents and scripts use `--json` output instead. A human view has to stay readable after years of use, not just on the day it ships. When `openspec view` listed every archived change, projects with hundreds of them lost their active work off the screen ([#2030](https://github.com/Fission-AI/OpenSpec/issues/2030)).
-
-Before you add anything to a human view, ask how big it gets as the project ages:
-
-- **Bounded by current work** (open changes, specs): fine to show.
-- **Grows with history** (archived changes, past runs, logs): leave it out of the default output, and offer it behind an opt-in flag such as `openspec list --archived`.
-
-Check the command's spec Purpose to see who it serves. When you add a command for people, say so in its spec Purpose.
-
 ## 4. Open the PR
 
 - Branch off `main` in your fork.

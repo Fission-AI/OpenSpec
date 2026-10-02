@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The `openspec view` command is a dashboard for a person reading a terminal. It shows the project's current work (specifications, and changes that are not archived) with progress metrics on one screen, so a developer can see what is in flight at a glance. Content that grows with project history does not belong here, because it would push current work off the screen as the project ages.
+The `openspec view` command provides a comprehensive dashboard view of the OpenSpec project state, displaying specifications, changes, and progress metrics in a unified, visually appealing format to help developers quickly understand project status.
 ## Requirements
 ### Requirement: Dashboard Display
 
@@ -17,16 +17,6 @@ The system SHALL provide a `view` command that displays a dashboard overview of 
 
 - **WHEN** user runs `openspec view` in a directory without OpenSpec
 - **THEN** system displays error message "✗ No openspec directory found"
-
-### Requirement: Current Work Only
-
-The dashboard SHALL show only current work. It SHALL NOT list or count archived changes, or any other content that grows with project history.
-
-#### Scenario: Archived changes are left out
-
-- **WHEN** user runs `openspec view` in a project with archived changes
-- **THEN** the dashboard is identical to the one for the same project without archived changes
-- **AND** archived changes do not appear in any section, count, or task progress total
 
 ### Requirement: Summary Section
 
