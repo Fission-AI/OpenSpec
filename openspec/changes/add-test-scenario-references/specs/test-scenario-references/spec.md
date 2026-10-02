@@ -51,7 +51,7 @@ Any file in a project SHALL be able to declare a reference to one spec scenario 
 
 ### Requirement: A reference names a scenario in one canonical spelling
 
-A reference SHALL be `<capability>#<scenario>`, or `<capability>#<requirement>#<scenario>` when the short form is ambiguous. Every segment SHALL be the canonical fold of the name it refers to, so each scenario has exactly one valid spelling. The capability segment SHALL use `/` to separate the parts of a nested capability id on every platform, matching the spec ids the rest of the tool uses.
+A reference SHALL be `<capability>#<scenario>`, or `<capability>#<requirement>#<scenario>` when the short form is ambiguous. Every segment SHALL be the canonical fold of the name it refers to, so a scenario has at most two accepted spellings and exactly one canonical spelling, which SHALL be reported wherever the reference is reported. The capability segment SHALL use `/` to separate the parts of a nested capability id on every platform, matching the spec ids the rest of the tool uses.
 
 #### Scenario: The canonical fold of a name
 
@@ -69,7 +69,7 @@ A reference SHALL be `<capability>#<scenario>`, or `<capability>#<requirement>#<
 - **THEN** the segment is valid only when it already equals its own fold
 - **AND** `Cli-Show`, `cli--show`, `-cli-show` and a segment carrying a decomposed accent are each reported as malformed
 - **AND** the finding names the canonical spelling to use instead
-- **AND** no second spelling of a target resolves
+- **AND** no spelling outside the two accepted forms resolves
 
 #### Scenario: Reference parts are separated without escaping
 
@@ -121,6 +121,15 @@ Resolving a reference SHALL compare it against the scenarios in `openspec/specs/
 - **GIVEN** a valid reference `<capability>#<requirement>#<scenario>`
 - **WHEN** exactly one scenario under that requirement in that capability folds to that scenario segment
 - **THEN** the reference is `resolved`
+
+#### Scenario: An expanded reference to an unambiguous scenario resolves and is reported as redundant
+
+- **GIVEN** an expanded reference whose scenario segment is already unique in its capability
+- **WHEN** it is resolved
+- **THEN** the reference is `resolved`, because it identifies exactly one scenario
+- **AND** the outcome reports the short form as the canonical reference
+- **AND** the outcome marks the requirement segment as more specific than needed
+- **AND** the outcome is not an error, so removing an unrelated colliding scenario elsewhere in the capability never invalidates a reference that still identifies one scenario
 
 #### Scenario: An unresolved reference says which part is missing
 

@@ -70,7 +70,9 @@ The fold alphabet is letters, marks, digits and `-`. It cannot contain `#` or `/
 
 Keeping `\p{L}` and `\p{M}` rather than transliterating to ASCII means the convention crosses a language boundary, which is exactly where similarity matching died. A French scenario folds to a French slug.
 
-**A segment is valid only when it already equals its own fold.** `Cli-Show`, `cli--show`, `-cli-show`, and a reference carrying a decomposed accent are all malformed, and the diagnostic names the canonical spelling. The alternative, folding whatever the author typed and matching on that, would give several working spellings for one target, which makes annotations ungreppable and makes any future rewrite ambiguous. One spelling per target, and the tool tells you what it is.
+**A segment is valid only when it already equals its own fold.** `Cli-Show`, `cli--show`, `-cli-show`, and a reference carrying a decomposed accent are all malformed, and the diagnostic names the canonical spelling. The alternative, folding whatever the author typed and matching on that, would give an open set of working spellings for one target, which makes annotations ungreppable and makes any future rewrite ambiguous.
+
+That bounds the spellings; it does not reduce them to one. A scenario whose name is unique in its capability can be written short or expanded, and both identify it. Decision 4 settles which one the tool blesses and what it does about the other.
 
 Folding can collide: `Foo bar` and `foo-bar` both fold to `foo-bar`. That is the same class of collision the expanded form exists for, handled the same way, and reported rather than guessed. The repository has no such collision today, and a scenario whose fold is empty, such as one named `...`, is reported as unreferenceable instead of resolving to the empty string.
 
@@ -103,6 +105,12 @@ Several references are several lines. This is what the maintainer asked for on #
 
 An unreferenced scenario is information, never an error. It is the normal state of a repository that has not adopted this, and a command that failed on it would be useless on the day it shipped.
 
+**The redundantly expanded reference is `resolved`, with a nudge.** When a scenario's name is unique in its capability, the expanded reference identifies it just as exactly as the short one. Both resolve. The canonical form is the short one, the tool reports it on every resolved reference, and the human report collects the references that are more specific than they need to be under a note. Exit status is not affected.
+
+The alternative, rejecting the expanded form wherever the short form would do, was considered and is wrong in a way that is worth recording, because it looks tidier. Under that rule, the validity of a reference depends on a requirement it does not name. Delete an unrelated scenario in a second requirement, so the capability no longer has a collision, and every expanded reference to the surviving scenario becomes invalid, even though each one still picks out exactly one scenario and nothing about the referenced scenario changed. The author is then made to edit working annotations because of an edit somewhere else.
+
+Compare the two breakages. Adding a collision makes short references ambiguous, and that error is necessary: there genuinely is no way to tell which scenario was meant. Removing a collision would make expanded references invalid, and that error carries no information at all. One is the convention doing its job, the other is bookkeeping. So the grammar accepts both forms, the tool names the canonical one, and the guarantee is stated as what it actually is: at most two accepted spellings, exactly one canonical, and the canonical one is always in the output. That is weaker than "one spelling" and it is what can be made true without punishing authors for unrelated edits.
+
 ### 5. An annotation is a location, not a test
 
 The report keys on `(file, line, reference)`. The tool does not work out which test declaration the annotation precedes.
@@ -115,7 +123,9 @@ A consequence worth stating: `openspec coverage` does not know whether an annota
 
 The scan needs a candidate list that excludes build output. A project that builds to `dist/` and scans it gets every annotation twice, and the second copy is stale the moment the source changes.
 
-`git ls-files -co --exclude-standard` returns tracked files plus untracked files that are not ignored. On this repository that is 1,289 files in 25 ms, and `dist/` drops out because `.gitignore` already says so. One subprocess, no ignore-file parser, and the project's own ignore rules rather than a guess at them. `src/core/store/git.ts` already runs git through `execFile`, which is the pattern to follow: git is a real binary on Windows, so it needs no shell shim and no `cross-spawn` wrapper.
+`git ls-files -zco --exclude-standard` returns tracked files plus untracked files that are not ignored. On this repository that is 1,289 files in 25 ms, and `dist/` drops out because `.gitignore` already says so. One subprocess, no ignore-file parser, and the project's own ignore rules rather than a guess at them. `src/core/store/git.ts` already runs git through `execFile`, which is the pattern to follow: git is a real binary on Windows, so it needs no shell shim and no `cross-spawn` wrapper.
+
+`-z` is not optional, and the output is parsed by splitting on NUL rather than on newline. Without it git quotes any path it considers unusual, which it decides with `core.quotePath`. Measured in a scratch repository: `café.ts` comes back as `"caf\303\251.ts"`, octal-escaped and wrapped in quotes, and a file whose name contains a newline comes back as `"a\nb.ts"`, which a line-based reader splits into two paths that do not exist. `core.quotePath=false` fixes the first case and not the second. A line-based reader would therefore have to implement git's own quoting and unescaping rules to be correct, and it would fail first on exactly the non-ASCII filenames this design otherwise goes out of its way to support. `-z` makes the stream raw, so there is nothing to unescape.
 
 Without git, or outside a work tree, the fallback is a directory walk that excludes `node_modules` and `.git`, and the report says which enumeration ran. The fallback is deliberately worse at excluding build output, and saying so in the output is better than quietly scanning twice as much.
 

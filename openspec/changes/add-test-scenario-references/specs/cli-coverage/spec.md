@@ -9,6 +9,7 @@ The system SHALL provide an `openspec coverage` command that collects the scenar
 - **WHEN** a user runs `openspec coverage` in a project
 - **THEN** the report names the scan scope first, then every malformed, unresolved and ambiguous reference with its file and line, then a summary of scenarios and references
 - **AND** each finding carries the repair for that outcome: the canonical spelling for a malformed reference, the missing part for an unresolved one, the expanded references to choose from for an ambiguous one
+- **AND** resolved references whose declared spelling is not the canonical one are collected under a separate note, naming the canonical reference, without being counted as findings or affecting exit status
 - **AND** the full list of unreferenced scenarios is summarized as a count per capability rather than printed in full
 - **AND** a project with no reference problems reports that plainly
 
@@ -118,6 +119,7 @@ The command SHALL support `--json`, emitting exactly one JSON document on stdout
 - **THEN** each entry in `references` contains `file`, `line`, `reference` and `status`
 - **AND** `status` is one of `resolved`, `malformed`, `unresolved` or `ambiguous`
 - **AND** a resolved entry names the `capability`, `requirement` and `scenario` it resolved to
+- **AND** a resolved entry carries the `canonicalReference` for that scenario, and says whether the declared reference differs from it
 - **AND** a `malformed`, `unresolved` or `ambiguous` entry carries a `message` stating the repair
 - **AND** `file` is reported relative to the OpenSpec root using `/` separators on every platform
 

@@ -12,10 +12,11 @@
 - [ ] 2.1 Build the index from `openspec/specs/**/spec.md` using `extractRequirementsSection`, `normalizeRequirementName`, `scenarioNameFromHeaderText` and `SCENARIO_HEADER`, with no second reading of the Markdown.
 - [ ] 2.2 Resolve a reference to exactly one of `resolved`, `malformed`, `unresolved` or `ambiguous`, and report which part of an unresolved reference was not found.
 - [ ] 2.3 Report an ambiguous short reference with the expanded reference for each candidate, and an ambiguous expanded reference against the capability and requirement that declare the colliding scenarios.
-- [ ] 2.4 Compute the canonical reference for every indexed scenario, short where the scenario segment is unique in its capability and expanded otherwise.
-- [ ] 2.5 Report a scenario whose fold is empty as unreferenceable rather than indexing it under the empty segment.
-- [ ] 2.6 Prove resolution ignores `openspec/changes/` and the archive, and prove a renamed scenario invalidates its references with no similarity fallback.
-- [ ] 2.7 Prove the index agrees with `show --json` on requirement and scenario names for a spec containing a closed ATX heading, a `####` header without the `Scenario:` label, and a `####` inside a fenced block.
+- [ ] 2.4 Compute the canonical reference for every indexed scenario, short where the scenario segment is unique in its capability and expanded otherwise, and carry it on every resolved reference.
+- [ ] 2.5 Resolve an expanded reference to an already-unambiguous scenario, marking it as more specific than needed without making it an error, and prove that removing an unrelated colliding scenario elsewhere in the capability does not invalidate it.
+- [ ] 2.6 Report a scenario whose fold is empty as unreferenceable rather than indexing it under the empty segment.
+- [ ] 2.7 Prove resolution ignores `openspec/changes/` and the archive, and prove a renamed scenario invalidates its references with no similarity fallback.
+- [ ] 2.8 Prove the index agrees with `show --json` on requirement and scenario names for a spec containing a closed ATX heading, a `####` header without the `Scenario:` label, and a `####` inside a fenced block.
 
 ## 3. Annotation scanner
 
@@ -26,12 +27,13 @@
 
 ## 4. Scan boundaries
 
-- [ ] 4.1 Enumerate candidates with `git ls-files -co --exclude-standard` in a git work tree, running git through `execFile` as `src/core/store/git.ts` does, and treating a missing git, a non-zero exit and an empty result as separate outcomes.
-- [ ] 4.2 Fall back to a directory walk excluding `node_modules` and `.git` when git is unavailable or the root is not a work tree, and record which enumeration ran.
-- [ ] 4.3 Exclude `openspec/` and `.git/` unconditionally, with no configuration path that can reach either.
-- [ ] 4.4 Skip and count files with a NUL byte in the first 8 KiB, files above 2 MiB, unreadable files, and paths resolving outside the root including through a directory symlink.
-- [ ] 4.5 Apply `coverage.include` and `coverage.exclude` from the project config as narrowing only, and record when a narrowing configuration applied.
-- [ ] 4.6 Verify boundary behavior on Windows: `path.join` throughout, a directory symlink leaving the root, a junction, and two candidate paths differing only by case on a case-insensitive file system read once.
+- [ ] 4.1 Enumerate candidates with `git ls-files -zco --exclude-standard` in a git work tree, splitting the output on NUL, running git through `execFile` as `src/core/store/git.ts` does, and treating a missing git, a non-zero exit and an empty result as separate outcomes.
+- [ ] 4.2 Cover the paths `-z` exists for: a file named `café.ts`, which git quotes as `"caf\303\251.ts"` without `-z`, and a file whose name contains a newline, which git quotes as `"a\nb.ts"` and which a line-based reader splits into two paths that do not exist. Assert both are enumerated as one raw path each.
+- [ ] 4.3 Fall back to a directory walk excluding `node_modules` and `.git` when git is unavailable or the root is not a work tree, and record which enumeration ran.
+- [ ] 4.4 Exclude `openspec/` and `.git/` unconditionally, with no configuration path that can reach either.
+- [ ] 4.5 Skip and count files with a NUL byte in the first 8 KiB, files above 2 MiB, unreadable files, and paths resolving outside the root including through a directory symlink.
+- [ ] 4.6 Apply `coverage.include` and `coverage.exclude` from the project config as narrowing only, and record when a narrowing configuration applied.
+- [ ] 4.7 Verify boundary behavior on Windows: `path.join` throughout, a directory symlink leaving the root, a junction, and two candidate paths differing only by case on a case-insensitive file system read once.
 
 ## 5. The coverage command
 
