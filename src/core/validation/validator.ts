@@ -304,6 +304,17 @@ export class Validator {
               ),
             });
           }
+          // Same limit the main spec enforces after archive (#1976), so
+          // `validate <change> --strict` catches a new overlong requirement
+          // before it lands. MODIFIED is left alone: its text is the existing
+          // requirement, which the specs instruction says to keep whole.
+          if (requirementText && requirementText.length > MAX_REQUIREMENT_TEXT_LENGTH) {
+            issues.push({
+              level: 'WARNING',
+              path: entryPath,
+              message: `ADDED "${block.name}": ${VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG}`,
+            });
+          }
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
             issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must include at least one scenario${this.emptyScenarioHint(block.raw)}` });
@@ -820,7 +831,7 @@ export class Validator {
     spec.requirements.forEach((req, index) => {
       if (req.text.length > MAX_REQUIREMENT_TEXT_LENGTH) {
         issues.push({
-          level: 'INFO',
+          level: 'WARNING',
           path: `requirements[${index}]`,
           message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG,
         });

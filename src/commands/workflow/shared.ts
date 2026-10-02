@@ -83,7 +83,7 @@ export interface ArchiveInstructions {
 // Constants
 // -----------------------------------------------------------------------------
 
-export const DEFAULT_SCHEMA = 'spec-driven';
+export { DEFAULT_SCHEMA } from './default-schema.js';
 
 // -----------------------------------------------------------------------------
 // Utility Functions

@@ -97,7 +97,7 @@ vi.mock('node:fs', async (importOriginal) => {
 // block-scalar style; the new implementation edits a yaml Document in place.
 
 async function runSchemaCommand(args: string[]): Promise<void> {
-  const { registerSchemaCommand } = await import('../../src/commands/schema.js');
+  const { registerSchemaCommand } = await import('../../src/cli/commands/schema.js');
   const program = new Command();
   registerSchemaCommand(program);
   await program.parseAsync(['node', 'openspec', 'schema', ...args]);

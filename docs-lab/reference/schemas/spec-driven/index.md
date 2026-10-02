@@ -208,7 +208,7 @@ Format requirements:
 - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
 - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
 - Every requirement MUST have at least one scenario.
-- Keep each requirement's description (the text between `### Requirement:` and its first scenario) to 500 characters or fewer. `openspec validate` flags longer descriptions once they reach the main spec. This is an informational hint, not an error. When writing a new requirement, state one behavior per requirement: move examples and edge cases into scenarios, and split a requirement that covers several behaviors into separate `### Requirement:` blocks, each with its own scenarios. Under MODIFIED, keep the existing requirement block whole; never split, trim or rewrite existing text just to meet the length.
+- Keep each requirement's description (the text between `### Requirement:` and its first scenario) to 500 characters or fewer. `openspec validate` flags longer descriptions in ADDED requirements and in the main spec. This is a warning: normal validation still passes, but `openspec validate --strict` fails on it. When writing a new requirement, state one behavior per requirement: move examples and edge cases into scenarios, and split a requirement that covers several behaviors into separate `### Requirement:` blocks, each with its own scenarios. Under MODIFIED, keep the existing requirement block whole; never split, trim or rewrite existing text just to meet the length. Split an existing long requirement only when the user asks for it, in a change made for that purpose: under MODIFIED, keep its header and every scenario and cut its description down to one behavior without changing its meaning, then add each behavior you removed as its own ADDED requirement with its own scenarios.
 
 New capabilities only: the delta spec's first section is `## Purpose` -
 one or two sentences (50+ characters, or `openspec validate --strict`
@@ -361,17 +361,22 @@ Before writing tasks, check design.md for Open Questions. If any of them
 would change what gets built, resolve them with the user first - do not
 bake an unstated assumption into the task list.
 
-**IMPORTANT: Follow the template below exactly.** The apply phase parses
+**IMPORTANT: Follow the template below for tracked tasks.** The apply phase parses
 checkbox format to track progress. A box holding only `x` counts as done,
 upper or lower case and with any spacing, so `- [ x]` is done too. Every
 other marker, including `- [~]`, `- [-]` and an empty `- []`, reads as
 unfinished. A line with no checkbox is not tracked at all.
 
 Guidelines:
-- Group related tasks under ## numbered headings
-- Each task MUST be a checkbox: `- [ ] X.Y Task description`
+- Group related tracked tasks under ## numbered headings
+- Each tracked task MUST be a checkbox: `- [ ] X.Y Task description`
 - Tasks should be small enough to complete in one session
 - Order tasks by dependency (what must be done first?)
+- Track implementation and verification work that can be completed before
+  archive. If the requested workflow includes archive or work that requires
+  this change to be archived, preserve those steps as plain bullets in an
+  optional `## Workflow follow-up` section at the end of tasks.md. These
+  bullets are reference information outside tracked task progress.
 - Each task MUST state how to verify completion (a test, command,
   observable behavior, or delivered artifact). Put the verification in
   that task's checkbox description. Use a separate verification task only
@@ -399,6 +404,14 @@ Example:
 - [ ] 2.1 Implement data export function and verify the export test passes
 - [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
 - [ ] 2.3 Document the export API in docs/export.md and verify the documented command runs as written
+```
+
+When applicable, append workflow follow-up as plain bullets, for example:
+```
+## Workflow follow-up
+
+- Archive the change after the project's review requirements are satisfied.
+- Verify the archived result.
 ```
 
 Reference specs for what needs to be built, design for how to build it.

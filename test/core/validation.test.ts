@@ -256,10 +256,35 @@ ${requirementPrefix}${'x'.repeat(length - requirementPrefix.length)}
         expect.objectContaining({ message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG })
       );
       expect(overLimit.issues).toContainEqual({
-        level: 'INFO',
+        level: 'WARNING',
         path: 'requirements[0]',
         message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG,
       });
+    });
+
+    it('fails strict validation, but not normal validation, on an overlong requirement (#1976)', async () => {
+      const spec = `# Overlong requirement
+
+## Purpose
+This specification checks how strict mode treats an overlong requirement description.
+
+## Requirements
+
+### Requirement: Overlong
+The system SHALL ${'x'.repeat(MAX_REQUIREMENT_TEXT_LENGTH)}
+
+#### Scenario: Overlong is checked
+- **WHEN** the requirement is validated
+- **THEN** the length finding is reported`;
+
+      const normal = await new Validator().validateSpecContent('overlong', spec);
+      const strict = await new Validator(true).validateSpecContent('overlong', spec);
+
+      expect(normal.valid).toBe(true);
+      expect(strict.valid).toBe(false);
+      expect(strict.issues).toEqual([
+        expect.objectContaining({ level: 'WARNING', message: VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG }),
+      ]);
     });
 
     it('should detect missing overview section', async () => {
@@ -480,6 +505,62 @@ Then result`;
 
       expect(report.valid).toBe(true); // Should pass despite warnings
       expect(report.summary.warnings).toBeGreaterThan(0);
+    });
+  });
+
+  describe('validateChangeDeltaSpecs requirement length (#1976)', () => {
+    const requirementPrefix = 'The system SHALL ';
+    const writeDelta = async (name: string, section: 'ADDED' | 'MODIFIED', length: number) => {
+      const changeDir = path.join(testDir, name);
+      const specsDir = path.join(changeDir, 'specs', 'test-spec');
+      await fs.mkdir(specsDir, { recursive: true });
+      await fs.writeFile(
+        path.join(specsDir, 'spec.md'),
+        `## ${section} Requirements
+
+### Requirement: Long
+${requirementPrefix}${'x'.repeat(length - requirementPrefix.length)}
+
+#### Scenario: Long is checked
+- **WHEN** the change is validated
+- **THEN** the length finding is reported`
+      );
+      return changeDir;
+    };
+
+    it('fails strict, but not normal, validation on an overlong ADDED requirement', async () => {
+      const changeDir = await writeDelta('added-long', 'ADDED', MAX_REQUIREMENT_TEXT_LENGTH + 1);
+
+      const normal = await new Validator().validateChangeDeltaSpecs(changeDir);
+      const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      expect(normal.valid).toBe(true);
+      expect(strict.valid).toBe(false);
+      expect(strict.issues).toEqual([
+        expect.objectContaining({
+          level: 'WARNING',
+          message: `ADDED "Long": ${VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG}`,
+        }),
+      ]);
+    });
+
+    it('accepts an ADDED requirement at the limit', async () => {
+      const changeDir = await writeDelta('added-at-limit', 'ADDED', MAX_REQUIREMENT_TEXT_LENGTH);
+
+      const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      expect(strict.valid).toBe(true);
+      expect(strict.issues).toEqual([]);
+    });
+
+    it('does not flag an overlong MODIFIED requirement, which keeps the existing text whole', async () => {
+      const changeDir = await writeDelta('modified-long', 'MODIFIED', MAX_REQUIREMENT_TEXT_LENGTH + 1);
+
+      const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+      expect(strict.issues.map((i) => i.message)).not.toContainEqual(
+        expect.stringContaining(VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG)
+      );
     });
   });
 
