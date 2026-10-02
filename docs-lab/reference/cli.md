@@ -645,8 +645,6 @@ openspec view   # project summary in one screen
 
 view prints the dashboard once and exits. It reads no keystrokes. Changes group by task progress: Draft (no tasks yet), Active (tasks underway, with a progress bar and percent), Completed (every task checked). Specs list with requirement counts, largest first.
 
-Archived changes are left out, so archiving more changes never lengthens the dashboard. Run `openspec list --archived` to see them.
-
 **Options**
 
 | Flag | Effect |

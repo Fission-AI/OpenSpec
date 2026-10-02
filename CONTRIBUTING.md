@@ -48,16 +48,14 @@ Editors, agents and OpenSpec Desktop run the CLI many times, and each call pays 
 
 ### Keep human views about current work
 
-Some commands are written for a person reading a terminal, not for an agent or a script. `openspec view` is the clearest case: a one-screen dashboard of what is in flight. Agents and scripts get their own output through `--json`.
+Some commands are for a person reading a terminal, like `openspec view`. Agents and scripts use `--json` output instead. A human view has to stay readable after years of use, not just on the day it ships. When `openspec view` listed every archived change, projects with hundreds of them lost their active work off the screen ([#2030](https://github.com/Fission-AI/OpenSpec/issues/2030)).
 
-A human view has to fit on a screen after years of use, not just on the day it ships. [#399](https://github.com/Fission-AI/OpenSpec/pull/399) added every archived change to `openspec view`. In projects with hundreds of archived changes, the active work the dashboard exists to show scrolled off the screen ([#2030](https://github.com/Fission-AI/OpenSpec/issues/2030)).
-
-So before adding anything to a human view, ask how big it gets as the project ages:
+Before you add anything to a human view, ask how big it gets as the project ages:
 
 - **Bounded by current work** (open changes, specs): fine to show.
-- **Grows with history** (archived changes, past runs, logs): keep it out of the default output. Offer it behind an opt-in flag on a listing command, like `openspec list --archived`.
+- **Grows with history** (archived changes, past runs, logs): leave it out of the default output, and offer it behind an opt-in flag such as `openspec list --archived`.
 
-Apply the same check when reviewing an issue or PR that asks a human view to "show everything". Read the command's spec Purpose to see who the command serves. When you add a human-facing command, say so in its spec Purpose, so the next reviewer can check against it.
+Check the command's spec Purpose to see who it serves. When you add a command for people, say so in its spec Purpose.
 
 ## 4. Open the PR
 

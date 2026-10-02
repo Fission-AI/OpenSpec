@@ -6,11 +6,9 @@ import { MarkdownParser } from './parsers/markdown-parser.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import { loadChangeContext, formatChangeStatus, type ChangeStatus } from './artifact-graph/index.js';
 
-// `openspec view` is for a person reading a terminal: one screen showing the
-// work in flight. Anything whose size grows with project history, like archived
-// changes, would push that work off the screen (#2030), so it belongs behind an
-// opt-in flag such as `openspec list --archived`. See "Keep human views about
-// current work" in CONTRIBUTING.md.
+// A one-screen dashboard for a person, showing current work only. Don't add
+// archived changes or anything else that grows with project history (#2030).
+// See the cli-view spec.
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
     const openspecDir = path.join(targetPath, 'openspec');
