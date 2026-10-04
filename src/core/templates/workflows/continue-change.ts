@@ -31,7 +31,7 @@ const PLANNING_COMPLETE_HANDOFF = optionalWorkflow(
  */
 const PARTIAL_ARTIFACT_CHECK = `**Before anything else, finish a partly written artifact**:
    - An artifact whose output is a glob pattern (e.g. \`specs/**/*.md\`) reads \`done\` as soon as one matching file exists, so a run interrupted while writing its files leaves it \`done\` with some still missing
-   - For each such \`done\` artifact, first get its instructions and read any completed dependencies needed to determine the expected files. Then compare those files with \`artifactPaths.<id>.existingOutputPaths\`. For spec-driven's \`specs\`, read the proposal and check for one \`specs/<capability-path>/spec.md\` per capability it lists
+   - For each such \`done\` artifact, first get its instructions and read any completed dependencies needed to determine the expected files. Then compare those files with \`artifactPaths.<id>.existingOutputPaths\`. For spec-driven's \`specs\`, read the proposal and check for one \`specs/<capability-path>/spec.md\` per capability it lists; resolve each expected path against \`changeRoot\` before comparing path identity
    - If any are missing, write only the missing files, and STOP - that counts as this invocation's ONE artifact. If you cannot tell whether a file was left out on purpose, ask the user`;
 
 export function getContinueChangeSkillTemplate(): SkillTemplate {
