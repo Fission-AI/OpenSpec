@@ -76,15 +76,14 @@ The system SHALL discover and resolve store IDs by walking up from the current w
 - **WHEN** `.openspec-store/registry.yaml` exists and contains at least one store entry
 - **AND** no `--store` flag is provided
 - **AND** no `openspec/` root is found by walking up from the current directory
-- **THEN** the system resolves the first usable store entry in document order along the chain of `.openspec-store/registry.yaml` files (nearest registry first, entries in the order they are written in each file) as the root
+- **THEN** the system resolves the first store entry in document order from the nearest `.openspec-store/registry.yaml` as the root
 - **AND** in JSON output, sets `source` to `'project_store'`
 
-#### Scenario: Discovery skips an unusable store entry with a warning
+#### Scenario: Discovery reports an error when the first store entry is unusable
 - **WHEN** no `--store` flag is provided and no local `openspec/` root exists
 - **AND** the first store entry in document order points to a folder that does not exist
-- **AND** a subsequent entry points to a valid store
-- **THEN** the system reports a warning that the first entry is unusable
-- **AND** resolves the default root from the next usable entry
+- **THEN** the system reports an error that the store folder is missing
+- **AND** does not continue to the next entry
 
 #### Scenario: Store setup does not write a project-scoped registry
 - **WHEN** the user runs `openspec store setup <id>`
@@ -196,9 +195,9 @@ The system SHALL apply the discovery walk to `openspec store list --scope projec
 #### Scenario: List shows all registries in the chain
 - **WHEN** `store list --scope project` is run from a nested directory
 - **AND** `.openspec-store/registry.yaml` exists at both the nested level and an ancestor level
-- **THEN** the list includes entries from every registry in the chain
+- **THEN** the list includes entries from every registry in the chain, nearest first
 - **AND** each entry carries the directory of the registry that owns it
-- **AND** when the same store ID appears in multiple registries, the list marks which entry wins for resolution
+- **AND** when the same store ID appears in multiple registries, the first entry in the list is the one that wins resolution
 
 #### Scenario: List from a directory with no registry
 - **WHEN** `store list --scope project` is run from a directory with no `.openspec-store/registry.yaml` in it or any ancestor
@@ -236,6 +235,34 @@ The system SHALL apply the discovery walk to `openspec store list --scope projec
 - **WHEN** `store doctor <id> --scope project` is run from a nested directory
 - **AND** the id is registered only in an ancestor registry
 - **THEN** doctor inspects the store from the ancestor registry
+
+#### Scenario: Store list shows entries with missing folders as a warning
+- **WHEN** `store list --scope project` is run
+- **AND** a store entry points to a folder that does not exist on disk
+- **THEN** the list includes the entry with a warning indicating the folder is missing
+- **AND** the command completes successfully
+
+#### Scenario: Doctor reports an unusable store entry without stopping
+- **WHEN** `store doctor --scope project` is run
+- **AND** a store entry points to a folder that does not exist on disk
+- **THEN** doctor reports the problem and a pasteable fix for that entry
+- **AND** continues inspecting remaining entries
+
+#### Scenario: Unregister succeeds when the store folder is missing
+- **WHEN** `store unregister <id> --scope project` is run
+- **AND** the id is found in a project-scoped registry
+- **AND** the store folder does not exist on disk
+- **THEN** the system removes the registry entry
+- **AND** reports a warning that the folder was not found
+- **AND** the command completes successfully
+
+#### Scenario: Remove is refused when the store folder is missing
+- **WHEN** `store remove <id> --scope project` is run
+- **AND** the id is found in a project-scoped registry
+- **AND** the store folder does not exist on disk
+- **THEN** the system reports an error that the folder is missing
+- **AND** does not remove the registry entry
+- **AND** does not delete any files
 
 ### Requirement: Project-scoped remove requires confirmation
 

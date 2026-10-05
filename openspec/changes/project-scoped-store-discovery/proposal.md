@@ -4,7 +4,7 @@ OpenSpec stores use a machine-level registry that maps store IDs to absolute fil
 
 ## What Changes
 
-- An optional **project-scoped store registry** file (`.openspec-store/registry.yaml`) will be added, mapping store IDs to paths relative to that file.
+- An optional **project-scoped store registry** file (`.openspec-store/registry.yaml`) will be added, mapping store IDs to paths relative to the directory containing `.openspec-store/`.
 - This file will be discovered automatically by searching from the current working directory and walking up the directory tree.
 - When a store ID is resolved (`--store`, `references:`, `store:` in config.yaml), a project-scoped registry will take precedence over the global registry. Existing setups without a project-scoped registry will not be affected.
 - The project-scoped registry file will be creatable manually or via `openspec store register --scope project`. No new commands will be added — a new `--scope` parameter will be added to the existing `store register`, `store list`, `store unregister`, `store remove`, and `store doctor` commands.

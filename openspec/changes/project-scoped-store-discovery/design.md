@@ -48,7 +48,7 @@ stores:
 
 ### D3: Path resolution
 
-**Decision:** `path.resolve(registryDir, entry.path)` where `registryDir` is the directory containing `registry.yaml` and `entry.path` is the relative path from the store entry. Always use `path.resolve` / `path.join` — never string concatenation.
+**Decision:** `path.resolve(registryDir, entry.path)` where `registryDir` is the directory containing `.openspec-store/` and `entry.path` is the relative path from the store entry. Always use `path.resolve` / `path.join` — never string concatenation.
 
 **Rationale:** Cross-platform requirement (config rule). `path.resolve` handles platform separators and normalizes `..` segments correctly. In the YAML file, `/` is recommended (e.g. `path: stores/platform-specs`) — `path.resolve` accepts `/` on all platforms including Windows. Backslash `\` works only on Windows and breaks on macOS/Linux.
 
@@ -82,11 +82,11 @@ stores:
 
 1. `--store <id>` — search for the ID in `.openspec-store/registry.yaml` (walk up per D4), then fall back to the global registry
 2. Nearest `openspec/` root with a `store:` pointer in config.yaml — same: walk up per D4, then global registry
-3. No `--store`, no local `openspec/` — take the first usable store from the chain of `.openspec-store/registry.yaml` files (nearest first, document order within each file)
+3. No `--store`, no local `openspec/` — take the first store entry from the nearest `.openspec-store/registry.yaml` in document order; if that entry's folder does not exist or is not a healthy store, the system reports an error
 4. No project-level stores — use the global `defaultStore`
 5. Nothing at all — current directory (classic behavior)
 
-**Rationale:** Project-scoped bindings are more specific than global ones but less specific than an explicit `--store` flag or a local `openspec/` root. Without a project-scoped registry, the chain is unchanged — backward compatibility preserved. Step 3 takes the first entry in document order (as listed in the YAML file, without sorting) — document order is deterministic and stable across YAML parsers that preserve insertion order.
+**Rationale:** Project-scoped bindings are more specific than global ones but less specific than an explicit `--store` flag or a local `openspec/` root. Without a project-scoped registry, the chain is unchanged — backward compatibility preserved. Step 3 takes the first entry in document order (as listed in the YAML file, without sorting) — document order is deterministic and stable across YAML parsers that preserve insertion order. If that entry's folder is missing or unhealthy, the system reports an error rather than skipping to the next entry; the user should fix or remove the broken entry.
 
 **Alternative considered:** Project-scoped registry before nearest root — rejected because a local `openspec/` root with a planning shape is the most specific signal and should win.
 
@@ -122,8 +122,8 @@ An informational `project_registry_not_found` diagnostic was considered but reje
 
 **Decision:** The discovery walk (D4) also governs the project-scoped registry operations, with `register` as the exception. All of them take `projectRoot` from `--scope project` as the *start* of the walk:
 - `openspec store list --scope project` collects entries from every `.openspec-store/registry.yaml` in the chain, each annotated with the registry directory that owns it.
-- `openspec store unregister <id> --scope project` removes the id from the nearest registry in the chain that contains it — the same registry that would win store resolution — and reports the registry file it edited.
-- `openspec store remove <id> --scope project` behaves like unregister: it finds the nearest registry containing the id, but instead of only forgetting the binding it requires explicit confirmation (an interactive prompt showing the folder, or `--yes`), deletes the store's folder from disk, and removes the binding from the found registry, reporting the edited file.
+- `openspec store unregister <id> --scope project` removes the id from the nearest registry in the chain that contains it — the same registry that would win store resolution — and reports the registry file it edited. If the store folder does not exist, `unregister` still removes the registry entry and reports a warning that the folder was not found.
+- `openspec store remove <id> --scope project` behaves like unregister: it finds the nearest registry containing the id, but instead of only forgetting the binding it requires explicit confirmation (an interactive prompt showing the folder, or `--yes`), deletes the store's folder from disk, and removes the binding from the found registry, reporting the edited file. If the store folder does not exist, `remove` reports an error and does not remove the registry entry — the operation is atomic.
 - `openspec store doctor [id] --scope project` inspects stores from the whole chain.
 - `openspec store register --scope project` is the exception: it writes the registry at the level where the command is run (`process.cwd()`). The user consciously chooses where the binding is created; this is what makes nested local bindings (for example a plugin under a monorepo) possible, and it anchors the `store_path_outside_project` validation (D8) to the chosen level.
 
@@ -135,7 +135,7 @@ An informational `project_registry_not_found` diagnostic was considered but reje
 
 ## Risks / Trade-offs
 
-- **[Stale project-scoped registry pointing at a moved directory]** → The `inspectRegisteredStore` health check already validates that a resolved store root exists and has a healthy `openspec/` shape. A stale entry produces the same `unhealthy_store_root` diagnostic as a stale global registration.
+- **[Stale project-scoped registry pointing at a moved directory]** → The `inspectRegisteredStore` health check already validates that a resolved store root exists and has a healthy `openspec/` shape. A stale entry produces the same `unhealthy_store_root` diagnostic as a stale global registration. When a store folder is missing, the behavior depends on whether the command needs the folder's contents: commands that read or delete the folder (`openspec list`, any `--store <id>`, `store remove`) report a hard error and stop; commands that only read or modify the registry (`store list`, `store doctor`, `store unregister`) report a warning and continue — `store list` shows the entry with a warning, `store doctor` reports the problem with a fix, `store unregister` removes the entry with a warning.
 - **[Registry file committed with machine-specific paths]** → The spec recommends relative paths. If a user commits absolute paths, `path.resolve` still works — absolute paths are returned as-is. Validation only runs on `register --scope project`; hand-edited files are not validated — the user is responsible for using relative paths.
 - **[Malformed registry file]** → A corrupt `.openspec-store/registry.yaml` (invalid YAML, missing `version`, unsupported version, missing `stores`) produces a warning identifying the file, and the walk continues to ancestor registries or the global registry.
 - **[Two project-scoped registries in the same ancestor chain]** → Walk up searches each one for the store ID — the first where the ID is found wins. If the ID is not in any of them, resolution falls through to the global registry. This matches the behavior of Node.js `require()` searching `node_modules` up the tree.
