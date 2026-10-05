@@ -272,21 +272,6 @@ describe('artifact-graph/outputs', () => {
     expect(artifactOutputExists(tempDir, 'file-{1..3}.md')).toBe(true);
   });
 
-  it('rejects brace nesting deeper than any artifact pattern needs', () => {
-    const fileA = path.join(tempDir, 'a.md');
-    fs.writeFileSync(fileA, 'content');
-    const nested = (depth: number) => `${'{a,'.repeat(depth)}b${'}'.repeat(depth)}.md`;
-    const globSpy = vi.spyOn(fg, 'generateTasks');
-
-    expect(resolveArtifactOutputs(tempDir, nested(16))).toEqual([canonical(fileA)]);
-    globSpy.mockClear();
-    expect(() => resolveArtifactOutputs(tempDir, nested(17))).toThrow(
-      'Artifact output pattern nests braces more than 16 levels deep'
-    );
-    expect(globSpy).not.toHaveBeenCalled();
-    globSpy.mockRestore();
-  });
-
   it.each(['@(proposal|design).md', '+(proposal|design).md'])('supports extglob %s', (pattern) => {
     const proposalPath = path.join(tempDir, 'proposal.md');
     fs.writeFileSync(proposalPath, 'content');

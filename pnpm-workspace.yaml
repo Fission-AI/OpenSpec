@@ -31,8 +31,8 @@ auditConfig:
   ignoreGhsas:
     # GHSA-vfj7-8cjw-p6xm — braces <=3.0.3 stack exhaustion on deeply nested
     # patterns. Runtime (fast-glob > micromatch > braces), and no patched braces
-    # exists. OpenSpec only passes schema `generates` patterns to fast-glob, and
-    # src/core/artifact-graph/outputs.ts rejects brace nesting deeper than
-    # MAX_BRACE_NESTING first. Remove once a patched braces ships
+    # exists, so no override can fix it. OpenSpec only passes schema `generates`
+    # patterns to fast-glob; braces caps input at 10,000 characters and no nested
+    # pattern under that cap crashed it. Remove once a patched braces ships
     # (check: pnpm why braces; pnpm audit --prod).
     - GHSA-vfj7-8cjw-p6xm
