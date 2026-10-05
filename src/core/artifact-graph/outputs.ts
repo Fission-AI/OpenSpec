@@ -5,6 +5,22 @@ import { FileSystemUtils } from '../../utils/file-system.js';
 
 const EXTGLOB_RE = /[!*+?@]\([^(]*\)/u;
 const BRACE_EXPANSION_SEPARATORS_RE = /,|\.\./u;
+// braces <=3.0.3 (fast-glob > micromatch) has no depth guard (GHSA-vfj7-8cjw-p6xm),
+// so reject nesting no real artifact pattern needs before it reaches the parser.
+const MAX_BRACE_NESTING = 16;
+
+function assertBraceNesting(pattern: string): void {
+  let depth = 0;
+  for (const char of pattern) {
+    if (char === '{') depth += 1;
+    else if (char === '}' && depth > 0) depth -= 1;
+    if (depth > MAX_BRACE_NESTING) {
+      throw new Error(
+        `Artifact output pattern nests braces more than ${MAX_BRACE_NESTING} levels deep: ${pattern}`
+      );
+    }
+  }
+}
 
 function hasBraceExpansion(pattern: string): boolean {
   const openings: number[] = [];
@@ -128,6 +144,7 @@ export function resolveArtifactOutputs(changeDir: string, generates: string): st
   }
 
   const normalizedPattern = FileSystemUtils.toPosixPath(generates);
+  assertBraceNesting(normalizedPattern);
   const globOptions = {
     cwd: changeDir,
     onlyFiles: true,

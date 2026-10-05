@@ -26,3 +26,13 @@ overrides:
   # Dev-only (transitive via @vitest/ui); never in the published CLI. Remove once
   # transitive fflate is >=0.8.3 (check: pnpm why fflate).
   fflate@<0.8.3: '>=0.8.3 <0.9'
+
+auditConfig:
+  ignoreGhsas:
+    # GHSA-vfj7-8cjw-p6xm — braces <=3.0.3 stack exhaustion on deeply nested
+    # patterns. Runtime (fast-glob > micromatch > braces), and no patched braces
+    # exists. OpenSpec only passes schema `generates` patterns to fast-glob, and
+    # src/core/artifact-graph/outputs.ts rejects brace nesting deeper than
+    # MAX_BRACE_NESTING first. Remove once a patched braces ships
+    # (check: pnpm why braces; pnpm audit --prod).
+    - GHSA-vfj7-8cjw-p6xm
