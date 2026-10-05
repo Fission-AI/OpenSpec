@@ -112,7 +112,7 @@ An informational `project_registry_not_found` diagnostic was considered but reje
 
 ### D8: Store path validation for project-scoped registration
 
-**Decision:** When `openspec store register --scope project` is called, the system validates that the resolved store path is within the project root. If the relative path from the project root to the store starts with `..`, the system reports a `store_path_outside_project` error and does not create a registry entry.
+**Decision:** When `openspec store register --scope project` is called, the system validates that the resolved store path is within the project root. If the relative path from the project root to the store starts with `..` or is an absolute path (e.g. a cross-drive path on Windows), the system reports a `store_path_outside_project` error and does not create a registry entry.
 
 **Rationale:** Project-scoped registry entries use relative paths (D2). A path outside the project root would produce a `..`-prefixed relative path that is not portable — it depends on the directory layout outside the project. Rejecting it at registration time prevents committing non-portable entries.
 

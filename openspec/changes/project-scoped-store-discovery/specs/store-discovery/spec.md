@@ -37,6 +37,13 @@ The system SHALL discover and resolve store IDs by walking up from the current w
 - **AND** the global registry also does not contain the requested store ID
 - **THEN** the system reports an error that the store ID is not registered in any available registry
 
+#### Scenario: Store ID found in registry but folder missing is an error
+- **WHEN** the user runs a command with `--store <id>`
+- **AND** the store ID is found in a project-scoped registry
+- **AND** the resolved store folder does not exist on disk
+- **THEN** the system reports an error that the store folder is missing
+- **AND** does not fall back to the global registry
+
 #### Scenario: Project-scoped registry takes precedence over global registry
 - **WHEN** a store ID is registered in both the project-scoped registry and the global registry
 - **AND** the project-scoped registry maps the ID to a different path than the global registry
@@ -71,6 +78,13 @@ The system SHALL discover and resolve store IDs by walking up from the current w
 - **AND** no `openspec/` root is found by walking up from the current directory
 - **THEN** the system resolves the first usable store entry in document order along the chain of `.openspec-store/registry.yaml` files (nearest registry first, entries in the order they are written in each file) as the root
 - **AND** in JSON output, sets `source` to `'project_store'`
+
+#### Scenario: Discovery skips an unusable store entry with a warning
+- **WHEN** no `--store` flag is provided and no local `openspec/` root exists
+- **AND** the first store entry in document order points to a folder that does not exist
+- **AND** a subsequent entry points to a valid store
+- **THEN** the system reports a warning that the first entry is unusable
+- **AND** resolves the default root from the next usable entry
 
 #### Scenario: Store setup does not write a project-scoped registry
 - **WHEN** the user runs `openspec store setup <id>`
@@ -184,6 +198,7 @@ The system SHALL apply the discovery walk to `openspec store list --scope projec
 - **AND** `.openspec-store/registry.yaml` exists at both the nested level and an ancestor level
 - **THEN** the list includes entries from every registry in the chain
 - **AND** each entry carries the directory of the registry that owns it
+- **AND** when the same store ID appears in multiple registries, the list marks which entry wins for resolution
 
 #### Scenario: List from a directory with no registry
 - **WHEN** `store list --scope project` is run from a directory with no `.openspec-store/registry.yaml` in it or any ancestor
