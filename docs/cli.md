@@ -567,6 +567,8 @@ A change with zero spec deltas fails validation unless its `.openspec.yaml` decl
 
 `--archived` is its own scope: it does not validate spec deltas (already applied at archive time), it verifies that every change under `changes/archive/` has all of its `tasks.md` checkboxes ticked, exiting non-zero if any are unchecked. This catches changes that were archived with unfinished work — handy in a pre-commit hook.
 
+`--all`, `--changes` and `--specs` also check `openspec/config.yaml`. A file that cannot be parsed, or a field whose content had to be dropped (a malformed rule item, a non-string `context`, ...), fails validation and is reported as `config/openspec/config.yaml`, and in `--json` output under an optional `config` key. Ignored content that loses nothing — an unknown field or operation id, a key left empty — is a warning that only fails under `--strict`. A missing, empty or comment-only config is fine.
+
 **Examples:**
 
 ```bash
