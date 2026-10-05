@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "beautiful-mermaid": "^1.1.3",
-    "fumadocs-core": "^16.15.14",
+    "fumadocs-core": "^16.15.17",
     "fumadocs-mdx": "^15.3.1",
-    "fumadocs-ui": "^16.15.14",
+    "fumadocs-ui": "^16.15.17",
     "lucide-react": "^1.34.0",
-    "next": "16.3.6",
+    "next": "16.3.8",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "zod": "^4.4.3"
