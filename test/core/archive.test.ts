@@ -645,6 +645,66 @@ describe('ArchiveCommand', () => {
       expect(archived.some((name) => name.endsWith(`-${changeName}`))).toBe(true);
     });
 
+    it.each([
+      { linkChanges: true, linkSpecs: false },
+      { linkChanges: false, linkSpecs: true },
+      { linkChanges: true, linkSpecs: true },
+    ])(
+      'applies a spec delta and archives with symlinked changes=$linkChanges specs=$linkSpecs',
+      async ({ linkChanges, linkSpecs }) => {
+        if (process.platform === 'win32') return;
+
+        const changeName = 'linked-delta';
+        const docsRepo = realpathSync.native(
+          await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-docs-repo-'))
+        );
+        onTestFinished(() => fs.rm(docsRepo, { recursive: true, force: true }));
+        const openspecDir = path.join(tempDir, 'openspec');
+        const changesDir = linkChanges ? path.join(docsRepo, 'changes') : path.join(openspecDir, 'changes');
+        const specsDir = linkSpecs ? path.join(docsRepo, 'specs') : path.join(openspecDir, 'specs');
+        if (linkChanges) {
+          await fs.rm(path.join(openspecDir, 'changes'), { recursive: true, force: true });
+          await fs.mkdir(changesDir, { recursive: true });
+          await fs.symlink(changesDir, path.join(openspecDir, 'changes'));
+        }
+        if (linkSpecs) {
+          await fs.rm(path.join(openspecDir, 'specs'), { recursive: true, force: true });
+          await fs.mkdir(specsDir, { recursive: true });
+          await fs.symlink(specsDir, path.join(openspecDir, 'specs'));
+        }
+        const deltaDir = path.join(changesDir, changeName, 'specs', 'linked-capability');
+        await fs.mkdir(deltaDir, { recursive: true });
+        await fs.writeFile(
+          path.join(deltaDir, 'spec.md'),
+          `# Linked Capability - Changes
+
+## ADDED Requirements
+
+### Requirement: The system SHALL archive through linked directories
+
+#### Scenario: Linked directories
+- **WHEN** the change is archived
+- **THEN** the delta is applied and the change is archived
+`
+        );
+
+        await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+        const mainSpec = await fs.readFile(
+          path.join(specsDir, 'linked-capability', 'spec.md'),
+          'utf-8'
+        );
+        expect(mainSpec).toContain('### Requirement: The system SHALL archive through linked directories');
+        await expect(fs.access(path.join(changesDir, changeName))).rejects.toThrow();
+        const archived = await fs.readdir(path.join(changesDir, 'archive'));
+        const archivedName = archived.find((name) => name.endsWith(`-${changeName}`));
+        expect(archivedName).toBeDefined();
+        await expect(
+          fs.access(path.join(changesDir, 'archive', archivedName!, 'specs', 'linked-capability', 'spec.md'))
+        ).resolves.not.toThrow();
+      }
+    );
+
     it('archives normally when the project root is reached through a symlink alias', async () => {
       if (process.platform === 'win32') return;
 

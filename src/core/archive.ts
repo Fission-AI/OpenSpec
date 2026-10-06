@@ -2196,6 +2196,9 @@ export class ArchiveCommand {
                 retirementAuthorizationFingerprint!
               );
             }
+            // update.source is canonical (symlinks resolved), so measure it from
+            // the canonical change directory; changes/ may itself be a symlink.
+            const canonicalChangeDir = FileSystemUtils.canonicalizeExistingPath(changeDir);
             const verifyArchivedDeltas = async (
               stagedSource?: string
             ): Promise<void> => {
@@ -2219,7 +2222,7 @@ export class ArchiveCommand {
               for (const proposed of prepared) {
                 const archivedSource = path.join(
                   archivePath,
-                  path.relative(changeDir, proposed.update.source)
+                  path.relative(canonicalChangeDir, proposed.update.source)
                 );
                 if (
                   (await fingerprintPortableContent(archivedSource)) !==
@@ -2232,7 +2235,7 @@ export class ArchiveCommand {
                 if (stagedSource) {
                   const stagedDelta = path.join(
                     stagedSource,
-                    path.relative(changeDir, proposed.update.source)
+                    path.relative(canonicalChangeDir, proposed.update.source)
                   );
                   if (
                     (await fingerprintPortableContent(stagedDelta)) !==
