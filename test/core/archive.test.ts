@@ -619,6 +619,32 @@ describe('ArchiveCommand', () => {
       await expect(fs.readdir(outsideDir)).resolves.toEqual([]);
     });
 
+    it('archives when openspec/changes is a project-owned symlink to another directory', async () => {
+      if (process.platform === 'win32') return;
+
+      const changeName = 'linked-change';
+      const docsRepo = realpathSync.native(
+        await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-docs-repo-'))
+      );
+      onTestFinished(() => fs.rm(docsRepo, { recursive: true, force: true }));
+      const sharedChanges = path.join(docsRepo, 'changes');
+      const changesLink = path.join(tempDir, 'openspec', 'changes');
+      await fs.rm(changesLink, { recursive: true, force: true });
+      await fs.mkdir(path.join(sharedChanges, changeName), { recursive: true });
+      await fs.writeFile(path.join(sharedChanges, changeName, 'tasks.md'), '- [x] Task 1\n');
+      await fs.symlink(sharedChanges, changesLink);
+
+      await archiveCommand.execute(changeName, {
+        yes: true,
+        noValidate: true,
+        skipSpecs: true,
+      });
+
+      await expect(fs.access(path.join(sharedChanges, changeName))).rejects.toThrow();
+      const archived = await fs.readdir(path.join(sharedChanges, 'archive'));
+      expect(archived.some((name) => name.endsWith(`-${changeName}`))).toBe(true);
+    });
+
     it('archives normally when the project root is reached through a symlink alias', async () => {
       if (process.platform === 'win32') return;
 

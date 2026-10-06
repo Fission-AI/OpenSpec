@@ -1358,13 +1358,19 @@ export class ArchiveCommand {
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
 
-    for (const [allowedDirectory, managedDir] of [
-      [root.path, changesDir],
-      [changesDir, archiveDir],
-      [root.path, mainSpecsDir],
+    // changes/ and specs/ may be project-owned symlinks to another directory;
+    // archive/ may not leave the changes directory it lives in.
+    for (const [allowedDirectory, managedDir, allowLinkedLeaf] of [
+      [root.path, changesDir, true],
+      [changesDir, archiveDir, false],
+      [root.path, mainSpecsDir, true],
     ] as const) {
       try {
-        FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
+        if (allowLinkedLeaf) {
+          FileSystemUtils.assertPathWithinAllowingLinkedLeaf(allowedDirectory, managedDir);
+        } else {
+          FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
+        }
       } catch {
         throw new ArchiveBlockedError(
           'archive_path_outside_root',
