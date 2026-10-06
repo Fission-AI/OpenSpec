@@ -33,6 +33,18 @@ describe('parseDeltaSpec unappliedContent', () => {
     ]);
   });
 
+  it('does not treat a commented-out header as a section, and honours the --!> terminator', () => {
+    const plan = parseDeltaSpec(
+      ['<!--', '## Purpose', '--!>', 'Real prose.', '## ADDED Requirements', '### Requirement: A', 'a', '## Notes', 'n'].join(
+        '\n'
+      )
+    );
+    expect(plan.unappliedContent).toEqual([
+      { section: null, line: 4 },
+      { section: 'Notes', line: 8 },
+    ]);
+  });
+
   it('ignores Purpose, REMOVED/RENAMED bodies, HTML comments, fences, and stray ### headers', () => {
     const plan = parseDeltaSpec(
       [

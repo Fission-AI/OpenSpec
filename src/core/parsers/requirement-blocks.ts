@@ -267,7 +267,7 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     renamed: renamedPairs,
     unpairedRenames,
     orphanedRequirements: findOrphanedRequirements(lines, fenceMask),
-    unappliedContent: findUnappliedContent(lines, sections),
+    unappliedContent: findUnappliedContent(lines, fenceMask),
     skippedHeaders,
     sectionPresence: {
       added: addedLookup.found,
@@ -341,9 +341,11 @@ export function describeUnappliedContent(content: UnappliedContent, sentenceStar
  * (warned about separately), REMOVED/RENAMED bodies, and stray `###` headers
  * before the first requirement (INFO since #498) are not reported.
  */
-function findUnappliedContent(lines: string[], sections: DeltaSection[]): UnappliedContent[] {
+function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedContent[] {
   // Blank out comments, keeping line count; an unterminated one runs to EOF.
-  const masked = lines.join('\n').replace(/<!--[\s\S]*?(?:-->|$)/g, (m) => m.replace(/[^\n]/g, ' ')).split('\n');
+  // Sections come from the masked lines, so a commented-out header is no boundary.
+  const masked = lines.join('\n').replace(/<!--[\s\S]*?(?:--!?>|$)/g, (m) => m.replace(/[^\n]/g, ' ')).split('\n');
+  const sections = splitTopLevelSections(masked, fenceMask);
   const firstText = (from: number, to: number, skip?: RegExp) => {
     for (let i = from; i < to; i++) if (masked[i].trim() && !skip?.test(masked[i])) return i;
     return -1;
