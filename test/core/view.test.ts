@@ -51,7 +51,7 @@ describe('ViewCommand', () => {
     expect(lines.join('\n')).toContain('Task Progress: 2/4 (50% complete)');
   });
 
-  it.each(['proposed', 'approved'])('shows workflow status for changes under %s alongside archives', async (stage) => {
+  it.each(['proposed', 'approved'])('shows workflow status for changes under %s without displaying archives', async (stage) => {
     const changesDir = path.join(tempDir, 'openspec', 'changes');
     const changeDir = path.join(changesDir, stage, 'implementing');
     await fs.mkdir(changeDir, { recursive: true });
@@ -65,7 +65,8 @@ describe('ViewCommand', () => {
     expect(lines.filter(line => line.includes('◉'))).toHaveLength(1);
     expect(lines).toContain('    └─ [spec-driven] proposal✓ specs→ design→ tasks✓');
     expect(lines.join('\n')).toContain('Task Progress: 1/2 (50% complete)');
-    expect(lines.join('\n')).toContain('shipped');
+    expect(lines.join('\n')).not.toContain('shipped');
+    expect(lines.join('\n')).not.toContain('Archived Changes');
   });
 
   it('distinguishes skipped specs from completed and blocked artifacts', async () => {
