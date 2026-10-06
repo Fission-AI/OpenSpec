@@ -390,7 +390,7 @@ program
 
 program
   .command('list')
-  .description('List items (changes by default). Use --specs to list specs.')
+  .description('List changes (or --specs) in the selected local library and descendant libraries. --store stays scoped to one store.')
   .option('--specs', 'List specs instead of changes')
   .option('--changes', 'List changes explicitly (default)')
   .option('--archived', 'Show only archived changes')
@@ -404,15 +404,14 @@ program
       if (options?.specs && (options.archived || options.all)) {
         throw new Error('--archived and --all can only be used when listing changes.');
       }
-      const [{ resolveRootForCommand, toRootOutput }, { ListCommand }] = await Promise.all([
+      const [{ resolveListRoot }, { toRootOutput }, { ListCommand }] = await Promise.all([
+        import('../core/list-discovery.js'),
         import('../core/root-selection.js'),
         import('../core/list.js'),
       ]);
-      const root = await resolveRootForCommand(options ?? {}, {
+      const root = await resolveListRoot(options ?? {}, {
         json: options?.json,
-        failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
-        // Preserve the cwd fallback for pre-config.yaml projects. The resolver
-        // still lets a registered/default store take precedence over it.
+        // Retain the legacy cwd fallback when recursive discovery finds no roots.
         allowImplicitRoot: existsSync(path.join(process.cwd(), 'openspec', 'project.md')),
       });
       if (!root) {
@@ -426,6 +425,7 @@ program
         json: options?.json,
         archived: options?.archived,
         all: options?.all,
+        recursive: !root.storeId,
         ...(options?.json ? { root: toRootOutput(root) } : {}),
       });
     } catch (error) {
