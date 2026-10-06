@@ -169,6 +169,16 @@ export interface OrphanedRequirement {
   line: number; // 1-based line number in the delta file
 }
 
+/**
+ * Authored text archive does not carry into the main spec: a non-delta `## `
+ * section, text above the first `## `, or prose before the first requirement
+ * in ADDED/MODIFIED. `section` is null for text above the first `## `.
+ */
+export interface UnappliedContent {
+  section: string | null;
+  line: number; // 1-based: the section header, or the first line of leading prose
+}
+
 export interface DeltaPlan {
   added: RequirementBlock[];
   modified: RequirementBlock[];
@@ -182,6 +192,7 @@ export interface DeltaPlan {
   unpairedRenames: UnpairedRename[];
   /** Canonical requirement blocks written outside every delta section. */
   orphanedRequirements: OrphanedRequirement[];
+  unappliedContent: UnappliedContent[];
   skippedHeaders: SkippedHeader[]; // non-canonical ### headers the reader skipped
   sectionPresence: {
     added: boolean;
@@ -256,6 +267,7 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     renamed: renamedPairs,
     unpairedRenames,
     orphanedRequirements: findOrphanedRequirements(lines, fenceMask),
+    unappliedContent: findUnappliedContent(lines, sections),
     skippedHeaders,
     sectionPresence: {
       added: addedLookup.found,
@@ -313,6 +325,44 @@ function findOrphanedRequirements(
     }
   }
   return orphans;
+}
+
+export function describeUnappliedContent(content: UnappliedContent, sentenceStart = false): string {
+  const text = content.section === null
+    ? 'text above the first "## " section'
+    : DELTA_SECTION_TITLES.has(content.section.toLowerCase())
+      ? `text before the first requirement in "## ${content.section}"`
+      : `section "## ${content.section}"`;
+  return sentenceStart ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
+/**
+ * Where text the merge never reads begins. HTML comments, `# ` titles, Purpose
+ * (warned about separately), REMOVED/RENAMED bodies, and stray `###` headers
+ * before the first requirement (INFO since #498) are not reported.
+ */
+function findUnappliedContent(lines: string[], sections: DeltaSection[]): UnappliedContent[] {
+  // Blank out comments, keeping line count; an unterminated one runs to EOF.
+  const masked = lines.join('\n').replace(/<!--[\s\S]*?(?:-->|$)/g, (m) => m.replace(/[^\n]/g, ' ')).split('\n');
+  const firstText = (from: number, to: number, skip?: RegExp) => {
+    for (let i = from; i < to; i++) if (masked[i].trim() && !skip?.test(masked[i])) return i;
+    return -1;
+  };
+  const found: UnappliedContent[] = [];
+  const preamble = firstText(0, sections.length ? sections[0].body.bodyStartLine - 2 : lines.length, /^#\s/);
+  if (preamble !== -1) found.push({ section: null, line: preamble + 1 });
+  for (const { title, body } of sections) {
+    const folded = title.toLowerCase();
+    const start = body.bodyStartLine - 1;
+    if (folded === 'added requirements' || folded === 'modified requirements') {
+      const block = body.lines.findIndex((l, i) => !body.fenceMask[i] && REQUIREMENT_HEADER_REGEX.test(l));
+      const first = firstText(start, start + (block === -1 ? body.lines.length : block), /^###\s/);
+      if (first !== -1) found.push({ section: title, line: first + 1 });
+    } else if (folded !== 'purpose' && !DELTA_SECTION_TITLES.has(folded)) {
+      if (firstText(start, start + body.lines.length) !== -1) found.push({ section: title, line: start });
+    }
+  }
+  return found;
 }
 
 /** One `## ` section of a delta file, in the order it was written. */

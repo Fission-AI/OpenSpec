@@ -13,6 +13,7 @@ import {
   extractRequirementsSection,
   diffScenarioNames,
   describeScenarioBalance,
+  describeUnappliedContent,
   foldRequirementName,
   parseDeltaSpec,
   normalizeRequirementName,
@@ -249,6 +250,11 @@ export async function buildUpdatedSpec(
         `which is not a delta section, so it was not applied. ` +
         `Move it under ADDED/MODIFIED/REMOVED/RENAMED Requirements.`
     );
+  }
+
+  // Archive carries requirement blocks only; name any other text it leaves behind.
+  for (const lost of plan.unappliedContent) {
+    warn(`${specName} - ${describeUnappliedContent(lost)} (line ${lost.line}) is not carried into the main spec.`);
   }
 
   // Pre-validate duplicates within sections
