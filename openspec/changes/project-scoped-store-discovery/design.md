@@ -10,7 +10,7 @@ The existing `findQualifyingRootSync` in `root-selection.ts` walks up the direct
 
 **Goals:**
 - Let a project declare store bindings in a file, discovered automatically by walking up from cwd.
-- Resolve store paths relative to the registry file's directory, using `path.join` / `path.resolve` for cross-platform safety.
+- Resolve store paths relative to the directory containing `.openspec-store/`, using `path.join` / `path.resolve` for cross-platform safety.
 - Preserve full backward compatibility — no behavior change when the project-scoped registry file does not exist.
 
 **Non-Goals:**

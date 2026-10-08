@@ -11,7 +11,7 @@ The system SHALL discover and resolve store IDs by walking up from the current w
 #### Scenario: Store resolved from project-scoped registry
 - **WHEN** a project contains `.openspec-store/registry.yaml` mapping a store ID to a relative path
 - **AND** the user runs a command with `--store <id>` from within that project
-- **THEN** the system resolves the store to the path relative to the registry file's directory
+- **THEN** the system resolves the store to the path relative to the directory containing `.openspec-store/`
 - **AND** no global registry registration is required
 - **AND** in JSON output, sets `source` to `'project_store'`
 
@@ -92,7 +92,7 @@ The system SHALL discover and resolve store IDs by walking up from the current w
 
 ### Requirement: Relative path resolution in project-scoped registry
 
-The system SHALL resolve store paths in a project-scoped registry relative to the directory containing the registry file, using platform-appropriate path joining.
+The system SHALL resolve store paths in a project-scoped registry relative to the directory containing `.openspec-store/`, using platform-appropriate path joining.
 
 #### Scenario: Relative path resolved from registry directory
 - **WHEN** `.openspec-store/registry.yaml` at `/project/` maps a store ID to path `store-a`
@@ -114,7 +114,7 @@ The system SHALL resolve store paths in a project-scoped registry relative to th
 
 ### Requirement: Project-scoped registry file format
 
-The system SHALL accept a YAML file with a `version` field and a `stores` map where each store entry maps a store ID to a path relative to the registry file's directory.
+The system SHALL accept a YAML file with a `version` field and a `stores` map where each store entry maps a store ID to a path relative to the directory containing `.openspec-store/`.
 
 #### Scenario: Valid registry file
 - **WHEN** `.openspec-store/registry.yaml` contains:
