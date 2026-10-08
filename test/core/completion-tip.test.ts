@@ -30,6 +30,11 @@ describe('core/completion-tip', () => {
     process.env.HOME = tempDir;
     process.env.USERPROFILE = tempDir;
     process.env.SHELL = '/bin/zsh';
+    // Oh My Zsh exports $ZSH, and the zsh installer looks for completions
+    // under it (or $ZSH_CUSTOM) instead of HOME, so a real install leaks
+    // through the HOME sandbox above.
+    delete process.env.ZSH;
+    delete process.env.ZSH_CUSTOM;
     delete process.env.CI;
     delete process.env.OPENSPEC_NO_COMPLETIONS;
     errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

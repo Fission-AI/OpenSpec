@@ -26,3 +26,15 @@ overrides:
   # Dev-only (transitive via @vitest/ui); never in the published CLI. Remove once
   # transitive fflate is >=0.8.3 (check: pnpm why fflate).
   fflate@<0.8.3: '>=0.8.3 <0.9'
+
+auditConfig:
+  ignoreGhsas:
+    # GHSA-vfj7-8cjw-p6xm — braces <=3.0.3 stack exhaustion on deeply nested
+    # patterns. Runtime (fast-glob > micromatch > braces), and no patched braces
+    # exists, so no override can fix it. Accepted residual risk: schema artifact
+    # `generates` and `apply.tracks` patterns reach fast-glob through
+    # resolveArtifactOutputs without a brace-depth guard, and the 10,000-character
+    # input limit does not prevent stack exhaustion. A crafted project-local or
+    # user schema can still terminate the openspec process. Remove this exception
+    # once braces ships a patched release (check: pnpm why braces; pnpm audit --prod).
+    - GHSA-vfj7-8cjw-p6xm
