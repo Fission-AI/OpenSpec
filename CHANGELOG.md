@@ -1,5 +1,24 @@
 # @fission-ai/openspec
 
+## 1.14.1
+
+### Patch Changes
+
+- [#2047](https://github.com/Fission-AI/OpenSpec/pull/2047) [`7358306`](https://github.com/Fission-AI/OpenSpec/commit/73583067dd6d5e774a2567741e37b2ccc3334395) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **Apply no longer calls a change ready to archive too early** — When every tracked task is checked, `openspec instructions apply` now says the tracked tasks are complete and asks you to review or verify the change before archiving. The task guidance keeps steps that can only happen after archive in an optional `## Workflow follow-up` section of plain bullets, so they no longer block task completion.
+  - **Accurate archive cleanup errors** — When a change is archived but cleaning up a capability retirement fails, the error now says the change was archived and cleanup did not complete, instead of claiming every backup was kept. `--json` reports the new code `archive_retirement_cleanup_failed` instead of the generic `archive_error`.
+
+- [#2025](https://github.com/Fission-AI/OpenSpec/pull/2025) [`bfa670e`](https://github.com/Fission-AI/OpenSpec/commit/bfa670eda91c6cd998d42248ceab2b565db932ff) Thanks [@TabishB](https://github.com/TabishB)! - The CLI starts faster: each command now loads its implementation only when it runs. `openspec --version` and `--help` load 24 modules instead of 485, and commands such as `config list`, `store list` and `doctor` load only what they use, which matters most where Node loads modules slowly, such as Windows. Output, help text, shell completions, exit codes and telemetry are unchanged.
+
+- [#2020](https://github.com/Fission-AI/OpenSpec/pull/2020) [`760584b`](https://github.com/Fission-AI/OpenSpec/commit/760584ba9a6e2aa5906edf082ecd465a53cf6618) Thanks [@clay-good](https://github.com/clay-good)! - A requirement description over 500 characters is now a warning instead of an informational hint, so `openspec validate --strict` fails on it and CI can enforce the limit. The check also covers ADDED requirements in a change, so `openspec validate <change> --strict` catches a new overlong requirement before archive. Normal validation and archive are unchanged: they still pass when this is the only finding. The specs instruction now explains how to split an existing long requirement without losing its scenarios.
+
+- [#2037](https://github.com/Fission-AI/OpenSpec/pull/2037) [`852a073`](https://github.com/Fission-AI/OpenSpec/commit/852a0738832645f0549aa035f836ae09bea71ee2) Thanks [@vyhuholl](https://github.com/vyhuholl)! - The specs instruction now tells the agent to write each capability's spec file as soon as it has drafted it, announcing each one first, instead of planning all of them before writing any. A change with many capabilities no longer sits silent until every file is planned, and an interrupted run keeps the files it already wrote. Because `specs` reads `done` once any spec file exists, `/opsx:continue` now checks for capabilities in the proposal that still have no spec file and writes those before moving on.
+
+- [#2028](https://github.com/Fission-AI/OpenSpec/pull/2028) [`43d23cc`](https://github.com/Fission-AI/OpenSpec/commit/43d23ccb96495d1a2ac910ae74b44020f4f5c188) Thanks [@drakeo338](https://github.com/drakeo338)! - The verify workflow now finds a change's spec and design artifacts by their output path (`specs/` and `design.md`) instead of the hardcoded artifact ids `specs` and `design`, so it works with custom schemas whose artifacts use other ids.
+
+- [#2031](https://github.com/Fission-AI/OpenSpec/pull/2031) [`2500d6d`](https://github.com/Fission-AI/OpenSpec/commit/2500d6da971336167548b53731a35b2127df35ac) Thanks [@TabishB](https://github.com/TabishB)! - `openspec view` no longer lists or counts archived changes. In projects with many archived changes, the list pushed active work off the screen. The dashboard shows current work again, and `openspec list --archived` still shows archived changes on request.
+
 ## 1.14.0
 
 ### Minor Changes
