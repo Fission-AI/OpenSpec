@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { CompletionProvider } from '../../../src/core/completions/completion-provider.js';
 
 describe('CompletionProvider', () => {
@@ -10,8 +9,7 @@ describe('CompletionProvider', () => {
   let provider: CompletionProvider;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
-    await fs.mkdir(testDir, { recursive: true });
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     provider = new CompletionProvider(2000, testDir);
   });
 

@@ -1,23 +1,15 @@
-import type { ChangeMetadata } from './change-metadata/index.js';
 import type { PlanningHome } from './planning-home.js';
 
 export interface PlanningHomeSummary {
-  kind: 'repo' | 'workspace';
+  kind: 'repo';
   root: string;
   changesDir: string;
   defaultSchema: string;
-  workspaceName?: string;
-}
-
-export interface AffectedAreasSummary {
-  known: string[];
-  unresolved: boolean;
-  invalid: string[];
 }
 
 export interface ActionContext {
-  mode: 'repo-local' | 'workspace-planning';
-  sourceOfTruth: 'repo' | 'workspace-local';
+  mode: 'repo-local';
+  sourceOfTruth: 'repo';
   planningArtifacts: string[];
   linkedContext: Array<{ name: string }>;
   allowedEditRoots: string[];
@@ -27,26 +19,25 @@ export interface ActionContext {
 
 export interface ChangeStatusPolicyArtifact {
   id: string;
-  status: 'done' | 'ready' | 'blocked';
-}
-
-export interface AffectedAreasInput {
-  planningHome?: PlanningHome;
-  metadata?: ChangeMetadata;
+  status: 'done' | 'skipped' | 'ready' | 'blocked';
 }
 
 export interface ChangeNextStepsInput {
   changeName: string;
-  planningHome?: PlanningHome;
   artifactStatuses: ChangeStatusPolicyArtifact[];
-  affectedAreas?: AffectedAreasSummary;
   allArtifactsComplete: boolean;
+  /** Selected store id; next-step commands must carry it. */
+  storeId?: string;
 }
 
 export interface ActionContextInput {
-  planningHome?: PlanningHome;
   projectRoot: string;
   artifactIds: string[];
+  /**
+   * Set when the root is a store: the store holds the planning artifacts,
+   * and `implementationRoot` is the project that declares it, if any.
+   */
+  store?: { id: string; implementationRoot?: string };
 }
 
 export function summarizePlanningHome(
@@ -61,75 +52,90 @@ export function summarizePlanningHome(
     root: planningHome.root,
     changesDir: planningHome.changesDir,
     defaultSchema: planningHome.defaultSchema,
-    ...(planningHome.workspace ? { workspaceName: planningHome.workspace.name } : {}),
-  };
-}
-
-export function summarizeAffectedAreas(input: AffectedAreasInput): AffectedAreasSummary | undefined {
-  if (input.planningHome?.kind !== 'workspace') {
-    return undefined;
-  }
-
-  const known = Array.from(
-    new Set(input.metadata?.affected_areas ?? [])
-  ).sort((a, b) => a.localeCompare(b));
-  const validAreas = new Set(input.planningHome.workspace?.links ?? []);
-  const invalid = known.filter((areaName) => validAreas.size > 0 && !validAreas.has(areaName));
-
-  return {
-    known,
-    unresolved: known.length === 0,
-    invalid,
   };
 }
 
 export function buildActionContext(input: ActionContextInput): ActionContext {
-  if (input.planningHome?.kind === 'workspace') {
-    return {
-      mode: 'workspace-planning',
-      sourceOfTruth: 'workspace-local',
-      planningArtifacts: input.artifactIds,
-      linkedContext: (input.planningHome.workspace?.links ?? []).map((name) => ({ name })),
-      allowedEditRoots: [],
-      requiresAffectedAreaSelection: true,
-      constraints: [
-        'Treat workspace-local planning artifacts as compatibility context for this local view.',
-        'Use initiatives for durable coordination when initiative context exists.',
-        'Treat linked repos and folders as context until an explicit edit root is selected.',
-        'Do not make implementation edits without an explicit allowed edit root.',
-      ],
-    };
-  }
-
+  const scope = editScope(input);
+  // Keys stay in the published contract order.
   return {
     mode: 'repo-local',
     sourceOfTruth: 'repo',
     planningArtifacts: input.artifactIds,
     linkedContext: [],
-    allowedEditRoots: [input.projectRoot],
+    allowedEditRoots: scope.allowedEditRoots,
     requiresAffectedAreaSelection: false,
-    constraints: ['Repo-local change artifacts and implementation edits are scoped to this project.'],
+    constraints: scope.constraints,
   };
 }
 
-export function buildNextSteps(input: ChangeNextStepsInput): string[] {
+/**
+ * A store holds planning artifacts only. The CLI does not route tasks to
+ * repos, so it names the declaring project on the current path as the edit
+ * root and has the agent ask before going anywhere else (#2013).
+ */
+function editScope(input: ActionContextInput): Pick<ActionContext, 'allowedEditRoots' | 'constraints'> {
+  if (!input.store) {
+    return {
+      allowedEditRoots: [input.projectRoot],
+      constraints: ['Repo-local change artifacts and implementation edits are scoped to this project.'],
+    };
+  }
+
+  const planning = `Change artifacts live in store '${input.store.id}' (${input.projectRoot}).`;
+  const { implementationRoot } = input.store;
+  if (implementationRoot) {
+    return {
+      allowedEditRoots: [implementationRoot, input.projectRoot],
+      constraints: [
+        `${planning} Implementation edits go in ${implementationRoot}, the project on the current path that declares this store; ask the user before editing any other repository.`,
+      ],
+    };
+  }
+
+  return {
+    allowedEditRoots: [input.projectRoot],
+    constraints: [
+      `${planning} OpenSpec could not determine which repository implements this change; ask the user which repository to edit, and make implementation edits there.`,
+    ],
+  };
+}
+
+/**
+ * The one next action for a change, in both the forms the CLI needs.
+ *
+ * `sentence` is what the JSON `nextSteps` contract publishes; `command` is the
+ * bare command the text surface prints. Both are built here so the two
+ * surfaces can never name a different next step.
+ */
+export interface ChangeNextStep {
+  /** Ready-to-run command, including any `--store` flag. */
+  command: string;
+  /** Sentence form carried by the JSON `nextSteps` array. */
+  sentence: string;
+}
+
+export function resolveNextStep(input: ChangeNextStepsInput): ChangeNextStep | undefined {
   const readyArtifact = input.artifactStatuses.find((artifact) => artifact.status === 'ready');
-  const steps: string[] = [];
+  const storeFlag = input.storeId ? ` --store ${input.storeId}` : '';
 
   if (readyArtifact) {
-    steps.push(
-      `Run openspec instructions ${readyArtifact.id} --change "${input.changeName}" --json before writing that artifact.`
-    );
-  } else if (input.allArtifactsComplete) {
-    steps.push('All planning artifacts are complete; review tasks before implementation.');
+    const command = `openspec instructions ${readyArtifact.id} --change "${input.changeName}"${storeFlag} --json`;
+    return { command, sentence: `Run ${command} before writing that artifact.` };
   }
 
-  if (input.planningHome?.kind === 'workspace') {
-    if (input.affectedAreas?.unresolved) {
-      steps.push('Identify affected areas in change metadata or coordination tasks as planning continues.');
-    }
-    steps.push('Select an affected area and allowed edit root before implementation edits.');
+  if (input.allArtifactsComplete) {
+    const command = `openspec instructions apply --change "${input.changeName}"${storeFlag} --json`;
+    return {
+      command,
+      sentence: `All planning artifacts are complete. Run ${command} to inspect implementation progress.`,
+    };
   }
 
-  return steps;
+  return undefined;
+}
+
+export function buildNextSteps(input: ChangeNextStepsInput): string[] {
+  const step = resolveNextStep(input);
+  return step ? [step.sentence] : [];
 }

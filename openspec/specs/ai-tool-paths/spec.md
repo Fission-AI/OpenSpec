@@ -32,15 +32,54 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **WHEN** looking up the `cursor` tool
 - **THEN** `skillsDir` SHALL be `.cursor`
 
-#### Scenario: Windsurf paths defined
+#### Scenario: Devin Desktop paths defined
 
-- **WHEN** looking up the `windsurf` tool
-- **THEN** `skillsDir` SHALL be `.windsurf`
+- **WHEN** looking up the `devin` tool
+- **THEN** `skillsDir` SHALL be `.devin`
 
-#### Scenario: Kimi CLI paths defined
+#### Scenario: Legacy Windsurf tool ID
+
+- **WHEN** initializing with `openspec init --tools windsurf`
+- **THEN** the `windsurf` alias SHALL resolve to `devin`
+- **AND** when skill delivery is enabled, skills SHALL be generated under `.devin/skills/`, not `.windsurf/skills/`
+
+#### Scenario: Kimi Code paths defined
 
 - **WHEN** looking up the `kimi` tool
-- **THEN** `skillsDir` SHALL be `.kimi`
+- **THEN** `skillsDir` SHALL be `.kimi-code`
+- **AND** OpenSpec-managed skills remaining under the legacy `.kimi/skills` directory SHALL be migrated to `.kimi-code/skills` during init and update, preserving user files
+
+#### Scenario: Hermes Agent paths defined
+
+- **WHEN** looking up the `hermes` tool
+- **THEN** `skillsDir` SHALL be `.hermes`
+- **AND** `setupNote` SHALL explain that project `.hermes/skills` must be added to `skills.external_dirs` in `~/.hermes/config.yaml`
+- **AND** `openspec init` and `openspec update` SHALL display the note whenever `hermes` is configured
+
+#### Scenario: DeepSeek Harness paths defined
+
+- **WHEN** looking up the `dsh` tool
+- **THEN** `skillsDir` SHALL be `.dsh`
+- **AND** auto-detection SHALL require `.dsh` to be a directory
+- **AND** OpenSpec SHALL write dsh skills under `<projectRoot>/.dsh/skills/` using platform-native path joining
+
+#### Scenario: Grok Build paths defined
+
+- **WHEN** looking up the `grok` tool
+- **THEN** `skillsDir` SHALL be `.grok`
+
+#### Scenario: Warp paths and detection defined
+
+- **WHEN** looking up the `warp` tool
+- **THEN** `skillsDir` SHALL be `.warp`
+- **AND** `detectionPaths` SHALL include `.warp` and `WARP.md`
+
+#### Scenario: Warp invokes skills without command files
+
+- **WHEN** generating workflows for the `warp` tool with delivery set to `commands`
+- **THEN** skills SHALL remain installed in `.warp/skills/`
+- **AND** no command adapter or command files SHALL be required
+- **AND** each skill SHALL be directly invocable by its `/openspec-*` name
 
 #### Scenario: Tools without skillsDir
 

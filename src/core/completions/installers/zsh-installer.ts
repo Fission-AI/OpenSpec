@@ -3,6 +3,7 @@ import path from 'path';
 import os from 'os';
 import { FileSystemUtils } from '../../../utils/file-system.js';
 import { InstallationResult } from '../factory.js';
+import { shellSingleQuote } from './shell-quote.js';
 
 /**
  * Installer for Zsh completion scripts.
@@ -35,14 +36,27 @@ export class ZshInstaller {
     }
 
     // Fall back to checking for ~/.oh-my-zsh directory
-    const ohMyZshPath = path.join(this.homeDir, '.oh-my-zsh');
-
     try {
-      const stat = await fs.stat(ohMyZshPath);
+      const stat = await fs.stat(this.ohMyZshRoot());
       return stat.isDirectory();
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Oh My Zsh exports its root as $ZSH; honor a custom location, or the
+   * completion lands in a ~/.oh-my-zsh tree that nothing ever loads.
+   */
+  private ohMyZshRoot(): string {
+    return process.env.ZSH || path.join(this.homeDir, '.oh-my-zsh');
+  }
+
+  /**
+   * The custom dir is separately relocatable via $ZSH_CUSTOM.
+   */
+  private ohMyZshCustomDir(): string {
+    return process.env.ZSH_CUSTOM || path.join(this.ohMyZshRoot(), 'custom');
   }
 
   /**
@@ -56,7 +70,7 @@ export class ZshInstaller {
     if (isOhMyZsh) {
       // Oh My Zsh custom completions directory
       return {
-        path: path.join(this.homeDir, '.oh-my-zsh', 'custom', 'completions', '_openspec'),
+        path: path.join(this.ohMyZshCustomDir(), 'completions', '_openspec'),
         isOhMyZsh: true,
       };
     } else {
@@ -106,7 +120,7 @@ export class ZshInstaller {
   private generateZshrcConfig(completionsDir: string): string {
     return [
       '# OpenSpec shell completions configuration',
-      `fpath=("${completionsDir}" $fpath)`,
+      `fpath=(${shellSingleQuote(completionsDir)} $fpath)`,
       'autoload -Uz compinit',
       'compinit',
     ].join('\n');
@@ -206,8 +220,10 @@ export class ZshInstaller {
       // Remove lines between markers (inclusive)
       lines.splice(startIndex, endIndex - startIndex + 1);
 
-      // Remove trailing empty lines at the start if the markers were at the top
-      while (lines.length > 0 && lines[0].trim() === '') {
+      // Install puts the block at the top of the file followed by one blank
+      // separator line; drop that line too so the file reads as it did before.
+      // Everything else, including blank lines the user had at the top, is left as is.
+      if (startIndex === 0 && lines.length > 0 && lines[0].trim() === '') {
         lines.shift();
       }
 
@@ -254,6 +270,10 @@ export class ZshInstaller {
       } catch (error: any) {
         // File doesn't exist or can't be read, proceed with installation
         console.debug(`Unable to read existing completion file at ${targetPath}: ${error.message}`);
+      }
+
+      if (!(await FileSystemUtils.canWriteFile(targetPath))) {
+        throw new Error(`Path is not writable: ${targetPath}`);
       }
 
       // Ensure the directory exists
@@ -323,10 +343,14 @@ export class ZshInstaller {
    * @returns Array of guidance strings, or undefined if not needed
    */
   private generateOhMyZshFpathGuidance(completionsDir: string): string[] | undefined {
+    // One fpath entry per line, matched as a literal: a relocated $ZSH_CUSTOM
+    // need not contain "custom/completions", and the path may hold characters
+    // grep would otherwise read as a pattern. Single-quoted for the shell.
+    const quotedDir = `'${completionsDir.replace(/'/g, `'\\''`)}'`;
     return [
       'Note: Oh My Zsh typically auto-loads completions from custom/completions.',
       `Verify that ${completionsDir} is in your fpath by running:`,
-      '  echo $fpath | grep "custom/completions"',
+      `  printf '%s\\n' $fpath | grep -F ${quotedDir}`,
       '',
       'If not found, completions may not work. Restart your shell to ensure changes take effect.',
     ];
@@ -356,7 +380,7 @@ export class ZshInstaller {
         'To enable completions, add the following to your ~/.zshrc file:',
         '',
         `  # Add completions directory to fpath`,
-        `  fpath=(${completionsDir} $fpath)`,
+        `  fpath=(${shellSingleQuote(completionsDir)} $fpath)`,
         '',
         '  # Initialize completion system',
         '  autoload -Uz compinit',

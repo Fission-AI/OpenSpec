@@ -11,7 +11,7 @@ import type { Profile } from './global-config.js';
  * Core workflows included in the 'core' profile.
  * These provide the streamlined experience for new users.
  */
-export const CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'sync', 'archive'] as const;
+export const CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] as const;
 
 /**
  * All available workflows in the system.
@@ -22,6 +22,7 @@ export const ALL_WORKFLOWS = [
   'new',
   'continue',
   'apply',
+  'update',
   'ff',
   'sync',
   'archive',
@@ -37,14 +38,27 @@ export type CoreWorkflowId = (typeof CORE_WORKFLOWS)[number];
  * Resolves which workflows should be active for a given profile configuration.
  *
  * - 'core' profile always returns CORE_WORKFLOWS
- * - 'custom' profile returns the provided customWorkflows, or empty array if not provided
+ * - 'custom' profile returns the provided customWorkflows and required dependencies
  */
 export function getProfileWorkflows(
   profile: Profile,
   customWorkflows?: string[]
 ): readonly string[] {
   if (profile === 'custom') {
-    return customWorkflows ?? [];
+    const workflows = customWorkflows ?? [];
+    const syncDependentIndex = workflows.findIndex(
+      (workflow) => workflow === 'archive' || workflow === 'bulk-archive'
+    );
+
+    if (syncDependentIndex !== -1 && !workflows.includes('sync')) {
+      return [
+        ...workflows.slice(0, syncDependentIndex),
+        'sync',
+        ...workflows.slice(syncDependentIndex),
+      ];
+    }
+
+    return workflows;
   }
   return CORE_WORKFLOWS;
 }

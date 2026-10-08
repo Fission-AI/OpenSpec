@@ -3,6 +3,8 @@ import * as path from 'path';
 import chalk from 'chalk';
 import { getTaskProgressForChange, formatTaskStatus } from '../utils/task-progress.js';
 import { MarkdownParser } from './parsers/markdown-parser.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import { loadChangeContext, formatChangeStatus, type ChangeStatus } from './artifact-graph/index.js';
 
 export class ViewCommand {
   async execute(targetPath: string = '.'): Promise<void> {
@@ -36,6 +38,10 @@ export class ViewCommand {
     if (changesData.active.length > 0) {
       console.log(chalk.bold.cyan('\nActive Changes'));
       console.log('─'.repeat(60));
+      const maxNameLength = Math.min(
+        48,
+        Math.max(30, ...changesData.active.map((change) => change.name.length))
+      );
       changesData.active.forEach((change) => {
         const progressBar = this.createProgressBar(change.progress.completed, change.progress.total);
         const percentage =
@@ -44,8 +50,12 @@ export class ViewCommand {
             : 0;
 
         console.log(
-          `  ${chalk.yellow('◉')} ${chalk.bold(change.name.padEnd(30))} ${progressBar} ${chalk.dim(`${percentage}%`)}`
+          `  ${chalk.yellow('◉')} ${chalk.bold(change.name.padEnd(maxNameLength))} ${progressBar} ${chalk.dim(`${percentage}%`)}`
         );
+        if (change.workflowStatus) {
+          const { schemaName, artifacts } = change.workflowStatus;
+          console.log(`    ${chalk.dim(`└─ [${this.sanitizeWorkflowText(schemaName)}]`)} ${this.formatWorkflowArtifacts(artifacts)}`);
+        }
       });
     }
 
@@ -80,24 +90,25 @@ export class ViewCommand {
 
   private async getChangesData(openspecDir: string): Promise<{
     draft: Array<{ name: string }>;
-    active: Array<{ name: string; progress: { total: number; completed: number } }>;
+    active: Array<{ name: string; progress: { total: number; completed: number }; workflowStatus?: ChangeStatus }>;
     completed: Array<{ name: string }>;
   }> {
     const changesDir = path.join(openspecDir, 'changes');
+    const projectRoot = path.dirname(openspecDir);
 
     if (!fs.existsSync(changesDir)) {
       return { draft: [], active: [], completed: [] };
     }
 
     const draft: Array<{ name: string }> = [];
-    const active: Array<{ name: string; progress: { total: number; completed: number } }> = [];
+    const active: Array<{ name: string; progress: { total: number; completed: number }; workflowStatus?: ChangeStatus }> = [];
     const completed: Array<{ name: string }> = [];
 
     const entries = fs.readdirSync(changesDir, { withFileTypes: true });
 
     for (const entry of entries) {
       if (entry.isDirectory() && entry.name !== 'archive') {
-        const progress = await getTaskProgressForChange(changesDir, entry.name);
+        const progress = await getTaskProgressForChange(changesDir, entry.name, path.dirname(openspecDir));
 
         if (progress.total === 0) {
           // No tasks defined yet - still in planning/draft phase
@@ -107,7 +118,16 @@ export class ViewCommand {
           completed.push({ name: entry.name });
         } else {
           // Has tasks but not all complete
-          active.push({ name: entry.name, progress });
+          let workflowStatus: ChangeStatus | undefined;
+          try {
+            workflowStatus = formatChangeStatus(loadChangeContext(projectRoot, entry.name));
+          } catch (error) {
+            // Preserve task progress even when this change's workflow cannot be loaded.
+            console.warn(chalk.yellow(this.sanitizeWorkflowText(
+              `Could not load workflow status for "${entry.name}": ${error instanceof Error ? error.message : String(error)}`
+            )));
+          }
+          active.push({ name: entry.name, progress, workflowStatus });
         }
       }
     }
@@ -137,24 +157,17 @@ export class ViewCommand {
     }
 
     const specs: Array<{ name: string; requirementCount: number }> = [];
-    const entries = fs.readdirSync(specsDir, { withFileTypes: true });
-    
-    for (const entry of entries) {
-      if (entry.isDirectory()) {
-        const specFile = path.join(specsDir, entry.name, 'spec.md');
-        
-        if (fs.existsSync(specFile)) {
-          try {
-            const content = fs.readFileSync(specFile, 'utf-8');
-            const parser = new MarkdownParser(content);
-            const spec = parser.parseSpec(entry.name);
-            const requirementCount = spec.requirements.length;
-            specs.push({ name: entry.name, requirementCount });
-          } catch (error) {
-            // If spec cannot be parsed, include with 0 count
-            specs.push({ name: entry.name, requirementCount: 0 });
-          }
-        }
+
+    for (const { id, specFile } of await discoverSpecFiles(specsDir)) {
+      try {
+        const content = fs.readFileSync(specFile, 'utf-8');
+        const parser = new MarkdownParser(content);
+        const spec = parser.parseSpec(id);
+        const requirementCount = spec.requirements.length;
+        specs.push({ name: id, requirementCount });
+      } catch (error) {
+        // If spec cannot be parsed, include with 0 count
+        specs.push({ name: id, requirementCount: 0 });
       }
     }
 
@@ -202,6 +215,27 @@ export class ViewCommand {
         `  ${chalk.magenta('●')} Task Progress: ${chalk.bold(`${completedTasks}/${totalTasks}`)} (${overallProgress}% complete)`
       );
     }
+  }
+
+  private sanitizeWorkflowText(value: string): string {
+    // Metadata may contain terminal controls; mask them before adding our own colors.
+    return value.replace(/[\u0000-\u001f\u007f-\u009f]/g, '?');
+  }
+
+  private formatWorkflowArtifacts(artifacts: ChangeStatus['artifacts']): string {
+    return artifacts.map((artifact) => {
+      const id = this.sanitizeWorkflowText(artifact.id);
+      switch (artifact.status) {
+        case 'done':
+          return `${id}${chalk.green('✓')}`;
+        case 'ready':
+          return `${id}${chalk.cyan('→')}`;
+        case 'skipped':
+          return chalk.dim(`${id} (skipped)`);
+        case 'blocked':
+          return chalk.dim(id);
+      }
+    }).join(' ');
   }
 
   private createProgressBar(completed: number, total: number, width: number = 20): string {

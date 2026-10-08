@@ -2,21 +2,41 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import { ZshInstaller } from '../../../../src/core/completions/installers/zsh-installer.js';
 
 describe('ZshInstaller', () => {
   let testHomeDir: string;
   let installer: ZshInstaller;
+  let originalZsh: string | undefined;
+  let originalZshCustom: string | undefined;
 
   beforeEach(async () => {
+    // Clear $ZSH and $ZSH_CUSTOM (set by a real Oh My Zsh install) so the
+    // installer resolves against the isolated test home directory instead of
+    // reading — or writing into — the developer's real OMZ tree
+    originalZsh = process.env.ZSH;
+    delete process.env.ZSH;
+    originalZshCustom = process.env.ZSH_CUSTOM;
+    delete process.env.ZSH_CUSTOM;
+
     // Create a temporary home directory for testing
-    testHomeDir = path.join(os.tmpdir(), `openspec-zsh-test-${randomUUID()}`);
-    await fs.mkdir(testHomeDir, { recursive: true });
+    testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-zsh-test-'));
     installer = new ZshInstaller(testHomeDir);
   });
 
   afterEach(async () => {
+    // Restore original environment
+    if (originalZsh !== undefined) {
+      process.env.ZSH = originalZsh;
+    } else {
+      delete process.env.ZSH;
+    }
+    if (originalZshCustom !== undefined) {
+      process.env.ZSH_CUSTOM = originalZshCustom;
+    } else {
+      delete process.env.ZSH_CUSTOM;
+    }
+
     // Clean up test directory
     await fs.rm(testHomeDir, { recursive: true, force: true });
   });
@@ -25,6 +45,14 @@ describe('ZshInstaller', () => {
     it('should return false when Oh My Zsh is not installed', async () => {
       const isInstalled = await installer.isOhMyZshInstalled();
       expect(isInstalled).toBe(false);
+    });
+
+    it('should return true when $ZSH environment variable is set', async () => {
+      // No .oh-my-zsh directory in testHomeDir; detection relies on $ZSH alone
+      process.env.ZSH = path.join(testHomeDir, '.oh-my-zsh');
+
+      const isInstalled = await installer.isOhMyZshInstalled();
+      expect(isInstalled).toBe(true);
     });
 
     it('should return true when Oh My Zsh directory exists', async () => {
@@ -63,6 +91,30 @@ describe('ZshInstaller', () => {
 
       expect(result.isOhMyZsh).toBe(false);
       expect(result.path).toBe(path.join(testHomeDir, '.zsh', 'completions', '_openspec'));
+    });
+
+    it('should honor $ZSH for an Oh My Zsh install at a custom location', async () => {
+      // A relocated OMZ exports $ZSH; writing under ~/.oh-my-zsh instead
+      // would create a tree that no shell ever loads.
+      const customRoot = path.join(testHomeDir, 'dotfiles', 'omz');
+      process.env.ZSH = customRoot;
+
+      const result = await installer.getInstallationPath();
+
+      expect(result.isOhMyZsh).toBe(true);
+      expect(result.path).toBe(path.join(customRoot, 'custom', 'completions', '_openspec'));
+    });
+
+    it('should honor $ZSH_CUSTOM over the derived custom dir', async () => {
+      process.env.ZSH = path.join(testHomeDir, 'dotfiles', 'omz');
+      process.env.ZSH_CUSTOM = path.join(testHomeDir, 'dotfiles', 'omz-custom');
+
+      const result = await installer.getInstallationPath();
+
+      expect(result.isOhMyZsh).toBe(true);
+      expect(result.path).toBe(
+        path.join(testHomeDir, 'dotfiles', 'omz-custom', 'completions', '_openspec')
+      );
     });
   });
 
@@ -194,15 +246,15 @@ describe('ZshInstaller', () => {
       }
     });
 
-    it('should handle installation errors gracefully', async () => {
-      // Create installer with non-existent/invalid home directory
-      // Use a path that will fail on both Unix and Windows
-      const invalidPath = process.platform === 'win32'
-        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
-        : '/root/invalid/nonexistent/path';  // Permission-denied path on Unix
-      const invalidInstaller = new ZshInstaller(invalidPath);
+    it.skipIf(process.platform === 'win32')('should handle installation errors gracefully', async () => {
+      const restrictedHome = path.join(testHomeDir, 'restricted-home');
+      await fs.mkdir(restrictedHome, { recursive: true });
+      await fs.chmod(restrictedHome, 0o555);
+      const invalidInstaller = new ZshInstaller(restrictedHome);
 
       const result = await invalidInstaller.install(testScript);
+
+      await fs.chmod(restrictedHome, 0o755);
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Failed to install');
@@ -250,8 +302,7 @@ describe('ZshInstaller', () => {
 
     it('should handle paths with spaces in .zshrc config', async () => {
       // Create a test home directory with spaces
-      const testHomeDirWithSpaces = path.join(os.tmpdir(), `openspec zsh test ${randomUUID()}`);
-      await fs.mkdir(testHomeDirWithSpaces, { recursive: true });
+      const testHomeDirWithSpaces = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec zsh test '));
       const installerWithSpaces = new ZshInstaller(testHomeDirWithSpaces);
 
       try {
@@ -263,7 +314,7 @@ describe('ZshInstaller', () => {
         try {
           const zshrcContent = await fs.readFile(zshrcPath, 'utf-8');
           // Verify the path is quoted in fpath
-          expect(zshrcContent).toContain(`fpath=("${path.dirname(result.installedPath!)}" $fpath)`);
+          expect(zshrcContent).toContain(`fpath=('${path.dirname(result.installedPath!)}' $fpath)`);
         } catch {
           // .zshrc might not exist if auto-config was disabled
         }
@@ -405,9 +456,55 @@ describe('ZshInstaller', () => {
       expect(content).toContain('# OPENSPEC:START');
       expect(content).toContain('# OPENSPEC:END');
       expect(content).toContain('# OpenSpec shell completions configuration');
-      expect(content).toContain(`fpath=("${completionsDir}" $fpath)`);
+      expect(content).toContain(`fpath=('${completionsDir}' $fpath)`);
       expect(content).toContain('autoload -Uz compinit');
       expect(content).toContain('compinit');
+    });
+
+    it('writes the completions dir as a single-quoted literal', async () => {
+      // See the bash installer test: an unescaped $(...) from XDG_DATA_HOME /
+      // HOME would otherwise become persistent shell-startup execution.
+      const hostileDir = "/tmp/x$(touch /tmp/pwned)`id`'quote";
+
+      expect(await installer.configureZshrc(hostileDir)).toBe(true);
+
+      const content = await fs.readFile(path.join(testHomeDir, '.zshrc'), 'utf-8');
+      expect(content).not.toContain('"/tmp/x$(touch');
+      expect(content).toContain(
+        "fpath=('/tmp/x$(touch /tmp/pwned)`id`'\\''quote' $fpath)"
+      );
+    });
+
+    it('single-quotes the completions dir in the fallback instructions too', async () => {
+      // With auto-config off these lines are printed for the user to paste in,
+      // so an expansion left in them runs on every future shell start. The
+      // fpath line was previously bare - not even a double quote.
+      const originalEnv = process.env.OPENSPEC_NO_AUTO_CONFIG;
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+
+      try {
+        const hostileHome = path.join(testHomeDir, "x$(touch pwned)`id`'q");
+        const hostileInstaller = new ZshInstaller(hostileHome);
+
+        const result = await hostileInstaller.install('#compdef openspec\n');
+        const printed = result.instructions!.join('\n');
+
+        expect(printed).not.toMatch(/fpath=\([^']/);
+        expect(printed).toContain("fpath=('");
+        expect(printed).toContain("'\\''q");
+
+        // The full line, with the platform's own separators.
+        const expectedDir = path.join(hostileHome, '.zsh', 'completions');
+        expect(path.dirname(result.installedPath!)).toBe(expectedDir);
+        const quotedDir = `'${expectedDir.replace(/'/g, "'\\''")}'`;
+        expect(result.instructions).toContain(`  fpath=(${quotedDir} $fpath)`);
+      } finally {
+        if (originalEnv === undefined) {
+          delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+        } else {
+          process.env.OPENSPEC_NO_AUTO_CONFIG = originalEnv;
+        }
+      }
     });
 
     it('should prepend markers and config when .zshrc exists without markers', async () => {
@@ -452,7 +549,7 @@ describe('ZshInstaller', () => {
 
       expect(content).toContain('# OPENSPEC:START');
       expect(content).toContain('# OPENSPEC:END');
-      expect(content).toContain(`fpath=("${completionsDir}" $fpath)`);
+      expect(content).toContain(`fpath=('${completionsDir}' $fpath)`);
       expect(content).not.toContain('# Old config');
       expect(content).not.toContain('/old/path');
       expect(content).toContain('# My custom config');
@@ -482,7 +579,7 @@ describe('ZshInstaller', () => {
       expect(content).toContain('# My zsh config');
       expect(content).toContain('export PATH="/custom/path:$PATH"');
       expect(content).toContain('alias ls="ls -G"');
-      expect(content).toContain(`fpath=("${completionsDir}" $fpath)`);
+      expect(content).toContain(`fpath=('${completionsDir}' $fpath)`);
       expect(content).not.toContain('# Old OpenSpec config');
     });
 
@@ -506,15 +603,15 @@ describe('ZshInstaller', () => {
       }
     });
 
-    it('should handle write permission errors gracefully', async () => {
-      // Create installer with path that can't be written
-      // Use a path that will fail on both Unix and Windows
-      const invalidPath = process.platform === 'win32'
-        ? 'Z:\\nonexistent\\invalid\\path'  // Non-existent drive letter on Windows
-        : '/root/invalid/path';  // Permission-denied path on Unix
-      const invalidInstaller = new ZshInstaller(invalidPath);
+    it.skipIf(process.platform === 'win32')('should handle write permission errors gracefully', async () => {
+      const restrictedHome = path.join(testHomeDir, 'restricted-home');
+      await fs.mkdir(restrictedHome, { recursive: true });
+      await fs.chmod(restrictedHome, 0o555);
+      const invalidInstaller = new ZshInstaller(restrictedHome);
 
       const result = await invalidInstaller.configureZshrc(completionsDir);
+
+      await fs.chmod(restrictedHome, 0o755);
 
       expect(result).toBe(false);
     });

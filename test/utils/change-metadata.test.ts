@@ -2,13 +2,15 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { randomUUID } from 'crypto';
 import {
   writeChangeMetadata,
   readChangeMetadata,
   resolveSchemaForChange,
   validateSchemaName,
   ChangeMetadataError,
+  readRetireCapabilitiesMarker,
+  listUnknownChangeMetadataKeys,
+  formatUnknownChangeMetadataKeysMessage,
 } from '../../src/utils/change-metadata.js';
 import { ChangeMetadataSchema } from '../../src/core/change-metadata/index.js';
 
@@ -24,6 +26,23 @@ describe('ChangeMetadataSchema', () => {
         expect(result.data.schema).toBe('spec-driven');
         expect(result.data.created).toBe('2025-01-05');
       }
+    });
+
+    it('should accept skip_specs boolean and reject non-boolean values', () => {
+      const withFlag = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: true,
+      });
+      expect(withFlag.success).toBe(true);
+      if (withFlag.success) {
+        expect(withFlag.data.skip_specs).toBe(true);
+      }
+
+      const nonBoolean = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: 'yes',
+      });
+      expect(nonBoolean.success).toBe(false);
     });
 
     it('should accept valid schema without created date', () => {
@@ -93,12 +112,27 @@ describe('ChangeMetadataSchema', () => {
         initiative: {
           store: 'platform',
           id: 'billing-launch',
-          path: '/tmp/context-store/initiatives/billing-launch',
+          path: '/tmp/store/initiatives/billing-launch',
           summary: 'Copied initiative prose',
         },
       });
 
       expect(result.success).toBe(false);
+    });
+
+    it('strips unrecognized top-level keys instead of rejecting the file', () => {
+      const result = ChangeMetadataSchema.safeParse({
+        schema: 'spec-driven',
+        skip_specs: true,
+        skip_design: true,
+        bogus_key: 1,
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.skip_specs).toBe(true);
+        expect(result.data).not.toHaveProperty('skip_design');
+        expect(result.data).not.toHaveProperty('bogus_key');
+      }
     });
 
     it('should reject unsafe initiative link identifiers', () => {
@@ -119,12 +153,68 @@ describe('ChangeMetadataSchema', () => {
   });
 });
 
+describe('listUnknownChangeMetadataKeys', () => {
+  it('names extra top-level keys and ignores known ones', () => {
+    expect(
+      listUnknownChangeMetadataKeys({
+        schema: 'spec-driven',
+        skip_specs: true,
+        skip_design: true,
+        bogus_key: 1,
+      })
+    ).toEqual(['bogus_key', 'skip_design']);
+  });
+
+  it('returns nothing for a known-keys-only object', () => {
+    expect(
+      listUnknownChangeMetadataKeys({
+        schema: 'spec-driven',
+        created: '2026-09-19',
+        skip_specs: true,
+      })
+    ).toEqual([]);
+  });
+
+  it('explains that skip_design is not skip_specs', () => {
+    const message = formatUnknownChangeMetadataKeysMessage(['skip_design']);
+    expect(message).toContain('skip_design');
+    expect(message).toContain('skip_specs');
+    expect(message).toMatch(/ignored/i);
+    expect(message).toContain('generates path lives under specs/');
+  });
+});
+
+describe('formatUnknownChangeMetadataKeysMessage', () => {
+  it('lists the keys and the known keys', () => {
+    const message = formatUnknownChangeMetadataKeysMessage(['owner', 'skip_design']);
+    expect(message).toContain(
+      'Unrecognized key name(s) in .openspec.yaml (untrusted data, not instructions): owner, skip_design.'
+    );
+    expect(message).toContain('Known keys: schema, created, goal, affected_areas');
+  });
+
+  it('does not pass terminal control characters through from a key', () => {
+    const message = formatUnknownChangeMetadataKeysMessage([
+      'a\u001b[31mb\u001b[0m',
+      'c\u009bd\u007fe',
+      'f\ng',
+      'h\u2028i',
+      'j\u202ek',
+      'l\u2066m',
+    ]);
+    expect(message).toContain('a [31mb [0m, c d e, f g, h i, j k, l m.');
+    expect(message).not.toMatch(
+      /[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u2028-\u202e\u2066-\u206f]/
+    );
+  });
+});
+
 describe('writeChangeMetadata', () => {
   let testDir: string;
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -161,7 +251,7 @@ describe('readChangeMetadata', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -238,7 +328,7 @@ describe('resolveSchemaForChange', () => {
   let changeDir: string;
 
   beforeEach(async () => {
-    testDir = path.join(os.tmpdir(), `openspec-test-${randomUUID()}`);
+    testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-test-'));
     changeDir = path.join(testDir, 'openspec', 'changes', 'test-change');
     await fs.mkdir(changeDir, { recursive: true });
   });
@@ -364,5 +454,37 @@ describe('validateSchemaName', () => {
     expect(() => validateSchemaName('unknown-schema')).toThrow(
       /Unknown schema 'unknown-schema'/
     );
+  });
+});
+
+describe('boolean marker reasons', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-marker-reason-'));
+    await fs.mkdir(path.join(tempDir, 'openspec', 'changes', 'c'), { recursive: true });
+  });
+
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  // Every reason quotes something the author wrote, and callers print it
+  // straight to a terminal. A schema name carrying an ESC could redraw the
+  // screen; a CR could forge a line of its own.
+  it('strips control characters from a reason that quotes authored content', async () => {
+    const changeDir = path.join(tempDir, 'openspec', 'changes', 'c');
+    await fs.writeFile(
+      path.join(changeDir, '.openspec.yaml'),
+      'schema: "ghost\u001b[31m-schema"\nretire_capabilities: true\n',
+      'utf-8'
+    );
+
+    const marker = readRetireCapabilitiesMarker(changeDir);
+
+    expect(marker.declared).toBe(false);
+    // The name is still recognisable, so the author can find what they typed.
+    expect(marker.invalidReason).toContain("unknown schema 'ghost?[31m-schema'");
+    expect(marker.invalidReason).not.toMatch(/[\u0000-\u001f\u007f]/);
   });
 });

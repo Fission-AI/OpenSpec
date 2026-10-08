@@ -1,8 +1,11 @@
 import { z } from 'zod';
+import { isKebabId } from '../id.js';
+
+export { isKebabId } from '../id.js';
 
 const KebabIdentifierSchema = (label: string): z.ZodString =>
   z.string().superRefine((value, ctx) => {
-    if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/u.test(value)) {
+    if (!isKebabId(value)) {
       ctx.addIssue({
         code: 'custom',
         message: `${label} must be kebab-case with lowercase letters, numbers, and single hyphen separators`,
@@ -11,11 +14,24 @@ const KebabIdentifierSchema = (label: string): z.ZodString =>
   });
 
 export const InitiativeLinkSchema = z.object({
-  store: KebabIdentifierSchema('Context store id'),
+  store: KebabIdentifierSchema('Store id'),
   id: KebabIdentifierSchema('Initiative id'),
 }).strict();
 
 export type InitiativeLink = z.infer<typeof InitiativeLinkSchema>;
+
+/** Top-level keys ChangeMetadataSchema recognizes. Anything else is ignored. */
+export const CHANGE_METADATA_KNOWN_KEYS = [
+  'schema',
+  'created',
+  'goal',
+  'affected_areas',
+  'initiative',
+  'skip_specs',
+  'retire_capabilities',
+] as const;
+
+export type ChangeMetadataKnownKey = (typeof CHANGE_METADATA_KNOWN_KEYS)[number];
 
 // Per-change metadata schema. The schema field is validated against available
 // workflow schemas when metadata is read or written.
@@ -30,6 +46,19 @@ export const ChangeMetadataSchema = z.object({
   goal: z.string().min(1).optional(),
   affected_areas: z.array(z.string().min(1)).optional(),
   initiative: InitiativeLinkSchema.optional(),
+  // Declares that this change intentionally has no spec deltas (pure refactor,
+  // tooling, or docs work). Validation accepts zero deltas, and the artifact
+  // graph counts artifacts whose `generates` path lives under specs/ as
+  // complete - that path prefix, not the artifact id, is the contract custom
+  // schemas inherit.
+  skip_specs: z.boolean().optional(),
+  // Declares that this change may retire a capability: when its REMOVED entries
+  // take the last requirement a capability has, archive deletes that
+  // capability's main spec instead of aborting on a spec it could not write
+  // (#1302). Required because the deletion is not recoverable from the working
+  // tree - only from git - so it is the author's call, not an inference from the
+  // shape of a delta.
+  retire_capabilities: z.boolean().optional(),
 });
 
 export type ChangeMetadata = z.infer<typeof ChangeMetadataSchema>;

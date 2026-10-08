@@ -20,75 +20,29 @@ describe('planning home paths', () => {
     }
   });
 
-  it('builds workspace change paths with the planning home path style', () => {
-    const workspacePlanningHome: PlanningHome = {
-      kind: 'workspace',
-      root: 'D:\\repos\\platform-workspace',
-      changesDir: 'D:\\repos\\platform-workspace\\changes',
-      defaultSchema: 'workspace-planning',
-      workspace: {
-        name: 'platform',
-        links: ['api', 'web'],
-      },
-    };
-
-    expect(getChangeDir(workspacePlanningHome, 'cross-repo-login')).toBe(
-      'D:\\repos\\platform-workspace\\changes\\cross-repo-login'
-    );
-    expect(formatChangeLocation(workspacePlanningHome, 'cross-repo-login')).toBe(
-      'changes\\cross-repo-login'
-    );
-  });
-
-  it('keeps a canonical workspace root comparable with an aliased start path', () => {
+  it('resolves repo-local projects with foreign workspace.yaml as repo planning homes', () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
     tempDirs.push(tempDir);
-    const realWorkspaceRoot = path.join(tempDir, 'real-workspace');
-    const aliasWorkspaceRoot = path.join(tempDir, 'alias-workspace');
+    const repoRoot = path.join(tempDir, 'foreign-tool-repo');
+    const changesDir = path.join(repoRoot, 'openspec', 'changes');
 
-    fs.mkdirSync(path.join(realWorkspaceRoot, '.openspec-workspace'), { recursive: true });
+    fs.mkdirSync(changesDir, { recursive: true });
     fs.writeFileSync(
-      path.join(realWorkspaceRoot, '.openspec-workspace', 'workspace.yaml'),
-      'version: 1\nname: platform\nlinks: {}\n',
+      path.join(repoRoot, 'workspace.yaml'),
+      `tool_workspace:
+  projects:
+    - name: example
+      path: ./service
+`,
       'utf-8'
-    );
-    fs.symlinkSync(
-      realWorkspaceRoot,
-      aliasWorkspaceRoot,
-      process.platform === 'win32' ? 'junction' : 'dir'
     );
 
     const planningHome = resolveCurrentPlanningHomeSync({
-      startPath: aliasWorkspaceRoot,
+      startPath: changesDir,
       allowImplicitRepoRoot: false,
     });
 
-    expect(planningHome.kind).toBe('workspace');
-    expect(planningHome.root).toBe(fs.realpathSync.native(realWorkspaceRoot));
-  });
-
-  it('surfaces invalid current workspace state instead of falling back to legacy state', () => {
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-planning-home-'));
-    tempDirs.push(tempDir);
-    const workspaceRoot = path.join(tempDir, 'workspace');
-
-    fs.mkdirSync(path.join(workspaceRoot, '.openspec-workspace'), { recursive: true });
-    fs.writeFileSync(
-      path.join(workspaceRoot, 'workspace.yaml'),
-      'version: 1\nname: bad/name\ncontext: null\nlinks: {}\n',
-      'utf-8'
-    );
-    fs.writeFileSync(
-      path.join(workspaceRoot, '.openspec-workspace', 'workspace.yaml'),
-      'version: 1\nname: legacy-platform\nlinks: {}\n',
-      'utf-8'
-    );
-
-    expect(() =>
-      resolveCurrentPlanningHomeSync({
-        startPath: workspaceRoot,
-        allowImplicitRepoRoot: false,
-      })
-    ).toThrow(/Workspace name/u);
+    expect(planningHome.kind).toBe('repo');
+    expect(planningHome.root).toBe(fs.realpathSync.native(repoRoot));
   });
 });

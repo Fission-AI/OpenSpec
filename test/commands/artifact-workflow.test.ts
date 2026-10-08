@@ -118,6 +118,7 @@ describe('artifact-workflow CLI commands', () => {
       const json = JSON.parse(result.stdout);
       expect(json.changeName).toBe('json-change');
       expect(json.schemaName).toBe('spec-driven');
+      expect(json.isPlanningComplete).toBe(false);
       expect(json.isComplete).toBe(false);
       expect(Array.isArray(json.artifacts)).toBe(true);
       expect(json.artifacts).toHaveLength(4);
@@ -126,13 +127,259 @@ describe('artifact-workflow CLI commands', () => {
       expect(proposalArtifact.status).toBe('done');
     });
 
-    it('shows complete status when all artifacts are done', async () => {
+    it('keeps unknown metadata warnings inside status and instructions JSON', async () => {
+      const changeDir = await createTestChange('unknown-metadata-json', ['proposal']);
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_design: true\n'
+      );
+
+      const statusResult = await runCLI(
+        ['status', '--change', 'unknown-metadata-json', '--json'],
+        { cwd: tempDir }
+      );
+      expect(statusResult.exitCode).toBe(0);
+      expect(statusResult.stderr).toBe('');
+      expect(JSON.parse(statusResult.stdout).warnings).toEqual([
+        expect.stringContaining('skip_design'),
+      ]);
+
+      const instructionsResult = await runCLI(
+        ['instructions', 'design', '--change', 'unknown-metadata-json', '--json'],
+        { cwd: tempDir }
+      );
+      expect(instructionsResult.exitCode).toBe(0);
+      expect(instructionsResult.stderr).toBe('');
+      expect(JSON.parse(instructionsResult.stdout).warnings).toEqual([
+        expect.stringContaining('skip_design'),
+      ]);
+    });
+
+    it('recommends specs before design for a proposal-only change', async () => {
+      await createTestChange('order-change');
+
+      const result = await runCLI(['status', '--change', 'order-change', '--json'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+
+      const json = JSON.parse(result.stdout);
+      expect(json.artifacts.map((a: any) => a.id)).toEqual(['proposal', 'specs', 'design', 'tasks']);
+      expect(json.nextSteps[0]).toContain('openspec instructions specs');
+    });
+
+    // #906: the text surface reported state and no verb, so someone resuming a
+    // change - after a lost session, or on a change they did not start - had to
+    // already know which command comes next. The command is now printed.
+    describe('next step', () => {
+      /**
+       * The line closes the output, so a `toContain` would still pass if some
+       * later line pushed it into the middle of the report.
+       */
+      function lastLine(result: { stdout: string }): string {
+        // Split on \r?\n so a CRLF stream does not leave the carriage return
+        // attached to the line being compared.
+        const lines = result.stdout.split(/\r?\n/).filter((line) => line.trim() !== '');
+        return lines[lines.length - 1] ?? '';
+      }
+
+      it('names the command for the next ready artifact', async () => {
+        await createTestChange('resume-planning');
+
+        const result = await runCLI(['status', '--change', 'resume-planning'], { cwd: tempDir });
+
+        expect(result.exitCode).toBe(0);
+        expect(lastLine(result)).toBe(
+          'Next: openspec instructions specs --change "resume-planning" --json'
+        );
+      });
+
+      it('names the apply command once planning is complete', async () => {
+        await createTestChange('resume-apply', ['proposal', 'design', 'specs', 'tasks']);
+
+        const result = await runCLI(['status', '--change', 'resume-apply'], { cwd: tempDir });
+
+        expect(result.exitCode).toBe(0);
+        // The completion line alone reads as "you are done" even while tasks
+        // remain, so it must be followed by the command that resumes the work.
+        expect(result.stdout).toContain('All planning artifacts complete!');
+        expect(lastLine(result)).toBe(
+          'Next: openspec instructions apply --change "resume-apply" --json'
+        );
+      });
+
+      it('names artifacts from a custom schema, not spec-driven ones', async () => {
+        // The line is built from the resolved artifact id, so a project whose
+        // schema has no proposal/specs/design/tasks must still get a usable
+        // command rather than a hard-coded default-schema one.
+        const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'lean');
+        await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+        await fs.writeFile(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
+        await fs.writeFile(path.join(schemaDir, 'templates', 'plan.md'), '# Plan\n');
+        await fs.writeFile(
+          path.join(schemaDir, 'schema.yaml'),
+          [
+            'name: lean',
+            'version: 1',
+            'artifacts:',
+            '  - id: brief',
+            '    generates: brief.md',
+            '    description: One-page brief',
+            '    template: brief.md',
+            '    requires: []',
+            '  - id: plan',
+            '    generates: plan.md',
+            '    description: Execution plan',
+            '    template: plan.md',
+            '    requires: [brief]',
+            'apply:',
+            '  requires: [plan]',
+            '',
+          ].join('\n')
+        );
+
+        const changeDir = path.join(changesDir, 'lean-change');
+        await fs.mkdir(changeDir, { recursive: true });
+        await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: lean\n');
+        await fs.writeFile(path.join(changeDir, 'brief.md'), '# Brief\n\nThe brief.\n');
+
+        const ready = await runCLI(['status', '--change', 'lean-change'], { cwd: tempDir });
+        expect(ready.exitCode).toBe(0);
+        expect(lastLine(ready)).toBe(
+          'Next: openspec instructions plan --change "lean-change" --json'
+        );
+
+        await fs.writeFile(path.join(changeDir, 'plan.md'), '# Plan\n\nThe plan.\n');
+
+        const complete = await runCLI(['status', '--change', 'lean-change'], { cwd: tempDir });
+        expect(complete.exitCode).toBe(0);
+        expect(lastLine(complete)).toBe(
+          'Next: openspec instructions apply --change "lean-change" --json'
+        );
+      });
+
+      it('never points at a skipped artifact', async () => {
+        const changeDir = await createTestChange('skip-next-step', ['proposal']);
+        await fs.writeFile(
+          path.join(changeDir, '.openspec.yaml'),
+          'schema: spec-driven\nskip_specs: true\n'
+        );
+
+        const result = await runCLI(['status', '--change', 'skip-next-step'], { cwd: tempDir });
+
+        expect(result.exitCode).toBe(0);
+        // A skipped artifact satisfies its dependents but must never be
+        // created, so naming it would send the author to write a file the
+        // change forbids.
+        expect(result.stdout).toContain('[~] specs');
+        expect(lastLine(result)).toBe(
+          'Next: openspec instructions design --change "skip-next-step" --json'
+        );
+      });
+
+      it('stays out of the JSON payload', async () => {
+        await createTestChange('json-clean');
+
+        const result = await runCLI(['status', '--change', 'json-clean', '--json'], {
+          cwd: tempDir,
+        });
+
+        expect(result.exitCode).toBe(0);
+        // The text line must not leak into --json: it would break the parse
+        // for every agent reading this command.
+        expect(result.stdout).not.toContain('Next: ');
+        expect(() => JSON.parse(result.stdout)).not.toThrow();
+      });
+
+      it('prints the same command the JSON nextSteps sentence names', async () => {
+        for (const artifacts of [[], ['proposal', 'design', 'specs', 'tasks']] as const) {
+          const changeName = `parity-${artifacts.length}`;
+          await createTestChange(changeName, [...artifacts]);
+
+          const text = await runCLI(['status', '--change', changeName], { cwd: tempDir });
+          const json = await runCLI(['status', '--change', changeName, '--json'], { cwd: tempDir });
+
+          const closing = lastLine(text);
+          expect(closing.startsWith('Next: ')).toBe(true);
+
+          // One source of truth: the printed command must appear verbatim
+          // inside the published JSON sentence.
+          const printed = closing.slice('Next: '.length);
+          expect(JSON.parse(json.stdout).nextSteps[0]).toContain(printed);
+        }
+      });
+    });
+
+    it('shows planning completion when all artifacts exist', async () => {
       await createTestChange('complete-change', ['proposal', 'design', 'specs', 'tasks']);
 
       const result = await runCLI(['status', '--change', 'complete-change'], { cwd: tempDir });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('4/4 artifacts complete');
-      expect(result.stdout).toContain('All artifacts complete!');
+      expect(result.stdout).toContain('All planning artifacts complete!');
+      expect(result.stdout).not.toContain('All artifacts complete!');
+    });
+
+    it('distinguishes planning completion from implementation task completion', async () => {
+      await createTestChange('planned-change', ['proposal', 'design', 'specs', 'tasks']);
+
+      const statusResult = await runCLI(['status', '--change', 'planned-change', '--json'], {
+        cwd: tempDir,
+      });
+      const applyResult = await runCLI(
+        ['instructions', 'apply', '--change', 'planned-change', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(statusResult.exitCode).toBe(0);
+      expect(applyResult.exitCode).toBe(0);
+
+      const status = JSON.parse(statusResult.stdout);
+      const apply = JSON.parse(applyResult.stdout);
+      expect(status.isPlanningComplete).toBe(true);
+      expect(status.isComplete).toBe(true);
+      expect(status.nextSteps[0]).toContain(
+        'openspec instructions apply --change "planned-change" --json'
+      );
+      expect(status.nextSteps[0]).not.toContain('before implementation');
+      expect(apply.state).toBe('ready');
+      expect(apply.progress.remaining).toBe(1);
+    });
+
+    it('reports skipped planning artifacts as complete without creating them', async () => {
+      const changeDir = await createTestChange('skip-specs-change', [
+        'proposal',
+        'design',
+        'tasks',
+      ]);
+      await fs.writeFile(
+        path.join(changeDir, '.openspec.yaml'),
+        'schema: spec-driven\nskip_specs: true\n'
+      );
+
+      const result = await runCLI(['status', '--change', 'skip-specs-change', '--json'], {
+        cwd: tempDir,
+      });
+
+      expect(result.exitCode).toBe(0);
+      const status = JSON.parse(result.stdout);
+      expect(status.isPlanningComplete).toBe(true);
+      expect(status.isComplete).toBe(status.isPlanningComplete);
+      expect(status.artifacts.find((artifact: any) => artifact.id === 'specs')?.status).toBe(
+        'skipped'
+      );
+      expect(status.artifactPaths.specs.existingOutputPaths).toEqual([]);
+      const instructionsResult = await runCLI(
+        ['instructions', 'specs', '--change', 'skip-specs-change', '--json'],
+        { cwd: tempDir }
+      );
+      expect(instructionsResult.exitCode).toBe(0);
+      expect(JSON.parse(instructionsResult.stdout)).toMatchObject({
+        skipped: true,
+        existingOutputPaths: [],
+        warning: expect.stringContaining('Do not create spec files'),
+      });
+      await expect(fs.stat(path.join(changeDir, 'specs'))).rejects.toMatchObject({ code: 'ENOENT' });
     });
 
     it('exits gracefully when no changes exist', async () => {
@@ -212,9 +459,152 @@ describe('artifact-workflow CLI commands', () => {
       const output = getOutput(result);
       expect(output).toContain('Invalid change name');
     });
+
+    it('rejects hidden directory names', async () => {
+      const result = await runCLI(['status', '--change', '.hidden'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
+
+    it('rejects the reserved archive directory name', async () => {
+      await fs.mkdir(path.join(changesDir, 'archive'), { recursive: true });
+
+      const result = await runCLI(['status', '--change', 'archive'], { cwd: tempDir });
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('Invalid change name');
+    });
+
+    it('accepts digit-leading change names that exist on disk (#1308)', async () => {
+      await createTestChange('2026-07-04-voice-copilot-v1', ['proposal', 'design']);
+
+      const result = await runCLI(['status', '--change', '2026-07-04-voice-copilot-v1'], {
+        cwd: tempDir,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('2026-07-04-voice-copilot-v1');
+      expect(result.stdout).toContain('2/4 artifacts complete');
+    });
   });
 
   describe('instructions command', () => {
+    it('keeps instructions available for missing companion outputs after a glob artifact is done', async () => {
+      const schemaName = 'companion-outputs';
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', schemaName);
+      const outputPath = 'reviews/*/notes.md';
+      const template = '# Review\n\n## Findings\n';
+      await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: ${schemaName}
+version: 1
+artifacts:
+  - id: brief
+    generates: brief.md
+    description: Review brief
+    template: brief.md
+    requires: []
+  - id: assessments
+    generates: ${outputPath}
+    description: Component assessments
+    template: review.md
+    instruction: Write an assessment for each affected component.
+    requires: [brief]
+  - id: signoff
+    generates: signoff.md
+    description: Review signoff
+    template: signoff.md
+    requires: [assessments]
+`
+      );
+      await fs.writeFile(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
+      await fs.writeFile(path.join(schemaDir, 'templates', 'review.md'), template);
+      await fs.writeFile(path.join(schemaDir, 'templates', 'signoff.md'), '# Signoff\n');
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: ${schemaName}
+context: Review both the API and UI components.
+rules:
+  assessments:
+    - Preserve existing findings when adding a companion assessment.
+`
+      );
+      const changeName = 'companion-review';
+      const changeDir = path.join(changesDir, changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), `schema: ${schemaName}\n`);
+      const briefPath = path.join(changeDir, 'brief.md');
+      await fs.writeFile(briefPath, '# Brief\nReview the API and UI.\n');
+      const apiPath = path.join(changeDir, 'reviews', 'api', 'notes.md');
+      const uiPath = path.join(changeDir, 'reviews', 'ui', 'notes.md');
+
+      async function readJson(args: string[]) {
+        const result = await runCLI([...args, '--change', changeName, '--json'], { cwd: tempDir });
+        expect(result.exitCode).toBe(0);
+        return JSON.parse(result.stdout);
+      }
+
+      const empty = await readJson(['status']);
+      expect(empty.artifacts).toMatchObject([
+        { id: 'brief', status: 'done' },
+        { id: 'assessments', status: 'ready' },
+        { id: 'signoff', status: 'blocked', missingDeps: ['assessments'] },
+      ]);
+      expect(empty.artifactPaths.assessments.existingOutputPaths).toEqual([]);
+
+      // Fixture writes simulate authored outputs; the CLI only reports their state.
+      const existingContent = '# Review\n\n## Findings\nKeep this API finding.\n';
+      await fs.mkdir(path.dirname(apiPath), { recursive: true });
+      await fs.writeFile(apiPath, existingContent);
+      const partial = await readJson(['status']);
+      expect(partial.artifacts).toMatchObject([
+        { id: 'brief', status: 'done' },
+        { id: 'assessments', status: 'done' },
+        { id: 'signoff', status: 'ready' },
+      ]);
+      expect(partial.artifactPaths.assessments.existingOutputPaths.map(canonical)).toEqual([
+        canonical(apiPath),
+      ]);
+      const instructions = await readJson(['instructions', 'assessments']);
+      expect(instructions).toMatchObject({
+        artifactId: 'assessments',
+        outputPath,
+        instruction: 'Write an assessment for each affected component.',
+        context: 'Review both the API and UI components.',
+        rules: ['Preserve existing findings when adding a companion assessment.'],
+        template,
+        dependencies: [{ id: 'brief', done: true, path: 'brief.md' }],
+      });
+      expect(canonical(instructions.changeDir)).toBe(canonical(changeDir));
+      expect(instructions.resolvedOutputPath).toBe(path.join(instructions.changeDir, outputPath));
+      expect(instructions.existingOutputPaths.map(canonical)).toEqual([canonical(apiPath)]);
+      expect(instructions.skipped).toBeUndefined();
+      await expect(fs.stat(uiPath)).rejects.toMatchObject({ code: 'ENOENT' });
+
+      await fs.mkdir(path.dirname(uiPath), { recursive: true });
+      await fs.writeFile(uiPath, '# Review\n\n## Findings\nNew UI finding.\n');
+      const expanded = await readJson(['status']);
+      expect(expanded.artifacts).toEqual(partial.artifacts);
+      expect(expanded.nextSteps).toEqual(partial.nextSteps);
+      expect(expanded.artifactPaths.assessments.existingOutputPaths.map(canonical)).toEqual(
+        [apiPath, uiPath].map(canonical).sort()
+      );
+      expect(await fs.readFile(apiPath, 'utf-8')).toBe(existingContent);
+      await expect(fs.stat(path.join(changeDir, 'signoff.md'))).rejects.toMatchObject({ code: 'ENOENT' });
+
+      await fs.unlink(briefPath);
+      const missingInput = await readJson(['status']);
+      expect(missingInput.artifacts.find((artifact: any) => artifact.id === 'assessments')).toMatchObject({
+        status: 'done',
+        requires: ['brief'],
+      });
+      const missingInputInstructions = await readJson(['instructions', 'assessments']);
+      expect(missingInputInstructions.dependencies).toMatchObject([
+        { id: 'brief', done: false, path: 'brief.md' },
+      ]);
+    });
+
     it('shows instructions for proposal on scaffolded change', async () => {
       // Create empty change directory (no proposal.md)
       const changeDir = path.join(changesDir, 'scaffolded-change');
@@ -290,6 +680,17 @@ describe('artifact-workflow CLI commands', () => {
       expect(output).toContain("Artifact 'unknown-artifact' not found");
       expect(output).toContain('Valid artifacts');
     });
+
+    it('accepts digit-leading change names that exist on disk (#1308)', async () => {
+      await createTestChange('2026-07-04-voice-copilot-v1', ['proposal']);
+
+      const result = await runCLI(
+        ['instructions', 'design', '--change', '2026-07-04-voice-copilot-v1'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('<artifact id="design"');
+    });
   });
 
   describe('templates command', () => {
@@ -340,141 +741,154 @@ describe('artifact-workflow CLI commands', () => {
       const changeDir = path.join(changesDir, 'my-new-feature');
       const stat = await fs.stat(changeDir);
       expect(stat.isDirectory()).toBe(true);
+
+      const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
+      expect(metadata).not.toContain('skip_specs');
     });
 
-    it('creates workspace-planning changes under the workspace root without touching linked repos', async () => {
-      const workspaceEnv = {
-        XDG_DATA_HOME: path.join(tempDir, 'data'),
-        XDG_CONFIG_HOME: path.join(tempDir, 'config'),
-        OPEN_SPEC_INTERACTIVE: '0',
-        OPENSPEC_TELEMETRY: '0',
-      };
-      const api = path.join(tempDir, 'linked-api');
-      await fs.mkdir(path.join(api, 'openspec', 'specs'), { recursive: true });
-      const apiEntriesBefore = (await fs.readdir(api)).sort();
-
-      const setup = await runCLI(
-        [
-          'workspace',
-          'setup',
-          '--no-interactive',
-          '--json',
-          '--name',
-          'platform',
-          '--link',
-          `api=${api}`,
-        ],
-        { cwd: tempDir, env: workspaceEnv }
+    it('marks changes as skip_specs when their schema cannot generate specs', async () => {
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', 'no-specs');
+      await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: no-specs
+version: 1
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Proposal
+    template: proposal.md
+    requires: []
+  - id: tasks
+    generates: tasks.md
+    description: Tasks
+    template: tasks.md
+    requires: [proposal]
+apply:
+  requires: [tasks]
+  tracks: tasks.md
+`
       );
-      expect(setup.exitCode).toBe(0);
-      const workspaceRoot = JSON.parse(setup.stdout).workspace.root;
-
-      const create = await runCLI(
-        [
-          'new',
-          'change',
-          'cross-repo-login',
-          '--goal',
-          'Unify login across API and web',
-          '--areas',
-          'api',
-        ],
-        { cwd: workspaceRoot, env: workspaceEnv }
+      await fs.writeFile(path.join(schemaDir, 'templates', 'proposal.md'), '# Proposal\n');
+      await fs.writeFile(path.join(schemaDir, 'templates', 'tasks.md'), '# Tasks\n');
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: no-specs\n'
       );
-      expect(create.exitCode).toBe(0);
-      const createOutput = getOutput(create);
-      expect(createOutput).toContain('workspace change');
-      expect(normalizePaths(createOutput)).toContain('changes/cross-repo-login');
 
-      const changeDir = path.join(workspaceRoot, 'changes', 'cross-repo-login');
+      const result = await runCLI(['new', 'change', 'no-spec-change'], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+
+      const metadata = await fs.readFile(
+        path.join(changesDir, 'no-spec-change', '.openspec.yaml'),
+        'utf-8'
+      );
+      expect(metadata).toContain('skip_specs: true');
+
+      const validation = await runCLI(
+        ['validate', 'no-spec-change', '--type', 'change'],
+        { cwd: tempDir }
+      );
+      expect(validation.exitCode).toBe(0);
+    });
+
+    it('does not mark spec-producing schemas that use Windows separators', async () => {
+      const schemaName = 'windows-specs';
+      const generates = String.raw`specs\**\*.md`;
+      const schemaDir = path.join(tempDir, 'openspec', 'schemas', schemaName);
+      await fs.mkdir(path.join(schemaDir, 'templates'), { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        `name: ${schemaName}
+version: 1
+artifacts:
+  - id: specs
+    generates: '${generates}'
+    description: Specs
+    template: spec.md
+    requires: []
+`
+      );
+      await fs.writeFile(path.join(schemaDir, 'templates', 'spec.md'), '# Spec\n');
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: ${schemaName}\n`
+      );
+
+      const changeName = `${schemaName}-change`;
+      const result = await runCLI(['new', 'change', changeName], { cwd: tempDir });
+      expect(result.exitCode).toBe(0);
+
+      const changeDir = path.join(changesDir, changeName);
       const metadata = await fs.readFile(path.join(changeDir, '.openspec.yaml'), 'utf-8');
-      expect(metadata).toContain('schema: workspace-planning');
-      expect(metadata).toContain('goal: Unify login across API and web');
-      expect(metadata).toContain('affected_areas:');
-      expect(metadata).toContain('- api');
-      expect((await fs.readdir(api)).sort()).toEqual(apiEntriesBefore);
-      await expect(fs.stat(path.join(api, 'openspec', 'changes'))).rejects.toMatchObject({
+      expect(metadata).not.toContain('skip_specs');
+
+      const specDir = path.join(changeDir, 'specs', 'example');
+      await fs.mkdir(specDir, { recursive: true });
+      await fs.writeFile(
+        path.join(specDir, 'spec.md'),
+        `## ADDED Requirements
+### Requirement: Example behavior
+The system SHALL support the example behavior.
+
+#### Scenario: Example succeeds
+- **WHEN** the example runs
+- **THEN** it succeeds
+`
+      );
+
+      const status = await runCLI(['status', '--change', changeName, '--json'], {
+        cwd: tempDir,
+      });
+      expect(status.exitCode).toBe(0);
+      expect(JSON.parse(status.stdout).artifacts[0].status).toBe('done');
+
+      const validation = await runCLI(['validate', changeName, '--type', 'change'], {
+        cwd: tempDir,
+      });
+      expect(validation.exitCode).toBe(0);
+    });
+
+    it('rejects --initiative and writes no change', async () => {
+      const result = await runCLI(
+        ['new', 'change', 'linked-change', '--initiative', 'billing-launch'],
+        { cwd: tempDir }
+      );
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('--initiative is no longer supported');
+      await expect(fs.stat(path.join(changesDir, 'linked-change'))).rejects.toMatchObject({
         code: 'ENOENT',
       });
     });
 
-    it('resolves nested workspace-planning specs as workspace-scoped paths', async () => {
-      const workspaceEnv = {
-        XDG_DATA_HOME: path.join(tempDir, 'data'),
-        XDG_CONFIG_HOME: path.join(tempDir, 'config'),
-        OPEN_SPEC_INTERACTIVE: '0',
-        OPENSPEC_TELEMETRY: '0',
-      };
-      const api = path.join(tempDir, 'linked-api');
-      await fs.mkdir(api, { recursive: true });
-
-      const setup = await runCLI(
-        [
-          'workspace',
-          'setup',
-          '--no-interactive',
-          '--json',
-          '--name',
-          'platform',
-          '--link',
-          `api=${api}`,
-        ],
-        { cwd: tempDir, env: workspaceEnv }
-      );
-      expect(setup.exitCode).toBe(0);
-      const workspaceRoot = JSON.parse(setup.stdout).workspace.root;
-
-      const create = await runCLI(
-        ['new', 'change', 'nested-workspace-spec', '--goal', 'Plan API login', '--areas', 'api'],
-        { cwd: workspaceRoot, env: workspaceEnv }
-      );
-      expect(create.exitCode).toBe(0);
-
-      const changeDir = path.join(workspaceRoot, 'changes', 'nested-workspace-spec');
-      const specPath = path.join(changeDir, 'specs', 'api', 'login', 'spec.md');
-      await fs.mkdir(path.dirname(specPath), { recursive: true });
-      await fs.writeFile(
-        specPath,
-        '## ADDED Requirements\n\n### Requirement: API login\n\n#### Scenario: Valid login\n- **WHEN** credentials are valid\n- **THEN** login succeeds\n'
-      );
-
-      const status = await runCLI(['status', '--change', 'nested-workspace-spec', '--json'], {
-        cwd: workspaceRoot,
-        env: workspaceEnv,
+    it('rejects --areas and writes no affected-area metadata', async () => {
+      const result = await runCLI(['new', 'change', 'area-change', '--areas', 'api'], {
+        cwd: tempDir,
       });
-      expect(status.exitCode).toBe(0);
-      const statusJson = JSON.parse(status.stdout);
-      expect(statusJson.schemaName).toBe('workspace-planning');
-      expect(statusJson.planningHome.kind).toBe('workspace');
-      expect(statusJson.affectedAreas.known).toEqual(['api']);
-      expect(statusJson.actionContext).toEqual(
-        expect.objectContaining({
-          mode: 'workspace-planning',
-          sourceOfTruth: 'workspace-local',
-          allowedEditRoots: [],
-          constraints: expect.arrayContaining([
-            'Treat workspace-local planning artifacts as compatibility context for this local view.',
-            'Use initiatives for durable coordination when initiative context exists.',
-            'Treat linked repos and folders as context until an explicit edit root is selected.',
-          ]),
-        })
-      );
-      expect(statusJson.actionContext.constraints).not.toContain(
-        'Use workspace-level planning artifacts as the source of truth.'
-      );
-      expect(statusJson.artifactPaths.specs.existingOutputPaths).toEqual([canonical(specPath)]);
+      expect(result.exitCode).toBe(1);
+      const output = getOutput(result);
+      expect(output).toContain('--areas is no longer supported');
+      await expect(fs.stat(path.join(changesDir, 'area-change'))).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+    });
 
-      const instructions = await runCLI(
-        ['instructions', 'specs', '--change', 'nested-workspace-spec', '--json'],
-        { cwd: workspaceRoot, env: workspaceEnv }
+    it('keeps --goal as ordinary metadata without switching schema', async () => {
+      const result = await runCLI(
+        ['new', 'change', 'goal-change', '--goal', 'Improve billing'],
+        { cwd: tempDir }
       );
-      expect(instructions.exitCode).toBe(0);
-      const instructionsJson = JSON.parse(instructions.stdout);
-      expect(instructionsJson.planningHome.kind).toBe('workspace');
-      expect(normalizePaths(instructionsJson.resolvedOutputPath)).toContain(
-        'changes/nested-workspace-spec/specs/**/*.md'
+      expect(result.exitCode).toBe(0);
+
+      const metadata = await fs.readFile(
+        path.join(changesDir, 'goal-change', '.openspec.yaml'),
+        'utf-8'
       );
-      expect(instructionsJson.existingOutputPaths).toEqual([canonical(specPath)]);
+      expect(metadata).toContain('schema: spec-driven');
+      expect(metadata).toContain('goal: Improve billing');
+      expect(metadata).not.toContain('affected_areas');
+      expect(metadata).not.toContain('initiative');
     });
 
     it('creates README.md when --description is provided', async () => {
@@ -527,6 +941,16 @@ describe('artifact-workflow CLI commands', () => {
     });
 
     it('shows blocked state when required artifacts are missing', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+context: Required blocked-state context
+operations:
+  apply:
+    guidance:
+      - Advisory blocked-state guidance
+`
+      );
       // Only create proposal - missing tasks (required by spec-driven apply block)
       await createTestChange('blocked-apply', ['proposal']);
 
@@ -536,6 +960,8 @@ describe('artifact-workflow CLI commands', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Blocked');
       expect(result.stdout).toContain('Missing artifacts: tasks');
+      expect(result.stdout).toContain('### Project Context (required instruction input)');
+      expect(result.stdout).toContain('### Operation Guidance (advisory)');
     });
 
     it('outputs JSON for apply instructions', async () => {
@@ -558,6 +984,170 @@ describe('artifact-workflow CLI commands', () => {
       expect(typeof json.contextFiles).toBe('object');
       expect(json.contextFiles.proposal).toEqual([expectedProposalPath]);
       expect(json.contextFiles.specs).toEqual([expectedSpecPath]);
+    });
+
+    it('returns current context and matching apply guidance as separate JSON fields', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+context: |
+  Current project context
+rules:
+  specs:
+    - Artifact-only rule
+operations:
+  apply:
+    guidance:
+      - Apply guidance
+  archive:
+    guidance:
+      - Archive guidance
+`
+      );
+      await createTestChange('apply-inputs', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-inputs', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toBe('Current project context\n');
+      expect(json.operationGuidance).toEqual(['Apply guidance']);
+      expect(JSON.stringify(json)).not.toContain('Archive guidance');
+      expect(JSON.stringify(json)).not.toContain('Artifact-only rule');
+      expect(json.state).toBe('ready');
+      expect(json.progress).toEqual({ total: 1, complete: 0, remaining: 1 });
+      expect(json.tasks).toEqual([
+        {
+          id: '1',
+          description: 'Task 1',
+          done: false,
+          sourcePath: canonical(path.join(changesDir, 'apply-inputs', 'tasks.md')),
+          line: 2,
+        },
+      ]);
+      expect(json.contextFiles).toBeDefined();
+      expect(json.root).toBeDefined();
+    });
+
+    it('renders required context and advisory apply guidance as distinct text sections', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+context: Project background
+operations:
+  apply:
+    guidance:
+      - Keep summaries concise
+`
+      );
+      await createTestChange('apply-text-inputs', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-text-inputs'],
+        { cwd: tempDir }
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('### Instruction');
+      expect(result.stdout).toContain('### Project Context (required instruction input)');
+      expect(result.stdout).toContain('Project background');
+      expect(result.stdout).toContain('### Operation Guidance (advisory)');
+      expect(result.stdout).toContain('- Keep summaries concise');
+      expect(result.stdout).not.toContain('### Project Context (advisory)');
+    });
+
+    it('omits absent operation inputs without changing apply state behavior', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+rules:
+  specs:
+    - Artifact-only rule
+`
+      );
+      await createTestChange('apply-no-inputs', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-no-inputs', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const json = JSON.parse(result.stdout);
+      expect(json.context).toBeUndefined();
+      expect(json.operationGuidance).toBeUndefined();
+      expect(json.state).toBe('ready');
+      expect(JSON.stringify(json)).not.toContain('Artifact-only rule');
+    });
+
+    it('reads a fresh apply config snapshot on every command invocation', async () => {
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      await createTestChange('apply-fresh-inputs', ['proposal', 'design', 'specs', 'tasks']);
+      await fs.writeFile(
+        configPath,
+        `schema: spec-driven
+context: Initial context
+operations:
+  apply:
+    guidance:
+      - Initial guidance
+`
+      );
+
+      const first = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-fresh-inputs', '--json'],
+        { cwd: tempDir }
+      );
+      await fs.writeFile(
+        configPath,
+        `schema: spec-driven
+context: Updated context
+operations:
+  apply:
+    guidance:
+      - Updated guidance
+`
+      );
+      const second = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-fresh-inputs', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(JSON.parse(first.stdout)).toMatchObject({
+        context: 'Initial context',
+        operationGuidance: ['Initial guidance'],
+      });
+      expect(JSON.parse(second.stdout)).toMatchObject({
+        context: 'Updated context',
+        operationGuidance: ['Updated guidance'],
+      });
+    });
+
+    it('reads malformed operation config once and emits one warning per command', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+operations:
+  apply:
+    guidance: invalid
+`
+      );
+      await createTestChange('apply-one-warning', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'apply', '--change', 'apply-one-warning', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const matches = result.stderr.match(
+        /Guidance for operation 'apply' must be an array of strings/g
+      );
+      expect(matches).toHaveLength(1);
+      expect(JSON.parse(result.stdout).operationGuidance).toBeUndefined();
     });
 
     it('resolves single-star glob artifacts consistently between status and apply', async () => {
@@ -599,6 +1189,7 @@ apply:
           id: 'specs',
           outputPath: 'specs/*/spec.md',
           status: 'done',
+          requires: [],
         },
       ]);
 
@@ -628,6 +1219,16 @@ apply:
     });
 
     it('shows all_done state when all tasks are complete', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+context: Required all-done context
+operations:
+  apply:
+    guidance:
+      - Advisory all-done guidance
+`
+      );
       const changeDir = await createTestChange('done-apply', [
         'proposal',
         'design',
@@ -645,7 +1246,23 @@ apply:
       });
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('complete ✓');
-      expect(result.stdout).toContain('ready to be archived');
+      expect(result.stdout).toContain('All tracked tasks are complete');
+      expect(result.stdout).toContain('as appropriate before archiving');
+      expect(result.stdout).not.toContain('ready to be archived');
+      expect(result.stdout).toContain('### Project Context (required instruction input)');
+      expect(result.stdout).toContain('### Operation Guidance (advisory)');
+
+      const jsonResult = await runCLI(
+        ['instructions', 'apply', '--change', 'done-apply', '--json'],
+        { cwd: tempDir }
+      );
+      expect(jsonResult.exitCode).toBe(0);
+      expect(jsonResult.stderr).toBe('');
+
+      const json = JSON.parse(jsonResult.stdout);
+      expect(json.state).toBe('all_done');
+      expect(json.progress).toEqual({ total: 2, complete: 2, remaining: 0 });
+      expect(json.instruction).toContain('All tracked tasks are complete');
     });
 
     it('uses spec-driven schema apply configuration', async () => {
@@ -769,6 +1386,183 @@ artifacts:
     });
   });
 
+  describe('instructions archive command', () => {
+    it('returns current archive context, guidance, and the root envelope in JSON', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+context: Archive project context
+rules:
+  specs:
+    - Artifact-only rule
+operations:
+  apply:
+    guidance:
+      - Apply guidance
+  archive:
+    guidance:
+      - Archive guidance
+`
+      );
+      await createTestChange('archive-inputs', ['proposal', 'design', 'specs', 'tasks']);
+
+      const result = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-inputs', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stderr).toBe('');
+      expect(JSON.parse(result.stdout)).toEqual({
+        changeName: 'archive-inputs',
+        context: 'Archive project context',
+        operationGuidance: ['Archive guidance'],
+        root: {
+          path: canonical(tempDir),
+          source: 'nearest',
+        },
+      });
+      expect(result.stdout).not.toContain('Apply guidance');
+      expect(result.stdout).not.toContain('Artifact-only rule');
+      expect(result.stdout).not.toContain('Perform the archive');
+    });
+
+    it('renders required context and advisory archive guidance as separate text sections', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        `schema: spec-driven
+context: Archive background
+operations:
+  archive:
+    guidance:
+      - Summarize the outcome
+`
+      );
+      await createTestChange('archive-text-inputs');
+
+      const result = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-text-inputs'],
+        { cwd: tempDir }
+      );
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('## Archive Inputs: archive-text-inputs');
+      expect(result.stdout).toContain('### Project Context (required instruction input)');
+      expect(result.stdout).toContain('Archive background');
+      expect(result.stdout).toContain('### Operation Guidance (advisory)');
+      expect(result.stdout).toContain('- Summarize the outcome');
+      expect(result.stdout).not.toContain('### Project Context (advisory)');
+    });
+
+    it('succeeds with valid empty inputs and omits optional JSON fields', async () => {
+      await fs.writeFile(
+        path.join(tempDir, 'openspec', 'config.yaml'),
+        'schema: spec-driven\n'
+      );
+      await createTestChange('archive-no-inputs');
+
+      const jsonResult = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-no-inputs', '--json'],
+        { cwd: tempDir }
+      );
+      const textResult = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-no-inputs'],
+        { cwd: tempDir }
+      );
+
+      expect(jsonResult.exitCode).toBe(0);
+      const json = JSON.parse(jsonResult.stdout);
+      expect(json.changeName).toBe('archive-no-inputs');
+      expect(json.context).toBeUndefined();
+      expect(json.operationGuidance).toBeUndefined();
+      expect(textResult.stdout).toContain(
+        'No project context or operation guidance configured.'
+      );
+    });
+
+    it('requires a change and rejects changes outside the selected root', async () => {
+      await createTestChange('available-change');
+
+      const missing = await runCLI(['instructions', 'archive', '--json'], {
+        cwd: tempDir,
+      });
+      const invalid = await runCLI(
+        ['instructions', 'archive', '--change', 'missing-change', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(missing.exitCode).toBe(1);
+      expect(JSON.parse(missing.stdout).status[0].message).toContain(
+        'Missing required option --change'
+      );
+      expect(invalid.exitCode).toBe(1);
+      expect(JSON.parse(invalid.stdout).status[0].message).toContain(
+        "Change 'missing-change' not found"
+      );
+    });
+
+    it('reads fresh archive inputs without mutating specs or the change', async () => {
+      const configPath = path.join(tempDir, 'openspec', 'config.yaml');
+      const changeDir = await createTestChange('archive-read-only', [
+        'proposal',
+        'design',
+        'specs',
+        'tasks',
+      ]);
+      const proposalPath = path.join(changeDir, 'proposal.md');
+      const proposalBefore = await fs.readFile(proposalPath, 'utf-8');
+      await fs.writeFile(
+        configPath,
+        `schema: spec-driven
+context: First archive context
+operations:
+  archive:
+    guidance:
+      - First archive guidance
+`
+      );
+
+      const first = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-read-only', '--json'],
+        { cwd: tempDir }
+      );
+      await fs.writeFile(
+        configPath,
+        `schema: spec-driven
+context: Second archive context
+operations:
+  archive:
+    guidance:
+      - Second archive guidance
+`
+      );
+      const second = await runCLI(
+        ['instructions', 'archive', '--change', 'archive-read-only', '--json'],
+        { cwd: tempDir }
+      );
+
+      expect(JSON.parse(first.stdout)).toMatchObject({
+        context: 'First archive context',
+        operationGuidance: ['First archive guidance'],
+      });
+      expect(JSON.parse(second.stdout)).toMatchObject({
+        context: 'Second archive context',
+        operationGuidance: ['Second archive guidance'],
+      });
+      expect(await fs.readFile(proposalPath, 'utf-8')).toBe(proposalBefore);
+      expect(await fs.readdir(path.join(changeDir, 'specs'))).toEqual(['test-spec.md']);
+      expect(
+        await fs.readdir(path.join(tempDir, 'openspec', 'changes'))
+      ).toContain('archive-read-only');
+      expect(
+        await fs
+          .stat(path.join(tempDir, 'openspec', 'specs'))
+          .then(() => true)
+          .catch(() => false)
+      ).toBe(false);
+    });
+  });
+
   describe('help text', () => {
     it('status command help shows description', async () => {
       const result = await runCLI(['status', '--help']);
@@ -812,14 +1606,15 @@ artifacts:
       expect(output).toContain('Invalid tool(s): unknown-tool');
     });
 
-    it('errors for tool without skillsDir', async () => {
-      // Using 'agents' which doesn't have skillsDir configured
+    it('creates skills for the shared agents target', async () => {
       const result = await runCLI(['experimental', '--tool', 'agents'], {
         cwd: tempDir,
       });
-      expect(result.exitCode).toBe(1);
-      const output = getOutput(result);
-      expect(output).toContain('Invalid tool(s): agents');
+      expect(result.exitCode).toBe(0);
+
+      const skillFile = path.join(tempDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+      const stat = await fs.stat(skillFile);
+      expect(stat.isFile()).toBe(true);
     });
 
     it('creates skills for Claude tool', async () => {
@@ -854,20 +1649,20 @@ artifacts:
       // Verify commands were created with Cursor format
       const commandFile = path.join(tempDir, '.cursor', 'commands', 'opsx-explore.md');
       const content = await fs.readFile(commandFile, 'utf-8');
-      expect(content).toContain('name: /opsx-explore');
+      expect(content).toContain('name: "/opsx-explore"');
     });
 
-    it('creates skills for Windsurf tool', async () => {
+    it('creates skills for the retired windsurf id, under Devin Desktop', async () => {
       const result = await runCLI(['experimental', '--tool', 'windsurf'], {
         cwd: tempDir,
       });
       expect(result.exitCode).toBe(0);
       const output = normalizePaths(getOutput(result));
-      expect(output).toContain('Windsurf');
-      expect(output).toContain('.windsurf/');
+      expect(output).toContain('Devin Desktop');
+      expect(output).toContain('.devin/');
 
       // Verify skill files were created
-      const skillFile = path.join(tempDir, '.windsurf', 'skills', 'openspec-explore', 'SKILL.md');
+      const skillFile = path.join(tempDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md');
       const stat = await fs.stat(skillFile);
       expect(stat.isFile()).toBe(true);
     });

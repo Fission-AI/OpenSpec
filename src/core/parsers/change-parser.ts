@@ -1,12 +1,21 @@
 import { MarkdownParser, Section } from './markdown-parser.js';
+import { buildCodeFenceMask } from './requirement-text.js';
+import { parseDeltaSpec, type DeltaPlan, type RequirementBlock } from './requirement-blocks.js';
 import { Change, Delta, DeltaOperation, Requirement } from '../schemas/index.js';
 import path from 'path';
 import { promises as fs } from 'fs';
+import { discoverSpecFiles, type DiscoveredSpec } from '../../utils/spec-discovery.js';
 
 interface DeltaSection {
   operation: DeltaOperation;
   requirements: Requirement[];
   renames?: Array<{ from: string; to: string }>;
+}
+
+/** A header-only block for a REMOVED entry written in the bullet form. */
+function removedNameBlock(name: string): RequirementBlock {
+  const headerLine = `### Requirement: ${name}`;
+  return { headerLine, name, raw: headerLine };
 }
 
 export class ChangeParser extends MarkdownParser {
@@ -30,15 +39,16 @@ export class ChangeParser extends MarkdownParser {
       throw new Error('Change must have a What Changes section');
     }
 
-    // Parse deltas from the What Changes section (simple format)
-    const simpleDeltas = this.parseDeltas(whatChanges);
-    
-    // Check if there are spec files with delta format
-    const specsDir = path.join(this.changeDir, 'specs');
-    const deltaDeltas = await this.parseDeltaSpecs(specsDir);
-    
-    // Combine both types of deltas, preferring delta format if available
-    const deltas = deltaDeltas.length > 0 ? deltaDeltas : simpleDeltas;
+    // Delta spec files that carry a delta section are the only source of
+    // structured deltas, even when those sections hold no entry archive can
+    // apply. Falling back to the "What Changes" prose then reported operations
+    // that never happen: a bullet-form REMOVED showed up as an invented
+    // MODIFIED. The prose (simple format) is still read when no spec file
+    // carries a delta section at all: a change with no spec files, or a legacy
+    // change whose specs/ hold full future-state specs.
+    const specFiles = await discoverSpecFiles(path.join(this.changeDir, 'specs'));
+    const { deltas: specDeltas, hasDeltaSections } = await this.parseDeltaSpecs(specFiles);
+    const deltas = hasDeltaSections ? specDeltas : this.parseDeltas(whatChanges);
 
     return {
       name,
@@ -52,134 +62,134 @@ export class ChangeParser extends MarkdownParser {
     };
   }
 
-  private async parseDeltaSpecs(specsDir: string): Promise<Delta[]> {
+  // The spec files come from discoverSpecFiles, which walks specs/ recursively
+  // so nested layouts like specs/<area>/<capability>/spec.md are parsed too (#1353)
+  private async parseDeltaSpecs(
+    specFiles: DiscoveredSpec[]
+  ): Promise<{ deltas: Delta[]; hasDeltaSections: boolean }> {
     const deltas: Delta[] = [];
-    
-    try {
-      const specDirs = await fs.readdir(specsDir, { withFileTypes: true });
-      
-      for (const dir of specDirs) {
-        if (!dir.isDirectory()) continue;
-        
-        const specName = dir.name;
-        const specFile = path.join(specsDir, specName, 'spec.md');
-        
-        try {
-          const content = await fs.readFile(specFile, 'utf-8');
-          const specDeltas = this.parseSpecDeltas(specName, content);
-          deltas.push(...specDeltas);
-        } catch (error) {
-          // Spec file might not exist, which is okay
-          continue;
-        }
+    let hasDeltaSections = false;
+
+    for (const { id, specFile } of specFiles) {
+      try {
+        const content = await fs.readFile(specFile, 'utf-8');
+        const plan = parseDeltaSpec(content);
+        if (Object.values(plan.sectionPresence).some(Boolean)) hasDeltaSections = true;
+        deltas.push(...this.parseSpecDeltas(id, plan));
+      } catch (error) {
+        // Spec file might not be readable, which is okay
+        continue;
       }
-    } catch (error) {
-      // Specs directory might not exist, which is okay
-      return [];
     }
-    
-    return deltas;
+
+    return { deltas, hasDeltaSections };
   }
 
-  private parseSpecDeltas(specName: string, content: string): Delta[] {
+  /**
+   * Read requirements from a delta section, ignoring headers that are not
+   * `### Requirement: <name>`.
+   *
+   * A delta section often carries divider headers such as
+   * `### Documentation Requirements`. The base parser treats every child header
+   * as a requirement, which invented a scenario-less requirement that does not
+   * exist (#498): archive warned about a missing scenario, and `show --json`
+   * reported an extra delta. The delta reader already skips these headers and
+   * notes them, so this keeps the two readers in agreement.
+   *
+   * Overriding here rather than in MarkdownParser keeps main spec parsing —
+   * `view`, `list`, `spec --json`, spec validation — untouched.
+   */
+  protected parseRequirements(section: Section): Requirement[] {
+    return super.parseRequirements({
+      ...section,
+      children: section.children.filter((child) =>
+        /^Requirement:\s*\S/i.test(child.title.trim())
+      ),
+    });
+  }
+
+  /**
+   * The deltas in one spec file, read by parseDeltaSpec — the reader archive
+   * applies — so what `show` reports is what archive will do. This used to be a
+   * second reader that disagreed with it: a bullet-form REMOVED was invisible,
+   * a repeated section header was read only once, and a RENAMED line written
+   * with `*` or `+` was dropped.
+   */
+  private parseSpecDeltas(specName: string, plan: DeltaPlan): Delta[] {
     const deltas: Delta[] = [];
-    const sections = this.parseSectionsFromContent(content);
-    
+
     // Parse ADDED requirements
-    const addedSection = this.findSection(sections, 'ADDED Requirements');
-    if (addedSection) {
-      const requirements = this.parseRequirements(addedSection);
-      requirements.forEach(req => {
-        deltas.push({
-          spec: specName,
-          operation: 'ADDED' as DeltaOperation,
-          description: `Add requirement: ${req.text}`,
-          // Provide both single and plural forms for compatibility
-          requirement: req,
-          requirements: [req],
-        });
+    this.toRequirements(plan.added).forEach(req => {
+      deltas.push({
+        spec: specName,
+        operation: 'ADDED' as DeltaOperation,
+        description: `Add requirement: ${req.text}`,
+        // Provide both single and plural forms for compatibility
+        requirement: req,
+        requirements: [req],
       });
-    }
-    
+    });
+
     // Parse MODIFIED requirements
-    const modifiedSection = this.findSection(sections, 'MODIFIED Requirements');
-    if (modifiedSection) {
-      const requirements = this.parseRequirements(modifiedSection);
-      requirements.forEach(req => {
-        deltas.push({
-          spec: specName,
-          operation: 'MODIFIED' as DeltaOperation,
-          description: `Modify requirement: ${req.text}`,
-          requirement: req,
-          requirements: [req],
-        });
+    this.toRequirements(plan.modified).forEach(req => {
+      deltas.push({
+        spec: specName,
+        operation: 'MODIFIED' as DeltaOperation,
+        description: `Modify requirement: ${req.text}`,
+        requirement: req,
+        requirements: [req],
       });
-    }
-    
-    // Parse REMOVED requirements
-    const removedSection = this.findSection(sections, 'REMOVED Requirements');
-    if (removedSection) {
-      const requirements = this.parseRequirements(removedSection);
-      requirements.forEach(req => {
-        deltas.push({
-          spec: specName,
-          operation: 'REMOVED' as DeltaOperation,
-          description: `Remove requirement: ${req.text}`,
-          requirement: req,
-          requirements: [req],
-        });
+    });
+
+    // Parse REMOVED requirements, in document order. A bullet-form entry
+    // carries only a name, so it reads as a header-form removal with no body.
+    const removedBlocks = [...plan.removedBlocks];
+    const removed = plan.removed.map((name) => {
+      const index = removedBlocks.findIndex((block) => block.name === name);
+      return index === -1 ? removedNameBlock(name) : removedBlocks.splice(index, 1)[0];
+    });
+    this.toRequirements(removed).forEach(req => {
+      deltas.push({
+        spec: specName,
+        operation: 'REMOVED' as DeltaOperation,
+        description: `Remove requirement: ${req.text}`,
+        requirement: req,
+        requirements: [req],
       });
-    }
-    
+    });
+
     // Parse RENAMED requirements
-    const renamedSection = this.findSection(sections, 'RENAMED Requirements');
-    if (renamedSection) {
-      const renames = this.parseRenames(renamedSection.content);
-      renames.forEach(rename => {
-        deltas.push({
-          spec: specName,
-          operation: 'RENAMED' as DeltaOperation,
-          description: `Rename requirement from "${rename.from}" to "${rename.to}"`,
-          rename,
-        });
+    plan.renamed.forEach(rename => {
+      deltas.push({
+        spec: specName,
+        operation: 'RENAMED' as DeltaOperation,
+        description: `Rename requirement from "${rename.from}" to "${rename.to}"`,
+        rename,
       });
-    }
-    
+    });
+
     return deltas;
   }
 
-  private parseRenames(content: string): Array<{ from: string; to: string }> {
-    const renames: Array<{ from: string; to: string }> = [];
-    const lines = ChangeParser.normalizeContent(content).split('\n');
-    
-    let currentRename: { from?: string; to?: string } = {};
-    
-    for (const line of lines) {
-      const fromMatch = line.match(/^\s*-?\s*FROM:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
-      const toMatch = line.match(/^\s*-?\s*TO:\s*`?###\s*Requirement:\s*(.+?)`?\s*$/);
-      
-      if (fromMatch) {
-        currentRename.from = fromMatch[1].trim();
-      } else if (toMatch) {
-        currentRename.to = toMatch[1].trim();
-        
-        if (currentRename.from && currentRename.to) {
-          renames.push({
-            from: currentRename.from,
-            to: currentRename.to,
-          });
-          currentRename = {};
-        }
-      }
-    }
-    
-    return renames;
+  /**
+   * One Requirement per block, read by the same section parser (and the
+   * header filter above) as before, so text and scenarios are unchanged.
+   */
+  private toRequirements(blocks: RequirementBlock[]): Requirement[] {
+    return blocks.flatMap((block) => {
+      const [headerLine, ...body] = block.raw.split('\n');
+      // Canonical header: the delta reader also accepts `###Requirement:` with
+      // no space, which the section parser would not see as a header.
+      const title = headerLine.replace(/^###\s*/, '').trim();
+      const [section] = this.parseSectionsFromContent([`### ${title}`, ...body].join('\n'));
+      return this.parseRequirements({ level: 2, title: '', content: '', children: [section] });
+    });
   }
 
   private parseSectionsFromContent(content: string): Section[] {
     const normalizedContent = ChangeParser.normalizeContent(content);
     const lines = normalizedContent.split('\n');
-    const codeFenceLineMask = ChangeParser.buildCodeFenceMask(lines);
+    const codeFenceLineMask = buildCodeFenceMask(lines);
     const sections: Section[] = [];
     const stack: Section[] = [];
     

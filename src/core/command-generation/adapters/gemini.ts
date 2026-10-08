@@ -7,6 +7,8 @@
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
 
+import { escapeTomlBasicString, escapeTomlMultilineBasicString } from '../toml.js';
+
 /**
  * Gemini adapter for command generation.
  * File path: .gemini/commands/opsx/<id>.toml
@@ -20,10 +22,10 @@ export const geminiAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    return `description = "${content.description}"
+    return `description = "${escapeTomlBasicString(content.description)}"
 
 prompt = """
-${content.body}
+${escapeTomlMultilineBasicString(content.body)}
 """
 `;
   },

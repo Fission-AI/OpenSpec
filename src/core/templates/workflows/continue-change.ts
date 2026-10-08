@@ -5,30 +5,64 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
+import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
+
+/**
+ * The planning-complete handoff. Neither `apply` nor `archive` is guaranteed
+ * to be installed, so each half is resolved at generation time (see
+ * optional-workflow.ts).
+ */
+const PLANNING_COMPLETE_HANDOFF = optionalWorkflow(
+  'apply',
+  'You can now implement this change with `/opsx:apply`.',
+  'You can now implement this change - `openspec instructions apply --change "<name>" --json` returns the tasks and how to work them.'
+) + ' ' + optionalWorkflow(
+  'archive',
+  'Once implementation and any tracked work are complete, archive it with `/opsx:archive`.',
+  'Once implementation and any tracked work are complete, archive it with `openspec archive "<name>"`.'
+);
+
+/**
+ * A glob artifact reads `done` once one matching file exists, so a run
+ * interrupted while writing several files leaves it `done` with files missing,
+ * and the next run would move on without reading its instruction again (#2034).
+ */
+const PARTIAL_ARTIFACT_CHECK = `**Before anything else, finish a partly written artifact**:
+   - An artifact whose output is a glob pattern (e.g. \`specs/**/*.md\`) reads \`done\` as soon as one matching file exists, so a run interrupted while writing its files leaves it \`done\` with some still missing
+   - For each such \`done\` artifact, first get its instructions and read any completed dependencies needed to determine the expected files. Then compare those files with \`artifactPaths.<id>.existingOutputPaths\`. For spec-driven's \`specs\`, read the proposal and check for one \`specs/<capability-path>/spec.md\` per capability it lists; resolve each expected path against \`changeRoot\` before comparing path identity
+   - If any are missing, write only the missing files, and STOP - that counts as this invocation's ONE artifact. If you cannot tell whether a file was left out on purpose, ask the user`;
 
 export function getContinueChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-continue-change',
-    description: 'Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow.',
+    description: 'Continue working on an OpenSpec change by creating the next artifact. Use when the user wants to progress their change, create the next artifact, or continue their workflow. Also use when the user says "openspec continue" or "opsx continue".',
     instructions: `Continue working on a change by creating the next artifact.
+
+${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes sorted by most recently modified. Then use the **AskUserQuestion tool** to let the user select which change to work on.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
-   Present the top 3-4 most recently modified changes as options, showing:
+   When prompting, present the top 3-4 most recently modified changes as options, showing:
    - Change name
-   - Schema (from \`schema\` field if present, otherwise "spec-driven")
    - Status (e.g., "0/5 tasks", "complete", "no tasks")
    - How recently it was modified (from \`lastModified\` field)
 
    Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to continue.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:continue <other>\`).
 
 2. **Check current status**
    \`\`\`bash
@@ -36,18 +70,22 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
    \`\`\`
    Parse the JSON to understand current state. The response includes:
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
-   - \`isComplete\`: Boolean indicating if all artifacts are complete
+   - \`artifacts\`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
+   - \`isPlanningComplete\`: Boolean indicating if all planning artifacts are complete. Older CLI versions expose the same value as \`isComplete\`.
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
 3. **Act based on status**:
 
    ---
 
-   **If all artifacts are complete (\`isComplete: true\`)**:
+   ${PARTIAL_ARTIFACT_CHECK}
+
+   ---
+
+   **If all planning artifacts are complete (\`isPlanningComplete: true\`, or legacy \`isComplete: true\`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "All artifacts created! You can now implement this change or archive it."
+   - Suggest: "Planning is complete! You can now implement this change. Once implementation and any tracked work are complete, archive it."
    - STOP
 
    ---
@@ -64,12 +102,14 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
      - \`template\`: The structure to use for your output file
      - \`instruction\`: Schema-specific guidance
      - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
-     - \`dependencies\`: Completed artifacts to read for context
+     - \`dependencies\`: Completed artifacts to read for context (entries with \`skipped: true\` have no files - do not look for them)
+     - \`skipped\`/\`warning\`: present when the change declares skip_specs and this artifact must NOT be created - pick another artifact
    - **Create the artifact file**:
-     - Read any completed dependency files for context
-     - Use \`template\` as the structure - fill in its sections
+     - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
+     - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`
+     - Otherwise use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and workspace planning context
+     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and the change's context
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
@@ -95,22 +135,13 @@ After each invocation, show:
 
 **Artifact Creation Guidelines**
 
-The artifact types and their purpose depend on the schema. Use the \`instruction\` field from the instructions output to understand what to create.
+The artifact types and their purpose depend on the schema. The \`instruction\` field from the instructions output is the authoritative guidance for each artifact - follow it even when the artifact has a familiar name (proposal.md, tasks.md, etc.), since custom schemas may define different content or a different process for the same file names.
 
-Common artifact patterns:
-
-**spec-driven schema** (proposal → specs → design → tasks):
-- **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
-  - The Capabilities section is critical - each capability listed will need a spec file.
-- **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
-- **design.md**: Document technical decisions, architecture, and implementation approach.
-- **tasks.md**: Break down implementation into checkboxed tasks.
-
-For other schemas, follow the \`instruction\` field from the CLI output.
+If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly.
 
 **Guardrails**
 - Create ONE artifact per invocation
-- Always read dependency artifacts before creating a new one
+- Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress
@@ -132,23 +163,29 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
     tags: ['workflow', 'artifacts', 'experimental'],
     content: `Continue working on a change by creating the next artifact.
 
+${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
+
 **Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**
 
-1. **If no change name provided, prompt for selection**
+1. **Select the change**
 
-   Run \`openspec list --json\` to get available changes sorted by most recently modified. Then use the **AskUserQuestion tool** to let the user select which change to work on.
+   If a name is provided, use it. Otherwise:
+   - Infer from conversation context if the user mentioned a change
+   - Auto-select if only one active change exists
+   - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
-   Present the top 3-4 most recently modified changes as options, showing:
+   When prompting, present the top 3-4 most recently modified changes as options, showing:
    - Change name
-   - Schema (from \`schema\` field if present, otherwise "spec-driven")
    - Status (e.g., "0/5 tasks", "complete", "no tasks")
    - How recently it was modified (from \`lastModified\` field)
 
    Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to continue.
 
-   **IMPORTANT**: Do NOT guess or auto-select a change. Always let the user choose.
+   Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:continue <other>\`).
 
 2. **Check current status**
    \`\`\`bash
@@ -156,18 +193,22 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
    \`\`\`
    Parse the JSON to understand current state. The response includes:
    - \`schemaName\`: The workflow schema being used (e.g., "spec-driven")
-   - \`artifacts\`: Array of artifacts with their status ("done", "ready", "blocked")
-   - \`isComplete\`: Boolean indicating if all artifacts are complete
+   - \`artifacts\`: Array of artifacts with their status ("done", "skipped", "ready", "blocked")
+   - \`isPlanningComplete\`: Boolean indicating if all planning artifacts are complete. Older CLI versions expose the same value as \`isComplete\`.
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context. Use these instead of assuming repo-local paths.
 
 3. **Act based on status**:
 
    ---
 
-   **If all artifacts are complete (\`isComplete: true\`)**:
+   ${PARTIAL_ARTIFACT_CHECK}
+
+   ---
+
+   **If all planning artifacts are complete (\`isPlanningComplete: true\`, or legacy \`isComplete: true\`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "All artifacts created! You can now implement this change with \`/opsx:apply\` or archive it with \`/opsx:archive\`."
+   - Suggest: "Planning is complete! ${PLANNING_COMPLETE_HANDOFF}"
    - STOP
 
    ---
@@ -184,12 +225,14 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
      - \`template\`: The structure to use for your output file
      - \`instruction\`: Schema-specific guidance
      - \`resolvedOutputPath\`: Resolved path or pattern to write the artifact
-     - \`dependencies\`: Completed artifacts to read for context
+     - \`dependencies\`: Completed artifacts to read for context (entries with \`skipped: true\` have no files - do not look for them)
+     - \`skipped\`/\`warning\`: present when the change declares skip_specs and this artifact must NOT be created - pick another artifact
    - **Create the artifact file**:
-     - Read any completed dependency files for context
-     - Use \`template\` as the structure - fill in its sections
+     - Read any completed dependency files for context - always re-read them from disk, even if you saw them earlier in the conversation (the user may have edited them)
+     - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`
+     - Otherwise use \`template\` as the structure - fill in its sections
      - Apply \`context\` and \`rules\` as constraints when writing - but do NOT copy them into the file
-     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and workspace planning context
+     - Write to the \`resolvedOutputPath\` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and the change's context
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
@@ -215,22 +258,13 @@ After each invocation, show:
 
 **Artifact Creation Guidelines**
 
-The artifact types and their purpose depend on the schema. Use the \`instruction\` field from the instructions output to understand what to create.
+The artifact types and their purpose depend on the schema. The \`instruction\` field from the instructions output is the authoritative guidance for each artifact - follow it even when the artifact has a familiar name (proposal.md, tasks.md, etc.), since custom schemas may define different content or a different process for the same file names.
 
-Common artifact patterns:
-
-**spec-driven schema** (proposal → specs → design → tasks):
-- **proposal.md**: Ask user about the change if not clear. Fill in Why, What Changes, Capabilities, Impact.
-  - The Capabilities section is critical - each capability listed will need a spec file.
-- **specs/<capability>/spec.md**: Create one spec per capability listed in the proposal's Capabilities section (use the capability name, not the change name).
-- **design.md**: Document technical decisions, architecture, and implementation approach.
-- **tasks.md**: Break down implementation into checkboxed tasks.
-
-For other schemas, follow the \`instruction\` field from the CLI output.
+If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly.
 
 **Guardrails**
 - Create ONE artifact per invocation
-- Always read dependency artifacts before creating a new one
+- Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress

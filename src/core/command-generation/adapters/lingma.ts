@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { escapeYamlValue, formatTagsArray } from '../yaml.js';
 
 /**
  * Lingma adapter for command generation.
@@ -20,12 +21,11 @@ export const lingmaAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
-    const tagsStr = content.tags.join(', ');
     return `---
-name: ${content.name}
-description: ${content.description}
-category: ${content.category}
-tags: [${tagsStr}]
+name: ${escapeYamlValue(content.name)}
+description: ${escapeYamlValue(content.description)}
+category: ${escapeYamlValue(content.category)}
+tags: ${formatTagsArray(content.tags)}
 ---
 
 ${content.body}

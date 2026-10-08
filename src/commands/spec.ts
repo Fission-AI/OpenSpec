@@ -1,24 +1,48 @@
-import { program } from 'commander';
-import { existsSync, readdirSync, readFileSync } from 'fs';
-import { join } from 'path';
+import { existsSync, readFileSync } from 'fs';
+import path, { join } from 'path';
 import { MarkdownParser } from '../core/parsers/markdown-parser.js';
 import { Validator } from '../core/validation/validator.js';
 import type { Spec } from '../core/schemas/index.js';
+import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
+import { discoverSpecFiles } from '../utils/spec-discovery.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 const SPECS_DIR = 'openspec/specs';
 
-interface ShowOptions {
+function assertSpecPath(specsDir: string, specPath: string): void {
+  const relativePath = path.relative(path.resolve(specsDir), path.resolve(specPath));
+  if (
+    relativePath === '..' ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error(`Path is outside the allowed directory: ${specPath}`);
+  }
+
+  try {
+    // Preserve confined spec.md links, including links to a sibling capability.
+    FileSystemUtils.assertPathWithin(specsDir, specPath);
+  } catch {
+    // A capability directory may intentionally be a monorepo symlink. Treat it
+    // as the trust root while still rejecting a link outside that capability.
+    FileSystemUtils.assertPathWithin(path.dirname(specPath), specPath);
+  }
+}
+
+export interface ShowOptions {
   json?: boolean;
   // JSON-only filters (raw-first text has no filters)
   requirements?: boolean;
   scenarios?: boolean; // --no-scenarios sets this to false (JSON only)
   requirement?: string; // JSON only
   noInteractive?: boolean;
+  rootOutput?: RootOutput;
 }
 
-function parseSpecFromFile(specPath: string, specId: string): Spec {
+function parseSpecFromFile(specsDir: string, specPath: string, specId: string): Spec {
+  assertSpecPath(specsDir, specPath);
   const content = readFileSync(specPath, 'utf-8');
   const parser = new MarkdownParser(content);
   return parser.parseSpec(specId);
@@ -41,6 +65,7 @@ function filterSpec(spec: Spec, options: ShowOptions): Spec {
     ? [spec.requirements[requirementIndex]]
     : spec.requirements
   ).map(req => ({
+    name: req.name,
     text: req.text,
     scenarios: includeScenarios ? req.scenarios : [],
   }));
@@ -59,18 +84,27 @@ function filterSpec(spec: Spec, options: ShowOptions): Spec {
  * Print the raw markdown content for a spec file without any formatting.
  * Raw-first behavior ensures text mode is a passthrough for deterministic output.
  */
-function printSpecTextRaw(specPath: string): void {
+function printSpecTextRaw(specsDir: string, specPath: string): void {
+  assertSpecPath(specsDir, specPath);
   const content = readFileSync(specPath, 'utf-8');
   console.log(content);
 }
 
 export class SpecCommand {
-  private SPECS_DIR = 'openspec/specs';
+  private specsDir: string;
+  private rootPath?: string;
+
+  // rootPath is set only by root-aware callers (top-level `show`); the
+  // deprecated noun-form commands stay cwd-based.
+  constructor(rootPath?: string) {
+    this.rootPath = rootPath;
+    this.specsDir = rootPath ? join(rootPath, 'openspec', 'specs') : SPECS_DIR;
+  }
 
   async show(specId?: string, options: ShowOptions = {}): Promise<void> {
     if (!specId) {
       const canPrompt = isInteractive(options);
-      const specIds = await getSpecIds();
+      const specIds = await getSpecIds(this.rootPath ?? process.cwd());
       if (canPrompt && specIds.length > 0) {
         const { select } = await import('@inquirer/prompts');
         specId = await select({
@@ -82,16 +116,20 @@ export class SpecCommand {
       }
     }
 
-    const specPath = join(this.SPECS_DIR, specId, 'spec.md');
+    const specPath = join(this.specsDir, specId, 'spec.md');
+    assertSpecPath(this.specsDir, specPath);
     if (!existsSync(specPath)) {
-      throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+      // Root-aware callers get the absolute path; the cwd-based noun form
+      // keeps its historical forward-slash relative message on all platforms.
+      const displayPath = this.rootPath ? specPath : `openspec/specs/${specId}/spec.md`;
+      throw new Error(`Spec '${specId}' not found at ${displayPath}`);
     }
 
     if (options.json) {
       if (options.requirements && options.requirement) {
         throw new Error('Options --requirements and --requirement cannot be used together');
       }
-      const parsed = parseSpecFromFile(specPath, specId);
+      const parsed = parseSpecFromFile(this.specsDir, specPath, specId);
       const filtered = filterSpec(parsed, options);
       const output = {
         id: specId,
@@ -100,152 +138,125 @@ export class SpecCommand {
         requirementCount: filtered.requirements.length,
         requirements: filtered.requirements,
         metadata: parsed.metadata ?? { version: '1.0.0', format: 'openspec' as const },
+        ...(options.rootOutput ? { root: options.rootOutput } : {}),
       };
       console.log(JSON.stringify(output, null, 2));
       return;
     }
-    printSpecTextRaw(specPath);
+    printSpecTextRaw(this.specsDir, specPath);
   }
 }
 
-export function registerSpecCommand(rootProgram: typeof program) {
-  const specCommand = rootProgram
-    .command('spec')
-    .description('Manage and view OpenSpec specifications');
+export async function specShowCommand(
+  specId: string | undefined,
+  options: ShowOptions & { noInteractive?: boolean }
+): Promise<void> {
+  try {
+    const cmd = new SpecCommand();
+    await cmd.show(specId, options as any);
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    process.exitCode = 1;
+  }
+}
 
-  // Deprecation notice for noun-based commands
-  specCommand.hook('preAction', () => {
-    console.error('Warning: The "openspec spec ..." commands are deprecated. Prefer verb-first commands (e.g., "openspec show", "openspec validate --specs").');
-  });
+export async function specListCommand(options: { json?: boolean; long?: boolean }): Promise<void> {
+  try {
+    if (!existsSync(SPECS_DIR)) {
+      console.log('No items found');
+      return;
+    }
 
-  specCommand
-    .command('show [spec-id]')
-    .description('Display a specific specification')
-    .option('--json', 'Output as JSON')
-    .option('--requirements', 'JSON only: Show only requirements (exclude scenarios)')
-    .option('--no-scenarios', 'JSON only: Exclude scenario content')
-    .option('-r, --requirement <id>', 'JSON only: Show specific requirement by ID (1-based)')
-    .option('--no-interactive', 'Disable interactive prompts')
-    .action(async (specId: string | undefined, options: ShowOptions & { noInteractive?: boolean }) => {
-      try {
-        const cmd = new SpecCommand();
-        await cmd.show(specId, options as any);
-      } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        process.exitCode = 1;
+    const discovered = await discoverSpecFiles(SPECS_DIR);
+    const specs = discovered
+      .map(({ id, specFile }) => {
+        try {
+          assertSpecPath(SPECS_DIR, specFile);
+          const spec = parseSpecFromFile(SPECS_DIR, specFile, id);
+
+          return {
+            id,
+            title: spec.name,
+            requirementCount: spec.requirements.length
+          };
+        } catch {
+          return {
+            id,
+            title: id,
+            requirementCount: 0
+          };
+        }
+      })
+      .sort((a, b) => a.id.localeCompare(b.id));
+
+    if (options.json) {
+      console.log(JSON.stringify(specs, null, 2));
+    } else {
+      if (specs.length === 0) {
+        console.log('No items found');
+        return;
       }
-    });
-
-  specCommand
-    .command('list')
-    .description('List all available specifications')
-    .option('--json', 'Output as JSON')
-    .option('--long', 'Show id and title with counts')
-    .action((options: { json?: boolean; long?: boolean }) => {
-      try {
-        if (!existsSync(SPECS_DIR)) {
-          console.log('No items found');
-          return;
-        }
-
-        const specs = readdirSync(SPECS_DIR, { withFileTypes: true })
-          .filter(dirent => dirent.isDirectory())
-          .map(dirent => {
-            const specPath = join(SPECS_DIR, dirent.name, 'spec.md');
-            if (existsSync(specPath)) {
-              try {
-                const spec = parseSpecFromFile(specPath, dirent.name);
-                
-                return {
-                  id: dirent.name,
-                  title: spec.name,
-                  requirementCount: spec.requirements.length
-                };
-              } catch {
-                return {
-                  id: dirent.name,
-                  title: dirent.name,
-                  requirementCount: 0
-                };
-              }
-            }
-            return null;
-          })
-          .filter((spec): spec is { id: string; title: string; requirementCount: number } => spec !== null)
-          .sort((a, b) => a.id.localeCompare(b.id));
-
-        if (options.json) {
-          console.log(JSON.stringify(specs, null, 2));
-        } else {
-          if (specs.length === 0) {
-            console.log('No items found');
-            return;
-          }
-          if (!options.long) {
-            specs.forEach(spec => console.log(spec.id));
-            return;
-          }
-          specs.forEach(spec => {
-            console.log(`${spec.id}: ${spec.title} [requirements ${spec.requirementCount}]`);
-          });
-        }
-      } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        process.exitCode = 1;
+      if (!options.long) {
+        specs.forEach(spec => console.log(spec.id));
+        return;
       }
-    });
+      specs.forEach(spec => {
+        console.log(`${spec.id}: ${spec.title} [requirements ${spec.requirementCount}]`);
+      });
+    }
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    process.exitCode = 1;
+  }
+}
 
-  specCommand
-    .command('validate [spec-id]')
-    .description('Validate a specification structure')
-    .option('--strict', 'Enable strict validation mode')
-    .option('--json', 'Output validation report as JSON')
-    .option('--no-interactive', 'Disable interactive prompts')
-    .action(async (specId: string | undefined, options: { strict?: boolean; json?: boolean; noInteractive?: boolean }) => {
-      try {
-        if (!specId) {
-          const canPrompt = isInteractive(options);
-          const specIds = await getSpecIds();
-          if (canPrompt && specIds.length > 0) {
-            const { select } = await import('@inquirer/prompts');
-            specId = await select({
-              message: 'Select a spec to validate',
-              choices: specIds.map(id => ({ name: id, value: id })),
-            });
-          } else {
-            throw new Error('Missing required argument <spec-id>');
-          }
-        }
-
-        const specPath = join(SPECS_DIR, specId, 'spec.md');
-        
-        if (!existsSync(specPath)) {
-          throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
-        }
-
-        const validator = new Validator(options.strict);
-        const report = await validator.validateSpec(specPath);
-
-        if (options.json) {
-          console.log(JSON.stringify(report, null, 2));
-        } else {
-          if (report.valid) {
-            console.log(`Specification '${specId}' is valid`);
-          } else {
-            console.error(`Specification '${specId}' has issues`);
-            report.issues.forEach(issue => {
-              const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
-              const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
-              console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
-            });
-          }
-        }
-        process.exitCode = report.valid ? 0 : 1;
-      } catch (error) {
-        console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        process.exitCode = 1;
+export async function specValidateCommand(
+  specId: string | undefined,
+  options: { strict?: boolean; json?: boolean; noInteractive?: boolean }
+): Promise<void> {
+  try {
+    if (!specId) {
+      const canPrompt = isInteractive(options);
+      const specIds = await getSpecIds();
+      if (canPrompt && specIds.length > 0) {
+        const { select } = await import('@inquirer/prompts');
+        specId = await select({
+          message: 'Select a spec to validate',
+          choices: specIds.map(id => ({ name: id, value: id })),
+        });
+      } else {
+        throw new Error('Missing required argument <spec-id>');
       }
-    });
+    }
 
-  return specCommand;
+    const specPath = join(SPECS_DIR, specId, 'spec.md');
+    assertSpecPath(SPECS_DIR, specPath);
+    
+    if (!existsSync(specPath)) {
+      throw new Error(`Spec '${specId}' not found at openspec/specs/${specId}/spec.md`);
+    }
+
+    const validator = new Validator(options.strict);
+    assertSpecPath(SPECS_DIR, specPath);
+    const report = await validator.validateSpec(specPath);
+
+    if (options.json) {
+      console.log(JSON.stringify(report, null, 2));
+    } else {
+      if (report.valid) {
+        console.log(`Specification '${specId}' is valid`);
+      } else {
+        console.error(`Specification '${specId}' has issues`);
+        report.issues.forEach(issue => {
+          const label = issue.level === 'ERROR' ? 'ERROR' : issue.level;
+          const prefix = issue.level === 'ERROR' ? '✗' : issue.level === 'WARNING' ? '⚠' : 'ℹ';
+          console.error(`${prefix} [${label}] ${issue.path}: ${issue.message}`);
+        });
+      }
+    }
+    process.exitCode = report.valid ? 0 : 1;
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    process.exitCode = 1;
+  }
 }

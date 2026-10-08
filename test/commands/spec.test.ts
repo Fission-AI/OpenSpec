@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
 describe('spec command', () => {
   const projectRoot = process.cwd();
@@ -59,7 +59,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'show', 'auth'], {
           encoding: 'utf-8'
         });
         
@@ -75,7 +75,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'show', 'auth', '--json'], {
           encoding: 'utf-8'
         });
         
@@ -90,11 +90,35 @@ The system SHALL process credit card payments securely`;
       }
     });
 
+    it('names each requirement and scenario in show --json', () => {
+      const originalCwd = process.cwd();
+      try {
+        process.chdir(testDir);
+        const json = JSON.parse(execFileSync('node', [openspecBin, 'show', 'auth', '--type', 'spec', '--json'], {
+          encoding: 'utf-8'
+        }));
+        expect(json.requirements.map((r: any) => r.name)).toEqual(['User Authentication', 'Password Reset']);
+        expect(json.requirements[0].scenarios[0].name).toBe('Successful login');
+
+        const one = JSON.parse(execFileSync('node', [openspecBin, 'show', 'auth', '--type', 'spec', '--json', '-r', '2'], {
+          encoding: 'utf-8'
+        }));
+        expect(one.requirements[0].name).toBe('Password Reset');
+
+        const bare = JSON.parse(execFileSync('node', [openspecBin, 'show', 'auth', '--type', 'spec', '--json', '--no-scenarios'], {
+          encoding: 'utf-8'
+        }));
+        expect(bare.requirements[1].name).toBe('Password Reset');
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
+
     it('should filter to show only requirements with --requirements flag (JSON only)', () => {
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json --requirements`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'show', 'auth', '--json', '--requirements'], {
           encoding: 'utf-8'
         });
         
@@ -111,7 +135,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json --no-scenarios`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'show', 'auth', '--json', '--no-scenarios'], {
           encoding: 'utf-8'
         });
         
@@ -127,7 +151,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json -r 1`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'show', 'auth', '--json', '-r', '1'], {
           encoding: 'utf-8'
         });
         
@@ -143,7 +167,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec show auth --json --no-scenarios`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'show', 'auth', '--json', '--no-scenarios'], {
           encoding: 'utf-8'
         });
         
@@ -161,7 +185,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec list`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'list'], {
           encoding: 'utf-8'
         });
         
@@ -178,7 +202,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec list --json`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'list', '--json'], {
           encoding: 'utf-8'
         });
         
@@ -198,7 +222,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec validate auth`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'validate', 'auth'], {
           encoding: 'utf-8'
         });
         
@@ -212,7 +236,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec validate auth --json`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'validate', 'auth', '--json'], {
           encoding: 'utf-8'
         });
         
@@ -231,7 +255,7 @@ The system SHALL process credit card payments securely`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec validate auth --strict --json`, {
+        const output = execFileSync('node', [openspecBin, 'spec', 'validate', 'auth', '--strict', '--json'], {
           encoding: 'utf-8'
         });
         
@@ -259,7 +283,7 @@ This section has no actual requirements`;
         // This should exit with non-zero code
         let exitCode = 0;
         try {
-          execSync(`node ${openspecBin} spec validate invalid`, {
+          execFileSync('node', [openspecBin, 'spec', 'validate', 'invalid'], {
             encoding: 'utf-8'
           });
         } catch (error: any) {
@@ -281,7 +305,7 @@ This section has no actual requirements`;
         
         let error: any;
         try {
-          execSync(`node ${openspecBin} spec show nonexistent`, {
+          execFileSync('node', [openspecBin, 'spec', 'show', 'nonexistent'], {
             encoding: 'utf-8'
           });
         } catch (e) {
@@ -301,7 +325,7 @@ This section has no actual requirements`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} spec list`, { encoding: 'utf-8' });
+        const output = execFileSync('node', [openspecBin, 'spec', 'list'], { encoding: 'utf-8' });
         expect(output.trim()).toBe('No items found');
       } finally {
         process.chdir(originalCwd);
@@ -312,7 +336,7 @@ This section has no actual requirements`;
       const originalCwd = process.cwd();
       try {
         process.chdir(testDir);
-        const output = execSync(`node ${openspecBin} --no-color spec list --long`, { encoding: 'utf-8' });
+        const output = execFileSync('node', [openspecBin, '--no-color', 'spec', 'list', '--long'], { encoding: 'utf-8' });
         // Basic ANSI escape pattern
         const hasAnsi = /\u001b\[[0-9;]*m/.test(output);
         expect(hasAnsi).toBe(false);

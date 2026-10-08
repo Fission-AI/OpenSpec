@@ -1,11 +1,22 @@
 # Context Store And Initiatives Direction
 
-This document captures the suggested direction from the workspace/initiative
-discussion. The main shift is that "workspace" should not be the durable shared
-planning object. The durable shared object is a synced context store, and
-initiatives are one opinionated collection inside it.
+Status: historical beta direction.
 
-## Core Model
+This document preserves the earlier context-store and workspace direction from
+the workspace/initiative discussion. It is useful transition evidence, but it
+is not the current product authority for the simplification work.
+
+For current direction, start with:
+
+1. `openspec/work/simplify-context-and-workspace-model/goal.md`
+2. `openspec/work/simplify-context-and-workspace-model/roadmap.md`
+
+The main historical shift captured here was that "workspace" should not be the
+durable shared planning object. In this earlier model, the durable shared
+object was a synced context store, and initiatives were one opinionated
+collection inside it.
+
+## Historical Core Model
 
 ```text
 Context Store
@@ -34,9 +45,9 @@ Workspaces open local views.
 Changes implement repo-owned slices.
 ```
 
-## Locked Product Boundary
+## Historical Locked Product Boundary
 
-The workspace-to-initiative pivot is now the product boundary for future
+The workspace-to-initiative pivot was the product boundary for this beta
 coordination work:
 
 - A workspace is a regenerable, machine-local working view. It maps context

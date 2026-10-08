@@ -26,3 +26,22 @@ by hand.
 Keep this as a discussion draft until workspace initiative opening is clearer.
 If accepted, the first version should be a small handoff/readiness command, not
 status, progress, dashboarding, or workspace orchestration.
+
+## Manual Beta Pass Addition
+
+The 2026-05-28 manual beta pass found that command-level handoff is not the
+only missing layer. A fresh agent also needs a small, tool-readable guide for
+how to use OpenSpec at all:
+
+- inspect context stores, initiatives, workspaces, and repo-local changes before
+  guessing;
+- understand that context stores can be artifact homes outside implementation
+  repos, not only cross-team coordination spaces;
+- understand that repo-local changes own implementation planning when the user
+  wants artifacts in the repo;
+- treat workspaces as local views, not durable planning homes;
+- route to narrower OpenSpec workflow skills when available.
+
+As a temporary beta aid, a manual Codex skill was created at
+`.codex/skills/use-openspec/` with references for shared context and artifact
+placement. This is not yet productized in the configurator.

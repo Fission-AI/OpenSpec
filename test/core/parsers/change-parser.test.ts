@@ -49,4 +49,131 @@ describe('ChangeParser', () => {
       expect(change.deltas[0].requirement).toBeDefined();
     });
   });
+
+  it('parses nested delta specs with path-based capability ids (#1353)', async () => {
+    await withTempDir(async (dir) => {
+      const changeDir = dir;
+      const nestedSpecDir = path.join(changeDir, 'specs', 'platform', 'session-layout');
+      await fs.mkdir(nestedSpecDir, { recursive: true });
+
+      const content = `# Test Change\n\n## Why\nWe need it because reasons that are sufficiently long.\n\n## What Changes\n- Add nested capability`;
+      const deltaSpec = `# Delta\n\n## ADDED Requirements\n\n### Requirement: Nested capability works\n\n#### Scenario: basic\nGiven X\nWhen Y\nThen Z`;
+
+      await fs.writeFile(path.join(nestedSpecDir, 'spec.md'), deltaSpec, 'utf8');
+
+      const parser = new ChangeParser(content, changeDir);
+      const change = await parser.parseChangeWithDeltas('test-change');
+
+      expect(change.deltas.length).toBe(1);
+      expect(change.deltas[0].spec).toBe('platform/session-layout');
+      expect(change.deltas[0].operation).toBe('ADDED');
+    });
+  });
+
+  // A divider header inside a delta section used to be parsed as a requirement,
+  // inventing a scenario-less delta that does not exist (#498).
+  it('ignores delta headers that are not "### Requirement:" (#498)', async () => {
+    await withTempDir(async (dir) => {
+      const specDir = path.join(dir, 'specs', 'docs');
+      await fs.mkdir(specDir, { recursive: true });
+
+      const content = `# Test Change\n\n## Why\nWe need it because reasons that are sufficiently long.\n\n## What Changes\n- Add docs`;
+      const deltaSpec = [
+        '# Docs Delta',
+        '',
+        '## ADDED Requirements',
+        '',
+        '### Documentation Requirements',
+        '',
+        '### Requirement: AI Application Documentation',
+        'Teams building AI applications SHALL document agent definitions.',
+        '',
+        '#### Scenario: Agent Definition Documentation',
+        '- **WHEN** a team ships an agent',
+        '- **THEN** the agent definition is documented',
+      ].join('\n');
+
+      await fs.writeFile(path.join(specDir, 'spec.md'), deltaSpec, 'utf8');
+
+      const parser = new ChangeParser(content, dir);
+      const change = await parser.parseChangeWithDeltas('test-change');
+
+      expect(change.deltas.length).toBe(1);
+      expect(change.deltas[0].requirement?.text).toBe(
+        'Teams building AI applications SHALL document agent definitions.'
+      );
+      expect(change.deltas[0].requirement?.scenarios.length).toBe(1);
+    });
+  });
+
+  // A nameless "### Requirement:" header carries no requirement to validate,
+  // and the delta reader skips it too.
+  it('ignores a nameless "### Requirement:" delta header (#498)', async () => {
+    await withTempDir(async (dir) => {
+      const specDir = path.join(dir, 'specs', 'docs');
+      await fs.mkdir(specDir, { recursive: true });
+
+      const content = `# Test Change\n\n## Why\nWe need it because reasons that are sufficiently long.\n\n## What Changes\n- Add docs`;
+      const deltaSpec = [
+        '# Docs Delta',
+        '',
+        '## ADDED Requirements',
+        '',
+        '### Requirement:',
+        '',
+        '### Requirement: Real One',
+        'The system SHALL do a thing.',
+        '',
+        '#### Scenario: It works',
+        '- **WHEN** invoked',
+        '- **THEN** it works',
+      ].join('\n');
+
+      await fs.writeFile(path.join(specDir, 'spec.md'), deltaSpec, 'utf8');
+
+      const parser = new ChangeParser(content, dir);
+      const change = await parser.parseChangeWithDeltas('test-change');
+
+      expect(change.deltas.length).toBe(1);
+      expect(change.deltas[0].requirement?.text).toBe('The system SHALL do a thing.');
+    });
+  });
+
+  it('names each delta requirement and scenario as archive matches them', async () => {
+    await withTempDir(async (dir) => {
+      const specsDir = path.join(dir, 'specs', 'auth');
+      await fs.mkdir(specsDir, { recursive: true });
+
+      const content = `# Test Change\n\n## Why\nWe need it because reasons that are sufficiently long.\n\n## What Changes\n- **auth:** Update login`;
+      const deltaSpec = [
+        '## ADDED Requirements',
+        '',
+        '### Requirement: Session Timeout',
+        'The system SHALL end idle sessions.',
+        '',
+        '#### Scenario: Idle for an hour',
+        '- **WHEN** a session is idle for an hour',
+        '- **THEN** it ends',
+        '',
+        '## MODIFIED Requirements',
+        '',
+        '### Requirement: User Login ##',
+        'The system SHALL log users in with a password.',
+        '',
+        '#### Scenario: Valid credentials',
+        '- **WHEN** a user signs in',
+        '- **THEN** a session starts',
+      ].join('\n');
+      await fs.writeFile(path.join(specsDir, 'spec.md'), deltaSpec, 'utf8');
+
+      const change = await new ChangeParser(content, dir).parseChangeWithDeltas('test-change');
+      const byOperation = Object.fromEntries(change.deltas.map((d) => [d.operation, d.requirement]));
+
+      expect(byOperation.ADDED?.name).toBe('Session Timeout');
+      expect(byOperation.ADDED?.scenarios[0].name).toBe('Idle for an hour');
+      // The closing run is not part of the name archive matches on.
+      expect(byOperation.MODIFIED?.name).toBe('User Login');
+      expect(byOperation.MODIFIED?.scenarios[0].name).toBe('Valid credentials');
+    });
+  });
 });

@@ -1,0 +1,24 @@
+packages:
+  - '.'
+
+allowBuilds:
+  esbuild@0.28.2: true
+
+# The only declaration of these. A `pnpm.overrides` block in package.json does not
+# merge with this list — pnpm 10 uses it *instead of* this file (verified: a lone
+# entry there produced a lockfile with only that override). Dependabot rewrites
+# plain-name entries in package.json when it bumps the same package, so a mirrored
+# copy there both drifts and silently takes precedence over these advisory pins.
+overrides:
+  postcss: ^8.5.28
+  sharp: ^0.35.3
+  # GHSA-6j4f-fj2g-mc7p, GHSA-qhr7-859c-m2p7, GHSA-q2hr-2g5m-vwhr — brace-expansion
+  # DoS via nested or comma-heavy brace groups. Dev-only (serve > serve-handler >
+  # minimatch); never in the static site.
+  brace-expansion@<5.0.12: '>=5.0.12 <6'
+  # GHSA-hrr3-gc8f-f4qj — fast-uri. Dev-only (serve > ajv).
+  fast-uri@<3.1.8: ^3.1.8
+  # GHSA-2v37-7h3g-55p8 / CVE-2026-67213 — nanoid infinite loop on size=0. Build-time
+  # only (transitive via postcss); this is a statically exported site with no server
+  # runtime. Remove once transitive nanoid is >=3.3.17 (check: pnpm why nanoid).
+  nanoid@<3.3.17: '>=3.3.17 <4'

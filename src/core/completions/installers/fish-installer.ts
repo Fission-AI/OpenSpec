@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { FileSystemUtils } from '../../../utils/file-system.js';
 import { InstallationResult } from '../factory.js';
 
 /**
@@ -21,6 +22,21 @@ export class FishInstaller {
    */
   getInstallationPath(): string {
     return path.join(this.homeDir, '.config', 'fish', 'completions', 'openspec.fish');
+  }
+
+  /**
+   * Check if a completion script is currently installed.
+   * Mirrors ZshInstaller.isInstalled so callers can ask any installer.
+   *
+   * @returns true if the completion script exists
+   */
+  async isInstalled(): Promise<boolean> {
+    try {
+      // stat, not access: a directory at the install path is not a script.
+      return (await fs.stat(this.getInstallationPath())).isFile();
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -74,6 +90,10 @@ export class FishInstaller {
       } catch (error: any) {
         // File doesn't exist or can't be read, proceed with installation
         console.debug(`Unable to read existing completion file at ${targetPath}: ${error.message}`);
+      }
+
+      if (!(await FileSystemUtils.canWriteFile(targetPath))) {
+        throw new Error(`Path is not writable: ${targetPath}`);
       }
 
       // Ensure the directory exists
@@ -133,6 +153,11 @@ export class FishInstaller {
           success: false,
           message: 'Completion script is not installed',
         };
+      }
+
+      const targetDir = path.dirname(targetPath);
+      if (!(await FileSystemUtils.canWriteFile(targetDir))) {
+        throw new Error(`Path is not writable: ${targetDir}`);
       }
 
       // Remove the completion script

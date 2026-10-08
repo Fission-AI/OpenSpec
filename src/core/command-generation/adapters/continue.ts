@@ -6,6 +6,7 @@
 
 import path from 'path';
 import type { CommandContent, ToolCommandAdapter } from '../types.js';
+import { escapeYamlValue } from '../yaml.js';
 
 /**
  * Continue adapter for command generation.
@@ -20,11 +21,15 @@ export const continueAdapter: ToolCommandAdapter = {
   },
 
   formatFile(content: CommandContent): string {
+    // Continue injects an invoked prompt into the model context. Smaller local
+    // models can otherwise mistake the workflow name for a tool to call (#925).
     return `---
-name: opsx-${content.id}
-description: ${content.description}
+name: ${escapeYamlValue(`opsx-${content.id}`)}
+description: ${escapeYamlValue(content.description)}
 invokable: true
 ---
+
+This workflow prompt is already active. Follow its instructions directly. Do not call a tool named after this workflow.
 
 ${content.body}
 `;
