@@ -107,11 +107,10 @@ The system SHALL resolve store paths in a project-scoped registry relative to th
 - **AND** the store path is `specs`
 - **THEN** the system resolves the store root using platform-appropriate path separators (`C:\project\specs`)
 
-#### Scenario: Store path outside project root
-- **WHEN** the user runs `openspec store register <path> --scope project`
-- **AND** the store path resolves to a location outside the project root
-- **THEN** the system reports a `store_path_outside_project` error
-- **AND** does not create a project-scoped registry entry
+#### Scenario: Absolute and parent paths are accepted
+- **WHEN** `.openspec-store/registry.yaml` maps a store ID to an absolute path (e.g. `/home/me/store`) or a parent-relative path (e.g. `../platform-specs`)
+- **THEN** the system resolves the store root without error
+- **AND** does not restrict paths to within the project directory
 
 ### Requirement: Project-scoped registry file format
 

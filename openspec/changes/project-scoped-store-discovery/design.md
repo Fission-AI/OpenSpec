@@ -48,9 +48,9 @@ stores:
 
 ### D3: Path resolution
 
-**Decision:** `path.resolve(registryDir, entry.path)` where `registryDir` is the directory containing `.openspec-store/` and `entry.path` is the relative path from the store entry. Always use `path.resolve` / `path.join` — never string concatenation.
+**Decision:** `path.resolve(registryDir, entry.path)` where `registryDir` is the directory containing `.openspec-store/` and `entry.path` is the store path from the registry entry. Both relative paths (e.g. `platform-specs`, `../platform-specs`) and absolute paths (e.g. `/home/me/store`) are accepted — `path.resolve` returns absolute paths as-is and resolves relative paths against `registryDir`. No validation restricts paths to within the project directory. Always use `path.resolve` / `path.join` — never string concatenation.
 
-**Rationale:** Cross-platform requirement (config rule). `path.resolve` handles platform separators and normalizes `..` segments correctly. In the YAML file, `/` is recommended (e.g. `path: stores/platform-specs`) — `path.resolve` accepts `/` on all platforms including Windows. Backslash `\` works only on Windows and breaks on macOS/Linux.
+**Rationale:** Cross-platform requirement (config rule). `path.resolve` handles platform separators and normalizes `..` segments correctly. In the YAML file, `/` is recommended (e.g. `path: stores/platform-specs`) — `path.resolve` accepts `/` on all platforms including Windows. Backslash `\` works only on Windows and breaks on macOS/Linux. Paths outside the project (e.g. `../platform-specs` or `/home/me/store`) are valid use cases — the registry is not always committed to git (UC-1), so portability is not always required.
 
 **Alternative considered:** String concatenation with `/` separator in code (TypeScript) — rejected because it breaks on Windows and violates the cross-platform config rule.
 
@@ -92,7 +92,7 @@ stores:
 
 ### D6: Threading scope through existing functions
 
-**Decision:** Extend `StorePathOptions` with an optional `projectRoot` field. All registry functions accept it. When set, they operate on the project-scoped registry instead of the global one: `register` writes the file at `projectRoot`; `list`, `unregister`, `remove`, and `doctor` treat it as the walk start and resolve the registry chain per D9. Registration writes the simpler `{ path: ... }` entry format (D2) rather than the global `backend` shape. Project-scoped conflict detection is inline in `registerExistingStore`, not in `assertNoRegisteredStoreConflict`, because the project-scoped format (`{ path: ... }`) differs from the global format (`{ backend: ... }`).
+**Decision:** Extend `StorePathOptions` with an optional `projectRoot` field. All registry functions accept it. When set, they operate on the project-scoped registry instead of the global one: `register` writes the file at `projectRoot`; `list`, `unregister`, `remove`, and `doctor` treat it as the walk start and resolve the registry chain per D8. Registration writes the simpler `{ path: ... }` entry format (D2) rather than the global `backend` shape. Project-scoped conflict detection is inline in `registerExistingStore`, not in `assertNoRegisteredStoreConflict`, because the project-scoped format (`{ path: ... }`) differs from the global format (`{ backend: ... }`).
 
 **Rationale:** Minimal API surface change. The `StorePathOptions` threading pattern is already established. Functions that call `readStoreRegistryState()` with no options (in `operations.ts`) will need explicit propagation, but the signature stays the same.
 
@@ -110,22 +110,14 @@ An informational `project_registry_not_found` diagnostic was considered but reje
 
 **Alternative considered:** Reusing the existing `'store'` source for both project-scoped and global resolution — rejected because consumers cannot distinguish where a store was resolved from.
 
-### D8: Store path validation for project-scoped registration
-
-**Decision:** When `openspec store register --scope project` is called, the system validates that the resolved store path is within the project root. If the relative path from the project root to the store starts with `..` or is an absolute path (e.g. a cross-drive path on Windows), the system reports a `store_path_outside_project` error and does not create a registry entry.
-
-**Rationale:** Project-scoped registry entries use relative paths (D2). A path outside the project root would produce a `..`-prefixed relative path that is not portable — it depends on the directory layout outside the project. Rejecting it at registration time prevents committing non-portable entries.
-
-**Alternative considered:** Allowing `..`-prefixed paths silently — rejected because it defeats the portability goal of the project-scoped registry.
-
-### D9: Walk-up scope of project-scoped registry operations
+### D8: Walk-up scope of project-scoped registry operations
 
 **Decision:** The discovery walk (D4) also governs the project-scoped registry operations, with `register` as the exception. All of them take `projectRoot` from `--scope project` as the *start* of the walk:
 - `openspec store list --scope project` collects entries from every `.openspec-store/registry.yaml` in the chain, each annotated with the registry directory that owns it.
 - `openspec store unregister <id> --scope project` removes the id from the nearest registry in the chain that contains it — the same registry that would win store resolution — and reports the registry file it edited. If the store folder does not exist, `unregister` still removes the registry entry and reports a warning that the folder was not found.
 - `openspec store remove <id> --scope project` behaves like unregister: it finds the nearest registry containing the id, but instead of only forgetting the binding it requires explicit confirmation (an interactive prompt showing the folder, or `--yes`), deletes the store's folder from disk, and removes the binding from the found registry, reporting the edited file. If the store folder does not exist, `remove` reports an error and does not remove the registry entry — the operation is atomic.
 - `openspec store doctor [id] --scope project` inspects stores from the whole chain.
-- `openspec store register --scope project` is the exception: it writes the registry at the level where the command is run (`process.cwd()`). The user consciously chooses where the binding is created; this is what makes nested local bindings (for example a plugin under a monorepo) possible, and it anchors the `store_path_outside_project` validation (D8) to the chosen level.
+- `openspec store register --scope project` is the exception: it writes the registry at the level where the command is run (`process.cwd()`). The user consciously chooses where the binding is created; this is what makes nested local bindings (for example a plugin under a monorepo) possible.
 
 `openspec store setup` is outside the walk scope: it has no `--scope` flag, so it always registers the created store in the global registry and never writes a project-scoped registry. To bind the store to a project instead, run `openspec store register <path> --scope project`.
 
