@@ -57,7 +57,7 @@
     "changeset": "changeset"
   },
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=20.19.0"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.0",
