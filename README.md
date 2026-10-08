@@ -33,11 +33,6 @@ Our philosophy:
 → scalable from personal projects to enterprises
 ```
 
-> [!TIP]
-> **New workflow now available!** We've rebuilt OpenSpec with a new artifact-guided workflow.
->
-> Run `/opsx:propose "your idea"` to get started. → [Learn more here](docs/opsx.md)
-
 <p align="center">
   Follow <a href="https://x.com/0xTab">@0xTab on X</a> for updates · Join the <a href="https://discord.gg/YctCnvvshC">OpenSpec Discord</a> for help and questions.
 </p>
@@ -112,13 +107,13 @@ OpenSpec is built with OpenSpec — browse this repo's live [specs](openspec/spe
 
 Solo, OpenSpec keeps you and your AI honest on a single repo. On a team, the hard part moves: a feature spans the API server, the web app, and a shared library; requirements are owned by one team and consumed by others; planning starts before any code exists.
 
-**[Stores](docs/stores-beta/user-guide.md)** are the answer — planning in a repo of its own. The same `openspec/` shape you already know (specs and changes), shared by `git push` like anything else. One source of truth your whole team and every coding agent can read, across every repo.
+**[Stores](https://openspec.dev/docs/stores)** are the answer — planning in a repo of its own. The same `openspec/` shape you already know (specs and changes), shared by `git push` like anything else. One source of truth your whole team and every coding agent can read, across every repo.
 
 - **Cross-repo features** — one change, one plan, even when the code lands in three repos.
 - **Shared requirements** — a platform team owns the specs; product teams reference them read-only, right where their coding agent can read them. No drifting wiki.
 - **Plan before code** — capture the plan in the store now; the code repos catch up later.
 
-> Stores are in **beta**. Start with the [Stores User Guide](docs/stores-beta/user-guide.md).
+> Stores are in **beta**. Start with the [Stores guide](https://openspec.dev/docs/stores).
 
 ## Quick Start
 
@@ -143,44 +138,32 @@ cd your-project
 openspec init
 ```
 
-> **Want your AI to do it?** Paste the [setup prompt](docs-lab/start/installation.md#install-with-your-ai-assistant) into your coding assistant — it installs the CLI, runs `openspec init`, and verifies the result.
+> **Want your AI to do it?** Paste the [setup prompt](https://openspec.dev/docs/installation#install-with-your-ai-assistant) into your coding assistant — it installs the CLI, runs `openspec init`, and verifies the result.
 
 Now talk to your AI:
 
-- **Not sure what to build yet?** Start with `/opsx:explore`, a no-stakes thinking partner that reads your code, weighs options, and shapes a plan before any code gets written. ([Explore guide](docs/explore.md))
+- **Not sure what to build yet?** Start with `/opsx:explore`, a no-stakes thinking partner that reads your code, weighs options, and shapes a plan before any code gets written. ([Quickstart](https://openspec.dev/docs/quickstart))
 - **Already know what you want?** Go straight to `/opsx:propose <what-you-want-to-build>`.
 
 Both are in the default profile. If you want the expanded workflow (`/opsx:new`, `/opsx:continue`, `/opsx:ff`, `/opsx:verify`, `/opsx:bulk-archive`, `/opsx:onboard`), select it with `openspec config profile` and apply with `openspec update`.
 
-`/opsx:propose` is the canonical name; your tool may spell it `/opsx-propose` (Cursor, GitHub Copilot), `@opsx-propose` (Amazon Q) or `$openspec-propose` (Codex). `openspec init` prints the right form for the tools you picked — see [How To Invoke](docs/supported-tools.md#how-to-invoke).
+`/opsx:propose` is the canonical name; your tool may spell it `/opsx-propose` (Cursor, GitHub Copilot), `@opsx-propose` (Amazon Q) or `$openspec-propose` (Codex). `openspec init` prints the right form for the tools you picked — see [Supported Tools](https://openspec.dev/docs/supported-tools).
 
 > [!NOTE]
-> Not sure if your tool is supported? [View the full list](docs/supported-tools.md) – we support 30+ tools and growing.
+> Not sure if your tool is supported? [View the full list](https://openspec.dev/docs/supported-tools) – we support 30+ tools and growing.
 >
-> Also works with Homebrew, pnpm, yarn, bun, and Nix. [See installation options](docs-lab/start/installation.md).
+> Also works with Homebrew, pnpm, yarn, bun, and Nix. [See installation options](https://openspec.dev/docs/installation).
 
 ## Docs
 
-**Start here:** the **[Documentation Home](docs/README.md)** maps everything. New to OpenSpec? Read [Getting Started](docs/getting-started.md), then [How Commands Work](docs/how-commands-work.md) (where you actually type `/opsx:propose`).
+Full documentation lives at **[openspec.dev/docs](https://openspec.dev/docs)**.
 
-→ **[Getting Started](docs/getting-started.md)**: first steps<br>
-→ **[Explore First](docs/explore.md)**: think it through with `/opsx:explore` before you commit<br>
-→ **[How Commands Work](docs/how-commands-work.md)**: where slash commands run vs the CLI<br>
-→ **[Core Concepts at a Glance](docs/overview.md)**: the whole mental model, one page<br>
-→ **[Examples & Recipes](docs/examples.md)**: real changes, start to finish<br>
-→ **[Workflows](docs/workflows.md)**: combos and patterns<br>
-→ **[Existing Projects](docs/existing-projects.md)**: adopt OpenSpec on a brownfield codebase<br>
-→ **[Editing a Change](docs/editing-changes.md)**: update artifacts, go back, reconcile manual edits<br>
-→ **[Commands](docs/commands.md)**: slash commands & skills<br>
-→ **[CLI](docs/cli.md)**: terminal reference<br>
-→ **[Stores](docs/stores-beta/user-guide.md)**: plan in a separate repo, shared across your team (beta)<br>
-→ **[Supported Tools](docs/supported-tools.md)**: tool integrations & install paths<br>
-→ **[Concepts](docs/concepts.md)**: how it all fits<br>
-→ **[Multi-Language](docs/multi-language.md)**: multi-language support<br>
-→ **[Customization](docs/customization.md)**: make it yours<br>
-→ **[Community Showcase](docs/community.md)**: projects and resources built with and for OpenSpec<br>
-→ **[FAQ](docs/faq.md)** · **[Troubleshooting](docs/troubleshooting.md)** · **[Glossary](docs/glossary.md)**: quick help
-
+→ **[Quickstart](https://openspec.dev/docs/quickstart)**: your first change, start to finish<br>
+→ **[Set up your project](https://openspec.dev/docs/setup)**: what `openspec init` installs<br>
+→ **[CLI](https://openspec.dev/docs/cli)**: terminal reference<br>
+→ **[Supported Tools](https://openspec.dev/docs/supported-tools)**: tool integrations & install paths<br>
+→ **[Customize](https://openspec.dev/docs/customize)**: profiles, project config, and schemas<br>
+→ **[Stores](https://openspec.dev/docs/stores)**: plan in a separate repo, shared across your team (beta)
 
 ## Community schemas
 
