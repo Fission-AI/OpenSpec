@@ -43,12 +43,15 @@ jobs:
             }
 
             async function findProblem() {
-              const link = (pr.body || '').match(/\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?|part of)\s+#(\d+)/i);
+              // Ignore HTML comments, so the template's "Part of #123" example never counts.
+              const body = (pr.body || '').replace(/<!--[\s\S]*?(?:-->|$)/g, '');
+              const link = body.match(/\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?|part of):?\s+#(\d+)/i);
               if (!link) {
                 return 'Link an approved issue in the PR description: `Closes #123`, or `Part of #123` for a feature proposal.';
               }
 
-              const number = Number(link[1]);
+              const closes = link[1].toLowerCase() !== 'part of';
+              const number = Number(link[2]);
               let issue;
               try {
                 ({ data: issue } = await github.rest.issues.get({ owner, repo, issue_number: number }));
@@ -75,7 +78,10 @@ jobs:
 
               // Feature proposal: only openspec/changes/.
               const changePaths = paths.filter((path) => path.startsWith('openspec/changes/'));
-              if (changePaths.length === paths.length) return null;
+              if (changePaths.length === paths.length) {
+                return closes ? `A feature proposal PR must say \`Part of #${number}\`, so the issue stays open until the implementation merges.` : null;
+              }
+              if (!closes) return `A feature implementation PR must say \`Closes #${number}\`.`;
 
               // Feature implementation: must update a change folder already on main.
               const names = new Set(
@@ -98,7 +104,7 @@ jobs:
             const problem = await findProblem();
             const marker = '<!-- contribution-gate -->';
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pr.number, per_page: 100 });
-            const existing = comments.find((comment) => comment.user.type === 'Bot' && comment.body.includes(marker));
+            const existing = comments.find((comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker));
 
             if (!problem) {
               if (existing) await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });

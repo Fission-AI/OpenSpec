@@ -236,7 +236,7 @@ openspec update
 
 ## Contributing
 
-Open a discussion (for core design changes) or an issue before you open a PR, and link the issue or discussion from the PR. New features, significant refactors, and architectural changes need an OpenSpec change proposal first.
+Open an issue and wait for a maintainer to add the `approved` label before you open a PR. Features land as a proposal PR first, then an implementation PR.
 
 → **[CONTRIBUTING.md](CONTRIBUTING.md)**: the full process, from first issue to merged PR
 

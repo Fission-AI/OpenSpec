@@ -29,10 +29,10 @@ jobs:
             const issue = context.payload.issue;
             const { owner, repo } = context.repo;
 
-            // Steps are the text under the first line that mentions reproducing,
-            // up to the next heading.
+            // Steps are the text under the first heading that mentions reproducing
+            // (or a freeform "Steps to reproduce" line), up to the next heading.
             const lines = (issue.body || '').split('\n');
-            const start = lines.findIndex((line) => /reproduc/i.test(line));
+            const start = lines.findIndex((line) => /^\s*(?:#+\s.*reproduc|\W*steps to reproduce)/i.test(line));
             const after = start < 0 ? [] : lines.slice(start + 1);
             const end = after.findIndex((line) => /^#+\s/.test(line));
             const steps = (end < 0 ? after : after.slice(0, end)).join('\n').trim();
@@ -40,7 +40,7 @@ jobs:
 
             const marker = '<!-- bug-repro -->';
             const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: issue.number, per_page: 100 });
-            if (comments.some((comment) => comment.user.type === 'Bot' && comment.body.includes(marker))) return;
+            if (comments.some((comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker))) return;
 
             await github.rest.issues.createComment({
               owner,
