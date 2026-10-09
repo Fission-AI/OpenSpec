@@ -1,4 +1,3 @@
-import ora from 'ora';
 import { CompletionFactory } from '../core/completions/factory.js';
 import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 import { detectShell, SupportedShell } from '../utils/shell-detection.js';
@@ -125,6 +124,9 @@ export class CompletionCommand {
     const generator = CompletionFactory.createGenerator(shell);
     const installer = CompletionFactory.createInstaller(shell);
 
+    // Loaded here, not at the top: `__complete` shares this module and runs on
+    // every Tab press, so it must not pay for the spinner.
+    const { default: ora } = await import('ora');
     const spinner = ora(`Installing ${shell} completion script...`).start();
 
     try {
@@ -234,6 +236,7 @@ export class CompletionCommand {
       }
     }
 
+    const { default: ora } = await import('ora');
     const spinner = ora(`Uninstalling ${shell} completion script...`).start();
 
     try {

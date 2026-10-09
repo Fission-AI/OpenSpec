@@ -124,6 +124,14 @@ export function isCompletionRun(commandPath: string): boolean {
 }
 
 /**
+ * True for the hidden `__complete` resolver alone. It runs on every Tab press,
+ * so the hooks skip telemetry and the completion tip for it entirely.
+ */
+export function isTabCompletionRun(commandPath: string): boolean {
+  return commandPath === '__complete';
+}
+
+/**
  * True when the first-run completions tip must be deferred rather than shown.
  *
  * Deferring keeps the tip unconsumed, so it still reaches the user on a later
@@ -196,6 +204,13 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
     process.env.NO_COLOR = '1';
   }
 
+  // `__complete` runs on every Tab press, with stderr sent to /dev/null by the
+  // generated scripts. Tracking it would hold each press open for the request,
+  // and the first-run notice would be marked seen without anyone reading it.
+  if (isTabCompletionRun(getCommandPath(actionCommand))) {
+    return;
+  }
+
   // Show first-run telemetry notice (if not seen). It's written to stderr, so it
   // never pollutes stdout — but --json runs still defer it (see isJsonRun) so the
   // very first invocation stays free of any incidental output on either stream.
@@ -210,6 +225,12 @@ program.hook('preAction', async (thisCommand, actionCommand) => {
 
 // Shutdown telemetry after command completes
 program.hook('postAction', async (_thisCommand, actionCommand) => {
+  // Nothing to flush (preAction tracked nothing), and the tip is always
+  // deferred for completion runs, so skip loading either module.
+  if (isTabCompletionRun(getCommandPath(actionCommand))) {
+    return;
+  }
+
   // Show the first-run shell-completions tip (on stderr, so piped stdout stays
   // clean). postAction, not preAction: the tip trails the command's own output
   // instead of pushing an error message or `init`'s setup summary down the

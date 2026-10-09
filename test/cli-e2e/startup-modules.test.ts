@@ -118,6 +118,32 @@ describe('CLI startup loads only what the command needs', () => {
     }
   );
 
+  // Shell completion scripts run `__complete` on every Tab press. It needs no
+  // package beyond commander, and never telemetry: tracking would hold each
+  // press open for the request.
+  it.each(['changes', 'specs'])(
+    '`openspec __complete %s` loads only commander and no telemetry',
+    async (type) => {
+      await ensureCliBuilt();
+      const { own, packages, status } = loadedModules(['__complete', type]);
+
+      expect(status).toBe(0);
+      expect([...packages]).toEqual(['commander']);
+      expect(implementationsLoaded(own)).toEqual(['completion']);
+      expect(own).not.toContain('telemetry/index.js');
+    }
+  );
+
+  it('`openspec __complete schemas` loads the schema reader but not fast-glob or ora', async () => {
+    await ensureCliBuilt();
+    const { own, packages, status } = loadedModules(['__complete', 'schemas']);
+
+    expect(status).toBe(0);
+    expect(packages).not.toContain('fast-glob');
+    expect(packages).not.toContain('ora');
+    expect(own).not.toContain('telemetry/index.js');
+  });
+
   it.each([
     ['config list --json', 'config'],
     ['config path', 'config'],
