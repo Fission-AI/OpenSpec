@@ -342,10 +342,18 @@ export function describeUnappliedContent(content: UnappliedContent, sentenceStar
  * before the first requirement (INFO since #498) are not reported.
  */
 function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedContent[] {
-  // Blank out comments, keeping line count; an unterminated one runs to EOF.
-  // Sections come from the masked lines, so a commented-out header is no boundary.
-  const masked = lines.join('\n').replace(/<!--[\s\S]*?(?:--!?>|$)/g, (m) => m.replace(/[^\n]/g, ' ')).split('\n');
-  const sections = splitTopLevelSections(masked, fenceMask);
+  // Blank out comments outside fences, keeping line count; an unterminated one
+  // runs to EOF. Comments only decide whether a line holds text: sections come
+  // from the same split the merge reads, where a `## ` line inside a comment is
+  // still a boundary. Fenced lines keep their text, so a `<!--` in a code sample
+  // never hides what follows the fence.
+  const comments = lines
+    .map((line, i) => (fenceMask[i] ? '' : line))
+    .join('\n')
+    .replace(/<!--[\s\S]*?(?:--!?>|$)/g, (m) => m.replace(/[^\n]/g, ' '))
+    .split('\n');
+  const masked = lines.map((line, i) => (fenceMask[i] ? line : comments[i]));
+  const sections = splitTopLevelSections(lines, fenceMask);
   const firstText = (from: number, to: number, skip?: RegExp) => {
     for (let i = from; i < to; i++) if (masked[i].trim() && !skip?.test(masked[i])) return i;
     return -1;
@@ -360,7 +368,10 @@ function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedC
       const block = body.lines.findIndex((l, i) => !body.fenceMask[i] && REQUIREMENT_HEADER_REGEX.test(l));
       const first = firstText(start, start + (block === -1 ? body.lines.length : block), /^###\s/);
       if (first !== -1) found.push({ section: title, line: first + 1 });
-    } else if (folded !== 'purpose' && !DELTA_SECTION_TITLES.has(folded)) {
+    } else if (!DELTA_SECTION_TITLES.has(folded)) {
+      // The Purpose carry-over reads past commented-out headers, so only a
+      // `## Purpose` outside a comment is the one archive handles.
+      if (folded === 'purpose' && masked[start - 1].trim()) continue;
       if (firstText(start, start + body.lines.length) !== -1) found.push({ section: title, line: start });
     }
   }

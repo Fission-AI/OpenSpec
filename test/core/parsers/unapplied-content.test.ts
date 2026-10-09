@@ -33,16 +33,50 @@ describe('parseDeltaSpec unappliedContent', () => {
     ]);
   });
 
-  it('does not treat a commented-out header as a section, and honours the --!> terminator', () => {
+  it('does not exempt a commented-out Purpose, and honours the --!> terminator', () => {
     const plan = parseDeltaSpec(
       ['<!--', '## Purpose', '--!>', 'Real prose.', '## ADDED Requirements', '### Requirement: A', 'a', '## Notes', 'n'].join(
         '\n'
       )
     );
     expect(plan.unappliedContent).toEqual([
-      { section: null, line: 4 },
+      { section: 'Purpose', line: 2 },
       { section: 'Notes', line: 8 },
     ]);
+  });
+
+  // The merge splits sections on every `## ` line outside a fence, comment or not.
+  // Reading boundaries from comment-masked lines disagreed with it both ways.
+  it('reads section boundaries exactly as the merge does', () => {
+    // `<!--` in inline code and a later `-->` are not a comment to the merge;
+    // masking across them hid `## ADDED Requirements` and blamed a carried requirement.
+    const inlineOpener = parseDeltaSpec(
+      ['# Delta: strip `<!--` openers', '## ADDED Requirements', '### Requirement: A', 'Flow: ingest --> render', 'The system SHALL a.'].join('\n')
+    );
+    expect(inlineOpener.added.map((b) => b.name)).toEqual(['A']);
+    expect(inlineOpener.unappliedContent).toEqual([]);
+
+    // A header inside a comment is still a section to the merge, so the
+    // requirement after the comment is carried, not text above the first section.
+    const commentedHeader = parseDeltaSpec(
+      ['<!-- add requirements below', '## ADDED Requirements', '-->', '### Requirement: A', 'The system SHALL a.'].join('\n')
+    );
+    expect(commentedHeader.added.map((b) => b.name)).toEqual(['A']);
+    expect(commentedHeader.unappliedContent).toEqual([]);
+
+    // ...and text after a commented-out `## Notes` is dropped by the merge.
+    const commentedNotes = parseDeltaSpec(
+      ['## ADDED Requirements', '### Requirement: A', 'a', '<!--', '## Notes', '-->', 'Dropped.'].join('\n')
+    );
+    expect(commentedNotes.added[0].raw).not.toContain('Dropped.');
+    expect(commentedNotes.unappliedContent).toEqual([{ section: 'Notes', line: 5 }]);
+  });
+
+  it('does not let a `<!--` inside a code fence hide later sections', () => {
+    const plan = parseDeltaSpec(
+      ['## ADDED Requirements', '### Requirement: A', 'a', '```html', '<!-- unterminated sample', '```', '## Notes', 'Dropped.'].join('\n')
+    );
+    expect(plan.unappliedContent).toEqual([{ section: 'Notes', line: 7 }]);
   });
 
   it('ignores Purpose, REMOVED/RENAMED bodies, HTML comments, fences, and stray ### headers', () => {
