@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import { Command, Option } from 'commander';
 
-import { isJsonRun, isCompletionRun, shouldDeferCompletionTip } from '../../src/cli/index.js';
+import {
+  isJsonRun,
+  isCompletionRun,
+  isTabCompletionRun,
+  shouldDeferCompletionTip,
+} from '../../src/cli/index.js';
 
 /**
  * Reproduce the three ways `--json` reaches a command in the real CLI, so a
@@ -102,6 +107,23 @@ describe('isCompletionRun', () => {
     'does not suppress the completions tip for "%s"',
     (commandPath) => {
       expect(isCompletionRun(commandPath)).toBe(false);
+    }
+  );
+});
+
+describe('isTabCompletionRun', () => {
+  /**
+   * Only the hidden resolver skips telemetry. The user-facing `completion`
+   * commands are run by a person and are tracked like any other command.
+   */
+  it('matches the hidden resolver', () => {
+    expect(isTabCompletionRun('__complete')).toBe(true);
+  });
+
+  it.each(['completion', 'completion:install', 'completion:generate', 'list'])(
+    'does not match "%s"',
+    (commandPath) => {
+      expect(isTabCompletionRun(commandPath)).toBe(false);
     }
   );
 });
