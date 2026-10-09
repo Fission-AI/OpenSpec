@@ -163,7 +163,8 @@ Full documentation lives at **[openspec.dev/docs](https://openspec.dev/docs)**.
 → **[CLI](https://openspec.dev/docs/cli)**: terminal reference<br>
 → **[Supported Tools](https://openspec.dev/docs/supported-tools)**: tool integrations & install paths<br>
 → **[Customize](https://openspec.dev/docs/customize)**: profiles, project config, and schemas<br>
-→ **[Stores](https://openspec.dev/docs/stores)**: plan in a separate repo, shared across your team (beta)
+→ **[Stores](https://openspec.dev/docs/stores)**: plan in a separate repo, shared across your team (beta)<br>
+→ **[Community Showcase](docs/community.md)**: projects and resources built with and for OpenSpec
 
 ## Community schemas
 
