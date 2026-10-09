@@ -10,14 +10,29 @@ const BRACE_EXPANSION_SEPARATORS_RE = /,|\.\./u;
 const MAX_BRACE_NESTING = 16;
 
 function assertBraceNesting(pattern: string): void {
-  let depth = 0;
-  for (const char of pattern) {
-    if (char === '{') depth += 1;
-    else if (char === '}' && depth > 0) depth -= 1;
-    if (depth > MAX_BRACE_NESTING) {
-      throw new Error(
-        `Artifact output pattern nests braces more than ${MAX_BRACE_NESTING} levels deep: ${pattern}`
-      );
+  // Mirror the braces parser: `[...]` and quoted runs are literal, `(` nests like
+  // `{`, and a closer only closes the innermost group of its own kind.
+  const open: string[] = [];
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    if (char === '[') {
+      for (let brackets = 1; brackets > 0 && index + 1 < pattern.length; ) {
+        index += 1;
+        if (pattern[index] === '[') brackets += 1;
+        else if (pattern[index] === ']') brackets -= 1;
+      }
+    } else if (char === '"' || char === "'" || char === '`') {
+      const end = pattern.indexOf(char, index + 1);
+      index = end === -1 ? pattern.length : end;
+    } else if (char === '{' || char === '(') {
+      open.push(char);
+      if (open.length > MAX_BRACE_NESTING) {
+        throw new Error(
+          `Artifact output pattern nests braces more than ${MAX_BRACE_NESTING} levels deep: ${pattern}`
+        );
+      }
+    } else if ((char === '}' && open.at(-1) === '{') || (char === ')' && open.at(-1) === '(')) {
+      open.pop();
     }
   }
 }

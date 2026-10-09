@@ -292,6 +292,21 @@ describe('artifact-graph/outputs', () => {
     globSpy.mockRestore();
   });
 
+  it.each([
+    ['a bracket', (depth: number) => `*${'{a,[}]'.repeat(depth)}${'}'.repeat(depth)}`],
+    ['a quote', (depth: number) => `*${'{a,"}"'.repeat(depth)}${'}'.repeat(depth)}`],
+    ['an open parenthesis', (depth: number) => `*${'{a,(}'.repeat(depth)}${')}'.repeat(depth)}`],
+    ['parentheses alone', (depth: number) => `*{a,b}${'('.repeat(depth)}${')'.repeat(depth)}`],
+  ])('counts nesting the braces parser sees past %s', (_label, nested) => {
+    const globSpy = vi.spyOn(fg, 'generateTasks');
+
+    expect(() => resolveArtifactOutputs(tempDir, nested(17))).toThrow(
+      'Artifact output pattern nests braces more than 16 levels deep'
+    );
+    expect(globSpy).not.toHaveBeenCalled();
+    globSpy.mockRestore();
+  });
+
   it.each(['@(proposal|design).md', '+(proposal|design).md'])('supports extglob %s', (pattern) => {
     const proposalPath = path.join(tempDir, 'proposal.md');
     fs.writeFileSync(proposalPath, 'content');

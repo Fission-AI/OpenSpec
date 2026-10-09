@@ -84,7 +84,7 @@ OpenSpec recognizes these glob forms in `generates`:
 
 **Literal filenames**: a leading `!` alone does not make a glob. Use `generates: '!review.md'` to name that file. Plain parentheses such as `(proposal|design).md` and single-element braces such as `review-{api}.md` also remain literal.
 
-OpenSpec rejects absolute paths, paths containing a `..` segment, and globs that nest braces more than 16 levels deep, such as `{a,{b,{c,...}}}`. Real patterns need one or two levels.
+OpenSpec rejects absolute paths, paths containing a `..` segment, and globs that nest braces or parentheses more than 16 levels deep, such as `{a,{b,{c,...}}}`. Real patterns need one or two levels.
 
 #### Completion
 

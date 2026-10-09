@@ -57,8 +57,6 @@ The system SHALL recognize `generates` values containing `*`, `?`, or `[` as glo
 
 The system SHALL preserve literal filenames with a bare leading `!`, plain parentheses, or single-element braces when no supported glob syntax is present. Brace expansion SHALL preserve literal brace groups and recognize later and nested expansion groups. Expanded output paths and traversed symbolic links SHALL remain within the change directory.
 
-The system SHALL reject a glob `generates` value that nests braces more than 16 levels deep, with an error naming the limit, before any glob matching runs.
-
 #### Scenario: Simple file exists
 - **WHEN** an artifact generates "proposal.md" and the file exists
 - **THEN** the artifact is marked as completed
@@ -66,11 +64,6 @@ The system SHALL reject a glob `generates` value that nests braces more than 16 
 #### Scenario: Simple file missing
 - **WHEN** an artifact generates "proposal.md" and the file does not exist
 - **THEN** the artifact is not marked as completed
-
-#### Scenario: Brace nesting beyond the limit
-- **WHEN** an artifact generates a pattern whose braces nest 17 levels deep
-- **THEN** resolving its outputs fails with an error naming the 16-level limit
-- **AND** no glob matching runs for that pattern
 
 #### Scenario: Glob pattern with files
 - **WHEN** an artifact generates "specs/*.md" and the specs/ directory contains .md files
@@ -125,6 +118,14 @@ The system SHALL reject a glob `generates` value that nests braces more than 16 
 - **WHEN** an artifact generates "content/{safe,linked}/review.md" or "content/@(safe|linked)/review.md"
 - **AND** "content/linked" is a symbolic link to a directory outside the change directory
 - **THEN** output resolution rejects traversal through that link even when no matching files exist
+
+### Requirement: Glob Nesting Limit
+The system SHALL reject a glob `generates` or `apply.tracks` value that nests braces or parentheses more than 16 levels deep, counting them as the brace parser does, with an error naming the limit, before any glob matching runs.
+
+#### Scenario: Brace nesting beyond the limit
+- **WHEN** an artifact generates a pattern whose braces nest 17 levels deep
+- **THEN** resolving its outputs fails with an error naming the 16-level limit
+- **AND** no glob matching runs for that pattern
 
 ### Requirement: Ready Artifact Query
 The system SHALL identify which artifacts are ready to be created based on dependency completion.

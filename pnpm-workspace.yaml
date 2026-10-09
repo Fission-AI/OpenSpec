@@ -33,7 +33,7 @@ auditConfig:
     # patterns. Runtime (fast-glob > micromatch > braces), and no patched braces
     # exists, so no override can fix it. Schema artifact `generates` and
     # `apply.tracks` patterns reach fast-glob only through resolveArtifactOutputs,
-    # which rejects brace nesting deeper than 16 levels before globbing. Accepted
+    # which rejects brace or parenthesis nesting deeper than 16 levels before globbing. Accepted
     # residual risk: braces itself stays unpatched, so any new caller that passes
     # it unchecked patterns is exposed. Remove this exception
     # once braces ships a patched release (check: pnpm why braces; pnpm audit --prod).
