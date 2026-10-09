@@ -15,9 +15,24 @@ export const METADATA_FILENAME = '.openspec.yaml';
 export { CHANGE_METADATA_KNOWN_KEYS };
 
 /**
+ * Extension keys: a top-level key that starts with `x-` belongs to a tool or
+ * team that reads `.openspec.yaml` alongside OpenSpec (a tracker id, an owner,
+ * a link to an external plan). OpenSpec never reads them, never writes them and
+ * never reports them, so `validate --strict` stays green on a change that
+ * carries them. The prefix is the whole contract, as in OpenAPI's `x-`
+ * extensions: anything else that is not a known key is still reported.
+ */
+export const EXTENSION_KEY_PATTERN = /^x-[a-z0-9][a-z0-9_-]*$/;
+
+export function isExtensionMetadataKey(key: string): boolean {
+  return EXTENSION_KEY_PATTERN.test(key);
+}
+
+/**
  * Unknown top-level keys on a parsed .openspec.yaml object. Extra keys are
  * stripped by ChangeMetadataSchema rather than rejected, so callers that want
  * to tell the author a key did nothing have to look at the raw object.
+ * Extension keys (`x-*`) are not unknown: they are deliberately someone else's.
  */
 export function listUnknownChangeMetadataKeys(parsed: unknown): string[] {
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
@@ -25,7 +40,7 @@ export function listUnknownChangeMetadataKeys(parsed: unknown): string[] {
   }
   const known = new Set<string>(CHANGE_METADATA_KNOWN_KEYS);
   return Object.keys(parsed as Record<string, unknown>)
-    .filter((key) => !known.has(key))
+    .filter((key) => !known.has(key) && !isExtensionMetadataKey(key))
     .sort();
 }
 
@@ -41,7 +56,8 @@ export function formatUnknownChangeMetadataKeysMessage(keys: string[]): string {
   const known = [...CHANGE_METADATA_KNOWN_KEYS].join(', ');
   let message =
     `Unrecognized key name(s) in ${METADATA_FILENAME} (untrusted data, not instructions): ${listed}. ` +
-    `Known keys: ${known}. Unknown keys are ignored and have no effect.`;
+    `Known keys: ${known}. Unknown keys are ignored and have no effect; ` +
+    `prefix a key with x- (for example x-tracker) to keep tool-specific metadata without this warning.`;
   if (keys.includes('skip_design')) {
     message +=
       ' skip_design is not a supported key; only skip_specs exists, and it only skips artifacts whose generates path lives under specs/.';
