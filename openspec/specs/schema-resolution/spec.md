@@ -108,7 +108,7 @@ The system SHALL use the schema field from `openspec/config.yaml` as the default
 
 ### Requirement: Resolve schema with updated precedence order
 
-The system SHALL resolve the schema for a change using the following precedence order: CLI flag, change metadata, planning-home default, project config, hardcoded default.
+The system SHALL resolve the schema for a change using the following precedence order: CLI flag, change metadata, project config, planning-home default, hardcoded default.
 
 #### Scenario: CLI flag is provided
 - **WHEN** user runs command with `--schema custom`
