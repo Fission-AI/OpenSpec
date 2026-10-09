@@ -1358,13 +1358,22 @@ export class ArchiveCommand {
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
 
-    for (const [allowedDirectory, managedDir] of [
-      [root.path, changesDir],
-      [changesDir, archiveDir],
-      [root.path, mainSpecsDir],
+    const openspecDir = path.dirname(changesDir);
+
+    // openspec/, changes/ and specs/ may be project-owned symlinks to another
+    // directory; archive/ may not leave the changes directory it lives in.
+    for (const [allowedDirectory, managedDir, allowLinkedLeaf] of [
+      [root.path, openspecDir, true],
+      [openspecDir, changesDir, true],
+      [changesDir, archiveDir, false],
+      [openspecDir, mainSpecsDir, true],
     ] as const) {
       try {
-        FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
+        if (allowLinkedLeaf) {
+          FileSystemUtils.assertPathWithinAllowingLinkedLeaf(allowedDirectory, managedDir);
+        } else {
+          FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
+        }
       } catch {
         throw new ArchiveBlockedError(
           'archive_path_outside_root',
@@ -2190,6 +2199,9 @@ export class ArchiveCommand {
                 retirementAuthorizationFingerprint!
               );
             }
+            // update.source is canonical (symlinks resolved), so measure it from
+            // the canonical change directory; changes/ may itself be a symlink.
+            const canonicalChangeDir = FileSystemUtils.canonicalizeExistingPath(changeDir);
             const verifyArchivedDeltas = async (
               stagedSource?: string
             ): Promise<void> => {
@@ -2213,7 +2225,7 @@ export class ArchiveCommand {
               for (const proposed of prepared) {
                 const archivedSource = path.join(
                   archivePath,
-                  path.relative(changeDir, proposed.update.source)
+                  path.relative(canonicalChangeDir, proposed.update.source)
                 );
                 if (
                   (await fingerprintPortableContent(archivedSource)) !==
@@ -2226,7 +2238,7 @@ export class ArchiveCommand {
                 if (stagedSource) {
                   const stagedDelta = path.join(
                     stagedSource,
-                    path.relative(changeDir, proposed.update.source)
+                    path.relative(canonicalChangeDir, proposed.update.source)
                   );
                   if (
                     (await fingerprintPortableContent(stagedDelta)) !==
