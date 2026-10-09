@@ -10,6 +10,7 @@ import {
   ChangeMetadataError,
   readRetireCapabilitiesMarker,
   listUnknownChangeMetadataKeys,
+  isExtensionMetadataKey,
   formatUnknownChangeMetadataKeysMessage,
 } from '../../src/utils/change-metadata.js';
 import { ChangeMetadataSchema } from '../../src/core/change-metadata/index.js';
@@ -173,6 +174,23 @@ describe('listUnknownChangeMetadataKeys', () => {
         skip_specs: true,
       })
     ).toEqual([]);
+  });
+
+  it('does not report x- extension keys, and still reports everything else', () => {
+    expect(
+      listUnknownChangeMetadataKeys({
+        schema: 'spec-driven',
+        'x-goal': 'G-12',
+        'x-tracker': { system: 'linear', id: 'SB-5497' },
+        'x-': 'not an extension key',
+        'X-Upper': 1,
+        bogus_key: 1,
+      })
+    ).toEqual(['X-Upper', 'bogus_key', 'x-']);
+  });
+
+  it('tells the author how to keep tool metadata without the warning', () => {
+    expect(formatUnknownChangeMetadataKeysMessage(['bogus_key'])).toContain('x-');
   });
 
   it('explains that skip_design is not skip_specs', () => {
@@ -486,5 +504,15 @@ describe('boolean marker reasons', () => {
     // The name is still recognisable, so the author can find what they typed.
     expect(marker.invalidReason).toContain("unknown schema 'ghost?[31m-schema'");
     expect(marker.invalidReason).not.toMatch(/[\u0000-\u001f\u007f]/);
+  });
+});
+
+describe('isExtensionMetadataKey', () => {
+  it('accepts x- followed by a lowercase name', () => {
+    expect(isExtensionMetadataKey('x-goal')).toBe(true);
+    expect(isExtensionMetadataKey('x-kf_part-2')).toBe(true);
+    expect(isExtensionMetadataKey('x-')).toBe(false);
+    expect(isExtensionMetadataKey('X-goal')).toBe(false);
+    expect(isExtensionMetadataKey('goal')).toBe(false);
   });
 });
