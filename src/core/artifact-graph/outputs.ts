@@ -5,6 +5,37 @@ import { FileSystemUtils } from '../../utils/file-system.js';
 
 const EXTGLOB_RE = /[!*+?@]\([^(]*\)/u;
 const BRACE_EXPANSION_SEPARATORS_RE = /,|\.\./u;
+// braces <=3.0.3 (fast-glob > micromatch) has no depth guard (GHSA-vfj7-8cjw-p6xm),
+// so reject nesting no real artifact pattern needs before it reaches the parser.
+const MAX_BRACE_NESTING = 16;
+
+function assertBraceNesting(pattern: string): void {
+  // Mirror the braces parser: `[...]` and quoted runs are literal, `(` nests like
+  // `{`, and a closer only closes the innermost group of its own kind.
+  const open: string[] = [];
+  for (let index = 0; index < pattern.length; index += 1) {
+    const char = pattern[index];
+    if (char === '[') {
+      for (let brackets = 1; brackets > 0 && index + 1 < pattern.length; ) {
+        index += 1;
+        if (pattern[index] === '[') brackets += 1;
+        else if (pattern[index] === ']') brackets -= 1;
+      }
+    } else if (char === '"' || char === "'" || char === '`') {
+      const end = pattern.indexOf(char, index + 1);
+      index = end === -1 ? pattern.length : end;
+    } else if (char === '{' || char === '(') {
+      open.push(char);
+      if (open.length > MAX_BRACE_NESTING) {
+        throw new Error(
+          `Artifact output pattern nests braces more than ${MAX_BRACE_NESTING} levels deep: ${pattern}`
+        );
+      }
+    } else if ((char === '}' && open.at(-1) === '{') || (char === ')' && open.at(-1) === '(')) {
+      open.pop();
+    }
+  }
+}
 
 function hasBraceExpansion(pattern: string): boolean {
   const openings: number[] = [];
@@ -115,9 +146,11 @@ function assertGlobDirectoryTraversal(
  * Returns absolute file paths. Glob matches are sorted for deterministic output.
  */
 export function resolveArtifactOutputs(changeDir: string, generates: string): string[] {
+  const isGlob = isGlobPattern(generates);
+  if (isGlob) assertBraceNesting(FileSystemUtils.toPosixPath(generates));
   const outputPath = resolveArtifactOutputPath(changeDir, generates);
 
-  if (!isGlobPattern(generates)) {
+  if (!isGlob) {
     try {
       return fs.statSync(outputPath).isFile()
         ? [FileSystemUtils.canonicalizeExistingPath(outputPath)]

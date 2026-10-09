@@ -119,6 +119,14 @@ The system SHALL preserve literal filenames with a bare leading `!`, plain paren
 - **AND** "content/linked" is a symbolic link to a directory outside the change directory
 - **THEN** output resolution rejects traversal through that link even when no matching files exist
 
+### Requirement: Glob Nesting Limit
+The system SHALL reject a glob `generates` or `apply.tracks` value that nests braces or parentheses more than 16 levels deep, counting them as the brace parser does, with an error naming the limit, before any glob matching runs.
+
+#### Scenario: Brace nesting beyond the limit
+- **WHEN** an artifact generates a pattern whose braces nest 17 levels deep
+- **THEN** resolving its outputs fails with an error naming the 16-level limit
+- **AND** no glob matching runs for that pattern
+
 ### Requirement: Ready Artifact Query
 The system SHALL identify which artifacts are ready to be created based on dependency completion.
 

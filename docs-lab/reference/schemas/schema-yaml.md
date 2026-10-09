@@ -84,7 +84,7 @@ OpenSpec recognizes these glob forms in `generates`:
 
 **Literal filenames**: a leading `!` alone does not make a glob. Use `generates: '!review.md'` to name that file. Plain parentheses such as `(proposal|design).md` and single-element braces such as `review-{api}.md` also remain literal.
 
-OpenSpec rejects absolute paths and paths containing a `..` segment.
+OpenSpec rejects absolute paths, paths containing a `..` segment, and globs that nest braces or parentheses more than 16 levels deep, such as `{a,{b,{c,...}}}`. Real patterns need one or two levels.
 
 #### Completion
 
@@ -140,7 +140,7 @@ The path starts from the change folder. For a change named `add-auth`, `tracks: 
 openspec/changes/add-auth/tasks.md
 ```
 
-A glob such as `tracks: "**/tasks.md"` reads every matching file, such as `backend/tasks.md` and `frontend/tasks.md`. OpenSpec combines their tasks and progress. Use the same value for an artifact's `generates` field so status and list track the same files.
+A glob such as `tracks: "**/tasks.md"` reads every matching file, such as `backend/tasks.md` and `frontend/tasks.md`. OpenSpec combines their tasks and progress. Use the same value for an artifact's `generates` field so status and list track the same files. The 16-level brace limit from `generates` applies here too.
 
 Apply stays blocked if no file matches or the matched files contain no checkbox with task text. OpenSpec counts these checkbox forms:
 
