@@ -1,0 +1,62 @@
+name: Bug repro steps
+
+# Asks once for reproduction steps when a `bug` issue has none.
+# The bug form requires them; this catches blank issues and `openspec feedback`
+# reports that are later labeled `bug`.
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+
+permissions:
+  issues: write
+
+# A new issue fires `opened` and one `labeled` per label; run them one at a
+# time so only one comment is posted.
+concurrency:
+  group: bug-repro-${{ github.event.issue.number }}
+
+jobs:
+  ask:
+    name: Ask for repro steps
+    if: contains(github.event.issue.labels.*.name, 'bug')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const { owner, repo } = context.repo;
+
+            // Steps are the text under the first heading that mentions reproducing
+            // (or a freeform "Steps to reproduce" line), up to the next heading.
+            const lines = (issue.body || '').split('\n');
+            const start = lines.findIndex((line) => /^\s*(?:#+\s.*reproduc|\W*steps to reproduce)/i.test(line));
+            const after = start < 0 ? [] : lines.slice(start + 1);
+            const end = after.findIndex((line) => /^#+\s/.test(line));
+            const steps = (end < 0 ? after : after.slice(0, end)).join('\n').trim();
+            if (steps && steps !== '_No response_') return;
+
+            const marker = '<!-- bug-repro -->';
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: issue.number, per_page: 100 });
+            if (comments.some((comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker))) return;
+
+            await github.rest.issues.createComment({
+              owner,
+              repo,
+              issue_number: issue.number,
+              body: [
+                marker,
+                'Thanks for the report. Before we can approve this, we need to reproduce it.',
+                '',
+                'Please edit the issue and add a **Steps to reproduce** section, starting from a fresh project:',
+                '',
+                '```',
+                '1. openspec init',
+                '2. ...',
+                '```',
+                '',
+                'Also include your `openspec --version`.',
+              ].join('\n'),
+            });

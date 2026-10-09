@@ -1,0 +1,20 @@
+name: Docs
+description: Something in the docs is wrong, missing, or unclear.
+labels: ['documentation', 'needs-triage']
+body:
+  - type: input
+    id: where
+    attributes:
+      label: Where
+      description: A link or file path.
+      placeholder: docs/cli.md, "archive" section
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing
+      placeholder: It says `--yes` skips the spec sync, but it only skips the prompt.
+    validations:
+      required: true

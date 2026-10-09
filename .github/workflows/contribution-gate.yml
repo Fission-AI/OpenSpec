@@ -1,0 +1,120 @@
+name: Contribution gate
+
+# Checks that a community PR follows CONTRIBUTING.md:
+# it links an issue labeled `approved`, and a feature ships as a proposal PR
+# before its implementation PR. Maintainer and bot PRs skip the check.
+#
+# pull_request_target lets this comment on fork PRs. It never checks out or
+# runs PR code; it only reads the PR and issue through the API.
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize, ready_for_review]
+    branches: [main]
+  merge_group:
+    branches: [main]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: contribution-gate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: Contribution gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            // Checked when the PR entered the queue.
+            if (context.eventName === 'merge_group') return;
+
+            const pr = context.payload.pull_request;
+            const { owner, repo } = context.repo;
+            if (['OWNER', 'MEMBER', 'COLLABORATOR'].includes(pr.author_association) || pr.user.type === 'Bot') {
+              core.info('Maintainer or bot PR, skipping.');
+              return;
+            }
+
+            async function findProblem() {
+              // Ignore HTML comments, so the template's "Part of #123" example never counts.
+              const body = (pr.body || '').replace(/<!--[\s\S]*?(?:-->|$)/g, '');
+              const link = body.match(/\b(close[sd]?|fix(?:e[sd])?|resolve[sd]?|part of):?\s+#(\d+)/i);
+              if (!link) {
+                return 'Link an approved issue in the PR description: `Closes #123`, or `Part of #123` for a feature proposal.';
+              }
+
+              const closes = link[1].toLowerCase() !== 'part of';
+              const number = Number(link[2]);
+              let issue;
+              try {
+                ({ data: issue } = await github.rest.issues.get({ owner, repo, issue_number: number }));
+              } catch (error) {
+                if (error.status !== 404) throw error;
+              }
+              if (!issue || issue.pull_request) return `#${number} is not an issue in this repository.`;
+
+              const labels = issue.labels.map((label) => (typeof label === 'string' ? label : label.name));
+              if (!labels.includes('approved')) {
+                return `#${number} does not have the \`approved\` label yet. Once a maintainer approves it, edit or push to this PR to re-run this check.`;
+              }
+
+              const files = await github.paginate(github.rest.pulls.listFiles, { owner, repo, pull_number: pr.number, per_page: 100 });
+              const paths = files.flatMap((file) => [file.filename, file.previous_filename].filter(Boolean));
+
+              // Bugs and docs: one PR, no specs.
+              if (!labels.includes('enhancement')) {
+                if (paths.some((path) => path.startsWith('openspec/'))) {
+                  return `#${number} is a bug or docs issue, so this PR cannot change \`openspec/\`. If you are adding a feature, open a feature request first.`;
+                }
+                return null;
+              }
+
+              // Feature proposal: only openspec/changes/.
+              const changePaths = paths.filter((path) => path.startsWith('openspec/changes/'));
+              if (changePaths.length === paths.length) {
+                return closes ? `A feature proposal PR must say \`Part of #${number}\`, so the issue stays open until the implementation merges.` : null;
+              }
+              if (!closes) return `A feature implementation PR must say \`Closes #${number}\`.`;
+
+              // Feature implementation: must update a change folder already on main.
+              const names = new Set(
+                changePaths
+                  .map((path) => path.split('/'))
+                  .filter((parts) => parts.length > 3 && parts[2] !== 'archive')
+                  .map((parts) => parts[2]),
+              );
+              for (const name of names) {
+                try {
+                  await github.rest.repos.getContent({ owner, repo, path: `openspec/changes/${name}`, ref: pr.base.ref });
+                  return null;
+                } catch (error) {
+                  if (error.status !== 404) throw error;
+                }
+              }
+              return 'This feature PR changes code, but its proposal is not on `main` yet. Merge the proposal PR first, then update that change in this PR (for example, check off its `tasks.md`).';
+            }
+
+            const problem = await findProblem();
+            const marker = '<!-- contribution-gate -->';
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number: pr.number, per_page: 100 });
+            const existing = comments.find((comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker));
+
+            if (!problem) {
+              if (existing) await github.rest.issues.deleteComment({ owner, repo, comment_id: existing.id });
+              return;
+            }
+
+            const body = `${marker}\n${problem}\n\nThe steps are in [CONTRIBUTING.md](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md).`;
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: pr.number, body });
+            }
+            core.setFailed(problem);
