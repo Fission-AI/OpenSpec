@@ -224,12 +224,12 @@ The spec update confirmation SHALL provide clear visibility into changes before 
   EXISTING specs to be updated:
     - cli-init (from changes/update-init-command/specs/cli-init/spec.md)
   
-  Update 2 specs and archive 'add-archive-command'? [y/N]:
+  Update 2 specs and archive 'add-archive-command'? [Y/n]:
   ```
 #### Scenario: Handling confirmation response
 
 - **WHEN** waiting for user confirmation
-- **THEN** default to "No" for safety (require explicit "y" or "yes")
+- **THEN** default to "Yes" for safety (require explicit "n" or "no")
 - **AND** skip confirmation when `--yes` or `-y` flag is provided
 
 #### Scenario: User declines confirmation
