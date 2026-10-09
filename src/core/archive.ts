@@ -1358,12 +1358,15 @@ export class ArchiveCommand {
     const archiveDir = root.archiveDir;
     const mainSpecsDir = root.specsDir;
 
-    // changes/ and specs/ may be project-owned symlinks to another directory;
-    // archive/ may not leave the changes directory it lives in.
+    const openspecDir = path.dirname(changesDir);
+
+    // openspec/, changes/ and specs/ may be project-owned symlinks to another
+    // directory; archive/ may not leave the changes directory it lives in.
     for (const [allowedDirectory, managedDir, allowLinkedLeaf] of [
-      [root.path, changesDir, true],
+      [root.path, openspecDir, true],
+      [openspecDir, changesDir, true],
       [changesDir, archiveDir, false],
-      [root.path, mainSpecsDir, true],
+      [openspecDir, mainSpecsDir, true],
     ] as const) {
       try {
         if (allowLinkedLeaf) {

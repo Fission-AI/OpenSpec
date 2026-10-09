@@ -620,8 +620,6 @@ describe('ArchiveCommand', () => {
     });
 
     it('archives when openspec/changes is a project-owned symlink to another directory', async () => {
-      if (process.platform === 'win32') return;
-
       const changeName = 'linked-change';
       const docsRepo = realpathSync.native(
         await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-docs-repo-'))
@@ -632,7 +630,7 @@ describe('ArchiveCommand', () => {
       await fs.rm(changesLink, { recursive: true, force: true });
       await fs.mkdir(path.join(sharedChanges, changeName), { recursive: true });
       await fs.writeFile(path.join(sharedChanges, changeName, 'tasks.md'), '- [x] Task 1\n');
-      await fs.symlink(sharedChanges, changesLink);
+      await fs.symlink(sharedChanges, changesLink, process.platform === 'win32' ? 'junction' : 'dir');
 
       await archiveCommand.execute(changeName, {
         yes: true,
@@ -652,9 +650,8 @@ describe('ArchiveCommand', () => {
     ])(
       'applies a spec delta and archives with symlinked changes=$linkChanges specs=$linkSpecs',
       async ({ linkChanges, linkSpecs }) => {
-        if (process.platform === 'win32') return;
-
         const changeName = 'linked-delta';
+        const linkType = process.platform === 'win32' ? 'junction' : 'dir';
         const docsRepo = realpathSync.native(
           await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-docs-repo-'))
         );
@@ -665,12 +662,12 @@ describe('ArchiveCommand', () => {
         if (linkChanges) {
           await fs.rm(path.join(openspecDir, 'changes'), { recursive: true, force: true });
           await fs.mkdir(changesDir, { recursive: true });
-          await fs.symlink(changesDir, path.join(openspecDir, 'changes'));
+          await fs.symlink(changesDir, path.join(openspecDir, 'changes'), linkType);
         }
         if (linkSpecs) {
           await fs.rm(path.join(openspecDir, 'specs'), { recursive: true, force: true });
           await fs.mkdir(specsDir, { recursive: true });
-          await fs.symlink(specsDir, path.join(openspecDir, 'specs'));
+          await fs.symlink(specsDir, path.join(openspecDir, 'specs'), linkType);
         }
         const deltaDir = path.join(changesDir, changeName, 'specs', 'linked-capability');
         await fs.mkdir(deltaDir, { recursive: true });
@@ -704,6 +701,97 @@ describe('ArchiveCommand', () => {
         ).resolves.not.toThrow();
       }
     );
+
+    it('archives when the whole openspec directory is a project-owned symlink', async () => {
+      const changeName = 'linked-openspec';
+      const docsRepo = realpathSync.native(
+        await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-docs-repo-'))
+      );
+      onTestFinished(() => fs.rm(docsRepo, { recursive: true, force: true }));
+      const sharedOpenspec = path.join(docsRepo, 'openspec');
+      await fs.rm(path.join(tempDir, 'openspec'), { recursive: true, force: true });
+      await fs.mkdir(path.join(sharedOpenspec, 'changes', changeName), { recursive: true });
+      await fs.mkdir(path.join(sharedOpenspec, 'specs'), { recursive: true });
+      await fs.writeFile(
+        path.join(sharedOpenspec, 'changes', changeName, 'tasks.md'),
+        '- [x] Task 1\n'
+      );
+      await fs.symlink(
+        sharedOpenspec,
+        path.join(tempDir, 'openspec'),
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true, skipSpecs: true });
+
+      const archived = await fs.readdir(path.join(sharedOpenspec, 'changes', 'archive'));
+      expect(archived.some((name) => name.endsWith(`-${changeName}`))).toBe(true);
+    });
+
+    it('rejects an archive directory that escapes a symlinked changes directory', async () => {
+      const changeName = 'linked-escape';
+      const docsRepo = realpathSync.native(
+        await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-docs-repo-'))
+      );
+      onTestFinished(() => fs.rm(docsRepo, { recursive: true, force: true }));
+      const sharedChanges = path.join(docsRepo, 'changes');
+      const outsideDir = path.join(docsRepo, 'outside');
+      const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+      await fs.rm(path.join(tempDir, 'openspec', 'changes'), { recursive: true, force: true });
+      await fs.mkdir(path.join(sharedChanges, changeName), { recursive: true });
+      await fs.mkdir(outsideDir);
+      await fs.writeFile(path.join(sharedChanges, changeName, 'tasks.md'), '- [x] Task 1\n');
+      await fs.symlink(sharedChanges, path.join(tempDir, 'openspec', 'changes'), linkType);
+      await fs.symlink(outsideDir, path.join(sharedChanges, 'archive'), linkType);
+
+      await expect(
+        archiveCommand.execute(changeName, { yes: true, noValidate: true, skipSpecs: true })
+      ).rejects.toThrow(/outside the OpenSpec root/u);
+      await expect(fs.access(path.join(sharedChanges, changeName))).resolves.not.toThrow();
+      await expect(fs.readdir(outsideDir)).resolves.toEqual([]);
+    });
+
+    it('verifies deltas through a symlinked changes directory on the cross-device fallback', async () => {
+      const changeName = 'linked-exdev';
+      const docsRepo = realpathSync.native(
+        await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-docs-repo-'))
+      );
+      onTestFinished(() => fs.rm(docsRepo, { recursive: true, force: true }));
+      const sharedChanges = path.join(docsRepo, 'changes');
+      const deltaDir = path.join(sharedChanges, changeName, 'specs', 'linked-capability');
+      await fs.rm(path.join(tempDir, 'openspec', 'changes'), { recursive: true, force: true });
+      await fs.mkdir(deltaDir, { recursive: true });
+      await fs.writeFile(
+        path.join(deltaDir, 'spec.md'),
+        `## ADDED Requirements
+
+### Requirement: The system SHALL survive EXDEV
+The system SHALL archive.
+
+#### Scenario: Cross device
+- **WHEN** rename fails with EXDEV
+- **THEN** the copy fallback archives the change
+`
+      );
+      await fs.symlink(
+        sharedChanges,
+        path.join(tempDir, 'openspec', 'changes'),
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
+
+      const rename = vi.spyOn(fs, 'rename').mockRejectedValueOnce(
+        Object.assign(new Error('cross-device move'), { code: 'EXDEV' })
+      );
+      try {
+        await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+      } finally {
+        rename.mockRestore();
+      }
+
+      await expect(fs.access(path.join(sharedChanges, changeName))).rejects.toThrow();
+      const archived = await fs.readdir(path.join(sharedChanges, 'archive'));
+      expect(archived.some((name) => name.endsWith(`-${changeName}`))).toBe(true);
+    });
 
     it('archives normally when the project root is reached through a symlink alias', async () => {
       if (process.platform === 'win32') return;
