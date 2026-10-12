@@ -9,7 +9,7 @@ Listed projects are maintained independently. Inclusion does not imply official 
 - **[OpenSpec Workbench](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: Running and supervising agents on OpenSpec changes.
 - **[MySpec](https://myspec.dev)**: Cloud beta (account required) that conducts guided spec interviews and exports four-file bundles or OpenSpec-compatible changes. The service sends submitted content to third-party AI providers and is not designed for sensitive data.
 - **[openspec-guard](https://github.com/guillaume-flambard/spec-guard)**: CLI and GitHub Action that reports which OpenSpec scenarios are covered by a Vitest or Jest test, without running the tests.
-- **[OpenSpec Propose for coding agents](https://skillgild.dev/skills/openspec-propose)**: The openspec-propose skill as a hosted skill for Claude Code, Codex, Cursor and Gemini CLI, installed with one CLI command. Requires a SkillGild account; free tier includes 25 runs a month. Its validation step sends the change's proposal, tasks and delta specs to SkillGild's servers.
+- **[OpenSpec Propose for coding agents](https://skillgild.dev/skills/openspec-propose)**: Hosted access to Fission AI's [MIT-licensed `openspec-propose` skill](https://github.com/Fission-AI/OpenSpec/blob/main/skills/openspec-propose/SKILL.md) for Claude Code, Codex, Cursor, and Gemini CLI. Requires a SkillGild account; free tier includes 25 runs a month. Its validation step sends the change's proposal, tasks, and delta specs to SkillGild's servers.
 
 ## Add your project
 
