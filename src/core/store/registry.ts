@@ -288,19 +288,15 @@ export async function commitStoreRegistration(
     const projectRoot = FileSystemUtils.canonicalizeExistingPath(input.projectRoot);
     const resolvedStoreRoot = FileSystemUtils.canonicalizeExistingPath(storeRoot);
     const relativePath = path.relative(projectRoot, resolvedStoreRoot);
-    if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
-      throw new StoreError(
-        `Store path '${storeRoot}' is outside the project root '${input.projectRoot}'. Project-scoped registry entries must be relative to the project root.`,
-        'store_path_outside_project',
-        {
-          target: 'store.root',
-          fix: 'Choose a store path inside the project, or register without --scope project.',
-        }
-      );
-    }
-    // Normalize separators so a registry committed from Windows (where
-    // path.relative emits backslashes) resolves on any platform.
-    const portableRelativePath = relativePath.replace(/\\/g, '/');
+    // Store the original absolute path when the store lives outside the
+    // project (relativePath starts with .. or is absolute) so it
+    // resolves identically regardless of where the registry file lives.
+    // For stores inside the project, store the relative path (portable
+    // across machines). Normalize backslashes to forward slashes in both cases.
+    const isOutsideProject = relativePath.startsWith('..') || path.isAbsolute(relativePath);
+    const portableRelativePath = isOutsideProject
+      ? resolvedStoreRoot.replace(/\\/g, '/')
+      : relativePath.replace(/\\/g, '/');
 
     try {
       metadataCreated = await ensureStoreMetadata(storeRoot, id, {

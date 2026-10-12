@@ -23,6 +23,7 @@
  */
 
 import * as fs from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
 import * as path from 'node:path';
 
 import { StoreError } from './store/errors.js';
@@ -43,6 +44,25 @@ import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js'
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
 import { getGlobalConfig } from './global-config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+
+async function pathKind(targetPath: string): Promise<'missing' | 'directory' | 'file' | 'other'> {
+  try {
+    const stat = await fsPromises.stat(targetPath);
+    if (stat.isDirectory()) return 'directory';
+    if (stat.isFile()) return 'file';
+    return 'other';
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      return 'missing';
+    }
+    throw error;
+  }
+}
 
 export type OpenSpecRootSource =
   | 'store'
@@ -193,39 +213,7 @@ async function resolveStoreRoot(
 
   const storeRoot = getStoreRootForBackend(entry.backend);
   const inspection = await inspectRegisteredStore(id, storeRoot);
-
-  switch (inspection.kind) {
-    case 'metadata_error':
-      return fromStoreError(inspection.error);
-    case 'metadata_missing':
-      // The doctor pointer lives in the message because human-mode command
-      // wrappers print only the message, not the fix field.
-      throw new RootSelectionError(
-        `Store '${id}' is missing identity metadata at ${inspection.metadataPath}. ${doctorFix(id)}`,
-        'store_identity_mismatch',
-        { target: 'store.metadata', fix: doctorFix(id) }
-      );
-    case 'metadata_id_mismatch':
-      throw new RootSelectionError(
-        `Store '${id}' metadata id '${inspection.actualId}' does not match its registered id. ${doctorFix(id)}`,
-        'store_identity_mismatch',
-        { target: 'store.metadata', fix: doctorFix(id) }
-      );
-    case 'unhealthy_root':
-      throw new RootSelectionError(
-        `Store '${id}' does not have a healthy OpenSpec root at ${storeRoot}: ${inspection.problems} ${doctorFix(id)}`,
-        'unhealthy_store_root',
-        { target: 'openspec.root', fix: doctorFix(id) }
-      );
-    case 'ok':
-      return makeRoot(inspection.canonicalRoot, source, id);
-    default: {
-      // Exhaustiveness guard: a new inspection kind must be handled
-      // here explicitly, not fall through to an undefined root.
-      const unhandled: never = inspection;
-      throw new Error(`Unhandled store inspection kind: ${JSON.stringify(unhandled)}`);
-    }
-  }
+  return resolveFromInspection(id, storeRoot, inspection, source);
 }
 
 /**
@@ -286,6 +274,10 @@ async function resolveMergedStoreRoot(
   // Walk up checking each .openspec-store/registry.yaml for the ID (D4 Variant C).
   const projectLookup = await findProjectStoreById(id, startPath);
   if (projectLookup.found) {
+    const kind = await pathKind(projectLookup.found.storeRoot);
+    if (kind === 'missing') {
+      throw new RootSelectionError(`Store '${id}' folder is missing: ${projectLookup.found.storeRoot}`, 'store_root_missing');
+    }
     const inspection = await inspectRegisteredStore(id, projectLookup.found.storeRoot);
     return resolveFromInspection(id, projectLookup.found.storeRoot, inspection, 'project_store');
   }
@@ -302,6 +294,10 @@ async function resolveMergedStoreRoot(
 
   if (globalEntry) {
     const storeRoot = getStoreRootForBackend(globalEntry.backend);
+    const kind = await pathKind(storeRoot);
+    if (kind === 'missing') {
+      throw new RootSelectionError(`Store '${id}' folder is missing: ${storeRoot}`, 'store_root_missing');
+    }
     const inspection = await inspectRegisteredStore(id, storeRoot);
     return resolveFromInspection(id, storeRoot, inspection, source);
   }
@@ -536,17 +532,22 @@ export async function resolveOpenSpecRoot(
   // registry before falling back to the global defaultStore.
   // When no registry is found, the chain continues to defaultStore.
   // The walk mirrors resolution semantics: malformed levels are skipped with
-  // a warning, and the first usable store entry in document order is taken,
-  // nearest registry first.
+  // a warning, and the first store entry in document order is taken,
+  // nearest registry first. If that entry's folder is missing or unhealthy,
+  // the system reports an error rather than skipping to the next entry.
   const discoveryProjectRoot = findProjectRegistryDir(startPath);
   if (discoveryProjectRoot) {
     const levels = await walkProjectStoreRegistries(startPath);
     for (const level of levels) {
-      for (const entry of listProjectStoreRegistryEntries(level.state, level.registryDir)) {
-        const inspection = await inspectRegisteredStore(entry.id, entry.storeRoot);
-        if (inspection.kind === 'ok') {
-          return makeRoot(inspection.canonicalRoot, 'project_store', entry.id);
+      const entries = listProjectStoreRegistryEntries(level.state, level.registryDir);
+      if (entries.length > 0) {
+        const entry = entries[0];
+        const kind = await pathKind(entry.storeRoot);
+        if (kind === 'missing') {
+          throw new RootSelectionError(`Store '${entry.id}' folder is missing: ${entry.storeRoot}`, 'store_root_missing');
         }
+        const inspection = await inspectRegisteredStore(entry.id, entry.storeRoot);
+        return resolveFromInspection(entry.id, entry.storeRoot, inspection, 'project_store');
       }
     }
   }

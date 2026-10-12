@@ -319,11 +319,12 @@ describe('resolveOpenSpecRoot with project-scoped registry', () => {
     expect(root.path).toBe(realPath(store));
   });
 
-  it('default-root discovery picks the second usable entry of the nearest registry when the first is unusable', async () => {
+  it('default-root discovery reports an error when the first store entry is unusable', async () => {
+    // Discovery takes the first entry in document order. When that entry's
+    // folder does not exist, discovery reports a store_root_missing error
+    // rather than skipping to the next entry.
     const projectDir = path.join(tmpDir, 'workspace');
     fs.mkdirSync(projectDir, { recursive: true });
-    // The first entry in document order points at a folder that does not exist,
-    // so discovery must keep scanning the same registry before moving up.
     const store = path.join(projectDir, 'platform-specs');
     createStoreRoot(store, 'platform-specs');
     writeProjectRegistry(projectDir, {
@@ -331,10 +332,9 @@ describe('resolveOpenSpecRoot with project-scoped registry', () => {
       'platform-specs': { path: 'platform-specs' },
     });
 
-    const root = await resolveOpenSpecRoot({ startPath: projectDir });
-
-    expect(root.source).toBe('project_store');
-    expect(root.path).toBe(realPath(store));
+    await expect(
+      resolveOpenSpecRoot({ startPath: projectDir })
+    ).rejects.toMatchObject({ diagnostic: { code: 'store_root_missing' } });
   });
 
   it('reports an error naming both registries when the id is nowhere', async () => {
@@ -394,5 +394,80 @@ describe('resolveOpenSpecRoot with project-scoped registry', () => {
     expect(root.source).toBe('project_store');
     expect(root.storeId).toBe('zebra-specs');
     expect(root.path).toBe(realPath(zebraStore));
+  });
+
+  it('default-root discovery reports an error when the first store entry is unhealthy (not skipped)', async () => {
+    // Discovery takes the first entry in document order. When that entry's
+    // folder exists but is not a healthy OpenSpec root, discovery reports an
+    // unhealthy_store_root error rather than skipping to the next entry.
+    const projectDir = path.join(tmpDir, 'workspace');
+    fs.mkdirSync(projectDir, { recursive: true });
+
+    // First entry: a folder that exists but is unhealthy (no openspec/ shape).
+    const unhealthyStore = path.join(projectDir, 'unhealthy-store');
+    fs.mkdirSync(unhealthyStore, { recursive: true });
+    const metaDir = path.join(unhealthyStore, '.openspec-store');
+    fs.mkdirSync(metaDir, { recursive: true });
+    fs.writeFileSync(path.join(metaDir, 'store.yaml'), 'version: 1\nid: unhealthy-store\n');
+
+    // Second entry: a healthy store that must NOT be reached.
+    const healthyStore = path.join(projectDir, 'platform-specs');
+    createStoreRoot(healthyStore, 'platform-specs');
+
+    writeProjectRegistry(projectDir, {
+      'unhealthy-store': { path: 'unhealthy-store' },
+      'platform-specs': { path: 'platform-specs' },
+    });
+
+    await expect(
+      resolveOpenSpecRoot({ startPath: projectDir })
+    ).rejects.toMatchObject({ diagnostic: { code: 'unhealthy_store_root' } });
+  });
+
+  it('default-root discovery reports store_root_missing when the first entry folder is missing', async () => {
+    // The first entry points at a folder that does not exist. Discovery must
+    // report store_root_missing rather than skipping to the next entry.
+    const projectDir = path.join(tmpDir, 'workspace');
+    fs.mkdirSync(projectDir, { recursive: true });
+    const store = path.join(projectDir, 'platform-specs');
+    createStoreRoot(store, 'platform-specs');
+    writeProjectRegistry(projectDir, {
+      'gone-store': { path: 'gone-store' },
+      'platform-specs': { path: 'platform-specs' },
+    });
+
+    await expect(
+      resolveOpenSpecRoot({ startPath: projectDir })
+    ).rejects.toMatchObject({ diagnostic: { code: 'store_root_missing' } });
+  });
+
+  it('--store with a missing folder reports store_root_missing with no fallback', async () => {
+    // An explicit --store pointing at a registry entry whose folder is missing
+    // reports store_root_missing. There is no fallback to other entries or to
+    // the global registry.
+    const projectDir = path.join(tmpDir, 'workspace');
+    fs.mkdirSync(projectDir, { recursive: true });
+    writeProjectRegistry(projectDir, { 'gone-store': { path: 'gone-store' } });
+
+    await expect(
+      resolveOpenSpecRoot({ store: 'gone-store', startPath: projectDir })
+    ).rejects.toMatchObject({ diagnostic: { code: 'store_root_missing' } });
+  });
+
+  it('a store: pointer to a missing folder reports store_root_missing', async () => {
+    // A config.yaml `store:` pointer that names a project-scoped registry entry
+    // whose folder is missing reports store_root_missing (no fallback).
+    const projectDir = path.join(tmpDir, 'workspace');
+    fs.mkdirSync(projectDir, { recursive: true });
+    writeProjectRegistry(projectDir, { 'gone-store': { path: 'gone-store' } });
+
+    // A config-only openspec/ directory carrying a store: pointer.
+    const openspecDir = path.join(projectDir, 'openspec');
+    fs.mkdirSync(openspecDir, { recursive: true });
+    fs.writeFileSync(path.join(openspecDir, 'config.yaml'), 'store: gone-store\n');
+
+    await expect(
+      resolveOpenSpecRoot({ startPath: projectDir })
+    ).rejects.toMatchObject({ diagnostic: { code: 'store_root_missing' } });
   });
 });

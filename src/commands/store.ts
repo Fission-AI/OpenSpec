@@ -1,4 +1,5 @@
 import * as os from 'node:os';
+import * as fsPromises from 'node:fs/promises';
 import { asErrorMessage, emitFailure, printJson } from './shared-output.js';
 import * as path from 'node:path';
 import { Command, Option } from 'commander';
@@ -28,6 +29,25 @@ import {
   type StorePathOptions,
 } from '../core/store/index.js';
 import { isInteractive } from '../utils/interactive.js';
+
+async function pathKind(targetPath: string): Promise<'missing' | 'directory' | 'file' | 'other'> {
+  try {
+    const stat = await fsPromises.stat(targetPath);
+    if (stat.isDirectory()) return 'directory';
+    if (stat.isFile()) return 'file';
+    return 'other';
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      return 'missing';
+    }
+    throw error;
+  }
+}
 
 export interface StoreSetupOptions {
   path?: string;
@@ -175,7 +195,7 @@ function toCleanupOutput(result: StoreCleanupResult): StoreCleanupOutput {
 function toListOutput(result: StoreListResult): StoreListOutput {
   return {
     stores: result.stores.map(toStoreOutput),
-    status: [],
+    status: result.diagnostics,
   };
 }
 
@@ -477,6 +497,10 @@ function printListHuman(payload: StoreListOutput): void {
       console.log(`${store.id.padEnd(16)}  ${store.root}`);
     }
   }
+
+  for (const status of payload.status) {
+    console.log(`${status.severity === 'error' ? 'Issue' : 'Note'}: ${status.message}`);
+  }
 }
 
 function formatMetadataHuman(store: StoreDoctorOutput['stores'][number]): string {
@@ -637,6 +661,16 @@ export class StoreCommand {
         ? { projectRoot: process.cwd() }
         : {};
       const target = await prepareStoreCleanup({ id, ...scopeOptions });
+      if (options.scope === 'project' && (await pathKind(target.root)) === 'missing') {
+        throw new StoreError(
+          `Store '${target.id}' folder is missing: ${target.root}`,
+          'store_root_missing',
+          {
+            target: 'store.root',
+            fix: 'Restore the store folder or unregister the store instead.',
+          }
+        );
+      }
       await confirmRemove(target.id, target.root, options);
       const payload = toCleanupOutput(await removeStore(target));
 

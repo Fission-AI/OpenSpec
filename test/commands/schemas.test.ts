@@ -220,6 +220,6 @@ describe('openspec schemas root selection', () => {
       { cwd: localRoot, env }
     );
     expect(unavailable.exitCode).toBe(1);
-    expect(parseFailure(unavailable).status[0].code).toBe('store_identity_mismatch');
+    expect(parseFailure(unavailable).status[0].code).toBe('store_root_missing');
   }, SCHEMAS_MATRIX_TIMEOUT_MS);
 });

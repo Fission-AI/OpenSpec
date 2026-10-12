@@ -110,6 +110,7 @@ export interface StoreCleanupResult {
 
 export interface StoreListResult {
   stores: StoreInfo[];
+  diagnostics: StoreDiagnostic[];
 }
 
 export interface StoreDoctorResult {
@@ -940,6 +941,16 @@ export async function unregisterStore(
     ...(input.projectRoot !== undefined ? { projectRoot: input.projectRoot } : {}),
   });
 
+  const diagnostics: StoreDiagnostic[] = [];
+  if (input.projectRoot !== undefined && (await pathKind(removed.storeRoot)) === 'missing') {
+    diagnostics.push(makeStoreDiagnostic(
+      'warning',
+      'store_root_missing',
+      `Store folder is missing: ${removed.storeRoot}`,
+      { target: 'store.root' }
+    ));
+  }
+
   return {
     store: cleanupStoreOutput(removed.id, removed.storeRoot),
     registryCommit: {
@@ -952,7 +963,7 @@ export async function unregisterStore(
       deleted: false,
       leftOnDisk: removed.storeRoot,
     },
-    diagnostics: [],
+    diagnostics,
   };
 }
 
@@ -1043,6 +1054,23 @@ export async function removeStore(
   const diagnostics: StoreDiagnostic[] = [];
   let deleted = false;
 
+  // Project scope: refuse to remove a store whose folder is missing.
+  // The check runs before unregisterStoreRegistration so the registry
+  // entry is left untouched when the folder is gone (atomic).
+  if (target.projectRoot !== undefined) {
+    const safeTarget = await assertSafeToDeleteStoreRoot(target.root, target.id);
+    if (!safeTarget.exists) {
+      throw new StoreError(
+        `Store '${target.id}' folder is missing: ${target.root}`,
+        'store_root_missing',
+        {
+          target: 'store.root',
+          fix: 'Restore the store folder or unregister the store instead.',
+        }
+      );
+    }
+  }
+
   // Order matters: the registry entry goes first, the files second. A
   // failed file deletion leaves recoverable orphan files; the reverse
   // order would leave a phantom registration pointing at nothing.
@@ -1053,9 +1081,15 @@ export async function removeStore(
     globalDataDir: target.globalDataDir,
     ...(target.projectRoot !== undefined ? { projectRoot: target.projectRoot } : {}),
     beforeCommit: async (entry, remaining) => {
-      const safeTarget = await assertSafeToDeleteStoreRoot(entry.storeRoot, id);
-      rootMissing = !safeTarget.exists;
-      if (safeTarget.exists) {
+      if (target.projectRoot === undefined) {
+        // Global scope: check folder existence inside beforeCommit.
+        const safeTarget = await assertSafeToDeleteStoreRoot(entry.storeRoot, id);
+        rootMissing = !safeTarget.exists;
+        if (safeTarget.exists) {
+          assertNoRegisteredStoreInside(entry.storeRoot, id, remaining);
+        }
+      } else {
+        // Project scope: safety check done before unregisterStoreRegistration.
         assertNoRegisteredStoreInside(entry.storeRoot, id, remaining);
       }
     },
@@ -1106,12 +1140,27 @@ export async function removeStore(
 export async function listStores(options: StorePathOptions = {}): Promise<StoreListResult> {
   const entries = await listRegisteredStores(options);
 
+  const diagnostics: StoreDiagnostic[] = [];
+  if (options.projectRoot !== undefined) {
+    for (const entry of entries) {
+      if ((await pathKind(entry.storeRoot)) === 'missing') {
+        diagnostics.push(makeStoreDiagnostic(
+          'warning',
+          'store_root_missing',
+          `Store folder is missing: ${entry.storeRoot}`,
+          { target: 'store.root' }
+        ));
+      }
+    }
+  }
+
   return {
     stores: entries.map((entry) => ({
       id: entry.id,
       root: entry.storeRoot,
       ...(entry.registryDir !== undefined ? { registryDir: entry.registryDir } : {}),
     })),
+    diagnostics,
   };
 }
 

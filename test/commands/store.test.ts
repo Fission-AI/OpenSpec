@@ -1336,24 +1336,36 @@ describe('store command', () => {
       expect(registryContent).not.toContain('backend:');
     });
 
-    it('rejects store path outside project root with --scope project', async () => {
+    it('registers a store outside the project root with --scope project using an absolute path', async () => {
+      // Store outside the project root: the registry records the absolute
+      // path as-is so it resolves regardless of where the registry file lives.
       const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'outside-'));
       createHealthyOpenSpecRoot(outsideRoot);
 
-      const result = await runCLI(
-        ['store', 'register', outsideRoot, '--id', 'outside-specs', '--yes', '--scope', 'project', '--json'],
-        { cwd: tempDir, env }
-      );
+      try {
+        const relativePath = path.relative(tempDir, outsideRoot);
+        const result = await runCLI(
+          ['store', 'register', relativePath, '--id', 'outside-specs', '--yes', '--scope', 'project', '--json'],
+          { cwd: tempDir, env }
+        );
 
-      expect(result.exitCode).toBe(1);
-      const payload = JSON.parse(result.stdout);
-      expect(payload.status[0].code).toBe('store_path_outside_project');
+        expect(result.exitCode).toBe(0);
+        const payload = JSON.parse(result.stdout);
+        expect(payload.registry).toEqual({
+          path: expect.any(String),
+          registered: true,
+          already_registered: false,
+          scope: 'project',
+        });
 
-      // No project-scoped registry entry is created by the rejected registration.
-      const cwdRegistry = path.join(tempDir, '.openspec-store', 'registry.yaml');
-      const outsideRegistry = path.join(outsideRoot, '.openspec-store', 'registry.yaml');
-      expect(fs.existsSync(cwdRegistry)).toBe(false);
-      expect(fs.existsSync(outsideRegistry)).toBe(false);
+        const cwdRegistry = path.join(tempDir, '.openspec-store', 'registry.yaml');
+        expect(fs.existsSync(cwdRegistry)).toBe(true);
+        const registryContent = fs.readFileSync(cwdRegistry, 'utf-8');
+        expect(registryContent).toContain('outside-specs:');
+        expect(registryContent).toContain(outsideRoot);
+      } finally {
+        fs.rmSync(outsideRoot, { recursive: true, force: true });
+      }
     });
   });
 
@@ -1590,6 +1602,228 @@ describe('store command', () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).toContain('Registry');
       expect(result.stdout).toContain(path.join(monorepoDir, 'platform-specs'));
+    });
+  });
+
+  describe('project-scoped registry with a missing store folder', () => {
+    // Helper: write a project-scoped registry entry pointing at a folder that
+    // does not exist on disk.
+    function writeProjectRegistryWithMissingEntry(
+      projectRoot: string,
+      id: string,
+      relativePath: string
+    ): string {
+      const metaDir = path.join(projectRoot, '.openspec-store');
+      fs.mkdirSync(metaDir, { recursive: true });
+      const registryPath = path.join(metaDir, 'registry.yaml');
+      fs.writeFileSync(
+        registryPath,
+        `version: 1\nstores:\n  ${id}:\n    path: ${relativePath}\n`
+      );
+      return registryPath;
+    }
+
+    it('store list --scope project warns about the missing folder in diagnostics', async () => {
+      const registryPath = writeProjectRegistryWithMissingEntry(
+        tempDir,
+        'gone-store',
+        'gone-store'
+      );
+
+      const result = await runCLI(
+        ['store', 'list', '--scope', 'project', '--json'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.stores).toEqual([
+        expect.objectContaining({ id: 'gone-store' }),
+      ]);
+      expect(payload.status).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'store_root_missing',
+            severity: 'warning',
+          }),
+        ])
+      );
+      // The registry is untouched — list is read-only.
+      expect(fs.existsSync(registryPath)).toBe(true);
+    });
+
+    it('store doctor --scope project reports the missing store without stopping', async () => {
+      writeProjectRegistryWithMissingEntry(tempDir, 'gone-store', 'gone-store');
+
+      const result = await runCLI(
+        ['store', 'doctor', 'gone-store', '--scope', 'project', '--json'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.stores).toEqual([
+        expect.objectContaining({ id: 'gone-store' }),
+      ]);
+      // The per-store status carries the store_root_missing error diagnostic.
+      expect(payload.stores[0].status).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ code: 'store_root_missing' }),
+        ])
+      );
+    });
+
+    it('store unregister --scope project warns and succeeds when the folder is missing', async () => {
+      const registryPath = writeProjectRegistryWithMissingEntry(
+        tempDir,
+        'gone-store',
+        'gone-store'
+      );
+
+      const result = await runCLI(
+        ['store', 'unregister', 'gone-store', '--scope', 'project', '--json'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.store).toEqual(
+        expect.objectContaining({ id: 'gone-store' })
+      );
+      expect(payload.registry).toEqual(
+        expect.objectContaining({ removed: true })
+      );
+      // A warning diagnostic is emitted for the missing folder.
+      expect(payload.status).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'store_root_missing',
+            severity: 'warning',
+          }),
+        ])
+      );
+      // The entry is removed from the registry.
+      const remaining = fs.readFileSync(registryPath, 'utf-8');
+      expect(remaining).not.toContain('gone-store');
+    });
+
+    it('store remove --scope project errors before confirmation and leaves the registry untouched', async () => {
+      // remove --scope project refuses to delete a store whose folder is
+      // missing. The check runs before confirmRemove, so the registry entry is
+      // left untouched (atomic).
+      const registryPath = writeProjectRegistryWithMissingEntry(
+        tempDir,
+        'gone-store',
+        'gone-store'
+      );
+      const registryBefore = fs.readFileSync(registryPath, 'utf-8');
+
+      const result = await runCLI(
+        ['store', 'remove', 'gone-store', '--scope', 'project', '--yes', '--json'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(1);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.status[0]).toEqual(
+        expect.objectContaining({ code: 'store_root_missing' })
+      );
+      // The registry is untouched — the entry is still present.
+      expect(fs.readFileSync(registryPath, 'utf-8')).toBe(registryBefore);
+      expect(fs.readFileSync(registryPath, 'utf-8')).toContain('gone-store');
+    });
+  });
+
+  describe('global registry with a missing store folder', () => {
+    function writeGlobalRegistryWithMissingEntry(
+      id: string,
+      storeRoot: string
+    ): void {
+      writeStoreRegistryState(
+        {
+          version: 1,
+          stores: {
+            [id]: {
+              backend: { type: 'git', local_path: storeRoot },
+            },
+          },
+        },
+        { globalDataDir }
+      );
+    }
+
+    it('store remove (global) warns and succeeds when the folder is missing', async () => {
+      // Global remove of a store whose folder is already gone removes the
+      // registry entry and reports a warning — unchanged behavior.
+      const goneRoot = path.join(tempDir, 'gone-store');
+      writeGlobalRegistryWithMissingEntry('gone-store', goneRoot);
+
+      const result = await runCLI(
+        ['store', 'remove', 'gone-store', '--yes', '--json'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.registry).toEqual(
+        expect.objectContaining({ removed: true })
+      );
+      expect(payload.status).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: 'store_root_missing',
+            severity: 'warning',
+          }),
+        ])
+      );
+      await expect(readStoreRegistryState({ globalDataDir })).resolves.toEqual({
+        version: 1,
+        stores: {},
+      });
+    });
+
+    it('store unregister (global) succeeds without a warning when the folder is missing', async () => {
+      // Global unregister only forgets the registry entry; it never checks the
+      // folder, so no warning is emitted.
+      const goneRoot = path.join(tempDir, 'gone-store');
+      writeGlobalRegistryWithMissingEntry('gone-store', goneRoot);
+
+      const result = await runCLI(
+        ['store', 'unregister', 'gone-store', '--json'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.store).toEqual(
+        expect.objectContaining({ id: 'gone-store' })
+      );
+      expect(payload.registry).toEqual(
+        expect.objectContaining({ removed: true })
+      );
+      expect(payload.status).toEqual([]);
+      await expect(readStoreRegistryState({ globalDataDir })).resolves.toEqual({
+        version: 1,
+        stores: {},
+      });
+    });
+
+    it('store list (global) emits no warnings when folders are missing', async () => {
+      // Global list does not probe folder existence; diagnostics stay empty.
+      const goneRoot = path.join(tempDir, 'gone-store');
+      writeGlobalRegistryWithMissingEntry('gone-store', goneRoot);
+
+      const result = await runCLI(
+        ['store', 'list', '--json'],
+        { cwd: tempDir, env }
+      );
+
+      expect(result.exitCode).toBe(0);
+      const payload = JSON.parse(result.stdout);
+      expect(payload.stores).toEqual([
+        expect.objectContaining({ id: 'gone-store' }),
+      ]);
+      expect(payload.status).toEqual([]);
     });
   });
 

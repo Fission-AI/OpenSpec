@@ -82,24 +82,28 @@ describe('commitStoreRegistration with projectRoot', () => {
     expect(content).not.toContain('backend');
   });
 
-  it('rejects store path outside project root', async () => {
+  it('registers a store outside the project root via an absolute path', async () => {
+    // Store outside the project root: the registry records the absolute
+    // path as-is so it resolves regardless of where the registry file lives.
     const outsideDir = makeTempDir();
     try {
       const storeDir = path.join(outsideDir, 'my-store');
       createStoreRoot(storeDir, 'my-store');
 
-      await expect(
-        commitStoreRegistration({
-          id: 'my-store',
-          backend: { type: 'git', local_path: storeDir },
-          writeMetadataIfMissing: false,
-          projectRoot: tmpDir,
-        })
-      ).rejects.toThrow('outside the project root');
+      const result = await commitStoreRegistration({
+        id: 'my-store',
+        backend: { type: 'git', local_path: storeDir },
+        writeMetadataIfMissing: false,
+        projectRoot: tmpDir,
+      });
 
-      // No registry entry is created next to the project root.
+      expect(result.registryUpdated).toBe(true);
+
       const registryPath = getStoreRegistryPath({ projectRoot: tmpDir });
-      expect(fs.existsSync(registryPath)).toBe(false);
+      expect(fs.existsSync(registryPath)).toBe(true);
+      const content = fs.readFileSync(registryPath, 'utf-8');
+        expect(content).toContain('my-store:');
+      expect(content).toContain(storeDir);
     } finally {
       fs.rmSync(outsideDir, { recursive: true, force: true });
     }
@@ -157,6 +161,89 @@ describe('commitStoreRegistration with projectRoot', () => {
     expect(result.alreadyRegistered).toBe(true);
     expect(result.registryUpdated).toBe(false);
   });
+
+  it('stores forward-slash paths in the registry regardless of platform', async () => {
+    // path.relative may emit backslashes on Windows; the code normalizes
+    // them to forward slashes so the registry resolves on any platform.
+    // On POSIX this is a no-op (path.relative already uses /), but the
+    // test verifies the on-disk format uses forward slashes.
+    const storeDir = path.join(tmpDir, 'sub', 'my-store');
+    createStoreRoot(storeDir, 'my-store');
+
+    await commitStoreRegistration({
+      id: 'my-store',
+      backend: { type: 'git', local_path: storeDir },
+      writeMetadataIfMissing: false,
+      projectRoot: tmpDir,
+    });
+
+    const registryPath = getStoreRegistryPath({ projectRoot: tmpDir });
+    const content = fs.readFileSync(registryPath, 'utf-8');
+    // The path in the registry must use forward slashes, never backslashes.
+    const pathLine = content.split('\n').find((l) => l.includes('path:'));
+    expect(pathLine).toBeDefined();
+    expect(pathLine!).not.toContain('\\');
+  });
+});
+
+describe('registerExistingStore with projectRoot: outside-project paths', () => {
+  let tmpDir: string;
+
+  beforeEach(() => {
+    tmpDir = makeTempDir();
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  });
+
+  it('registers a store outside the project root via a ../ relative path', async () => {
+    // D8 removed: a project-scoped registry may bind a store that lives above
+    // the project root. registerExistingStore succeeds and the registry records
+    // a `../`-segment path.
+    const outsideDir = makeTempDir();
+    try {
+      const storeDir = path.join(outsideDir, 'my-store');
+      createStoreRoot(storeDir, 'my-store');
+
+      const result = await registerExistingStore({
+        path: storeDir,
+        id: 'my-store',
+        allowCreateIdentity: false,
+        projectRoot: tmpDir,
+      });
+
+      expect(result.registryCommit.registered).toBe(true);
+
+      const registryPath = getStoreRegistryPath({ projectRoot: tmpDir });
+      const content = fs.readFileSync(registryPath, 'utf-8');
+      expect(content).toContain('my-store:');
+      expect(content).toContain(storeDir);
+    } finally {
+      fs.rmSync(outsideDir, { recursive: true, force: true });
+    }
+  });
+
+  it('registers a store at an absolute path with projectRoot', async () => {
+    // An absolute store path is accepted by the project-scoped registration
+    // path; the registry stores a relative path derived from projectRoot.
+    const storeDir = path.join(tmpDir, 'abs-store');
+    createStoreRoot(storeDir, 'abs-store');
+
+    const result = await registerExistingStore({
+      path: storeDir,
+      id: 'abs-store',
+      allowCreateIdentity: false,
+      projectRoot: tmpDir,
+    });
+
+    expect(result.registryCommit.registered).toBe(true);
+
+    const registryPath = getStoreRegistryPath({ projectRoot: tmpDir });
+    const content = fs.readFileSync(registryPath, 'utf-8');
+    expect(content).toContain('abs-store:');
+    expect(content).toContain('path: abs-store');
+  });
 });
 
 describe('listRegisteredStores with projectRoot', () => {
@@ -189,6 +276,34 @@ describe('listRegisteredStores with projectRoot', () => {
   it('returns empty array when no project-scoped registry', async () => {
     const entries = await listRegisteredStores({ projectRoot: tmpDir });
     expect(entries).toHaveLength(0);
+  });
+
+  it('returns duplicate IDs from multiple registry levels, nearest first', async () => {
+    // Same store ID registered in both nearest and ancestor registry.
+    // Both entries appear in the list, nearest first — the caller decides
+    // which one wins resolution (the first).
+    const ancestorDir = path.join(tmpDir, 'ancestor');
+    const nestedDir = path.join(ancestorDir, 'nested');
+    fs.mkdirSync(nestedDir, { recursive: true });
+
+    const storeNear = path.join(nestedDir, 'shared-store');
+    const storeFar = path.join(ancestorDir, 'shared-store');
+    createStoreRoot(storeNear, 'shared-store');
+    createStoreRoot(storeFar, 'shared-store');
+
+    writeProjectRegistry(ancestorDir, {
+      'shared-store': { path: 'shared-store' },
+    });
+    writeProjectRegistry(nestedDir, {
+      'shared-store': { path: 'shared-store' },
+    });
+
+    const entries = await listRegisteredStores({ projectRoot: nestedDir });
+    expect(entries).toHaveLength(2);
+    expect(entries[0].id).toBe('shared-store');
+    expect(entries[0].storeRoot).toBe(realPath(storeNear));
+    expect(entries[1].id).toBe('shared-store');
+    expect(entries[1].storeRoot).toBe(realPath(storeFar));
   });
 });
 
