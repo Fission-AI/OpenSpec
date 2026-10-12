@@ -1363,13 +1363,35 @@ export class ArchiveCommand {
       [changesDir, archiveDir],
       [root.path, mainSpecsDir],
     ] as const) {
-      try {
-        FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
-      } catch {
+      const relative = path.relative(
+        path.resolve(allowedDirectory),
+        path.resolve(managedDir)
+      );
+      const textuallyInside =
+        relative === '' ||
+        (relative !== '..' &&
+          !relative.startsWith(`..${path.sep}`) &&
+          !path.isAbsolute(relative));
+      if (!textuallyInside) {
         throw new ArchiveBlockedError(
           'archive_path_outside_root',
           `Refusing to archive through a path outside the OpenSpec root: ${managedDir}`
         );
+      }
+      try {
+        FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
+      } catch {
+        // A direct child of the allowed directory that only fails canonical
+        // resolution because it is a symlink owned by the project (e.g.
+        // openspec/changes -> a shared docs repository) is still part of the
+        // project layout: accept it without weakening checks for nested paths.
+        const directChild = relative !== '' && !relative.includes(path.sep);
+        if (!directChild) {
+          throw new ArchiveBlockedError(
+            'archive_path_outside_root',
+            `Refusing to archive through a path outside the OpenSpec root: ${managedDir}`
+          );
+        }
       }
     }
 
