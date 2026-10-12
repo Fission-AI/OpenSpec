@@ -48,7 +48,7 @@ stores:
 
 ### D3: Path resolution
 
-**Decision:** `path.resolve(registryDir, entry.path)` where `registryDir` is the directory containing `.openspec-store/` and `entry.path` is the store path from the registry entry. Both relative paths (e.g. `platform-specs`, `../platform-specs`) and absolute paths (e.g. `/home/me/store`) are accepted — `path.resolve` returns absolute paths as-is and resolves relative paths against `registryDir`. No validation restricts paths to within the project directory. Always use `path.resolve` / `path.join` — never string concatenation.
+**Decision:** `path.resolve(registryDir, entry.path)` where `registryDir` is the directory containing `.openspec-store/` and `entry.path` is the store path from the registry entry. Both relative paths (e.g. `platform-specs`, `../platform-specs`) and absolute paths (e.g. `/home/me/store`) are accepted — `path.resolve` returns absolute paths as-is and resolves relative paths against `registryDir`. No validation restricts paths to within the project directory. Always use `path.resolve` / `path.join` — never string concatenation. When writing a registry entry, absolute store paths are stored as-is (with backslashes normalized to forward slashes); relative paths are computed via `path.relative` and normalized the same way. This ensures `path.resolve` treats absolute paths as absolute, not as relative components.
 
 **Rationale:** Cross-platform requirement (config rule). `path.resolve` handles platform separators and normalizes `..` segments correctly. In the YAML file, `/` is recommended (e.g. `path: stores/platform-specs`) — `path.resolve` accepts `/` on all platforms including Windows. Backslash `\` works only on Windows and breaks on macOS/Linux. Paths outside the project (e.g. `../platform-specs` or `/home/me/store`) are valid use cases — the registry is not always committed to git (UC-1), so portability is not always required.
 
@@ -81,7 +81,7 @@ stores:
 **Decision:** When a user runs a command, OpenSpec resolves the store in this order:
 
 1. `--store <id>` — search for the ID in `.openspec-store/registry.yaml` (walk up per D4), then fall back to the global registry
-2. Nearest `openspec/` root with a `store:` pointer in config.yaml — same: walk up per D4, then global registry
+2. Nearest `openspec/` root with a `store:` pointer in config.yaml — same: walk up per D4, then global registry. A `store:` pointer whose target folder is missing produces the same `store_root_missing` error as `--store <id>`
 3. No `--store`, no local `openspec/` — take the first store entry from the nearest `.openspec-store/registry.yaml` in document order; if that entry's folder does not exist or is not a healthy store, the system reports an error
 4. No project-level stores — use the global `defaultStore`
 5. Nothing at all — current directory (classic behavior)

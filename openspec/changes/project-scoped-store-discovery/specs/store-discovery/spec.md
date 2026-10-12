@@ -56,6 +56,13 @@ The system SHALL discover and resolve store IDs by walking up from the current w
 - **THEN** the system resolves the store from the project-scoped registry
 - **AND** in JSON output, sets `source` to `'project_store'`
 
+#### Scenario: Store pointer with missing folder is an error
+- **WHEN** config.yaml contains a `store:` pointer to a store ID
+- **AND** that store ID is found in a project-scoped registry
+- **AND** the resolved store folder does not exist on disk
+- **THEN** the system reports an error that the store folder is missing
+- **AND** does not fall back to the global registry
+
 #### Scenario: References resolved through project-scoped registry
 - **WHEN** a `references:` entry names a store ID
 - **AND** that store ID is found in a project-scoped registry along the ancestor chain
@@ -111,6 +118,11 @@ The system SHALL resolve store paths in a project-scoped registry relative to th
 - **WHEN** `.openspec-store/registry.yaml` maps a store ID to an absolute path (e.g. `/home/me/store`) or a parent-relative path (e.g. `../platform-specs`)
 - **THEN** the system resolves the store root without error
 - **AND** does not restrict paths to within the project directory
+
+#### Scenario: Absolute path is resolved as-is
+- **WHEN** `.openspec-store/registry.yaml` maps a store ID to an absolute path
+- **THEN** the system resolves the store root using the absolute path as-is
+- **AND** does not treat the path as relative to the registry directory
 
 ### Requirement: Project-scoped registry file format
 
