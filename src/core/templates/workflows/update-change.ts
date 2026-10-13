@@ -161,7 +161,7 @@ After each invocation, show:
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
-- Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
+- Edit only the concrete files in \`existingOutputPaths\`, plus the one confirmed concrete path allowed under a partly populated glob artifact (step 4); never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: if an artifact has empty \`existingOutputPaths\` and status \`ready\` or \`blocked\`, ${CONTINUE_FRONTIER}. Leave \`skipped\` artifacts untouched. The only new-file scope is a confirmed concrete path under a glob artifact whose \`existingOutputPaths\` is non-empty.
 - Confirm every edit with the user before writing.
 - If the request changes the change's *intent* rather than refining it, ${INTENT_CHANGE_GUARDRAIL}.`,
@@ -261,7 +261,7 @@ After each invocation, show:
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
 - Use the artifact ids and paths reported by \`openspec status\`; never branch on hardcoded artifact names.
-- Edit only the concrete files in \`existingOutputPaths\`; never write to a glob \`resolvedOutputPath\`.
+- Edit only the concrete files in \`existingOutputPaths\`, plus the one confirmed concrete path allowed under a partly populated glob artifact (step 4); never write to a glob \`resolvedOutputPath\`.
 - Do not advance the build frontier: if an artifact has empty \`existingOutputPaths\` and status \`ready\` or \`blocked\`, ${CONTINUE_FRONTIER}. Leave \`skipped\` artifacts untouched. The only new-file scope is a confirmed concrete path under a glob artifact whose \`existingOutputPaths\` is non-empty.
 - Confirm every edit with the user before writing.
 - If the request changes the change's *intent* rather than refining it, ${INTENT_CHANGE_GUARDRAIL}.`

@@ -55,7 +55,7 @@ const SANCTIONED_OUTSIDE_STEP_FIVE = [
   STEP_FOUR_DRAFT_RULE,
   'that is the starting edit.',
   'Do NOT write to `resolvedOutputPath`',
-  '- Edit only the concrete files in `existingOutputPaths`; never write to a glob `resolvedOutputPath`.',
+  '- Edit only the concrete files in `existingOutputPaths`, plus the one confirmed concrete path allowed under a partly populated glob artifact (step 4); never write to a glob `resolvedOutputPath`.',
   'Confirm every edit with the user before writing.',
   '`/opsx:apply`',
   '(tasks checked off / already applied)',
@@ -289,6 +289,33 @@ describe('update-change templates', () => {
       expect(writeGuard, label).toContain('still in scope, not skipped, and partially populated');
       expect(writeGuard, label).toContain('repeat the concrete-path checks above');
       expect(body, label).toContain('stop and reconcile with the user rather than replacing existing content or choosing a different path');
+    }
+  });
+
+  // #2068: the first guardrail read "Edit only the concrete files in
+  // existingOutputPaths", and a file step 4 creates is by definition not in
+  // that list. The exception sat two bullets below, so an agent applying the
+  // blanket rule refused the very operation the glob-gap flow exists to
+  // perform. State the exception where the stricter rule is read.
+  it('carries the glob new-file exception on the scope guardrail itself (#2068)', () => {
+    for (const [label, body] of bodies) {
+      const guardrails = body.slice(body.indexOf('**Guardrails**'));
+      expect(guardrails, label).toContain('**Guardrails**');
+
+      const scopeBullet = guardrails
+        .split('\n')
+        .find((line) => line.startsWith('- Edit only the concrete files in `existingOutputPaths`'));
+      expect(scopeBullet, label).toBeDefined();
+
+      // The bullet must not read as an unqualified prohibition.
+      expect(scopeBullet, label).toContain('plus the one confirmed concrete path allowed under a partly populated glob artifact (step 4)');
+      expect(scopeBullet, label).toContain('never write to a glob `resolvedOutputPath`');
+      expect(scopeBullet, label).not.toBe(
+        '- Edit only the concrete files in `existingOutputPaths`; never write to a glob `resolvedOutputPath`.'
+      );
+      // The exception still points at step 4, which owns the confirmation and
+      // the path checks; the guardrail does not restate them.
+      expect(guardrails, label).toContain('The only new-file scope is a confirmed concrete path under a glob artifact whose `existingOutputPaths` is non-empty.');
     }
   });
 
