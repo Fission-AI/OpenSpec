@@ -18,6 +18,8 @@ import {
   extractRequirementsSection,
   diffScenarioNames,
   describeScenarioBalance,
+  parseScenarioBlocks,
+  isScenarioLabeledHeader,
   type RequirementBlock,
 } from '../parsers/requirement-blocks.js';
 import {
@@ -25,6 +27,8 @@ import {
   containsShallOrMust as containsShallOrMustShared,
   countScenarios as countScenariosShared,
   countEmptyScenarios,
+  hasScenarioBody,
+  scenarioStepCoverage,
 } from '../parsers/requirement-text.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
@@ -150,8 +154,10 @@ export class Validator {
    * Validate delta-formatted spec files under a change directory.
    * Enforces:
    * - At least one delta across all files
-   * - ADDED/MODIFIED: each requirement has at least one scenario; missing
-   *   English SHALL/MUST keywords are guidance unless strict mode is enabled
+   * - ADDED/MODIFIED: each requirement has at least one scenario; a scenario
+   *   with no WHEN/GIVEN or THEN step is guidance (WARNING) unless strict mode
+   *   is enabled; missing English SHALL/MUST keywords are guidance unless
+   *   strict mode is enabled
    * - REMOVED: names only; no scenario/description required
    * - RENAMED: pairs well-formed
    * - No duplicates within sections; no cross-section conflicts per spec
@@ -319,6 +325,7 @@ export class Validator {
           if (scenarioCount < 1) {
             issues.push({ level: 'ERROR', path: entryPath, message: `ADDED "${block.name}" must include at least one scenario${this.emptyScenarioHint(block.raw)}` });
           }
+          issues.push(...this.findScenarioStepIssues(block.raw, `ADDED "${block.name}"`, entryPath));
         }
 
         // Validate MODIFIED
@@ -354,6 +361,7 @@ export class Validator {
           if (scenarioCount < 1) {
             issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must include at least one scenario${this.emptyScenarioHint(block.raw)}` });
           }
+          issues.push(...this.findScenarioStepIssues(block.raw, `MODIFIED "${block.name}"`, entryPath));
         }
 
         // Run archive's scenario-loss check here too, so the change fails at
@@ -871,6 +879,15 @@ export class Validator {
           ),
         });
       }
+      // Same step check the delta path runs, on the same blocks, so a scenario
+      // that asserts nothing is reported wherever it lives.
+      issues.push(
+        ...this.findScenarioStepIssues(
+          block.raw,
+          `Requirement "${block.name}"`,
+          `requirements[${index}].scenarios`
+        )
+      );
     });
 
     return issues;
@@ -1075,6 +1092,42 @@ export class Validator {
   private emptyScenarioHint(blockRaw: string): string {
     if (countEmptyScenarios(blockRaw.split('\n').slice(1)) === 0) return '';
     return ' (a scenario header with no body under it does not count; add its steps, e.g. "- **WHEN** ..." and "- **THEN** ...")';
+  }
+
+  /**
+   * A counted scenario whose body carries neither a **WHEN** (or **GIVEN**)
+   * step nor a **THEN** step can never fail: nothing triggers it and nothing
+   * is asserted (#2078). Read from the same blocks the scenario-loss comparison
+   * walks, so the two checks cannot disagree about what a scenario is.
+   * Only `Scenario:`-labeled blocks are checked: any level-4 child counts as a
+   * scenario for loss purposes, but an unlabeled `#### Notes` child is prose
+   * on purpose, and a missing WHEN/THEN there is noise, not a finding.
+   *
+   * A WARNING, like the missing SHALL/MUST keyword: plain `validate` and
+   * `archive` keep agreeing, and `--strict` — which already fails on any
+   * warning — is the bar that enforces it.
+   */
+  private findScenarioStepIssues(blockRaw: string, label: string, issuePath: string): ValidationIssue[] {
+    const issues: ValidationIssue[] = [];
+    for (const scenario of parseScenarioBlocks(blockRaw)) {
+      // A header with no body is already an ERROR with its own hint; a step
+      // complaint on top of it would say nothing new. parseScenarioBlocks keeps
+      // the header line in `raw`, and hasScenarioBody takes the body alone.
+      const bodyLines = scenario.raw.split('\n').slice(1).join('\n');
+      if (!hasScenarioBody(bodyLines)) continue;
+      if (!isScenarioLabeledHeader(scenario.raw.split('\n')[0])) continue;
+      const { hasTrigger, hasOutcome } = scenarioStepCoverage(scenario.raw);
+      if (hasTrigger && hasOutcome) continue;
+      const missing = [!hasTrigger && 'a WHEN/GIVEN step', !hasOutcome && 'a THEN step']
+        .filter((part): part is string => part !== false)
+        .join(' and ');
+      issues.push({
+        level: 'WARNING',
+        path: issuePath,
+        message: `${label}: scenario "${scenario.name}" is missing ${missing}. A scenario needs a trigger and an outcome, e.g. "- **WHEN** an invoice is voided" and "- **THEN** a credit note is issued".`,
+      });
+    }
+    return issues;
   }
 
   private formatSectionList(sections: string[]): string {
