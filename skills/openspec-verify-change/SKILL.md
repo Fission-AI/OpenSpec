@@ -101,11 +101,14 @@ In both branches, never create the root as a side effect: do not run `openspec i
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
      - For each REMOVED requirement, the change asks for the behavior to be gone, so invert the check:
-       - Search codebase for the removed behavior. Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves. Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.
-       - Finding no implementation is the expected result. Never report a REMOVED requirement as "Requirement not found" or recommend implementing it.
+       - A REMOVED block carries only the requirement name and any `**Reason**`/`**Migration**` notes, so the delta does not describe the behavior itself. Before searching, read the baseline requirement in the main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md`, using the same capability path as the delta spec. Its body and scenarios are the evidence for the behavior that must be gone; never search from the requirement name alone.
+       - If the main spec no longer holds that requirement because an earlier sync already applied the removal, recover the baseline from repository history (for example `git log -p -- <capability-path>/spec.md`).
+       - Search codebase for that behavior. Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves. Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.
+       - Finding no implementation is the expected result, but only once the baseline behavior was the thing you searched for. Never report a REMOVED requirement as "Requirement not found" or recommend implementing it.
        - If the behavior is still present:
          - Add CRITICAL issue: "Removed requirement still implemented: <requirement name>"
          - Recommendation: "Remove the remaining implementation at <file>:<lines>, following the requirement's Migration note if it has one"
+       - If the baseline requirement cannot be found or read in either place, mark **Spec Coverage** as not verified for that entry with the reason. Never count an unsearched removal as passing.
      - For each RENAMED entry (`FROM:`/`TO:`), the name changes but the behavior stays, so check the TO requirement for that unchanged behavior:
        - Do not report the FROM name as missing, and do not require code symbols, identifiers, or file names to be renamed.
        - If the TO name also appears under MODIFIED, its behavior is checked there against the MODIFIED text; skip it here.
@@ -118,7 +121,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
 6. **Verify Correctness**
 
-   If the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements (the change only removes or renames requirements), report **Requirement Implementation Mapping** and **Scenario Coverage** as **Not applicable**. The REMOVED and RENAMED checks under Spec Coverage are the evidence for such a change (each RENAMED entry is checked there against its baseline behavior), so do not mark these two checks as not verified. A delta spec with no parseable requirements at all is unusable evidence, not a removal-only change: mark these checks as not verified.
+   If the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements (the change only removes or renames requirements), report **Requirement Implementation Mapping** and **Scenario Coverage** as **Not applicable**. The REMOVED and RENAMED checks under Spec Coverage are the evidence for such a change (each REMOVED and RENAMED entry is checked there against its baseline behavior), so do not mark these two checks as not verified. A delta spec with no parseable requirements at all is unusable evidence, not a removal-only change: mark these checks as not verified.
 
    **Requirement Implementation Mapping**:
    - For each ADDED or MODIFIED requirement from delta specs (REMOVED entries, and RENAMED entries without a MODIFIED block, were settled under Spec Coverage):

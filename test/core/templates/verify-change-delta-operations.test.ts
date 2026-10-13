@@ -55,7 +55,7 @@ describe('verify checks each requirement by its delta operation', () => {
     const coverage = section(body, '**Spec Coverage**', '6. **Verify Correctness**', label);
     const removed = section(coverage, '- For each REMOVED requirement', '- For each RENAMED entry', label);
 
-    expect(removed, label).toContain('Finding no implementation is the expected result.');
+    expect(removed, label).toContain('Finding no implementation is the expected result, but only once the baseline behavior was the thing you searched for.');
     expect(removed, label).toContain('Never report a REMOVED requirement as "Requirement not found"');
     expect(removed, label).toContain('Add CRITICAL issue: "Removed requirement still implemented: <requirement name>"');
     expect(removed, label).not.toContain('Recommendation: "Implement');
@@ -89,7 +89,7 @@ describe('verify checks each requirement by its delta operation', () => {
 
     expect(renamed, label).toContain('If the baseline requirement cannot be found or read, mark **Spec Coverage** as not verified for that entry');
     expect(renamed, label).toContain('Never count an unchecked rename as passing.');
-    expect(body, label).toContain('(each RENAMED entry is checked there against its baseline behavior)');
+    expect(body, label).toContain('(each REMOVED and RENAMED entry is checked there against its baseline behavior)');
   });
 
   it.each(bodies)('%s: maps implementation and scenarios only for ADDED or MODIFIED requirements', (label, body) => {
@@ -120,6 +120,38 @@ describe('verify checks each requirement by its delta operation', () => {
 
     expect(removed, label).toContain('Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves.');
     expect(removed, label).toContain('Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.');
+  });
+
+  // #2067: the REMOVED branch said only "search codebase for the removed
+  // behavior". A REMOVED block carries just the requirement name plus Reason
+  // and Migration notes, so the search started from the heading alone - and
+  // because an absent match is the passing result here, an implementation
+  // written in different vocabulary read as a clean removal. The RENAMED
+  // branch beside it already loaded the baseline from the main spec first.
+  it.each(bodies)('%s: reads the removed requirement baseline before searching', (label, body) => {
+    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+
+    expect(removed, label).toContain('A REMOVED block carries only the requirement name and any `**Reason**`/`**Migration**` notes');
+    expect(removed, label).toContain('`<planningHome.root>/openspec/specs/<capability-path>/spec.md`');
+    expect(removed, label).toContain('Its body and scenarios are the evidence for the behavior that must be gone');
+    expect(removed, label).toContain('never search from the requirement name alone');
+    // Archive deletes a REMOVED requirement outright, so unlike a rename there
+    // is no retitled baseline left in the main spec after a sync.
+    expect(removed, label).toContain('an earlier sync already applied the removal, recover the baseline from repository history');
+    // The baseline has to be read before the search, not after it.
+    expect(
+      removed.indexOf('Before searching, read the baseline requirement'),
+      `${label}: baseline read must precede the codebase search`
+    ).toBeLessThan(removed.indexOf('Search codebase for that behavior.'));
+  });
+
+  it.each(bodies)('%s: never counts an unsearched removal as passing', (label, body) => {
+    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+
+    expect(removed, label).toContain('If the baseline requirement cannot be found or read in either place, mark **Spec Coverage** as not verified for that entry with the reason.');
+    expect(removed, label).toContain('Never count an unsearched removal as passing.');
+    // The old unconditional wording is what let a nothing-found search pass.
+    expect(removed, label).not.toContain('Search codebase for the removed behavior.');
   });
 
   it.each(bodies)('%s: counts removals separately from covered requirements', (label, body) => {
