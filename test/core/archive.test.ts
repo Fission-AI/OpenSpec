@@ -619,6 +619,29 @@ describe('ArchiveCommand', () => {
       await expect(fs.readdir(outsideDir)).resolves.toEqual([]);
     });
 
+    it('archives into a project-owned symlinked changes directory', async () => {
+      if (process.platform === 'win32') return;
+
+      const changeName = 'linked-changes';
+      const outsideChanges = path.join(tempDir, 'outside-changes');
+      const changeDir = path.join(outsideChanges, changeName);
+      const linkedChanges = path.join(tempDir, 'openspec', 'changes');
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      await fs.rm(linkedChanges, { recursive: true, force: true });
+      await fs.symlink(outsideChanges, linkedChanges);
+
+      await archiveCommand.execute(changeName, {
+        yes: true,
+        noValidate: true,
+        skipSpecs: true,
+      });
+
+      const archived = await fs.readdir(path.join(outsideChanges, 'archive'));
+      expect(archived.some((name) => name.endsWith(`-${changeName}`))).toBe(true);
+      await expect(fs.access(changeDir)).rejects.toThrow();
+    });
+
     it('archives normally when the project root is reached through a symlink alias', async () => {
       if (process.platform === 'win32') return;
 

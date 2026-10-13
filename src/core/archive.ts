@@ -1381,12 +1381,13 @@ export class ArchiveCommand {
       try {
         FileSystemUtils.assertPathWithin(allowedDirectory, managedDir);
       } catch {
-        // A direct child of the allowed directory that only fails canonical
-        // resolution because it is a symlink owned by the project (e.g.
-        // openspec/changes -> a shared docs repository) is still part of the
-        // project layout: accept it without weakening checks for nested paths.
-        const directChild = relative !== '' && !relative.includes(path.sep);
-        if (!directChild) {
+        // changes and specs may themselves be symlinks to a directory the
+        // project owns. The archive directory is a direct child of changes, so
+        // the same exception would accept openspec/changes/archive pointing
+        // outside the root.
+        const projectOwnedDirectory =
+          managedDir === changesDir || managedDir === mainSpecsDir;
+        if (!projectOwnedDirectory) {
           throw new ArchiveBlockedError(
             'archive_path_outside_root',
             `Refusing to archive through a path outside the OpenSpec root: ${managedDir}`
