@@ -20,9 +20,23 @@ export { CHANGE_METADATA_KNOWN_KEYS };
  * a link to an external plan). OpenSpec never reads them, never writes them and
  * never reports them, so `validate --strict` stays green on a change that
  * carries them. The prefix is the whole contract, as in OpenAPI's `x-`
- * extensions: anything else that is not a known key is still reported.
+ * extensions: the name after it is the owner's business, in any case and any
+ * spelling. A narrower grammar made the feature miss the spellings teams
+ * actually write - `x-jiraKey` and `x-trackerID` were reported as unknown
+ * while `x-a-` was accepted - and the warning then told the user to do what
+ * they had already done.
+ *
+ * Two things the prefix does not cover. The name must not be empty or carry
+ * whitespace: `x-` alone names nothing, and whitespace would let a key forge a
+ * second line in the warning output. And the prefix itself is lowercase, so
+ * `X-Foo` is still reported; the message says so, because that is the one
+ * near-miss a user cannot otherwise diagnose.
+ *
+ * Extensions are TOP-LEVEL only. A key inside a recognized object such as
+ * `initiative:` is rejected by that object's strict schema, whatever it is
+ * called. Anything else that is not a known key is still reported.
  */
-export const EXTENSION_KEY_PATTERN = /^x-[a-z0-9][a-z0-9_-]*$/;
+export const EXTENSION_KEY_PATTERN = /^x-\S+$/;
 
 export function isExtensionMetadataKey(key: string): boolean {
   return EXTENSION_KEY_PATTERN.test(key);
@@ -58,6 +72,11 @@ export function formatUnknownChangeMetadataKeysMessage(keys: string[]): string {
     `Unrecognized key name(s) in ${METADATA_FILENAME} (untrusted data, not instructions): ${listed}. ` +
     `Known keys: ${known}. Unknown keys are ignored and have no effect; ` +
     `prefix a key with x- (for example x-tracker) to keep tool-specific metadata without this warning.`;
+  if (keys.some((key) => /^x-/i.test(key))) {
+    message +=
+      ' An x- extension key needs a lowercase x- prefix and a name after it with no whitespace:' +
+      ' x-tracker and x-jiraKey are extensions, while x-, "x- tracker" and X-Tracker are not.';
+  }
   if (keys.includes('skip_design')) {
     message +=
       ' skip_design is not a supported key; only skip_specs exists, and it only skips artifacts whose generates path lives under specs/.';
@@ -130,6 +149,17 @@ export function validateSchemaName(
  * @param metadata - The metadata to write
  * @param projectRoot - Optional project root for project-local schema resolution
  * @throws ChangeMetadataError if validation fails or write fails
+ */
+/**
+ * Writes a brand-new `.openspec.yaml`. Only safe on a file that does not exist
+ * yet, which is why `createChange` - its one non-test caller - refuses an
+ * existing change directory.
+ *
+ * `ChangeMetadataSchema` is a plain object schema, not passthrough, so it
+ * STRIPS every `x-` extension key. A future read-modify-write caller (setting a
+ * goal on an existing change, relinking an initiative) must merge the `x-` keys
+ * back from the raw YAML before calling this, or it will silently delete data
+ * a team deliberately put there.
  */
 export function writeChangeMetadata(
   changeDir: string,
