@@ -9,6 +9,7 @@ Listed projects are maintained independently. Inclusion does not imply official 
 - **[OpenSpec Workbench](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: Running and supervising agents on OpenSpec changes.
 - **[MySpec](https://myspec.dev)**: Cloud beta (account required) that conducts guided spec interviews and exports four-file bundles or OpenSpec-compatible changes. The service sends submitted content to third-party AI providers and is not designed for sensitive data.
 - **[openspec-guard](https://github.com/guillaume-flambard/spec-guard)**: CLI and GitHub Action that reports which OpenSpec scenarios are covered by a Vitest or Jest test, without running the tests.
+- **[Entalpa](https://entalpa.com/openspec)**: Reads a public `openspec/specs/` folder and builds a browsable project from it, deriving the stakeholders, stories and open questions the format has nowhere to keep. The import and the resulting view need no account; keeping or editing the project does. Imported content is sent to third-party AI providers, which is why only public repositories are accepted.
 
 ## Add your project
 
