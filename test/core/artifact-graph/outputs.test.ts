@@ -288,6 +288,11 @@ describe('artifact-graph/outputs', () => {
     expect(() => resolveArtifactOutputs(tempDir, nested(4000))).toThrow(
       'Artifact output pattern nests braces more than 16 levels deep'
     );
+    // The error quotes only the start of a pattern that long.
+    expect(() => resolveArtifactOutputs(tempDir, nested(4000))).toThrow(
+      `16 levels deep: ${nested(4000).slice(0, 80)}...`
+    );
+    expect(() => resolveArtifactOutputs(tempDir, nested(4000))).not.toThrow(nested(4000));
     expect(globSpy).not.toHaveBeenCalled();
     globSpy.mockRestore();
   });

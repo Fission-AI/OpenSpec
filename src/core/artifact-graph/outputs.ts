@@ -27,8 +27,10 @@ function assertBraceNesting(pattern: string): void {
     } else if (char === '{' || char === '(') {
       open.push(char);
       if (open.length > MAX_BRACE_NESTING) {
+        // A pattern this deep can run to thousands of characters; quote only its start.
+        const shown = pattern.length > 80 ? `${pattern.slice(0, 80)}...` : pattern;
         throw new Error(
-          `Artifact output pattern nests braces more than ${MAX_BRACE_NESTING} levels deep: ${pattern}`
+          `Artifact output pattern nests braces more than ${MAX_BRACE_NESTING} levels deep: ${shown}`
         );
       }
     } else if ((char === '}' && open.at(-1) === '{') || (char === ')' && open.at(-1) === '(')) {
