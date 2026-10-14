@@ -172,7 +172,10 @@ describe('verify checks each requirement by its delta operation', () => {
     const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
 
     expect(removed, label).toContain('git -C "<planningHome.root>" log -p -- openspec/specs/<capability-path>/spec.md');
-    expect(removed, label).toContain('git -C "<planningHome.root>" show <commit>^:openspec/specs/<capability-path>/spec.md');
+    // `rev:path` resolves from the repository root, not from `-C`; the `./`
+    // keeps it relative to a planning root that is a subdirectory (monorepo).
+    expect(removed, label).toContain('git -C "<planningHome.root>" show <commit>^:./openspec/specs/<capability-path>/spec.md');
+    expect(removed, label).not.toMatch(/show <commit>\^:openspec\//);
     // An unquoted planning root splits on spaces and runs git in the wrong place.
     expect(removed, label).not.toMatch(/git -C <planningHome\.root>/);
     expect(removed, label).toContain('Empty output means the pathspec matched nothing');
