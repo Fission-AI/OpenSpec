@@ -1,5 +1,8 @@
 # OpenSpec Documentation
 
+> [!WARNING]
+> These pages are legacy and some are out of date. The current docs are at **[openspec.dev/docs](https://openspec.dev/docs)** (source: [`docs-lab/`](../docs-lab/)).
+
 Welcome. This is the home for everything OpenSpec.
 
 OpenSpec helps you and your AI coding assistant **agree on what to build before any code is written.** You describe the change, the AI drafts a short spec and a task list, you both look at the same plan, and then the work happens. No more discovering halfway through that the AI built the wrong thing.

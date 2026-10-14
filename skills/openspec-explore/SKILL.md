@@ -178,6 +178,8 @@ If the user mentions a change or you detect one is relevant:
 
    `<capability-path>` is the spec directory relative to `specs/` (for example, `user-auth` or `identity/user-auth`). Preserve an existing capability's full path and follow the project's established organization for new capabilities.
 
+   The files below are the default spec-driven schema's. With another schema, capture each insight in whichever artifact from `artifactPaths` fits it, and name that artifact in your offer; never create an artifact the schema does not define.
+
     | Insight Type               | Where to Capture                    |
     |----------------------------|-------------------------------------|
     | New requirement discovered | `specs/<capability-path>/spec.md` |
@@ -187,7 +189,7 @@ If the user mentions a change or you detect one is relevant:
     | New work identified        | `tasks.md`                        |
     | Assumption invalidated     | Relevant artifact                   |
 
-   Example offers:
+   Example offers (default schema):
    - "That's a design decision. Capture it in design.md?"
    - "This is a new requirement. Add it to specs?"
    - "This changes scope. Update the proposal?"
@@ -316,7 +318,7 @@ You: That changes everything.
 There's no required ending. Discovery might:
 
 - **Flow into a proposal**: "Ready to start? Run `/openspec-propose` and this becomes a change."
-- **Result in artifact updates**: "Updated design.md with these decisions"
+- **Result in artifact updates**: "Updated the design with these decisions"
 - **Just provide clarity**: User has what they need, moves on
 - **Continue later**: "We can pick this up anytime"
 
