@@ -7,6 +7,11 @@ import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import type { GlobalConfig } from '../../src/core/global-config.js';
 import { generateCopilotSetupSteps, persistCopilotCloudOptIn } from '../../src/core/github-copilot/cloud-agent.js';
+import { getCommandContents } from '../../src/core/shared/index.js';
+import {
+  CommandAdapterRegistry,
+  generateCommands,
+} from '../../src/core/command-generation/index.js';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -56,6 +61,24 @@ function setMockConfig(config: GlobalConfig) {
 
 function resetMockConfig() {
   mockState.config = { featureFlags: {}, profile: 'core', delivery: 'both' };
+}
+
+/**
+ * Writes the command file OpenSpec itself would generate for `workflow`.
+ * Fixtures that stand in a placeholder no longer exercise cleanup, because
+ * cleanup now only deletes files whose content matches generated output.
+ */
+async function writeGeneratedCommand(
+  projectDir: string,
+  toolId: string,
+  workflow: string
+): Promise<string> {
+  const adapter = CommandAdapterRegistry.get(toolId)!;
+  const [generated] = generateCommands(getCommandContents([workflow]), adapter);
+  const full = path.join(projectDir, generated.path);
+  await fs.mkdir(path.dirname(full), { recursive: true });
+  await fs.writeFile(full, generated.fileContent);
+  return full;
 }
 
 async function markCodexTarget(skillsDir: string): Promise<void> {
@@ -1474,6 +1497,40 @@ metadata:
         expect(updatedContent).not.toBe('old command content');
         expect(updatedContent).toContain('---');
       }
+    });
+  });
+
+  describe('migrating to skills-only delivery', () => {
+    it('deletes generated command files but keeps one the user edited', async () => {
+      // The migration path for #2022: switching delivery to skills must clear
+      // the generated commands without discarding a user's own work.
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+      const proposeCmd = path.join(testDir, '.claude', 'commands', 'opsx', 'propose.md');
+      const applyCmd = path.join(testDir, '.claude', 'commands', 'opsx', 'apply.md');
+      const edited = `${await fs.readFile(proposeCmd, 'utf-8')}\n<!-- team step -->\n`;
+      await fs.writeFile(proposeCmd, edited);
+
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      const consoleSpy = vi.spyOn(console, 'log');
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      // The skill is in place, so the workflow still works...
+      expect(
+        await FileSystemUtils.fileExists(
+          path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md')
+        )
+      ).toBe(true);
+      // ...the untouched command is gone...
+      expect(await FileSystemUtils.fileExists(applyCmd)).toBe(false);
+      // ...and the edited one survives byte-for-byte, named in the output.
+      expect(await fs.readFile(proposeCmd, 'utf-8')).toBe(edited);
+      const logs = consoleSpy.mock.calls.flat().map(String);
+      expect(
+        logs.some((entry) => entry.includes('Kept 1 command file that does not match'))
+      ).toBe(true);
+      expect(
+        logs.some((entry) => entry.includes(path.join('.claude', 'commands', 'opsx', 'propose.md')))
+      ).toBe(true);
     });
   });
 
@@ -4291,8 +4348,7 @@ content
       );
 
       const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
-      await fs.mkdir(commandsDir, { recursive: true });
-      await fs.writeFile(path.join(commandsDir, 'explore.md'), 'old command');
+      await writeGeneratedCommand(testDir, 'claude', 'explore');
 
       await updateCommand.execute(testDir);
 
