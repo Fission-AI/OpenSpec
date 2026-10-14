@@ -217,6 +217,8 @@ If the user mentions a change or you detect one is relevant:
 
    \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve an existing capability's full path and follow the project's established organization for new capabilities.
 
+   The files below are the default spec-driven schema's. With another schema, capture each insight in whichever artifact from \`artifactPaths\` fits it, and name that artifact in your offer; never create an artifact the schema does not define.
+
     | Insight Type               | Where to Capture                    |
     |----------------------------|-------------------------------------|
     | New requirement discovered | \`specs/<capability-path>/spec.md\` |
@@ -550,6 +552,8 @@ If the user mentions a change or you detect one is relevant:
 3. **Offer to capture when decisions are made**
 
    \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve an existing capability's full path and follow the project's established organization for new capabilities.
+
+   The files below are the default spec-driven schema's. With another schema, capture each insight in whichever artifact from \`artifactPaths\` fits it, and name that artifact in your offer; never create an artifact the schema does not define.
 
     | Insight Type               | Where to Capture                    |
     |----------------------------|-------------------------------------|

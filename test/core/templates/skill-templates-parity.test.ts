@@ -76,14 +76,14 @@ function specDrivenTitles(): Record<string, string> {
 }
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: 'c1fddb294758004936add586f5826694cb06175cff935b75fd3a8d92332332e6',
+  getExploreSkillTemplate: '286c360915e263dc77eb693279a4ddd98bf7ec3cc42888033b901e3619d48ad1',
   getNewChangeSkillTemplate: '0e5035b7b42198afc430206a1dbc9579096650ef0813d85e837d5a6cd0b98a85',
   getContinueChangeSkillTemplate: '32ec5965a2e90c033c9285f57a73cd6f39a31b58029d7546dba3cb6ba4c091f7',
   getApplyChangeSkillTemplate: 'c4f02c29137e19b34bf1dc59146941b8c920214aa2cf3ce80ae7f1b982e976fc',
   getFfChangeSkillTemplate: 'd091600476a815ba99f69b446bcd46af5bf73d1c2810215a0c6196937d019cf6',
   getSyncSpecsSkillTemplate: 'bc80fe9b07eaa289e5eb8a3ce65eb7df722a16d864e37283c678220712e4f230',
   getOnboardSkillTemplate: '84258a06c0ca88de708a23dd74e9a17efe11eff63a071b3864c781dcd5a0a4b7',
-  getOpsxExploreCommandTemplate: '5d11f8ecb4c457140a3e874a8bf7aa72674e922e698c208832b1f34d3c617719',
+  getOpsxExploreCommandTemplate: '1b85350334be9b1e6db1f37916150b14dd258623380e81eb8e3245f08731a427',
   getOpsxNewCommandTemplate: '6d504fef1e0d4ced7c423f4cc9d9d2cee11b1a6224edf685e06a3f0757e0ebff',
   getOpsxContinueCommandTemplate: '659596cef4859162707d8acbd411afb863110f34a7b90ad037bae5eb84dd858d',
   getOpsxApplyCommandTemplate: '9b733946aa7216b45d084bb5affd7071086db6f91282c3666731a17543825ff1',
@@ -104,7 +104,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '7d80caf9cd25a2565ba190b1297f1631c7f2c2db5e614597b4284abc0118ea70',
+  'openspec-explore': 'c68ecaf59b63bb24bee568c417c85a377aba6092fb33ad6fbe5211e3b08f44b3',
   'openspec-new-change': '27e09d43785953827efc9a98bb9d6cf06db48fe6abe7e1c049409fe5b5061323',
   'openspec-continue-change': '4edf6d8b220f09146029e7671f140b7ef94a666d8e29fe7ad78ce40bc7ec9017',
   'openspec-apply-change': '991a1d4687f1c8c7147d8c3b68cf14e9c515c6c53bb026356dac3b80e909b827',
@@ -1251,6 +1251,20 @@ describe('skill templates split parity', () => {
       );
       expect(text, variant).not.toContain('any other sections');
       expect(text, variant).not.toContain('Loose prose left under `## Requirements` does NOT block');
+    }
+  });
+
+  // The explore capture table names spec-driven files; without this caveat an
+  // agent on a custom schema offers to write artifacts it never defines (#2084).
+  it('scopes the explore capture table to the default schema', () => {
+    const variants = [
+      ['explore skill', getExploreSkillTemplate().instructions],
+      ['explore command', getOpsxExploreCommandTemplate().content],
+    ] as const;
+    for (const [variant, text] of variants) {
+      expect(text, variant).toContain(
+        "The files below are the default spec-driven schema's. With another schema, capture each insight in whichever artifact from `artifactPaths` fits it"
+      );
     }
   });
 });
