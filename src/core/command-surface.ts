@@ -45,7 +45,7 @@ export function shouldReconcileCommandFilesForTool(toolId: string, delivery: Del
 export const COMMAND_DEPRECATION_URL = 'https://github.com/Fission-AI/OpenSpec/issues/2022';
 
 /**
- * The notice `openspec update` prints while it still generates command files,
+ * The notice `openspec update` prints while delivery gives a tool command files,
  * which are deprecated in favor of skills. Returns no lines when none of the
  * given tools get command files under this delivery, so a skills-only project
  * is never told about a change that does not affect it.
