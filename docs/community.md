@@ -7,7 +7,7 @@ Listed projects are maintained independently. Inclusion does not imply official 
 ## Projects and resources
 
 - **[OpenSpec Workbench](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: Running and supervising agents on OpenSpec changes.
-- **[MySpec](https://myspec.dev)**: Cloud beta (account required) that conducts guided spec interviews and exports four-file bundles or OpenSpec-compatible changes. The service sends submitted content to third-party AI providers and is not designed for sensitive data.
+- **[MySpec](https://myspec.dev)**: Cloud beta (account required) that conducts guided spec interviews and exports four-file bundles or OpenSpec-compatible changes. Its MCP server (`@myspec/mcp-server`) and [Claude Code plugins](https://github.com/myspecs/claude-plugins) let coding agents read those specs, write OpenSpec changes, and implement them task by task. The service sends submitted content to third-party AI providers and is not designed for sensitive data.
 - **[openspec-guard](https://github.com/guillaume-flambard/spec-guard)**: CLI and GitHub Action that reports which OpenSpec scenarios are covered by a Vitest or Jest test, without running the tests.
 
 ## Add your project

@@ -421,5 +421,35 @@ describe('ZshGenerator', () => {
       expect(script).toContain('_openspec_view() {');
       expect(script).toContain('_arguments');
     });
+
+    // The bash, fish and powershell generator tests each pin this redirect;
+    // zsh was the one that did not, and it has the most `__complete` call
+    // sites and is the default shell on macOS. The redirect is what keeps a
+    // Tab press silent, so anything `__complete` ever writes to stderr - a
+    // deprecation notice, a Node experimental warning - would otherwise print
+    // into the middle of the user's prompt with no test objecting.
+    it('sends every __complete call stderr to /dev/null', () => {
+      const commands: CommandDefinition[] = [
+        { name: 'archive', description: 'Archive a change', flags: [] },
+        { name: 'show', description: 'Show an item', flags: [] },
+        { name: 'new', description: 'Create a change', flags: [] },
+      ];
+
+      const script = generator.generate(commands);
+
+      expect(script).toContain('openspec __complete changes 2>/dev/null');
+      expect(script).toContain('openspec __complete specs 2>/dev/null');
+      expect(script).toContain('openspec __complete schemas 2>/dev/null');
+      // No invocation may survive a template edit that drops a redirect. Only
+      // real call sites count: the script also explains itself in comments
+      // that name the command without running it.
+      const invocations = script
+        .split('\n')
+        .filter((line) => line.includes('openspec __complete') && !line.trim().startsWith('#'));
+      expect(invocations.length).toBeGreaterThan(0);
+      for (const line of invocations) {
+        expect(line, `unredirected __complete call: ${line.trim()}`).toContain('2>/dev/null');
+      }
+    });
   });
 });

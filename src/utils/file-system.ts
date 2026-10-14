@@ -125,6 +125,33 @@ export class FileSystemUtils {
     }
   }
 
+  /**
+   * Like assertPathWithin, but a targetPath that is itself a symlink may
+   * resolve outside allowedDirectory, so a project can keep a managed
+   * directory (for example openspec/changes) in another repository. Its parent
+   * must still be confined and the link must resolve to an existing path.
+   */
+  static assertPathWithinAllowingLinkedLeaf(allowedDirectory: string, targetPath: string): void {
+    const resolvedTarget = path.resolve(targetPath);
+    let isLink = false;
+    try {
+      isLink = nodeFs.lstatSync(resolvedTarget).isSymbolicLink();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+
+    if (!isLink) {
+      this.assertPathWithin(allowedDirectory, resolvedTarget);
+      return;
+    }
+
+    this.assertPathWithin(allowedDirectory, path.dirname(resolvedTarget));
+    // Throws for a dangling link, which cannot be proven to be a directory.
+    nodeFs.realpathSync.native(resolvedTarget);
+  }
+
   static resolveProjectArtifactPath(projectPath: string, artifactPath: string): string {
     if (path.isAbsolute(artifactPath)) {
       throw new Error(`Refusing to manage an artifact outside the project: ${artifactPath}`);
