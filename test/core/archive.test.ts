@@ -153,6 +153,31 @@ describe('ArchiveCommand', () => {
       );
     });
 
+    it('archives x- extension keys without a warning and keeps them byte-for-byte', async () => {
+      const changeName = 'extension-metadata';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      await fs.mkdir(changeDir, { recursive: true });
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Task 1\n');
+      const metadata =
+        'schema: spec-driven\nx-goal: G-12\nx-tracker:\n  system: linear\n  id: SB-5497\n';
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), metadata);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true, json: true });
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+        .flat()
+        .map(String);
+      const jsonLine = logCalls.find((entry) => entry.trimStart().startsWith('{'));
+      expect(jsonLine).toBeDefined();
+      expect(JSON.parse(jsonLine!).archive.warnings).toBeUndefined();
+
+      const archiveDir = path.join(tempDir, 'openspec', 'changes', 'archive');
+      const [archived] = await fs.readdir(archiveDir);
+      expect(
+        await fs.readFile(path.join(archiveDir, archived, '.openspec.yaml'), 'utf-8')
+      ).toBe(metadata);
+    });
+
     describe('a namespace folder holding nested changes (#1846)', () => {
       async function seedNamespaceFolder(): Promise<string> {
         const nested = path.join(tempDir, 'openspec', 'changes', 'mobile', 'refresh-token');
