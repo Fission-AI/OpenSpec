@@ -69,6 +69,7 @@ import {
   resolveCommandSurfaceCapability,
   resolveCommandInvocation,
   shouldGenerateCommandsForTool,
+  formatCommandDeprecationNotice,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
@@ -280,6 +281,7 @@ export class UpdateCommand {
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
+      this.displayCommandDeprecation(configuredTools, delivery);
       throwIfUpdateFailed(legacyUpgradeFailures);
       return;
     }
@@ -525,6 +527,7 @@ export class UpdateCommand {
     // 14. Display the profile notes
     this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile, delivery);
     this.displaySetupNotes(configuredAndNewTools);
+    this.displayCommandDeprecation(configuredAndNewTools, delivery);
 
     // 15. List affected tools
     if (updatedTools.length > 0) {
@@ -693,6 +696,22 @@ export class UpdateCommand {
       if (tool?.setupNote) {
         console.log(chalk.yellow(`Setup required for ${tool.name}: ${tool.setupNote}`));
       }
+    }
+  }
+
+  /**
+   * Announces that generated command files are deprecated, on every run that
+   * still generates them. `update` is run on upgrade, so this reaches users
+   * before the next major changes the default, without nagging day to day.
+   */
+  private displayCommandDeprecation(toolIds: string[], delivery: Delivery): void {
+    const [headline, ...detail] = formatCommandDeprecationNotice(toolIds, delivery);
+    if (!headline) return;
+
+    console.log();
+    console.log(chalk.yellow(headline));
+    for (const line of detail) {
+      console.log(chalk.dim(line));
     }
   }
 
