@@ -41,3 +41,31 @@ export function shouldGenerateCommandsForTool(toolId: string, delivery: Delivery
 export function shouldReconcileCommandFilesForTool(toolId: string, delivery: Delivery): boolean {
   return delivery === 'skills' && resolveCommandSurfaceCapability(toolId) === 'adapter-backed';
 }
+
+export const COMMAND_DEPRECATION_URL = 'https://github.com/Fission-AI/OpenSpec/issues/2022';
+
+/**
+ * The notice `openspec update` prints while it still generates command files,
+ * which are deprecated in favor of skills. Returns no lines when none of the
+ * given tools get command files under this delivery, so a skills-only project
+ * is never told about a change that does not affect it.
+ *
+ * Worded "by default" so it holds both for users on the implicit default, whom
+ * the next major moves to skills, and for users who set `delivery` explicitly,
+ * whose setting the next major keeps.
+ */
+export function formatCommandDeprecationNotice(
+  toolIds: readonly string[],
+  delivery: Delivery
+): string[] {
+  if (!toolIds.some((toolId) => shouldGenerateCommandsForTool(toolId, delivery))) {
+    return [];
+  }
+
+  return [
+    'Command files are deprecated: the next major version of OpenSpec installs skills only by default.',
+    '  Switch to skills now: openspec config set delivery skills && openspec update',
+    '  Keep commands for now: openspec config set delivery both',
+    `  Details: ${COMMAND_DEPRECATION_URL}`,
+  ];
+}
