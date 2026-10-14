@@ -2623,20 +2623,18 @@ describe('InitCommand - profile and detection features', () => {
   it('should print the @-prefixed prompt hint for amazon-q (prompt library, no slash surface)', async () => {
     // Amazon Q loads .amazonq/prompts/opsx-<id>.md into its prompt library,
     // invoked as @opsx-<id>. It registers no slash command under any spelling,
-    // so neither the hint, the generated prompts, the skills, nor the restart
-    // line may name one.
+    // so neither the hint, the generated prompts, nor the restart line may name
+    // one. It reads no skills directory, so no skills are written for it.
     const initCommand = new InitCommand({ tools: 'amazon-q', force: true });
     await initCommand.execute(testDir);
 
     const promptFile = path.join(testDir, '.amazonq', 'prompts', 'opsx-apply.md');
-    const skillFile = path.join(testDir, '.amazonq', 'skills', 'openspec-apply-change', 'SKILL.md');
-    for (const file of [promptFile, skillFile]) {
-      expect(await fileExists(file)).toBe(true);
-      const content = await fs.readFile(file, 'utf-8');
-      expect(content).toContain('@opsx-apply');
-      expect(content).not.toContain('/opsx:');
-      expect(content).not.toContain('/opsx-');
-    }
+    expect(await fileExists(promptFile)).toBe(true);
+    const content = await fs.readFile(promptFile, 'utf-8');
+    expect(content).toContain('@opsx-apply');
+    expect(content).not.toContain('/opsx:');
+    expect(content).not.toContain('/opsx-');
+    expect(await fileExists(path.join(testDir, '.amazonq', 'skills'))).toBe(false);
 
     const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
     const startHint = logCalls.find((entry) => entry.includes('Start your first change'));

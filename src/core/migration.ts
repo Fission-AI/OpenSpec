@@ -10,6 +10,7 @@ import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlo
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import {
   resolveCommandInvocation,
+  isCommandsOnlyTool,
   resolveCommandSurfaceCapability,
   shouldGenerateCommandsForTool,
 } from './command-surface.js';
@@ -467,6 +468,12 @@ function scanInstalledWorkflowArtifacts(
   for (const tool of tools) {
     if (!toolSupportsSkills(tool)) continue;
 
+    // A commands-only tool has command files under every delivery setting, so
+    // its files show which workflows are installed but say nothing about the
+    // user's delivery preference. Counting them would let one such project
+    // save `delivery: commands` globally and strip skills from every other.
+    const showsDeliveryPreference = !isCommandsOnlyTool(tool.value);
+
     const skillsDirs: string[] = [];
     if (tool.globalSkillsDir) {
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
@@ -487,7 +494,7 @@ function scanInstalledWorkflowArtifacts(
         const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
         if (fs.existsSync(skillFile)) {
           installed.add(workflowId);
-          hasSkills = true;
+          if (showsDeliveryPreference) hasSkills = true;
         }
       }
     }
@@ -518,7 +525,7 @@ function scanInstalledWorkflowArtifacts(
           : path.join(projectPath, candidate);
         if (fs.existsSync(fullPath)) {
           installed.add(workflowId);
-          hasCommands = true;
+          if (showsDeliveryPreference) hasCommands = true;
           break;
         }
       }
@@ -540,14 +547,21 @@ export function scanInstalledWorkflows(projectPath: string, tools: AIToolOption[
   return scanInstalledWorkflowArtifacts(projectPath, tools).workflows;
 }
 
-function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
+/**
+ * The delivery the installed files imply, or undefined when they imply none:
+ * every file found belongs to a tool whose surface does not follow delivery.
+ */
+function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery | undefined {
   if (artifacts.hasSkills && artifacts.hasCommands) {
     return 'both';
   }
   if (artifacts.hasCommands) {
     return 'commands';
   }
-  return 'skills';
+  if (artifacts.hasSkills) {
+    return 'skills';
+  }
+  return undefined;
 }
 
 /**
@@ -598,7 +612,14 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   config.profile = 'custom';
   config.workflows = installedWorkflows;
   if (rawConfig.delivery === undefined) {
-    config.delivery = inferDelivery(artifacts);
+    const inferred = inferDelivery(artifacts);
+    if (inferred) {
+      config.delivery = inferred;
+    } else {
+      // No preference was shown, so record none: the user stays on the
+      // default, rather than being pinned to whatever it is today.
+      delete config.delivery;
+    }
   }
   saveGlobalConfig(config);
 
