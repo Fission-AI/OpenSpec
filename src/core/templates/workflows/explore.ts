@@ -357,7 +357,7 @@ You: That changes everything.
 There's no required ending. Discovery might:
 
 - **Flow into a proposal**: "${DISCOVERY_END_HANDOFF}"
-- **Result in artifact updates**: "Updated design.md with these decisions"
+- **Result in artifact updates**: "Updated the design with these decisions"
 - **Just provide clarity**: User has what they need, moves on
 - **Continue later**: "We can pick this up anytime"
 
@@ -589,7 +589,7 @@ If the user mentions a change or you detect one is relevant:
 There's no required ending. Discovery might:
 
 - **Flow into a proposal**: "${DISCOVERY_END_HANDOFF}"
-- **Result in artifact updates**: "Updated design.md with these decisions"
+- **Result in artifact updates**: "Updated the design with these decisions"
 - **Just provide clarity**: User has what they need, moves on
 - **Continue later**: "We can pick this up anytime"
 
