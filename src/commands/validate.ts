@@ -8,6 +8,7 @@ import {
 import { Validator } from '../core/validation/validator.js';
 import type { ValidationIssue } from '../core/validation/types.js';
 import { VALIDATION_MESSAGES } from '../core/validation/constants.js';
+import { inspectProjectConfig, type ProjectConfigProblem } from '../core/project-config.js';
 import {
   resolveRootForCommand,
   toRootOutput,
@@ -52,8 +53,22 @@ interface BulkItemResult {
 
 type BulkScope = 'all' | 'changes' | 'specs' | 'archived';
 
+/**
+ * `openspec/config.yaml` problems surfaced by bulk validation. Commands keep
+ * degrading to a partial config with a stderr warning, but a CI gate keyed on
+ * exit status must not read a config the CLI could not fully parse as healthy
+ * (#1891, #1892).
+ */
+interface ConfigValidationResult {
+  path: string;
+  /** False when any ERROR-level issue exists (or any issue at all under --strict). */
+  valid: boolean;
+  issues: { level: 'ERROR' | 'WARNING'; path: string; message: string }[];
+}
+
 interface BulkValidationResult<T extends BulkItemResult = BulkItemResult> {
   items: T[];
+  config?: ConfigValidationResult;
   summary: {
     totals: { items: number; passed: number; failed: number };
     byType: Partial<Record<ItemType, { items: number; passed: number; failed: number }>>;
@@ -73,9 +88,35 @@ export function projectValidationFindings<T extends BulkItemResult>(full: BulkVa
       totalItems: full.summary.totals.items,
     },
     itemFindings,
+    ...(full.config ? { config: full.config } : {}),
     summary: full.summary,
     root: full.root,
   };
+}
+
+function inspectConfigForValidation(projectRoot: string, strict: boolean): ConfigValidationResult | undefined {
+  const inspection = inspectProjectConfig(projectRoot);
+  if (inspection.configPath === null) return undefined;
+  const issues = inspection.problems.map((problem: ProjectConfigProblem) => ({
+    level: problem.level === 'error' ? ('ERROR' as const) : ('WARNING' as const),
+    path: problem.path,
+    message: problem.message,
+  }));
+  const relative = path.relative(projectRoot, inspection.configPath).split(path.sep).join('/');
+  // Lost content always fails. An ignored unknown id/field only fails under
+  // --strict: that is how a config written for a newer CLI degrades on an
+  // older one, and a CI gate should not break on it by default.
+  const failing = issues.some((issue) => issue.level === 'ERROR' || strict);
+  return { path: relative, valid: !failing, issues };
+}
+
+function printConfigIssues(config: ConfigValidationResult | undefined): void {
+  if (!config || config.issues.length === 0) return;
+  console.error(`${config.valid ? '⚠' : '✗'} config/${config.path}`);
+  for (const issue of config.issues) {
+    const prefix = issue.level === 'ERROR' ? '✗' : '⚠';
+    console.error(`  ${prefix} [${issue.level}] ${issue.path}: ${issue.message}`);
+  }
 }
 
 export class ValidateCommand {
@@ -416,7 +457,8 @@ export class ValidateCommand {
       return;
     }
     console.log(`Scope: ${scope} (${findings.report.totalItems} items)`);
-    if (findings.itemFindings.length === 0) {
+    printConfigIssues(full.config);
+    if (findings.itemFindings.length === 0 && (!full.config || full.config.issues.length === 0)) {
       console.log('No item findings.');
     }
     for (const item of findings.itemFindings) {
@@ -442,6 +484,8 @@ export class ValidateCommand {
 
   private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean; findingsScope?: BulkScope }): Promise<void> {
     const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
+    const config = inspectConfigForValidation(root.path, opts.strict);
+    const configFailed = config !== undefined && !config.valid;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? this.listChangeIds(root) : Promise.resolve<string[]>([]),
       scope.specs ? getSpecIds(root.path) : Promise.resolve<string[]>([]),
@@ -497,15 +541,16 @@ export class ValidateCommand {
       } as const;
 
       if (opts.findingsScope) {
-        this.printFindingsReport({ items: [], summary, root: toRootOutput(root) }, opts.findingsScope, opts.json, root);
+        this.printFindingsReport({ items: [], config, summary, root: toRootOutput(root) }, opts.findingsScope, opts.json, root);
       } else if (opts.json) {
-        const out = { items: [] as BulkItemResult[], summary, version: '1.0', root: toRootOutput(root) };
+        const out = { items: [] as BulkItemResult[], ...(config ? { config } : {}), summary, version: '1.0', root: toRootOutput(root) };
         console.log(JSON.stringify(out, null, 2));
       } else {
+        printConfigIssues(config);
         console.log('No items found to validate.');
       }
 
-      process.exitCode = 0;
+      process.exitCode = configFailed ? 1 : 0;
       return;
     }
 
@@ -555,11 +600,12 @@ export class ValidateCommand {
     } as const;
 
     if (opts.findingsScope) {
-      this.printFindingsReport({ items: results, summary, root: toRootOutput(root) }, opts.findingsScope, opts.json, root);
+      this.printFindingsReport({ items: results, config, summary, root: toRootOutput(root) }, opts.findingsScope, opts.json, root);
     } else if (opts.json) {
-      const out = { items: results, summary, version: '1.0', root: toRootOutput(root) };
+      const out = { items: results, ...(config ? { config } : {}), summary, version: '1.0', root: toRootOutput(root) };
       console.log(JSON.stringify(out, null, 2));
     } else {
+      printConfigIssues(config);
       for (const res of results) {
         if (res.valid) console.log(`✓ ${res.type}/${res.id}`);
         else console.error(`✗ ${res.type}/${res.id}`);
@@ -572,7 +618,7 @@ export class ValidateCommand {
       this.printBulkDetails(results, root);
     }
 
-    process.exitCode = failed > 0 ? 1 : 0;
+    process.exitCode = failed > 0 || configFailed ? 1 : 0;
   }
 
   /**
