@@ -6,10 +6,11 @@ import { AI_TOOLS } from '../src/core/config.js';
 import { CommandAdapterRegistry } from '../src/core/command-generation/index.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const SUPPORTED = fs.readFileSync(
-  path.join(REPO_ROOT, 'docs-lab', 'reference', 'supported-tools.md'),
-  'utf-8'
-);
+// A Windows checkout with core.autocrlf rewrites line endings, and the
+// section splits below key on "\n".
+const SUPPORTED = fs
+  .readFileSync(path.join(REPO_ROOT, 'docs-lab', 'reference', 'supported-tools.md'), 'utf-8')
+  .replace(/\r\n/g, '\n');
 const section = (heading: string) =>
   SUPPORTED.split(`### ${heading}\n`)[1].split('\n### ')[0];
 const tool = (id: string) => AI_TOOLS.find((candidate) => candidate.value === id)!;
