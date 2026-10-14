@@ -15,26 +15,13 @@ export const METADATA_FILENAME = '.openspec.yaml';
 export { CHANGE_METADATA_KNOWN_KEYS };
 
 /**
- * Extension keys: a top-level key that starts with `x-` belongs to a tool or
- * team that reads `.openspec.yaml` alongside OpenSpec (a tracker id, an owner,
- * a link to an external plan). OpenSpec never reads them, never writes them and
- * never reports them, so `validate --strict` stays green on a change that
- * carries them. The prefix is the whole contract, as in OpenAPI's `x-`
- * extensions: the name after it is the owner's business, in any case and any
- * spelling. A narrower grammar made the feature miss the spellings teams
- * actually write - `x-jiraKey` and `x-trackerID` were reported as unknown
- * while `x-a-` was accepted - and the warning then told the user to do what
- * they had already done.
- *
- * Two things the prefix does not cover. The name must not be empty or carry
- * whitespace: `x-` alone names nothing, and whitespace would let a key forge a
- * second line in the warning output. And the prefix itself is lowercase, so
- * `X-Foo` is still reported; the message says so, because that is the one
- * near-miss a user cannot otherwise diagnose.
- *
- * Extensions are TOP-LEVEL only. A key inside a recognized object such as
- * `initiative:` is rejected by that object's strict schema, whatever it is
- * called. Anything else that is not a known key is still reported.
+ * Extension keys: a top-level key starting with a lowercase `x-` belongs to a
+ * tool or team that reads `.openspec.yaml` alongside OpenSpec (a tracker id, an
+ * owner). OpenSpec ignores it and does not report it as unknown. As with
+ * OpenAPI's `x-` extensions, the name after the prefix may use any case or
+ * spelling, but must be non-empty and free of whitespace, so `x-`, `x- foo`
+ * and `X-Foo` are still reported. Extensions are top-level only: a key inside
+ * `initiative:` is rejected by that object's strict schema.
  */
 export const EXTENSION_KEY_PATTERN = /^x-\S+$/;
 
@@ -145,21 +132,15 @@ export function validateSchemaName(
 /**
  * Writes change metadata to .openspec.yaml in the change directory.
  *
+ * Meant for a new file only (`createChange` refuses an existing change
+ * directory). `ChangeMetadataSchema` strips unknown keys, including `x-`
+ * extension keys, so a caller that rewrites an existing file must merge those
+ * keys back from the raw YAML first or it silently deletes them.
+ *
  * @param changeDir - The path to the change directory
  * @param metadata - The metadata to write
  * @param projectRoot - Optional project root for project-local schema resolution
  * @throws ChangeMetadataError if validation fails or write fails
- */
-/**
- * Writes a brand-new `.openspec.yaml`. Only safe on a file that does not exist
- * yet, which is why `createChange` - its one non-test caller - refuses an
- * existing change directory.
- *
- * `ChangeMetadataSchema` is a plain object schema, not passthrough, so it
- * STRIPS every `x-` extension key. A future read-modify-write caller (setting a
- * goal on an existing change, relinking an initiative) must merge the `x-` keys
- * back from the raw YAML before calling this, or it will silently delete data
- * a team deliberately put there.
  */
 export function writeChangeMetadata(
   changeDir: string,

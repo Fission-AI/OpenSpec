@@ -2,4 +2,4 @@
 "@fission-ai/openspec": patch
 ---
 
-Keys in `.openspec.yaml` that start with a lowercase `x-` (for example `x-goal: G-12` or `x-tracker`) are now extension metadata: OpenSpec ignores them without the unknown-key warning, so `openspec validate --strict` stays green for teams that keep tool-specific data beside a change. Any other unrecognized key is still reported. The name after the prefix can be written in any case or spelling, as long as it is not empty and carries no whitespace.
+Keys in a change's `.openspec.yaml` that start with a lowercase `x-` (for example `x-goal: G-12` or `x-jiraKey`) are now treated as your own extension metadata: OpenSpec no longer reports them as unknown, so `openspec validate --strict` passes on a change that carries them. Any other unrecognized key, including `X-Tracker` or a bare `x-`, is still reported.

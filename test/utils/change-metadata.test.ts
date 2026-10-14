@@ -516,10 +516,7 @@ describe('isExtensionMetadataKey', () => {
     expect(isExtensionMetadataKey('goal')).toBe(false);
   });
 
-  // The name after the prefix is the owner's business. A grammar that allowed
-  // only lowercase letters, digits, `_` and `-` reported the spellings teams
-  // actually write, while the warning told them to use the prefix they had
-  // just used.
+  // The name after the prefix is the owner's business, in any case or spelling.
   it('accepts the spellings a tracker id is actually written in', () => {
     expect(isExtensionMetadataKey('x-jiraKey')).toBe(true);
     expect(isExtensionMetadataKey('x-trackerID')).toBe(true);
@@ -534,7 +531,6 @@ describe('isExtensionMetadataKey', () => {
     expect(isExtensionMetadataKey('x- tracker')).toBe(false);
     expect(isExtensionMetadataKey(' x-foo')).toBe(false);
     expect(isExtensionMetadataKey('x-foo ')).toBe(false);
-    // Whitespace would let a key forge a second line in the warning output.
     expect(isExtensionMetadataKey('x-a\nb')).toBe(false);
   });
 
