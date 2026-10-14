@@ -5,6 +5,7 @@ import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { getConfiguredTools } from './shared/index.js';
+import { classifyCommandFiles } from './shared/command-reconcile.js';
 import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
@@ -165,12 +166,11 @@ export function hasToolProfileOrDeliveryDrift(
       }
     }
   } else if (shouldReconcileCommandFilesForTool(toolId, delivery) && adapter) {
-    for (const workflow of ALL_WORKFLOWS) {
-      const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-      if (view.exists(fullPath)) {
-        return true;
-      }
+    // Only generated output is drift. Files cleanup keeps (edits, older
+    // versions, unreadable entries) stay on disk by design; counting them would
+    // re-sync on every update.
+    if (classifyCommandFiles(projectPath, toolId, knownDesiredWorkflows).generated.length > 0) {
+      return true;
     }
   }
 
