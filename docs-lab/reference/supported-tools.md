@@ -27,7 +27,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Code Studio | `codestudio` | `.codestudio/skills/` | `/openspec-apply-change` | `.codestudio/prompts/` | `/opsx-apply` |
 | Codex | `codex` | `.agents/skills/` | `$openspec-apply-change` | none | none |
 | Continue | `continue` | `.continue/skills/` | `/openspec-apply-change` | `.continue/prompts/` | `/opsx-apply` |
-| CoStrict | `costrict` | `.cospec/skills/` | `/openspec-apply-change` | `.cospec/openspec/commands/` | `/opsx-apply` |
+| CoStrict | `costrict` | `.agents/skills/` | `/openspec-apply-change` | `.cospec/openspec/commands/` | `/opsx-apply` |
 | Crush | `crush` | `.crush/skills/` | `/openspec-apply-change` | `.crush/commands/opsx/` | `/opsx:apply` |
 | Cursor | `cursor` | `.cursor/skills/` | `/openspec-apply-change` | `.cursor/commands/` | `/opsx-apply` |
 | DeepSeek Harness | `dsh` | `.dsh/skills/` | `/openspec-apply-change` | none | none |
@@ -76,7 +76,7 @@ A tool not listed here behaves exactly as its row reads.
 
 - **Project skills**: Amp reads OpenSpec skills from `.agents/skills/`.
 - **No command files**: Amp runs skills directly, so init skips command generation.
-- **Shared folder**: Amp shares `.agents/skills/` with Antigravity, Codex, Zed Agent,
+- **Shared folder**: Amp shares `.agents/skills/` with Antigravity, Codex, CoStrict, Zed Agent,
   and the `agents` target. OpenSpec writes the skill tree once.
 
 ### Antigravity
@@ -86,7 +86,7 @@ A tool not listed here behaves exactly as its row reads.
 - **Legacy folder**: after OpenSpec writes replacements, it removes equivalent
   generated files from `.agent/`. Custom files and changed generated files stay in
   `.agent/` for you to review.
-- **Shared skills**: Antigravity shares `.agents/skills/` with Amp, Codex, Zed Agent,
+- **Shared skills**: Antigravity shares `.agents/skills/` with Amp, Codex, CoStrict, Zed Agent,
   and the `agents` target. OpenSpec writes that skill tree once while still writing
   Antigravity commands to `.agents/workflows/`.
 
@@ -106,11 +106,24 @@ Skills stay in `.cline/skills/`.
 - **No command files**: Codex runs skills directly, so init skips commands even when
   delivery includes them and prints `Commands skipped for: codex (uses skills)`.
 - **Shared folder**: Codex skills land in `.agents/skills/`, the same tree Amp,
-  Antigravity, Zed Agent, and the `agents` target use. Selecting more than one keeps a
+  Antigravity, CoStrict, Zed Agent, and the `agents` target use. Selecting more than one keeps a
   single compatible tree, and its handoffs spell both `$openspec-*` and `/openspec-*`
   when Codex owns it.
 - **Legacy path**: skills installed under `.codex/skills/` by older versions are
   migrated on the next `openspec update`.
+
+### CoStrict
+
+- **Skills**: CoStrict reads project skills from `.agents/skills/`, `.claude/skills/`,
+  and `.roo/skills/`, never from `.cospec/`, so OpenSpec installs them in the shared
+  `.agents/skills/` folder.
+- **Commands**: CoStrict reads OpenSpec commands from `.cospec/openspec/commands/`, so
+  they stay there. `.cospec/` also holds CoStrict's own coworkflow files, which OpenSpec
+  never touches.
+- **Legacy folder**: earlier OpenSpec versions wrote skills to `.cospec/skills/`, which
+  CoStrict never loaded. `openspec update` moves them to `.agents/skills/`. When another
+  tool already owns `.agents/skills/`, its copy is kept and the `.cospec/skills/` copy is
+  left for you to review and delete.
 
 ### DeepSeek Harness
 
@@ -155,9 +168,11 @@ Skills stay in `.cline/skills/`.
 
 ### Hermes Agent
 
-Hermes loads skills only from `~/.hermes/skills/` by default. Add the project's
-`.hermes/skills/` folder to `skills.external_dirs` in `~/.hermes/config.yaml`;
-init prints this reminder after install.
+Hermes v2026.6.5 and later load a project's `.hermes/skills/` once you trust the repo:
+run `hermes skills trust` inside the project. Until then, Hermes shows a notice that
+it found project skills but did not load them. On older versions, add the project's
+`.hermes/skills/` folder to `skills.external_dirs` in `~/.hermes/config.yaml` instead.
+Init prints this reminder after install.
 
 ### MiniMax Code
 
@@ -180,7 +195,7 @@ init prints this reminder after install.
   assistant is not listed. The init picker's search box finds it by `universal`,
   `other`, `generic`, `custom`, `proprietary`, `unlisted`, `unsupported`,
   `vendor-neutral`, or `agents.md`.
-- **Alongside other targets**: Amp, Antigravity, Codex, Zed Agent, and this target share
+- **Alongside other targets**: Amp, Antigravity, Codex, CoStrict, Zed Agent, and this target share
   one physical skill tree. OpenSpec records one writer in `.openspec-target` and
   writes the tree once per run. Each tool's separate command files are still
   generated.

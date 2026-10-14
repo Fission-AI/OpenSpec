@@ -194,3 +194,52 @@ describe('profile sync drift detection', () => {
     ).toBe(false);
   });
 });
+
+describe('legacy skills under a shared root another tool owns', () => {
+  let projectDir: string;
+
+  beforeEach(() => {
+    projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-shared-legacy-'));
+    const agentsSkills = path.join(projectDir, '.agents', 'skills');
+    fs.mkdirSync(agentsSkills, { recursive: true });
+    for (const workflow of CORE_WORKFLOWS) {
+      const dir = WORKFLOW_TO_SKILL_DIR[workflow as keyof typeof WORKFLOW_TO_SKILL_DIR];
+      fs.mkdirSync(path.join(agentsSkills, dir), { recursive: true });
+      fs.writeFileSync(path.join(agentsSkills, dir, 'SKILL.md'), `name: ${dir}\nrendered for codex\n`);
+    }
+  });
+
+  afterEach(() => {
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  function writeLegacySkill(root: string, body: string): void {
+    const file = path.join(projectDir, root, 'skills', 'openspec-propose', 'SKILL.md');
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, body);
+  }
+
+  it.each([
+    ['antigravity', '.agent'],
+    ['costrict', '.cospec'],
+  ])(
+    'does not ask %s to sync on every run for a divergent legacy copy it cannot change',
+    (toolId, legacyRoot) => {
+      // Codex owns .agents, so updating this tool never rewrites the current
+      // copy, and migration keeps a divergent legacy one by design. Reporting
+      // drift here made every `openspec update` sync this tool again.
+      fs.writeFileSync(path.join(projectDir, '.agents', 'skills', '.openspec-target'), 'codex\n');
+      writeLegacySkill(legacyRoot, 'My customized propose skill.\n');
+
+      expect(hasToolProfileOrDeliveryDrift(projectDir, toolId, CORE_WORKFLOWS, 'skills')).toBe(false);
+    }
+  );
+
+  it('still asks for a sync while no tool has claimed the shared root', () => {
+    // Generating writes the ownership marker, so an update can change this.
+    writeLegacySkill('.cospec', 'My customized propose skill.\n');
+
+    expect(hasToolProfileOrDeliveryDrift(projectDir, 'costrict', CORE_WORKFLOWS, 'skills')).toBe(true);
+  });
+});
+
