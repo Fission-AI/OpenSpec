@@ -20,6 +20,7 @@ import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   resolveCommandSurfaceCapability,
+  isCommandsOnlyTool,
 } from '../command-surface.js';
 import {
   getSkillCapableTools,
@@ -107,6 +108,12 @@ export function getToolSkillStatus(
     return { configured: false, fullyConfigured: false, skillCount: 0 };
   }
   if (tool.skillsDir && !isSharedSkillTargetActive(projectRoot, toolId, view)) {
+    return { configured: false, fullyConfigured: false, skillCount: 0 };
+  }
+  // Skill files left over for a tool that cannot load skills are inert. They
+  // must not make the tool look skill-configured, or detection would keep
+  // reading a version from files this CLI no longer writes.
+  if (isCommandsOnlyTool(toolId)) {
     return { configured: false, fullyConfigured: false, skillCount: 0 };
   }
 
@@ -343,12 +350,16 @@ export function getToolVersionStatus(
     };
   }
 
-  const skillsDirs = [
-    resolveToolSkillsDir(projectRoot, tool),
-    ...(tool.legacySkillsDirs ?? []).map((root) =>
-      path.join(projectRoot, root, 'skills')
-    ),
-  ];
+  // A commands-only tool is versioned by its command files alone; see
+  // getToolSkillStatus for why its leftover skill files are ignored.
+  const skillsDirs = isCommandsOnlyTool(toolId)
+    ? []
+    : [
+        resolveToolSkillsDir(projectRoot, tool),
+        ...(tool.legacySkillsDirs ?? []).map((root) =>
+          path.join(projectRoot, root, 'skills')
+        ),
+      ];
   let generatedByVersion: string | null = null;
   let foundSkill = false;
 
