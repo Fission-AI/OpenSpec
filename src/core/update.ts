@@ -700,8 +700,9 @@ export class UpdateCommand {
   }
 
   /**
-   * Announces that generated command files are deprecated, on every run that
-   * still generates them. `update` is run on upgrade, so this reaches users
+   * Announces that generated command files are deprecated, on every run while
+   * delivery gives a configured tool command files, whether or not this run
+   * rewrote them. `update` is run on upgrade, so this reaches users
    * before the next major changes the default, without nagging day to day.
    */
   private displayCommandDeprecation(toolIds: string[], delivery: Delivery): void {
