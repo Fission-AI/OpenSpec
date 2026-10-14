@@ -171,7 +171,10 @@ describe('verify checks each requirement by its delta operation', () => {
   it.each(bodies)('%s: gives a runnable, store-aware history command', (label, body) => {
     const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
 
-    expect(removed, label).toContain('git -C <planningHome.root> log -p -- openspec/specs/<capability-path>/spec.md');
+    expect(removed, label).toContain('git -C "<planningHome.root>" log -p -- openspec/specs/<capability-path>/spec.md');
+    expect(removed, label).toContain('git -C "<planningHome.root>" show <commit>^:openspec/specs/<capability-path>/spec.md');
+    // An unquoted planning root splits on spaces and runs git in the wrong place.
+    expect(removed, label).not.toMatch(/git -C <planningHome\.root>/);
     expect(removed, label).toContain('Empty output means the pathspec matched nothing');
     // A bare `<capability-path>/spec.md` pathspec matches nothing: the
     // placeholder is defined relative to `specs/`.
