@@ -1466,68 +1466,6 @@ metadata:
     });
   });
 
-  describe('commands-only tools (Amazon Q)', () => {
-    const prompts = () => path.join(testDir, '.amazonq', 'prompts');
-    const skills = () => path.join(testDir, '.amazonq', 'skills');
-
-    it('keeps Amazon Q prompts under skills-only delivery, its only working surface', async () => {
-      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
-      await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
-      await new UpdateCommand({ force: true }).execute(testDir);
-
-      expect((await fs.readdir(prompts())).sort()).toContain('opsx-propose.md');
-      expect(await FileSystemUtils.fileExists(skills())).toBe(false);
-    });
-
-    it('leaves skill files from an older install untouched rather than deleting them', async () => {
-      // Written by an earlier release, which gave Amazon Q skills it never
-      // loaded. They are inert; removing directories as a side effect of an
-      // upgrade is not worth the risk.
-      await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
-      const leftover = path.join(skills(), 'openspec-propose', 'SKILL.md');
-      await fs.mkdir(path.dirname(leftover), { recursive: true });
-      const leftoverContent = '---\nname: openspec-propose\nmetadata:\n  generatedBy: "0.1.0"\n---\nold\n';
-      await fs.writeFile(leftover, leftoverContent);
-
-      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
-      await new UpdateCommand({ force: true }).execute(testDir);
-
-      expect(await fs.readFile(leftover, 'utf-8')).toBe(leftoverContent);
-    });
-
-    it('does not ask to update Amazon Q forever because of old skill files', async () => {
-      // Detection used to read a version from the skill files. Once this CLI
-      // stops writing them, an old version there would mark the tool stale on
-      // every run.
-      await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
-      const leftover = path.join(skills(), 'openspec-propose', 'SKILL.md');
-      await fs.mkdir(path.dirname(leftover), { recursive: true });
-      await fs.writeFile(leftover, '---\nname: openspec-propose\nmetadata:\n  generatedBy: "0.1.0"\n---\nold\n');
-
-      const consoleSpy = vi.spyOn(console, 'log');
-      await new UpdateCommand().execute(testDir);
-      const logs = consoleSpy.mock.calls.flat().map(String);
-
-      expect(logs.some((entry) => entry.includes('up to date'))).toBe(true);
-      expect(logs.some((entry) => entry.includes('Updating 1 tool'))).toBe(false);
-    });
-
-    it('clears another tool\'s commands under skills-only delivery but keeps Amazon Q\'s', async () => {
-      await new InitCommand({ tools: 'claude,amazon-q', force: true }).execute(testDir);
-
-      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
-      await new UpdateCommand({ force: true }).execute(testDir);
-
-      expect(
-        await FileSystemUtils.fileExists(path.join(testDir, '.claude', 'commands', 'opsx', 'propose.md'))
-      ).toBe(false);
-      expect(
-        await FileSystemUtils.fileExists(path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))
-      ).toBe(true);
-      expect(await FileSystemUtils.fileExists(path.join(prompts(), 'opsx-propose.md'))).toBe(true);
-    });
-  });
-
   describe('multi-tool support', () => {
     it('should update multiple configured tools', async () => {
       // Set up Claude
@@ -2186,6 +2124,68 @@ metadata:
       expect(consoleSpy).not.toHaveBeenCalledWith(
         expect.stringContaining('Restart your IDE')
       );
+    });
+  });
+
+  describe('commands-only tools (Amazon Q)', () => {
+    const prompts = () => path.join(testDir, '.amazonq', 'prompts');
+    const skills = () => path.join(testDir, '.amazonq', 'skills');
+
+    it('keeps Amazon Q prompts under skills-only delivery, its only working surface', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      expect((await fs.readdir(prompts())).sort()).toContain('opsx-propose.md');
+      expect(await FileSystemUtils.fileExists(skills())).toBe(false);
+    });
+
+    it('leaves skill files from an older install untouched rather than deleting them', async () => {
+      // Written by an earlier release, which gave Amazon Q skills it never
+      // loaded. They are inert; removing directories as a side effect of an
+      // upgrade is not worth the risk.
+      await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
+      const leftover = path.join(skills(), 'openspec-propose', 'SKILL.md');
+      await fs.mkdir(path.dirname(leftover), { recursive: true });
+      const leftoverContent = '---\nname: openspec-propose\nmetadata:\n  generatedBy: "0.1.0"\n---\nold\n';
+      await fs.writeFile(leftover, leftoverContent);
+
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      expect(await fs.readFile(leftover, 'utf-8')).toBe(leftoverContent);
+    });
+
+    it('does not ask to update Amazon Q forever because of old skill files', async () => {
+      // Detection used to read a version from the skill files. Once this CLI
+      // stops writing them, an old version there would mark the tool stale on
+      // every run.
+      await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
+      const leftover = path.join(skills(), 'openspec-propose', 'SKILL.md');
+      await fs.mkdir(path.dirname(leftover), { recursive: true });
+      await fs.writeFile(leftover, '---\nname: openspec-propose\nmetadata:\n  generatedBy: "0.1.0"\n---\nold\n');
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await new UpdateCommand().execute(testDir);
+      const logs = consoleSpy.mock.calls.flat().map(String);
+
+      expect(logs.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(logs.some((entry) => entry.includes('Updating 1 tool'))).toBe(false);
+    });
+
+    it('clears another tool\'s commands under skills-only delivery but keeps Amazon Q\'s', async () => {
+      await new InitCommand({ tools: 'claude,amazon-q', force: true }).execute(testDir);
+
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      expect(
+        await FileSystemUtils.fileExists(path.join(testDir, '.claude', 'commands', 'opsx', 'propose.md'))
+      ).toBe(false);
+      expect(
+        await FileSystemUtils.fileExists(path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))
+      ).toBe(true);
+      expect(await FileSystemUtils.fileExists(path.join(prompts(), 'opsx-propose.md'))).toBe(true);
     });
   });
 
