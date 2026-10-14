@@ -678,6 +678,23 @@ Then archive the change normally:
 openspec archive retire-legacy --yes
 ```
 
+**Keep your own metadata:** a top-level key starting with a lowercase `x-` is
+yours. OpenSpec never reads, writes or reports it, so `openspec validate
+--strict` stays green on a change that carries tool-specific data:
+
+```yaml
+# openspec/changes/add-dark-mode/.openspec.yaml
+schema: spec-driven
+x-tracker: SB-5497
+x-jiraKey: ABC-1
+```
+
+The name after the prefix is yours to choose, in any case or spelling, as long
+as it is not empty and has no whitespace in it. Two limits: the prefix itself is
+lowercase, so `X-Tracker` is still reported, and extensions are top-level only —
+a key inside `initiative:` is rejected whatever it is called. Any other
+unrecognized top-level key is still reported as having no effect.
+
 When the change removes the capability's last requirement, OpenSpec deletes its
 live `spec.md`. Other capability deltas in the same change still update their
 main specs. Without the marker, archive stops before changing any files and
