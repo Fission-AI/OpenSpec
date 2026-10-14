@@ -1477,52 +1477,6 @@ metadata:
     });
   });
 
-  describe('command deprecation notice', () => {
-    const headline = 'Command files are deprecated';
-
-    async function runUpdate(command: UpdateCommand = new UpdateCommand()): Promise<string[]> {
-      const consoleSpy = vi.spyOn(console, 'log');
-      await command.execute(testDir);
-      const logs = consoleSpy.mock.calls.flat().map(String);
-      consoleSpy.mockRestore();
-      return logs;
-    }
-
-    it('announces the deprecation when update regenerates command files', async () => {
-      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
-
-      const logs = await runUpdate(new UpdateCommand({ force: true }));
-
-      expect(logs.some((entry) => entry.includes(headline))).toBe(true);
-      expect(
-        logs.some((entry) => entry.includes('openspec config set delivery skills && openspec update'))
-      ).toBe(true);
-      expect(logs.some((entry) => entry.includes('issues/2022'))).toBe(true);
-    });
-
-    it('still announces it when every tool is already up to date', async () => {
-      // The up-to-date path returns early, and is what most users hit on a
-      // routine run. Missing it there would hide the notice from them.
-      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
-
-      const logs = await runUpdate();
-
-      expect(logs.some((entry) => entry.includes('up to date'))).toBe(true);
-      expect(logs.some((entry) => entry.includes(headline))).toBe(true);
-    });
-
-    it('stays quiet once delivery is skills-only', async () => {
-      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
-      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
-
-      const forced = await runUpdate(new UpdateCommand({ force: true }));
-      const routine = await runUpdate();
-
-      expect(forced.some((entry) => entry.includes(headline))).toBe(false);
-      expect(routine.some((entry) => entry.includes(headline))).toBe(false);
-    });
-  });
-
   describe('multi-tool support', () => {
     it('should update multiple configured tools', async () => {
       // Set up Claude
@@ -1948,6 +1902,52 @@ metadata:
       const logCalls = consoleSpy.mock.calls.flat().map(String);
       expect(logCalls.some((entry) => entry.includes('.windsurf → .devin'))).toBe(false);
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('command deprecation notice', () => {
+    const headline = 'Command files are deprecated';
+
+    async function runUpdate(command: UpdateCommand = new UpdateCommand()): Promise<string[]> {
+      const consoleSpy = vi.spyOn(console, 'log');
+      await command.execute(testDir);
+      const logs = consoleSpy.mock.calls.flat().map(String);
+      consoleSpy.mockRestore();
+      return logs;
+    }
+
+    it('announces the deprecation when update regenerates command files', async () => {
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+
+      const logs = await runUpdate(new UpdateCommand({ force: true }));
+
+      expect(logs.some((entry) => entry.includes(headline))).toBe(true);
+      expect(
+        logs.some((entry) => entry.includes('openspec config set delivery skills && openspec update'))
+      ).toBe(true);
+      expect(logs.some((entry) => entry.includes('issues/2022'))).toBe(true);
+    });
+
+    it('still announces it when every tool is already up to date', async () => {
+      // The up-to-date path returns early, and is what most users hit on a
+      // routine run. Missing it there would hide the notice from them.
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+
+      const logs = await runUpdate();
+
+      expect(logs.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(logs.some((entry) => entry.includes(headline))).toBe(true);
+    });
+
+    it('stays quiet once delivery is skills-only', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+
+      const forced = await runUpdate(new UpdateCommand({ force: true }));
+      const routine = await runUpdate();
+
+      expect(forced.some((entry) => entry.includes(headline))).toBe(false);
+      expect(routine.some((entry) => entry.includes(headline))).toBe(false);
     });
   });
 
