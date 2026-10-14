@@ -1,6 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs/promises';
-import nodeFs from 'fs';
 import os from 'os';
 import path from 'path';
 import {
@@ -73,7 +72,7 @@ describe('reconcileCommandFiles', () => {
     );
     expect(formatKeptCommandFiles(result)).toEqual([
       [
-        'Kept 1 command file that does not match generated output:',
+        'Kept 1 command file that does not match generated output (edited, or written by an older OpenSpec version):',
         `  ${edited}`,
         'Move anything worth keeping into the skill, then delete by hand.',
       ],
@@ -109,32 +108,23 @@ describe('reconcileCommandFiles', () => {
     // was not.
     const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
     const unreadable = written.find((p) => p.endsWith('apply.md'))!;
-    const realReadFile = nodeFs.promises.readFile;
-    const spy = vi
-      .spyOn(nodeFs.promises, 'readFile')
-      .mockImplementation(async (file, ...rest) => {
-        if (String(file).endsWith(`${path.sep}apply.md`)) {
-          throw Object.assign(new Error('EACCES: permission denied'), { code: 'EACCES' });
-        }
-        return realReadFile(file, ...rest);
-      });
+    // A directory at the command path exists but cannot be read as a file
+    // (EISDIR), on every platform and without mocking the read.
+    await fs.rm(path.join(projectPath, unreadable));
+    await fs.mkdir(path.join(projectPath, unreadable));
 
-    try {
-      const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
-      // Reported as unchecked, not as an edit: no mismatch was established.
-      expect(result.unchecked).toEqual([unreadable]);
-      expect(result.kept).toEqual([]);
-      expect(result.removed).not.toContain(unreadable);
-      expect(formatKeptCommandFiles(result)).toEqual([
-        [
-          'Left 1 command file in place because it could not be read or removed:',
-          `  ${unreadable}`,
-          'Check the file permissions or symbolic links, then delete by hand.',
-        ],
-      ]);
-    } finally {
-      spy.mockRestore();
-    }
+    const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+    // Reported as unchecked, not as an edit: no mismatch was established.
+    expect(result.unchecked).toEqual([unreadable]);
+    expect(result.kept).toEqual([]);
+    expect(result.removed).not.toContain(unreadable);
+    expect(formatKeptCommandFiles(result)).toEqual([
+      [
+        'Left 1 command file in place because it could not be read or removed:',
+        `  ${unreadable}`,
+        'Check the file permissions or symbolic links, then delete by hand.',
+      ],
+    ]);
 
     // Still on disk, which is what being reported as kept has to mean.
     await expect(fs.access(path.join(projectPath, unreadable))).resolves.toBeUndefined();

@@ -1531,6 +1531,14 @@ metadata:
       expect(
         logs.some((entry) => entry.includes(path.join('.claude', 'commands', 'opsx', 'propose.md')))
       ).toBe(true);
+
+      // A kept file is not drift: the next plain update finds nothing to sync.
+      consoleSpy.mockClear();
+      await new UpdateCommand().execute(testDir);
+      const nextLogs = consoleSpy.mock.calls.flat().map(String);
+      expect(nextLogs.some((entry) => entry.includes('config sync'))).toBe(false);
+      expect(nextLogs.some((entry) => entry.includes('Kept 1 command file'))).toBe(false);
+      expect(await fs.readFile(proposeCmd, 'utf-8')).toBe(edited);
     });
   });
 

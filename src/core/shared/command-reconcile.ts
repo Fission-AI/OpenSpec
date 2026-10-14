@@ -28,13 +28,25 @@ export interface CommandReconcileResult {
   unchecked: string[];
 }
 
+interface CommandFileEntry {
+  cmdPath: string;
+  fullPath: string;
+}
+
+interface CommandFileClassification {
+  /** Files whose content matches generated output, safe to delete. */
+  generated: CommandFileEntry[];
+  kept: string[];
+  unchecked: string[];
+}
+
 /**
- * Deletes a tool's generated command files, keeping back any the user owns.
+ * Sorts a tool's command files on disk into generated output, files the user
+ * owns, and files that could not be checked.
  *
  * Command files carry no version stamp, so content equality is the only signal
- * for "this is still our generated output". A file that does not match is left
- * on disk and reported, so moving to skills-only delivery can never silently
- * discard a hand-edited command.
+ * for "this is still our generated output". A file that does not match is the
+ * user's, whether they edited it or an older OpenSpec version wrote it.
  *
  * Content depends on which workflows were installed when a file was written,
  * because cross-workflow references resolve against that set. Three candidate
@@ -43,19 +55,19 @@ export interface CommandReconcileResult {
  * using, and the full set. A file written under a wider or narrower profile
  * than the one now configured still matches.
  */
-export async function reconcileCommandFiles(
+export function classifyCommandFiles(
   projectPath: string,
   toolId: string,
   workflows: readonly string[]
-): Promise<CommandReconcileResult> {
-  const removed: string[] = [];
+): CommandFileClassification {
+  const generated: CommandFileEntry[] = [];
   const kept: string[] = [];
   const unchecked: string[] = [];
 
   const adapter = CommandAdapterRegistry.get(toolId);
-  if (!adapter) return { removed, kept, unchecked };
+  if (!adapter) return { generated, kept, unchecked };
 
-  const present: { workflow: string; cmdPath: string; fullPath: string }[] = [];
+  const present: (CommandFileEntry & { workflow: string })[] = [];
   for (const workflow of ALL_WORKFLOWS) {
     const cmdPath = adapter.getFilePath(workflow);
     let fullPath: string;
@@ -73,21 +85,21 @@ export async function reconcileCommandFiles(
     }
   }
 
-  if (present.length === 0) return { removed, kept, unchecked };
+  if (present.length === 0) return { generated, kept, unchecked };
 
   const candidateSets = [present.map((entry) => entry.workflow), workflows, ALL_WORKFLOWS];
   const generatedByPath = new Map<string, string[]>();
 
   for (const workflowSet of candidateSets) {
-    let generated: GeneratedCommand[];
+    let commands: GeneratedCommand[];
     try {
-      generated = generateCommands(getCommandContents(workflowSet), adapter);
+      commands = generateCommands(getCommandContents(workflowSet), adapter);
     } catch {
       // A workflow set this CLI cannot render leaves nothing to compare
       // against; files it would have covered are kept rather than guessed at.
       continue;
     }
-    for (const cmd of generated) {
+    for (const cmd of commands) {
       const variants = generatedByPath.get(cmd.path) ?? [];
       variants.push(normalizeCommandContent(cmd.fileContent));
       generatedByPath.set(cmd.path, variants);
@@ -96,18 +108,43 @@ export async function reconcileCommandFiles(
 
   for (const { cmdPath, fullPath } of present) {
     try {
-      const onDisk = normalizeCommandContent(await fs.promises.readFile(fullPath, 'utf-8'));
-      if (!(generatedByPath.get(cmdPath) ?? []).includes(onDisk)) {
+      const onDisk = normalizeCommandContent(fs.readFileSync(fullPath, 'utf-8'));
+      if ((generatedByPath.get(cmdPath) ?? []).includes(onDisk)) {
+        generated.push({ cmdPath, fullPath });
+      } else {
         kept.push(cmdPath);
-        continue;
       }
+    } catch {
+      // An unreadable file cannot be proven to be generated output.
+      unchecked.push(cmdPath);
+    }
+  }
 
+  return { generated, kept, unchecked };
+}
+
+/**
+ * Deletes a tool's generated command files, keeping back any the user owns.
+ * A file that does not match generated output is left on disk and reported,
+ * so moving to skills-only delivery can never silently discard a hand-edited
+ * command. See `classifyCommandFiles` for how a match is decided.
+ */
+export async function reconcileCommandFiles(
+  projectPath: string,
+  toolId: string,
+  workflows: readonly string[]
+): Promise<CommandReconcileResult> {
+  const { generated, kept, unchecked } = classifyCommandFiles(projectPath, toolId, workflows);
+  const removed: string[] = [];
+
+  for (const { cmdPath, fullPath } of generated) {
+    try {
       await fs.promises.unlink(fullPath);
       removed.push(cmdPath);
     } catch {
-      // A file that cannot be read, or cannot be deleted once matched, is still
-      // on disk. Report it rather than passing over it in silence: the user
-      // needs to know the directory was not fully cleared.
+      // A matched file that cannot be deleted is still on disk. Report it
+      // rather than passing over it in silence: the user needs to know the
+      // directory was not fully cleared.
       unchecked.push(cmdPath);
     }
   }
@@ -131,7 +168,7 @@ export function formatKeptCommandFiles(
     blocks.push([
       `Kept ${result.kept.length} ${files(result.kept.length)} that ${
         result.kept.length === 1 ? 'does' : 'do'
-      } not match generated output:`,
+      } not match generated output (edited, or written by an older OpenSpec version):`,
       ...result.kept.map((cmdPath) => `  ${cmdPath}`),
       'Move anything worth keeping into the skill, then delete by hand.',
     ]);
