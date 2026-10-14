@@ -26,6 +26,11 @@ overrides:
   # Dev-only (transitive via @vitest/ui); never in the published CLI. Remove once
   # transitive fflate is >=0.8.3 (check: pnpm why fflate).
   fflate@<0.8.3: '>=0.8.3 <0.9'
+  # GHSA-pqg4-j6r4-53mv — shell-quote `quote()` command injection via a line
+  # terminator after a `{ comment }` token. Dev-only (transitive via
+  # @changesets/cli > launch-editor); never in the published CLI. Remove once
+  # transitive shell-quote is >=1.11.0 (check: pnpm why shell-quote).
+  shell-quote@>=1.8.4 <1.11.0: '>=1.11.0 <2'
 
 auditConfig:
   ignoreGhsas:
