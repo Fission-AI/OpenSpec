@@ -20,6 +20,12 @@ export interface CommandReconcileResult {
   removed: string[];
   /** Project-relative paths left on disk because they are not our output. */
   kept: string[];
+  /**
+   * Project-relative paths left on disk because they could not be checked or
+   * removed: unreadable, undeletable, or a symlink that cannot be proven to stay
+   * inside the project. Reported apart from `kept`, since no edit was found.
+   */
+  unchecked: string[];
 }
 
 /**
@@ -44,20 +50,30 @@ export async function reconcileCommandFiles(
 ): Promise<CommandReconcileResult> {
   const removed: string[] = [];
   const kept: string[] = [];
+  const unchecked: string[] = [];
 
   const adapter = CommandAdapterRegistry.get(toolId);
-  if (!adapter) return { removed, kept };
+  if (!adapter) return { removed, kept, unchecked };
 
-  const present = ALL_WORKFLOWS.map((workflow) => {
+  const present: { workflow: string; cmdPath: string; fullPath: string }[] = [];
+  for (const workflow of ALL_WORKFLOWS) {
     const cmdPath = adapter.getFilePath(workflow);
-    return {
-      workflow,
-      cmdPath,
-      fullPath: FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath),
-    };
-  }).filter((candidate) => fs.existsSync(candidate.fullPath));
+    let fullPath: string;
+    try {
+      fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
+    } catch {
+      // A symlink that escapes the project or dangles cannot be proven
+      // confined. Never read or delete through it, and do not let one such
+      // entry abort cleanup of the tool's other command files.
+      unchecked.push(cmdPath);
+      continue;
+    }
+    if (fs.existsSync(fullPath)) {
+      present.push({ workflow, cmdPath, fullPath });
+    }
+  }
 
-  if (present.length === 0) return { removed, kept };
+  if (present.length === 0) return { removed, kept, unchecked };
 
   const candidateSets = [present.map((entry) => entry.workflow), workflows, ALL_WORKFLOWS];
   const generatedByPath = new Map<string, string[]>();
@@ -92,26 +108,44 @@ export async function reconcileCommandFiles(
       // A file that cannot be read, or cannot be deleted once matched, is still
       // on disk. Report it rather than passing over it in silence: the user
       // needs to know the directory was not fully cleared.
-      kept.push(cmdPath);
+      unchecked.push(cmdPath);
     }
   }
 
-  return { removed, kept };
+  return { removed, kept, unchecked };
 }
 
 /**
- * Formats the report for command files `reconcileCommandFiles` kept back.
- * Returns an empty array when nothing was kept.
+ * Formats the report for command files `reconcileCommandFiles` left on disk.
+ * Each block is a headline, its paths, then what to do; edits and files that
+ * could not be checked are told apart, because the fix for each differs.
+ * Returns an empty array when nothing was left behind.
  */
-export function formatKeptCommandFiles(kept: readonly string[]): string[] {
-  if (kept.length === 0) return [];
+export function formatKeptCommandFiles(
+  result: Pick<CommandReconcileResult, 'kept' | 'unchecked'>
+): string[][] {
+  const blocks: string[][] = [];
+  const files = (count: number) => `command ${count === 1 ? 'file' : 'files'}`;
 
-  const plural = kept.length === 1 ? 'file' : 'files';
-  return [
-    `Kept ${kept.length} command ${plural} that ${
-      kept.length === 1 ? 'does' : 'do'
-    } not match generated output:`,
-    ...kept.map((cmdPath) => `  ${cmdPath}`),
-    'Move anything worth keeping into the skill, then delete by hand.',
-  ];
+  if (result.kept.length > 0) {
+    blocks.push([
+      `Kept ${result.kept.length} ${files(result.kept.length)} that ${
+        result.kept.length === 1 ? 'does' : 'do'
+      } not match generated output:`,
+      ...result.kept.map((cmdPath) => `  ${cmdPath}`),
+      'Move anything worth keeping into the skill, then delete by hand.',
+    ]);
+  }
+
+  if (result.unchecked.length > 0) {
+    blocks.push([
+      `Left ${result.unchecked.length} ${files(result.unchecked.length)} in place because ${
+        result.unchecked.length === 1 ? 'it' : 'they'
+      } could not be read or removed:`,
+      ...result.unchecked.map((cmdPath) => `  ${cmdPath}`),
+      'Check the file permissions or symbolic links, then delete by hand.',
+    ]);
+  }
+
+  return blocks;
 }

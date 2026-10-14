@@ -71,10 +71,12 @@ describe('reconcileCommandFiles', () => {
     expect(await fs.readFile(editedFull, 'utf-8')).toBe(
       `${original}\n<!-- our team's extra step -->\n`
     );
-    expect(formatKeptCommandFiles(result.kept)).toEqual([
-      'Kept 1 command file that does not match generated output:',
-      `  ${edited}`,
-      'Move anything worth keeping into the skill, then delete by hand.',
+    expect(formatKeptCommandFiles(result)).toEqual([
+      [
+        'Kept 1 command file that does not match generated output:',
+        `  ${edited}`,
+        'Move anything worth keeping into the skill, then delete by hand.',
+      ],
     ]);
   });
 
@@ -119,8 +121,17 @@ describe('reconcileCommandFiles', () => {
 
     try {
       const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
-      expect(result.kept).toEqual([unreadable]);
+      // Reported as unchecked, not as an edit: no mismatch was established.
+      expect(result.unchecked).toEqual([unreadable]);
+      expect(result.kept).toEqual([]);
       expect(result.removed).not.toContain(unreadable);
+      expect(formatKeptCommandFiles(result)).toEqual([
+        [
+          'Left 1 command file in place because it could not be read or removed:',
+          `  ${unreadable}`,
+          'Check the file permissions or symbolic links, then delete by hand.',
+        ],
+      ]);
     } finally {
       spy.mockRestore();
     }
@@ -129,13 +140,55 @@ describe('reconcileCommandFiles', () => {
     await expect(fs.access(path.join(projectPath, unreadable))).resolves.toBeUndefined();
   });
 
+  it.skipIf(process.platform === 'win32')(
+    'never follows a command symlink that escapes the project, and still cleans the rest',
+    async () => {
+      const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
+      const linked = written.find((p) => p.endsWith('apply.md'))!;
+      const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-reconcile-outside-'));
+      const outsideFile = path.join(outsideDir, 'apply.md');
+      // Same bytes as generated output, so only the confinement check can
+      // stop it being deleted through the link.
+      await fs.copyFile(path.join(projectPath, linked), outsideFile);
+      await fs.rm(path.join(projectPath, linked));
+      await fs.symlink(outsideFile, path.join(projectPath, linked));
+
+      try {
+        const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+
+        expect(result.unchecked).toEqual([linked]);
+        // One bad entry must not abort cleanup of the tool's other files.
+        expect(result.removed.sort()).toEqual(written.filter((p) => p !== linked).sort());
+        await expect(fs.access(outsideFile)).resolves.toBeUndefined();
+        await expect(fs.lstat(path.join(projectPath, linked))).resolves.toBeTruthy();
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true });
+      }
+    }
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'reports a dangling command symlink instead of failing the run',
+    async () => {
+      const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
+      const dangling = written.find((p) => p.endsWith('apply.md'))!;
+      await fs.rm(path.join(projectPath, dangling));
+      await fs.symlink(path.join(projectPath, 'does-not-exist.md'), path.join(projectPath, dangling));
+
+      const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+
+      expect(result.unchecked).toEqual([dangling]);
+      expect(result.removed).toHaveLength(written.length - 1);
+    }
+  );
+
   it('does nothing for a tool with no command adapter', async () => {
     const result = await reconcileCommandFiles(projectPath, 'codex', WORKFLOWS);
 
-    expect(result).toEqual({ removed: [], kept: [] });
+    expect(result).toEqual({ removed: [], kept: [], unchecked: [] });
   });
 
-  it('reports nothing when no files were kept', () => {
-    expect(formatKeptCommandFiles([])).toEqual([]);
+  it('reports nothing when nothing was left behind', () => {
+    expect(formatKeptCommandFiles({ kept: [], unchecked: [] })).toEqual([]);
   });
 });

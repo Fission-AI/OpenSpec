@@ -423,7 +423,7 @@ export class UpdateCommand {
     const skillsInvocableCommandSkips: string[] = [];
     const zeroArtifactTools: string[] = [];
     let removedCommandCount = 0;
-    const keptCommandFiles: string[] = [];
+    const leftCommandFiles = { kept: [] as string[], unchecked: [] as string[] };
     let removedSkillCount = 0;
     let removedDeselectedCommandCount = 0;
     let removedDeselectedSkillCount = 0;
@@ -521,7 +521,8 @@ export class UpdateCommand {
             toolWorkflows
           );
           removedCommandCount += reconciled.removed.length;
-          keptCommandFiles.push(...reconciled.kept);
+          leftCommandFiles.kept.push(...reconciled.kept);
+          leftCommandFiles.unchecked.push(...reconciled.unchecked);
         }
 
         spinner.succeed(`Updated ${tool.name}`);
@@ -575,10 +576,9 @@ export class UpdateCommand {
     if (removedCommandCount > 0) {
       this.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
     }
-    const [keptHeadline, ...keptDetail] = formatKeptCommandFiles(keptCommandFiles);
-    if (keptHeadline) {
-      console.log(chalk.yellow(keptHeadline));
-      for (const line of keptDetail) {
+    for (const [headline, ...detail] of formatKeptCommandFiles(leftCommandFiles)) {
+      console.log(chalk.yellow(headline));
+      for (const line of detail) {
         console.log(chalk.dim(line));
       }
     }

@@ -959,7 +959,7 @@ export class InitCommand {
     commandsSkipped: string[];
     skillsInvocableCommandSkips: string[];
     removedCommandCount: number;
-    keptCommandFiles: string[];
+    leftCommandFiles: { kept: string[]; unchecked: string[] };
     removedSkillCount: number;
   }> {
     const createdTools: typeof tools = [];
@@ -968,7 +968,7 @@ export class InitCommand {
     const commandsSkipped: string[] = [];
     const skillsInvocableCommandSkips: string[] = [];
     let removedCommandCount = 0;
-    const keptCommandFiles: string[] = [];
+    const leftCommandFiles = { kept: [] as string[], unchecked: [] as string[] };
     let removedSkillCount = 0;
 
     // Read global config for profile and delivery settings (use --profile override if set)
@@ -1044,7 +1044,8 @@ export class InitCommand {
         if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
           const reconciled = await reconcileCommandFiles(projectPath, tool.value, workflows);
           removedCommandCount += reconciled.removed.length;
-          keptCommandFiles.push(...reconciled.kept);
+          leftCommandFiles.kept.push(...reconciled.kept);
+          leftCommandFiles.unchecked.push(...reconciled.unchecked);
         }
         if (tool.value === 'github-copilot' && writeCopilotCloud) {
           await writeCopilotCloudFiles(projectPath);
@@ -1084,7 +1085,7 @@ export class InitCommand {
       commandsSkipped,
       skillsInvocableCommandSkips,
       removedCommandCount,
-      keptCommandFiles,
+      leftCommandFiles,
       removedSkillCount,
     };
   }
@@ -1195,7 +1196,7 @@ export class InitCommand {
       commandsSkipped: string[];
       skillsInvocableCommandSkips: string[];
       removedCommandCount: number;
-      keptCommandFiles: string[];
+      leftCommandFiles: { kept: string[]; unchecked: string[] };
       removedSkillCount: number;
     },
     configStatus: 'created' | 'exists' | 'skipped',
@@ -1308,10 +1309,9 @@ export class InitCommand {
     if (results.removedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));
     }
-    const [keptHeadline, ...keptDetail] = formatKeptCommandFiles(results.keptCommandFiles);
-    if (keptHeadline) {
-      console.log(chalk.yellow(keptHeadline));
-      for (const line of keptDetail) {
+    for (const [headline, ...detail] of formatKeptCommandFiles(results.leftCommandFiles)) {
+      console.log(chalk.yellow(headline));
+      for (const line of detail) {
         console.log(chalk.dim(line));
       }
     }
