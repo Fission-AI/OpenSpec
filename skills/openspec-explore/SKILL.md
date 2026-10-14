@@ -189,7 +189,7 @@ If the user mentions a change or you detect one is relevant:
     | New work identified        | `tasks.md`                        |
     | Assumption invalidated     | Relevant artifact                   |
 
-   Example offers:
+   Example offers (default schema):
    - "That's a design decision. Capture it in design.md?"
    - "This is a new requirement. Add it to specs?"
    - "This changes scope. Update the proposal?"
