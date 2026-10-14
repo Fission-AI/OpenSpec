@@ -2180,6 +2180,65 @@ metadata:
     });
   });
 
+  describe('CoStrict skills root', () => {
+    const cospec = () => path.join(testDir, '.cospec');
+    const agentsSkills = () => path.join(testDir, '.agents', 'skills');
+
+    /** Recreates the layout earlier releases wrote: skills under .cospec. */
+    async function moveSkillsToLegacyRoot(): Promise<void> {
+      await fs.mkdir(path.join(cospec(), 'skills'), { recursive: true });
+      for (const entry of await fs.readdir(agentsSkills())) {
+        if (!entry.startsWith('openspec-')) continue;
+        await fs.rename(path.join(agentsSkills(), entry), path.join(cospec(), 'skills', entry));
+      }
+      await fs.rm(path.join(testDir, '.agents'), { recursive: true, force: true });
+    }
+
+    it('installs CoStrict skills where CoStrict reads them, and leaves its commands in .cospec', async () => {
+      await new InitCommand({ tools: 'costrict', force: true }).execute(testDir);
+
+      expect(
+        await FileSystemUtils.fileExists(path.join(agentsSkills(), 'openspec-propose', 'SKILL.md'))
+      ).toBe(true);
+      expect(await FileSystemUtils.fileExists(path.join(cospec(), 'skills'))).toBe(false);
+      expect(
+        await FileSystemUtils.fileExists(path.join(cospec(), 'openspec', 'commands', 'opsx-propose.md'))
+      ).toBe(true);
+    });
+
+    it('moves an older install\'s skills out of .cospec and keeps everything else there', async () => {
+      await new InitCommand({ tools: 'costrict', force: true }).execute(testDir);
+      await moveSkillsToLegacyRoot();
+      const ownFile = path.join(cospec(), 'requirements.md');
+      await fs.writeFile(ownFile, '# CoStrict coworkflow spec\n');
+
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      expect(
+        await FileSystemUtils.fileExists(path.join(agentsSkills(), 'openspec-propose', 'SKILL.md'))
+      ).toBe(true);
+      expect(await FileSystemUtils.fileExists(path.join(cospec(), 'skills'))).toBe(false);
+      // Commands live in .cospec on purpose, the only path CoStrict reads
+      // them from, so the skills move must not take them along.
+      expect(
+        await FileSystemUtils.fileExists(path.join(cospec(), 'openspec', 'commands', 'opsx-propose.md'))
+      ).toBe(true);
+      expect(await fs.readFile(ownFile, 'utf-8')).toBe('# CoStrict coworkflow spec\n');
+    });
+
+    it('is up to date after the move, not asked to sync again', async () => {
+      await new InitCommand({ tools: 'costrict', force: true }).execute(testDir);
+      await moveSkillsToLegacyRoot();
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      const consoleSpy = vi.spyOn(console, 'log');
+      await new UpdateCommand().execute(testDir);
+      const logs = consoleSpy.mock.calls.flat().map(String);
+
+      expect(logs.some((entry) => entry.includes('up to date'))).toBe(true);
+    });
+  });
+
   describe('skill content validation', () => {
     it('should generate valid YAML frontmatter in skill files', async () => {
       // Set up a configured tool

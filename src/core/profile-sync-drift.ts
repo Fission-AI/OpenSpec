@@ -93,7 +93,13 @@ export function hasToolProfileOrDeliveryDrift(
       if (!view.exists(legacySkill)) continue;
 
       const currentSkill = path.join(skillsDir, dirName, 'SKILL.md');
-      if (!view.exists(currentSkill) || sharedTarget !== toolId) {
+      // An update is due when the current skill is missing, or when no tool
+      // has claimed the shared root yet, since generating writes the marker.
+      // Once any tool owns the root, an update cannot change the current copy
+      // for this one. Requiring this tool to be the owner looped forever for a
+      // tool sharing a root another tool owns: its divergent legacy copy is
+      // kept by design, so every run asked to sync again.
+      if (!view.exists(currentSkill) || sharedTarget === undefined) {
         return true;
       }
       try {
