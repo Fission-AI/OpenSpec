@@ -82,6 +82,34 @@ describe('unrecognized keys in .openspec.yaml', () => {
     expect(report.valid).toBe(true);
   });
 
+  it('passes --strict when the only extra keys are x- extension keys, whatever their values', async () => {
+    await writeMetadata(
+      'schema: spec-driven\nskip_specs: true\nx-goal: G-12\nx-jiraKey: ABC-1\n' +
+        'x-owner:\n  team: payments\nx-list: [1, 2]\nx-empty:\n'
+    );
+
+    const report = await new Validator(true).validateChangeDeltaSpecs(testDir);
+
+    expect(report.issues.filter((issue) => issue.path === METADATA_FILENAME)).toHaveLength(0);
+    expect(report.valid).toBe(true);
+  });
+
+  it('still fails --strict on near-miss extension keys beside a valid one', async () => {
+    await writeMetadata(
+      'schema: spec-driven\nskip_specs: true\nx-goal: G-12\nX-Tracker: 1\n"x-": 1\n"x- tracker": 1\n'
+    );
+
+    const report = await new Validator(true).validateChangeDeltaSpecs(testDir);
+
+    const warning = report.issues.find(
+      (issue) => issue.level === 'WARNING' && issue.path === METADATA_FILENAME
+    );
+    expect(report.valid).toBe(false);
+    expect(warning?.message).toContain('X-Tracker');
+    expect(warning?.message).toContain('x- tracker');
+    expect(warning?.message).not.toContain('x-goal');
+  });
+
   it('still accepts skip_specs when an unknown key sits beside it', async () => {
     await writeMetadata('schema: spec-driven\nskip_specs: true\nskip_design: true\n');
 
@@ -117,5 +145,18 @@ describe('status/instructions report unrecognized change metadata keys', () => {
 
     expect(context.metadata?.skip_specs).toBe(true);
     expect(context.warnings).toEqual([expect.stringContaining('skip_design')]);
+  });
+
+  it('returns no warning when the only extra keys are x- extension keys', async () => {
+    await fs.writeFile(
+      path.join(changeDir, METADATA_FILENAME),
+      'schema: spec-driven\nskip_specs: true\nx-goal: G-12\nx-owner:\n  team: payments\n',
+      'utf-8'
+    );
+
+    const context = loadChangeContext(tempDir, 'probe');
+
+    expect(context.metadata?.skip_specs).toBe(true);
+    expect(context.warnings).toBeUndefined();
   });
 });
