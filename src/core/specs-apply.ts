@@ -30,6 +30,7 @@ import {
 } from './validation/constants.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { assertSpecFileWithin } from '../utils/spec-path-containment.js';
 import { matchLineEnding } from '../utils/line-endings.js';
 
 // -----------------------------------------------------------------------------
@@ -72,7 +73,7 @@ function resolveTrustedSpecPath(
 
   try {
     // Preserve spec.md links that remain inside the overall specs tree.
-    FileSystemUtils.assertPathWithin(specsRoot, specPath);
+    assertSpecFileWithin(specsRoot, specPath);
     const root = FileSystemUtils.canonicalizeExistingPath(specsRoot);
     return {
       root,
@@ -97,7 +98,7 @@ function resolveTrustedSpecPath(
       );
     }
     const file = path.join(root, path.basename(specPath));
-    FileSystemUtils.assertPathWithin(root, file);
+    assertSpecFileWithin(root, file);
     return { root, file };
   }
 }
@@ -106,7 +107,7 @@ function assertTrustedSpecPath(root: string, specPath: string): void {
   if (FileSystemUtils.canonicalizeExistingPath(root) !== path.resolve(root)) {
     throw new Error(`Path is outside the allowed directory: ${specPath}`);
   }
-  FileSystemUtils.assertPathWithin(root, specPath);
+  assertSpecFileWithin(root, specPath);
 }
 
 // -----------------------------------------------------------------------------
