@@ -55,7 +55,7 @@ describe('verify checks each requirement by its delta operation', () => {
     const coverage = section(body, '**Spec Coverage**', '6. **Verify Correctness**', label);
     const removed = section(coverage, '- For each REMOVED requirement', '- For each RENAMED entry', label);
 
-    expect(removed, label).toContain('Finding no implementation is the expected result.');
+    expect(removed, label).toContain('Finding no implementation is the expected result, but only once the baseline behavior was the thing you searched for.');
     expect(removed, label).toContain('Never report a REMOVED requirement as "Requirement not found"');
     expect(removed, label).toContain('Add CRITICAL issue: "Removed requirement still implemented: <requirement name>"');
     expect(removed, label).not.toContain('Recommendation: "Implement');
@@ -89,7 +89,7 @@ describe('verify checks each requirement by its delta operation', () => {
 
     expect(renamed, label).toContain('If the baseline requirement cannot be found or read, mark **Spec Coverage** as not verified for that entry');
     expect(renamed, label).toContain('Never count an unchecked rename as passing.');
-    expect(body, label).toContain('(each RENAMED entry is checked there against its baseline behavior)');
+    expect(body, label).toContain('each REMOVED and RENAMED entry with a usable baseline is checked there against its baseline behavior');
   });
 
   it.each(bodies)('%s: maps implementation and scenarios only for ADDED or MODIFIED requirements', (label, body) => {
@@ -120,6 +120,97 @@ describe('verify checks each requirement by its delta operation', () => {
 
     expect(removed, label).toContain('Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves.');
     expect(removed, label).toContain('Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.');
+  });
+
+  // #2067: the REMOVED branch said only "search codebase for the removed
+  // behavior". A REMOVED block carries just the requirement name plus Reason
+  // and Migration notes, so the search started from the heading alone - and
+  // because an absent match is the passing result here, an implementation
+  // written in different vocabulary read as a clean removal. The RENAMED
+  // branch beside it already loaded the baseline from the main spec first.
+  it.each(bodies)('%s: reads the removed requirement baseline before searching', (label, body) => {
+    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+
+    expect(removed, label).toContain('A REMOVED block carries only the requirement name and any `**Reason**`/`**Migration**` notes');
+    expect(removed, label).toContain('`<planningHome.root>/openspec/specs/<capability-path>/spec.md`');
+    expect(removed, label).toContain('Its body and scenarios are the evidence for the behavior that must be gone');
+    expect(removed, label).toContain('never search from the requirement name alone');
+    // A literal title lookup misses a differently-worded baseline and gets
+    // misread as "the sync already removed it".
+    expect(removed, label).toContain('Match it by normalized name');
+  });
+
+  // The baseline read, the history fallback and the search have to stay in
+  // that order. Each index is checked present first: an unguarded indexOf
+  // returns -1, and -1 is less than everything, so a reworded sentence would
+  // satisfy a bare ordering comparison and silently retire this guard.
+  it.each(bodies)('%s: orders the baseline read, then the fallback, then the search', (label, body) => {
+    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+
+    const baselineAt = removed.indexOf('Before searching, read the baseline requirement');
+    const fallbackAt = removed.indexOf("recover the baseline from the same file's history");
+    const bailOutAt = removed.indexOf('mark **Spec Coverage** as not verified for that entry');
+    const searchAt = removed.indexOf('Search codebase for that behavior.');
+
+    expect(baselineAt, `${label}: baseline-read sentence missing`).toBeGreaterThanOrEqual(0);
+    expect(fallbackAt, `${label}: history fallback missing`).toBeGreaterThanOrEqual(0);
+    expect(bailOutAt, `${label}: not-verified bail-out missing`).toBeGreaterThanOrEqual(0);
+    expect(searchAt, `${label}: search step missing`).toBeGreaterThanOrEqual(0);
+
+    // The main spec is the primary source; history is only its fallback.
+    expect(baselineAt, `${label}: fallback must follow the primary read`).toBeLessThan(fallbackAt);
+    // Bailing out must be reachable before the search, not two bullets after
+    // the rule that says finding nothing is expected.
+    expect(bailOutAt, `${label}: bail-out must precede the search`).toBeLessThan(searchAt);
+  });
+
+  // The git example is the one piece of the fallback an agent runs verbatim.
+  // `git log` treats an unmatched pathspec as success and prints nothing, so a
+  // path missing the `openspec/specs/` prefix reads as "no baseline in
+  // history" and sends every post-sync removal to the not-verified branch.
+  it.each(bodies)('%s: gives a runnable, store-aware history command', (label, body) => {
+    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+
+    expect(removed, label).toContain('git -C "<planningHome.root>" log -p -- openspec/specs/<capability-path>/spec.md');
+    // `rev:path` resolves from the repository root, not from `-C`; the `./`
+    // keeps it relative to a planning root that is a subdirectory (monorepo).
+    expect(removed, label).toContain('git -C "<planningHome.root>" show <commit>^:./openspec/specs/<capability-path>/spec.md');
+    expect(removed, label).not.toMatch(/show <commit>\^:openspec\//);
+    // An unquoted planning root splits on spaces and runs git in the wrong place.
+    expect(removed, label).not.toMatch(/git -C <planningHome\.root>/);
+    expect(removed, label).toContain('Empty output means the pathspec matched nothing');
+    // A bare `<capability-path>/spec.md` pathspec matches nothing: the
+    // placeholder is defined relative to `specs/`.
+    expect(removed, label).not.toMatch(/git[^`\n]*log[^`\n]*--\s+<capability-path>/);
+    // History must be read from the planning home, which may be a store repo
+    // rather than the current checkout (#1702).
+    expect(removed, label).not.toMatch(/\bgit log -p -- openspec/);
+  });
+
+  it.each(bodies)('%s: never counts an unsearched removal as passing', (label, body) => {
+    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+
+    expect(removed, label).toContain('mark **Spec Coverage** as not verified for that entry with the reason and stop there');
+    expect(removed, label).toContain('do not search, and never count an unsearched removal as passing');
+    // A baseline that only restates its title gives no more vocabulary than
+    // the heading did, which is the #2067 failure mode in miniature.
+    expect(removed, label).toContain('A baseline that adds nothing to its own title');
+    expect(removed, label).toContain('is unusable evidence, the same as a missing one');
+    // Reworded re-introductions must fail too, not just the exact old
+    // sentence: the bug was searching from the name, however it is phrased.
+    expect(removed, label).not.toMatch(/Search\b[^.\n]*\bfor the removed behavior/i);
+    expect(removed, label).not.toMatch(/Finding no implementation is the expected result[.;]/);
+  });
+
+  // Step 6 asserts that Spec Coverage carries the evidence for a removal-only
+  // change. That claim has to leave room for the entry the branch above marks
+  // not verified, or it reads as licence to drop the mark.
+  it.each(bodies)('%s: does not claim a baseline check that may not have happened', (label, body) => {
+    expect(body, label).toContain('each REMOVED and RENAMED entry with a usable baseline is checked there against its baseline behavior');
+    expect(body, label).toContain('an entry already marked not verified there stays not verified');
+    // The scorecard must model the not-verified wording, not only the
+    // confirming kind.
+    expect(body, label).toContain('"1 removal not verified (baseline unavailable)"');
   });
 
   it.each(bodies)('%s: counts removals separately from covered requirements', (label, body) => {

@@ -20,6 +20,7 @@ import {
   describeScenarioBalance,
   parseScenarioBlocks,
   isScenarioLabeledHeader,
+  describeUnappliedContent,
   type RequirementBlock,
 } from '../parsers/requirement-blocks.js';
 import {
@@ -260,6 +261,17 @@ export class Validator {
             path: entryPath,
             line: orphan.line,
             message: `Requirement "${orphan.name}" is ${where}, which is not a delta section, so it is ignored. Move it under "## ADDED Requirements", "## MODIFIED Requirements", "## REMOVED Requirements", or "## RENAMED Requirements".`,
+          });
+        }
+
+        // Archive carries requirement blocks only, by design. Warn so text
+        // written elsewhere is moved rather than lost without notice.
+        for (const lost of plan.unappliedContent) {
+          issues.push({
+            level: 'WARNING',
+            path: entryPath,
+            line: lost.line,
+            message: `${describeUnappliedContent(lost, true)} is not carried into the main spec by archive. Move it into a requirement, or into proposal.md or design.md.`,
           });
         }
 
