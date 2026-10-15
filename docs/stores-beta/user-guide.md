@@ -403,9 +403,9 @@ in the next section):
    (walking up from         or a store: pointer in       → that store
     your directory)        config.yaml                   (same search
                                                           as --store)
-3. project-scoped        .openspec-store/registry.yaml  → first usable
-   registry              found walking up from           store entry
-                          your directory
+3. project-scoped        .openspec-store/registry.yaml  → first store
+   registry              found walking up from           entry (error if
+                          your directory                 missing/unhealthy)
 4. defaultStore          global config sets a machine  → that store
                          default
 5. none of the above     stores registered on this     → error with a
@@ -479,12 +479,11 @@ the store ID comes from `--store`, a `store:` pointer in `config.yaml`, or a
 `references:` entry.
 
 When you run a command **without** `--store` and there is no local `openspec/`
-folder, OpenSpec uses the first usable store entry along the chain of
+folder, OpenSpec uses the first store entry along the chain of
 `.openspec-store/registry.yaml` files (nearest first, document order within each
-file) as the default OpenSpec root. If an entry cannot be used (the folder is
-missing, say), the search continues to the next entry in the same file, then up
-the chain. The `Using OpenSpec root: <id> (...)` banner tells you which store
-that was.
+file) as the default OpenSpec root. If that entry's folder is missing or
+unhealthy, the system reports an error rather than skipping to the next entry.
+The `Using OpenSpec root: <id> (...)` banner tells you which store that was.
 
 ### Setting up a project-scoped registry
 
@@ -720,9 +719,10 @@ global registry is not involved — no "already registered" error.
   first. This applies to the global registry; project-scoped registries (see
   above) allow the same store ID in different projects without conflict.
 - **Nearest project-scoped registry wins for default discovery.** When no
-  `--store` and no local `openspec/` root apply, the first usable store entry
+  `--store` and no local `openspec/` root apply, the first store entry
   along the chain of `.openspec-store/registry.yaml` files (nearest first,
-  document order within each file) becomes the root. For `--store <id>` and `store:` pointer
+  document order within each file) becomes the root. If that entry's folder
+  is missing or unhealthy, the system reports an error. For `--store <id>` and `store:` pointer
   resolution, each registry in the ancestor chain is checked for the ID — the
   first registry containing the ID wins.
 - **No sync, ever — by design.** OpenSpec never clones, pulls, or pushes.
