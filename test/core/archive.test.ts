@@ -6,7 +6,7 @@ import { MarkdownParser } from '../../src/core/parsers/markdown-parser.js';
 import { findMainSpecStructureIssues } from '../../src/core/parsers/spec-structure.js';
 import { VALIDATION_MESSAGES } from '../../src/core/validation/constants.js';
 import { formatLocalDate } from '../../src/utils/date.js';
-import { promises as fs, realpathSync } from 'fs';
+import { constants as fsConstants, promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import os from 'os';
 
@@ -7920,8 +7920,19 @@ The system SHALL provide a new behavior.
 
         // The occupant that appeared at the link's path is left exactly as it
         // was found; the displaced link is retained beside it instead.
-        expect((await fs.lstat(linkedSpec)).isFile()).toBe(true);
-        await expect(fs.readFile(linkedSpec, 'utf-8')).resolves.toBe('concurrent occupant\n');
+        // O_NOFOLLOW makes the open itself fail if the path is a link again, so
+        // one handle both proves the occupant is a regular file and carries its
+        // bytes - no second lookup that could land on a different file.
+        const occupant = await fs.open(
+          linkedSpec,
+          fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW
+        );
+        try {
+          expect((await occupant.stat()).isFile()).toBe(true);
+          await expect(occupant.readFile('utf-8')).resolves.toBe('concurrent occupant\n');
+        } finally {
+          await occupant.close();
+        }
         const retained = (await fs.readdir(path.dirname(linkedSpec))).find((name) =>
           name.includes('.openspec-retire-')
         );

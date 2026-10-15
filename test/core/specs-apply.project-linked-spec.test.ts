@@ -122,6 +122,44 @@ describe('a spec.md linked to a file elsewhere in the project', () => {
     await expect(fs.readFile(outsideSpec, 'utf-8')).resolves.toBe(MAIN_SPEC);
   });
 
+  itWithSymlinks(
+    'refuses a link repointed out of the project between resolve and write',
+    async () => {
+      await fs.symlink(path.relative(path.dirname(linkedSpec), docsSpec), linkedSpec);
+      const [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+      const built = await buildUpdatedSpec(update, 'add-mfa', { silent: true });
+
+      // The link now points out of the project, after the path was resolved and
+      // the merge was built. The recheck before the write has to catch it.
+      const outsideSpec = path.join(tempDir, 'outside.md');
+      await fs.writeFile(outsideSpec, 'outside sentinel');
+      await fs.rm(linkedSpec);
+      await fs.symlink(outsideSpec, linkedSpec);
+
+      await expect(
+        writeUpdatedSpec(update, built.rebuilt, built.counts, { silent: true })
+      ).rejects.toThrow('Path is outside the allowed directory');
+      await expect(fs.readFile(outsideSpec, 'utf-8')).resolves.toBe('outside sentinel');
+    }
+  );
+
+  itWithSymlinks(
+    'refuses a link repointed out of the project between resolve and read',
+    async () => {
+      await fs.symlink(path.relative(path.dirname(linkedSpec), docsSpec), linkedSpec);
+      const [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+
+      const outsideSpec = path.join(tempDir, 'outside.md');
+      await fs.writeFile(outsideSpec, 'outside sentinel');
+      await fs.rm(linkedSpec);
+      await fs.symlink(outsideSpec, linkedSpec);
+
+      await expect(buildUpdatedSpec(update, 'add-mfa', { silent: true })).rejects.toThrow(
+        'Path is outside the allowed directory'
+      );
+    }
+  );
+
   itWithSymlinks('merges through a linked delta spec inside the project', async () => {
     await fs.symlink(path.relative(path.dirname(linkedSpec), docsSpec), linkedSpec);
     const sharedDelta = path.join(projectDir, 'docs', 'auth', 'deltas', 'login.md');

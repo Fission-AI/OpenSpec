@@ -8,21 +8,31 @@ import { FileSystemUtils } from './file-system.js';
  *
  * Every specs root OpenSpec reads is addressed through the project's
  * `openspec` directory - `<project>/openspec/specs` for main specs and
- * `<project>/openspec/changes/<change>/specs` for a change's deltas - so the
- * project is the parent of the nearest `openspec` ancestor. A specs root
- * reached some other way (a store selected by path) has no project to name,
- * and containment stays at the specs root.
+ * `<project>/openspec/changes/<change>/specs` (or `.../changes/archive/...`)
+ * for a change's deltas - so the project is the parent of that `openspec`
+ * directory.
+ *
+ * The directory below the match has to be `specs` or `changes`, which is what
+ * makes this a planning root rather than a directory that merely shares the
+ * name: a store kept at `~/openspec/my-store` would otherwise hand out `~` as
+ * its boundary. A specs root reached some other way (a store given by path)
+ * has no project to name, and containment stays at the specs root.
  */
 function findProjectRoot(specsRoot: string): string | null {
   let current = path.resolve(specsRoot);
+  let below: string | null = null;
   while (true) {
     const parent = path.dirname(current);
     if (parent === current) {
       return null;
     }
-    if (path.basename(current) === OPENSPEC_DIR_NAME) {
+    if (
+      path.basename(current) === OPENSPEC_DIR_NAME &&
+      (below === 'specs' || below === 'changes')
+    ) {
       return parent;
     }
+    below = path.basename(current);
     current = parent;
   }
 }

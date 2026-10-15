@@ -99,6 +99,65 @@ describe('spec.md containment', () => {
     });
   }
 
+  describe('the project boundary a specs root resolves to', () => {
+    async function linkedSpecUnder(
+      specsRoot: string,
+      target: string
+    ): Promise<string> {
+      await fs.mkdir(path.join(specsRoot, 'login'), { recursive: true });
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, '# login\n');
+      const linkPath = path.join(specsRoot, 'login', 'spec.md');
+      await fs.symlink(path.relative(path.join(specsRoot, 'login'), target), linkPath);
+      return linkPath;
+    }
+
+    itWithSymlinks('reaches the project from a change\'s delta specs', async () => {
+      const deltaSpecs = path.join(projectDir, 'openspec', 'changes', 'c1', 'specs');
+      const linkPath = await linkedSpecUnder(
+        deltaSpecs,
+        path.join(projectDir, 'docs', 'shared-delta.md')
+      );
+
+      expect(() => assertDiscoveredSpecFile(deltaSpecs, linkPath)).not.toThrow();
+    });
+
+    itWithSymlinks('reaches the project from an archived change\'s delta specs', async () => {
+      const deltaSpecs = path.join(
+        projectDir,
+        'openspec',
+        'changes',
+        'archive',
+        '2026-01-01-c1',
+        'specs'
+      );
+      const linkPath = await linkedSpecUnder(
+        deltaSpecs,
+        path.join(projectDir, 'docs', 'shared-delta.md')
+      );
+
+      expect(() => assertDiscoveredSpecFile(deltaSpecs, linkPath)).not.toThrow();
+    });
+
+    itWithSymlinks(
+      'does not widen for a directory that merely shares the name `openspec`',
+      async () => {
+        // A store kept at `<somewhere>/openspec/my-store` must not hand out
+        // `<somewhere>` as its boundary: only `openspec/specs` and
+        // `openspec/changes` are planning roots.
+        const storeSpecs = path.join(tempDir, 'openspec', 'my-store', 'specs');
+        const linkPath = await linkedSpecUnder(
+          storeSpecs,
+          path.join(tempDir, 'elsewhere', 'login.md')
+        );
+
+        expect(() => assertDiscoveredSpecFile(storeSpecs, linkPath)).toThrow(
+          'Path is outside the allowed directory'
+        );
+      }
+    );
+  });
+
   itWithSymlinks(
     'assertDiscoveredSpecFile treats a linked capability directory as its own trust root',
     async () => {
