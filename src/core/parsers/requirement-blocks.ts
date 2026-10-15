@@ -731,16 +731,19 @@ export function isScenarioLabeledHeader(headerLine: string): boolean {
   return /^Scenario:\s*/i.test(headerLine.replace(SCENARIO_HEADER, ''));
 }
 
+/**
+ * Every `#### ` child of a requirement block, header line included in `raw`,
+ * in document order. A scenario is ANY non-fenced `#### ` header, matching the
+ * spec path's SCENARIO_HEADER / countScenarios (requirement-text.ts) exactly —
+ * not only `#### Scenario:`. The two MUST agree: a level-4 child whose header
+ * is not literally `Scenario:` (e.g. `#### Edge case`) is still a scenario the
+ * spec path counts, so a MODIFIED block that drops it would otherwise slip past
+ * the loss check and be deleted by archive with no error (the parity the
+ * SCENARIO_HEADER comment warns not to break). A `####` inside a fenced example
+ * is masked out, matching countScenarios.
+ */
 export function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
   const lines = requirementRaw.replace(/\r\n?/g, '\n').split('\n');
-  // A scenario is ANY non-fenced `#### ` header, matching the spec path's
-  // SCENARIO_HEADER / countScenarios (requirement-text.ts) exactly — not only
-  // `#### Scenario:`. The two MUST agree: a level-4 child whose header is not
-  // literally `Scenario:` (e.g. `#### Edge case`) is still a scenario the spec
-  // path counts, so a MODIFIED block that drops it would otherwise slip past
-  // this loss check and be deleted by archive with no error (the parity the
-  // SCENARIO_HEADER comment warns not to break). A `####` inside a fenced
-  // example is masked out, matching countScenarios.
   const mask = buildCodeFenceMask(lines);
   const scenarios: ScenarioBlock[] = [];
   let index = 0;

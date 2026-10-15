@@ -95,6 +95,7 @@ afterAll(async () => {
   await Promise.all(temps.map((dir) => fs.rm(dir, { recursive: true, force: true })));
 });
 
+/** A temp directory removed after the suite, so no test leaks one on failure. */
 async function tempDir(prefix: string): Promise<string> {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), prefix));
   temps.push(dir);
@@ -106,6 +107,7 @@ const deltaSpec = (section: 'ADDED' | 'MODIFIED', ...scenarios: string[]) =>
     '\n'
   );
 
+/** Write `delta` as change `edit`'s billing delta and validate it. */
 async function validateDelta(delta: string, strict = false) {
   const changeDir = await tempDir('openspec-scenario-steps-');
   await fs.mkdir(path.join(changeDir, 'specs', 'billing'), { recursive: true });
@@ -178,6 +180,7 @@ describe('validate warns about a scenario that asserts nothing', () => {
 });
 
 describe('the main-spec path reports the same finding', () => {
+  /** Render a billing spec whose single requirement carries these scenarios. */
   async function validateSpecContent(scenarios: string[]) {
     const content = [
       '# billing Specification',
@@ -218,6 +221,7 @@ describe('the main-spec path reports the same finding', () => {
  * agreement #1857 established, kept for a finding archive has no opinion on.
  */
 describe('validate and archive verdicts (e2e)', () => {
+  /** Init a throwaway project (isolated HOME) and return its CLI runner. */
   async function projectWithScenarios(scenarios: string[]) {
     const base = await tempDir('openspec-scenario-steps-e2e-');
     const home = path.join(base, 'home');

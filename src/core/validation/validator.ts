@@ -815,6 +815,14 @@ export class Validator {
     });
   }
 
+  /**
+   * Every guidance and error the main-spec path emits about one spec file
+   * (#1156, #243): structure, a placeholder or too-brief Purpose, requirement
+   * length, a requirement with no scenario, a missing English SHALL/MUST in the
+   * body, and a counted scenario with no trigger or outcome. The step check is
+   * the same one the delta path runs, on the same `#### ` blocks, so a scenario
+   * that asserts nothing is reported wherever it lives.
+   */
   private applySpecRules(spec: Spec, content: string): ValidationIssue[] {
     const issues: ValidationIssue[] = [];
 
@@ -1142,6 +1150,7 @@ export class Validator {
     return issues;
   }
 
+  /** Render a list of section names as prose: `a`, `a and b`, `a, b and c`. */
   private formatSectionList(sections: string[]): string {
     if (sections.length === 0) return '';
     if (sections.length === 1) return sections[0];
