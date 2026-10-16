@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // Serve the built static site in `out/` for a local look at what Cloudflare
 // Pages will publish. Backs `pnpm start`.
 //

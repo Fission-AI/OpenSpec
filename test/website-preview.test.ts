@@ -1,12 +1,8 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { pathToFileURL } from 'url';
 import type { AddressInfo } from 'net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-
-const projectRoot = process.cwd();
-const scriptPath = path.join(projectRoot, 'website', 'scripts', 'preview.mjs');
 
 type PreviewModule = {
   resolveStaticFile(root: string, requestPath: string): string | null;
@@ -14,9 +10,15 @@ type PreviewModule = {
   createPreviewServer(root: string): import('http').Server;
 };
 
-// A bare Windows path (`D:\...`) is not a valid module specifier, so the
-// absolute path has to go through a file:// URL.
-const preview: PreviewModule = await import(pathToFileURL(scriptPath).href);
+// A literal relative specifier, so the runner resolves it the same way it
+// resolves every other import in this suite. Building the path at runtime
+// instead handed it a Windows absolute path, which is not a module specifier:
+// the suite failed to load on windows-pwsh with `SyntaxError: Invalid or
+// unexpected token`, and a `file://` URL did not fix it either.
+// `test/pnpm-workspace-config.test.ts` pins the script's location.
+const preview = (await import(
+  '../website/scripts/preview.mjs'
+)) as unknown as PreviewModule;
 
 /**
  * Mirrors a Next static export: a route is written as `docs/cli.html`, and a
