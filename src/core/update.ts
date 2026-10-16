@@ -57,6 +57,7 @@ import {
 import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
+  computeProfileMigration,
   findLegacyToolMigrations,
   migrateLegacyToolDirs,
   describeLegacyMigration,
@@ -75,9 +76,15 @@ import {
 } from './command-surface.js';
 import {
   resolveSharedSkillWriters,
-  writeSharedSkillTarget,
+  sharedSkillTargetMarkerPath,
 } from './shared-skill-target.js';
-import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
+import {
+  realFileOps,
+  UpdatePlanRecorder,
+  type UpdateFileOps,
+  type UpdatePlan,
+} from './update-plan.js';
+import { COPILOT_CLOUD_FILES, includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -122,6 +129,11 @@ function normalizeGeneratedFile(content: string): string {
 export interface UpdateCommandOptions {
   /** Force update even when tools are up to date */
   force?: boolean;
+  /**
+   * Record what the update would change and write nothing. Set by `plan()`;
+   * callers use that instead of passing this directly.
+   */
+  dryRun?: boolean;
 }
 
 /**
@@ -139,9 +151,45 @@ export function scanInstalledWorkflows(projectPath: string, toolIds: string[]): 
 
 export class UpdateCommand {
   private readonly force: boolean;
+  private readonly dryRun: boolean;
+  private recorder: UpdatePlanRecorder | null = null;
+  private ops: UpdateFileOps = realFileOps;
 
   constructor(options: UpdateCommandOptions = {}) {
     this.force = options.force ?? false;
+    this.dryRun = options.dryRun ?? false;
+  }
+
+  /**
+   * Reports what `execute` would add, change or delete, writing nothing.
+   *
+   * Same code path as the real update: the plan is recorded by the write seam
+   * the generation loop already goes through, so it cannot drift from it.
+   */
+  async plan(projectPath: string): Promise<UpdatePlan> {
+    if (!this.dryRun) {
+      throw new Error('plan() requires the update command to be constructed with dryRun: true');
+    }
+    await this.execute(projectPath);
+    return this.recorder?.getPlan() ?? { changes: [], notes: [] };
+  }
+
+  /** Prints progress on a real run, stays quiet while planning. */
+  private log(...args: unknown[]): void {
+    if (this.dryRun) return;
+    console.log(...args);
+  }
+
+  /** A spinner on a real run, a no-op while planning. */
+  private startSpinner(text: string): {
+    succeed(text: string): void;
+    fail(text: string): void;
+    info(text: string): void;
+  } {
+    if (this.dryRun) {
+      return { succeed: () => {}, fail: () => {}, info: () => {} };
+    }
+    return ora(text).start();
   }
 
   /**
@@ -154,6 +202,11 @@ export class UpdateCommand {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);
 
+    if (this.dryRun) {
+      this.recorder = new UpdatePlanRecorder(resolvedProjectPath);
+      this.ops = this.recorder;
+    }
+
     // 1. Check openspec directory exists
     if (!await FileSystemUtils.directoryExists(openspecPath)) {
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
@@ -163,20 +216,35 @@ export class UpdateCommand {
     // (e.g. .kimi -> .kimi-code) so they stay detected and get refreshed,
     // then perform the one-time profile migration if needed before any
     // legacy upgrade generation.
-    for (const migration of migrateLegacyToolDirs(resolvedProjectPath)) {
-      if (hasMovableContent(migration)) {
-        console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+    if (!this.dryRun) {
+      for (const migration of migrateLegacyToolDirs(resolvedProjectPath)) {
+        if (hasMovableContent(migration)) {
+          this.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+        }
+        this.reportKeptInPlace(migration);
       }
-      this.reportKeptInPlace(migration);
+    } else if (findLegacyToolMigrations(resolvedProjectPath).length > 0) {
+      this.recorder?.addNote(
+        'A real update would also move OpenSpec files out of renamed tool directories; those moves are not listed here.'
+      );
     }
-    const declinedMigrations = await this.offerConsentedLegacyMigrations(resolvedProjectPath);
+    const declinedMigrations = this.dryRun
+      ? []
+      : await this.offerConsentedLegacyMigrations(resolvedProjectPath);
 
     // Use detected tool directories to preserve existing opsx skills/commands.
     const detectedTools = getAvailableTools(resolvedProjectPath);
-    migrateIfNeededShared(resolvedProjectPath, detectedTools);
+    if (!this.dryRun) {
+      migrateIfNeededShared(resolvedProjectPath, detectedTools);
+    }
 
-    // 3. Read global config for profile/delivery
-    const globalConfig = getGlobalConfig();
+    // 3. Read global config for profile/delivery. A dry run cannot save the
+    //    one-time profile migration, so it resolves against the same values
+    //    the migration would have written — otherwise the preview would plan
+    //    for a different profile than the real update acts on.
+    const globalConfig = this.dryRun
+      ? { ...getGlobalConfig(), ...(computeProfileMigration(resolvedProjectPath, detectedTools) ?? {}) }
+      : getGlobalConfig();
     const profile = globalConfig.profile ?? 'core';
     const delivery: Delivery = globalConfig.delivery ?? 'both';
     const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
@@ -185,11 +253,9 @@ export class UpdateCommand {
     );
 
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
-    const legacyUpgrade = await this.handleLegacyCleanup(
-      resolvedProjectPath,
-      desiredWorkflows,
-      delivery
-    );
+    const legacyUpgrade = this.dryRun
+      ? await this.noteSkippedLegacyCleanup(resolvedProjectPath)
+      : await this.handleLegacyCleanup(resolvedProjectPath, desiredWorkflows, delivery);
     const {
       newlyConfiguredTools,
       workflowOverrides: legacyWorkflowOverrides,
@@ -210,21 +276,21 @@ export class UpdateCommand {
         // Not an unconfigured project — a configured one the user chose to
         // leave in its former directory. Saying "run init" would be wrong.
         for (const migration of declinedMigrations) {
-          console.log(
+          this.log(
             chalk.yellow(
               `Nothing to update: this project's OpenSpec files are still in ${migration.from}/, ` +
                 `which OpenSpec no longer writes.`
             )
           );
-          console.log(
+          this.log(
             chalk.dim(`Re-run "openspec update" and accept the move to ${migration.to}/ to resume updates.`)
           );
         }
         return;
       }
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
-      console.log(chalk.yellow('No configured tools found.'));
-      console.log(chalk.dim('Run "openspec init" to set up tools.'));
+      this.log(chalk.yellow('No configured tools found.'));
+      this.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
     }
 
@@ -286,9 +352,9 @@ export class UpdateCommand {
 
     // 8. Display update plan
     if (this.force) {
-      console.log(`Force updating ${configuredTools.length} tool(s): ${configuredTools.join(', ')}`);
+      this.log(`Force updating ${configuredTools.length} tool(s): ${configuredTools.join(', ')}`);
     } else if (toolsToUpdateSet.size === 0) {
-      console.log('No additional refresh needed after legacy migration.');
+      this.log('No additional refresh needed after legacy migration.');
     } else {
       this.displayUpdatePlan(
         [...toolsToUpdateSet],
@@ -297,7 +363,7 @@ export class UpdateCommand {
         new Set(toolsWithDriftedSkills)
       );
     }
-    console.log();
+    this.log();
 
     // 9. Determine what to generate based on delivery
     const deliveryIncludesCommands = delivery !== 'skills';
@@ -323,7 +389,7 @@ export class UpdateCommand {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
       if (!tool || !toolSupportsSkills(tool)) continue;
 
-      const spinner = ora(`Updating ${tool.name}...`).start();
+      const spinner = this.startSpinner(`Updating ${tool.name}...`);
 
       try {
         const skillsDir = resolveToolSkillsDir(resolvedProjectPath, tool);
@@ -349,14 +415,15 @@ export class UpdateCommand {
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
-            await FileSystemUtils.writeFile(skillFile, skillContent);
+            await this.ops.writeFile(skillFile, skillContent, tool.value);
           }
-          writeSharedSkillTarget(resolvedProjectPath, tool.value);
+          await this.writeSharedSkillTarget(resolvedProjectPath, tool.value);
 
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(
             skillsRoot,
             skillsDir,
-            toolWorkflows
+            toolWorkflows,
+            tool.value
           );
         }
 
@@ -366,10 +433,10 @@ export class UpdateCommand {
           writesSkills &&
           !hasGlobalSkillTarget(tool)
         ) {
-          removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir);
+          removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir, tool.value);
           // Persist the selected owner even when commands-only delivery leaves
           // this target with no generated skills.
-          writeSharedSkillTarget(resolvedProjectPath, tool.value);
+          await this.writeSharedSkillTarget(resolvedProjectPath, tool.value);
           // A tool with no command adapter now has zero OpenSpec artifacts;
           // say so like init does, rather than deleting its skills silently
           // and letting tool detection re-suggest an init that would also
@@ -390,7 +457,7 @@ export class UpdateCommand {
                 resolvedProjectPath,
                 cmd.path
               );
-              await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
+              await this.ops.writeFile(commandFile, cmd.fileContent, tool.value);
             }
 
             removedDeselectedCommandCount += await this.removeUnselectedCommandFiles(
@@ -411,15 +478,17 @@ export class UpdateCommand {
         spinner.succeed(`Updated ${tool.name}`);
         updatedTools.push(tool.name);
         updatedToolIds.push(tool.value);
-        for (const migration of migrateLegacyToolDirs(
-          resolvedProjectPath,
-          [tool.value],
-          'after-generation'
-        )) {
-          if (hasMovableContent(migration)) {
-            console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+        if (!this.dryRun) {
+          for (const migration of migrateLegacyToolDirs(
+            resolvedProjectPath,
+            [tool.value],
+            'after-generation'
+          )) {
+            if (hasMovableContent(migration)) {
+              this.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+            }
+            this.reportKeptInPlace(migration);
           }
-          this.reportKeptInPlace(migration);
         }
       } catch (error) {
         spinner.fail(`Failed to update ${tool.name}`);
@@ -435,25 +504,25 @@ export class UpdateCommand {
     }
 
     // 11. Summary
-    console.log();
+    this.log();
     if (updatedTools.length > 0) {
-      console.log(chalk.green(`✓ Updated: ${updatedTools.join(', ')} (v${OPENSPEC_VERSION})`));
+      this.log(chalk.green(`✓ Updated: ${updatedTools.join(', ')} (v${OPENSPEC_VERSION})`));
     }
     if (failedTools.length > 0) {
-      console.log(chalk.red(`✗ Failed: ${failedTools.map(f => `${f.name} (${f.error})`).join(', ')}`));
+      this.log(chalk.red(`✗ Failed: ${failedTools.map(f => `${f.name} (${f.error})`).join(', ')}`));
     }
     if (skillsInvocableCommandSkips.length > 0) {
-      console.log(chalk.dim(`Commands skipped for: ${skillsInvocableCommandSkips.join(', ')} (uses skills)`));
+      this.log(chalk.dim(`Commands skipped for: ${skillsInvocableCommandSkips.join(', ')} (uses skills)`));
     }
     if (removedCommandCount > 0) {
-      console.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
+      this.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
     }
     if (removedSkillCount > 0) {
-      console.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (delivery: commands)`));
+      this.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (delivery: commands)`));
     }
     if (zeroArtifactTools.length > 0) {
       const names = zeroArtifactTools.join(', ');
-      console.log(
+      this.log(
         chalk.yellow(
           `No skills or commands remain for ${names}: delivery is set to 'commands' but ` +
             `${zeroArtifactTools.length === 1 ? 'it supports' : 'they support'} only skills. ` +
@@ -462,10 +531,10 @@ export class UpdateCommand {
       );
     }
     if (removedDeselectedCommandCount > 0) {
-      console.log(chalk.dim(`Removed: ${removedDeselectedCommandCount} command files (deselected workflows)`));
+      this.log(chalk.dim(`Removed: ${removedDeselectedCommandCount} command files (deselected workflows)`));
     }
     if (removedDeselectedSkillCount > 0) {
-      console.log(chalk.dim(`Removed: ${removedDeselectedSkillCount} skill directories (deselected workflows)`));
+      this.log(chalk.dim(`Removed: ${removedDeselectedSkillCount} skill directories (deselected workflows)`));
     }
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade.
@@ -505,16 +574,16 @@ export class UpdateCommand {
       const entries: Array<[string, string]> = getOnboardingCommands(installedWorkflows).map(
         ({ command, description }) => [referenceFor(command), description]
       );
-      console.log();
+      this.log();
       if (entries.length > 0) {
         const width = Math.max(...entries.map(([reference]) => reference.length));
-        console.log(chalk.bold('Getting started:'));
+        this.log(chalk.bold('Getting started:'));
         for (const [reference, description] of entries) {
-          console.log(`  ${reference.padEnd(width)}  ${description}`);
+          this.log(`  ${reference.padEnd(width)}  ${description}`);
         }
-        console.log();
+        this.log();
       }
-      console.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
+      this.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
 
     await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
@@ -529,19 +598,59 @@ export class UpdateCommand {
     // 15. List affected tools
     if (updatedTools.length > 0) {
       const toolDisplayNames = updatedTools;
-      console.log(chalk.dim(`Tools: ${toolDisplayNames.join(', ')}`));
+      this.log(chalk.dim(`Tools: ${toolDisplayNames.join(', ')}`));
     }
 
-    console.log();
+    this.log();
     const affectedToolIds = [...new Set([...newlyConfiguredTools, ...updatedToolIds])];
     const restartHint = formatIdeRestart(affectedToolIds, delivery);
     if (restartHint) {
-      console.log(chalk.dim(restartHint));
+      this.log(chalk.dim(restartHint));
     }
     throwIfUpdateFailed(failedTools);
   }
 
+  /**
+   * Records the shared-skills-root owner through the write seam, so a dry run
+   * lists the marker file a real update would write.
+   */
+  private async writeSharedSkillTarget(projectPath: string, toolId: string): Promise<void> {
+    const marker = sharedSkillTargetMarkerPath(projectPath, toolId);
+    if (!marker) return;
+    FileSystemUtils.assertProjectArtifactPath(projectPath, marker);
+    await this.ops.writeFile(marker, `${toolId}\n`, toolId);
+  }
+
+  /**
+   * Legacy cleanup prompts and moves files outside the write seam, so a dry run
+   * skips it and says so rather than previewing half of it.
+   */
+  private async noteSkippedLegacyCleanup(projectPath: string): Promise<LegacyUpgradeResult> {
+    const detection = await detectLegacyArtifacts(projectPath);
+    if (detection.hasLegacyArtifacts) {
+      this.recorder?.addNote(
+        'A real update would also clean up legacy OpenSpec artifacts; those changes are not listed here.'
+      );
+    }
+    return { newlyConfiguredTools: [], workflowOverrides: {} };
+  }
+
   private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
+    if (this.dryRun) {
+      // The real run writes these files when cloud mode is on and removes them
+      // when it is off, so either direction is a change the preview omits.
+      const cloudFilesPresent = Object.values(COPILOT_CLOUD_FILES).some((file) =>
+        fs.existsSync(path.join(projectPath, file))
+      );
+      const wouldWrite =
+        includesGitHubCopilot(configuredTools) && (await isCopilotCloudEnabled(projectPath));
+      if (cloudFilesPresent || wouldWrite) {
+        this.recorder?.addNote(
+          'A real update would also sync the GitHub Copilot cloud agent files; those changes are not listed here.'
+        );
+      }
+      return;
+    }
     try {
       if (includesGitHubCopilot(configuredTools)) {
         // Cloud files are opt-in (see cloud-agent.ts). `update` never prompts,
@@ -553,7 +662,7 @@ export class UpdateCommand {
           await writeCopilotCloudFiles(projectPath);
           const collisions = await findUnmanagedCloudFiles(projectPath);
           if (collisions.length > 0) {
-            console.log(
+            this.log(
               chalk.dim(
                 `Left your existing ${collisions.join(' and ')} untouched — add the OpenSpec ` +
                   `install step by hand so the Copilot cloud agent can run openspec.`
@@ -570,12 +679,12 @@ export class UpdateCommand {
         if (readCopilotCloudOptIn(projectPath) === false) {
           const removed = await removeCopilotCloudFiles(projectPath);
           if (removed > 0) {
-            console.log(
+            this.log(
               chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (opted out of cloud files)`)
             );
           }
         } else if (isInteractive()) {
-          console.log(
+          this.log(
             chalk.dim(
               "GitHub Copilot cloud coding-agent files are available (opt-in). Enable with 'openspec init --copilot-cloud'."
             )
@@ -586,7 +695,7 @@ export class UpdateCommand {
 
       const removed = await removeCopilotCloudFiles(projectPath);
       if (removed > 0) {
-        console.log(chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (github-copilot not configured)`));
+        this.log(chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (github-copilot not configured)`));
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -646,10 +755,10 @@ export class UpdateCommand {
    */
   private displayUpToDateMessage(toolStatuses: ToolVersionStatus[]): void {
     const toolNames = toolStatuses.map((s) => s.toolId);
-    console.log(chalk.green(`✓ All ${toolStatuses.length} tool(s) up to date (v${OPENSPEC_VERSION})`));
-    console.log(chalk.dim(`  Tools: ${toolNames.join(', ')}`));
-    console.log();
-    console.log(chalk.dim('Use --force to refresh files anyway.'));
+    this.log(chalk.green(`✓ All ${toolStatuses.length} tool(s) up to date (v${OPENSPEC_VERSION})`));
+    this.log(chalk.dim(`  Tools: ${toolNames.join(', ')}`));
+    this.log();
+    this.log(chalk.dim('Use --force to refresh files anyway.'));
   }
 
   /**
@@ -675,11 +784,11 @@ export class UpdateCommand {
       return `${toolId} (config sync)`;
     });
 
-    console.log(`Updating ${toolsToUpdate.length} tool(s): ${updates.join(', ')}`);
+    this.log(`Updating ${toolsToUpdate.length} tool(s): ${updates.join(', ')}`);
 
     if (upToDate.length > 0) {
       const upToDateNames = upToDate.map((s) => s.toolId);
-      console.log(chalk.dim(`Already up to date: ${upToDateNames.join(', ')}`));
+      this.log(chalk.dim(`Already up to date: ${upToDateNames.join(', ')}`));
     }
   }
 
@@ -691,7 +800,7 @@ export class UpdateCommand {
     for (const toolId of toolIds) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
       if (tool?.setupNote) {
-        console.log(chalk.yellow(`Setup required for ${tool.name}: ${tool.setupNote}`));
+        this.log(chalk.yellow(`Setup required for ${tool.name}: ${tool.setupNote}`));
       }
     }
   }
@@ -710,8 +819,8 @@ export class UpdateCommand {
       const isSingleTool = newToolNames.length === 1;
       const toolNoun = isSingleTool ? 'tool' : 'tools';
       const pronoun = isSingleTool ? 'it' : 'them';
-      console.log();
-      console.log(
+      this.log();
+      this.log(
         chalk.yellow(
           `Detected new ${toolNoun}: ${newToolNames.join(', ')}. Run 'openspec init' to add ${pronoun}.`
         )
@@ -760,7 +869,7 @@ export class UpdateCommand {
     const extraWorkflows = installedWorkflows.filter((w) => !profileSet.has(w));
 
     if (extraWorkflows.length > 0) {
-      console.log(chalk.dim(`Note: ${extraWorkflows.length} extra workflows not in profile (use \`openspec config profile\` to manage)`));
+      this.log(chalk.dim(`Note: ${extraWorkflows.length} extra workflows not in profile (use \`openspec config profile\` to manage)`));
       return true;
     }
     return false;
@@ -785,8 +894,8 @@ export class UpdateCommand {
 
     const label = missing.length === 1 ? 'workflow' : 'workflows';
     const pronoun = missing.length === 1 ? 'it' : 'them';
-    console.log(chalk.dim(`Note: Your custom profile is missing ${missing.length} core ${label}: ${missing.join(', ')}`));
-    console.log(chalk.dim(`Run \`openspec config profile\` to add ${pronoun}, or \`openspec config profile core\` to use the core set.`));
+    this.log(chalk.dim(`Note: Your custom profile is missing ${missing.length} core ${label}: ${missing.join(', ')}`));
+    this.log(chalk.dim(`Run \`openspec config profile\` to add ${pronoun}, or \`openspec config profile core\` to use the core set.`));
     return true;
   }
 
@@ -827,7 +936,7 @@ export class UpdateCommand {
       return;
     }
     for (const line of note) {
-      console.log(chalk.dim(line));
+      this.log(chalk.dim(line));
     }
   }
 
@@ -835,7 +944,7 @@ export class UpdateCommand {
    * Removes skill directories for workflows when delivery changed to commands-only.
    * Returns the number of directories removed.
    */
-  private async removeSkillDirs(skillsRoot: string, skillsDir: string): Promise<number> {
+  private async removeSkillDirs(skillsRoot: string, skillsDir: string, toolId: string): Promise<number> {
     let removed = 0;
 
     for (const workflow of ALL_WORKFLOWS) {
@@ -846,7 +955,7 @@ export class UpdateCommand {
       if (!fs.existsSync(skillDir)) continue;
       FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
-        await fs.promises.rm(skillDir, { recursive: true, force: true });
+        await this.ops.removeDirectory(skillDir, toolId);
         removed++;
       } catch {
         // Ignore errors
@@ -863,7 +972,8 @@ export class UpdateCommand {
   private async removeUnselectedSkillDirs(
     skillsRoot: string,
     skillsDir: string,
-    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][]
+    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][],
+    toolId: string
   ): Promise<number> {
     const desiredSet = new Set(desiredWorkflows);
     let removed = 0;
@@ -877,7 +987,7 @@ export class UpdateCommand {
       if (!fs.existsSync(skillDir)) continue;
       FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
-        await fs.promises.rm(skillDir, { recursive: true, force: true });
+        await this.ops.removeDirectory(skillDir, toolId);
         removed++;
       } catch {
         // Ignore errors
@@ -906,7 +1016,7 @@ export class UpdateCommand {
 
       try {
         if (fs.existsSync(fullPath)) {
-          await fs.promises.unlink(fullPath);
+          await this.ops.removeFile(fullPath, toolId);
           removed++;
         }
       } catch {
@@ -940,7 +1050,7 @@ export class UpdateCommand {
 
       try {
         if (fs.existsSync(fullPath)) {
-          await fs.promises.unlink(fullPath);
+          await this.ops.removeFile(fullPath, toolId);
           removed++;
         }
       } catch {
@@ -964,7 +1074,7 @@ export class UpdateCommand {
   /** Surfaces files the move left behind rather than overwriting. */
   private reportKeptInPlace(migration: LegacyToolMigration): void {
     const notice = keptInPlaceNotice(migration);
-    if (notice) console.log(chalk.dim(notice));
+    if (notice) this.log(chalk.dim(notice));
   }
 
   private async offerConsentedLegacyMigrations(
@@ -980,11 +1090,11 @@ export class UpdateCommand {
       // divergent copies the user never hears about.
       if (!hasMovableContent(migration)) {
         this.reportKeptInPlace(migration);
-        console.log();
+        this.log();
         continue;
       }
 
-      console.log(chalk.yellow(legacyMigrationNotice(migration)));
+      this.log(chalk.yellow(legacyMigrationNotice(migration)));
 
       if (!this.force && isInteractive()) {
         const { confirm } = await import('@inquirer/prompts');
@@ -1002,14 +1112,14 @@ export class UpdateCommand {
           // Say what declining costs. OpenSpec writes the current root now, so
           // the files keep working where they are, but OpenSpec stops managing
           // them — it no longer looks in the former directory.
-          console.log(
+          this.log(
             chalk.dim(
               `Left in place. OpenSpec writes ${migration.to}/ now and will not manage ` +
                 `${migration.from}/, so those files stay as they are until you move them. ` +
                 `You will be asked again next run.`
             )
           );
-          console.log();
+          this.log();
           declined.push(migration);
           continue;
         }
@@ -1017,11 +1127,11 @@ export class UpdateCommand {
 
       for (const applied of migrateLegacyToolDirs(projectPath, [migration.toolId])) {
         if (hasMovableContent(applied)) {
-          console.log(chalk.dim(`Migrated ${describeLegacyMigration(applied)}: ${applied.from} → ${applied.to}`));
+          this.log(chalk.dim(`Migrated ${describeLegacyMigration(applied)}: ${applied.from} → ${applied.to}`));
         }
         this.reportKeptInPlace(applied);
       }
-      console.log();
+      this.log();
     }
 
     return declined;
@@ -1048,14 +1158,14 @@ export class UpdateCommand {
     const immediateSummary = formatDetectionSummary(omitGlobalLegacyPromptFiles(detection));
     const deferredSummary = formatDeferredGlobalPromptSummary(detection);
     if (immediateSummary || deferredSummary) {
-      console.log();
+      this.log();
       if (immediateSummary) {
-        console.log(immediateSummary);
-        console.log();
+        this.log(immediateSummary);
+        this.log();
       }
       if (deferredSummary) {
-        console.log(deferredSummary);
-        console.log();
+        this.log(deferredSummary);
+        this.log();
       }
     }
 
@@ -1086,8 +1196,8 @@ export class UpdateCommand {
     if (!canPrompt) {
       // Non-interactive mode without --force: warn and continue
       // (Unlike init, update doesn't abort - user may just want to update skills)
-      console.log(chalk.yellow('⚠ Run with --force to auto-cleanup legacy files, or run interactively.'));
-      console.log();
+      this.log(chalk.yellow('⚠ Run with --force to auto-cleanup legacy files, or run interactively.'));
+      this.log();
       return { newlyConfiguredTools: [], workflowOverrides: {} };
     }
 
@@ -1119,8 +1229,8 @@ export class UpdateCommand {
         ),
       };
     } else {
-      console.log(chalk.dim('Skipping legacy cleanup. Continuing with skill update...'));
-      console.log();
+      this.log(chalk.dim('Skipping legacy cleanup. Continuing with skill update...'));
+      this.log();
       return { newlyConfiguredTools: [], workflowOverrides: {} };
     }
   }
@@ -1170,11 +1280,11 @@ export class UpdateCommand {
       .filter((prompt) => !removableMatches.some((match) => match.path === prompt.path));
 
     if (blockedMatches.length > 0) {
-      console.log(chalk.yellow('Preserved deferred global prompts without replacement skills:'));
+      this.log(chalk.yellow('Preserved deferred global prompts without replacement skills:'));
       for (const prompt of blockedMatches) {
-        console.log(chalk.dim(`  - ${prompt.toolId}: ${prompt.path}`));
+        this.log(chalk.dim(`  - ${prompt.toolId}: ${prompt.path}`));
       }
-      console.log();
+      this.log();
     }
   }
 
@@ -1182,7 +1292,7 @@ export class UpdateCommand {
    * Perform cleanup of legacy artifacts.
    */
   private async performLegacyCleanup(projectPath: string, detection: LegacyDetectionResult): Promise<void> {
-    const spinner = ora('Cleaning up legacy files...').start();
+    const spinner = this.startSpinner('Cleaning up legacy files...');
 
     const result = await cleanupLegacyArtifacts(projectPath, detection);
 
@@ -1190,11 +1300,11 @@ export class UpdateCommand {
 
     const summary = formatCleanupSummary(result);
     if (summary) {
-      console.log();
-      console.log(summary);
+      this.log();
+      this.log(summary);
     }
 
-    console.log();
+    this.log();
   }
 
   /**
@@ -1235,19 +1345,19 @@ export class UpdateCommand {
     }
 
     // Show what tools were detected from legacy artifacts
-    console.log(chalk.bold('Tools detected from legacy artifacts:'));
+    this.log(chalk.bold('Tools detected from legacy artifacts:'));
     for (const toolId of validUnconfiguredTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
-      console.log(`  • ${tool?.name || toolId}`);
+      this.log(`  • ${tool?.name || toolId}`);
     }
-    console.log();
+    this.log();
 
     let selectedTools: string[];
 
     if (this.force || !canPrompt) {
       // Non-interactive with --force: auto-select detected tools
       selectedTools = validUnconfiguredTools;
-      console.log(`Setting up skills for: ${selectedTools.join(', ')}`);
+      this.log(`Setting up skills for: ${selectedTools.join(', ')}`);
     } else {
       // Interactive mode: prompt for tool selection with detected tools pre-selected
       const { searchableMultiSelect } = await import('../prompts/searchable-multi-select.js');
@@ -1271,8 +1381,8 @@ export class UpdateCommand {
       });
 
       if (selectedTools.length === 0) {
-        console.log(chalk.dim('Skipping tool setup.'));
-        console.log();
+        this.log(chalk.dim('Skipping tool setup.'));
+        this.log();
         return { newlyConfiguredTools: [], workflowOverrides: {} };
       }
     }
@@ -1298,7 +1408,7 @@ export class UpdateCommand {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
       if (!tool || !toolSupportsSkills(tool)) continue;
 
-      const spinner = ora(`Setting up ${tool.name}...`).start();
+      const spinner = this.startSpinner(`Setting up ${tool.name}...`);
 
       try {
         const skillsDir = resolveToolSkillsDir(projectPath, tool);
@@ -1353,9 +1463,9 @@ export class UpdateCommand {
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
-            await FileSystemUtils.writeFile(skillFile, skillContent);
+            await this.ops.writeFile(skillFile, skillContent, tool.value);
           }
-          writeSharedSkillTarget(projectPath, tool.value);
+          await this.writeSharedSkillTarget(projectPath, tool.value);
         }
 
         // Create commands when delivery includes commands
@@ -1369,7 +1479,7 @@ export class UpdateCommand {
                 projectPath,
                 cmd.path
               );
-              await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
+              await this.ops.writeFile(commandFile, cmd.fileContent, tool.value);
             }
           }
         }
@@ -1382,20 +1492,20 @@ export class UpdateCommand {
           'after-generation'
         )) {
           if (hasMovableContent(migration)) {
-            console.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+            this.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
           }
           this.reportKeptInPlace(migration);
         }
       } catch (error) {
         spinner.fail(`Failed to set up ${tool.name}`);
         const message = error instanceof Error ? error.message : String(error);
-        console.log(chalk.red(`  ${message}`));
+        this.log(chalk.red(`  ${message}`));
         failedTools.push({ name: tool.name, error: message });
       }
     }
 
     if (newlyConfigured.length > 0) {
-      console.log();
+      this.log();
     }
 
     return {

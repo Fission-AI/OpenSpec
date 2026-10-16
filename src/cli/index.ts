@@ -330,8 +330,34 @@ program
   .command('update [path]')
   .description('Update OpenSpec instruction files')
   .option('--force', 'Force update even when tools are up to date')
-  .action(async (targetPath = '.', options?: { force?: boolean }) => {
+  .option('--dry-run', 'Report what the update would change without writing anything')
+  .option('--json', 'With --dry-run, print the planned changes as JSON')
+  .action(
+    async (
+      targetPath = '.',
+      options?: { force?: boolean; dryRun?: boolean; json?: boolean }
+    ) => {
     try {
+      if (options?.json && !options?.dryRun) {
+        console.error('--json is only available with --dry-run.');
+        process.exit(1);
+      }
+
+      // A dry run reports the plan and nothing else: no network check, no
+      // upgrade prompt, no output that would break --json.
+      if (options?.dryRun) {
+        const [{ UpdateCommand }, { formatUpdatePlan }] = await Promise.all([
+          import('../core/update.js'),
+          import('../core/update-plan.js'),
+        ]);
+        const plan = await new UpdateCommand({
+          force: options?.force,
+          dryRun: true,
+        }).plan(targetPath);
+        console.log(options?.json ? JSON.stringify(plan, null, 2) : formatUpdatePlan(plan));
+        return;
+      }
+
       const [
         {
           getInstallDir,
@@ -407,7 +433,8 @@ program
       await failWithError(error);
       process.exit(1);
     }
-  });
+    }
+  );
 
 program
   .command('list')

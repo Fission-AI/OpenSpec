@@ -6,7 +6,7 @@
  */
 
 import { AI_TOOLS, type AIToolOption } from './config.js';
-import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlobalConfig, type Delivery } from './global-config.js';
+import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import {
   resolveCommandInvocation,
@@ -559,14 +559,15 @@ function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
  * - If no profile field exists and no workflows are installed: no-op (defaults apply).
  * - If profile field already exists: no-op.
  */
-export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): void {
+export function computeProfileMigration(
+  projectPath: string,
+  tools: AIToolOption[]
+): { profile: Profile; workflows: string[]; delivery?: Delivery } | null {
   // A config that cannot be parsed, or is not a JSON object, is never saved
   // over; skip migration rather than fail init or update on it.
   if (isGlobalConfigUnreadable()) {
-    return;
+    return null;
   }
-
-  const config = getGlobalConfig();
 
   // Check raw config file for profile field presence
   const configPath = getGlobalConfigPath();
@@ -577,12 +578,12 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
       rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     }
   } catch {
-    return; // Can't read config, skip migration
+    return null; // Can't read config, skip migration
   }
 
   // If profile is already explicitly set, no migration needed
   if (rawConfig.profile !== undefined) {
-    return;
+    return null;
   }
 
   // Scan for installed workflows
@@ -591,14 +592,30 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
 
   if (installedWorkflows.length === 0) {
     // No workflows installed, new user — defaults will apply
+    return null;
+  }
+
+  return {
+    profile: 'custom',
+    workflows: installedWorkflows,
+    ...(rawConfig.delivery === undefined ? { delivery: inferDelivery(artifacts) } : {}),
+  };
+}
+
+export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): void {
+  const migration = computeProfileMigration(projectPath, tools);
+  if (!migration) {
     return;
   }
 
+  const config = getGlobalConfig();
+  const installedWorkflows = migration.workflows;
+
   // Migrate: set profile to custom with detected workflows
-  config.profile = 'custom';
-  config.workflows = installedWorkflows;
-  if (rawConfig.delivery === undefined) {
-    config.delivery = inferDelivery(artifacts);
+  config.profile = migration.profile;
+  config.workflows = migration.workflows;
+  if (migration.delivery !== undefined) {
+    config.delivery = migration.delivery;
   }
   saveGlobalConfig(config);
 

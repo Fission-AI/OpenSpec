@@ -245,13 +245,23 @@ export function sharedSkillRootOwnedByOther(projectPath: string, toolId: string)
   return sharedSkillRootOwner(projectPath, toolId) !== undefined;
 }
 
-export function writeSharedSkillTarget(projectPath: string, toolId: string): void {
+/**
+ * Path of the owner marker for a tool's shared skills root, or null when the
+ * tool has no shared root to mark. Lets a caller write the marker itself —
+ * `update` routes it through its write seam so a dry run can list it.
+ */
+export function sharedSkillTargetMarkerPath(projectPath: string, toolId: string): string | null {
   const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
-  if (!tool?.skillsDir) return;
+  if (!tool?.skillsDir) return null;
   const sharingRoot = AI_TOOLS.filter((candidate) => candidate.skillsDir === tool.skillsDir);
-  if (sharingRoot.length < 2) return;
+  if (sharingRoot.length < 2) return null;
+  return markerPath(projectPath, tool.skillsDir);
+}
 
-  const target = markerPath(projectPath, tool.skillsDir);
+export function writeSharedSkillTarget(projectPath: string, toolId: string): void {
+  const target = sharedSkillTargetMarkerPath(projectPath, toolId);
+  if (!target) return;
+
   FileSystemUtils.assertProjectArtifactPath(projectPath, target);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, `${toolId}\n`, 'utf-8');
