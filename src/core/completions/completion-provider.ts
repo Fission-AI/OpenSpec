@@ -97,7 +97,7 @@ export class CompletionProvider {
 
     // Fetch fresh data. The resolver (and the yaml and zod it parses schemas
     // with) loads only here: completing changes or specs never needs it, and
-    // the artifact-graph barrel would also pull in fast-glob.
+    // the artifact-graph barrel would also pull in tinyglobby.
     const { listSchemas } = await import('../artifact-graph/resolver.js');
     const schemaNames = listSchemas(this.projectRoot);
 

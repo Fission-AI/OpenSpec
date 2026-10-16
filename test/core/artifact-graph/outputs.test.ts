@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import fg from 'fast-glob';
+import * as globby from 'tinyglobby';
+
+vi.mock('tinyglobby', async () => {
+  const actual = await vi.importActual<typeof import('tinyglobby')>('tinyglobby');
+  return {
+    ...actual,
+    globSync: vi.fn((...args: Parameters<typeof actual.globSync>) => actual.globSync(...args)),
+  };
+});
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -18,6 +26,7 @@ describe('artifact-graph/outputs', () => {
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-outputs-test-'));
+    vi.mocked(globby.globSync).mockClear();
   });
 
   afterEach(() => {
@@ -138,7 +147,7 @@ describe('artifact-graph/outputs', () => {
     const outsideDir = fs.mkdtempSync(path.join(path.dirname(tempDir), 'openspec-outside-'));
     const pattern = `{safe,../${path.basename(outsideDir)}}/review.md`;
     if (exists) fs.writeFileSync(path.join(outsideDir, 'review.md'), 'private');
-    const glob = vi.spyOn(fg, 'sync');
+    const glob = vi.mocked(globby.globSync);
     try {
       expect(() => resolveArtifactOutputs(tempDir, pattern)).toThrow(
         /outside the allowed directory/u
@@ -272,11 +281,11 @@ describe('artifact-graph/outputs', () => {
     expect(artifactOutputExists(tempDir, 'file-{1..3}.md')).toBe(true);
   });
 
-  it('rejects brace nesting deeper than any artifact pattern needs', () => {
+  it('rejects brace nesting deeper than any artifact pattern needs before it can overflow', () => {
     const fileA = path.join(tempDir, 'a.md');
     fs.writeFileSync(fileA, 'content');
     const nested = (depth: number) => `${'{a,'.repeat(depth)}b${'}'.repeat(depth)}.md`;
-    const globSpy = vi.spyOn(fg, 'generateTasks');
+    const globSpy = vi.mocked(globby.globSync);
 
     expect(resolveArtifactOutputs(tempDir, nested(16))).toEqual([canonical(fileA)]);
     globSpy.mockClear();
@@ -293,6 +302,9 @@ describe('artifact-graph/outputs', () => {
       `16 levels deep: ${nested(4000).slice(0, 80)}...`
     );
     expect(() => resolveArtifactOutputs(tempDir, nested(4000))).not.toThrow(nested(4000));
+    expect(() => resolveArtifactOutputs(tempDir, nested(4000))).not.toThrow(
+      /Maximum call stack size exceeded/u
+    );
     expect(globSpy).not.toHaveBeenCalled();
     globSpy.mockRestore();
   });
@@ -303,7 +315,7 @@ describe('artifact-graph/outputs', () => {
     ['an open parenthesis', (depth: number) => `*${'{a,(}'.repeat(depth)}${')}'.repeat(depth)}`],
     ['parentheses alone', (depth: number) => `*{a,b}${'('.repeat(depth)}${')'.repeat(depth)}`],
   ])('counts nesting the braces parser sees past %s', (_label, nested) => {
-    const globSpy = vi.spyOn(fg, 'generateTasks');
+    const globSpy = vi.mocked(globby.globSync);
 
     expect(() => resolveArtifactOutputs(tempDir, nested(17))).toThrow(
       'Artifact output pattern nests braces more than 16 levels deep'
