@@ -60,7 +60,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    **Before anything else, finish a partly written artifact**:
    - An artifact whose output is a glob pattern (e.g. `specs/**/*.md`) reads `done` as soon as one matching file exists, so a run interrupted while writing its files leaves it `done` with some still missing
-   - For each such `done` artifact, first get its instructions and read any completed dependencies needed to determine the expected files. Then compare those files with `artifactPaths.<id>.existingOutputPaths`. For spec-driven's `specs`, read the proposal and check for one `specs/<capability-path>/spec.md` per capability it lists; resolve each expected path against `changeRoot` before comparing path identity, and verify each resolved path remains inside `changeRoot` (resolving any symlinked parent directories) before writing anything there
+   - For each such `done` artifact, first get its instructions and read any completed dependencies needed to determine the expected files. Then compare those files with `artifactPaths.<id>.existingOutputPaths`. For spec-driven's `specs`, read the proposal and check for one `specs/<capability-path>/spec.md` per capability it lists; resolve each expected path against `changeRoot` before comparing path identity, and verify each one remains inside `changeRoot` after resolving any symlinked parent directories
    - If any are missing, write only the missing files, and STOP - that counts as this invocation's ONE artifact. If you cannot tell whether a file was left out on purpose, ask the user
 
    ---
@@ -92,7 +92,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
      - If the `instruction` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at `resolvedOutputPath`
      - Otherwise use `template` as the structure - fill in its sections
      - Apply `context` and `rules` as constraints when writing - but do NOT copy them into the file
-     - Write to the `resolvedOutputPath` specified in instructions. If it is a glob pattern, choose the concrete file path using the schema instruction and the change's context, choosing a concrete path inside `changeRoot` and verifying it remains inside `changeRoot` after resolving any symlinked parent directories
+     - Write to the `resolvedOutputPath` specified in instructions. If it is a glob pattern, choose a concrete path inside `changeRoot` using the schema instruction and the change's context, then verify it remains inside `changeRoot` after resolving any symlinked parent directories
    - Show what was created and what's now unlocked
    - STOP after creating ONE artifact
 
