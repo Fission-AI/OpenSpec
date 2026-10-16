@@ -12,6 +12,8 @@ Thanks for helping improve OpenSpec.
 - **Agent behavior:** say which agent and model you used, and attach a session trace if you have one. Which files the agent read, which tools it called, and whether the behavior repeats across sessions is usually what narrows it down.
 - **Feature:** describe the problem, who else it affects, what you tried instead, and whether the added complexity is worth maintaining. You don't need a solution; sometimes the behavior you hit is a deliberate trade-off, and that is what we want to talk about.
 
+From a project you're working in, `openspec feedback "what happened"` files a bug for you with your version and platform filled in, or hands you a prefilled form link.
+
 Write the issue yourself rather than forwarding an agent's diagnosis. We don't expect you to have all the answers, but we do want the issue to show that you have considered the problem.
 
 ## 2. We discuss it on the issue
@@ -26,7 +28,7 @@ Opening pull requests is restricted to maintainers, so please don't start one un
 
 **Bug or docs:** one PR with the fix. Write `Closes #123` in the description. It shouldn't change `openspec/`, since specs are for features.
 
-**Feature:** two PRs.
+**Feature:** two PRs. This is how we build a change we've already agreed on — a proposal PR is not a way to pitch one, which is the step the announcement moves back to the issue.
 
 1. **Proposal:** only `openspec/changes/<name>/`. Write `Part of #123`, so the issue stays open.
 2. **Implementation:** after the proposal merges, the code plus updates to that change, such as checking off its `tasks.md`. Write `Closes #123`.

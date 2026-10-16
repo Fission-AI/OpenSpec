@@ -152,4 +152,4 @@ There's no uninstall command, because it's just a global package plus files in y
 
 ### These docs are wrong or confusing. What do I do?
 
-Tell us, or fix it. Documentation PRs are welcome and valued. Open an issue or send a pull request.
+Tell us. Open a [docs issue](https://github.com/Fission-AI/OpenSpec/issues/new?template=docs.yml) with the page and what is wrong — doc fixes are some of the most useful reports we get. We don't accept unsolicited pull requests ([why](https://openspec.dev/blog/openspec-contribution-policy/)); a maintainer makes the fix, or invites you to.
