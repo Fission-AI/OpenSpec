@@ -7,6 +7,7 @@
 import * as path from 'node:path';
 
 import { readRegistrySnapshot, type RegistrySnapshot } from '../core/store/registry.js';
+import { findProjectRegistryDir } from '../core/store/foundation.js';
 import {
   readProjectConfig,
   resolveConfigFilePath,
@@ -38,6 +39,7 @@ export async function gatherRelationshipData(
     resolvedRoot: root,
     includeSpecs: false,
     registryEntries: registrySnapshot.entries,
+    projectRoot: findProjectRegistryDir(root.path) ?? undefined,
   });
 
   const rootInspection = await inspectOpenSpecRoot(root.path);

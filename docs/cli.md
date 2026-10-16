@@ -252,7 +252,7 @@ openspec store setup [id] [options]
 | `--no-init-git` | Skip every Git action: no init, no initial commit |
 | `--json` | Output JSON |
 
-Non-interactive runs (`--json`, scripts, agents) must pass both the store id and `--path`. In an interactive terminal, setup prompts for the location with an editable suggestion in a visible, user-owned place (for example `~/openspec/<id>`); it never defaults to OpenSpec's managed data directory.
+Non-interactive runs (`--json`, scripts, agents) must pass both the store id and `--path`. In an interactive terminal, setup prompts for the location with an editable suggestion in a visible, user-owned place (for example `~/openspec/<id>`); it never defaults to OpenSpec's managed data directory. `setup` always registers globally — it has no `--scope` flag; to bind a store to a project, use `store register --scope project`.
 
 Examples:
 
@@ -281,26 +281,36 @@ openspec store register [path] [options]
 | Option | Description |
 |--------|-------------|
 | `--id <id>` | Store id; defaults to store metadata or folder name |
+| `--scope <scope>` | `project` registers in the project-scoped registry (`.openspec-store/registry.yaml`); `global` registers in the global (machine-local) registry. Only `project` and `global` are accepted. Default: `global` |
 | `--yes` | Confirm creating store identity metadata for a healthy OpenSpec root |
 | `--json` | Output JSON |
+
+`--scope project` always writes the registry file in the directory where the
+command is run — it does not walk up to an ancestor registry and does not touch
+one.
 
 ### `openspec store unregister`
 
 Forget a local store registration without deleting files.
 
 ```bash
-openspec store unregister <id> [--json]
+openspec store unregister <id> [--json] [--scope project]
 ```
 
 Use this when a store was moved, cloned somewhere else, or should no longer be
-shown by OpenSpec on this machine.
+shown by OpenSpec on this machine. `--scope project` forgets the entry in the
+project-scoped registry instead of the global one: OpenSpec walks up from the
+current directory and removes the entry from the nearest registry that
+contains the id (the one that would win resolution), then reports the edited
+registry file. If the id is not bound in any registry along the chain, the
+command errors with `store_not_found`.
 
 ### `openspec store remove`
 
 Forget a local store registration and delete its local folder.
 
 ```bash
-openspec store remove <id> [--yes] [--json]
+openspec store remove <id> [--yes] [--json] [--scope project]
 ```
 
 `remove` shows the exact folder before deleting in an interactive terminal.
@@ -308,22 +318,43 @@ Agents, scripts, and JSON callers must pass `--yes` to confirm deletion.
 OpenSpec refuses to delete a folder that does not contain matching
 store metadata.
 
+With `--scope project`, `remove` walks up from the current directory and
+resolves the binding from the nearest registry that contains the id — the same
+registry `unregister` would edit. It still requires the same mandatory
+confirmation as the global variant.
+
 ### `openspec store list`
 
 List locally registered stores.
 
 ```bash
-openspec store list [--json]
-openspec store ls [--json]
+openspec store list [--json] [--scope project]
+openspec store ls [--json] [--scope project]
 ```
+
+`--scope project` lists the project-scoped registries instead of the global
+one. OpenSpec walks up from the current directory and collects entries from
+every registry along the ancestor chain, nearest first. Each entry carries the
+directory of the registry that owns it (the `registry` field in JSON output,
+shown as a `Registry` column in the human-readable table). A registry file that
+fails to parse is skipped with a warning and the walk continues in ancestor
+directories. If no registry exists anywhere along the chain, the list is empty
+(`No stores registered.`) and no error is reported.
 
 ### `openspec store doctor`
 
 Check local store registration, metadata, and Git presence.
 
 ```bash
-openspec store doctor [id] [--json]
+openspec store doctor [id] [--json] [--scope project]
 ```
+
+`--scope project` checks the project-scoped registries instead of the global
+one: OpenSpec walks up from the current directory and inspects entries from
+every registry along the ancestor chain. With an id, `doctor <id>` resolves
+the binding through the same chain. A registry file that fails to parse is
+skipped with a warning and the walk continues. Omitted (`--scope` not given),
+doctor checks the global one.
 
 Doctor is diagnostic-only; it reports missing roots, metadata mismatches, and invalid local registry state without modifying the store.
 

@@ -32,6 +32,10 @@ export const STORE_REGISTRY_FILE_NAME = 'registry.yaml';
 
 export interface StorePathOptions {
   globalDataDir?: string;
+  /** When set, registry operations target a project-scoped registry file
+   * at `<projectRoot>/.openspec-store/registry.yaml` instead of the global
+   * machine-level registry. */
+  projectRoot?: string;
 }
 
 export interface StoreGitBackendConfig {
@@ -79,7 +83,48 @@ export function getStoresDir(options: StorePathOptions = {}): string {
 }
 
 export function getStoreRegistryPath(options: StorePathOptions = {}): string {
+  if (options.projectRoot !== undefined) {
+    return joinStorePath(
+      options.projectRoot,
+      STORE_METADATA_DIR_NAME,
+      STORE_REGISTRY_FILE_NAME
+    );
+  }
   return joinStorePath(getStoresDir(options), STORE_REGISTRY_FILE_NAME);
+}
+
+/**
+ * Walks up from startPath looking for `.openspec-store/registry.yaml`.
+ * Returns the directory containing the file, or null if not found.
+ * Uses the same nearest-ancestor pattern as `findRepoPlanningRootSync`.
+ */
+export function findProjectRegistryDir(startPath: string = process.cwd()): string | null {
+  const resolved = path.resolve(startPath);
+
+  let currentDir: string;
+  try {
+    const stats = nodeFs.statSync(resolved);
+    currentDir = stats.isDirectory() ? resolved : path.dirname(resolved);
+  } catch {
+    currentDir = resolved;
+  }
+
+  while (true) {
+    const candidate = path.join(currentDir, STORE_METADATA_DIR_NAME, STORE_REGISTRY_FILE_NAME);
+    try {
+      if (nodeFs.statSync(candidate).isFile()) {
+        return FileSystemUtils.canonicalizeExistingPath(currentDir);
+      }
+    } catch {
+      // File doesn't exist at this level — continue walking up.
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      return null;
+    }
+    currentDir = parentDir;
+  }
 }
 
 export function getStoreMetadataDir(storeRoot: string): string {
@@ -131,6 +176,14 @@ function isFileNotFoundError(error: unknown): boolean {
 
 function normalizeExistingPathForStorage(existingPath: string): string {
   return FileSystemUtils.canonicalizeExistingPath(existingPath);
+}
+
+export function normalizePathForComparison(targetPath: string): string {
+  try {
+    return FileSystemUtils.canonicalizeExistingPath(targetPath);
+  } catch {
+    return path.resolve(targetPath);
+  }
 }
 
 function nonEmptyOptionalString() {
@@ -411,4 +464,187 @@ export async function resolveGitStoreBackendConfig(
     ...(input.remote ? { remote: input.remote } : {}),
     ...(input.branch ? { branch: input.branch } : {}),
   };
+}
+
+// --- Project-scoped registry (simple { path: ... } format) ---
+
+export interface ProjectStoreEntryState {
+  path: string;
+}
+
+export interface ProjectStoreRegistryState {
+  version: 1;
+  stores: Record<string, ProjectStoreEntryState>;
+}
+
+export interface ProjectStoreRegistryEntry {
+  id: string;
+  /** Absolute path resolved relative to the registry file's directory. */
+  storeRoot: string;
+}
+
+const ProjectStoreEntrySchema = z.object({
+  path: z.string().min(1),
+}).strict();
+
+const ProjectStoreRegistryStateSchema = z.object({
+  version: z.literal(1),
+  stores: z.record(z.string(), ProjectStoreEntrySchema),
+}).strict();
+
+export function parseProjectStoreRegistryState(
+  content: string
+): ProjectStoreRegistryState {
+  const raw = parseYamlObject(content, 'project store registry state');
+  const result = ProjectStoreRegistryStateSchema.safeParse(raw);
+
+  if (!result.success) {
+    throw invalidStoreStateError(
+      'project store registry state',
+      formatZodIssues(result.error)
+    );
+  }
+
+  assertValidStoreIds(Object.keys(result.data.stores), 'store id');
+
+  return {
+    version: 1,
+    stores: result.data.stores,
+  };
+}
+
+export function serializeProjectStoreRegistryState(
+  state: ProjectStoreRegistryState
+): string {
+  const result = ProjectStoreRegistryStateSchema.safeParse(state);
+
+  if (!result.success) {
+    throw invalidStoreStateError(
+      'project store registry state',
+      formatZodIssues(result.error)
+    );
+  }
+
+  assertValidStoreIds(Object.keys(result.data.stores), 'store id');
+
+  return stringifyYaml({
+    version: 1,
+    stores: result.data.stores,
+  });
+}
+
+export function listProjectStoreRegistryEntries(
+  registry: ProjectStoreRegistryState,
+  registryDir: string
+): ProjectStoreRegistryEntry[] {
+  // Object.entries preserves insertion order for string keys (ES2015+),
+  // which matches the document order of the YAML file — no sorting.
+  return Object.entries(registry.stores).map(([id, entry]) => ({
+    id,
+    storeRoot: path.resolve(registryDir, entry.path),
+  }));
+}
+
+export async function readProjectStoreRegistryState(
+  registryDir: string
+): Promise<ProjectStoreRegistryState | null> {
+  const registryPath = path.join(registryDir, STORE_METADATA_DIR_NAME, STORE_REGISTRY_FILE_NAME);
+
+  if (!(await pathIsFile(registryPath))) {
+    return null;
+  }
+
+  return parseProjectStoreRegistryState(await fs.readFile(registryPath, 'utf-8'));
+}
+
+export interface ProjectStoreLookup {
+  registryDir: string;
+  storeRoot: string;
+}
+
+export interface ProjectStoreLookupResult {
+  /** The matched store entry, or null when no project-scoped registry registers the id. */
+  found: ProjectStoreLookup | null;
+  /** Whether any project-scoped registry on the walk contained store entries. */
+  projectStoresExist: boolean;
+}
+
+export interface ProjectStoreRegistryLevel {
+  /** The directory that contains the `.openspec-store/registry.yaml` file. */
+  registryDir: string;
+  /** The parsed registry state. */
+  state: ProjectStoreRegistryState;
+}
+
+/**
+ * Walks up from `startPath`, collecting every project-scoped registry file
+ * along the ancestor chain, nearest first. Malformed files are skipped with a
+ * warning; the walk stops at the filesystem root.
+ */
+export async function walkProjectStoreRegistries(
+  startPath: string = process.cwd()
+): Promise<ProjectStoreRegistryLevel[]> {
+  // Canonicalize so the reported registryDir is stable (realpath of the
+  // ancestors: on macOS /var is a symlink to /private/var).
+  let currentDir = FileSystemUtils.canonicalizeExistingPath(path.resolve(startPath));
+
+  // If startPath is a file, start from its directory.
+  try {
+    const stats = nodeFs.statSync(currentDir);
+    if (!stats.isDirectory()) {
+      currentDir = path.dirname(currentDir);
+    }
+  } catch {
+    // Path doesn't exist — resolve as-is, dirname will handle it.
+  }
+
+  const levels: ProjectStoreRegistryLevel[] = [];
+
+  while (true) {
+    const registryPath = path.join(currentDir, STORE_METADATA_DIR_NAME, STORE_REGISTRY_FILE_NAME);
+    if (await pathIsFile(registryPath)) {
+      try {
+        const registry = await readProjectStoreRegistryState(currentDir);
+        if (registry) {
+          levels.push({ registryDir: currentDir, state: registry });
+        }
+      } catch {
+        console.error(
+          `Warning: Project-scoped registry at ${currentDir} is malformed; continuing search in ancestor directories.`
+        );
+      }
+    }
+
+    const parentDir = path.dirname(currentDir);
+    if (parentDir === currentDir) {
+      return levels;
+    }
+    currentDir = parentDir;
+  }
+}
+
+export async function findProjectStoreById(
+  id: string,
+  startPath: string = process.cwd()
+): Promise<ProjectStoreLookupResult> {
+  let projectStoresExist = false;
+
+  for (const level of await walkProjectStoreRegistries(startPath)) {
+    const entries = listProjectStoreRegistryEntries(level.state, level.registryDir);
+    if (entries.length > 0) {
+      projectStoresExist = true;
+    }
+    const entry = entries.find((e) => e.id === id);
+    if (entry) {
+      return {
+        found: {
+          registryDir: FileSystemUtils.canonicalizeExistingPath(level.registryDir),
+          storeRoot: entry.storeRoot,
+        },
+        projectStoresExist,
+      };
+    }
+  }
+
+  return { found: null, projectStoresExist };
 }
