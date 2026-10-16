@@ -5,9 +5,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        If this would change OpenSpec's core design, open a
-        [discussion](https://github.com/Fission-AI/OpenSpec/discussions) instead — see
-        [CONTRIBUTING.md](https://github.com/Fission-AI/OpenSpec/blob/main/CONTRIBUTING.md).
+        Issues are how every change to OpenSpec starts — we don't accept unsolicited
+        pull requests ([why](https://openspec.dev/blog/openspec-contribution-policy/)).
+        We're looking for more than a proposed solution here: we want to understand the
+        problem, who else it affects, and whether OpenSpec should take it on. Sometimes a
+        limitation is a deliberate design choice, and that's worth discussing first.
+
+        You don't need all the answers. If an agent drafted this, please read it through
+        first — an agent usually argues from your workflow alone.
 
   - type: textarea
     id: problem
@@ -30,8 +35,16 @@ body:
   - type: textarea
     id: tried
     attributes:
-      label: What you tried
-      description: Existing commands, flags, or workarounds you reached for, and why they fell short.
+      label: Alternatives you considered
+      description: Existing commands, flags, or workarounds you reached for, and why each one fell short.
+    validations:
+      required: false
+
+  - type: textarea
+    id: tradeoff
+    attributes:
+      label: Why it's worth the added complexity
+      description: Optional. Every option and flag is something we maintain across many agents, models, and workflows. Tell us what makes this one carry its weight, and what it might cost people who don't need it.
     validations:
       required: false
 
@@ -39,6 +52,6 @@ body:
     id: proposal
     attributes:
       label: What you have in mind
-      description: Optional. A sketch is fine — we will agree on the approach before anyone builds it.
+      description: Optional, and genuinely optional. If we agree the problem is worth solving, we design the fix from there — a solution here doesn't move the issue along faster.
     validations:
       required: false

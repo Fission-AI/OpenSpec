@@ -220,7 +220,7 @@ openspec update
 
 ## Contributing
 
-Open a discussion (for core design changes) or an issue before you open a PR, and link the issue or discussion from the PR. New features, significant refactors, and architectural changes need an OpenSpec change proposal first.
+We are not accepting unsolicited pull requests. Open an issue first; if we agree to pursue it, a maintainer implements the change or invites you to build it with us. See [the announcement](https://openspec.dev/blog/openspec-contribution-policy/).
 
 → **[CONTRIBUTING.md](CONTRIBUTING.md)**: the full process, from first issue to merged PR
 
