@@ -2,6 +2,18 @@ name: Feature request
 description: Something OpenSpec should do that it does not do yet.
 labels: ['enhancement', 'needs-triage']
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Issues are how every change to OpenSpec starts — we don't accept unsolicited
+        pull requests ([why](https://openspec.dev/blog/openspec-contribution-policy/)).
+        We're looking for more than a proposed solution here: we want to understand the
+        problem, who else it affects, and whether OpenSpec should take it on. Sometimes a
+        limitation is a deliberate design choice, and that's worth discussing first.
+
+        You don't need all the answers. If an agent drafted this, please read it through
+        first — an agent usually argues from your workflow alone.
+
   - type: textarea
     id: problem
     attributes:
@@ -23,8 +35,16 @@ body:
   - type: textarea
     id: tried
     attributes:
-      label: What you tried
-      description: Existing commands, flags, or workarounds you reached for, and why they fell short. Also tell us whether the extra complexity is worth maintaining.
+      label: Alternatives you considered
+      description: Existing commands, flags, or workarounds you reached for, and why each one fell short.
+    validations:
+      required: false
+
+  - type: textarea
+    id: tradeoff
+    attributes:
+      label: Why it's worth the added complexity
+      description: Optional. Every option and flag is something we maintain across many agents, models, and workflows. Tell us what makes this one carry its weight, and what it might cost people who don't need it.
     validations:
       required: false
 
@@ -32,6 +52,6 @@ body:
     id: proposal
     attributes:
       label: What you have in mind
-      description: Optional. You don't need a solution. If we agree to pursue the problem, we design the fix from there.
+      description: Optional, and genuinely optional. If we agree the problem is worth solving, we design the fix from there — a solution here doesn't move the issue along faster.
     validations:
       required: false

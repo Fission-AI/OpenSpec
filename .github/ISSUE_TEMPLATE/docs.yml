@@ -18,3 +18,11 @@ body:
       placeholder: It says `--yes` skips the spec sync, but it only skips the prompt.
     validations:
       required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should say instead
+      description: Optional. What you expected to read, or what you found to be true once you worked it out.
+    validations:
+      required: false
