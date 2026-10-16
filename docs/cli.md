@@ -219,7 +219,9 @@ than one tool have `tool: "openspec"`. `notes` flags steps a terminal user
 would be asked about, each with a stable `code`: `legacy-tool-directories` (a
 move listed as made) and `legacy-artifacts` (old-layout files the update leaves
 alone without `--force`). `failures` lists tools the real update would fail on,
-so one broken tool does not cost you the rest of the plan. Both are empty for
+including writes it cannot make (a directory in a file's place, no write
+permission); for that tool the plan stops where the update would, and one
+broken tool does not cost you the rest of the plan. Both are empty for
 an ordinary refresh.
 The full reference is [openspec.dev/docs/cli](https://openspec.dev/docs/cli).
 

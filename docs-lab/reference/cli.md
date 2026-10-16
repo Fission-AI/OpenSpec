@@ -200,7 +200,7 @@ openspec update --dry-run
 | `changes[].action` | `add`, `update`, or `delete`. A file whose new bytes match the old ones is not listed. |
 | `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to OpenSpec itself rather than one tool, the global config and legacy-artifact cleanup, are `openspec`. |
 | `notes[]` | `{ code, message }` for a step a terminal user would be asked about. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. Empty for an ordinary refresh. |
-| `failures[]` | `{ tool, error }` for each tool the real update would fail on. The other tools are still planned. |
+| `failures[]` | `{ tool, error }` for each tool the real update would fail on, including a write it cannot make: a directory where a file belongs, a file where a directory belongs, or a file or folder without write permission. For that tool, `changes` stops where the real update stops; the other tools are still planned. Failures the disk only reports while writing, such as running out of space, cannot be foreseen. |
 
 A failure before planning, such as no OpenSpec directory, still prints exactly one JSON document: the empty plan plus a `status` array with `severity`, `code` (`update_error`), and `message`. The exit code is 1.
 

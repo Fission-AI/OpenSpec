@@ -162,11 +162,6 @@ export class UpdateCommand {
   private readonly dryRun: boolean;
   private recorder: UpdatePlanRecorder | null = null;
   private ops: UpdateFileOps = realFileOps;
-  /**
-   * Tools a dry run's planned legacy-root moves give files to. The disk does
-   * not show them yet; the real update's later steps would.
-   */
-  private movedInTools = new Set<string>();
 
   constructor(options: UpdateCommandOptions = {}) {
     this.force = options.force ?? false;
@@ -237,19 +232,18 @@ export class UpdateCommand {
         this.reportKeptInPlace(migration);
       }
     }
-    // A dry run plans the same moves. They change what is installed where, so
-    // every later step reads the recorder's view of the moved tree, and a tool
-    // that only had files in its former root is refreshed like any other.
-    this.movedInTools = this.dryRun
-      ? await this.planLegacyToolMoves(resolvedProjectPath, 'before-generation')
-      : new Set<string>();
-    const movedInTools = this.movedInTools;
+    // A dry run plans the same moves. Every later step reads `this.view` -
+    // the disk in a real run, the tree as planned in a dry run - so it sees
+    // the moved files exactly as the real update would.
+    if (this.dryRun) {
+      await this.planLegacyToolMoves(resolvedProjectPath, 'before-generation');
+    }
     const declinedMigrations = this.dryRun
       ? []
       : await this.offerConsentedLegacyMigrations(resolvedProjectPath);
 
     // Use detected tool directories to preserve existing opsx skills/commands.
-    const detectedTools = getAvailableTools(resolvedProjectPath);
+    const detectedTools = getAvailableTools(resolvedProjectPath, this.view);
     if (!this.dryRun) {
       migrateIfNeededShared(resolvedProjectPath, detectedTools);
     }
@@ -291,18 +285,14 @@ export class UpdateCommand {
     } = legacyUpgrade;
 
     // 5. Find configured tools
-    // After a real legacy upgrade the tools it set up are on disk, so they are
-    // configured from here on; a dry run's are only in the plan.
-    const configuredTools = this.dryRun
-      ? [...new Set([...this.getConfiguredTools(resolvedProjectPath), ...newlyConfiguredTools])]
-      : this.getConfiguredTools(resolvedProjectPath);
+    const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
       if (deferredGlobalCleanup) {
         await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
       }
-      throwIfUpdateFailed(legacyUpgradeFailures);
+      this.throwIfUpdateFailed(legacyUpgradeFailures);
       if (declinedMigrations.length > 0) {
         // Not an unconfigured project — a configured one the user chose to
         // leave in its former directory. Saying "run init" would be wrong.
@@ -331,6 +321,8 @@ export class UpdateCommand {
     const toolStatuses = configuredTools.map((toolId) =>
       getToolVersionStatus(resolvedProjectPath, toolId, OPENSPEC_VERSION, {
         workflows: legacyWorkflowOverrides[toolId] ?? desiredWorkflows,
+        delivery,
+        view: this.view,
       })
     );
     const statusByTool = new Map(toolStatuses.map((status) => [status.toolId, status] as const));
@@ -350,7 +342,8 @@ export class UpdateCommand {
       resolvedProjectPath,
       desiredWorkflows,
       delivery,
-      configuredTools
+      configuredTools,
+      this.view
     );
     const toolsWithDriftedSkills = this.findToolsWithDriftedSkills(
       resolvedProjectPath,
@@ -362,10 +355,6 @@ export class UpdateCommand {
       ...toolsNeedingVersionUpdate,
       ...toolsNeedingConfigSync,
       ...toolsWithDriftedSkills,
-      // Status checks read the disk, where a planned move has not happened.
-      // After the real move these tools hold every file they need refreshed
-      // or kept; regenerating them yields the same set of paths.
-      ...movedInTools,
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
@@ -381,7 +370,7 @@ export class UpdateCommand {
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
-      throwIfUpdateFailed(legacyUpgradeFailures);
+      this.throwIfUpdateFailed(legacyUpgradeFailures);
       return;
     }
 
@@ -647,9 +636,7 @@ export class UpdateCommand {
     if (restartHint) {
       this.log(chalk.dim(restartHint));
     }
-    if (!this.dryRun) {
-      throwIfUpdateFailed(failedTools);
-    }
+    this.throwIfUpdateFailed(failedTools);
   }
 
   /**
@@ -663,14 +650,19 @@ export class UpdateCommand {
     await this.ops.writeFile(marker, `${toolId}\n`, toolId);
   }
 
+  /**
+   * A real update fails once every tool has had its turn. A dry run reports
+   * those failures in the plan instead: one broken tool must not cost the
+   * caller the other tools' changes.
+   */
+  private throwIfUpdateFailed(failedTools: readonly ToolFailure[]): void {
+    if (this.dryRun) return;
+    throwIfUpdateFailed(failedTools);
+  }
+
   /** The tree as the real update would see it at this point. */
   private get view(): FileView {
     return this.recorder?.view ?? DISK_VIEW;
-  }
-
-  /** Configured tools as the real update sees them, planned moves included. */
-  private getConfiguredTools(projectPath: string): string[] {
-    return [...new Set([...getConfiguredToolsForProfileSync(projectPath), ...this.movedInTools])];
   }
 
   /** The update's write seam, in the shape modules with their own writers take. */
@@ -684,24 +676,27 @@ export class UpdateCommand {
 
   /**
    * Plans the moves out of former tool roots that a non-interactive update
-   * makes, against the tree as planned so far. Returns the tools that gain
-   * files from a move.
+   * makes, against the tree as planned so far.
    */
   private async planLegacyToolMoves(
     projectPath: string,
     timing: 'before-generation' | 'after-generation',
     toolIds?: string[]
-  ): Promise<Set<string>> {
+  ): Promise<void> {
     const recorder = this.recorder;
-    const movedInTools = new Set<string>();
-    if (!recorder) return movedInTools;
+    if (!recorder) return;
 
     for (const op of planLegacyToolMigrations(projectPath, timing, toolIds, recorder.view)) {
-      if (op.disposition === 'move') {
-        await recorder.moveFile(op.source, op.destination, op.toolId);
-        movedInTools.add(op.toolId);
-      } else {
-        await recorder.removeFile(op.source, op.toolId);
+      try {
+        if (op.disposition === 'move') {
+          await recorder.moveFile(op.source, op.destination, op.toolId);
+        } else {
+          await recorder.removeFile(op.source, op.toolId);
+        }
+      } catch {
+        // The real migration leaves a file it cannot move where it is, and
+        // says nothing; so does the plan.
+        continue;
       }
       if (op.needsConsent) {
         recorder.addNote(
@@ -710,7 +705,6 @@ export class UpdateCommand {
         );
       }
     }
-    return movedInTools;
   }
 
   private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
@@ -790,7 +784,7 @@ export class UpdateCommand {
       if (!shouldGenerateSkillsForTool(tool.value, delivery)) return false;
       // A shared skills root is generated with its owner's transformer, so
       // only the owner may compare it. getToolSkillStatus settles ownership.
-      if (!getToolSkillStatus(projectPath, tool.value).configured) return false;
+      if (!getToolSkillStatus(projectPath, tool.value, this.view).configured) return false;
 
       const skillsDir = resolveToolSkillsDir(projectPath, tool);
       const transformer = getTransformerForTool(
@@ -802,9 +796,9 @@ export class UpdateCommand {
 
       return getSkillTemplates(workflowsForTool(toolId)).some(({ template, dirName }) => {
         const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
-        if (!fs.existsSync(skillFile)) return false;
+        if (!this.view.exists(skillFile)) return false;
         try {
-          const existing = fs.readFileSync(skillFile, 'utf-8');
+          const existing = this.view.read(skillFile);
           const generated = generateSkillContent(template, OPENSPEC_VERSION, transformer);
           return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
         } catch {
@@ -1016,7 +1010,7 @@ export class UpdateCommand {
       if (!dirName) continue;
 
       const skillDir = path.join(skillsDir, dirName);
-      if (!fs.existsSync(skillDir)) continue;
+      if (!this.view.exists(skillDir)) continue;
       FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
         await this.ops.removeDirectory(skillDir, toolId);
@@ -1048,7 +1042,7 @@ export class UpdateCommand {
       if (!dirName) continue;
 
       const skillDir = path.join(skillsDir, dirName);
-      if (!fs.existsSync(skillDir)) continue;
+      if (!this.view.exists(skillDir)) continue;
       FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
       try {
         await this.ops.removeDirectory(skillDir, toolId);
@@ -1079,7 +1073,7 @@ export class UpdateCommand {
       const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {
-        if (fs.existsSync(fullPath)) {
+        if (this.view.exists(fullPath)) {
           await this.ops.removeFile(fullPath, toolId);
           removed++;
         }
@@ -1113,7 +1107,7 @@ export class UpdateCommand {
       const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
 
       try {
-        if (fs.existsSync(fullPath)) {
+        if (this.view.exists(fullPath)) {
           await this.ops.removeFile(fullPath, toolId);
           removed++;
         }
@@ -1399,7 +1393,7 @@ export class UpdateCommand {
     }
 
     // Get currently configured tools
-    const configuredTools = this.getConfiguredTools(projectPath);
+    const configuredTools = getConfiguredToolsForProfileSync(projectPath, this.view);
     const configuredSet = new Set(configuredTools);
 
     // Filter to tools that aren't already configured
@@ -1578,6 +1572,7 @@ export class UpdateCommand {
         const message = error instanceof Error ? error.message : String(error);
         this.log(chalk.red(`  ${message}`));
         failedTools.push({ name: tool.name, error: message });
+        this.recorder?.addFailure(tool.value, message);
       }
     }
 

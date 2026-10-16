@@ -109,6 +109,15 @@ describe('openspec update --dry-run', () => {
   async function expectPlanMatchesRealUpdate(
     options: { force?: boolean } = {}
   ): Promise<UpdatePlanChange[]> {
+    return (await expectFullPlanMatchesRealUpdate(options)).changes;
+  }
+
+  /**
+   * The same contract, including failures: a tool the real update fails on is
+   * one the plan reports in `failures`, and the files either side of the
+   * failure are the ones the real update leaves.
+   */
+  async function expectFullPlanMatchesRealUpdate(options: { force?: boolean } = {}) {
     const before = await snapshotTree(testDir);
 
     const plan = await new UpdateCommand({ ...options, dryRun: true }).plan(testDir);
@@ -116,11 +125,21 @@ describe('openspec update --dry-run', () => {
     // A dry run writes nothing.
     expect(await snapshotTree(testDir)).toEqual(before);
 
-    await new UpdateCommand(options).execute(testDir);
+    let realError: Error | undefined;
+    try {
+      await new UpdateCommand(options).execute(testDir);
+    } catch (error) {
+      realError = error as Error;
+    }
     const after = await snapshotTree(testDir);
 
     expect(withoutTool(plan.changes)).toEqual(diffTrees(before, after, testDir));
-    return plan.changes;
+    const failedTools = realError?.message.match(/^OpenSpec update failed for: (.*)$/u)?.[1];
+    expect(new Set(plan.failures.map((failure) => failure.tool)).size).toBe(
+      failedTools ? failedTools.split(', ').length : 0
+    );
+    if (!failedTools && realError) throw realError;
+    return plan;
   }
 
   it('plans nothing for a fresh install', async () => {
@@ -554,6 +573,58 @@ describe('openspec update --dry-run', () => {
     expect(changes.map((change) => change.path)).not.toContain(
       '.codex/skills/openspec-explore/SKILL.md'
     );
+  });
+
+  it('stops planning a tool where the real write would fail, as the real update stops', async () => {
+    // A directory where a SKILL.md belongs: the real write fails with EISDIR
+    // and the tool's remaining files are never written. A plan that recorded
+    // the write would list them.
+    const blocked = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
+    await fs.rm(blocked);
+    await fs.mkdir(blocked);
+    await fs.writeFile(path.join(blocked, 'x'), 'x');
+
+    const plan = await expectFullPlanMatchesRealUpdate({ force: true });
+
+    expect(plan.failures).toEqual([
+      { tool: 'claude', error: expect.stringContaining('EISDIR') },
+    ]);
+  });
+
+  it('lists the files a legacy move leaves even when the moved tool then fails', async () => {
+    // The move happens before generation, so its files land even though the
+    // tool fails later. The destination is listed by the move itself.
+    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
+    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
+    const blocked = path.join(testDir, '.kimi', 'skills', 'openspec-explore', 'SKILL.md');
+    await fs.rm(blocked);
+    await fs.mkdir(blocked);
+    await fs.writeFile(path.join(blocked, 'x'), 'x');
+
+    const plan = await expectFullPlanMatchesRealUpdate();
+
+    expect(plan.failures.map((failure) => failure.tool)).toEqual(['kimi']);
+    expect(plan.changes).toContainEqual({
+      path: '.kimi-code/skills/openspec-explore/SKILL.md/x',
+      action: 'add',
+      tool: 'kimi',
+    });
+  });
+
+  it('reports a tool the forced legacy upgrade fails on, and still plans the rest', async () => {
+    await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+    await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
+      '<!-- OPENSPEC:START -->\nold\n<!-- OPENSPEC:END -->\n'
+    );
+    // Cursor's skills root is a file, so setting Cursor up fails.
+    await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
+    await fs.writeFile(path.join(testDir, '.cursor', 'skills'), 'not a directory');
+
+    const plan = await expectFullPlanMatchesRealUpdate({ force: true });
+
+    expect(plan.failures.map((failure) => failure.tool)).toEqual(['cursor']);
   });
 
   it('refuses to plan without dryRun', async () => {
