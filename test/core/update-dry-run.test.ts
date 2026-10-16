@@ -203,9 +203,65 @@ describe('openspec update --dry-run', () => {
 
     const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
 
-    expect(plan.notes).toContain(
-      'A real update would also sync the GitHub Copilot cloud agent files; those changes are not listed here.'
+    expect(plan.notes).toContainEqual({
+      code: 'copilot-cloud-files',
+      message:
+        'A real update would also sync the GitHub Copilot cloud agent files; those changes are not listed here.',
+    });
+  });
+
+  it('lists the shared-skills-root owner marker it would write', async () => {
+    // Codex shares `.agents/skills` with Amp and Antigravity, so the update
+    // writes an owner marker there. It goes through the same write seam, and a
+    // preview that skipped it would under-report.
+    await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+    await fs.rm(path.join(testDir, '.agents', 'skills', '.openspec-target'), { force: true });
+
+    // Nothing has drifted, so force the refresh the marker is written during.
+    const plan = await new UpdateCommand({ dryRun: true, force: true }).plan(testDir);
+
+    expect(plan.changes).toContainEqual({
+      path: '.agents/skills/.openspec-target',
+      action: 'add',
+      tool: 'codex',
+    });
+  });
+
+  it('reports a symlinked skills directory as the one link that is removed', async () => {
+    // `fs.rm` with `recursive` unlinks a symlinked directory and leaves the tree
+    // it points at alone, so the plan must not promise the target's files.
+    await writeGlobalConfig({ profile: 'custom', delivery: 'both', workflows: ['propose'] });
+    const skills = path.join(testDir, '.claude', 'skills');
+    const real = path.join(testDir, 'elsewhere', 'openspec-archive-change');
+    await fs.mkdir(real, { recursive: true });
+    await fs.writeFile(path.join(real, 'SKILL.md'), 'kept\n');
+    await fs.rm(path.join(skills, 'openspec-archive-change'), { recursive: true, force: true });
+    await fs.symlink(real, path.join(skills, 'openspec-archive-change'));
+
+    const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
+
+    expect(plan.changes).toContainEqual({
+      path: '.claude/skills/openspec-archive-change',
+      action: 'delete',
+      tool: 'claude',
+    });
+    expect(plan.changes.map((change) => change.path)).not.toContain(
+      'elsewhere/openspec-archive-change/SKILL.md'
     );
+  });
+
+  it('never prompts, and says the preview is partial, when legacy artifacts exist', async () => {
+    // A pre-opsx Cursor command file (see LEGACY_SLASH_COMMAND_PATHS).
+    await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
+      'legacy command\n'
+    );
+
+    const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
+
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(plan.notes.map((note) => note.code)).toContain('legacy-artifacts');
   });
 
   it('refuses to plan without dryRun', async () => {

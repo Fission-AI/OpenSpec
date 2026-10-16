@@ -171,7 +171,7 @@ export class UpdateCommand {
       throw new Error('plan() requires the update command to be constructed with dryRun: true');
     }
     await this.execute(projectPath);
-    return this.recorder?.getPlan() ?? { changes: [], notes: [] };
+    return this.recorder?.getPlan() ?? { changes: [], notes: [], failures: [] };
   }
 
   /** Prints progress on a real run, stays quiet while planning. */
@@ -225,6 +225,7 @@ export class UpdateCommand {
       }
     } else if (findLegacyToolMigrations(resolvedProjectPath).length > 0) {
       this.recorder?.addNote(
+        'legacy-tool-directories',
         'A real update would also move OpenSpec files out of renamed tool directories; those moves are not listed here.'
       );
     }
@@ -492,10 +493,11 @@ export class UpdateCommand {
         }
       } catch (error) {
         spinner.fail(`Failed to update ${tool.name}`);
-        failedTools.push({
-          name: tool.name,
-          error: error instanceof Error ? error.message : String(error)
-        });
+        const message = error instanceof Error ? error.message : String(error);
+        failedTools.push({ name: tool.name, error: message });
+        // A dry run reports the failure in the plan rather than throwing it:
+        // one broken tool must not cost the caller the other tools' changes.
+        this.recorder?.addFailure(tool.value, message);
       }
     }
 
@@ -607,7 +609,9 @@ export class UpdateCommand {
     if (restartHint) {
       this.log(chalk.dim(restartHint));
     }
-    throwIfUpdateFailed(failedTools);
+    if (!this.dryRun) {
+      throwIfUpdateFailed(failedTools);
+    }
   }
 
   /**
@@ -629,6 +633,7 @@ export class UpdateCommand {
     const detection = await detectLegacyArtifacts(projectPath);
     if (detection.hasLegacyArtifacts) {
       this.recorder?.addNote(
+        'legacy-artifacts',
         'A real update would also clean up legacy OpenSpec artifacts; those changes are not listed here.'
       );
     }
@@ -646,6 +651,7 @@ export class UpdateCommand {
         includesGitHubCopilot(configuredTools) && (await isCopilotCloudEnabled(projectPath));
       if (cloudFilesPresent || wouldWrite) {
         this.recorder?.addNote(
+          'copilot-cloud-files',
           'A real update would also sync the GitHub Copilot cloud agent files; those changes are not listed here.'
         );
       }

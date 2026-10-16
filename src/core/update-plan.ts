@@ -23,13 +23,34 @@ export interface UpdatePlanChange {
   tool: string;
 }
 
+/** Why a preview is partial. Stable identifiers, for a caller that branches on them. */
+export type UpdatePlanNoteCode =
+  | 'legacy-tool-directories'
+  | 'legacy-artifacts'
+  | 'copilot-cloud-files';
+
+export interface UpdatePlanNote {
+  code: UpdatePlanNoteCode;
+  message: string;
+}
+
+export interface UpdatePlanFailure {
+  tool: string;
+  error: string;
+}
+
 export interface UpdatePlan {
   changes: UpdatePlanChange[];
   /**
    * Parts of a real update this preview does not cover (legacy migrations,
    * Copilot cloud files). Empty for an ordinary refresh.
    */
-  notes: string[];
+  notes: UpdatePlanNote[];
+  /**
+   * Tools the real update would fail on. Reported rather than thrown: one
+   * broken tool must not cost the caller the rest of the plan.
+   */
+  failures: UpdatePlanFailure[];
 }
 
 /** Every filesystem mutation `update` makes while generating artifacts. */
@@ -53,7 +74,8 @@ export const realFileOps: UpdateFileOps = {
 
 export class UpdatePlanRecorder implements UpdateFileOps {
   private readonly recorded = new Map<string, UpdatePlanChange>();
-  private readonly notes: string[] = [];
+  private readonly notes: UpdatePlanNote[] = [];
+  private readonly failures: UpdatePlanFailure[] = [];
 
   constructor(private readonly projectPath: string) {}
 
@@ -74,6 +96,20 @@ export class UpdatePlanRecorder implements UpdateFileOps {
   }
 
   async removeDirectory(dirPath: string, tool: string): Promise<void> {
+    // A symlinked skills directory — what a dotfile manager leaves behind — is
+    // removed as the link itself: `fs.rm` with `recursive` unlinks it and never
+    // touches the tree it points at. Enumerating through it would promise the
+    // caller deletions that do not happen.
+    let stats: fs.Stats | null = null;
+    try {
+      stats = fs.lstatSync(dirPath);
+    } catch {
+      return;
+    }
+    if (stats.isSymbolicLink()) {
+      this.record(dirPath, 'delete', tool);
+      return;
+    }
     // Report the files that disappear, not the directory: a preview is read
     // file by file.
     for (const filePath of listFilesRecursively(dirPath)) {
@@ -81,13 +117,18 @@ export class UpdatePlanRecorder implements UpdateFileOps {
     }
   }
 
-  addNote(note: string): void {
-    if (!this.notes.includes(note)) this.notes.push(note);
+  addNote(code: UpdatePlanNoteCode, message: string): void {
+    if (this.notes.some((note) => note.code === code)) return;
+    this.notes.push({ code, message });
+  }
+
+  addFailure(tool: string, error: string): void {
+    this.failures.push({ tool, error });
   }
 
   getPlan(): UpdatePlan {
     const changes = [...this.recorded.values()].sort((a, b) => a.path.localeCompare(b.path));
-    return { changes, notes: [...this.notes] };
+    return { changes, notes: [...this.notes], failures: [...this.failures] };
   }
 
   private record(filePath: string, action: UpdatePlanAction, tool: string): void {
@@ -145,7 +186,11 @@ export function formatUpdatePlan(plan: UpdatePlan): string {
   }
   for (const note of plan.notes) {
     lines.push('');
-    lines.push(`Note: ${note}`);
+    lines.push(`Note: ${note.message}`);
+  }
+  for (const failure of plan.failures) {
+    lines.push('');
+    lines.push(`Would fail: ${failure.tool} (${failure.error})`);
   }
   return lines.join('\n');
 }

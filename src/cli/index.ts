@@ -430,7 +430,13 @@ program
         displayCliUpdateNote(latestVersion, targetPath);
       }
     } catch (error) {
-      await failWithError(error);
+      // The --json dry run follows the agent contract: exactly one JSON
+      // document on stdout, even on failure.
+      await failWithError(error, {
+        enabled: options?.dryRun && options?.json,
+        payload: { changes: [], notes: [], failures: [] },
+        fallbackCode: 'update_error',
+      });
       process.exit(1);
     }
     }
