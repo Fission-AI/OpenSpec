@@ -76,18 +76,18 @@ function specDrivenTitles(): Record<string, string> {
 }
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: '743c15d1d8084a45dde761524210cb88aec999b8bbbcde24a72da7fae0ad7e90',
+  getExploreSkillTemplate: '9e80af55e32cb54a3bc823dfb531dfea45e09911221b143e8c880a2c2d0dcd80',
   getNewChangeSkillTemplate: '0e5035b7b42198afc430206a1dbc9579096650ef0813d85e837d5a6cd0b98a85',
-  getContinueChangeSkillTemplate: 'bbb103c98a488c6bc031242e1317af45558385255a710c92e5d996836e2f3d0f',
+  getContinueChangeSkillTemplate: 'bb4f1f920045d11190975d0197ff239143f095270c372c5373085d6e65a056a4',
   getApplyChangeSkillTemplate: 'c4f02c29137e19b34bf1dc59146941b8c920214aa2cf3ce80ae7f1b982e976fc',
-  getFfChangeSkillTemplate: 'bcab9df4398be25ef2c49803102f4c7107afcc395a28c5544f15d2d1bda1f73c',
+  getFfChangeSkillTemplate: '84ce252467fd217ae7d73bae1c18ce14ffd4f9c98c41d2fcd3c0cef568d498f6',
   getSyncSpecsSkillTemplate: 'bc80fe9b07eaa289e5eb8a3ce65eb7df722a16d864e37283c678220712e4f230',
   getOnboardSkillTemplate: '84258a06c0ca88de708a23dd74e9a17efe11eff63a071b3864c781dcd5a0a4b7',
-  getOpsxExploreCommandTemplate: '632db5f79917a61d212f48a4b2687ebbe15b3d34f8aa912acdae37549676c4e1',
+  getOpsxExploreCommandTemplate: '3dd65844ba6a6547edea21eba95ef1f65e1b1e16c38abf601e705faaa45119cd',
   getOpsxNewCommandTemplate: '6d504fef1e0d4ced7c423f4cc9d9d2cee11b1a6224edf685e06a3f0757e0ebff',
-  getOpsxContinueCommandTemplate: '94cf28545fea01342b1239ec8341c1ba07e31a66e3f174f17b7b0ddc574674e2',
+  getOpsxContinueCommandTemplate: '58cb0934212687d735b9d2e16907ecb4a8f17dd3e40fa779554c2861640ba9a4',
   getOpsxApplyCommandTemplate: '9b733946aa7216b45d084bb5affd7071086db6f91282c3666731a17543825ff1',
-  getOpsxFfCommandTemplate: 'e5413c8da8c00d8a589004a2c61acdc9c1123d8f585bff42c0e9b56962b84f35',
+  getOpsxFfCommandTemplate: '698ac8ffb3d69baea23c7a4be282aef88be66491a98fe19d1d008a5124c515ec',
   getArchiveChangeSkillTemplate: '04a029782fc4137971fad6f54cfda3685d7e0b835b06565f9a509b4878093099',
   getBulkArchiveChangeSkillTemplate: '44dbd3c7a347e5f8339b2141393f2ac36017527cce251483fe70f2059c1e286e',
   getOpsxSyncCommandTemplate: '60550b7bb9829421656d6324a9e4c951bc912f48f88882d1a07ce7f78397a5e7',
@@ -96,25 +96,25 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxOnboardCommandTemplate: '0cf66e164c0e14c916c6d1ebb5d80ded07d7fb8e55d4eb34eba43e8ca9c28558',
   getOpsxBulkArchiveCommandTemplate: 'cb1d55d6ce53686bfe94be5e081c7a4d06a8e4d10b63019132df5bb3db7144cb',
   getOpsxVerifyCommandTemplate: '9f3b4551a3cce3f1d1aa6c14fc595424ba22cd049326412460b30bd32e4cb0fc',
-  getOpsxProposeSkillTemplate: 'cbf85b86141508e6153753a45ac695b9f25177ba33690afb352c2591e568eca9',
-  getOpsxProposeCommandTemplate: 'e7d0b9f7b6787fbc61fa67527b651c31d48f2dec197bc2334a55ba391c0cecc2',
+  getOpsxProposeSkillTemplate: 'bdb55603906daa94721c9ccd0d67d7f31559b51db4af9317ae40c758fdcddaa8',
+  getOpsxProposeCommandTemplate: 'e2852722dfa7c73292535006a59fcb163f6725062260134c685f22835d97dd34',
   getFeedbackSkillTemplate: 'dabeb5e825b9349abc8156c3e7b8608f27987912a6d9bf47ef29addde6138133',
   getUpdateChangeSkillTemplate: '14c209b8a18d1b100d372b0ef96707b70a7c64117a16309ee463f66d39180b3e',
   getOpsxUpdateCommandTemplate: '33528a80c9436c9dad74084a37d2fce5e78e34abfb71185fa21495a4f2a8b4d3',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '297eebc16469f9a6851c09370d0bfce29be3fca77054c61c42afcbf95099f172',
+  'openspec-explore': '15044644d4d1e922940faa7de542f5c0035ee23bc15dc3ed07596d4c815006c3',
   'openspec-new-change': '27e09d43785953827efc9a98bb9d6cf06db48fe6abe7e1c049409fe5b5061323',
-  'openspec-continue-change': 'c1fb63c5616c62453fd7638856a6d6c15a41b0fb9ceb23ad4b2887f426fcaec5',
+  'openspec-continue-change': '151de6f70e082e5b6fa110d16f1578d78b70a6870bb2b90c1d2175e112585ece',
   'openspec-apply-change': '991a1d4687f1c8c7147d8c3b68cf14e9c515c6c53bb026356dac3b80e909b827',
-  'openspec-ff-change': '359db0de7668c1587b7d8a933410e393a1a2897cdf40391a076a0a0d1677328e',
+  'openspec-ff-change': '1bde1d256bd4e20a0707ae056f7742366f5dd367f36a3988d8e0868c0e3840c9',
   'openspec-sync-specs': '3909936a236a21a9a6d5bf495f90b396b3b68fc9220d7b2c1894668653beb2e4',
   'openspec-archive-change': '5f0d131a885dcdcd9ba2172ea9a42bc6748125e24b8c4eecb7c86f1a4aea83af',
   'openspec-bulk-archive-change': 'd2a258055ab2f0d8086c4348d37212ebc95a5adef2d5f524db959fb93490d5c8',
   'openspec-verify-change': '9422e0afeec1dbd27c425258e67d52d73686c07765a54edeba62043c9640c8b5',
   'openspec-onboard': '6993eff867d97d485e080078f9dfb80e968e242f3b17a924eeb077715fd548fa',
-  'openspec-propose': '3f6f670228ecc32bb3bdffd07f31e72c530cba5abcdf6148f26df537cbf1f0ee',
+  'openspec-propose': 'dc3738b65bc043755089a6686abfeb43d8e21c63f581a14fd37278a0444128c3',
   'openspec-update-change': 'a6fc9d6972bfb024b91f0a01e14d8a7666ae641bcad83cfae937e41dcccc545a',
 };
 
@@ -1212,15 +1212,16 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain('the authoritative guidance');
       expect(content, variant).not.toContain('Common artifact patterns');
 
-      // Delegated creation is honored at the creation step itself, and the
-      // delegated skill's output is verified rather than assumed.
+      // Delegated creation is honored at the creation step itself, held to the
+      // output path already chosen and checked (#2099), and the delegated
+      // skill's output is verified rather than assumed.
       expect(content, variant).toContain(
-        'If the `instruction` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at `resolvedOutputPath`'
+        'If the `instruction` field delegates creation to a specific skill or command, invoke it only if it can write the artifact to that output path; otherwise stop and tell the user. Then verify the artifact file exists at that output path'
       );
 
       // ...and restated in the artifact-creation guidelines.
       expect(content, variant).toContain(
-        'If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly'
+        'If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly - but only once you have chosen and checked the output path, and only if it can write there'
       );
     }
   });

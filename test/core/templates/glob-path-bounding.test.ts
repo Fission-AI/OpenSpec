@@ -65,12 +65,69 @@ function expectBoundBeforeWrite(label: string, line: string): void {
   }
 }
 
+/** Every place a body hands artifact creation to another skill or command. */
+const DELEGATION = /delegates creation/g;
+
+/**
+ * A delegated writer is a write too. It may run only after the path it writes
+ * to has been chosen and checked, and only if it can write exactly there.
+ * Returns each delegation as [offset, the sentence that states it].
+ */
+function delegations(body: string): Array<[number, string]> {
+  return [...body.matchAll(DELEGATION)].map((match) => {
+    const start = match.index ?? 0;
+    const end = body.slice(start).search(/[.\n]/);
+    return [start, body.slice(start, end === -1 ? undefined : start + end)];
+  });
+}
+
 describe('glob output paths stay inside changeRoot (#2099)', () => {
   it.each(SURFACES)('%s bounds every concrete-path choice', (label, body) => {
     const choices = body.split('\n').filter((line) => PATH_CHOICE.test(line));
 
     expect(choices, `${label}: no concrete-path line found`).toHaveLength(1);
     expectBoundBeforeWrite(label, choices[0]);
+  });
+
+  it.each(SURFACES)('%s chooses and checks the path before any delegated writer runs', (label, body) => {
+    const choiceAt = body.search(PATH_CHOICE);
+    const found = delegations(body);
+    expect(found.length, `${label}: no delegated-creation rule found`).toBeGreaterThan(0);
+
+    for (const [at, sentence] of found) {
+      // Bound to one path, and refuses rather than letting it write elsewhere.
+      expect(sentence, label).toMatch(/only if it can/);
+      expect(sentence, label).toMatch(/stop/);
+      // The creation step's delegation comes after the choice it depends on.
+      // The only one allowed earlier is continue-change's backfill, which
+      // names the path its own preceding bullet checked.
+      if (at < choiceAt) {
+        expect(sentence, `${label}: delegates before choosing the path`).toContain(
+          'its checked path'
+        );
+      }
+    }
+    expect(
+      found.some(([at]) => at > choiceAt),
+      `${label}: the creation step does not bound its delegated writer`
+    ).toBe(true);
+  });
+
+  it.each(SURFACES)('%s never targets the glob itself', (label, body) => {
+    // A glob is a pattern, not a file: nothing may be written to, or verified
+    // at, `resolvedOutputPath` unless it is a concrete path.
+    expect(body, label).not.toContain('exists at `resolvedOutputPath`');
+    expect(body, label).not.toContain('write it to `resolvedOutputPath`');
+  });
+
+  it.each(SURFACES)('%s restates delegation only with the same bound', (label, body) => {
+    // The artifact-creation guidelines repeat the delegation rule where agents
+    // skim; a bare "invoke it instead" there would undo the ordering above.
+    for (const line of body
+      .split('\n')
+      .filter((candidate) => candidate.includes('directs you to use a specific skill or command'))) {
+      expect(line, label).toContain('only once you have chosen and checked the output path');
+    }
   });
 
   // continue-change alone backfills a half-written glob artifact: it compares
@@ -91,5 +148,7 @@ describe('glob output paths stay inside changeRoot (#2099)', () => {
     const next = lines[lines.indexOf(bullets[0]) + 1];
     expect(next, label).toContain('Never write an expected path that fails that check');
     expect(next.indexOf('Never write'), label).toBeLessThan(next.indexOf('write only the missing'));
+    // A delegated writer filling the gap is held to the same checked paths.
+    expect(next, label).toContain('invoke it only if it can write each file to its checked path');
   });
 });

@@ -91,8 +91,9 @@ ${PROJECT_ROOT_GUARD}
         - Identify the target project from the request and project context; the planning home may be separate from the code. If the target is unclear, ask. For greenfield or non-code changes, inspect the available structure and relevant documents. If source is unavailable, state the limitation and ask when it materially affects the plan.
         - Ground scope, approach, and tasks in what you find. Distinguish observed behavior from assumptions and proposed additions; surface conflicts with existing specs instead of silently deciding which is correct.
         - Do this discovery now, rather than leaving generic "explore the codebase" or "make a plan" tasks for implementation. Keep any necessary follow-up investigation specific to an unresolved question.
-      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`
-      - Otherwise, if \`resolvedOutputPath\` is a glob, follow \`instruction\` to choose a concrete path inside \`changeRoot\` that matches the glob, and verify it remains inside \`changeRoot\` after resolving any symlinked parent directories before writing anything; if it does not, stop and tell the user. Then create the artifact file using \`template\` as the structure and write it to that path, or to \`resolvedOutputPath\` when it is not a glob
+      - Choose the output path before creating anything. If \`resolvedOutputPath\` is a glob, follow \`instruction\` to choose a concrete path inside \`changeRoot\` that matches the glob, and verify it remains inside \`changeRoot\` after resolving any symlinked parent directories; if it does not, stop and tell the user. Otherwise the output path is \`resolvedOutputPath\`
+      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it only if it can write the artifact to that output path; otherwise stop and tell the user. Then verify the artifact file exists at that output path
+      - Otherwise create the artifact file using \`template\` as the structure and write it to that output path
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
@@ -126,7 +127,7 @@ After completing all artifacts, summarize:
 **Artifact Creation Guidelines**
 
 - Follow the \`instruction\` field from \`openspec instructions\` for each artifact type - it is the authoritative guidance, even for familiar artifact names
-- If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly
+- If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly - but only once you have chosen and checked the output path, and only if it can write there
 - The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
 - Use \`template\` as the structure for your output file - fill in its sections
@@ -210,8 +211,9 @@ ${PROJECT_ROOT_GUARD}
         - Identify the target project from the request and project context; the planning home may be separate from the code. If the target is unclear, ask. For greenfield or non-code changes, inspect the available structure and relevant documents. If source is unavailable, state the limitation and ask when it materially affects the plan.
         - Ground scope, approach, and tasks in what you find. Distinguish observed behavior from assumptions and proposed additions; surface conflicts with existing specs instead of silently deciding which is correct.
         - Do this discovery now, rather than leaving generic "explore the codebase" or "make a plan" tasks for implementation. Keep any necessary follow-up investigation specific to an unresolved question.
-      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`
-      - Otherwise, if \`resolvedOutputPath\` is a glob, follow \`instruction\` to choose a concrete path inside \`changeRoot\` that matches the glob, and verify it remains inside \`changeRoot\` after resolving any symlinked parent directories before writing anything; if it does not, stop and tell the user. Then create the artifact file using \`template\` as the structure and write it to that path, or to \`resolvedOutputPath\` when it is not a glob
+      - Choose the output path before creating anything. If \`resolvedOutputPath\` is a glob, follow \`instruction\` to choose a concrete path inside \`changeRoot\` that matches the glob, and verify it remains inside \`changeRoot\` after resolving any symlinked parent directories; if it does not, stop and tell the user. Otherwise the output path is \`resolvedOutputPath\`
+      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it only if it can write the artifact to that output path; otherwise stop and tell the user. Then verify the artifact file exists at that output path
+      - Otherwise create the artifact file using \`template\` as the structure and write it to that output path
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
@@ -245,7 +247,7 @@ After completing all artifacts, summarize:
 **Artifact Creation Guidelines**
 
 - Follow the \`instruction\` field from \`openspec instructions\` for each artifact type - it is the authoritative guidance, even for familiar artifact names
-- If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly
+- If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly - but only once you have chosen and checked the output path, and only if it can write there
 - The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
 - Use \`template\` as the structure for your output file - fill in its sections
