@@ -27,7 +27,7 @@
 
 ## 4. CLI: --scope flag
 
-- [x] 4.1 Add `--scope <type>` flag to `store register`, `store list`, `store unregister`, `store remove`, and `store doctor` subcommands in `src/commands/store.ts`, mapping `project` to `projectRoot: process.cwd()` as the walk start, not an exact level: register writes the registry at cwd; list, unregister, remove, and doctor resolve the registry chain from cwd per D8 — verify with a unit test that the flag is parsed and passed through
+- [x] 4.1 Add `--scope <type>` flag to `store register`, `store list`, `store unregister`, `store remove`, and `store doctor` subcommands in `src/cli/commands/store.ts`, mapping `project` to `projectRoot: process.cwd()` as the walk start, not an exact level: register writes the registry at cwd; list, unregister, remove, and doctor resolve the registry chain from cwd per D8 — verify with a unit test that the flag is parsed and passed through
 - [x] 4.2 Update `store register` output to indicate whether registration went to the project-scoped or global registry — verify with a unit test that the JSON output includes the scope
 - [x] 4.3 Update `store doctor` to inspect project-scoped stores from the whole registry chain when project-scoped registries are present — verify with a unit test that doctor reports health for project-scoped stores at multiple levels
 - [x] 4.4 Add `--scope` flag to shell completions in `src/core/completions/command-registry.ts` for `store register`, `store list`, `store unregister`, `store remove`, and `store doctor` — verify with a unit test that completions include the `--scope` option
@@ -37,9 +37,9 @@
 
 ## 5. References: project-scoped store resolution
 
-- [x] 5.1 Update `assembleReferenceIndex` in `src/core/references.ts` to resolve referenced store IDs through the merged registry (project-scoped + global): a nearest-first walk of the ancestor chain, merged above global entries, with project entries staying resolvable even when the global registry is unreadable — verify with a unit test that references resolve from merged entries drawn from the chain
-- [x] 5.2 Update `src/commands/shared-gather.ts` to pass the project-scoped registry directory (discovered via `findProjectRegistryDir`) to `assembleReferenceIndex` — verify with a unit test that shared gathering uses the merged registry
-- [x] 5.3 Update `src/commands/workflow/instructions.ts` to pass the project-scoped registry directory to `assembleReferenceIndex` — verify with a unit test that workflow instruction generation uses the merged registry
+- [x] 5.1 Update `assembleReferenceIndex` in `src/core/references.ts` to resolve referenced store IDs through a per-ID walk of project-scoped registries (ordered result of `walkProjectStoreRegistries`), checking each registry in order for each ID, falling back to the global registry only after a project miss, with project entries staying resolvable even when the global registry is unreadable — verify with a unit test that references resolve from the per-ID walk
+- [x] 5.2 Update `src/commands/shared-gather.ts` to pass the project-scoped registry directory (discovered via `findProjectRegistryDir`) to `assembleReferenceIndex`, whose per-ID walk then resolves the references — verify with a unit test that shared gathering uses the per-ID walk
+- [x] 5.3 Update `src/commands/workflow/instructions.ts` to pass the project-scoped registry directory (discovered via `findProjectRegistryDir`) to `assembleReferenceIndex`, whose per-ID walk then resolves the references — verify with a unit test that workflow instruction generation uses the per-ID walk
 
 ## 6. Tests: integration and edge cases
 

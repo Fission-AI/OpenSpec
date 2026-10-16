@@ -103,7 +103,7 @@ describe('commitStoreRegistration with projectRoot', () => {
       expect(fs.existsSync(registryPath)).toBe(true);
       const content = fs.readFileSync(registryPath, 'utf-8');
         expect(content).toContain('my-store:');
-      expect(content).toContain(storeDir.replace(/\\/g, '/'));
+      expect(content).toContain(realPath(storeDir).replace(/\\/g, '/'));
     } finally {
       fs.rmSync(outsideDir, { recursive: true, force: true });
     }
@@ -218,7 +218,7 @@ describe('registerExistingStore with projectRoot: outside-project paths', () => 
       const registryPath = getStoreRegistryPath({ projectRoot: tmpDir });
       const content = fs.readFileSync(registryPath, 'utf-8');
       expect(content).toContain('my-store:');
-      expect(content).toContain(storeDir.replace(/\\/g, '/'));
+      expect(content).toContain(realPath(storeDir).replace(/\\/g, '/'));
     } finally {
       fs.rmSync(outsideDir, { recursive: true, force: true });
     }

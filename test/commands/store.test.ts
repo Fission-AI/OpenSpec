@@ -1362,7 +1362,7 @@ describe('store command', () => {
         expect(fs.existsSync(cwdRegistry)).toBe(true);
         const registryContent = fs.readFileSync(cwdRegistry, 'utf-8');
         expect(registryContent).toContain('outside-specs:');
-        expect(registryContent).toContain(outsideRoot.replace(/\\/g, '/'));
+        expect(registryContent).toContain(fs.realpathSync.native(outsideRoot).replace(/\\/g, '/'));
       } finally {
         fs.rmSync(outsideRoot, { recursive: true, force: true });
       }
