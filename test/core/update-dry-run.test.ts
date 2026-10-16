@@ -102,15 +102,17 @@ describe('openspec update --dry-run', () => {
   /**
    * The contract: the plan lists exactly what a real update then changes.
    */
-  async function expectPlanMatchesRealUpdate(): Promise<UpdatePlanChange[]> {
+  async function expectPlanMatchesRealUpdate(
+    options: { force?: boolean } = {}
+  ): Promise<UpdatePlanChange[]> {
     const before = await snapshotTree(testDir);
 
-    const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
+    const plan = await new UpdateCommand({ ...options, dryRun: true }).plan(testDir);
 
     // A dry run writes nothing.
     expect(await snapshotTree(testDir)).toEqual(before);
 
-    await new UpdateCommand().execute(testDir);
+    await new UpdateCommand(options).execute(testDir);
     const after = await snapshotTree(testDir);
 
     expect(withoutTool(plan.changes)).toEqual(diffTrees(before, after, testDir));
@@ -236,7 +238,8 @@ describe('openspec update --dry-run', () => {
     await fs.mkdir(real, { recursive: true });
     await fs.writeFile(path.join(real, 'SKILL.md'), 'kept\n');
     await fs.rm(path.join(skills, 'openspec-archive-change'), { recursive: true, force: true });
-    await fs.symlink(real, path.join(skills, 'openspec-archive-change'));
+    // A junction needs no privilege on Windows, and Node reports it as a link.
+    await fs.symlink(real, path.join(skills, 'openspec-archive-change'), 'junction');
 
     const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
 
@@ -262,6 +265,152 @@ describe('openspec update --dry-run', () => {
 
     expect(confirmMock).not.toHaveBeenCalled();
     expect(plan.notes.map((note) => note.code)).toContain('legacy-artifacts');
+  });
+
+  it('matches a real non-interactive update that leaves legacy artifacts alone', async () => {
+    await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
+      'legacy command\n'
+    );
+    await writeGlobalConfig({ profile: 'custom', delivery: 'both', workflows: ['propose'] });
+
+    await expectPlanMatchesRealUpdate();
+  });
+
+  it('lists the global config the one-time profile migration writes', async () => {
+    // A config written before profiles existed: workflows are installed, but no
+    // `profile` is recorded, so a real update saves one.
+    await writeGlobalConfig({} as GlobalConfig);
+
+    const changes = await expectPlanMatchesRealUpdate();
+
+    const configPath = path
+      .relative(testDir, getGlobalConfigPath())
+      .split(path.sep)
+      .join('/');
+    expect(changes).toContainEqual({ path: configPath, action: 'update', tool: 'openspec' });
+  });
+
+  it('plans the move out of a renamed tool directory, and what the moved tool then gets', async () => {
+    // Kimi Code moved from .kimi to .kimi-code. A real update moves the files
+    // first, which is what makes Kimi detected at all.
+    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
+    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
+
+    const changes = await expectPlanMatchesRealUpdate();
+
+    expect(changes).toContainEqual({
+      path: '.kimi/skills/openspec-propose/SKILL.md',
+      action: 'delete',
+      tool: 'kimi',
+    });
+    expect(changes).toContainEqual({
+      path: '.kimi-code/skills/openspec-propose/SKILL.md',
+      action: 'add',
+      tool: 'kimi',
+    });
+    expect(changes.map((change) => change.path)).not.toContain('.kimi/skills');
+  });
+
+  it('plans the move out of a renamed tool directory for a stale install', async () => {
+    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
+    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
+    const skill = path.join(testDir, '.kimi', 'skills', 'openspec-propose', 'SKILL.md');
+    await fs.writeFile(
+      skill,
+      (await fs.readFile(skill, 'utf-8')).replace(/generatedBy: .*/u, 'generatedBy: "0.0.1"')
+    );
+    await writeGlobalConfig({ profile: 'custom', delivery: 'both', workflows: ['propose', 'apply'] });
+
+    await expectPlanMatchesRealUpdate();
+  });
+
+  it('plans a consent-gated move as a non-interactive update makes it, and says so', async () => {
+    // Windsurf became Devin Desktop. At a terminal the move is offered; without
+    // one it is made, which is what the plan lists.
+    await new InitCommand({ tools: 'devin', force: true }).execute(testDir);
+    await fs.rename(path.join(testDir, '.devin'), path.join(testDir, '.windsurf'));
+
+    const before = await snapshotTree(testDir);
+    const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
+    expect(plan.notes.map((note) => note.code)).toContain('legacy-tool-directories');
+    await new UpdateCommand().execute(testDir);
+    expect(withoutTool(plan.changes)).toEqual(
+      diffTrees(before, await snapshotTree(testDir), testDir)
+    );
+    expect(plan.changes.some((change) => change.path.startsWith('.windsurf/'))).toBe(true);
+  });
+
+  it('plans a legacy-only install whose config predates profiles', async () => {
+    // The real update moves Kimi's files first, then the profile migration
+    // scans the moved tree. The plan has to scan the same tree.
+    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
+    await fs.rm(path.join(testDir, '.claude'), { recursive: true, force: true });
+    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
+    await fs.rm(path.join(testDir, '.kimi', 'skills', 'openspec-explore'), {
+      recursive: true,
+      force: true,
+    });
+    await writeGlobalConfig({} as GlobalConfig);
+
+    await expectPlanMatchesRealUpdate();
+  });
+
+  it('plans a moved skill that the profile then deselects as gone, not added', async () => {
+    await writeGlobalConfig({ profile: 'custom', delivery: 'both', workflows: [...ALL_WORKFLOWS] });
+    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
+    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
+    await writeGlobalConfig({ profile: 'custom', delivery: 'both', workflows: ['propose'] });
+
+    const changes = await expectPlanMatchesRealUpdate();
+
+    expect(changes.map((change) => change.path)).not.toContain(
+      '.kimi-code/skills/openspec-verify-change/SKILL.md'
+    );
+  });
+
+  it('plans the legacy copies an Antigravity after-generation move drops', async () => {
+    await new InitCommand({ tools: 'antigravity', force: true }).execute(testDir);
+    const current = path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md');
+    const legacy = path.join(testDir, '.agent', 'skills', 'openspec-propose', 'SKILL.md');
+    await fs.mkdir(path.dirname(legacy), { recursive: true });
+    await fs.copyFile(current, legacy);
+
+    const changes = await expectPlanMatchesRealUpdate({ force: true });
+
+    expect(changes).toContainEqual({
+      path: '.agent/skills/openspec-propose/SKILL.md',
+      action: 'delete',
+      tool: 'antigravity',
+    });
+  });
+
+  it('plans the legacy copies an after-generation move drops', async () => {
+    // Codex reads the shared .agents root now. Once the current skills are
+    // generated, an identical legacy .codex copy is redundant and removed; a
+    // divergent one is kept and reported.
+    await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+    const agents = path.join(testDir, '.agents', 'skills');
+    const codex = path.join(testDir, '.codex', 'skills');
+    await fs.mkdir(path.join(codex, 'openspec-propose'), { recursive: true });
+    await fs.copyFile(
+      path.join(agents, 'openspec-propose', 'SKILL.md'),
+      path.join(codex, 'openspec-propose', 'SKILL.md')
+    );
+    await fs.mkdir(path.join(codex, 'openspec-explore'), { recursive: true });
+    await fs.writeFile(path.join(codex, 'openspec-explore', 'SKILL.md'), 'customized\n');
+
+    const changes = await expectPlanMatchesRealUpdate({ force: true });
+
+    expect(changes).toContainEqual({
+      path: '.codex/skills/openspec-propose/SKILL.md',
+      action: 'delete',
+      tool: 'codex',
+    });
+    expect(changes.map((change) => change.path)).not.toContain(
+      '.codex/skills/openspec-explore/SKILL.md'
+    );
   });
 
   it('refuses to plan without dryRun', async () => {

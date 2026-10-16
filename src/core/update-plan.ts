@@ -76,10 +76,18 @@ export class UpdatePlanRecorder implements UpdateFileOps {
   private readonly recorded = new Map<string, UpdatePlanChange>();
   private readonly notes: UpdatePlanNote[] = [];
   private readonly failures: UpdatePlanFailure[] = [];
+  /**
+   * The tree as the real update would have it so far: absolute path to planned
+   * content, or null once planned away. Steps that read what an earlier step
+   * left behind (a migration comparing against generated files) read this.
+   * The plan itself is always measured against the disk as it is now.
+   */
+  private readonly staged = new Map<string, string | null>();
 
   constructor(private readonly projectPath: string) {}
 
   async writeFile(filePath: string, content: string, tool: string): Promise<void> {
+    this.staged.set(path.resolve(filePath), content);
     let existing: string | null = null;
     try {
       existing = fs.readFileSync(filePath, 'utf-8');
@@ -92,7 +100,47 @@ export class UpdatePlanRecorder implements UpdateFileOps {
   }
 
   async removeFile(filePath: string, tool: string): Promise<void> {
+    this.staged.set(path.resolve(filePath), null);
     this.record(filePath, 'delete', tool);
+  }
+
+  /**
+   * Stages a move without recording the destination: whether the moved file
+   * ends up in the plan is decided by what the update writes or removes there
+   * afterwards. The source is recorded as deleted.
+   */
+  async moveFile(source: string, destination: string, tool: string): Promise<void> {
+    const content = this.view.read(source);
+    await this.removeFile(source, tool);
+    this.staged.set(path.resolve(destination), content);
+  }
+
+  /** The tree with every planned write, move and removal applied. */
+  readonly view = {
+    exists: (filePath: string): boolean => this.stagedContent(filePath) !== null,
+    read: (filePath: string): string => {
+      const content = this.stagedContent(filePath);
+      if (content === null) {
+        throw Object.assign(new Error(`ENOENT: ${filePath}`), { code: 'ENOENT' });
+      }
+      return content;
+    },
+  };
+
+  private stagedContent(filePath: string): string | null {
+    const absolute = path.resolve(filePath);
+    // A removed directory (or link) takes everything under it with it.
+    for (let current = absolute; ; current = path.dirname(current)) {
+      const staged = this.staged.get(current);
+      if (staged === null) return null;
+      if (staged !== undefined && current === absolute) return staged;
+      if (path.dirname(current) === current) break;
+    }
+    try {
+      return fs.readFileSync(absolute, 'utf-8');
+    } catch {
+      return null;
+    }
   }
 
   async removeDirectory(dirPath: string, tool: string): Promise<void> {
@@ -106,6 +154,7 @@ export class UpdatePlanRecorder implements UpdateFileOps {
     } catch {
       return;
     }
+    this.staged.set(path.resolve(dirPath), null);
     if (stats.isSymbolicLink()) {
       this.record(dirPath, 'delete', tool);
       return;

@@ -45,7 +45,7 @@ import {
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import { isInteractive } from '../utils/interactive.js';
-import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
+import { getGlobalConfig, getGlobalConfigPath, serializeGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { formatOptionalWorkflowsNote, getOnboardingCommands } from './onboarding-commands.js';
 import { getAvailableTools } from './available-tools.js';
@@ -58,7 +58,9 @@ import {
   scanInstalledWorkflows as scanInstalledWorkflowsShared,
   migrateIfNeeded as migrateIfNeededShared,
   computeProfileMigration,
+  applyProfileMigration,
   findLegacyToolMigrations,
+  planLegacyToolMigrations,
   migrateLegacyToolDirs,
   describeLegacyMigration,
   legacyMigrationNotice,
@@ -223,12 +225,13 @@ export class UpdateCommand {
         }
         this.reportKeptInPlace(migration);
       }
-    } else if (findLegacyToolMigrations(resolvedProjectPath).length > 0) {
-      this.recorder?.addNote(
-        'legacy-tool-directories',
-        'A real update would also move OpenSpec files out of renamed tool directories; those moves are not listed here.'
-      );
     }
+    // A dry run plans the same moves. They change what is installed where, so
+    // every later step reads the recorder's view of the moved tree, and a tool
+    // that only had files in its former root is refreshed like any other.
+    const movedInTools = this.dryRun
+      ? await this.planLegacyToolMoves(resolvedProjectPath, 'before-generation')
+      : new Set<string>();
     const declinedMigrations = this.dryRun
       ? []
       : await this.offerConsentedLegacyMigrations(resolvedProjectPath);
@@ -239,13 +242,26 @@ export class UpdateCommand {
       migrateIfNeededShared(resolvedProjectPath, detectedTools);
     }
 
-    // 3. Read global config for profile/delivery. A dry run cannot save the
-    //    one-time profile migration, so it resolves against the same values
-    //    the migration would have written — otherwise the preview would plan
+    // 3. Read global config for profile/delivery. A dry run plans the one-time
+    //    profile migration's save instead of making it, and resolves against
+    //    the config that save would leave — otherwise the preview would plan
     //    for a different profile than the real update acts on.
-    const globalConfig = this.dryRun
-      ? { ...getGlobalConfig(), ...(computeProfileMigration(resolvedProjectPath, detectedTools) ?? {}) }
-      : getGlobalConfig();
+    let globalConfig = getGlobalConfig();
+    if (this.recorder) {
+      const migration = computeProfileMigration(
+        resolvedProjectPath,
+        detectedTools,
+        this.recorder.view.exists
+      );
+      if (migration) {
+        globalConfig = applyProfileMigration(migration);
+        await this.recorder.writeFile(
+          getGlobalConfigPath(),
+          serializeGlobalConfig(globalConfig),
+          'openspec'
+        );
+      }
+    }
     const profile = globalConfig.profile ?? 'core';
     const delivery: Delivery = globalConfig.delivery ?? 'both';
     const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
@@ -265,7 +281,9 @@ export class UpdateCommand {
     } = legacyUpgrade;
 
     // 5. Find configured tools
-    const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath);
+    const configuredTools = [
+      ...new Set([...getConfiguredToolsForProfileSync(resolvedProjectPath), ...movedInTools]),
+    ];
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
@@ -332,6 +350,10 @@ export class UpdateCommand {
       ...toolsNeedingVersionUpdate,
       ...toolsNeedingConfigSync,
       ...toolsWithDriftedSkills,
+      // Status checks read the disk, where a planned move has not happened.
+      // After the real move these tools hold every file they need refreshed
+      // or kept; regenerating them yields the same set of paths.
+      ...movedInTools,
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
@@ -490,6 +512,8 @@ export class UpdateCommand {
             }
             this.reportKeptInPlace(migration);
           }
+        } else {
+          await this.planLegacyToolMoves(resolvedProjectPath, 'after-generation', [tool.value]);
         }
       } catch (error) {
         spinner.fail(`Failed to update ${tool.name}`);
@@ -629,12 +653,48 @@ export class UpdateCommand {
    * Legacy cleanup prompts and moves files outside the write seam, so a dry run
    * skips it and says so rather than previewing half of it.
    */
+  /**
+   * Plans the moves out of former tool roots that a non-interactive update
+   * makes, against the tree as planned so far. Returns the tools that gain
+   * files from a move.
+   */
+  private async planLegacyToolMoves(
+    projectPath: string,
+    timing: 'before-generation' | 'after-generation',
+    toolIds?: string[]
+  ): Promise<Set<string>> {
+    const recorder = this.recorder;
+    const movedInTools = new Set<string>();
+    if (!recorder) return movedInTools;
+
+    for (const op of planLegacyToolMigrations(projectPath, timing, toolIds, recorder.view)) {
+      if (op.disposition === 'move') {
+        await recorder.moveFile(op.source, op.destination, op.toolId);
+        movedInTools.add(op.toolId);
+      } else {
+        await recorder.removeFile(op.source, op.toolId);
+      }
+      if (op.needsConsent) {
+        recorder.addNote(
+          'legacy-tool-directories',
+          'Moves out of a renamed tool directory are listed as a non-interactive update makes them. At a terminal, update asks first, and declining leaves those files where they are.'
+        );
+      }
+    }
+    return movedInTools;
+  }
+
   private async noteSkippedLegacyCleanup(projectPath: string): Promise<LegacyUpgradeResult> {
     const detection = await detectLegacyArtifacts(projectPath);
     if (detection.hasLegacyArtifacts) {
+      // Without --force a non-interactive update leaves legacy artifacts alone,
+      // so the plan is complete; it only says they are there. With --force the
+      // cleanup runs and its changes are not planned.
       this.recorder?.addNote(
         'legacy-artifacts',
-        'A real update would also clean up legacy OpenSpec artifacts; those changes are not listed here.'
+        this.force
+          ? 'A real update with --force would also clean up legacy OpenSpec artifacts; those changes are not listed here.'
+          : 'Legacy OpenSpec artifacts were found. Update cleans them up only with --force or when you confirm at a terminal, so this plan leaves them alone.'
       );
     }
     return { newlyConfiguredTools: [], workflowOverrides: {} };

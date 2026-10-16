@@ -141,8 +141,9 @@ Restart your IDE for the new commands to take effect.
 Updates OpenSpec's installed instruction files.
 
 ```bash
-openspec update           # refresh tools whose files are older than the CLI
-openspec update --force   # rewrite files even when they're current
+openspec update             # refresh tools whose files are older than the CLI
+openspec update --force     # rewrite files even when they're current
+openspec update --dry-run   # list what an update would change, and change nothing
 ```
 
 update finds the tools init configured and compares their generated files against the CLI's version. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
@@ -158,6 +159,45 @@ update finds the tools init configured and compares their generated files agains
 | Flag | Effect |
 |---|---|
 | `--force` | Rewrite every configured tool's files even when they're up to date. |
+| `--dry-run` | Report every file the update would add, change, or delete, and write nothing. No CLI upgrade check, no prompts. Combine with `--force` to preview a forced update. |
+| `--json` | With `--dry-run`, print the plan as JSON. Without `--dry-run` it exits 1. |
+
+**Previewing an update**
+
+`--dry-run` plans the update a non-interactive run would make: the same code path, with every write and delete recorded instead of performed. That includes moving OpenSpec files out of a tool's former directory (`.kimi/` to `.kimi-code/`, `.windsurf/` to `.devin/`, `.codex/` and `.agent/` to `.agents/`) and saving the global config when an install from before profiles gets one.
+
+```bash
+openspec update --dry-run
+```
+
+```
+2 file(s) would change:
+  update  .claude/skills/openspec-propose/SKILL.md  (claude)
+  add     ~/.config/openspec/config.json  (openspec)
+```
+
+`--dry-run --json` prints the same plan as one JSON document:
+
+```json
+{
+  "changes": [
+    { "path": ".claude/skills/openspec-propose/SKILL.md", "action": "update", "tool": "claude" },
+    { "path": "~/.config/openspec/config.json", "action": "add", "tool": "openspec" }
+  ],
+  "notes": [],
+  "failures": []
+}
+```
+
+| Field | What it holds |
+|---|---|
+| `changes[].path` | Project-relative path. A file outside the project, such as a global skill or the global config, is shown from your home directory as `~/...`, or as an absolute path when it is outside home too. |
+| `changes[].action` | `add`, `update`, or `delete`. A file whose new bytes match the old ones is not listed. |
+| `changes[].tool` | The configured tool the file belongs to, such as `claude`. The global config is `openspec`. |
+| `notes[]` | `{ code, message }` for what the plan cannot settle on its own. `legacy-tool-directories`: a move that an interactive run asks about first; the plan lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`; without `--force` the update leaves them alone, and with `--force` their cleanup is not listed. `copilot-cloud-files`: the GitHub Copilot cloud agent files would be synced and are not listed. |
+| `failures[]` | `{ tool, error }` for each tool the real update would fail on. The other tools are still planned. |
+
+A failure before planning, such as no OpenSpec directory, still prints exactly one JSON document: the empty plan plus a `status` array with `severity`, `code` (`update_error`), and `message`. The exit code is 1.
 
 **Output**
 
