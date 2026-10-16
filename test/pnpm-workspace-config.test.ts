@@ -54,6 +54,24 @@ describe('pnpm workspace configuration', () => {
     expect(workspace.overrides).toEqual(lockfile.overrides);
   });
 
+  it('previews the built site without a server dependency', () => {
+    const packageJson = readJson('website/package.json');
+    const lockfile = readYaml('website/pnpm-lock.yaml');
+
+    // `pnpm start` ran `serve`, whose dev-only tree kept publishing advisories
+    // into the site's graph — four of them (brace-expansion x3, fast-uri) turned
+    // the Security workflow red on `main` and had to be pinned by hand, for code
+    // that never reached the published site. A first-party preview script has no
+    // tree to audit. Re-adding a server dependency means taking that back on
+    // purpose, so it should update this test too.
+    expect(packageJson.scripts.start).toBe('node scripts/preview.mjs');
+    expect(fs.existsSync(path.join(projectRoot, 'website/scripts/preview.mjs'))).toBe(true);
+    const serverPackages = Object.keys(lockfile.packages).filter((key) =>
+      /^(serve|serve-handler)@/.test(key)
+    );
+    expect(serverPackages).toEqual([]);
+  });
+
   it('includes install policy changes in Nix and security validation', () => {
     const flake = fs.readFileSync(path.join(projectRoot, 'flake.nix'), 'utf8');
     const ci = fs.readFileSync(path.join(projectRoot, '.github/workflows/ci.yml'), 'utf8');
