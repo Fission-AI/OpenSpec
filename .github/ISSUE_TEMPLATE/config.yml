@@ -1,4 +1,5 @@
-# Keep the prefilled blank-issue URL from `openspec feedback` working.
+# `openspec feedback` links straight to the bug form with its fields prefilled;
+# blank issues stay on for anything neither form fits.
 blank_issues_enabled: true
 contact_links:
   - name: Question or help with your setup
