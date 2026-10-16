@@ -92,7 +92,7 @@ function hasTopLevelExpansion(body: string): boolean {
   return false;
 }
 
-function findInnermostExpansion(pattern: string): { pre: string; body: string; post: string } | null {
+function findTopLevelExpansion(pattern: string): { pre: string; body: string; post: string } | null {
   const stack: number[] = [];
   for (let index = 0; index < pattern.length; index += 1) {
     const char = pattern[index];
@@ -101,6 +101,11 @@ function findInnermostExpansion(pattern: string): { pre: string; body: string; p
     } else if (char === '}' && stack.length > 0) {
       const open = stack.pop();
       if (open === undefined) continue;
+      // Only the outermost group. brace-expansion expands its nested groups in
+      // one linear pass. Peeling the innermost `{a,b}` first turns
+      // `{a,{a,{a,b}}}` into a binary tree, so a 16-deep pattern does not
+      // finish before the test timeout.
+      if (stack.length > 0) continue;
       const body = pattern.slice(open + 1, index);
       if (!hasTopLevelExpansion(body)) continue;
       return { pre: pattern.slice(0, open), body, post: pattern.slice(index + 1) };
@@ -115,7 +120,7 @@ function expandArtifactBraces(pattern: string): string[] {
   while (pending.length > 0) {
     const current = pending.pop();
     if (current === undefined) break;
-    const group = findInnermostExpansion(current);
+    const group = findTopLevelExpansion(current);
     if (!group) {
       finished.push(current.replaceAll(LITERAL_BRACE_OPEN, '{').replaceAll(LITERAL_BRACE_CLOSE, '}'));
       continue;
