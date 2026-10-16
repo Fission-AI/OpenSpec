@@ -176,7 +176,6 @@ function readYesNo(
   });
 }
 
-
 /**
  * Whether a spinner can safely render to `stream`.
  *
