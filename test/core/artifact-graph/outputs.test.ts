@@ -169,6 +169,39 @@ describe('artifact-graph/outputs', () => {
     expect(resolveArtifactOutputs(tempDir, pattern)).toEqual([canonical(filePath)]);
   });
 
+  it.each([
+    ['{prefix{a,b}}.md', ['{prefixa}.md', '{prefixb}.md']],
+    ['{prefix{1..2}}.md', ['{prefix1}.md', '{prefix2}.md']],
+    ['{pre{a,b}post}.md', ['{preapost}.md', '{prebpost}.md']],
+    ['{{a,b}}.md', ['{a}.md', '{b}.md']],
+    ['{draft{nope}{a,b}}.md', ['{draft{nope}a}.md', '{draft{nope}b}.md']],
+  ])('expands a nested group inside non-expanding braces in %s', (pattern, filenames) => {
+    for (const filename of filenames) {
+      fs.writeFileSync(path.join(tempDir, filename), 'content');
+    }
+    fs.writeFileSync(path.join(tempDir, pattern), 'unexpanded');
+
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual(
+      filenames.map((filename) => canonical(path.join(tempDir, filename)))
+    );
+  });
+
+  it('keeps a brace group literal when neither it nor its nested groups expand', () => {
+    const literalPath = path.join(tempDir, 'notes-{prefix{draft}}-a.md');
+    fs.writeFileSync(literalPath, 'content');
+    fs.writeFileSync(path.join(tempDir, 'notes-{prefix{draft}}-b.md'), 'content');
+    fs.writeFileSync(path.join(tempDir, 'notes-{prefixdraft}-a.md'), 'stripped');
+    fs.writeFileSync(path.join(tempDir, '{prefix{draft}}.md'), 'content');
+
+    expect(resolveArtifactOutputs(tempDir, 'notes-{prefix{draft}}-{a,b}.md')).toEqual([
+      canonical(literalPath),
+      canonical(path.join(tempDir, 'notes-{prefix{draft}}-b.md')),
+    ]);
+    expect(resolveArtifactOutputs(tempDir, '{prefix{draft}}.md')).toEqual([
+      canonical(path.join(tempDir, '{prefix{draft}}.md')),
+    ]);
+  });
+
   it('resolves a brace range after a literal brace group', () => {
     const filenames = [1, 2, 3, 4].map((index) => `report-{draft}-${index}.md`);
     for (const filename of filenames) {

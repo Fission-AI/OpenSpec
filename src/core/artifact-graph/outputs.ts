@@ -101,13 +101,23 @@ function findTopLevelExpansion(pattern: string): { pre: string; body: string; po
     } else if (char === '}' && stack.length > 0) {
       const open = stack.pop();
       if (open === undefined) continue;
-      // Only the outermost group. brace-expansion expands its nested groups in
-      // one linear pass. Peeling the innermost `{a,b}` first turns
-      // `{a,{a,{a,b}}}` into a binary tree, so a 16-deep pattern does not
+      // Only the outermost group that actually expands. brace-expansion expands
+      // its nested groups in one linear pass. Peeling the innermost `{a,b}` first
+      // turns `{a,{a,{a,b}}}` into a binary tree, so a 16-deep pattern does not
       // finish before the test timeout.
       if (stack.length > 0) continue;
       const body = pattern.slice(open + 1, index);
-      if (!hasTopLevelExpansion(body)) continue;
+      if (!hasTopLevelExpansion(body)) {
+        // `{prefix{a,b}}` has no separator of its own, so the outer braces stay
+        // literal. Keep scanning inside them; a nested group may still expand.
+        const nested = findTopLevelExpansion(body);
+        if (!nested) continue;
+        return {
+          pre: `${pattern.slice(0, open + 1)}${nested.pre}`,
+          body: nested.body,
+          post: `${nested.post}${pattern.slice(index)}`,
+        };
+      }
       return { pre: pattern.slice(0, open), body, post: pattern.slice(index + 1) };
     }
   }
