@@ -170,20 +170,48 @@ describe('a spec.md linked to a file elsewhere in the project', () => {
       const outsideSpec = path.join(tempDir, 'outside.md');
       await fs.writeFile(outsideSpec, 'outside sentinel');
 
-      // The containment check has already passed by the time `beforeMutate`
-      // runs, so this is the one window a swap could still use.
-      await writeUpdatedSpec(update, built.rebuilt, built.counts, {
-        silent: true,
-        beforeMutate: async () => {
-          await fs.rm(linkedSpec);
-          await fs.symlink(outsideSpec, linkedSpec);
-        },
-      });
+      // `beforeMutate` runs after the containment check, so it is the one
+      // window a swap could still use.
+      await expect(
+        writeUpdatedSpec(update, built.rebuilt, built.counts, {
+          silent: true,
+          beforeMutate: async () => {
+            await fs.rm(linkedSpec);
+            await fs.symlink(outsideSpec, linkedSpec);
+          },
+        })
+      ).rejects.toThrow();
 
-      // The write went to the file that was verified, not to wherever the link
-      // was pointing by the time the bytes were written.
+      // Nothing was written: not to where the link now points, and not to the
+      // file that was verified either, since the target is no longer it.
       await expect(fs.readFile(outsideSpec, 'utf-8')).resolves.toBe('outside sentinel');
-      await expect(fs.readFile(docsSpec, 'utf-8')).resolves.toContain('Second factor');
+      await expect(fs.readFile(docsSpec, 'utf-8')).resolves.not.toContain('Second factor');
+    }
+  );
+
+  itWithSymlinks(
+    'refuses an ordinary target replaced by a link while the write is in flight',
+    async () => {
+      // Not specific to the linked layout: the canonical file at the end of the
+      // chain can be swapped for a link too, so the re-check has to catch that
+      // for a plain `openspec/specs/<capability>/spec.md` as well.
+      await fs.writeFile(linkedSpec, MAIN_SPEC);
+      const [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+      const built = await buildUpdatedSpec(update, 'add-mfa', { silent: true });
+      const outsideSpec = path.join(tempDir, 'outside.md');
+      await fs.writeFile(outsideSpec, 'outside sentinel');
+
+      await expect(
+        writeUpdatedSpec(update, built.rebuilt, built.counts, {
+          silent: true,
+          beforeMutate: async () => {
+            await fs.rm(linkedSpec);
+            await fs.symlink(outsideSpec, linkedSpec);
+          },
+        })
+      ).rejects.toThrow();
+
+      await expect(fs.readFile(outsideSpec, 'utf-8')).resolves.toBe('outside sentinel');
     }
   );
 

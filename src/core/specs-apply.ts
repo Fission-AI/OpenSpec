@@ -1274,6 +1274,17 @@ export async function writeUpdatedSpec(
   const toWrite = previous === undefined ? rebuilt : matchLineEnding(rebuilt, previous);
 
   await options.beforeMutate?.();
+  // `beforeMutate` awaits arbitrary work, so it is the widest gap between the
+  // check above and the write below. Re-check there, and refuse unless the
+  // target still resolves to the very file that was verified: pinning a
+  // pathname is not enough on its own, because the pinned path can itself be
+  // replaced by a link to somewhere else.
+  assertTrustedSpecPath(update.targetRoot, update.target);
+  if (FileSystemUtils.canonicalizeExistingPath(update.target) !== verifiedTarget) {
+    throw new Error(
+      `Spec target for '${update.id}' changed before it could be written: ${update.target}`
+    );
+  }
   // Preserve the established in-place write semantics: symlink referents,
   // hard-linked specs, ACLs, extended attributes, and filesystems without hard
   // links must continue to behave as they did before capability retirement.
