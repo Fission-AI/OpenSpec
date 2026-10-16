@@ -392,13 +392,19 @@ describe('artifact-graph/outputs', () => {
 
   it('keeps a control character in a filename literal instead of reading it as a brace', () => {
     // The expander parks a non-expanding brace group on a sentinel. A
-    // single-character sentinel is a legal filename character, so a pattern
-    // containing one came back out as `{` or `}` and matched the wrong file.
-    const literal = path.join(tempDir, 'x\u0001y.md');
-    fs.writeFileSync(literal, 'content');
+    // single-character sentinel is a legal filename character on POSIX, so a
+    // pattern containing one came back out as `{` or `}` and matched the wrong
+    // file. The decoy is what the bug returned, and it must never match on any
+    // platform; Windows forbids U+0001 in a filename, so there the real file
+    // cannot exist and the pattern has to come back empty.
     fs.writeFileSync(path.join(tempDir, 'x}y.md'), 'wrong');
+    const literal = path.join(tempDir, 'x\u0001y.md');
+    const literalIsCreatable = process.platform !== 'win32';
+    if (literalIsCreatable) fs.writeFileSync(literal, 'content');
 
-    expect(resolveArtifactOutputs(tempDir, 'x\u0001y*.md')).toEqual([canonical(literal)]);
+    expect(resolveArtifactOutputs(tempDir, 'x\u0001y*.md')).toEqual(
+      literalIsCreatable ? [canonical(literal)] : []
+    );
   });
 
   it.each([
