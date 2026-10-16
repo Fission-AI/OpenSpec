@@ -27,19 +27,19 @@
 
 ## 4. CLI: --scope flag
 
-- [ ] 4.1 Add `--scope <type>` flag to `store register`, `store list`, `store unregister`, `store remove`, and `store doctor` subcommands in `src/commands/store.ts`, mapping `project` to `projectRoot: process.cwd()` as the walk start, not an exact level: register writes the registry at cwd; list, unregister, remove, and doctor resolve the registry chain from cwd per D8 — verify with a unit test that the flag is parsed and passed through
+- [ ] 4.1 Add `--scope <type>` flag to `store register`, `store list`, `store unregister`, `store remove`, and `store doctor` subcommands in `src/cli/commands/store.ts`, mapping `project` to `projectRoot: process.cwd()` as the walk start, not an exact level: register writes the registry at cwd; list, unregister, remove, and doctor resolve the registry chain from cwd per D8 — verify with a unit test that the flag is parsed and passed through
 - [ ] 4.2 Update `store register` output to indicate whether registration went to the project-scoped or global registry — verify with a unit test that the JSON output includes the scope
 - [ ] 4.3 Update `store doctor` to inspect project-scoped stores from the whole registry chain when project-scoped registries are present — verify with a unit test that doctor reports health for project-scoped stores at multiple levels
 - [ ] 4.4 Add `--scope` flag to shell completions in `src/core/completions/command-registry.ts` for `store register`, `store list`, `store unregister`, `store remove`, and `store doctor` — verify with a unit test that completions include the `--scope` option
-- [ ] 4.5 Add an optional `registry` field (owning registry directory) to the `store list` output in `src/commands/store.ts` for project-scoped entries, shown in both JSON and the human table — verify with a unit test that the JSON and human list output include the registry directory for project-scoped stores
+- [ ] 4.5 Add an optional `registry` field (owning registry directory) to the `store list` output in `src/cli/commands/store.ts` for project-scoped entries, shown in both JSON and the human table — verify with a unit test that the JSON and human list output include the registry directory for project-scoped stores
 - [ ] 4.6 Update `store list --scope project` to show entries with missing store folders with a warning, without failing the command — verify with a unit test that a missing-folder entry appears in the list with a warning and the command exits successfully
 - [ ] 4.7 Update `store doctor --scope project` to report a problem and pasteable fix for an entry whose store folder is missing, without stopping the inspection of remaining entries — verify with a unit test that doctor reports the missing-folder entry and continues to the next
 
 ## 5. References: project-scoped store resolution
 
-- [ ] 5.1 Update `assembleReferenceIndex` in `src/core/references.ts` to resolve referenced store IDs through the merged registry (project-scoped + global): a nearest-first walk of the ancestor chain, merged above global entries, with project entries staying resolvable even when the global registry is unreadable — verify with a unit test that references resolve from merged entries drawn from the chain
-- [ ] 5.2 Update `src/commands/shared-gather.ts` to pass the project-scoped registry directory (discovered via `findProjectRegistryDir`) to `assembleReferenceIndex` — verify with a unit test that shared gathering uses the merged registry
-- [ ] 5.3 Update `src/commands/workflow/instructions.ts` to pass the project-scoped registry directory to `assembleReferenceIndex` — verify with a unit test that workflow instruction generation uses the merged registry
+- [ ] 5.1 Update `assembleReferenceIndex` in `src/core/references.ts` to resolve referenced store IDs through a per-ID walk of project-scoped registries (ordered result of `walkProjectStoreRegistries`), checking each registry in order for each ID, falling back to the global registry only after a project miss, with project entries staying resolvable even when the global registry is unreadable — verify with a unit test that references resolve from the ordered walk
+- [ ] 5.2 Update `src/commands/shared-gather.ts` to pass the ordered result of `walkProjectStoreRegistries(startPath)` to `assembleReferenceIndex` — verify with a unit test that shared gathering uses the per-ID walk
+- [ ] 5.3 Update `src/commands/workflow/instructions.ts` to pass the ordered result of `walkProjectStoreRegistries(startPath)` to `assembleReferenceIndex` — verify with a unit test that workflow instruction generation uses the per-ID walk
 
 ## 6. Tests: integration and edge cases
 
