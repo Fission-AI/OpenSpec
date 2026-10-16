@@ -21,7 +21,7 @@ OpenSpec stores use a machine-level registry that maps store IDs to absolute fil
 - `src/core/store/registry.ts` — store lookup, conflict detection, and listing operations must accept and propagate a project scope option.
 - `src/core/store/operations.ts` — bare `readStoreRegistryState()` calls propagate scope options from callers.
 - `src/core/root-selection.ts` — the resolution chain in `resolveOpenSpecRoot` gains a project-scoped registry step between the nearest-root walk and the global `defaultStore` fallback.
-- `src/commands/store.ts` — new `--scope project` flag for `store register`, `store list`, `store unregister`, `store remove`, and `store doctor`.
+- `src/cli/commands/store.ts` — new `--scope project` flag for `store register`, `store list`, `store unregister`, `store remove`, and `store doctor`.
 - `src/core/references.ts` — referenced-store index assembly resolves store IDs through project-scoped discovery with global fallback when a project-scoped registry is available.
 - `src/commands/shared-gather.ts` — shared gathering logic propagates the project-scoped registry directory to reference index assembly.
 - `src/commands/workflow/instructions.ts` — workflow instruction generation passes the project-scoped registry directory to reference index assembly.
