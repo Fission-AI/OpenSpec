@@ -59,6 +59,14 @@ body:
     validations:
       required: false
 
+  - type: textarea
+    id: agent_trace
+    attributes:
+      label: Agent session trace
+      description: If a coding agent was involved, paste or link the session trace. Which files it read, which tools it called, and whether the behavior repeats across sessions is often what narrows the problem down.
+    validations:
+      required: false
+
   - type: input
     id: environment
     attributes:

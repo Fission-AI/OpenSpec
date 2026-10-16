@@ -1,7 +1,8 @@
 Closes #
 
 <!--
-Link an issue with the `approved` label (CONTRIBUTING.md).
+PRs come from maintainers and invited contributors, and every one links an
+approved issue (CONTRIBUTING.md).
 Feature proposal PR? Write "Part of #123" instead, so the issue stays open.
 -->
 

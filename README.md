@@ -236,7 +236,7 @@ openspec update
 
 ## Contributing
 
-Open an issue and wait for a maintainer to add the `approved` label before you open a PR. Features land as a proposal PR first, then an implementation PR.
+We are not accepting unsolicited pull requests. Open an issue first; if we agree to pursue it, a maintainer implements the change or invites you to build it with us. See [the announcement](https://openspec.dev/blog/openspec-contribution-policy/).
 
 → **[CONTRIBUTING.md](CONTRIBUTING.md)**: the full process, from first issue to merged PR
 

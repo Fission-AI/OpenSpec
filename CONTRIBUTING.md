@@ -2,24 +2,27 @@
 
 Thanks for helping improve OpenSpec.
 
-Every change follows the same three steps.
+**We are not accepting unsolicited pull requests.** Contributions start with a GitHub issue, and pull requests come from maintainers or from contributors we have invited to build a change with us. See [An Update to OpenSpec's Contribution Policy](https://openspec.dev/blog/openspec-contribution-policy/) for why.
 
 ## 1. Open an issue
 
 [Pick a form](https://github.com/Fission-AI/OpenSpec/issues/new/choose): bug, feature, or docs.
 
-- **Bug:** give steps that reproduce it from a fresh project. We can't fix what we can't reproduce.
-- **Feature:** describe the problem. You don't need a solution; we design the fix with you.
+- **Bug:** what you were trying to do, what happened, what you expected, and the shortest steps that reproduce it from a fresh project. Error messages, logs, and a minimal example help most. We can't fix what we can't reproduce.
+- **Agent behavior:** say which agent and model you used, and attach a session trace if you have one. Which files the agent read, which tools it called, and whether the behavior repeats across sessions is usually what narrows it down.
+- **Feature:** describe the problem, who else it affects, what you tried instead, and whether the added complexity is worth maintaining. You don't need a solution; sometimes the behavior you hit is a deliberate trade-off, and that is what we want to talk about.
 
-## 2. Wait for the `approved` label
+Write the issue yourself rather than forwarding an agent's diagnosis. We don't expect you to have all the answers, but we do want the issue to show that you have considered the problem.
 
-A maintainer adds it once we agree the work should happen. Don't open a PR before then.
+## 2. We discuss it on the issue
 
-Why: a PR built without the bigger picture can fix one case and break another. Agreeing first saves your time and ours.
+We work out the problem, the possible approaches, and whether it fits OpenSpec's priorities. OpenSpec runs across many agents, models, and workflows, so a change that helps one workflow can break another.
 
-## 3. Open the PR
+If we agree to pursue it, a maintainer adds the `approved` label and then either implements it or invites you to build it with us. Say on the issue if you would like to write the fix. We can't promise to take on every suggestion.
 
-Say on the issue if you want to write the fix yourself; otherwise a maintainer picks it up.
+Opening pull requests is restricted to maintainers, so please don't start one until we have invited you to.
+
+## 3. Open the PR (invited contributors and maintainers)
 
 **Bug or docs:** one PR with the fix. Write `Closes #123` in the description. It shouldn't change `openspec/`, since specs are for features.
 
@@ -28,7 +31,7 @@ Say on the issue if you want to write the fix yourself; otherwise a maintainer p
 1. **Proposal:** only `openspec/changes/<name>/`. Write `Part of #123`, so the issue stays open.
 2. **Implementation:** after the proposal merges, the code plus updates to that change, such as checking off its `tasks.md`. Write `Closes #123`.
 
-## Make your change
+## Development setup
 
 You need Node 20.19+ and pnpm.
 

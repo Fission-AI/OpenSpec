@@ -24,7 +24,7 @@ body:
     id: tried
     attributes:
       label: What you tried
-      description: Existing commands, flags, or workarounds you reached for, and why they fell short.
+      description: Existing commands, flags, or workarounds you reached for, and why they fell short. Also tell us whether the extra complexity is worth maintaining.
     validations:
       required: false
 
@@ -32,6 +32,6 @@ body:
     id: proposal
     attributes:
       label: What you have in mind
-      description: Optional. You don't need a solution. We design the fix with you once the issue is approved.
+      description: Optional. You don't need a solution. If we agree to pursue the problem, we design the fix from there.
     validations:
       required: false
