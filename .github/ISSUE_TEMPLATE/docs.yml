@@ -6,8 +6,8 @@ body:
     id: where
     attributes:
       label: Where
-      description: A link or file path.
-      placeholder: docs/cli.md, "archive" section
+      description: A link to the page on openspec.dev, or its file under docs-lab/.
+      placeholder: https://openspec.dev/docs/cli, "openspec archive" section
     validations:
       required: true
 

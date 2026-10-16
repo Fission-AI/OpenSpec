@@ -29,7 +29,7 @@ body:
     id: what_happened
     attributes:
       label: What happened
-      description: The actual behavior. Paste the command you ran and its full output, plus any error message or log, if you have them.
+      description: The actual behavior. Paste the command you ran and its full output, plus any error message or log, if you have them. Remove credentials, tokens, personal data, and anything private before posting.
       placeholder: |
         I ran `openspec archive add-login` and it exited 0 without writing the main spec.
     validations:
@@ -77,7 +77,7 @@ body:
     id: agent_trace
     attributes:
       label: Agent session trace
-      description: If a coding agent was involved, paste or link the session trace, and say whether the behavior repeats across sessions. Which files the agent read, which tools it called, and what was in its context is often what narrows an agent-behavior problem down.
+      description: If a coding agent was involved, paste or link the session trace, and say whether the behavior repeats across sessions. Traces often hold credentials, personal data, or private code and context; remove them before posting. Which files the agent read, which tools it called, and what was in its context is often what narrows an agent-behavior problem down.
     validations:
       required: false
 
