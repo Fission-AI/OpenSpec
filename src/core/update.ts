@@ -33,6 +33,7 @@ import {
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
+  type LegacyCleanupOps,
   formatDeferredGlobalPromptSummary,
   formatCleanupSummary,
   formatDetectionSummary,
@@ -80,13 +81,14 @@ import {
   resolveSharedSkillWriters,
   sharedSkillTargetMarkerPath,
 } from './shared-skill-target.js';
+import { DISK_VIEW, type FileView } from './file-view.js';
 import {
   realFileOps,
   UpdatePlanRecorder,
   type UpdateFileOps,
   type UpdatePlan,
 } from './update-plan.js';
-import { COPILOT_CLOUD_FILES, includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
+import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles, type CopilotCloudFileOps } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -144,11 +146,15 @@ export interface UpdateCommandOptions {
  *
  * Wrapper around the shared migration module's scanInstalledWorkflows that accepts tool IDs.
  */
-export function scanInstalledWorkflows(projectPath: string, toolIds: string[]): string[] {
+export function scanInstalledWorkflows(
+  projectPath: string,
+  toolIds: string[],
+  view?: FileView
+): string[] {
   const tools = toolIds
     .map((id) => AI_TOOLS.find((t) => t.value === id))
     .filter((t): t is NonNullable<typeof t> => t != null);
-  return scanInstalledWorkflowsShared(projectPath, tools);
+  return scanInstalledWorkflowsShared(projectPath, tools, view);
 }
 
 export class UpdateCommand {
@@ -156,6 +162,11 @@ export class UpdateCommand {
   private readonly dryRun: boolean;
   private recorder: UpdatePlanRecorder | null = null;
   private ops: UpdateFileOps = realFileOps;
+  /**
+   * Tools a dry run's planned legacy-root moves give files to. The disk does
+   * not show them yet; the real update's later steps would.
+   */
+  private movedInTools = new Set<string>();
 
   constructor(options: UpdateCommandOptions = {}) {
     this.force = options.force ?? false;
@@ -229,9 +240,10 @@ export class UpdateCommand {
     // A dry run plans the same moves. They change what is installed where, so
     // every later step reads the recorder's view of the moved tree, and a tool
     // that only had files in its former root is refreshed like any other.
-    const movedInTools = this.dryRun
+    this.movedInTools = this.dryRun
       ? await this.planLegacyToolMoves(resolvedProjectPath, 'before-generation')
       : new Set<string>();
+    const movedInTools = this.movedInTools;
     const declinedMigrations = this.dryRun
       ? []
       : await this.offerConsentedLegacyMigrations(resolvedProjectPath);
@@ -248,11 +260,7 @@ export class UpdateCommand {
     //    for a different profile than the real update acts on.
     let globalConfig = getGlobalConfig();
     if (this.recorder) {
-      const migration = computeProfileMigration(
-        resolvedProjectPath,
-        detectedTools,
-        this.recorder.view.exists
-      );
+      const migration = computeProfileMigration(resolvedProjectPath, detectedTools, this.view);
       if (migration) {
         globalConfig = applyProfileMigration(migration);
         await this.recorder.writeFile(
@@ -270,9 +278,11 @@ export class UpdateCommand {
     );
 
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
-    const legacyUpgrade = this.dryRun
-      ? await this.noteSkippedLegacyCleanup(resolvedProjectPath)
-      : await this.handleLegacyCleanup(resolvedProjectPath, desiredWorkflows, delivery);
+    const legacyUpgrade = await this.handleLegacyCleanup(
+      resolvedProjectPath,
+      desiredWorkflows,
+      delivery
+    );
     const {
       newlyConfiguredTools,
       workflowOverrides: legacyWorkflowOverrides,
@@ -281,9 +291,11 @@ export class UpdateCommand {
     } = legacyUpgrade;
 
     // 5. Find configured tools
-    const configuredTools = [
-      ...new Set([...getConfiguredToolsForProfileSync(resolvedProjectPath), ...movedInTools]),
-    ];
+    // After a real legacy upgrade the tools it set up are on disk, so they are
+    // configured from here on; a dry run's are only in the plan.
+    const configuredTools = this.dryRun
+      ? [...new Set([...this.getConfiguredTools(resolvedProjectPath), ...newlyConfiguredTools])]
+      : this.getConfiguredTools(resolvedProjectPath);
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
@@ -396,7 +408,9 @@ export class UpdateCommand {
       resolvedProjectPath,
       configuredAndNewTools
         .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
-        .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined)
+        .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined),
+      // A legacy upgrade earlier in this run may have claimed the root.
+      this.view
     );
     const updatedTools: string[] = [];
     const updatedToolIds: string[] = [];
@@ -649,10 +663,25 @@ export class UpdateCommand {
     await this.ops.writeFile(marker, `${toolId}\n`, toolId);
   }
 
-  /**
-   * Legacy cleanup prompts and moves files outside the write seam, so a dry run
-   * skips it and says so rather than previewing half of it.
-   */
+  /** The tree as the real update would see it at this point. */
+  private get view(): FileView {
+    return this.recorder?.view ?? DISK_VIEW;
+  }
+
+  /** Configured tools as the real update sees them, planned moves included. */
+  private getConfiguredTools(projectPath: string): string[] {
+    return [...new Set([...getConfiguredToolsForProfileSync(projectPath), ...this.movedInTools])];
+  }
+
+  /** The update's write seam, in the shape modules with their own writers take. */
+  private fileOps(tool: string): LegacyCleanupOps & CopilotCloudFileOps {
+    return {
+      writeFile: (filePath, content) => this.ops.writeFile(filePath, content, tool),
+      removeFile: (filePath) => this.ops.removeFile(filePath, tool),
+      removeEmptyDirectory: (dirPath) => this.ops.removeEmptyDirectory(dirPath),
+    };
+  }
+
   /**
    * Plans the moves out of former tool roots that a non-interactive update
    * makes, against the tree as planned so far. Returns the tools that gain
@@ -684,39 +713,8 @@ export class UpdateCommand {
     return movedInTools;
   }
 
-  private async noteSkippedLegacyCleanup(projectPath: string): Promise<LegacyUpgradeResult> {
-    const detection = await detectLegacyArtifacts(projectPath);
-    if (detection.hasLegacyArtifacts) {
-      // Without --force a non-interactive update leaves legacy artifacts alone,
-      // so the plan is complete; it only says they are there. With --force the
-      // cleanup runs and its changes are not planned.
-      this.recorder?.addNote(
-        'legacy-artifacts',
-        this.force
-          ? 'A real update with --force would also clean up legacy OpenSpec artifacts; those changes are not listed here.'
-          : 'Legacy OpenSpec artifacts were found. Update cleans them up only with --force or when you confirm at a terminal, so this plan leaves them alone.'
-      );
-    }
-    return { newlyConfiguredTools: [], workflowOverrides: {} };
-  }
-
   private async syncCopilotCloudFiles(projectPath: string, configuredTools: string[]): Promise<void> {
-    if (this.dryRun) {
-      // The real run writes these files when cloud mode is on and removes them
-      // when it is off, so either direction is a change the preview omits.
-      const cloudFilesPresent = Object.values(COPILOT_CLOUD_FILES).some((file) =>
-        fs.existsSync(path.join(projectPath, file))
-      );
-      const wouldWrite =
-        includesGitHubCopilot(configuredTools) && (await isCopilotCloudEnabled(projectPath));
-      if (cloudFilesPresent || wouldWrite) {
-        this.recorder?.addNote(
-          'copilot-cloud-files',
-          'A real update would also sync the GitHub Copilot cloud agent files; those changes are not listed here.'
-        );
-      }
-      return;
-    }
+    const ops = this.fileOps('github-copilot');
     try {
       if (includesGitHubCopilot(configuredTools)) {
         // Cloud files are opt-in (see cloud-agent.ts). `update` never prompts,
@@ -725,7 +723,7 @@ export class UpdateCommand {
         // a pre-opt-in project already has. Opting in is a deliberate init/config
         // step, never a silent side effect of running update.
         if (await isCopilotCloudEnabled(projectPath)) {
-          await writeCopilotCloudFiles(projectPath);
+          await writeCopilotCloudFiles(projectPath, ops);
           const collisions = await findUnmanagedCloudFiles(projectPath);
           if (collisions.length > 0) {
             this.log(
@@ -743,7 +741,7 @@ export class UpdateCommand {
         // are preserved). If the user simply never decided, stay quiet unless
         // we're at an interactive terminal, where a one-line hint aids discovery.
         if (readCopilotCloudOptIn(projectPath) === false) {
-          const removed = await removeCopilotCloudFiles(projectPath);
+          const removed = await removeCopilotCloudFiles(projectPath, ops);
           if (removed > 0) {
             this.log(
               chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (opted out of cloud files)`)
@@ -759,7 +757,7 @@ export class UpdateCommand {
         return;
       }
 
-      const removed = await removeCopilotCloudFiles(projectPath);
+      const removed = await removeCopilotCloudFiles(projectPath, ops);
       if (removed > 0) {
         this.log(chalk.dim(`Removed: ${removed} Copilot cloud agent file(s) (github-copilot not configured)`));
       }
@@ -1235,7 +1233,8 @@ export class UpdateCommand {
       }
     }
 
-    const canPrompt = isInteractive();
+    // A dry run plans a non-interactive update, so it never prompts.
+    const canPrompt = !this.dryRun && isInteractive();
 
     if (this.force) {
       const legacyUpgrade = await this.upgradeLegacyTools(
@@ -1264,6 +1263,10 @@ export class UpdateCommand {
       // (Unlike init, update doesn't abort - user may just want to update skills)
       this.log(chalk.yellow('⚠ Run with --force to auto-cleanup legacy files, or run interactively.'));
       this.log();
+      this.recorder?.addNote(
+        'legacy-artifacts',
+        'Legacy OpenSpec artifacts were found. Update cleans them up only with --force or when you confirm at a terminal, so this plan leaves them alone; --dry-run --force lists that cleanup.'
+      );
       return { newlyConfiguredTools: [], workflowOverrides: {} };
     }
 
@@ -1328,7 +1331,11 @@ export class UpdateCommand {
     projectPath: string,
     detection: LegacyDetectionResult
   ): Promise<void> {
-    const availableCodexWorkflows = new Set(scanInstalledWorkflows(projectPath, ['codex']));
+    // Read the tree as planned: a dry run has not written the replacement
+    // skills this check looks for.
+    const availableCodexWorkflows = new Set(
+      scanInstalledWorkflows(projectPath, ['codex'], this.view)
+    );
     const removableMatches = getLegacyGlobalPromptMatches(detection)
       .filter((prompt) => prompt.workflowIds.every((workflowId) => availableCodexWorkflows.has(workflowId)));
 
@@ -1360,7 +1367,7 @@ export class UpdateCommand {
   private async performLegacyCleanup(projectPath: string, detection: LegacyDetectionResult): Promise<void> {
     const spinner = this.startSpinner('Cleaning up legacy files...');
 
-    const result = await cleanupLegacyArtifacts(projectPath, detection);
+    const result = await cleanupLegacyArtifacts(projectPath, detection, this.fileOps('openspec'));
 
     spinner.succeed('Legacy files cleaned up');
 
@@ -1392,7 +1399,7 @@ export class UpdateCommand {
     }
 
     // Get currently configured tools
-    const configuredTools = getConfiguredToolsForProfileSync(projectPath);
+    const configuredTools = this.getConfiguredTools(projectPath);
     const configuredSet = new Set(configuredTools);
 
     // Filter to tools that aren't already configured
@@ -1468,7 +1475,7 @@ export class UpdateCommand {
     const arbitrationTools = [...new Set([...configuredTools, ...selectedTools])]
       .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
       .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined);
-    const sharedSkillWriters = resolveSharedSkillWriters(projectPath, arbitrationTools);
+    const sharedSkillWriters = resolveSharedSkillWriters(projectPath, arbitrationTools, this.view);
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -1552,15 +1559,19 @@ export class UpdateCommand {
 
         spinner.succeed(`Setup complete for ${tool.name}`);
         newlyConfigured.push(toolId);
-        for (const migration of migrateLegacyToolDirs(
-          projectPath,
-          [tool.value],
-          'after-generation'
-        )) {
-          if (hasMovableContent(migration)) {
-            this.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+        if (this.dryRun) {
+          await this.planLegacyToolMoves(projectPath, 'after-generation', [tool.value]);
+        } else {
+          for (const migration of migrateLegacyToolDirs(
+            projectPath,
+            [tool.value],
+            'after-generation'
+          )) {
+            if (hasMovableContent(migration)) {
+              this.log(chalk.dim(`Migrated ${describeLegacyMigration(migration)}: ${migration.from} → ${migration.to}`));
+            }
+            this.reportKeptInPlace(migration);
           }
-          this.reportKeptInPlace(migration);
         }
       } catch (error) {
         spinner.fail(`Failed to set up ${tool.name}`);

@@ -19,6 +19,7 @@ import { ALL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { isSharedSkillTargetActive } from './shared-skill-target.js';
+import { DISK_VIEW, type FileView } from './file-view.js';
 import { isLegacyCodexSkillEquivalentToCurrent } from './shared/skill-content-equivalence.js';
 import path from 'path';
 import * as fs from 'fs';
@@ -81,21 +82,6 @@ export interface LegacyToolMigration {
   needsConsent: boolean;
 }
 
-/**
- * How a migration sees the files it compares against. The disk, normally; a
- * dry run passes a view that also holds the writes and moves it has planned,
- * so a later step classifies against the tree the real update would have.
- */
-export interface MigrationFileView {
-  exists(filePath: string): boolean;
-  read(filePath: string): string;
-}
-
-const DISK_VIEW: MigrationFileView = {
-  exists: (filePath) => fs.existsSync(filePath),
-  read: (filePath) => fs.readFileSync(filePath, 'utf-8'),
-};
-
 /** One file a legacy-root migration would move or drop. */
 export interface LegacyMigrationFileOp {
   toolId: string;
@@ -107,7 +93,7 @@ export interface LegacyMigrationFileOp {
 }
 
 interface MigrationPlanSink {
-  view: MigrationFileView;
+  view: FileView;
   ops: LegacyMigrationFileOp[];
   toolId: string;
   needsConsent: boolean;
@@ -124,7 +110,7 @@ type FileDisposition = 'move' | 'drop' | 'keep' | 'skip';
 function classifyManagedFile(
   source: string,
   destination: string,
-  view: MigrationFileView = DISK_VIEW
+  view: FileView = DISK_VIEW
 ): FileDisposition {
   if (isSamePath(source, destination)) return 'skip';
   if (!view.exists(destination)) return 'move';
@@ -185,7 +171,7 @@ export function planLegacyToolMigrations(
   projectPath: string,
   timing: 'before-generation' | 'after-generation',
   toolIds: string[] | undefined,
-  view: MigrationFileView
+  view: FileView
 ): LegacyMigrationFileOp[] {
   const ops: LegacyMigrationFileOp[] = [];
   collectLegacyToolMigrations(projectPath, false, toolIds, timing, { view, ops });
@@ -216,7 +202,7 @@ function collectLegacyToolMigrations(
   apply: boolean,
   toolIds?: string[],
   timing: 'before-generation' | 'after-generation' = 'before-generation',
-  plan?: { view: MigrationFileView; ops: LegacyMigrationFileOp[] }
+  plan?: { view: FileView; ops: LegacyMigrationFileOp[] }
 ): LegacyToolMigration[] {
   const migrations: LegacyToolMigration[] = [];
 
@@ -536,7 +522,7 @@ function scanInstalledWorkflowArtifacts(
   projectPath: string,
   tools: AIToolOption[],
   includeLegacyRoots = false,
-  exists: (filePath: string) => boolean = fs.existsSync
+  view: FileView = DISK_VIEW
 ): InstalledWorkflowArtifacts {
   const installed = new Set<string>();
   let hasSkills = false;
@@ -548,7 +534,7 @@ function scanInstalledWorkflowArtifacts(
     const skillsDirs: string[] = [];
     if (tool.globalSkillsDir) {
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
-    } else if (isSharedSkillTargetActive(projectPath, tool.value)) {
+    } else if (isSharedSkillTargetActive(projectPath, tool.value, view)) {
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
       if (includeLegacyRoots) {
         skillsDirs.push(
@@ -563,7 +549,7 @@ function scanInstalledWorkflowArtifacts(
       for (const workflowId of ALL_WORKFLOWS) {
         const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
         const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
-        if (exists(skillFile)) {
+        if (view.exists(skillFile)) {
           installed.add(workflowId);
           hasSkills = true;
         }
@@ -594,7 +580,7 @@ function scanInstalledWorkflowArtifacts(
         const fullPath = path.isAbsolute(candidate)
           ? candidate
           : path.join(projectPath, candidate);
-        if (exists(fullPath)) {
+        if (view.exists(fullPath)) {
           installed.add(workflowId);
           hasCommands = true;
           break;
@@ -614,8 +600,12 @@ function scanInstalledWorkflowArtifacts(
  * Scans installed workflow files across all detected tools and returns
  * the union of installed workflow IDs.
  */
-export function scanInstalledWorkflows(projectPath: string, tools: AIToolOption[]): string[] {
-  return scanInstalledWorkflowArtifacts(projectPath, tools).workflows;
+export function scanInstalledWorkflows(
+  projectPath: string,
+  tools: AIToolOption[],
+  view: FileView = DISK_VIEW
+): string[] {
+  return scanInstalledWorkflowArtifacts(projectPath, tools, false, view).workflows;
 }
 
 function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
@@ -640,7 +630,7 @@ function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
 export function computeProfileMigration(
   projectPath: string,
   tools: AIToolOption[],
-  exists: (filePath: string) => boolean = fs.existsSync
+  view: FileView = DISK_VIEW
 ): ProfileMigration | null {
   // A config that cannot be parsed, or is not a JSON object, is never saved
   // over; skip migration rather than fail init or update on it.
@@ -666,7 +656,7 @@ export function computeProfileMigration(
   }
 
   // Scan for installed workflows
-  const artifacts = scanInstalledWorkflowArtifacts(projectPath, tools, true, exists);
+  const artifacts = scanInstalledWorkflowArtifacts(projectPath, tools, true, view);
   const installedWorkflows = artifacts.workflows;
 
   if (installedWorkflows.length === 0) {

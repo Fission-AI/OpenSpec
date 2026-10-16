@@ -164,7 +164,12 @@ update finds the tools init configured and compares their generated files agains
 
 **Previewing an update**
 
-`--dry-run` plans the update a non-interactive run would make: the same code path, with every write and delete recorded instead of performed. That includes moving OpenSpec files out of a tool's former directory (`.kimi/` to `.kimi-code/`, `.windsurf/` to `.devin/`, `.codex/` and `.agent/` to `.agents/`) and saving the global config when an install from before profiles gets one.
+`--dry-run` plans the update a non-interactive run would make: the same code path, with every write and delete recorded instead of performed. Every file the real update would touch is listed, including:
+
+- moving OpenSpec files out of a tool's former directory (`.kimi/` to `.kimi-code/`, `.windsurf/` to `.devin/`, `.codex/` and `.agent/` to `.agents/`);
+- saving the global config when an install from before profiles gets one;
+- syncing the GitHub Copilot cloud agent files;
+- with `--force`, setting up tools found only in legacy artifacts and cleaning those artifacts up, including retired global Codex prompts.
 
 ```bash
 openspec update --dry-run
@@ -193,8 +198,8 @@ openspec update --dry-run
 |---|---|
 | `changes[].path` | Project-relative path. A file outside the project, such as a global skill or the global config, is shown from your home directory as `~/...`, or as an absolute path when it is outside home too. |
 | `changes[].action` | `add`, `update`, or `delete`. A file whose new bytes match the old ones is not listed. |
-| `changes[].tool` | The configured tool the file belongs to, such as `claude`. The global config is `openspec`. |
-| `notes[]` | `{ code, message }` for what the plan cannot settle on its own. `legacy-tool-directories`: a move that an interactive run asks about first; the plan lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`; without `--force` the update leaves them alone, and with `--force` their cleanup is not listed. `copilot-cloud-files`: the GitHub Copilot cloud agent files would be synced and are not listed. |
+| `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to OpenSpec itself rather than one tool, the global config and legacy-artifact cleanup, are `openspec`. |
+| `notes[]` | `{ code, message }` for a step a terminal user would be asked about. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. Empty for an ordinary refresh. |
 | `failures[]` | `{ tool, error }` for each tool the real update would fail on. The other tools are still planned. |
 
 A failure before planning, such as no OpenSpec directory, still prints exactly one JSON document: the empty plan plus a `status` array with `severity`, `code` (`update_error`), and `message`. The exit code is 1.

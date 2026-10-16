@@ -340,7 +340,8 @@ program
     try {
       if (options?.json && !options?.dryRun) {
         console.error('--json is only available with --dry-run.');
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
 
       // A dry run reports the plan and nothing else: no network check, no
@@ -432,12 +433,15 @@ program
     } catch (error) {
       // The --json dry run follows the agent contract: exactly one JSON
       // document on stdout, even on failure.
+      // failWithError sets the exit code. Returning instead of process.exit()
+      // lets piped stdout drain - an exit can cut the JSON document short where
+      // pipes are asynchronous (macOS, Windows) - and keeps commander's
+      // postAction telemetry flush, as the upgrade paths above already do.
       await failWithError(error, {
         enabled: options?.dryRun && options?.json,
         payload: { changes: [], notes: [], failures: [] },
         fallbackCode: 'update_error',
       });
-      process.exit(1);
     }
     }
   );

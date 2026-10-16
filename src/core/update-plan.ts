@@ -12,6 +12,7 @@ import path from 'path';
 import * as fs from 'fs';
 import os from 'os';
 import { FileSystemUtils } from '../utils/file-system.js';
+import type { FileView } from './file-view.js';
 
 export type UpdatePlanAction = 'add' | 'update' | 'delete';
 
@@ -19,15 +20,19 @@ export interface UpdatePlanChange {
   /** Project-relative POSIX path, or an absolute path (home collapsed to `~`) for files outside the project. */
   path: string;
   action: UpdatePlanAction;
-  /** Tool the file belongs to, as configured (e.g. `claude`). */
+  /**
+   * Tool the file belongs to, as configured (e.g. `claude`), or `openspec`
+   * for OpenSpec's own files: the global config and legacy-artifact cleanup.
+   */
   tool: string;
 }
 
-/** Why a preview is partial. Stable identifiers, for a caller that branches on them. */
-export type UpdatePlanNoteCode =
-  | 'legacy-tool-directories'
-  | 'legacy-artifacts'
-  | 'copilot-cloud-files';
+/**
+ * What the plan cannot settle by itself: a step a terminal user is asked
+ * about, which the plan lists as a non-interactive run makes it. Stable
+ * identifiers, for a caller that branches on them.
+ */
+export type UpdatePlanNoteCode = 'legacy-tool-directories' | 'legacy-artifacts';
 
 export interface UpdatePlanNote {
   code: UpdatePlanNoteCode;
@@ -42,8 +47,8 @@ export interface UpdatePlanFailure {
 export interface UpdatePlan {
   changes: UpdatePlanChange[];
   /**
-   * Parts of a real update this preview does not cover (legacy migrations,
-   * Copilot cloud files). Empty for an ordinary refresh.
+   * Steps a terminal user would be asked about. `changes` lists them as a
+   * non-interactive run makes them. Empty for an ordinary refresh.
    */
   notes: UpdatePlanNote[];
   /**
@@ -58,6 +63,8 @@ export interface UpdateFileOps {
   writeFile(filePath: string, content: string, tool: string): Promise<void>;
   removeFile(filePath: string, tool: string): Promise<void>;
   removeDirectory(dirPath: string, tool: string): Promise<void>;
+  /** Removes a directory already known to be empty. */
+  removeEmptyDirectory(dirPath: string): Promise<void>;
 }
 
 export const realFileOps: UpdateFileOps = {
@@ -69,6 +76,9 @@ export const realFileOps: UpdateFileOps = {
   },
   async removeDirectory(dirPath) {
     await fs.promises.rm(dirPath, { recursive: true, force: true });
+  },
+  async removeEmptyDirectory(dirPath) {
+    await fs.promises.rmdir(dirPath);
   },
 };
 
@@ -104,6 +114,11 @@ export class UpdatePlanRecorder implements UpdateFileOps {
     this.record(filePath, 'delete', tool);
   }
 
+  async removeEmptyDirectory(dirPath: string): Promise<void> {
+    // An empty directory holds no file, so the plan has nothing to list.
+    this.staged.set(path.resolve(dirPath), null);
+  }
+
   /**
    * Stages a move without recording the destination: whether the moved file
    * ends up in the plan is decided by what the update writes or removes there
@@ -116,7 +131,7 @@ export class UpdatePlanRecorder implements UpdateFileOps {
   }
 
   /** The tree with every planned write, move and removal applied. */
-  readonly view = {
+  readonly view: FileView = {
     exists: (filePath: string): boolean => this.stagedContent(filePath) !== null,
     read: (filePath: string): string => {
       const content = this.stagedContent(filePath);

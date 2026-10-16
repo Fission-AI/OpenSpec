@@ -211,15 +211,16 @@ openspec update --dry-run --json
 }
 ```
 
-The plan is what a non-interactive run does, including moving OpenSpec files
-out of a tool's former directory and saving the global config (`tool:
-"openspec"`) for an install from before profiles. `notes` lists what the plan
-cannot settle on its own, each with a stable `code` to branch on:
-`legacy-tool-directories` (a move an interactive run asks about first, listed
-as made), `legacy-artifacts` (old-layout files the update leaves alone without
-`--force`, and whose `--force` cleanup is not listed), `copilot-cloud-files`.
-`failures` lists tools the real update would fail on, so one broken tool does
-not cost you the rest of the plan. Both are empty for an ordinary refresh.
+The plan is what a non-interactive run does, and lists every file it would
+touch: moves out of a tool's former directory, the global config save for an
+install from before profiles, the Copilot cloud agent files, and, with
+`--force`, legacy-artifact cleanup. Files that belong to OpenSpec itself rather
+than one tool have `tool: "openspec"`. `notes` flags steps a terminal user
+would be asked about, each with a stable `code`: `legacy-tool-directories` (a
+move listed as made) and `legacy-artifacts` (old-layout files the update leaves
+alone without `--force`). `failures` lists tools the real update would fail on,
+so one broken tool does not cost you the rest of the plan. Both are empty for
+an ordinary refresh.
 The full reference is [openspec.dev/docs/cli](https://openspec.dev/docs/cli).
 
 A `--dry-run --json` failure still prints exactly one JSON document, the empty
