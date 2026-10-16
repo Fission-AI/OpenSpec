@@ -1,7 +1,7 @@
 Closes #
 
 <!--
-Link an issue with the `approved` label. CI checks this (CONTRIBUTING.md).
+Link an issue with the `approved` label (CONTRIBUTING.md).
 Feature proposal PR? Write "Part of #123" instead, so the issue stays open.
 -->
 

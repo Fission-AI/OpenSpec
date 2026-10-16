@@ -2,7 +2,7 @@
 
 Thanks for helping improve OpenSpec.
 
-Every change follows the same three steps, and CI checks each one.
+Every change follows the same three steps.
 
 ## 1. Open an issue
 
@@ -13,22 +13,20 @@ Every change follows the same three steps, and CI checks each one.
 
 ## 2. Wait for the `approved` label
 
-A maintainer adds it once we agree the work should happen. Don't open a PR before then. CI will fail it.
+A maintainer adds it once we agree the work should happen. Don't open a PR before then.
 
 Why: a PR built without the bigger picture can fix one case and break another. Agreeing first saves your time and ours.
 
 ## 3. Open the PR
 
-You or a maintainer can open it.
+Say on the issue if you want to write the fix yourself; otherwise a maintainer picks it up.
 
-**Bug or docs:** one PR with the fix. Write `Closes #123` in the description. It can't change `openspec/`, since specs are for features.
+**Bug or docs:** one PR with the fix. Write `Closes #123` in the description. It shouldn't change `openspec/`, since specs are for features.
 
 **Feature:** two PRs.
 
 1. **Proposal:** only `openspec/changes/<name>/`. Write `Part of #123`, so the issue stays open.
 2. **Implementation:** after the proposal merges, the code plus updates to that change, such as checking off its `tasks.md`. Write `Closes #123`.
-
-If CI fails, its comment on your PR says what's missing.
 
 ## Make your change
 
