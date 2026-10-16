@@ -25,7 +25,11 @@ const preview = (await import(
  * directory of the same name holds its data files but no index.html.
  */
 function buildFixture(): string {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-preview-'));
+  // The export sits one level down, so files placed "outside" it still live
+  // inside this run's own temporary directory.
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-preview-'));
+  const root = path.join(parent, 'out');
+  fs.mkdirSync(root);
   fs.writeFileSync(path.join(root, 'index.html'), '<html>home</html>');
   fs.writeFileSync(path.join(root, '404.html'), '<html>missing</html>');
   fs.writeFileSync(path.join(root, 'robots.txt'), 'User-agent: *\n');
@@ -37,6 +41,17 @@ function buildFixture(): string {
   return root;
 }
 
+/** A file symlink, or false where the OS refuses one (Windows without the privilege). */
+function linkFile(target: string, linkPath: string): boolean {
+  try {
+    fs.symlinkSync(target, linkPath, 'file');
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw error;
+  }
+}
+
 describe('website preview server', () => {
   let root: string;
 
@@ -45,7 +60,7 @@ describe('website preview server', () => {
   });
 
   afterAll(() => {
-    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(path.dirname(root), { recursive: true, force: true });
   });
 
   describe('resolveStaticFile', () => {
@@ -91,6 +106,36 @@ describe('website preview server', () => {
       }
     });
 
+    it('refuses a symlink under the export that points outside it', () => {
+      const outsideDir = path.join(path.dirname(root), 'private');
+      fs.mkdirSync(outsideDir, { recursive: true });
+      fs.writeFileSync(path.join(outsideDir, 'secret.txt'), 'secret');
+      // A junction needs no privilege on Windows and is a link to Node.
+      fs.symlinkSync(outsideDir, path.join(root, 'linked'), 'junction');
+      const fileLinked = linkFile(path.join(outsideDir, 'secret.txt'), path.join(root, 'secret.txt'));
+      try {
+        expect(preview.resolveStaticFile(root, '/linked/secret.txt')).toBeNull();
+        if (fileLinked) expect(preview.resolveStaticFile(root, '/secret.txt')).toBeNull();
+      } finally {
+        fs.rmSync(path.join(root, 'linked'), { force: true, recursive: true });
+        fs.rmSync(path.join(root, 'secret.txt'), { force: true });
+        fs.rmSync(outsideDir, { recursive: true, force: true });
+      }
+    });
+
+    it('follows a symlink that stays inside the export', (ctx) => {
+      if (!linkFile(path.join(root, 'robots.txt'), path.join(root, 'robots-link.txt'))) {
+        ctx.skip();
+      }
+      try {
+        expect(preview.resolveStaticFile(root, '/robots-link.txt')).toBe(
+          path.join(root, 'robots-link.txt')
+        );
+      } finally {
+        fs.rmSync(path.join(root, 'robots-link.txt'), { force: true });
+      }
+    });
+
     it('rejects malformed encoding and null bytes', () => {
       expect(preview.resolveStaticFile(root, '/%E0%A4%A')).toBeNull();
       expect(preview.resolveStaticFile(root, '/index.html%00.txt')).toBeNull();
@@ -131,5 +176,32 @@ describe('website preview server', () => {
         );
       }
     });
+
+    it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+      'answers an unreadable file with an error instead of crashing',
+      async () => {
+        const locked = path.join(root, 'locked.txt');
+        fs.writeFileSync(locked, 'locked');
+        fs.chmodSync(locked, 0o000);
+        const server = preview.createPreviewServer(root);
+        await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+        const { port } = server.address() as AddressInfo;
+
+        try {
+          const failed = await fetch(`http://127.0.0.1:${port}/locked.txt`);
+          expect(failed.status).toBe(500);
+          // Still serving afterwards.
+          const page = await fetch(`http://127.0.0.1:${port}/docs/cli`);
+          expect(page.status).toBe(200);
+        } finally {
+          fs.chmodSync(locked, 0o644);
+          fs.rmSync(locked, { force: true });
+          server.closeAllConnections();
+          await new Promise<void>((resolve, reject) =>
+            server.close((error) => (error ? reject(error) : resolve()))
+          );
+        }
+      }
+    );
   });
 });

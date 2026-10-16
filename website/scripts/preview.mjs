@@ -17,7 +17,7 @@
 // before: the preview serves the exported files as they are.
 
 import { createServer } from 'node:http';
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, realpathSync, statSync } from 'node:fs';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -56,7 +56,9 @@ export function contentTypeFor(filePath) {
  *
  * Escaping `root` is never a match: the decoded path is normalized and the
  * result is checked to still sit under `root`, so `..` segments and an
- * encoded `%2e%2e` both fall through to the 404 page.
+ * encoded `%2e%2e` both fall through to the 404 page. A candidate is then
+ * checked again after resolving symlinks, so a link under `root` that points
+ * outside it is not served either.
  */
 export function resolveStaticFile(root, requestPath) {
   let decoded;
@@ -84,11 +86,46 @@ export function resolveStaticFile(root, requestPath) {
     ? [join(base, 'index.html'), `${base}.html`]
     : [base, join(base, 'index.html'), `${base}.html`];
 
+  let realRoot;
+  try {
+    realRoot = realpathSync(root);
+  } catch {
+    return null;
+  }
   for (const candidate of candidates) {
     if (candidate !== root && !candidate.startsWith(root + sep)) continue;
-    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
+    try {
+      // The lexical check above does not see symlinks; the real path does.
+      const real = realpathSync(candidate);
+      if (real !== realRoot && !real.startsWith(realRoot + sep)) continue;
+      if (statSync(real).isFile()) return candidate;
+    } catch {
+      // Missing, or removed since the request arrived: not a match.
+    }
   }
   return null;
+}
+
+/**
+ * Streams a file, sending headers only once it is open. A file that is gone or
+ * unreadable by then gets a plain error response instead of crashing the
+ * server with an unhandled stream error.
+ */
+function sendFile(response, status, filePath) {
+  const stream = createReadStream(filePath);
+  stream.once('open', () => {
+    response.writeHead(status, { 'content-type': contentTypeFor(filePath) });
+    stream.pipe(response);
+  });
+  stream.once('error', () => {
+    if (response.headersSent) {
+      response.destroy();
+      return;
+    }
+    const failed = status === 404 ? [404, 'Not found\n'] : [500, 'Could not read file\n'];
+    response.writeHead(failed[0], { 'content-type': 'text/plain; charset=utf-8' });
+    response.end(failed[1]);
+  });
 }
 
 /** The preview server for a built export directory. Exported for tests. */
@@ -98,10 +135,9 @@ export function createPreviewServer(root) {
     const filePath = resolveStaticFile(root, requestPath);
 
     if (!filePath) {
-      const notFound = join(root, '404.html');
-      if (existsSync(notFound)) {
-        response.writeHead(404, { 'content-type': 'text/html; charset=utf-8' });
-        createReadStream(notFound).pipe(response);
+      const notFound = resolveStaticFile(root, '/404.html');
+      if (notFound) {
+        sendFile(response, 404, notFound);
         return;
       }
       response.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
@@ -109,8 +145,7 @@ export function createPreviewServer(root) {
       return;
     }
 
-    response.writeHead(200, { 'content-type': contentTypeFor(filePath) });
-    createReadStream(filePath).pipe(response);
+    sendFile(response, 200, filePath);
   });
 }
 
