@@ -161,7 +161,14 @@ function expandArtifactBraces(pattern: string): string[] {
       continue;
     }
     const wrapped = `{${group.body}}`;
-    const alternatives = expand(wrapped);
+    // `max` makes this budget the binding one. Without it `{1..1000000000}`
+    // allocates brace-expansion's own 100,000-result default before the check
+    // below rejects it. `max` truncates silently, so ask for one result more
+    // than the budget allows: a result that long means the pattern is over
+    // budget rather than fully expanded. A truncated group never looks literal,
+    // because its first alternative is not the group itself.
+    const remaining = Math.max(MAX_BRACE_EXPANSIONS - (pending.length + finished.length), 0);
+    const alternatives = expand(wrapped, { max: remaining + 1 });
     if (alternatives.length === 1 && alternatives[0] === wrapped) {
       pending.push(`${group.pre}${LITERAL_BRACE_OPEN}${group.body}${LITERAL_BRACE_CLOSE}${group.post}`);
       continue;

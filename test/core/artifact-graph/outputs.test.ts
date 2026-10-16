@@ -356,9 +356,14 @@ describe('artifact-graph/outputs', () => {
     expect(() => resolveArtifactOutputs(tempDir, wide(20))).toThrow(
       `1024 patterns: ${wide(20).slice(0, 80)}...`
     );
-    // A range is bounded by the same budget: brace-expansion would build
-    // 100,000 strings for this one.
+    // A range is bounded by the same budget. brace-expansion caps itself at
+    // 100,000 results, so the budget is passed down as its `max` and the
+    // allocation stops just past 1024 instead.
     expect(() => resolveArtifactOutputs(tempDir, 'file-{1..200000}.md')).toThrow(
+      'Artifact output pattern expands to more than 1024 patterns'
+    );
+    // Far past brace-expansion's own cap, so only our `max` can stop it early.
+    expect(() => resolveArtifactOutputs(tempDir, 'file-{1..1000000000}.md')).toThrow(
       'Artifact output pattern expands to more than 1024 patterns'
     );
     expect(globSpy).not.toHaveBeenCalled();
