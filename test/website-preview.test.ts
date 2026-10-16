@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import type { AddressInfo } from 'net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
@@ -13,7 +14,9 @@ type PreviewModule = {
   createPreviewServer(root: string): import('http').Server;
 };
 
-const preview: PreviewModule = await import(scriptPath);
+// A bare Windows path (`D:\...`) is not a valid module specifier, so the
+// absolute path has to go through a file:// URL.
+const preview: PreviewModule = await import(pathToFileURL(scriptPath).href);
 
 /**
  * Mirrors a Next static export: a route is written as `docs/cli.html`, and a
