@@ -11,6 +11,11 @@ const DUPLICATE_SLASH_RE = /(?!^)\/{2,}/gu;
 // Deeply nested braces can overflow a recursive expander. Reject nesting no real
 // artifact pattern needs before brace-expansion or tinyglobby see the pattern.
 const MAX_BRACE_NESTING = 16;
+// Nesting depth alone does not bound the work: `{a,b}` repeated 20 times is
+// only one level deep and expands to 1,048,576 patterns, which exhausts the
+// heap. fast-glob never expanded that far because micromatch compiled the
+// braces to a regex. No real artifact pattern needs more than a few hundred.
+const MAX_BRACE_EXPANSIONS = 1024;
 
 const ARTIFACT_GLOB_OPTIONS = {
   absolute: true,
@@ -70,13 +75,21 @@ function globBase(pattern: string): string {
     if (isDynamicSegment(segment)) break;
     base.push(segment);
   }
+  // An absolute pattern must stay absolute, or `path.resolve(changeDir, base)`
+  // rebases `/etc/*` inside the change directory and the containment check
+  // passes for a pattern that globs the filesystem root.
+  if (pattern.startsWith('/')) return `/${base.join('/')}`;
   return base.length > 0 ? base.join('/') : '.';
 }
 
 // brace-expansion 5 leaves the rest of a pattern literal when a non-expanding
 // group such as `{draft}` comes before a range. Expand one real group at a time.
-const LITERAL_BRACE_OPEN = '\u0000';
-const LITERAL_BRACE_CLOSE = '\u0001';
+// NUL-prefixed so no `generates` value can forge them: `resolveArtifactOutputPath`
+// runs `path.join` first, which rejects a NUL byte. A single-character sentinel
+// such as U+0001 is a legal filename character, and a pattern containing one
+// would come back out of the expander as a brace.
+const LITERAL_BRACE_OPEN = '\u0000<';
+const LITERAL_BRACE_CLOSE = '\u0000>';
 
 function hasTopLevelExpansion(body: string): boolean {
   let depth = 0;
@@ -124,7 +137,19 @@ function findTopLevelExpansion(pattern: string): { pre: string; body: string; po
   return null;
 }
 
+function assertExpansionBudget(pattern: string, count: number): void {
+  if (count <= MAX_BRACE_EXPANSIONS) return;
+  // A pattern this wide can run to thousands of characters; quote only its start.
+  const shown = pattern.length > 80 ? `${pattern.slice(0, 80)}...` : pattern;
+  throw new Error(
+    `Artifact output pattern expands to more than ${MAX_BRACE_EXPANSIONS} patterns: ${shown}`
+  );
+}
+
 function expandArtifactBraces(pattern: string): string[] {
+  if (pattern.includes('\u0000')) {
+    throw new Error('Artifact output pattern contains a NUL byte');
+  }
   const pending = [pattern];
   const finished: string[] = [];
   while (pending.length > 0) {
@@ -141,6 +166,8 @@ function expandArtifactBraces(pattern: string): string[] {
       pending.push(`${group.pre}${LITERAL_BRACE_OPEN}${group.body}${LITERAL_BRACE_CLOSE}${group.post}`);
       continue;
     }
+    // Checked before the push so the budget bounds memory, not just the result.
+    assertExpansionBudget(pattern, pending.length + finished.length + alternatives.length);
     for (const alternative of alternatives) {
       pending.push(`${group.pre}${alternative}${group.post}`);
     }

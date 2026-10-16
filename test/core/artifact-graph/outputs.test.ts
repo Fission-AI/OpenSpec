@@ -342,6 +342,65 @@ describe('artifact-graph/outputs', () => {
     globSpy.mockRestore();
   });
 
+  it('rejects a brace pattern that is wide rather than deep before it exhausts the heap', () => {
+    // Nesting depth is 1 here, so the depth guard never fires. `{a,b}` repeated
+    // 20 times is 1,048,576 patterns and crashed the expander with
+    // "JavaScript heap out of memory"; fast-glob compiled it to a regex instead.
+    const wide = (groups: number) => `${'{a,b}'.repeat(groups)}.md`;
+    const globSpy = vi.mocked(globby.globSync);
+
+    expect(() => resolveArtifactOutputs(tempDir, wide(20))).toThrow(
+      'Artifact output pattern expands to more than 1024 patterns'
+    );
+    // The error quotes only the start of a pattern that long.
+    expect(() => resolveArtifactOutputs(tempDir, wide(20))).toThrow(
+      `1024 patterns: ${wide(20).slice(0, 80)}...`
+    );
+    // A range is bounded by the same budget: brace-expansion would build
+    // 100,000 strings for this one.
+    expect(() => resolveArtifactOutputs(tempDir, 'file-{1..200000}.md')).toThrow(
+      'Artifact output pattern expands to more than 1024 patterns'
+    );
+    expect(globSpy).not.toHaveBeenCalled();
+    globSpy.mockRestore();
+  });
+
+  it('still resolves the widest pattern inside the expansion budget', () => {
+    // 2^10 = 1024 alternatives: at the budget, not over it.
+    const file = path.join(tempDir, `${'a'.repeat(10)}.md`);
+    fs.writeFileSync(file, 'content');
+
+    expect(resolveArtifactOutputs(tempDir, `${'{a,b}'.repeat(10)}.md`)).toEqual([canonical(file)]);
+  });
+
+  it('rejects an absolute pattern before globbing, however little it matches', () => {
+    // fast-glob's generateTasks reported `/etc` as the task base, so the
+    // containment check rejected the pattern. A base that silently drops the
+    // leading slash resolves inside the change directory and lets the glob read
+    // a directory the change does not own.
+    const globSpy = vi.mocked(globby.globSync);
+
+    expect(() => resolveArtifactOutputs(tempDir, '/etc/openspec-nope-*.md')).toThrow(
+      /outside the allowed directory/u
+    );
+    expect(() => resolveArtifactOutputs(tempDir, '/openspec-nope-*.md')).toThrow(
+      /outside the allowed directory/u
+    );
+    expect(globSpy).not.toHaveBeenCalled();
+    globSpy.mockRestore();
+  });
+
+  it('keeps a control character in a filename literal instead of reading it as a brace', () => {
+    // The expander parks a non-expanding brace group on a sentinel. A
+    // single-character sentinel is a legal filename character, so a pattern
+    // containing one came back out as `{` or `}` and matched the wrong file.
+    const literal = path.join(tempDir, 'x\u0001y.md');
+    fs.writeFileSync(literal, 'content');
+    fs.writeFileSync(path.join(tempDir, 'x}y.md'), 'wrong');
+
+    expect(resolveArtifactOutputs(tempDir, 'x\u0001y*.md')).toEqual([canonical(literal)]);
+  });
+
   it.each([
     ['a bracket', (depth: number) => `*${'{a,[}]'.repeat(depth)}${'}'.repeat(depth)}`],
     ['a quote', (depth: number) => `*${'{a,"}"'.repeat(depth)}${'}'.repeat(depth)}`],
