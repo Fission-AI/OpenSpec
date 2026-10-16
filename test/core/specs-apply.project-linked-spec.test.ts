@@ -160,6 +160,33 @@ describe('a spec.md linked to a file elsewhere in the project', () => {
     }
   );
 
+  itWithSymlinks(
+    'cannot be redirected by a link repointed while the write is in flight',
+    async () => {
+      await fs.symlink(path.relative(path.dirname(linkedSpec), docsSpec), linkedSpec);
+      const [update] = await findSpecUpdates(changeDir, mainSpecsDir);
+      const built = await buildUpdatedSpec(update, 'add-mfa', { silent: true });
+
+      const outsideSpec = path.join(tempDir, 'outside.md');
+      await fs.writeFile(outsideSpec, 'outside sentinel');
+
+      // The containment check has already passed by the time `beforeMutate`
+      // runs, so this is the one window a swap could still use.
+      await writeUpdatedSpec(update, built.rebuilt, built.counts, {
+        silent: true,
+        beforeMutate: async () => {
+          await fs.rm(linkedSpec);
+          await fs.symlink(outsideSpec, linkedSpec);
+        },
+      });
+
+      // The write went to the file that was verified, not to wherever the link
+      // was pointing by the time the bytes were written.
+      await expect(fs.readFile(outsideSpec, 'utf-8')).resolves.toBe('outside sentinel');
+      await expect(fs.readFile(docsSpec, 'utf-8')).resolves.toContain('Second factor');
+    }
+  );
+
   itWithSymlinks('merges through a linked delta spec inside the project', async () => {
     await fs.symlink(path.relative(path.dirname(linkedSpec), docsSpec), linkedSpec);
     const sharedDelta = path.join(projectDir, 'docs', 'auth', 'deltas', 'login.md');

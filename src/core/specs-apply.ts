@@ -1248,6 +1248,14 @@ export async function writeUpdatedSpec(
   } = {}
 ): Promise<void> {
   assertTrustedSpecPath(update.targetRoot, update.target);
+  // Pin what the assertion just checked. A capability's spec.md may be a link
+  // to the file the project keeps elsewhere, so the write follows a link by
+  // design - and resolving it once, here, is what keeps that from becoming a
+  // redirect: a link repointed after this line, including from inside
+  // `beforeMutate`, cannot send the write to a file nothing verified. The
+  // bytes still land in the same place a path-based write would have put them,
+  // which keeps the in-place semantics below intact.
+  const verifiedTarget = FileSystemUtils.canonicalizeExistingPath(update.target);
 
   // Create target directory if needed
   const targetDir = path.dirname(update.target);
@@ -1259,7 +1267,7 @@ export async function writeUpdatedSpec(
   // requirement moved. A spec that does not exist yet stays LF.
   // Only a missing file means "no convention to match". Swallowing every error
   // would read an existing but unreadable spec as absent and rewrite it as LF.
-  const previous = await fs.readFile(update.target, 'utf-8').catch((error) => {
+  const previous = await fs.readFile(verifiedTarget, 'utf-8').catch((error) => {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     throw error;
   });
@@ -1269,7 +1277,7 @@ export async function writeUpdatedSpec(
   // Preserve the established in-place write semantics: symlink referents,
   // hard-linked specs, ACLs, extended attributes, and filesystems without hard
   // links must continue to behave as they did before capability retirement.
-  await fs.writeFile(update.target, toWrite);
+  await fs.writeFile(verifiedTarget, toWrite);
   if (options.silent) return;
 
   const specName = update.id;
