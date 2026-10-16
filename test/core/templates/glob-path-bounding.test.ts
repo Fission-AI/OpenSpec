@@ -8,8 +8,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getContinueChangeSkillTemplate,
+  getExploreSkillTemplate,
   getFfChangeSkillTemplate,
   getOpsxContinueCommandTemplate,
+  getOpsxExploreCommandTemplate,
   getOpsxFfCommandTemplate,
   getOpsxProposeCommandTemplate,
   getOpsxProposeSkillTemplate,
@@ -39,14 +41,36 @@ const SURFACES: Array<[label: string, body: string]> = [
   ['continue-change command', withAllWorkflows(getOpsxContinueCommandTemplate().content)],
   ['update-change skill', withAllWorkflows(getUpdateChangeSkillTemplate().instructions)],
   ['update-change command', withAllWorkflows(getOpsxUpdateCommandTemplate().content)],
+  ['explore skill', withAllWorkflows(getExploreSkillTemplate().instructions)],
+  ['explore command', withAllWorkflows(getOpsxExploreCommandTemplate().content)],
 ];
+
+/** Where a line tells the agent to write. The bound must come before it. */
+const WRITE = /\b(?:write|Write)\b(?! anything)(?! an expected path)(?! only the missing)/;
+
+/**
+ * The bound has to be checked before the write, or an escaping path is already
+ * written by the time it is verified. A line with no write (update-change
+ * writes in a later step) only needs the bound.
+ */
+function expectBoundBeforeWrite(label: string, line: string): void {
+  const boundAt = line.indexOf(BOUND);
+  expect(boundAt, label).toBeGreaterThanOrEqual(0);
+  const writeAt = line.search(WRITE);
+  if (writeAt !== -1) {
+    expect(writeAt, `${label}: writes before checking the bound`).toBeGreaterThan(boundAt);
+    expect(line, `${label}: no instruction to refuse an escaping path`).toContain(
+      'stop and tell the user'
+    );
+  }
+}
 
 describe('glob output paths stay inside changeRoot (#2099)', () => {
   it.each(SURFACES)('%s bounds every concrete-path choice', (label, body) => {
     const choices = body.split('\n').filter((line) => PATH_CHOICE.test(line));
 
     expect(choices, `${label}: no concrete-path line found`).toHaveLength(1);
-    expect(choices[0], label).toContain(BOUND);
+    expectBoundBeforeWrite(label, choices[0]);
   });
 
   // continue-change alone backfills a half-written glob artifact: it compares
@@ -62,5 +86,10 @@ describe('glob output paths stay inside changeRoot (#2099)', () => {
 
     expect(bullets, `${label}: partial-artifact bullet missing`).toHaveLength(1);
     expect(bullets[0], label).toContain(BOUND);
+    // The write is the next bullet, so the refusal has to sit there.
+    const lines = body.split('\n');
+    const next = lines[lines.indexOf(bullets[0]) + 1];
+    expect(next, label).toContain('Never write an expected path that fails that check');
+    expect(next.indexOf('Never write'), label).toBeLessThan(next.indexOf('write only the missing'));
   });
 });
