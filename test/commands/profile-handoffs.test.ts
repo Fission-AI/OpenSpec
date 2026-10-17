@@ -109,7 +109,7 @@ apply:
     await fs.writeFile(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
     await fs.writeFile(path.join(root, 'openspec', 'config.yaml'), 'schema: handoff-test\ncontext: Preserve existing behavior.\nrules:\n  brief:\n    - Include a verification plan.\n');
     await cli(['new', 'change', 'original', ...flags]);
-    const changeRoot = path.join(root, 'openspec', 'changes', 'original');
+    const changeRoot = path.join(root, 'openspec', 'changes', 'proposed', 'original');
     const before = await fs.readdir(changeRoot);
     const blocked = JSON.parse(await cli(['instructions', 'apply', '--change', 'original', '--json', ...flags]));
     expect(blocked.state).toBe('blocked');
@@ -162,7 +162,7 @@ apply:
     await fs.writeFile(path.join(schemaDir, 'templates', 'brief.md'), '# Brief\n');
     await fs.writeFile(path.join(project, 'openspec', 'config.yaml'), 'schema: tracking-test\n');
     await cli(['new', 'change', 'tracking']);
-    const changeRoot = path.join(project, 'openspec', 'changes', 'tracking');
+    const changeRoot = path.join(project, 'openspec', 'changes', 'proposed', 'tracking');
     const briefPath = path.join(changeRoot, 'brief.md');
     await fs.writeFile(briefPath, '# Brief\n\nKeep this plan unchanged.\n');
     const trackingPath = path.join(changeRoot, 'implementation', 'checklist.md');
