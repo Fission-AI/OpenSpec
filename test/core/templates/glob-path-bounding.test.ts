@@ -27,9 +27,22 @@ const withAllWorkflows = (body: string) =>
 /** Lines that tell the agent to pick a concrete path for a glob output. */
 const PATH_CHOICE = /choose a concrete path/i;
 
-/** The containment rule update-change has always carried. */
+/**
+ * The containment rule for a write that may land on an existing file. A
+ * destination that is itself a symlink to a file outside `changeRoot` passes a
+ * parent-only check, so the file is resolved too.
+ */
 const BOUND =
+  'remains inside `changeRoot` after resolving symlinks, both in its parent directories and in the file itself if it already exists';
+
+/**
+ * update-change creates its file with an operation that fails if the target
+ * exists - a symlink included - so resolving the parents is enough there.
+ */
+const CREATE_ONLY_BOUND =
   'remains inside `changeRoot` after resolving any symlinked parent directories';
+
+const boundFor = (label: string) => (label.startsWith('update-change') ? CREATE_ONLY_BOUND : BOUND);
 
 /** Every surface that writes glob artifacts, skill and slash-command alike. */
 const SURFACES: Array<[label: string, body: string]> = [
@@ -54,7 +67,7 @@ const WRITE = /\b(?:write|Write)\b(?! anything)(?! an expected path)(?! only the
  * writes in a later step) only needs the bound.
  */
 function expectBoundBeforeWrite(label: string, line: string): void {
-  const boundAt = line.indexOf(BOUND);
+  const boundAt = line.indexOf(boundFor(label));
   expect(boundAt, label).toBeGreaterThanOrEqual(0);
   const writeAt = line.search(WRITE);
   if (writeAt !== -1) {
@@ -111,6 +124,52 @@ describe('glob output paths stay inside changeRoot (#2099)', () => {
       found.some(([at]) => at > choiceAt),
       `${label}: the creation step does not bound its delegated writer`
     ).toBe(true);
+  });
+
+  // A delegated writer has already created the artifact; writing the template
+  // over it afterwards would replace what it made.
+  it.each(SURFACES.filter(([label]) => !label.startsWith('update-change')))(
+    '%s writes the template only when creation was not delegated',
+    (label, body) => {
+      const templateWrite = /\b[Ww]rite (?:it|the file|the artifact) to that output path/u;
+      const lines = body.split('\n');
+      let writes = 0;
+
+      lines.forEach((line, index) => {
+        // Judged sentence by sentence: explore states both branches in one
+        // paragraph, and the delegation sentence names the same path for the
+        // delegated writer.
+        for (const sentence of line.split(/(?<=\.)\s+(?=[A-Z])/u)) {
+          if (!templateWrite.test(sentence) || sentence.includes('delegates creation')) continue;
+          writes++;
+          if (/otherwise/iu.test(sentence.slice(0, sentence.search(templateWrite)))) continue;
+          // Otherwise nested under a bullet that opens the Otherwise branch.
+          const indent = line.search(/\S/u);
+          const parent = lines
+            .slice(0, index)
+            .reverse()
+            .find((candidate) => candidate.trim() !== '' && candidate.search(/\S/u) < indent);
+          expect(parent, `${label}: template write outside the Otherwise branch`).toMatch(
+            /^\s*- Otherwise/u
+          );
+        }
+      });
+      expect(writes, `${label}: no template write found`).toBeGreaterThan(0);
+    }
+  );
+
+  it.each([
+    ['continue-change skill', withAllWorkflows(getContinueChangeSkillTemplate().instructions)],
+    ['continue-change command', withAllWorkflows(getOpsxContinueCommandTemplate().content)],
+  ])('%s verifies the output after either creation branch', (label, body) => {
+    const lines = body.split('\n');
+    const delegation = lines.findIndex((line) => line.includes('delegates creation to a specific skill'));
+    const verify = lines.findIndex((line) =>
+      line.includes('Either way, verify the artifact file exists at that output path')
+    );
+    expect(verify, label).toBeGreaterThan(delegation);
+    // Same depth as the two branches, so it runs after whichever was taken.
+    expect(lines[verify].search(/\S/u), label).toBe(lines[delegation].search(/\S/u));
   });
 
   it.each(SURFACES)('%s never targets the glob itself', (label, body) => {
