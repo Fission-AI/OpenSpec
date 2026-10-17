@@ -8,7 +8,7 @@
  */
 
 import chalk from 'chalk';
-import ora from 'ora';
+import type { Ora } from 'ora';
 import path from 'path';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
 import { formatChangeLocation } from '../../core/planning-home.js';
@@ -114,7 +114,11 @@ function printImplicitRootNotice(root: ResolvedOpenSpecRoot): void {
 }
 
 export async function newChangeCommand(name: string | undefined, options: NewChangeOptions): Promise<void> {
-  const spinner = options.json ? undefined : ora();
+  let spinner: Ora | undefined;
+  if (!options.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora();
+  }
 
   try {
     if (!name) {
