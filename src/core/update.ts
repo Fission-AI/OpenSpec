@@ -292,7 +292,7 @@ export class UpdateCommand {
       if (deferredGlobalCleanup) {
         await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
       }
-      this.throwIfUpdateFailed(legacyUpgradeFailures);
+      if (this.stopIfUpdateFailed(legacyUpgradeFailures)) return;
       if (declinedMigrations.length > 0) {
         // Not an unconfigured project — a configured one the user chose to
         // leave in its former directory. Saying "run init" would be wrong.
@@ -370,7 +370,7 @@ export class UpdateCommand {
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
-      this.throwIfUpdateFailed(legacyUpgradeFailures);
+      this.stopIfUpdateFailed(legacyUpgradeFailures);
       return;
     }
 
@@ -636,7 +636,7 @@ export class UpdateCommand {
     if (restartHint) {
       this.log(chalk.dim(restartHint));
     }
-    this.throwIfUpdateFailed(failedTools);
+    this.stopIfUpdateFailed(failedTools);
   }
 
   /**
@@ -651,13 +651,16 @@ export class UpdateCommand {
   }
 
   /**
-   * A real update fails once every tool has had its turn. A dry run reports
-   * those failures in the plan instead: one broken tool must not cost the
-   * caller the other tools' changes.
+   * Where a real update throws for failed tools, it also stops. A dry run
+   * stops at the same point - so it plans nothing the real update would not
+   * reach - but returns instead of throwing: the failures are already in the
+   * plan, and the caller still gets every change planned before them.
+   *
+   * @returns whether the update stops here.
    */
-  private throwIfUpdateFailed(failedTools: readonly ToolFailure[]): void {
-    if (this.dryRun) return;
-    throwIfUpdateFailed(failedTools);
+  private stopIfUpdateFailed(failedTools: readonly ToolFailure[]): boolean {
+    if (!this.dryRun) throwIfUpdateFailed(failedTools);
+    return failedTools.length > 0;
   }
 
   /** The tree as the real update would see it at this point. */

@@ -627,6 +627,29 @@ describe('openspec update --dry-run', () => {
     expect(plan.failures.map((failure) => failure.tool)).toEqual(['cursor']);
   });
 
+  it('stops where a real update stops when a legacy upgrade fails in an unconfigured project', async () => {
+    // No configured tools, so the real update runs the unconfigured-project
+    // branch: it throws for the failed legacy upgrade before syncing Copilot
+    // cloud files. The plan must stop there too, not plan their removal.
+    await fs.rm(path.join(testDir, '.claude'), { recursive: true, force: true });
+    await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
+    await fs.writeFile(
+      path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
+      '<!-- OPENSPEC:START -->\nold\n<!-- OPENSPEC:END -->\n'
+    );
+    await fs.writeFile(path.join(testDir, '.cursor', 'skills'), 'not a directory');
+    const setupSteps = path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml');
+    await fs.mkdir(path.dirname(setupSteps), { recursive: true });
+    await fs.writeFile(setupSteps, generateCopilotSetupSteps());
+
+    const plan = await expectFullPlanMatchesRealUpdate({ force: true });
+
+    expect(plan.failures.map((failure) => failure.tool)).toEqual(['cursor']);
+    expect(plan.changes.map((change) => change.path)).not.toContain(
+      '.github/workflows/copilot-setup-steps.yml'
+    );
+  });
+
   it('refuses to plan without dryRun', async () => {
     await expect(new UpdateCommand().plan(testDir)).rejects.toThrow('dryRun: true');
   });
