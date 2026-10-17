@@ -5,6 +5,7 @@ import {
   isInteractive,
   isNonInteractivePromptError,
   resolveNoInteractive,
+  canRenderSpinner,
   InteractiveOptions,
 } from '../../src/utils/interactive.js';
 
@@ -380,6 +381,51 @@ describe('interactive utilities', () => {
           { input, output: captureOutput() }
         )
       ).rejects.toThrow('stdin exploded');
+    });
+  });
+
+  describe('canRenderSpinner', () => {
+    it('refuses a TTY that reports zero columns', () => {
+      expect(canRenderSpinner({ isTTY: true, columns: 0 })).toBe(false);
+    });
+
+    it('refuses a TTY that reports no width at all', () => {
+      expect(canRenderSpinner({ isTTY: true })).toBe(false);
+    });
+
+    it('allows a TTY with a real width', () => {
+      expect(canRenderSpinner({ isTTY: true, columns: 80 })).toBe(true);
+    });
+
+    it('allows a non-TTY stream, which ora prints as one plain line', () => {
+      expect(canRenderSpinner({ isTTY: false })).toBe(true);
+    });
+
+    it('covers the case where ora clears without bound (#2106)', async () => {
+      // The reason the guard exists: with zero columns ora's line count is
+      // Infinity, so clear() keeps moving the cursor up forever. The fake stream
+      // is capped so the unbounded loop fails fast instead of hanging the suite.
+      // If a future ora bounds that loop this test goes red, and the guard can
+      // be revisited.
+      const ora = (await import('ora')).default;
+      let moves = 0;
+      const stream = {
+        isTTY: true,
+        columns: 0,
+        rows: 0,
+        write: () => true,
+        cursorTo: () => {},
+        clearLine: () => {},
+        moveCursor: () => {
+          if (++moves > 1000) throw new Error('unbounded clear');
+        },
+        once: () => {},
+      } as unknown as NodeJS.WriteStream;
+
+      const spinner = ora({ text: 'Validating...', stream, isEnabled: true });
+      spinner.render();
+      expect(() => spinner.render()).toThrow('unbounded clear');
+      expect(canRenderSpinner(stream)).toBe(false);
     });
   });
 });

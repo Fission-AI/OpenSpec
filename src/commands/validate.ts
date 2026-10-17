@@ -15,7 +15,7 @@ import {
   type ResolvedOpenSpecRoot,
   isStoreSelectedRoot,
 } from '../core/root-selection.js';
-import { isInteractive, resolveNoInteractive } from '../utils/interactive.js';
+import { canRenderSpinner, isInteractive, resolveNoInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { getAvailableChanges } from './workflow/shared.js';
 import { nearestMatches } from '../utils/match.js';
@@ -441,7 +441,7 @@ export class ValidateCommand {
   }
 
   private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean; findingsScope?: BulkScope }): Promise<void> {
-    const spinner = !opts.json && !opts.noInteractive ? ora('Validating...').start() : undefined;
+    const spinner = !opts.json && isInteractive(opts) && canRenderSpinner() ? ora('Validating...').start() : undefined;
     const [changeIds, specIds] = await Promise.all([
       scope.changes ? this.listChangeIds(root) : Promise.resolve<string[]>([]),
       scope.specs ? getSpecIds(root.path) : Promise.resolve<string[]>([]),
@@ -615,7 +615,7 @@ export class ValidateCommand {
     // List first (may throw on a real archive-read failure), then start the
     // spinner so a thrown error never leaves a spinner spinning.
     const ids = await this.listArchivedChangeIds(root);
-    const spinner = !opts.json && !opts.noInteractive ? ora('Validating archived changes...').start() : undefined;
+    const spinner = !opts.json && isInteractive(opts) && canRenderSpinner() ? ora('Validating archived changes...').start() : undefined;
 
     // The archive is append-only and can hold thousands of changes; a single
     // run resolves them all under one constant projectRoot (root.path), so
