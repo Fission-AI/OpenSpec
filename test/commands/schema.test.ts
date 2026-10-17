@@ -502,7 +502,7 @@ artifacts:
       expect(created.stdout).toContain('Schema: my-workflow');
       expect(
         fs.readFileSync(
-          path.join(tempDir, 'openspec', 'changes', 'progress-schema', '.openspec.yaml'),
+          path.join(tempDir, 'openspec', 'changes', 'proposed', 'progress-schema', '.openspec.yaml'),
           'utf-8'
         )
       ).toContain('schema: my-workflow');
@@ -534,7 +534,7 @@ artifacts:
       expect(created.stdout).toContain('Schema: my-workflow');
       expect(
         fs.readFileSync(
-          path.join(tempDir, 'openspec', 'changes', 'empty-schema', '.openspec.yaml'),
+          path.join(tempDir, 'openspec', 'changes', 'proposed', 'empty-schema', '.openspec.yaml'),
           'utf-8'
         )
       ).toContain('schema: my-workflow');
