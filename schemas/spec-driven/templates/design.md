@@ -11,8 +11,9 @@
 <!-- What is explicitly out of scope -->
 
 ## Decisions
-<!-- Give each decision a unique ID (D1, D2, D3, ...).
-Keep IDs unchanged if a decision title changes. -->
+<!-- Give each decision the next unused ID (D1, D2, D3, ...).
+Keep IDs unchanged if a decision title changes or decisions are reordered.
+Never reuse an ID after removing a decision. -->
 
 ### D1
 
