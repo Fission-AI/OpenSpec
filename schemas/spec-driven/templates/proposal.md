@@ -4,6 +4,13 @@
 
 <!-- Explain the motivation for this change. What problem does this solve? Why now? -->
 
+## Review Focus
+
+<!-- 3-5 bullets. Leave empty rather than pad. -->
+- Decisions a human should confirm
+- Assumptions made without asking
+- What is deliberately out of scope
+
 ## What Changes
 
 <!-- Describe what will change. Be specific about new capabilities, modifications, or removals. -->
