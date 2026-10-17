@@ -357,26 +357,35 @@ export class UpdatePlanRecorder implements UpdateFileOps {
 const STAGED_DIRECTORY = Symbol('staged directory');
 
 /**
- * A path as it is on disk now: a file's content, a symlink as an entry of its
- * own (read through when it points at a file), or undefined when absent or a
- * directory.
+ * A path as it is on disk now: a file's content (read through a symlink that
+ * points at a file), a symlink to anything else as an entry of its own, or
+ * undefined when absent or a directory.
+ *
+ * The file is judged on the handle it is read from, so nothing can swap it
+ * between the check and the read. O_NONBLOCK keeps a FIFO from hanging the
+ * plan; Windows has no such flag and no FIFOs to worry about.
  */
 function originalEntry(target: string): string | undefined {
-  let stats: fs.Stats;
+  let descriptor: number | undefined;
   try {
-    stats = fs.lstatSync(target);
+    descriptor = fs.openSync(
+      target,
+      fs.constants.O_RDONLY | (fs.constants.O_NONBLOCK ?? 0)
+    );
+    if (fs.fstatSync(descriptor).isFile()) {
+      return fs.readFileSync(descriptor, 'utf-8');
+    }
+  } catch {
+    // Missing, a dangling link, or a directory on a platform that refuses to
+    // open one: decided below.
+  } finally {
+    if (descriptor !== undefined) fs.closeSync(descriptor);
+  }
+  try {
+    return `symlink:${fs.readlinkSync(target)}`;
   } catch {
     return undefined;
   }
-  if (stats.isSymbolicLink()) {
-    try {
-      return fs.readFileSync(target, 'utf-8');
-    } catch {
-      return `symlink:${fs.readlinkSync(target)}`;
-    }
-  }
-  if (!stats.isFile()) return undefined;
-  return fs.readFileSync(target, 'utf-8');
 }
 
 /** An error shaped like the one Node's own fs call would throw. */
