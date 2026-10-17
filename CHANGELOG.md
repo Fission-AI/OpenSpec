@@ -1,5 +1,37 @@
 # @fission-ai/openspec
 
+## 1.14.3
+
+### Patch Changes
+
+- [#2101](https://github.com/Fission-AI/OpenSpec/pull/2101) [`87a69a2`](https://github.com/Fission-AI/OpenSpec/commit/87a69a2bf8eb3315a8c042d001520eb7766ab580) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **A capability's `spec.md` may be a symlink to a file elsewhere in the project** — `list --specs`, `show`, `validate` and `archive` no longer refuse `openspec/specs/<capability>/spec.md` when it links to the file the project keeps somewhere else, such as beside the product documentation it belongs to. A link that resolves outside the project is still refused.
+
+- [#2103](https://github.com/Fission-AI/OpenSpec/pull/2103) [`e33245d`](https://github.com/Fission-AI/OpenSpec/commit/e33245d22ba6f994596a1747baf17130fe04515d) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
+  
+  - Installing OpenSpec no longer pulls in the unpatched `braces` package, so a consumer audit does not report GHSA-vfj7-8cjw-p6xm through this package. A `generates` brace pattern that nests deeply, or expands to more than 1024 paths, is now rejected with a clear message instead of crashing `openspec status` with a stack overflow or an out-of-memory error.
+
+- [#2104](https://github.com/Fission-AI/OpenSpec/pull/2104) [`276d015`](https://github.com/Fission-AI/OpenSpec/commit/276d015090965791d8be3d02daf6bfd71de884c3) Thanks [@CRYPTONIKAV](https://github.com/CRYPTONIKAV)! - Keep glob artifact paths inside the change directory in the propose, ff-change and continue-change workflows
+
+- [#2108](https://github.com/Fission-AI/OpenSpec/pull/2108) [`5251f2e`](https://github.com/Fission-AI/OpenSpec/commit/5251f2ef5e9e83eac68dd6950091928c4324b127) Thanks [@clay-good](https://github.com/clay-good)! - Stop `openspec validate --all` hanging on a zero-width TTY. Some hosts hand the
+  process a terminal that reports `columns === 0` — a pty inherited from a
+  pre-commit runner such as lefthook, or `script -qec`. ora computes how many
+  lines to erase as `ceil(width / columns)`, so zero columns makes that count
+  `Infinity` and the clear loop never ends: the command burned a core and wrote
+  hundreds of megabytes of cursor escapes without finishing. The spinner is now
+  skipped when nothing can be drawn, and validate falls back to its plain output.
+  `OPEN_SPEC_INTERACTIVE=0` and `CI` now disable the spinner too, the same way
+  `--no-interactive` already did.
+
+- [#2110](https://github.com/Fission-AI/OpenSpec/pull/2110) [`c9a8ade`](https://github.com/Fission-AI/OpenSpec/commit/c9a8adef5021e9793ed9e104f65834fce0fb16cb) Thanks [@clay-good](https://github.com/clay-good)! - Preview the built docs site with a first-party static server instead of `serve`.
+  `pnpm start` in `website/` now runs `scripts/preview.mjs`, a dependency-free
+  server that resolves routes in a Next static export (it does not apply
+  `out/_redirects`). This
+  drops the `serve` dev dependency whose transitive tree kept publishing
+  advisories (brace-expansion x3, fast-uri, compression) that had to be pinned by
+  hand even though none of that code ever reached the published site.
+
 ## 1.14.2
 
 ### Patch Changes
