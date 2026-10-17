@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -50,13 +50,17 @@ afterAll(() => {
   }
 });
 
-function loadedModules(args: string[]): {
+function loadedModules(args: string[], withProject = false): {
   own: string[];
   packages: Set<string>;
   status: number | null;
 } {
   const workDir = mkdtempSync(path.join(os.tmpdir(), 'openspec-startup-'));
   workDirs.push(workDir);
+  if (withProject) {
+    mkdirSync(path.join(workDir, 'openspec', 'changes'), { recursive: true });
+    mkdirSync(path.join(workDir, 'openspec', 'specs'), { recursive: true });
+  }
   const logFile = path.join(workDir, 'modules.log');
   const result = spawnSync(process.execPath, ['--import', hookUrl, binPath, ...args], {
     cwd: workDir,
@@ -227,5 +231,17 @@ describe('CLI startup loads only what the command needs', () => {
     const { own } = loadedModules(invocation.split(' '));
 
     expect(implementationsLoaded(own)).toEqual([command]);
+  });
+
+  it.each([
+    ['status --json', 'status'],
+    ['validate --all --json', 'validate'],
+  ])('`openspec %s` does not load ora', async (invocation, command) => {
+    await ensureCliBuilt();
+    const { own, packages, status } = loadedModules(invocation.split(' '), true);
+
+    expect(status).toBe(0);
+    expect(implementationsLoaded(own)).toEqual([command]);
+    expect([...packages]).not.toContain('ora');
   });
 });
