@@ -445,6 +445,24 @@ describe('available-tools', () => {
       expect(toolValues).toContain('github-copilot');
     });
 
+    it('detects CoStrict from its .cospec folder', async () => {
+      // Detection falls back to skillsDir, which is now the shared .agents
+      // root, so without its own detection path CoStrict would no longer be
+      // found from the folder that actually marks a CoStrict project.
+      await fs.mkdir(path.join(testDir, '.cospec'), { recursive: true });
+
+      expect(getAvailableTools(testDir).map((t) => t.value)).toContain('costrict');
+    });
+
+    it('does not take a bare shared .agents folder as a sign of CoStrict', async () => {
+      // CoStrict's skills now live in the shared .agents root, which Amp,
+      // Codex, Zed and others also use. Shared-root reconciliation keeps a
+      // bare .agents folder from naming CoStrict; this pins that invariant.
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+
+      expect(getAvailableTools(testDir).map((t) => t.value)).not.toContain('costrict');
+    });
+
     it('should detect Hermes Agent when HERMES.md exists', async () => {
       await fs.writeFile(path.join(testDir, 'HERMES.md'), '');
 
