@@ -4644,7 +4644,7 @@ The system SHALL do the thing differently.
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), original);
 
       // The spec as written is valid, which is what made the deletion silent.
-      const before = await new Validator().validateSpecContent('audit', original, 'strict');
+      const before = await new Validator(true).validateSpecContent('audit', original);
       expect(before.valid).toBe(true);
 
       await archiveCommand.execute(changeName, { yes: true });
@@ -4782,7 +4782,7 @@ The system SHALL do the thing differently.
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), original);
 
       // Valid as written, which is what made the deletion silent.
-      expect((await new Validator().validateSpecContent('audit', original, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('audit', original)).valid).toBe(
         true
       );
 
@@ -4884,7 +4884,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -4924,7 +4924,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -4960,7 +4960,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -4997,7 +4997,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -5036,7 +5036,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -5101,7 +5101,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -5578,7 +5578,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
