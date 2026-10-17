@@ -29,6 +29,7 @@ import {
 } from '../parsers/requirement-text.js';
 import { findMainSpecStructureIssues } from '../parsers/spec-structure.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { assertDiscoveredSpecFile } from '../../utils/spec-path-containment.js';
 import { discoverSpecFiles, findUnreadDeltaFiles, hasAnyFileUnder } from '../../utils/spec-discovery.js';
 import {
   METADATA_FILENAME,
@@ -376,14 +377,13 @@ export class Validator {
             ...specId.split('/'),
             'spec.md'
           );
-          FileSystemUtils.assertPathWithin(path.dirname(mainSpecFile), mainSpecFile);
           issues.push(
             ...(await this.findScenarioLossIssues(
               plan.modified,
               plan.renamed,
               mainSpecFile,
               entryPath,
-              path.dirname(mainSpecFile)
+              options.mainSpecsDir
             ))
           );
         }
@@ -710,7 +710,7 @@ export class Validator {
     mainSpecRoot: string
   ): Promise<ValidationIssue[]> {
     let mainContent: string;
-    FileSystemUtils.assertPathWithin(mainSpecRoot, mainSpecFile);
+    assertDiscoveredSpecFile(mainSpecRoot, mainSpecFile);
     try {
       mainContent = await fs.readFile(mainSpecFile, 'utf-8');
     } catch (error) {
