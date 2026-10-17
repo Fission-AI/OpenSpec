@@ -242,6 +242,37 @@ export async function gitOriginUrl(storeRoot: string): Promise<string | null> {
   return url ? url : null;
 }
 
+/**
+ * The repository name from an origin URL, with no host or `.git` suffix.
+ * Handles the three common remote spellings:
+ *
+ * - `git@github.com:user/repo.git`
+ * - `https://github.com/user/repo.git`
+ * - `ssh://git@github.com/user/repo.git`
+ *
+ * Returns the last path segment, or `null` when the URL has no parseable name.
+ */
+export function repoNameFromGitUrl(url: string): string | null {
+  const cleaned = url.trim().replace(/\.git\/?$/i, '');
+  let path: string | null = null;
+
+  // URL-like: scheme://host[/user/repo]. The `://` is required, so scp-like
+  // `git@host:user/repo` (no scheme) never matches this branch.
+  const urlLike = cleaned.match(/^[a-z][a-z0-9+.-]*:\/\/[^/]+(?:\/(.*))?$/i);
+  if (urlLike) {
+    path = urlLike[1] ?? null;
+  } else {
+    // scp-like: git@host:user/repo
+    const scpLike = cleaned.match(/^(?:[\w.-]+@)?[\w.-]+:(.+)$/);
+    path = scpLike ? scpLike[1] : null;
+  }
+
+  if (!path) return null;
+  const segments = path.split('/').filter(Boolean);
+  const last = segments[segments.length - 1];
+  return last && last !== '.' && last !== '..' ? last : null;
+}
+
 export interface GitTrackingDrift {
   ahead: number;
   behind: number;
