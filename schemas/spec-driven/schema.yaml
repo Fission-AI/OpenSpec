@@ -176,7 +176,12 @@ artifacts:
       Sections:
       - **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., "See proposal.md - Why").
       - **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.
-      - **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.
+      - **Decisions**: Give each decision a unique ID in a heading
+        containing only the ID, such as `### D1`, `### D2`, and so on.
+        Put the descriptive title on a separate line below the heading.
+        Assign the next unused ID and never change an existing ID when
+        a decision is renamed, removed, or reordered. Document the context,
+        chosen option, rationale, and alternatives considered.
       - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
       - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
       - **Open Questions**: Unknowns that can safely be answered later without
@@ -260,6 +265,10 @@ artifacts:
       ```
 
       Reference specs for what needs to be built, design for how to build it.
+      When a task depends on or implements a specific design decision,
+      link to it using a relative Markdown link, such as
+      `[D1](./design.md#d1)`. Use the decision ID as the link fragment,
+      not its descriptive title. Do not refer to decisions only by position.
     requires:
       - specs
       - design
