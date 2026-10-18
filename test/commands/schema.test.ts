@@ -508,6 +508,38 @@ artifacts:
       ).toContain('schema: my-workflow');
     });
 
+    it('treats an empty --schema as absent in the progress line', async () => {
+      const initialized = await runCLI(
+        [
+          'schema',
+          'init',
+          'my-workflow',
+          '--artifacts',
+          'proposal,specs,tasks',
+          '--default',
+          '--json',
+        ],
+        { cwd: tempDir }
+      );
+      expect(initialized.exitCode).toBe(0);
+
+      // createChange ignores a falsy --schema, so the announced schema is
+      // the configured one, not the empty string.
+      const created = await runCLI(['new', 'change', 'empty-schema', '--schema', ''], {
+        cwd: tempDir,
+      });
+      expect(created.exitCode).toBe(0);
+      expect(created.stderr).toContain("Creating change 'empty-schema' with schema 'my-workflow'");
+      expect(created.stderr).not.toContain("with schema ''");
+      expect(created.stdout).toContain('Schema: my-workflow');
+      expect(
+        fs.readFileSync(
+          path.join(tempDir, 'openspec', 'changes', 'empty-schema', '.openspec.yaml'),
+          'utf-8'
+        )
+      ).toContain('schema: my-workflow');
+    });
+
     it('scaffolds every template with a top-level heading', async () => {
       const initialized = await runCLI(
         [
