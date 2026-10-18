@@ -54,6 +54,8 @@ Establishes why the change is needed.
 The template the agent receives as the output format ([templates/proposal.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/proposal.md)):
 
 ```md
+# Proposal
+
 ## Why
 
 <!-- Explain the motivation for this change. What problem does this solve? Why now? -->
@@ -65,9 +67,12 @@ The template the agent receives as the output format ([templates/proposal.md](ht
 ## Capabilities
 
 ### New Capabilities
-<!-- Capabilities being introduced. Use kebab-case for path segments you introduce
-     (e.g., user-auth or identity/user-auth) that follow the project's existing
-     spec organization. Each creates specs/<capability-path>/spec.md. -->
+<!-- Capabilities being introduced. Name each capability for a cohesive system
+     behavior that can own related requirements as the system evolves. Do not name
+     implementation tasks or proposal sections. Avoid broad catch-all names. Use
+     kebab-case for path segments you introduce (e.g., user-auth or identity/user-auth)
+     that follow the project's existing spec organization. Each creates
+     specs/<capability-path>/spec.md. -->
 - `<capability-path>`: <brief description of what this capability covers>
 
 ### Modified Capabilities
@@ -96,12 +101,24 @@ Sections:
 - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
 - **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
 - **Capabilities**: Identify which specs will be created or modified:
-  - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<capability-path>/spec.md`. Use kebab-case for path segments you introduce (e.g., `user-auth` or `identity/user-auth`) and follow the project's existing spec organization.
+  - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<capability-path>/spec.md`. Name each capability for a durable system behavior (for example, `user-auth`), not the work in this change (for example, `add-login-endpoint`). Choose a cohesive boundary that can own related requirements as the system evolves; avoid broad catch-all capabilities. Use kebab-case for path segments you introduce (e.g., `user-auth` or `identity/user-auth`) and follow the project's existing spec organization.
   - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Use the exact existing path under `openspec/specs/`. Leave empty if no requirement changes.
 - **Impact**: Affected code, APIs, dependencies, or systems.
 
 IMPORTANT: The Capabilities section is critical. It creates the contract between
-proposal and specs phases. Research existing specs before filling this in.
+proposal and specs phases. Research existing specs before filling this in:
+run `openspec list --specs` for the project's capability inventory, then
+`openspec show "<spec-id>" --type spec --json --no-scenarios` for any that
+look related - that returns a capability's purpose and requirement texts
+without pulling whole spec files into context. Append `--store "<id>"` to
+both commands only for a registered standalone store, and keep `--type
+spec`: a change and a spec sharing a name is otherwise an ambiguous-item
+error. `openspec list` without `--specs` lists in-flight changes, not
+specs - it never shows what the project already covers. Reuse an existing
+capability's exact path instead of introducing a near-duplicate name.
+The filtered read is only an overview. Before deciding what is already
+covered or what should change, read each relevant spec in full, including
+scenarios, with `openspec show "<spec-id>" --type spec` (same `--store` rule).
 Each capability listed here will need a corresponding spec file.
 
 Every change must either declare at least one capability (new or
@@ -129,6 +146,8 @@ Each delta spec is the `spec.md` inside its capability folder. `openspec validat
 The template the agent receives as the output format ([templates/spec.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/spec.md)):
 
 ```md
+# Spec Delta
+
 ## Purpose
 <!-- New capabilities only: one or two sentences (50+ characters) on what this capability is for. Delete this section for an existing capability. -->
 
@@ -170,7 +189,18 @@ Create one spec file per capability listed in the proposal's Capabilities sectio
 `<capability-path>` is the spec directory relative to `specs/` (for example,
 `user-auth` or `identity/user-auth`). Preserve the full path:
 - New capabilities: use the exact path from the proposal at `specs/<capability-path>/spec.md`. Any path segment newly introduced in the proposal must be kebab-case. Follow the project's existing organization; do not add a new domain level when the project uses a flat layout.
-- Modified capabilities: use the exact existing path from `openspec/specs/<capability-path>/` when creating the delta at `specs/<capability-path>/spec.md`. Do not move or rename the capability.
+- Modified capabilities: use the exact existing path from `openspec/specs/<capability-path>/` when creating the delta at `specs/<capability-path>/spec.md`. Run `openspec list --specs` to confirm that path before writing the delta, appending `--store "<id>"` only for a registered standalone store - a mistyped or invented path targets a capability that does not exist rather than the one you meant. Do not move or rename the capability.
+
+Write the spec files one at a time, so the user sees progress and an
+interrupted run keeps the files it already wrote:
+- Before writing anything, compare the capabilities the proposal lists
+  with the `specs/<capability-path>/spec.md` files that already exist,
+  and start with the first capability that has no file. Do not rewrite
+  an existing file unless the user asks you to.
+- Before each file, say in one line which capability you are writing.
+- Write each file as soon as you have drafted it. Do not plan every file
+  before writing the first.
+- Stop when every capability the proposal lists has its file.
 
 There must be at least one spec file unless the change's `.openspec.yaml`
 sets `skip_specs: true` (no spec-level behavior change) - `openspec validate`
@@ -189,8 +219,9 @@ Format requirements:
 - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
 - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
 - Every requirement MUST have at least one scenario.
+- Keep each requirement's description (the text between `### Requirement:` and its first scenario) to 500 characters or fewer. `openspec validate` flags longer descriptions in ADDED requirements and in the main spec. This is a warning: normal validation still passes, but `openspec validate --strict` fails on it. When writing a new requirement, state one behavior per requirement: move examples and edge cases into scenarios, and split a requirement that covers several behaviors into separate `### Requirement:` blocks, each with its own scenarios. Under MODIFIED, keep the existing requirement block whole; never split, trim or rewrite existing text just to meet the length. Split an existing long requirement only when the user asks for it, in a change made for that purpose: under MODIFIED, keep its header and every scenario and cut its description down to one behavior without changing its meaning, then add each behavior you removed as its own ADDED requirement with its own scenarios.
 
-New capabilities only: start the delta spec with a `## Purpose` section -
+New capabilities only: the delta spec's first section is `## Purpose` -
 one or two sentences (50+ characters, or `openspec validate --strict`
 reports it as too brief) describing what the capability is for. Archive
 copies it into the main spec it creates; without it the new main spec is
@@ -198,10 +229,16 @@ left with a `TBD ... Update Purpose after archive` placeholder to fill in
 by hand. Do NOT add `## Purpose` to a delta for an existing capability -
 that spec already has one and the delta's is ignored. To change an
 existing capability's Purpose - including a leftover `TBD` placeholder -
-edit `openspec/specs/<capability-path>/spec.md` directly.
+edit `<planningHome.root>/openspec/specs/<capability-path>/spec.md`
+directly. `planningHome.root` comes from the `openspec instructions ...
+--json` response. Always use it rather than a repo-relative path: it
+resolves to the store whenever the change lives in one - whether that
+came from `--store`, a project `store:` pointer, or a global default
+store - and to the current repository otherwise. Do not try to work out
+which case applies; the field already has.
 
 MODIFIED requirements workflow:
-1. Locate the existing requirement in openspec/specs/<capability-path>/spec.md
+1. Locate the existing requirement in `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (the same store-aware root as above)
 2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
 3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
 4. Ensure header text matches exactly (whitespace-insensitive)
@@ -209,8 +246,10 @@ MODIFIED requirements workflow:
 Common pitfall: Using MODIFIED with partial content loses detail at archive time.
 If adding new concerns without changing existing behavior, use ADDED instead.
 
-Example (a new capability, so it opens with `## Purpose`):
+Example (a new capability, so its first section is `## Purpose`):
 ```
+# Spec Delta
+
 ## Purpose
 
 Lets users take their data out of the product in a portable format.
@@ -243,6 +282,8 @@ Explains how to implement the change. Drafted only when the change needs one.
 The template the agent receives as the output format ([templates/design.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/design.md)):
 
 ```md
+# Design
+
 ## Context
 
 <!-- Current state and constraints that shape the approach. See proposal.md for motivation - don't restate it -->
@@ -295,11 +336,11 @@ Sections:
 - **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., "See proposal.md - Why").
 - **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.
 - **Decisions**: Give each decision a unique ID in a heading
-        containing only the ID, such as `### D1`, `### D2`, and so on.
-        Put the descriptive title on a separate line below the heading.
-        Assign the next unused ID and never change an existing ID when
-        a decision is renamed, removed, or reordered. Document the context,
-        chosen option, rationale, and alternatives considered.
+  containing only the ID, such as `### D1`, `### D2`, and so on.
+  Put the descriptive title on a separate line below the heading.
+  Assign the next unused ID and never change an existing ID when
+  a decision is renamed, removed, or reordered. Document the context,
+  chosen option, rationale, and alternatives considered.
 - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation. Link each risk to the relevant decision when applicable, using a relative Markdown link such as [D2](#d2).
 - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
 - **Open Questions**: Unknowns that can safely be answered later without
@@ -315,6 +356,7 @@ proposal for motivation and, once written, the specs for requirements -
 if a section would only restate them, point to them instead.
 
 Good design docs explain the "why" behind technical decisions.
+
 ```
 
 ## tasks.md
@@ -326,6 +368,8 @@ Breaks the implementation into checkable tasks. [apply](#apply) tracks progress 
 The template the agent receives as the output format ([templates/tasks.md](https://github.com/Fission-AI/OpenSpec/blob/main/schemas/spec-driven/templates/tasks.md)):
 
 ```md
+# Tasks
+
 ## 1. <!-- Task Group Name -->
 
 - [ ] 1.1 <!-- Task description -->
@@ -348,33 +392,63 @@ Before writing tasks, check design.md for Open Questions. If any of them
 would change what gets built, resolve them with the user first - do not
 bake an unstated assumption into the task list.
 
-**IMPORTANT: Follow the template below exactly.** The apply phase parses
-checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+**IMPORTANT: Follow the template below for tracked tasks.** The apply phase parses
+checkbox format to track progress. A box holding only `x` counts as done,
+upper or lower case and with any spacing, so `- [ x]` is done too. Every
+other marker, including `- [~]`, `- [-]` and an empty `- []`, reads as
+unfinished. A line with no checkbox is not tracked at all.
 
 Guidelines:
-- Group related tasks under ## numbered headings
-- Each task MUST be a checkbox: `- [ ] X.Y Task description`
+- Group related tracked tasks under ## numbered headings
+- Each tracked task MUST be a checkbox: `- [ ] X.Y Task description`
 - Tasks should be small enough to complete in one session
 - Order tasks by dependency (what must be done first?)
+- Track implementation and verification work that can be completed before
+  archive. If the requested workflow includes archive or work that requires
+  this change to be archived, preserve those steps as plain bullets in an
+  optional `## Workflow follow-up` section at the end of tasks.md. These
+  bullets are reference information outside tracked task progress.
+- Each task MUST state how to verify completion (a test, command,
+  observable behavior, or delivered artifact). Put the verification in
+  that task's checkbox description. Use a separate verification task only
+  when it checks broader integration or system behavior that spans
+  multiple implementation tasks.
+- Each task group MUST land the tests and documentation its own work
+  calls for. Do NOT collect testing or documentation into a final group -
+  when a late group first exercises work from an early one, the failures
+  cascade back through every group in between and force rework. A group
+  whose work calls for neither, such as scaffolding or dependency setup,
+  carries neither. A final group is for integration checks only, not for
+  the tests and docs an earlier group owed.
 
 Example:
 ```
+# Tasks
+
 ## 1. Setup
 
-- [ ] 1.1 Create new module structure
-- [ ] 1.2 Add dependencies to package.json
+- [ ] 1.1 Create new module structure and verify expected files are present
+- [ ] 1.2 Add dependencies to package.json and verify package installation succeeds
 
 ## 2. Core Implementation
 
-- [ ] 2.1 Implement data export function
-- [ ] 2.2 Add CSV formatting utilities
+- [ ] 2.1 Implement data export function and verify the export test passes
+- [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
+- [ ] 2.3 Document the export API in docs/export.md and verify the documented command runs as written
+```
+
+When applicable, append workflow follow-up as plain bullets, for example:
+```
+## Workflow follow-up
+
+- Archive the change after the project's review requirements are satisfied.
+- Verify the archived result.
 ```
 
 Reference specs for what needs to be built, design for how to build it.
-Each task should be verifiable - you know when it's done.
 When a task depends on or implements a specific design decision,
 link to it using a relative Markdown link, such as
-[D1](./design.md#d1). Use the decision ID as the link fragment,
+`[D1](./design.md#d1)`. Use the decision ID as the link fragment,
 not its descriptive title. Do not refer to decisions only by position.
 ````
 

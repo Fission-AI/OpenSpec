@@ -5,16 +5,27 @@ import {
   getOpsxUpdateCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
+import { PROJECT_ROOT_GUARD } from '../../../src/core/templates/workflows/project-root.js';
+import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
+import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../../src/core/profiles.js';
 
 const skill = getUpdateChangeSkillTemplate();
 const command = getOpsxUpdateCommandTemplate();
 
+const render = (workflows: readonly string[]): Array<[string, string]> => {
+  const installed = new Set<string>(workflows);
+  return [
+    ['skill', resolveOptionalWorkflows(skill.instructions, installed)],
+    ['command', resolveOptionalWorkflows(command.content, installed)],
+  ];
+};
+
 // Both delivery surfaces must carry the same contract; every behavioral
-// assertion below runs against each body.
-const bodies: Array<[string, string]> = [
-  ['skill', skill.instructions],
-  ['command', command.content],
-];
+// assertion below runs against each body. Templates carry optional-workflow
+// conditionals, so a body is only meaningful once resolved against a workflow
+// set — these are the bodies a profile with every workflow installed receives.
+const bodies = render(ALL_WORKFLOWS);
+const coreBodies = render(CORE_WORKFLOWS);
 
 // The load-bearing sentence of step 4 and the whole of step 5 are pinned
 // verbatim. #1836 happened because a single verb ("Apply") in step 4 silently
@@ -44,7 +55,7 @@ const SANCTIONED_OUTSIDE_STEP_FIVE = [
   STEP_FOUR_DRAFT_RULE,
   'that is the starting edit.',
   'Do NOT write to `resolvedOutputPath`',
-  '- Edit only the concrete files in `existingOutputPaths`; never write to a glob `resolvedOutputPath`.',
+  '- Edit only the concrete files in `existingOutputPaths`, plus any confirmed concrete path allowed under a partly populated glob artifact (step 4); never write to a glob `resolvedOutputPath`.',
   'Confirm every edit with the user before writing.',
   '`/opsx:apply`',
   '(tasks checked off / already applied)',
@@ -94,7 +105,8 @@ function stepFive(body: string, label: string): string {
   return section(body, '5. **Confirm and apply', '6. **Point to the next step', `${label} step 5`);
 }
 
-// Everything the agent reads except step 5 and the shared store preamble.
+// Everything the agent reads except step 5 and the shared store and project-root
+// preambles (the root guard says to stop before writing; it authorizes none).
 // #1836 lived in step 4, but a sentence in the intro, in step 3, in the
 // Guardrails or in the Output section would govern the agent just as well
 // while sitting outside any single-step slice. Returns the checks that tripped.
@@ -103,6 +115,8 @@ function writeAuthorizationsOutsideStepFive(body: string, label: string): string
     .split(stepFive(body, label))
     .join('\n')
     .split(STORE_SELECTION_GUIDANCE)
+    .join('')
+    .split(PROJECT_ROOT_GUARD)
     .join('');
   for (const sanctioned of SANCTIONED_OUTSIDE_STEP_FIVE) {
     rest = rest.split(sanctioned).join('');
@@ -227,21 +241,115 @@ describe('update-change templates', () => {
       expect(body, label).toContain('NEVER edit implementation code');
       expect(body, label).toContain('stop and point to `/opsx:apply`');
       expect(body, label).toContain('Do not advance the build frontier');
-      expect(body, label).toContain('Do NOT create artifacts that don\'t exist yet');
+      expect(body, label).toContain(
+        'no existing output files and status `ready` or `blocked`, note it and point the user to `/opsx:continue`'
+      );
+      expect(body, label).toContain(
+        'empty `existingOutputPaths` and status `ready` or `blocked`, that is `/opsx:continue`\'s job'
+      );
+      expect(body, label).toContain('Leave `skipped` artifacts untouched');
+      expect(body, label).toContain('do not treat them as missing or defer them to the continue workflow');
+    }
+  });
+
+  it('fills a gap under an already-satisfied glob artifact instead of deferring it (3.3a)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('is marked `done` after at least one file matches');
+      expect(body, label).toContain('the continue workflow only handles `ready` artifacts');
+      expect(body, label).toContain('whose `existingOutputPaths` is non-empty');
+      expect(body, label).toContain(
+        'use its `instruction` and `template`'
+      );
+      expect(body, label).toContain('Treat `context` and `rules` as constraints; do not copy them into the file');
+      expect(body, label).toContain('If instructions report `skipped: true`, do not create the file');
+      expect(body, label).toContain('Read current dependency files from disk');
+      expect(body, label).toContain('if a required non-skipped dependency is missing, stop and ask the user to restore it first');
+      expect(body, label).toContain('If `instruction` delegates creation to another skill or command');
+      expect(body, label).toContain('only if it can honor the confirmed path and these guardrails; otherwise stop');
+      expect(body, label).toContain(
+        'inside `changeRoot` that matches `artifactPaths.<id>.outputPath`'
+      );
+      expect(body, label).toContain('create it only after the user confirms');
+      expect(body, label).toContain('does not already exist');
+      expect(body, label).toContain('after resolving any symlinked parent directories');
+    }
+  });
+
+  it('rechecks new-file scope after confirmation and refuses concurrent overwrites', () => {
+    for (const [label, body] of bodies) {
+      const confirmation = body.indexOf('create it only after the user confirms');
+      const recheck = body.indexOf('After confirmation, immediately before creation');
+      const create = body.indexOf('Use a create operation that fails if the target already exists');
+
+      expect(confirmation, label).toBeGreaterThanOrEqual(0);
+      expect(recheck, label).toBeGreaterThan(confirmation);
+      expect(create, label).toBeGreaterThan(recheck);
+      const writeGuard = body.slice(recheck, create);
+      expect(writeGuard, label).toContain('refresh status and instructions');
+      expect(writeGuard, label).toContain('still in scope, not skipped, and partially populated');
+      expect(writeGuard, label).toContain('repeat the concrete-path checks above');
+      expect(body, label).toContain('stop and reconcile with the user rather than replacing existing content or choosing a different path');
+    }
+  });
+
+  // #2068: the first guardrail read "Edit only the concrete files in
+  // existingOutputPaths", and a file step 4 creates is by definition not in
+  // that list. The exception sat two bullets below, so an agent applying the
+  // blanket rule refused the very operation the glob-gap flow exists to
+  // perform. Every place that states the scope rule has to carry the
+  // exception - a slice of the Guardrails section alone would miss step 2,
+  // which states the same rule two steps before the exception appears.
+  it('carries the glob new-file exception wherever the scope rule is stated (#2068)', () => {
+    for (const [label, body] of bodies) {
+      const scopeLines = body
+        .split('\n')
+        .filter((line) =>
+          /- Edit only the concrete files in `existingOutputPaths`|The files to edit are `artifactPaths/.test(line)
+        );
+      // Both sites: step 2's prose and the Guardrails bullet.
+      expect(scopeLines.length, `${label}: expected both scope-rule sites`).toBe(2);
+
+      for (const line of scopeLines) {
+        expect(line, `${label}: unqualified scope rule: ${line}`).toContain(
+          'any confirmed concrete path allowed under a partly populated glob artifact (step 4)'
+        );
+      }
+
+      // A reword must not be able to restore the unqualified prohibition.
+      expect(body, label).not.toMatch(/existingOutputPaths`;\s*never write to a glob/);
+      expect(body, label).not.toMatch(/existingOutputPaths` - the concrete files that exist on disk[^.]*\.\s*Do NOT write/);
+
+      // The prohibition itself and the frontier rule must survive the fix.
+      const guardrails = body.slice(body.indexOf('**Guardrails**'));
+      expect(guardrails, label).toContain('never write to a glob `resolvedOutputPath`');
+      expect(guardrails, label).toContain(
+        'The only new-file scope is a confirmed concrete path under a glob artifact whose `existingOutputPaths` is non-empty.'
+      );
+
+      // "(step 4)" is a cross-reference; pin that step 4 is still the step
+      // that owns the confirmation and the path checks, so renumbering or
+      // moving the flow cannot leave a dangling pointer.
+      const stepFour = section(body, '4. **Read and reconcile**', '5. **Confirm and apply', `${label} step 4`);
+      expect(stepFour, label).toContain('whose `existingOutputPaths` is non-empty');
+      expect(stepFour, label).toContain('create it only after the user confirms');
     }
   });
 
   it('writes to existingOutputPaths, never to a glob resolvedOutputPath (3.4)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('artifactPaths.<id>.existingOutputPaths');
-      expect(body, label).toContain('Do NOT write to `resolvedOutputPath`');
-      expect(body, label).toContain('still the glob pattern, not a real file');
+      expect(body, label).toContain('it is still the glob pattern');
+      expect(body, label).toContain('The glob `resolvedOutputPath` is not a valid target');
+      expect(body, label).toContain('The only new-file scope');
     }
   });
 
   it('ends with next-step guidance and never acts on it (3.5)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('guidance only - NEVER act on it');
+      expect(body, label).toContain(
+        'Artifacts with empty `existingOutputPaths` and status `ready` or `blocked` -> suggest `/opsx:continue`'
+      );
       expect(body, label).toContain('suggest `/opsx:continue`');
       expect(body, label).toContain('suggest `/opsx:apply`');
       expect(body, label).toContain('suggest `/opsx:archive`');
@@ -249,45 +357,57 @@ describe('update-change templates', () => {
     }
   });
 
-  it('explains the optional continue workflow before suggesting it', () => {
+  it('hands off to /opsx:continue when that workflow is installed', () => {
     for (const [label, body] of bodies) {
-      const availabilityGuidance = body.indexOf(
-        '`/opsx:continue` is an optional workflow and may not be installed'
-      );
-      const firstSuggestion = body.indexOf(
-        '`/opsx:continue`',
-        availabilityGuidance + '`/opsx:continue`'.length
-      );
-
-      expect(availabilityGuidance, label).toBeGreaterThanOrEqual(0);
-      expect(body.indexOf('`/opsx:continue`'), label).toBe(availabilityGuidance);
-      expect(firstSuggestion, label).toBeGreaterThan(availabilityGuidance);
       expect(body, label).toContain(
-        'If it is unavailable, `openspec status --change "<name>" --json` shows the next artifact'
+        '`/opsx:continue` is what creates the ones that do not'
       );
-      expect(body, label).toContain(
-        '`openspec instructions "<artifact-id>" --change "<name>" --json` explains how to create it'
-      );
+      expect(body, label).toContain('suggest `/opsx:continue` to create them');
+      expect(body, label).toContain("that is `/opsx:continue`'s job");
+      // The handoff is stated outright, not deferred to a runtime availability
+      // check the model has to perform (#1734).
+      expect(body, label).not.toContain('may not be installed');
+      expect(body, label).not.toContain('verify that it is available');
     }
   });
 
-  it('confirms every edit and redirects intent changes to /opsx:new', () => {
+  it('never names /opsx:continue on a profile that does not install it', () => {
+    for (const [label, body] of coreBodies) {
+      expect(body, label).not.toContain('/opsx:continue');
+      expect(body, label).toContain('it never creates missing ones');
+      expect(body, label).toContain(
+        'run `openspec status --change "<name>" --json` for the next artifact'
+      );
+      expect(body, label).toContain(
+        '`openspec instructions "<artifact-id>" --change "<name>" --json` for how to create them'
+      );
+      expect(body, label).toContain(
+        'Anything deferred because it does not exist yet'
+      );
+      expect(body, label).toContain('creating them is a separate step, outside this workflow');
+    }
+  });
+
+  it('confirms every edit and redirects intent changes to /opsx:new when installed', () => {
     for (const [label, body] of bodies) {
+      const reconciliation = body.slice(body.indexOf('4. **Read and reconcile**'), body.indexOf('5. **Confirm and apply'));
+      expect(reconciliation, label).toContain('Draft the requested edit in the conversation, not in files');
+      expect(reconciliation, label).not.toContain('Apply the requested edit');
       expect(body, label).toContain('Write only after the user confirms');
       expect(body, label).toContain('If the user rejects a revision, do not write it');
       expect(body, label).toContain('recommend starting fresh with `/opsx:new`');
       expect(body, label).toContain('Update vs. Start Fresh');
+      expect(body, label).not.toContain('first verify whether the optional');
+    }
+  });
+
+  it('routes intent changes to the CLI when /opsx:new is not installed', () => {
+    for (const [label, body] of coreBodies) {
+      expect(body, label).not.toContain('/opsx:new');
       expect(body, label).toContain('ask for a distinct unused change name');
       expect(body, label).toContain('openspec new change "<new-change-name>"');
       expect(body, label).not.toContain('openspec new change "<name>"');
-
-      const newAvailabilityCheck = body.indexOf(
-        'first verify whether the optional `/opsx:new` workflow is available'
-      );
-      const newRecommendation = body.indexOf('recommend starting fresh with `/opsx:new`');
-      expect(newAvailabilityCheck, label).toBeGreaterThanOrEqual(0);
-      expect(body.slice(0, newAvailabilityCheck), label).not.toContain('`/opsx:new`');
-      expect(newRecommendation, label).toBeGreaterThan(newAvailabilityCheck);
+      expect(body, label).toContain('Update vs. Start Fresh');
     }
   });
 });

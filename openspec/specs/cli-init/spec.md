@@ -231,6 +231,12 @@ The command SHALL generate opsx slash commands only for selected tools that have
 - **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.kimi-code'`
 - **AND** command-file generation SHALL be skipped because no Kimi adapter is registered
 
+#### Scenario: Grok Build skips command-file generation
+
+- **WHEN** the user selects Grok Build during initialization
+- **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.grok'`
+- **AND** command-file generation SHALL be skipped because no Grok adapter is registered
+
 ### Requirement: Config File Generation
 
 The command SHALL create an OpenSpec config file with schema settings.

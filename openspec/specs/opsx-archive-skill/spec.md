@@ -45,26 +45,36 @@ The skill SHALL check artifact completion status using the artifact graph before
 
 ### Requirement: Task Completion Check
 
-The skill SHALL check task completion status from tasks.md before archiving.
+The skill SHALL check the selected change's task completion using `totalTasks` and `completedTasks` from `openspec list --json`, with the same selected-root flags used for the rest of the workflow. It SHALL match the change by name and use the CLI's schema-aware task resolution in both single and bulk archive workflows.
 
 #### Scenario: Incomplete tasks found
 
-- **WHEN** agent reads tasks.md
-- **AND** incomplete tasks are found (marked with `- [ ]`)
+- **WHEN** the selected change has `totalTasks` greater than `completedTasks`
 - **THEN** display warning showing count of incomplete tasks
 - **AND** prompt user for confirmation to continue
 - **AND** proceed if user confirms
 
 #### Scenario: All tasks complete
 
-- **WHEN** agent reads tasks.md
-- **AND** all tasks are complete (marked with `- [x]`)
+- **WHEN** the selected change has equal `totalTasks` and `completedTasks`
 - **THEN** proceed without task-related warning
 
-#### Scenario: No tasks file
+#### Scenario: No tracked tasks
 
-- **WHEN** tasks.md does not exist
+- **WHEN** the CLI reports `totalTasks` as zero for the selected change
 - **THEN** proceed without task-related warning
+
+#### Scenario: Custom task artifact or output path
+
+- **WHEN** the schema tracks tasks under a custom artifact name, output path, or glob
+- **THEN** use the CLI totals across the schema-resolved files
+- **AND** do not infer completion from artifact existence, an artifact id of `tasks`, or the absence of a top-level `tasks.md`
+
+#### Scenario: Task progress lookup unavailable
+
+- **WHEN** the list command fails, returns invalid JSON, omits or duplicates a selected change, or reports invalid task counts
+- **THEN** report the lookup problem and stop before syncing or archiving
+- **AND** do not treat the missing progress as zero tasks
 
 ### Requirement: Spec Sync Prompt
 
@@ -78,7 +88,8 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **AND** if user cancels, stop without archiving
 - **AND** if user confirms, execute `/opsx:sync` logic inline and wait for it to complete
 - **AND** verify every capability that has a delta spec, not only those the sync reports it touched: ADDED requirements present, MODIFIED requirements carrying the changes named in the delta, REMOVED requirements absent, RENAMED requirements present under the new name and absent under the old one
-- **AND** treat a capability whose last requirement the sync removed as verified when its main spec was deleted rather than left empty, and a spec the sync deliberately kept and reported as verified too
+- **AND** treat a capability whose last requirement the sync removed as verified when its main spec was deleted rather than left empty
+- **AND** treat any stop or blocking condition the sync reports as a failed sync, including a main spec it left unmodified because a retirement was blocked
 - **AND** stop without archiving if the sync fails or any capability does not verify
 - **AND** archive only after verification passes, or when the user explicitly chose to archive without syncing or to archive already-synced specs
 

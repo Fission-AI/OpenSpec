@@ -1,5 +1,6 @@
 import * as nodeFs from 'fs';
 import path from 'path';
+import { detectLineEnding, matchLineEnding } from './line-endings.js';
 
 const fs = nodeFs.promises;
 const { constants: fsConstants } = nodeFs;
@@ -81,7 +82,7 @@ function findMarkerIndex(
 export class FileSystemUtils {
   /**
    * Converts a path to use forward slashes (POSIX style).
-   * Essential for cross-platform compatibility with glob libraries like fast-glob.
+   * Essential for cross-platform compatibility with glob libraries like tinyglobby.
    */
   static toPosixPath(p: string): string {
     return p.replace(/\\/g, '/');
@@ -122,6 +123,33 @@ export class FileSystemUtils {
     if (!this.isPathWithin(canonicalDirectory, canonicalTarget)) {
       throw new Error(`Path is outside the allowed directory: ${targetPath}`);
     }
+  }
+
+  /**
+   * Like assertPathWithin, but a targetPath that is itself a symlink may
+   * resolve outside allowedDirectory, so a project can keep a managed
+   * directory (for example openspec/changes) in another repository. Its parent
+   * must still be confined and the link must resolve to an existing path.
+   */
+  static assertPathWithinAllowingLinkedLeaf(allowedDirectory: string, targetPath: string): void {
+    const resolvedTarget = path.resolve(targetPath);
+    let isLink = false;
+    try {
+      isLink = nodeFs.lstatSync(resolvedTarget).isSymbolicLink();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+
+    if (!isLink) {
+      this.assertPathWithin(allowedDirectory, resolvedTarget);
+      return;
+    }
+
+    this.assertPathWithin(allowedDirectory, path.dirname(resolvedTarget));
+    // Throws for a dangling link, which cannot be proven to be a directory.
+    nodeFs.realpathSync.native(resolvedTarget);
   }
 
   static resolveProjectArtifactPath(projectPath: string, artifactPath: string): string {
@@ -325,10 +353,16 @@ export class FileSystemUtils {
     endMarker: string
   ): Promise<void> {
     let existingContent = '';
-    
+    // The managed block is composed with '\n', so splicing it into a CRLF file
+    // would leave mixed endings behind. bash reports a stray '\r' in .bashrc as
+    // "$'\r': command not found", so settle the whole file on the convention it
+    // already used. A file that does not exist yet stays LF.
+    let originalContent: string | undefined;
+
     if (await this.fileExists(filePath)) {
       existingContent = await this.readFile(filePath);
-      
+      originalContent = existingContent;
+
       const startIndex = findMarkerIndex(existingContent, startMarker);
       const endIndex = startIndex !== -1
         ? findMarkerIndex(existingContent, endMarker, startIndex + startMarker.length)
@@ -352,8 +386,13 @@ export class FileSystemUtils {
     } else {
       existingContent = startMarker + '\n' + content + '\n' + endMarker;
     }
-    
-    await this.writeFile(filePath, existingContent);
+
+    await this.writeFile(
+      filePath,
+      originalContent === undefined
+        ? existingContent
+        : matchLineEnding(existingContent, originalContent)
+    );
   }
 
   static async ensureWritePermissions(dirPath: string): Promise<boolean> {
@@ -439,14 +478,23 @@ export function removeMarkerBlock(
   const before = content.substring(0, lineStart);
   const after = content.substring(lineEnd);
 
+  // The file's own newline, used for every ending this function writes. The
+  // blank-line collapse below rebuilds the separator it matched, so spelling it
+  // '\n' would leave a CRLF file with a mixed pair wherever a run was collapsed
+  // - the stray '\r' that bash reports as "$'\r': command not found".
+  //
+  // Dominant rather than "contains a CRLF anywhere", so that one stray CRLF in
+  // an otherwise-LF file does not pull the whole rewrite to CRLF. This is the
+  // same reading matchLineEnding uses, so both write paths agree.
+  const newline = detectLineEnding(content) ?? '\n';
+
   // Clean up double blank lines (handle both Unix \n and Windows \r\n)
   let result = before + after;
-  result = result.replace(/(\r?\n){3,}/g, '\n\n');
+  result = result.replace(/(\r?\n){3,}/g, newline + newline);
 
   // Trim trailing whitespace but preserve leading whitespace and original newline style
   if (result.trimEnd() === '') {
     return '';
   }
-  const newline = content.includes('\r\n') ? '\r\n' : '\n';
   return result.trimEnd() + newline;
 }

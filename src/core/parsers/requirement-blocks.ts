@@ -151,6 +151,34 @@ export interface UnpairedRename {
   line: number; // 1-based line number in the delta file
 }
 
+/**
+ * A canonical `### Requirement:` block that sits outside every delta section -
+ * under `## Notes`, under a misspelled `## Add Requirements`, or above the
+ * first `## ` header entirely.
+ *
+ * The delta reader only ever looks inside the four delta sections, so a block
+ * written anywhere else was dropped with no error, no warning and no note -
+ * even though it is well formed and reads exactly like one that would apply.
+ * That was the inconsistency worth closing: the ADJACENT mistake, a
+ * non-canonical `###` header INSIDE a delta section, has been reported as INFO
+ * since #498 (`skippedHeaders`), while the costlier one said nothing at all.
+ */
+export interface OrphanedRequirement {
+  name: string; // requirement name as written
+  section: string | null; // the `## ` section it sits under, or null above the first one
+  line: number; // 1-based line number in the delta file
+}
+
+/**
+ * Authored text archive does not carry into the main spec: a non-delta `## `
+ * section, text above the first `## `, or prose before the first requirement
+ * in ADDED/MODIFIED. `section` is null for text above the first `## `.
+ */
+export interface UnappliedContent {
+  section: string | null;
+  line: number; // 1-based: the section header, or the first line of leading prose
+}
+
 export interface DeltaPlan {
   added: RequirementBlock[];
   modified: RequirementBlock[];
@@ -162,6 +190,9 @@ export interface DeltaPlan {
   renamed: Array<{ from: string; to: string }>;
   /** FROM:/TO: lines in RENAMED that never formed a pair. */
   unpairedRenames: UnpairedRename[];
+  /** Canonical requirement blocks written outside every delta section. */
+  orphanedRequirements: OrphanedRequirement[];
+  unappliedContent: UnappliedContent[];
   skippedHeaders: SkippedHeader[]; // non-canonical ### headers the reader skipped
   sectionPresence: {
     added: boolean;
@@ -235,6 +266,8 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     removedBlocks,
     renamed: renamedPairs,
     unpairedRenames,
+    orphanedRequirements: findOrphanedRequirements(lines, fenceMask),
+    unappliedContent: findUnappliedContent(lines, fenceMask),
     skippedHeaders,
     sectionPresence: {
       added: addedLookup.found,
@@ -243,6 +276,106 @@ export function parseDeltaSpec(content: string): DeltaPlan {
       renamed: renamedLookup.found,
     },
   };
+}
+
+/**
+ * The four section titles the delta reader acts on, folded the way
+ * `getSectionsCaseInsensitive` folds them. Matching the reader exactly matters:
+ * a looser test (say, any run of whitespace) would treat `## ADDED  Requirements`
+ * as a delta section here while the reader ignores it, and the requirements
+ * under it would be dropped without this warning.
+ */
+const DELTA_SECTION_TITLES = new Set(
+  ['ADDED Requirements', 'MODIFIED Requirements', 'REMOVED Requirements', 'RENAMED Requirements'].map(
+    (title) => title.toLowerCase()
+  )
+);
+
+/**
+ * Every canonical `### Requirement:` header that is not inside a delta section,
+ * in document order.
+ *
+ * Walks the whole file rather than the parsed sections so a requirement written
+ * ABOVE the first `## ` header is reported too - it is dropped just as silently
+ * as one under `## Notes`. Fenced lines are skipped, so a requirement shown
+ * inside a markdown example is not mistaken for an authored one.
+ */
+function findOrphanedRequirements(
+  lines: string[],
+  fenceMask: boolean[]
+): OrphanedRequirement[] {
+  const orphans: OrphanedRequirement[] = [];
+  let section: string | null = null;
+  for (let i = 0; i < lines.length; i++) {
+    if (fenceMask[i]) continue;
+    // The same `## ` test splitTopLevelSections uses, so both agree on sections.
+    const sectionMatch = lines[i].match(/^(##)\s+(.+)$/);
+    if (sectionMatch) {
+      section = sectionMatch[2].trim();
+      continue;
+    }
+    if (section !== null && DELTA_SECTION_TITLES.has(section.toLowerCase())) continue;
+    const header = lines[i].match(REQUIREMENT_HEADER_REGEX);
+    if (header) {
+      orphans.push({
+        name: normalizeRequirementName(header[1]),
+        section,
+        line: i + 1,
+      });
+    }
+  }
+  return orphans;
+}
+
+export function describeUnappliedContent(content: UnappliedContent, sentenceStart = false): string {
+  const text = content.section === null
+    ? 'text above the first "## " section'
+    : DELTA_SECTION_TITLES.has(content.section.toLowerCase())
+      ? `text before the first requirement in "## ${content.section}"`
+      : `section "## ${content.section}"`;
+  return sentenceStart ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+}
+
+/**
+ * Where text the merge never reads begins. HTML comments, `# ` titles, Purpose
+ * (warned about separately), REMOVED/RENAMED bodies, and stray `###` headers
+ * before the first requirement (INFO since #498) are not reported.
+ */
+function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedContent[] {
+  // Blank out comments outside fences, keeping line count; an unterminated one
+  // runs to EOF. Comments only decide whether a line holds text: sections come
+  // from the same split the merge reads, where a `## ` line inside a comment is
+  // still a boundary. Fenced lines keep their text, so a `<!--` in a code sample
+  // never hides what follows the fence.
+  const comments = lines
+    .map((line, i) => (fenceMask[i] ? '' : line))
+    .join('\n')
+    .replace(/<!--[\s\S]*?(?:--!?>|$)/g, (m) => m.replace(/[^\n]/g, ' '))
+    .split('\n');
+  const masked = lines.map((line, i) => (fenceMask[i] ? line : comments[i]));
+  const sections = splitTopLevelSections(lines, fenceMask);
+  const firstText = (from: number, to: number, skip?: RegExp) => {
+    for (let i = from; i < to; i++) if (masked[i].trim() && !skip?.test(masked[i])) return i;
+    return -1;
+  };
+  const found: UnappliedContent[] = [];
+  const preamble = firstText(0, sections.length ? sections[0].body.bodyStartLine - 2 : lines.length, /^#\s/);
+  if (preamble !== -1) found.push({ section: null, line: preamble + 1 });
+  for (const { title, body } of sections) {
+    const folded = title.toLowerCase();
+    const start = body.bodyStartLine - 1;
+    if (folded === 'added requirements' || folded === 'modified requirements') {
+      const block = body.lines.findIndex((l, i) => !body.fenceMask[i] && REQUIREMENT_HEADER_REGEX.test(l));
+      const first = firstText(start, start + (block === -1 ? body.lines.length : block), /^###\s/);
+      if (first !== -1) found.push({ section: title, line: first + 1 });
+    } else if (!DELTA_SECTION_TITLES.has(folded)) {
+      // The Purpose carry-over reads past commented-out headers, so only a
+      // `## Purpose` outside a comment is the one archive handles.
+      if (folded === 'purpose' && masked[start - 1].trim()) continue;
+      if (firstText(start, start + body.lines.length) !== -1) found.push({ section: title, line: start });
+    }
+  }
+  return found;
 }
 
 /** One `## ` section of a delta file, in the order it was written. */
@@ -449,37 +582,97 @@ interface ScenarioBlock {
   raw: string;
 }
 
+/** Both directions of the scenario-name comparison, plus the two totals. */
+export interface ScenarioNameDiff {
+  /** Names the current block has that the incoming block does not cover. */
+  missing: string[];
+  /** Names the incoming block introduces that the current block does not have. */
+  added: string[];
+  /** Level-4 headers in the current block. */
+  currentCount: number;
+  /** Level-4 headers in the incoming block. */
+  incomingCount: number;
+}
+
+/**
+ * Compare the scenario names of a current requirement block and an incoming
+ * (MODIFIED) one, in both directions.
+ *
+ * `missing` is the loss the guard exists to catch: a MODIFIED requirement
+ * replaces the whole block, so every name there would be dropped from the main
+ * spec. `added` and the two counts are reported alongside it, because they are
+ * the first thing a reader checks once it fires (#1697) - a block that omits
+ * two names and introduces two is shaped like a rename, one that omits two and
+ * introduces none is shaped like a truncation. Neither is proof, and intent is
+ * not recoverable from structure, so this decides nothing and only says what
+ * the two blocks contain.
+ */
+export function diffScenarioNames(
+  current: RequirementBlock,
+  incoming: RequirementBlock
+): ScenarioNameDiff {
+  const currentNames = parseScenarioBlocks(current.raw).map((scenario) => scenario.name);
+  const incomingNames = parseScenarioBlocks(incoming.raw).map((scenario) => scenario.name);
+
+  // Multiplicity-aware: a name present N times on one side and M times on the
+  // other leaves max(0, N - M) instances unmatched. Set membership would treat
+  // N>M as fully covered and let archive silently drop duplicates (residual
+  // #1246 / duplicate-scenario-name blind spot).
+  const unmatched = (names: readonly string[], against: readonly string[]): string[] => {
+    const remaining = new Map<string, number>();
+    for (const name of against) remaining.set(name, (remaining.get(name) ?? 0) + 1);
+
+    const out: string[] = [];
+    for (const name of names) {
+      const left = remaining.get(name) ?? 0;
+      if (left > 0) remaining.set(name, left - 1);
+      else out.push(name);
+    }
+    return out;
+  };
+
+  return {
+    missing: unmatched(currentNames, incomingNames),
+    added: unmatched(incomingNames, currentNames),
+    currentCount: currentNames.length,
+    incomingCount: incomingNames.length,
+  };
+}
+
 /**
  * Scenario names the current requirement block has and the incoming
  * (MODIFIED) block does not. A MODIFIED requirement replaces the whole block,
  * so every name reported here would be dropped from the main spec.
  *
- * Shared by archive (which refuses to apply the block) and validate (which
- * reports the same loss at authoring time, #1477), so the two cannot disagree
- * about what counts as a dropped scenario.
+ * The `missing` half of diffScenarioNames, which archive (refusing to apply
+ * the block) and validate (reporting the same loss at authoring time, #1477)
+ * both go through, so the two cannot disagree about what counts as a dropped
+ * scenario.
  */
 export function findMissingCurrentScenarios(current: RequirementBlock, incoming: RequirementBlock): string[] {
-  // Multiplicity-aware: a name present N times in current and M times in
-  // incoming means max(0, N - M) instances are missing. Set membership would
-  // treat N>M as fully covered and let archive silently drop duplicates
-  // (residual #1246 / duplicate-scenario-name blind spot).
-  const remainingIncoming = new Map<string, number>();
-  for (const scenario of parseScenarioBlocks(incoming.raw)) {
-    const name = scenario.name;
-    remainingIncoming.set(name, (remainingIncoming.get(name) ?? 0) + 1);
-  }
+  return diffScenarioNames(current, incoming).missing;
+}
 
-  const missing: string[] = [];
-  for (const scenario of parseScenarioBlocks(current.raw)) {
-    const name = scenario.name;
-    const remaining = remainingIncoming.get(name) ?? 0;
-    if (remaining > 0) {
-      remainingIncoming.set(name, remaining - 1);
-    } else {
-      missing.push(name);
-    }
+/** At most this many added names are listed before the rest are counted. */
+const MAX_LISTED_ADDED_SCENARIOS = 3;
+
+/**
+ * The one sentence archive and validate both append when the guard fires, so
+ * the counts a reader sees cannot differ between the two commands.
+ */
+export function describeScenarioBalance(diff: ScenarioNameDiff): string {
+  const count = (value: number) => `${value} ${value === 1 ? 'scenario' : 'scenarios'}`;
+  const scale = `The modified block has ${count(diff.incomingCount)}; the current spec has ${count(diff.currentCount)}.`;
+  if (diff.added.length === 0) {
+    return `${scale} It adds none.`;
   }
-  return missing;
+  const listed = diff.added
+    .slice(0, MAX_LISTED_ADDED_SCENARIOS)
+    .map((name) => `"${name}"`)
+    .join(', ');
+  const rest = diff.added.length - MAX_LISTED_ADDED_SCENARIOS;
+  const names = rest > 0 ? `${listed} and ${rest} more` : listed;
+  return `${scale} It adds ${count(diff.added.length)} not in the current spec: ${names}.`;
 }
 
 /**
@@ -500,8 +693,16 @@ function scenarioHeaderAt(lines: string[], mask: boolean[], index: number): bool
  * ATX-closed, one not) are not mistaken for a dropped scenario.
  */
 function scenarioNameAt(line: string): string {
-  return line
-    .replace(SCENARIO_HEADER, '')
+  return scenarioNameFromHeaderText(line.replace(SCENARIO_HEADER, ''));
+}
+
+/**
+ * scenarioNameAt for header text whose leading `####` is already gone, as the
+ * section parser (MarkdownParser) holds it, so `show --json` names a scenario
+ * exactly as the MODIFIED loss check does.
+ */
+export function scenarioNameFromHeaderText(headerText: string): string {
+  return headerText
     // Optional ATX closing sequence. CommonMark only treats a trailing `#` run
     // as a close when it is preceded by a space or tab — not any Unicode space —
     // so this uses `[ \t]`, not `\s`. A looser `\s` could strip a `#` run after

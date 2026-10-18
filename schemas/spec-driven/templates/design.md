@@ -1,3 +1,5 @@
+# Design
+
 ## Context
 
 <!-- Current state and constraints that shape the approach. See proposal.md for motivation - don't restate it -->

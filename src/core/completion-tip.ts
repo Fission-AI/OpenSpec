@@ -22,7 +22,6 @@ import { getGlobalConfigPath } from './global-config.js';
 import { writeFileAtomically } from './file-state.js';
 import { isCiEnvironment } from '../utils/ci.js';
 import { detectShell } from '../utils/shell-detection.js';
-import { CompletionFactory } from './completions/factory.js';
 
 export const COMPLETION_TIP_MESSAGE =
   "Tip: Run 'openspec completion install' for shell completions";
@@ -67,6 +66,9 @@ async function decideTip(): Promise<'show' | 'retire'> {
     if (!shell) {
       return 'retire';
     }
+    // Loaded only here: every shell's generator and installer, needed only on
+    // the rare run that still owes the tip.
+    const { CompletionFactory } = await import('./completions/factory.js');
     return (await CompletionFactory.createInstaller(shell).isInstalled())
       ? 'retire'
       : 'show';

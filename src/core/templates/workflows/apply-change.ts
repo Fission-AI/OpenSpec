@@ -5,7 +5,27 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
+
+/**
+ * `/opsx:continue` is not in the `core` profile, so the blocked-state handoff
+ * is authored with a CLI fallback and resolved at generation time (see
+ * optional-workflow.ts).
+ */
+const BLOCKED_STATE_HANDOFF = optionalWorkflow(
+  'continue',
+  'suggest using `/opsx:continue` to create them.',
+  'suggest completing the missing artifacts. Run `openspec status --change "<name>" --json`, select the next `ready` artifact (not `skipped` or `blocked`), and use `openspec instructions "<artifact-id>" --change "<name>" --json` for its rules and template. Keep the selected `--store <id>` on both commands.'
+);
+
+/** The archive handoff shown once every task is done. */
+const ARCHIVE_HANDOFF = optionalWorkflow(
+  'archive',
+  'You can archive this change with `/opsx:archive`.',
+  'You can archive this change by running `openspec archive "<name>"`.'
+);
 
 /**
  * The apply workflow instructions, authored once and rendered by both the
@@ -20,6 +40,8 @@ export function getApplyInstructions(): string {
   return `Implement tasks from an OpenSpec change.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -52,14 +74,17 @@ ${STORE_SELECTION_GUIDANCE}
    This returns:
    - \`contextFiles\`: artifact ID -> array of concrete file paths (varies by schema - could be proposal/specs/design/tasks or spec/tests/implementation/docs)
    - Progress (total, complete, remaining)
-   - Task list with status
+   - Task list with status, source path, and source line
    - Dynamic instruction based on current state
    - Optional \`context\`: current required project instruction input from the selected root
    - Optional \`operationGuidance\`: current advisory guidance for apply
+   - \`missingArtifacts\` (when present): required artifact ids with no output
 
    **Handle states:**
-   - If \`state: "blocked"\` (missing artifacts): show message, suggest using \`/opsx:continue\` (if it is not installed, run \`openspec status --change "<name>" --json\` to see the next artifact and \`openspec instructions <artifact-id> --change "<name>" --json\` for how to create it)
-   - If \`state: "all_done"\`: congratulate, suggest archive
+   - If \`state: "blocked"\`: show the message and pause implementation.
+     - If \`missingArtifacts\` is non-empty: ${BLOCKED_STATE_HANDOFF}
+     - Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file from existing planning artifacts. Do not assume another artifact is ready or start implementation while blocked.
+   - If \`state: "all_done"\`: report that all tracked tasks are complete and suggest review or verification as appropriate before archiving
    - Otherwise: proceed to implementation
 
    Treat \`context\` as a required prompt-level input. Read and consider it, and
@@ -101,7 +126,9 @@ ${STORE_SELECTION_GUIDANCE}
    - Show which task is being worked on
    - Make the code changes required
    - Keep changes minimal and focused
-   - Mark task complete in the tasks file: \`- [ ]\` → \`- [x]\`
+   - Before editing, confirm the checkbox at the returned \`sourcePath\` and \`line\` still matches the task description; if it does not, rerun the apply instructions and use the refreshed location
+   - Mark the task complete at its returned \`sourcePath\` and \`line\`: \`- [ ]\` → \`- [x]\`
+   - Rerun the apply instructions and confirm that task is now done and progress changed
    - Continue to next task
 
    **Pause if:**
@@ -116,7 +143,7 @@ ${STORE_SELECTION_GUIDANCE}
    Display:
    - Tasks completed this session
    - Overall progress: "N/M tasks complete"
-   - If all done: suggest archive
+   - If all done: report that tracked tasks are complete and suggest review or verification as appropriate before archiving
    - If paused: explain why and wait for guidance
 
 **Output During Implementation**
@@ -147,7 +174,8 @@ Working on task 4/7: <task description>
 - [x] Task 2
 ...
 
-All tasks complete! You can archive this change with \`/opsx:archive\`.
+All tracked tasks are complete. Review or verify the change as appropriate
+before archiving. ${ARCHIVE_HANDOFF}
 \`\`\`
 
 **Output On Pause (Issue Encountered)**
@@ -181,6 +209,7 @@ What would you like to do?
 - When a task needs work beyond what the spec describes, surface the added scope and pause - never silently narrow, defer, or simplify away specified behavior
 - Only mark a task \`- [x]\` when its specified behavior is fully implemented, not when it is partially done or deferred
 - Use contextFiles from CLI output, don't assume specific file names
+- Use each task's sourcePath and line to update its exact checkbox
 - Do not use context or operation guidance as proof that a task is complete
 - Apply relevant project context; report conflicts with controlling workflow inputs
 - Consider every guidance entry; explain any inapplicable or conflicting advice
@@ -198,7 +227,7 @@ This skill supports the "actions on a change" model:
 export function getApplyChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-apply-change',
-    description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks.',
+    description: 'Implement tasks from an OpenSpec change. Use when the user wants to start implementing, continue implementation, or work through tasks. Also use when the user says "openspec apply", "opsx apply", or "openspec implement".',
     instructions: getApplyInstructions(),
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',

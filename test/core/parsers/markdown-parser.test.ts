@@ -512,4 +512,95 @@ The system SHALL do something real.
       );
     });
   });
+  // Every packaged template now opens the artifact with an `# ` title (#1138).
+  // A title changes the section tree - `## Purpose` becomes a child of the
+  // title rather than a root - so pin that the parsers read the document the
+  // same either way. Main specs have carried a title all along; this says the
+  // change artifacts can too.
+  describe('an artifact title is inert (#1138)', () => {
+    const SPEC_BODY = `## Purpose
+Lets users assemble widgets from parts in a repeatable way.
+
+## Requirements
+
+### Requirement: User can build a widget
+The system SHALL let a user build a widget.
+
+#### Scenario: Successful build
+- **WHEN** a user requests a widget
+- **THEN** the system builds it
+`;
+
+    const PROPOSAL_BODY = `## Why
+Widgets are the one thing this product cannot assemble today.
+
+## What Changes
+- Add the widget capability.
+`;
+
+    it('parses a spec the same with and without one', () => {
+      const untitled = new MarkdownParser(SPEC_BODY).parseSpec('widget');
+      const titled = new MarkdownParser(`# widget Specification\n\n${SPEC_BODY}`).parseSpec(
+        'widget'
+      );
+
+      expect(titled).toEqual(untitled);
+    });
+
+    it('parses a proposal the same with and without one', () => {
+      const untitled = new MarkdownParser(PROPOSAL_BODY).parseChange('add-widget');
+      const titled = new MarkdownParser(`# Proposal\n\n${PROPOSAL_BODY}`).parseChange(
+        'add-widget'
+      );
+
+      expect(titled).toEqual(untitled);
+    });
+  });
+
+  describe('requirement and scenario names', () => {
+    const spec = (requirements: string) =>
+      `## Purpose\nNames for JSON readers.\n\n## Requirements\n\n${requirements}`;
+
+    it('names a requirement and its scenarios without the header prefixes', () => {
+      const parsed = new MarkdownParser(spec(`### Requirement: User Login
+The system SHALL log users in.
+
+#### Scenario: Valid credentials
+- **WHEN** a user signs in
+- **THEN** a session starts
+
+#### Scenario: Wrong password
+- **WHEN** the password is wrong
+- **THEN** no session starts`)).parseSpec('auth');
+
+      expect(parsed.requirements[0].name).toBe('User Login');
+      expect(parsed.requirements[0].scenarios.map((s) => s.name)).toEqual([
+        'Valid credentials',
+        'Wrong password',
+      ]);
+    });
+
+    it('drops a closing # run the way archive does, but keeps a # inside the name', () => {
+      const parsed = new MarkdownParser(spec(`### Requirement: Supports C# ###
+The system SHALL compile C#.
+
+#### Scenario: Builds a C# project ##
+- **WHEN** a project is built
+- **THEN** it compiles`)).parseSpec('lang');
+
+      expect(parsed.requirements[0].name).toBe('Supports C#');
+      expect(parsed.requirements[0].scenarios[0].name).toBe('Builds a C# project');
+    });
+
+    it('names a level-4 header without the Scenario: prefix by its text', () => {
+      const parsed = new MarkdownParser(spec(`### Requirement: Retries
+The system SHALL retry failed calls.
+
+#### Edge case: zero retries
+- **WHEN** retries are set to 0
+- **THEN** the call runs once`)).parseSpec('net');
+
+      expect(parsed.requirements[0].scenarios[0].name).toBe('Edge case: zero retries');
+    });
+  });
 });

@@ -283,6 +283,75 @@ ${END_MARKER}
       expect(secondResult).toBe(firstResult);
     });
   });
+  describe('line endings', () => {
+    const START = '# >>> openspec >>>';
+    const END = '# <<< openspec <<<';
+
+    function countEndings(content: string): { crlf: number; loneLf: number } {
+      return {
+        crlf: content.match(/\r\n/g)?.length ?? 0,
+        loneLf: content.match(/(?<!\r)\n/g)?.length ?? 0,
+      };
+    }
+
+    it('keeps a CRLF rc file on CRLF when inserting a block', async () => {
+      // A .bashrc with CRLF endings must not come back mixed: bash chokes on a
+      // stray \r with "$'\r': command not found".
+      const filePath = path.join(testDir, '.bashrc');
+      await fs.writeFile(filePath, '# user config\r\nexport EDITOR="vim"\r\n');
+
+      await FileSystemUtils.updateFileWithMarkers(
+        filePath,
+        'alias openspec="npx openspec"',
+        START,
+        END
+      );
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(result).toContain('alias openspec');
+      expect(result).toContain('export EDITOR');
+      expect(countEndings(result).loneLf).toBe(0);
+    });
+
+    it('keeps an LF rc file on LF', async () => {
+      const filePath = path.join(testDir, '.bashrc');
+      await fs.writeFile(filePath, '# user config\nexport EDITOR="vim"\n');
+
+      await FileSystemUtils.updateFileWithMarkers(
+        filePath,
+        'alias openspec="npx openspec"',
+        START,
+        END
+      );
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(countEndings(result).crlf).toBe(0);
+    });
+
+    it('keeps a CRLF rc file on CRLF when replacing an existing block', async () => {
+      const filePath = path.join(testDir, '.bashrc');
+      await fs.writeFile(
+        filePath,
+        `# user config\r\n${START}\r\nold content\r\n${END}\r\nexport EDITOR="vim"\r\n`
+      );
+
+      await FileSystemUtils.updateFileWithMarkers(filePath, 'new content', START, END);
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(result).toContain('new content');
+      expect(result).not.toContain('old content');
+      expect(countEndings(result).loneLf).toBe(0);
+    });
+
+    it('writes a new file with LF', async () => {
+      const filePath = path.join(testDir, 'brand-new');
+
+      await FileSystemUtils.updateFileWithMarkers(filePath, 'content', START, END);
+
+      const result = await fs.readFile(filePath, 'utf-8');
+      expect(countEndings(result).crlf).toBe(0);
+    });
+  });
 });
 
 describe('removeMarkerBlock', () => {
@@ -419,6 +488,69 @@ After block content`;
       expect(result).toContain(`The ${END_MARKER} marker ends it`);
       expect(result).toContain('After block content');
       expect(result).not.toContain('Managed content');
+    });
+  });
+
+  describe('line endings', () => {
+    const MD_START = '<!-- OPENSPEC:START -->';
+    const MD_END = '<!-- OPENSPEC:END -->';
+
+    it('collapses a blank-line run without leaving a lone LF in a CRLF file', () => {
+      // The collapse rebuilds the separator it matched. Spelling that '\n'
+      // puts a lone LF into an otherwise-CRLF file, which is the mixed ending
+      // bash reports as "$'\r': command not found" in a .bashrc.
+      const content = [
+        '# User config',
+        '',
+        '',
+        MD_START,
+        'managed',
+        MD_END,
+        '',
+        '',
+        '# More user config',
+      ].join('\r\n');
+
+      const result = removeMarkerBlock(content, MD_START, MD_END);
+
+      expect(result.match(/(?<!\r)\n/g)).toBeNull();
+      expect(result).toContain('# User config');
+      expect(result).toContain('# More user config');
+      expect(result).not.toContain('managed');
+    });
+
+    it('follows the dominant ending, not a single stray CRLF', () => {
+      // One stray CRLF in an otherwise-LF file must not pull the rewrite to
+      // CRLF. This is the reading matchLineEnding uses, so both write paths
+      // agree on what the file's convention is.
+      const content =
+        '# User config\r\n' +
+        ['', '', MD_START, 'managed', MD_END, '', '', '# More user config'].join('\n');
+
+      const result = removeMarkerBlock(content, MD_START, MD_END);
+
+      expect(result.endsWith('\n')).toBe(true);
+      expect(result.endsWith('\r\n')).toBe(false);
+      expect(result).toContain('# More user config');
+    });
+
+    it('leaves an LF file on LF when collapsing the same run', () => {
+      const content = [
+        '# User config',
+        '',
+        '',
+        MD_START,
+        'managed',
+        MD_END,
+        '',
+        '',
+        '# More user config',
+      ].join('\n');
+
+      const result = removeMarkerBlock(content, MD_START, MD_END);
+
+      expect(result).not.toContain('\r');
+      expect(result).toContain('# More user config');
     });
   });
 

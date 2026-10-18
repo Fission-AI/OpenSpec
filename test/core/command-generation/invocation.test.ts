@@ -22,7 +22,7 @@ import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
  * tool from its own `getFilePath`. A new adapter that lands on the wrong side
  * of the split fails here, which is the point.
  */
-const NAMESPACED_TOOLS = ['claude', 'codebuddy', 'crush', 'gemini', 'lingma', 'qoder', 'zcode'];
+const NAMESPACED_TOOLS = ['claude', 'codebuddy', 'crush', 'easycode', 'gemini', 'lingma', 'qoder', 'zcode'];
 
 /**
  * Tools whose command name is wrapped in something other than a slash. The

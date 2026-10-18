@@ -7,6 +7,7 @@
  * this command.
  */
 
+import chalk from 'chalk';
 import ora from 'ora';
 import path from 'path';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
@@ -85,6 +86,33 @@ function printCreatedChangeHuman(
   console.log(`Next: ${withStoreFlag(root, `openspec status --change ${payload.change.id}`)}`);
 }
 
+/**
+ * An implicit root is the fallback taken when no `openspec/` directory was
+ * found: creating a change there materializes OpenSpec in whatever directory
+ * the caller happened to be in, which is how an agent ends up adopting a
+ * project that never ran `openspec init` (#1645). The creation itself stays
+ * zero-config; this only makes it visible.
+ */
+function printImplicitRootNotice(root: ResolvedOpenSpecRoot): void {
+  if (root.source !== 'implicit') {
+    return;
+  }
+
+  const openspecDir = path.dirname(root.changesDir);
+  const relative = path.relative(process.cwd(), openspecDir);
+  const location = relative && !relative.startsWith('..') ? relative : openspecDir;
+
+  console.log();
+  console.log(
+    chalk.dim(`Note: no OpenSpec root was found here, so one was created at ${location}/.`)
+  );
+  console.log(
+    chalk.dim(
+      'Run `openspec init` to finish setting this project up, or delete that directory if you meant a different project.'
+    )
+  );
+}
+
 export async function newChangeCommand(name: string | undefined, options: NewChangeOptions): Promise<void> {
   const spinner = options.json ? undefined : ora();
 
@@ -153,6 +181,7 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
 
     spinner?.stop();
     printCreatedChangeHuman(payload, root);
+    printImplicitRootNotice(root);
   } catch (error) {
     spinner?.stop();
     if (options.json) {

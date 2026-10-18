@@ -5,12 +5,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { runCLI } from '../helpers/run-cli.js';
 
-async function runSchemaCommand(
-  args: string[],
-  schemaModule?: typeof import('../../src/commands/schema.js')
-): Promise<void> {
-  const { registerSchemaCommand } =
-    schemaModule ?? (await import('../../src/commands/schema.js'));
+async function runSchemaCommand(args: string[]): Promise<void> {
+  const { registerSchemaCommand } = await import('../../src/cli/commands/schema.js');
   const program = new Command();
   registerSchemaCommand(program);
   await program.parseAsync(['node', 'openspec', 'schema', ...args]);
@@ -442,10 +438,7 @@ artifacts:
       return { schemaDir, before: snapshotTree(schemaDir) };
     }
 
-    async function runDefaultInit(
-      force: boolean,
-      schemaModule?: typeof import('../../src/commands/schema.js')
-    ): Promise<void> {
+    async function runDefaultInit(force: boolean): Promise<void> {
       await runSchemaCommand(
         [
           'init',
@@ -455,8 +448,7 @@ artifacts:
           'proposal,specs,tasks',
           '--default',
           '--json',
-        ],
-        schemaModule
+        ]
       );
     }
 
@@ -485,6 +477,55 @@ artifacts:
           'utf-8'
         )
       ).toContain('schema: my-workflow');
+    });
+
+    it('scaffolds every template with a top-level heading', async () => {
+      const initialized = await runCLI(
+        [
+          'schema',
+          'init',
+          'lint-clean',
+          '--artifacts',
+          'proposal,specs,design,tasks',
+          '--json',
+        ],
+        { cwd: tempDir }
+      );
+      expect(initialized.exitCode).toBe(0);
+
+      const templatesDir = path.join(
+        tempDir,
+        'openspec',
+        'schemas',
+        'lint-clean',
+        'templates'
+      );
+      const templates = fs
+        .readdirSync(templatesDir, { recursive: true, withFileTypes: true })
+        .filter((entry) => entry.isFile())
+        .map((entry) => path.join(path.relative(templatesDir, entry.parentPath), entry.name))
+        .sort();
+      expect(templates).toEqual([
+        'design.md',
+        'proposal.md',
+        path.join('specs', 'spec.md'),
+        'tasks.md',
+      ].sort());
+
+      // The artifact a template produces is a document in its own right, so it
+      // opens with a title and a blank line, not a section header (#1138).
+      const headings: Record<string, string> = {
+        'design.md': '# Design',
+        'proposal.md': '# Proposal',
+        [path.join('specs', 'spec.md')]: '# Spec Delta',
+        'tasks.md': '# Tasks',
+      };
+      for (const template of templates) {
+        const content = fs.readFileSync(path.join(templatesDir, template), 'utf-8');
+        const [firstLine, secondLine] = content.replace(/\r\n?/g, '\n').split('\n');
+        expect(firstLine).toBe(headings[template]);
+        expect(secondLine).toBe('');
+      }
     });
 
     describe.each(failureModes)('$label with --default', ({ force }) => {
@@ -581,8 +622,7 @@ artifacts:
       const configPath = path.join(tempDir, 'openspec', 'config.yaml');
       const configBytes = Buffer.from('schema: existing\ncontext: keep me\n');
       fs.writeFileSync(configPath, configBytes);
-      const schemaModule = await import('../../src/commands/schema.js');
-      const { schemaInitFileOperations } = schemaModule;
+      const { schemaInitFileOperations } = await import('../../src/commands/schema.js');
       const renameSync = schemaInitFileOperations.renameSync;
       const renameCalls: Array<[string, string]> = [];
       schemaInitFileOperations.renameSync = (source, destination) => {
@@ -594,7 +634,7 @@ artifacts:
       };
 
       try {
-        await runDefaultInit(true, schemaModule);
+        await runDefaultInit(true);
       } finally {
         schemaInitFileOperations.renameSync = renameSync;
       }

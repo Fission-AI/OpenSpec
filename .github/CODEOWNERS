@@ -1,2 +1,5 @@
 # Default code ownership
 * @Fission-AI/openspec-maintainers
+
+# Route docs-lab changes to the docs owner for review
+/docs-lab/ @TabishB

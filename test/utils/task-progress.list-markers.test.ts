@@ -70,6 +70,16 @@ describe('task checkboxes under every CommonMark list marker', () => {
     ]);
   });
 
+  it('reads an unrecognised checkbox marker as not done under every list marker', () => {
+    const tasks = parseTaskLines('+ [~] a\n1. [~] b\n2) [] c\n3. [ x ] d\n');
+
+    expect(tasks.map((task) => task.done)).toEqual([false, false, false, true]);
+  });
+
+  it('keeps ordered and plus link bullets out of the task count', () => {
+    expect(parseTaskLines('1. [A](https://example.com)\n+ [1](./one)\n')).toEqual([]);
+  });
+
   it('still ignores ordered and plus items that carry no checkbox', () => {
     expect(parseTaskLines('1. A numbered item\n+ A plus bullet\n2) Another item\n')).toEqual([]);
   });

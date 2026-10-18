@@ -2,7 +2,7 @@ packages:
   - '.'
 
 allowBuilds:
-  esbuild@0.28.1: true
+  esbuild@0.28.2: true
 
 # The only declaration of these. A `pnpm.overrides` block in package.json does not
 # merge with this list — pnpm 10 uses it *instead of* this file (verified: a lone
@@ -10,7 +10,10 @@ allowBuilds:
 # plain-name entries in package.json when it bumps the same package, so a mirrored
 # copy there both drifts and silently takes precedence over these advisory pins.
 overrides:
-  brace-expansion@<=5.0.8: '>=5.0.9 <6'
+  # GHSA-6j4f-fj2g-mc7p, GHSA-qhr7-859c-m2p7, GHSA-q2hr-2g5m-vwhr — brace-expansion
+  # below 5.0.12. Direct dependency, and minimatch. Remove once every copy is
+  # >=5.0.12 (check: pnpm why brace-expansion).
+  brace-expansion@<5.0.12: '>=5.0.12 <6'
   postcss@<8.5.23: '>=8.5.23 <9'
   # GHSA-5p4m-2wfm-xmqj — js-yaml quadratic-CPU !!omap DoS. Dev-only (pulled by
   # @changesets: read-yaml-file for 3.x, @changesets/parse for 4.x); never in the
@@ -26,3 +29,8 @@ overrides:
   # Dev-only (transitive via @vitest/ui); never in the published CLI. Remove once
   # transitive fflate is >=0.8.3 (check: pnpm why fflate).
   fflate@<0.8.3: '>=0.8.3 <0.9'
+  # GHSA-pqg4-j6r4-53mv — shell-quote `quote()` command injection via a line
+  # terminator after a `{ comment }` token. Dev-only (transitive via
+  # @changesets/cli > launch-editor); never in the published CLI. Remove once
+  # transitive shell-quote is >=1.11.0 (check: pnpm why shell-quote).
+  shell-quote@>=1.8.4 <1.11.0: '>=1.11.0 <2'

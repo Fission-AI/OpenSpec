@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fg from 'fast-glob';
+import { globSync } from 'tinyglobby';
 import { findMissingTaskCheckboxIssues } from '../../src/core/validation/task-checkboxes.js';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -189,9 +189,10 @@ describe('findMissingTaskCheckboxIssues', () => {
   it('accepts every packaged tasks template', async () => {
     // An agent writing a task file follows these. If one ever loses its
     // checkboxes, every change built from it starts life counting zero tasks.
-    const templates = await fg('schemas/*/templates/tasks.md', {
+    const templates = globSync('schemas/*/templates/tasks.md', {
       cwd: repoRoot,
       absolute: true,
+      expandDirectories: false,
     });
     expect(templates.length).toBeGreaterThan(0);
 

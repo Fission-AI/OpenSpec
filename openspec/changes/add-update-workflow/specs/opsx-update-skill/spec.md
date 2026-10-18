@@ -19,7 +19,7 @@ The system SHALL provide a `/opsx:update` workflow skill that revises a change's
 
 #### Scenario: Missing artifacts are deferred to continue
 
-- **WHEN** keeping the change coherent would require an artifact that has not been created yet
+- **WHEN** keeping the change coherent would require an artifact with no existing output files and status `ready` or `blocked`
 - **THEN** the skill revises only the artifacts that currently exist
 - **AND** it notes the not-yet-created artifacts and points the user to `/opsx:continue` to create them
 
@@ -53,7 +53,7 @@ The `/opsx:update` skill SHALL learn which artifacts exist and where they live b
 
 #### Scenario: Resolve artifact paths cross-platform
 
-- **WHEN** the skill reads or writes an artifact on macOS, Linux, or Windows
+- **WHEN** the skill reads or revises an existing artifact file on macOS, Linux, or Windows
 - **THEN** it uses the `existingOutputPaths` provided by the CLI status output
 - **AND** it does not assume forward-slash separators
 
@@ -63,11 +63,30 @@ The `/opsx:update` skill SHALL learn which artifacts exist and where they live b
 - **THEN** the skill edits the concrete files reported in that artifact's `existingOutputPaths`
 - **AND** it does not write to `resolvedOutputPath`, which for a glob artifact remains the glob pattern rather than a real file
 
-#### Scenario: A new file under a glob artifact is deferred to continue
+#### Scenario: A missing companion file under a populated glob artifact
 
-- **WHEN** keeping the change coherent would require a new file under a glob artifact that does not exist yet (for example a spec for a not-yet-captured capability)
-- **THEN** the skill revises only the files already present in `existingOutputPaths`
-- **AND** it points the user to `/opsx:continue`/`/opsx:propose` to create the new file rather than inventing a path from the glob
+- **WHEN** reconciliation identifies a missing companion file for a glob artifact with non-empty `existingOutputPaths`
+- **THEN** the skill MAY propose creating that file using the artifact's instructions, template, project context, rules, and current dependency files
+- **AND** it selects an unused concrete path matching the artifact's `outputPath` inside `changeRoot`, including after resolving linked parent directories
+- **AND** it creates the file only after user confirmation, refreshing status, instructions, and path checks immediately before creation
+- **AND** creation SHALL fail rather than overwrite a file that appeared in the meantime
+- **AND** it SHALL NOT start another artifact, write main specs, or edit implementation code
+
+#### Scenario: Required inputs are no longer available
+
+- **WHEN** a populated glob artifact remains `done` but a required non-skipped dependency is missing
+- **THEN** the skill SHALL stop new companion creation and ask the user to restore the dependency first
+
+#### Scenario: Schema delegates companion creation
+
+- **WHEN** the artifact instruction delegates creation to another skill or command
+- **THEN** the skill SHALL invoke it only if it can honor the confirmed concrete path and the update guardrails
+- **AND** otherwise it SHALL stop rather than invoke broader generation
+
+#### Scenario: Intentionally skipped artifact
+
+- **WHEN** status or instructions mark an artifact as skipped
+- **THEN** the skill SHALL leave it untouched and SHALL NOT treat its empty outputs as missing or send it to continue
 
 ### Requirement: Bidirectional Coherence Review
 
@@ -109,7 +128,7 @@ After applying confirmed revisions (or finding none needed), the `/opsx:update` 
 
 #### Scenario: Next step when artifacts are incomplete
 
-- **WHEN** the update finishes and the change still has not-yet-created artifacts
+- **WHEN** the update finishes and the change still has artifacts with no outputs and status `ready` or `blocked`
 - **THEN** the skill recommends `/opsx:continue` to create them
 
 #### Scenario: Next step when the change is fully done

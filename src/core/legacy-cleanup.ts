@@ -5,11 +5,12 @@
 
 import path from 'path';
 import os from 'os';
-import { promises as fs } from 'fs';
+import { promises as fs, constants as fsConstants } from 'fs';
+import type { FileHandle } from 'fs/promises';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
-import type { WorkflowId } from './profiles.js';
+import { ALL_WORKFLOWS, type WorkflowId } from './profiles.js';
 
 /**
  * Legacy config file names from the old ToolRegistry.
@@ -28,6 +29,14 @@ export const LEGACY_CONFIG_FILES = [
 
 /** The three commands the old SlashCommandRegistry wrote into each directory. */
 const LEGACY_DIRECTORY_COMMAND_FILES = ['proposal.md', 'apply.md', 'archive.md'] as const;
+
+/** Exact Kilo workflow files written by OpenSpec before the command path moved. */
+const LEGACY_KILOCODE_COMMAND_FILES = [
+  ...ALL_WORKFLOWS.map(workflow => `.kilocode/workflows/opsx-${workflow}.md`),
+  '.kilocode/workflows/openspec-proposal.md',
+  '.kilocode/workflows/openspec-apply.md',
+  '.kilocode/workflows/openspec-archive.md',
+];
 
 /**
  * Legacy slash command patterns from the old SlashCommandRegistry.
@@ -54,7 +63,12 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   // belong to `devin` — the id Windsurf became. Only `.windsurf/` is listed:
   // `.devin/` postdates the opsx rename and never held `openspec-*` files.
   'devin': { type: 'files', pattern: '.windsurf/workflows/openspec-*.md' },
-  'kilocode': { type: 'files', pattern: '.kilocode/workflows/openspec-*.md' },
+  // Kilo now writes commands under `.kilo/command/`. Clean up both generations
+  // of OpenSpec workflows from Kilo's legacy `.kilocode/workflows/` folder.
+  'kilocode': {
+    type: 'files',
+    pattern: LEGACY_KILOCODE_COMMAND_FILES,
+  },
   'kiro': { type: 'files', pattern: '.kiro/prompts/openspec-*.prompt.md' },
   'github-copilot': { type: 'files', pattern: '.github/prompts/openspec-*.prompt.md' },
   'amazon-q': { type: 'files', pattern: '.amazonq/prompts/openspec-*.md' },
@@ -443,13 +457,24 @@ async function settleLegacyCommandDir(
  * a same-named file without them is the user's.
  */
 async function isGeneratedLegacyCommand(filePath: string): Promise<boolean> {
+  // Judge the opened handle, not the path, so the file checked is the file
+  // read. O_NOFOLLOW refuses a link and O_NONBLOCK keeps a FIFO from hanging;
+  // Windows has neither flag, so a link is refused there by lstat instead.
+  const { O_RDONLY, O_NOFOLLOW, O_NONBLOCK } = fsConstants;
+  let handle: FileHandle | undefined;
   try {
-    if (!(await fs.lstat(filePath)).isFile()) {
+    handle = await fs.open(filePath, O_RDONLY | (O_NOFOLLOW ?? 0) | (O_NONBLOCK ?? 0));
+    if (O_NOFOLLOW === undefined && (await fs.lstat(filePath)).isSymbolicLink()) {
       return false;
     }
-    return hasOpenSpecMarkers(await fs.readFile(filePath, 'utf-8'));
+    if (!(await handle.stat()).isFile()) {
+      return false;
+    }
+    return hasOpenSpecMarkers(await handle.readFile('utf-8'));
   } catch {
     return false;
+  } finally {
+    await handle?.close();
   }
 }
 
@@ -919,10 +944,10 @@ export function formatDetectionSummary(detection: LegacyDetectionResult): string
   lines.push('as before.');
   lines.push('');
 
-  // Section 1: Files to remove (no user content to preserve)
+  // Section 1: Files to remove entirely
   if (removals.length > 0) {
     lines.push(chalk.bold('Files to remove'));
-    lines.push(chalk.dim('No user content to preserve:'));
+    lines.push(chalk.dim('These files will be deleted entirely. Back up any custom content before proceeding:'));
     for (const { path } of removals) {
       lines.push(`  • ${path}`);
     }
@@ -1160,11 +1185,15 @@ export function formatProjectMdMigrationHint(): string {
   lines.push('  • openspec/project.md');
   lines.push(chalk.dim('    We won\'t delete this file. It may contain useful project context.'));
   lines.push('');
-  lines.push(chalk.dim('    The new openspec/config.yaml has a "context:" section for planning'));
-  lines.push(chalk.dim('    context. This is included in every OpenSpec request and works more'));
-  lines.push(chalk.dim('    reliably than the old project.md approach.'));
+  lines.push(chalk.dim('    Ask your AI assistant:'));
   lines.push('');
-  lines.push(chalk.dim('    Review project.md, move any useful content to config.yaml\'s context'));
-  lines.push(chalk.dim('    section, then delete the file when ready.'));
+  lines.push(chalk.dim('    Review openspec/project.md and migrate its useful content to'));
+  lines.push(chalk.dim('    openspec/config.yaml. Keep context concise: include only project-wide'));
+  lines.push(chalk.dim('    facts needed during artifact creation, apply, and archive. Move'));
+  lines.push(chalk.dim('    artifact-specific guidance into rules for the matching artifacts.'));
+  lines.push(chalk.dim('    Move guidance for apply or archive into the matching operations entry.'));
+  lines.push(chalk.dim('    Leave out generic, outdated, or verbose material. Do not delete project.md.'));
+  lines.push('');
+  lines.push(chalk.dim('    Review config.yaml, then delete project.md when ready.'));
   return lines.join('\n');
 }

@@ -56,6 +56,17 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'version',
+    description: 'Report the installed OpenSpec version and update availability',
+    flags: [
+      COMMON_FLAGS.json,
+      {
+        name: 'check',
+        description: 'Check the registry for a newer version',
+      },
+    ],
+  },
+  {
     name: 'list',
     description: 'List items (changes by default, or specs with --specs)',
     flags: [
@@ -66,6 +77,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       {
         name: 'changes',
         description: 'List changes explicitly (default)',
+      },
+      {
+        name: 'archived',
+        description: 'Show only archived changes',
+      },
+      {
+        name: 'all',
+        description: 'Show both active and archived changes',
       },
       {
         name: 'sort',

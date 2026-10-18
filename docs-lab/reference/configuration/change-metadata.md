@@ -20,7 +20,7 @@ Each change keeps its metadata at `openspec/changes/<change-name>/.openspec.yaml
 
 ### schema
 
-The workflow schema this change follows. It is set when the change is created and wins over the project config, so a change keeps its schema even if `openspec/config.yaml` changes afterwards. Valid names are listed in [Schemas](../schemas/index.md).
+The workflow schema this change follows. It is set when the change is created and wins over the project config, so a change keeps its schema even if `openspec/config.yaml` changes afterwards. Run [`openspec schemas`](../cli.md#openspec-schemas) to list the available schema names.
 
 ### initiative
 
@@ -36,11 +36,29 @@ Keys other than `store` and `id` are rejected. No command reads the link today.
 
 ### skip_specs
 
-Declares the change intentionally makes no spec deltas: a pure refactor, tooling, or docs change. With it set, validation accepts zero deltas, and artifacts that would generate spec files count as complete. Setting it while spec files exist under specs/ is a validation error. Its effect on deltas and archive is on [spec-driven](../schemas/spec-driven/index.md).
+Declares the change intentionally makes no spec deltas: a pure refactor, tooling, or docs change. With it set, validation accepts zero deltas, and artifacts that would generate spec files count as complete. Setting it while spec files exist under specs/ is a validation error.
 
 ### retire_capabilities
 
-Authorizes archive to retire a capability. When this change's REMOVED deltas take away the last requirement a capability has, archive deletes that capability's main spec instead of stopping. The flag exists because the deletion is only recoverable from git, so it stays the author's call. The archive behavior is on [spec-driven](../schemas/spec-driven/index.md).
+Authorizes archive to retire a capability. When this change's REMOVED deltas take away the last requirement a capability has, archive deletes that capability's main spec instead of stopping. The flag exists because the deletion is only recoverable from git, so it stays the author's call.
+
+### Extension keys
+
+A top-level key that starts with a lowercase `x-` is yours, for data another tool or your team keeps beside the change, such as a tracker id or an owner:
+
+```yaml
+schema: spec-driven
+x-tracker: SB-5497
+x-jiraKey: ABC-1
+x-owner:
+  team: payments
+```
+
+- **Name**: the lowercase `x-` prefix followed by at least one character, with no whitespace anywhere. Any case or spelling works after the prefix, so `x-jiraKey` and `x-trackerID` qualify. `X-Tracker`, a bare `x-`, and `x- tracker` do not, and are reported as unknown keys.
+- **Value**: any YAML value. OpenSpec does not read or validate it, and it changes no behavior.
+- **Scope**: top-level only. An `x-` key inside `initiative` is still rejected, like any other key there.
+- **Validation**: extension keys are never reported as unknown, so `openspec validate --strict` passes on a change that carries them.
+- **Archive**: the file moves with the change unchanged, extension keys included.
 
 ## Example
 
@@ -59,4 +77,7 @@ affected_areas:
 
 The file is validated whenever a command writes or reads it. A write that fails validation throws and writes nothing. Reading an existing file fails on invalid YAML, a field that breaks its contract, or a schema name that is not available. A missing file is not an error, and the change is treated as having no metadata.
 
-Unlike [config.yaml](config-yaml.md), bad values are never dropped with a warning. A metadata error stops the command. The one exception is unknown top-level keys, which are ignored rather than rejected.
+Unlike [config.yaml](config-yaml.md), bad values are never dropped with a warning. A metadata error stops the command.
+
+- **Unknown top-level keys**: OpenSpec ignores them. `status`, `instructions`, `validate`, and `archive` report that they have no effect. JSON output carries the warning in its structured result. [Extension keys](#extension-keys) are not unknown and are never reported.
+- **Strict validation**: `openspec validate --strict` treats an unknown-key warning as a failure. A change whose only extra keys are extension keys passes.

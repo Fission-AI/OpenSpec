@@ -220,8 +220,10 @@ export class ZshInstaller {
       // Remove lines between markers (inclusive)
       lines.splice(startIndex, endIndex - startIndex + 1);
 
-      // Remove trailing empty lines at the start if the markers were at the top
-      while (lines.length > 0 && lines[0].trim() === '') {
+      // Install puts the block at the top of the file followed by one blank
+      // separator line; drop that line too so the file reads as it did before.
+      // Everything else, including blank lines the user had at the top, is left as is.
+      if (startIndex === 0 && lines.length > 0 && lines[0].trim() === '') {
         lines.shift();
       }
 

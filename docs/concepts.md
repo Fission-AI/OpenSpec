@@ -190,7 +190,7 @@ openspec/changes/add-dark-mode/
 ├── proposal.md           # Why and what
 ├── design.md             # How (technical approach)
 ├── tasks.md              # Implementation checklist
-├── .openspec.yaml        # Change metadata (optional): schema, created, skip_specs, retire_capabilities
+├── .openspec.yaml        # Change metadata (optional): schema, created, skip_specs, retire_capabilities, plus your own x-* keys
 └── specs/                # Delta specs
     └── ui/
         └── spec.md       # What's changing in ui/spec.md
@@ -341,6 +341,8 @@ Tasks are the **implementation checklist** — concrete steps with checkboxes.
 - Group related tasks under headings
 - Use hierarchical numbering (1.1, 1.2, etc.)
 - Keep tasks small enough to complete in one session
+- State how each task is verified (a test, command, or observable result)
+- Land the tests and documentation each group's work calls for inside that group, not in a final catch-up group
 - Check tasks off as you complete them
 
 ## Delta Specs

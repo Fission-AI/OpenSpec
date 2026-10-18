@@ -22,8 +22,8 @@ import { fileURLToPath } from 'node:url';
 // unless you ask" is the wording this very test recommends.
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-// The pages that pitch explore to a user. Both trees ship: `docs/` is what
-// README links today, `docs-lab/` is what the documentation site publishes
+// The pages that pitch explore to a user. Both trees ship: `docs/` is the
+// legacy tree still readable on GitHub, `docs-lab/` is what the documentation site publishes
 // (`website/content/docs` is generated from it and is not committed).
 const PAGES = [
   'README.md',
@@ -68,6 +68,9 @@ const FORBIDDEN: readonly RegExp[] = [
 const ALLOW = [
   // docs/commands.md and docs/troubleshooting.md quote this CLI message.
   /"No artifacts ready"/,
+  // docs/commands.md describes which artifacts `/opsx:update` leaves to
+  // `/opsx:continue`. "no files yet" is about an update target, not explore.
+  /Artifacts with no files yet remain with/,
 ];
 
 const TEST_FILE = 'test/explore-docs-claims.test.ts';

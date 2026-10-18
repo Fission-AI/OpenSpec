@@ -24,7 +24,7 @@ vi.mock('@inquirer/prompts', () => ({
 }));
 
 async function runStoreCommand(args: string[]): Promise<void> {
-  const { registerStoreCommand } = await import('../../src/commands/store.js');
+  const { registerStoreCommand } = await import('../../src/cli/commands/store.js');
   const program = new Command();
   registerStoreCommand(program);
   await program.parseAsync(['node', 'openspec', 'store', ...args]);

@@ -5,15 +5,39 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
+import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
+import { PROJECT_ROOT_GUARD } from './project-root.js';
+
+/**
+ * The implementation handoff, resolved at generation time so a profile
+ * without `apply` is not told to run it (see optional-workflow.ts).
+ *
+ * The two surfaces word this differently on purpose (#258): a command-only
+ * tool has no conversational agent to ask, so its prompt names a command or
+ * the CLI and never invites "ask me to implement".
+ */
+const SKILL_APPLY_HANDOFF = optionalWorkflow(
+  'apply',
+  'Run `/opsx:apply` or ask me to implement to start working on the tasks.',
+  'Ask me to implement to start working on the tasks.'
+);
+
+const COMMAND_APPLY_HANDOFF = optionalWorkflow(
+  'apply',
+  'Run `/opsx:apply` to start implementing.',
+  'Run `openspec instructions apply --change "<name>" --json` to get the task list and start implementing.'
+);
 
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-ff-change',
-    description: 'Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually.',
+    description: 'Fast-forward through OpenSpec artifact creation. Use when the user wants to quickly create all artifacts needed for implementation without stepping through each one individually. Also use when the user says "openspec ff" or "opsx ff".',
     instructions: `Fast-forward through artifact creation - generate everything needed to start implementation in one go.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
@@ -67,8 +91,9 @@ ${STORE_SELECTION_GUIDANCE}
         - Identify the target project from the request and project context; the planning home may be separate from the code. If the target is unclear, ask. For greenfield or non-code changes, inspect the available structure and relevant documents. If source is unavailable, state the limitation and ask when it materially affects the plan.
         - Ground scope, approach, and tasks in what you find. Distinguish observed behavior from assumptions and proposed additions; surface conflicts with existing specs instead of silently deciding which is correct.
         - Do this discovery now, rather than leaving generic "explore the codebase" or "make a plan" tasks for implementation. Keep any necessary follow-up investigation specific to an unresolved question.
-      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`
-      - Otherwise create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`. If \`resolvedOutputPath\` is a glob, follow \`instruction\` to choose the concrete file path
+      - Choose the output path before creating anything. If \`resolvedOutputPath\` is a glob, follow \`instruction\` to choose a concrete path inside \`changeRoot\` that matches the glob, and verify it remains inside \`changeRoot\` after resolving symlinks, both in its parent directories and in the file itself if it already exists; if it does not, stop and tell the user. Otherwise the output path is \`resolvedOutputPath\`
+      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it only if it can write the artifact to that output path; otherwise stop and tell the user. Then verify the artifact file exists at that output path
+      - Otherwise create the artifact file using \`template\` as the structure and write it to that output path
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
@@ -82,7 +107,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Dependencies are enablers, not gates: if a required artifact is still \`blocked\` only because you skipped a conditional dependency, write it anyway
       - Stop when every artifact in the required set is \`done\`, \`skipped\`, or was deliberately skipped
 
-   c. **If an artifact requires user input** (unclear context):
+   c. **If an artifact requires user input** (critically unclear context):
       - Ask the user to clarify
       - Then continue with creation
 
@@ -97,12 +122,12 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "Run \`/opsx:apply\` or ask me to implement to start working on the tasks."
+- Prompt: "${SKILL_APPLY_HANDOFF}"
 
 **Artifact Creation Guidelines**
 
 - Follow the \`instruction\` field from \`openspec instructions\` for each artifact type - it is the authoritative guidance, even for familiar artifact names
-- If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly
+- If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly - but only once you have chosen and checked the output path, and only if it can write there
 - The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
 - Use \`template\` as the structure for your output file - fill in its sections
@@ -131,6 +156,8 @@ export function getOpsxFfCommandTemplate(): CommandTemplate {
     content: `Fast-forward through artifact creation - generate everything needed to start implementation.
 
 ${STORE_SELECTION_GUIDANCE}
+
+${PROJECT_ROOT_GUARD}
 
 **Input**: The argument after \`/opsx:ff\` is the change name (kebab-case), OR a description of what the user wants to build.
 
@@ -184,8 +211,9 @@ ${STORE_SELECTION_GUIDANCE}
         - Identify the target project from the request and project context; the planning home may be separate from the code. If the target is unclear, ask. For greenfield or non-code changes, inspect the available structure and relevant documents. If source is unavailable, state the limitation and ask when it materially affects the plan.
         - Ground scope, approach, and tasks in what you find. Distinguish observed behavior from assumptions and proposed additions; surface conflicts with existing specs instead of silently deciding which is correct.
         - Do this discovery now, rather than leaving generic "explore the codebase" or "make a plan" tasks for implementation. Keep any necessary follow-up investigation specific to an unresolved question.
-      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it to produce the artifact instead of writing the file yourself, then verify the artifact file exists at \`resolvedOutputPath\`
-      - Otherwise create the artifact file using \`template\` as the structure and write it to \`resolvedOutputPath\`. If \`resolvedOutputPath\` is a glob, follow \`instruction\` to choose the concrete file path
+      - Choose the output path before creating anything. If \`resolvedOutputPath\` is a glob, follow \`instruction\` to choose a concrete path inside \`changeRoot\` that matches the glob, and verify it remains inside \`changeRoot\` after resolving symlinks, both in its parent directories and in the file itself if it already exists; if it does not, stop and tell the user. Otherwise the output path is \`resolvedOutputPath\`
+      - If the \`instruction\` field delegates creation to a specific skill or command, invoke it only if it can write the artifact to that output path; otherwise stop and tell the user. Then verify the artifact file exists at that output path
+      - Otherwise create the artifact file using \`template\` as the structure and write it to that output path
       - Apply \`context\` and \`rules\` as constraints - but do NOT copy them into the file
       - Show brief progress: "✓ Created <artifact-id>"
 
@@ -199,7 +227,7 @@ ${STORE_SELECTION_GUIDANCE}
       - Dependencies are enablers, not gates: if a required artifact is still \`blocked\` only because you skipped a conditional dependency, write it anyway
       - Stop when every artifact in the required set is \`done\`, \`skipped\`, or was deliberately skipped
 
-   c. **If an artifact requires user input** (unclear context):
+   c. **If an artifact requires user input** (critically unclear context):
       - Ask the user to clarify
       - Then continue with creation
 
@@ -214,12 +242,12 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "Run \`/opsx:apply\` to start implementing."
+- Prompt: "${COMMAND_APPLY_HANDOFF}"
 
 **Artifact Creation Guidelines**
 
 - Follow the \`instruction\` field from \`openspec instructions\` for each artifact type - it is the authoritative guidance, even for familiar artifact names
-- If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly
+- If the \`instruction\` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly - but only once you have chosen and checked the output path, and only if it can write there
 - The schema defines what each artifact should contain - follow it
 - Read dependency artifacts for context before creating new ones
 - Use \`template\` as the structure for your output file - fill in its sections

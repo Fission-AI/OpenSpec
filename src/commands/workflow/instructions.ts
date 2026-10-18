@@ -12,7 +12,6 @@ import {
   loadChangeContext,
   generateInstructions,
   resolveSchema,
-  resolveArtifactOutputPath,
   resolveArtifactOutputs,
   type ArtifactInstructions,
 } from '../../core/artifact-graph/index.js';
@@ -212,6 +211,15 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
   );
   console.log();
 
+  if (instructions.warnings) {
+    for (const warning of instructions.warnings) {
+      console.log('<warning>');
+      console.log(escapeEnvelopeTags(warning));
+      console.log('</warning>');
+      console.log();
+    }
+  }
+
   // Artifacts skipped via skip_specs get no creation directive: emitting the
   // task/template anyway would prompt an agent to write spec files that
   // validate then rejects as conflicting with the marker.
@@ -343,6 +351,23 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 // Apply Instructions Command
 // -----------------------------------------------------------------------------
 
+interface LocatedTask extends ParsedTask {
+  sourcePath: string;
+  line: number;
+}
+
+/** Adds one-based source locations to parsed tasks without changing task parsing. */
+function parseLocatedTasks(content: string, sourcePath: string): LocatedTask[] {
+  const tasks: LocatedTask[] = [];
+
+  for (const [index, line] of content.split('\n').entries()) {
+    const [task] = parseTaskLines(line);
+    if (task) tasks.push({ ...task, sourcePath, line: index + 1 });
+  }
+
+  return tasks;
+}
+
 /**
  * Turns parsed task lines into the listed task items.
  *
@@ -354,7 +379,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
  * what puts apply in its "nothing to work on" state, so a file of nothing but
  * text-less checkboxes asks to be rewritten instead of being called done.
  */
-function toTaskItems(parsed: ParsedTask[]): TaskItem[] {
+function toTaskItems(parsed: LocatedTask[]): TaskItem[] {
   const tasks: TaskItem[] = [];
 
   for (const task of parsed) {
@@ -363,6 +388,8 @@ function toTaskItems(parsed: ParsedTask[]): TaskItem[] {
       id: `${tasks.length + 1}`,
       description: task.description,
       done: task.done,
+      sourcePath: task.sourcePath,
+      line: task.line,
     });
   }
 
@@ -569,15 +596,27 @@ export async function generateApplyInstructions(
     }
   }
 
-  // Parse tasks if tracking file exists
-  let parsedTasks: ParsedTask[] = [];
+  // Parse every concrete file matched by apply.tracks. A tracking path may be
+  // a glob owned by an artifact with any ID, so treating it as one literal
+  // path loses task evidence for valid custom schemas.
+  let parsedTasks: LocatedTask[] = [];
+  const unavailableTrackingFiles: Array<{ path: string; reason: string }> = [];
   let tracksFileExists = false;
   if (tracksFile) {
-    const tracksPath = resolveArtifactOutputPath(changeDir, tracksFile);
-    tracksFileExists = fs.existsSync(tracksPath);
-    if (tracksFileExists) {
-      const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
-      parsedTasks = parseTaskLines(tasksContent);
+    const tracksPaths = resolveArtifactOutputs(changeDir, tracksFile);
+    tracksFileExists = tracksPaths.length > 0;
+    for (const tracksPath of tracksPaths) {
+      try {
+        const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
+        parsedTasks.push(...parseLocatedTasks(tasksContent, tracksPath));
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException)?.code;
+        const message = error instanceof Error ? error.message : String(error);
+        unavailableTrackingFiles.push({
+          path: tracksPath,
+          reason: code && !message.includes(code) ? `${code}: ${message}` : message,
+        });
+      }
     }
   }
   const tasks = toTaskItems(parsedTasks);
@@ -615,6 +654,9 @@ export async function generateApplyInstructions(
     instruction =
       `The ${tracksFilename} file is missing and must be created.` +
       `\n${describeArtifactRemedy(changeName, findArtifactIdFor(schema, tracksFile))}`;
+  } else if (tracksFile && unavailableTrackingFiles.length > 0 && tasks.length === 0) {
+    state = 'blocked';
+    instruction = 'No readable task descriptions are available.';
   } else if (tracksFile && tracksFileExists && tasks.length === 0) {
     // Tracking file exists but lists nothing an agent can work on: either no
     // checkboxes at all, or only checkboxes with no text after them.
@@ -623,9 +665,14 @@ export async function generateApplyInstructions(
     instruction =
       `The ${tracksFilename} file exists but contains no tasks to work on.` +
       `\nAdd tasks to ${tracksFilename}, or rebuild it: ${describeArtifactRemedy(changeName, findArtifactIdFor(schema, tracksFile))}`;
-  } else if (tracksFile && remaining === 0 && total > 0) {
+  } else if (
+    tracksFile &&
+    unavailableTrackingFiles.length === 0 &&
+    remaining === 0 &&
+    total > 0
+  ) {
     state = 'all_done';
-    instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
+    instruction = 'All tracked tasks are complete.\nReview or verify the change as appropriate before archiving.';
   } else if (!tracksFile) {
     // No tracking file configured in schema - ready to apply
     state = 'ready';
@@ -635,13 +682,23 @@ export async function generateApplyInstructions(
     instruction = schemaInstruction?.trim() ?? 'Read context files, work through pending tasks, mark complete as you go.\nPause if you hit blockers or need clarification.';
   }
 
-  const warnings = await collectApplyWarnings({
-    state,
-    schema,
-    changeDir,
-    changeName,
-    skippedArtifacts: context.skippedArtifacts,
-  });
+  if (unavailableTrackingFiles.length > 0) {
+    const unavailableDetails = unavailableTrackingFiles
+      .map((file) => `- ${file.path}: ${file.reason}`)
+      .join('\n');
+    instruction += `\nTask completion is not verified because tracking evidence was unavailable:\n${unavailableDetails}`;
+  }
+
+  const warnings = [
+    ...(context.warnings ?? []),
+    ...(await collectApplyWarnings({
+      state,
+      schema,
+      changeDir,
+      changeName,
+      skippedArtifacts: context.skippedArtifacts,
+    })),
+  ];
 
   return {
     changeName,
@@ -650,6 +707,8 @@ export async function generateApplyInstructions(
     contextFiles,
     progress: { total, complete, remaining },
     tasks,
+    taskTrackingConfigured: tracksFile !== null,
+    ...(unavailableTrackingFiles.length > 0 ? { unavailableTrackingFiles } : {}),
     state,
     missingArtifacts: missingArtifacts.length > 0 ? missingArtifacts : undefined,
     ...(missingPrerequisites.length > 0 ? { missingPrerequisites } : {}),
