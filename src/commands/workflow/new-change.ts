@@ -22,6 +22,7 @@ import {
   type RootOutput,
   isStoreSelectedRoot,
 } from '../../core/root-selection.js';
+import { readProjectConfig } from '../../core/project-config.js';
 import { printJson, statusFromError, validateSchemaExists } from './shared.js';
 
 // -----------------------------------------------------------------------------
@@ -143,7 +144,11 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       validateSchemaExists(options.schema, projectRoot);
     }
 
-    const resolvedSchema = options.schema ?? root.defaultSchema;
+    // Same precedence createChange persists: --schema, then the project's
+    // configured schema, then the root default. Reading config here keeps
+    // the progress line from naming a schema the change never got.
+    const resolvedSchema =
+      options.schema ?? readProjectConfig(projectRoot)?.schema ?? root.defaultSchema;
     if (spinner) {
       spinner.start(`Creating change '${name}' with schema '${resolvedSchema}'...`);
     }

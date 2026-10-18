@@ -479,6 +479,35 @@ artifacts:
       ).toContain('schema: my-workflow');
     });
 
+    it('names the configured schema while creating the next change (#2117)', async () => {
+      const initialized = await runCLI(
+        [
+          'schema',
+          'init',
+          'my-workflow',
+          '--artifacts',
+          'proposal,specs,tasks',
+          '--default',
+          '--json',
+        ],
+        { cwd: tempDir }
+      );
+      expect(initialized.exitCode).toBe(0);
+
+      const created = await runCLI(['new', 'change', 'progress-schema'], { cwd: tempDir });
+      expect(created.exitCode).toBe(0);
+      expect(created.stderr).toContain("Creating change 'progress-schema' with schema 'my-workflow'");
+      expect(created.stderr).not.toContain("with schema 'spec-driven'");
+      // The announced schema is the one that gets persisted and reported.
+      expect(created.stdout).toContain('Schema: my-workflow');
+      expect(
+        fs.readFileSync(
+          path.join(tempDir, 'openspec', 'changes', 'progress-schema', '.openspec.yaml'),
+          'utf-8'
+        )
+      ).toContain('schema: my-workflow');
+    });
+
     it('scaffolds every template with a top-level heading', async () => {
       const initialized = await runCLI(
         [
