@@ -168,7 +168,7 @@ artifacts:
         Assign the next unused ID and never change an existing ID when
         a decision is renamed, removed, or reordered. Document the context,
         chosen option, rationale, and alternatives considered.
-      - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
+      - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation. Link each risk to the relevant decision when applicable, using a relative Markdown link such as [D2](#d2).
       - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
       - **Open Questions**: Unknowns that can safely be answered later without
         changing the specs, the approach, or the task breakdown. Omit if none.

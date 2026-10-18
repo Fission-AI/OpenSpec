@@ -257,7 +257,21 @@ The template the agent receives as the output format ([templates/design.md](http
 
 ## Decisions
 
-<!-- Key design decisions with rationale and alternatives considered -->
+<!-- Give each decision the next unused ID (D1, D2, D3, ...).
+Keep IDs unchanged if a decision title changes or decisions are reordered.
+Never reuse an ID after removing a decision. -->
+
+### D1
+
+**Title:** Decision title goes here
+
+**Context:** <!-- Why this decision is needed -->
+
+**Decision:** <!-- What was chosen -->
+
+**Rationale:** <!-- Why this option was selected -->
+
+**Alternatives considered:** <!-- Other options and why they were not selected -->
 
 ## Risks / Trade-offs
 
@@ -280,8 +294,13 @@ When to include design.md (create only if any apply):
 Sections:
 - **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., "See proposal.md - Why").
 - **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.
-- **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.
-- **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
+- **Decisions**: Give each decision a unique ID in a heading
+        containing only the ID, such as `### D1`, `### D2`, and so on.
+        Put the descriptive title on a separate line below the heading.
+        Assign the next unused ID and never change an existing ID when
+        a decision is renamed, removed, or reordered. Document the context,
+        chosen option, rationale, and alternatives considered.
+- **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation. Link each risk to the relevant decision when applicable, using a relative Markdown link such as [D2](#d2).
 - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
 - **Open Questions**: Unknowns that can safely be answered later without
   changing the specs, the approach, or the task breakdown. Omit if none.
@@ -353,6 +372,10 @@ Example:
 
 Reference specs for what needs to be built, design for how to build it.
 Each task should be verifiable - you know when it's done.
+When a task depends on or implements a specific design decision,
+link to it using a relative Markdown link, such as
+[D1](./design.md#d1). Use the decision ID as the link fragment,
+not its descriptive title. Do not refer to decisions only by position.
 ````
 
 ## Apply
