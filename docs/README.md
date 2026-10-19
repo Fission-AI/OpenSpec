@@ -115,4 +115,4 @@ Steps 1 and 2 happen in your terminal. The rest happen in your AI assistant's ch
 - **GitHub Issues:** [github.com/Fission-AI/OpenSpec/issues](https://github.com/Fission-AI/OpenSpec/issues) for bugs and feature requests.
 - **`openspec feedback "your message"`** sends feedback straight from your terminal (it opens a GitHub issue).
 
-Found something in these docs that's wrong, stale, or confusing? That's a bug — open a [docs issue](https://github.com/Fission-AI/OpenSpec/issues/new?template=docs.yml). Every change to OpenSpec starts as an issue, including doc fixes ([why](https://openspec.dev/blog/openspec-contribution-policy/)).
+Found something in these docs that's wrong, stale, or confusing? That's a bug — open a [docs issue](https://github.com/Fission-AI/OpenSpec/issues/new?template=docs.yml).

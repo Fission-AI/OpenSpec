@@ -5,8 +5,6 @@ body:
   - type: markdown
     attributes:
       value: |
-        Issues are how every change to OpenSpec starts — we don't accept unsolicited
-        pull requests ([why](https://openspec.dev/blog/openspec-contribution-policy/)).
         We're looking for more than a proposed solution here: we want to understand the
         problem, who else it affects, and whether OpenSpec should take it on. Sometimes a
         limitation is a deliberate design choice, and that's worth discussing first.

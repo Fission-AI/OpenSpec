@@ -220,7 +220,7 @@ openspec update
 
 ## Contributing
 
-We are not accepting unsolicited pull requests. Open an issue first; if we agree to pursue it, a maintainer implements the change or invites you to build it with us. See [the announcement](https://openspec.dev/blog/openspec-contribution-policy/).
+Every change starts as an issue. We discuss it there, and if we agree to pursue it, a maintainer implements the change or invites you to build it with us.
 
 → **[CONTRIBUTING.md](CONTRIBUTING.md)**: the full process, from first issue to merged PR
 

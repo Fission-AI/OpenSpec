@@ -5,9 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting this. Issues are how every change to OpenSpec starts —
-        we don't accept unsolicited pull requests
-        ([why](https://openspec.dev/blog/openspec-contribution-policy/)).
+        Thanks for reporting this.
 
         What helps most here is reproducibility. If an agent wrote this report,
         please read it through and check it says what you actually hit.

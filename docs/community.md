@@ -19,7 +19,7 @@ Hosted products that add an OpenSpec capability the CLI does not provide. Each e
 
 ## Add your project
 
-Open an issue with the one line you would like added: your project's name, a direct link, and a short description of how it relates to OpenSpec. A maintainer adds it to this file — we don't accept unsolicited pull requests ([why](https://openspec.dev/blog/openspec-contribution-policy/)).
+Open an issue with the one line you would like added: your project's name, a direct link, and a short description of how it relates to OpenSpec. A maintainer adds it to this file.
 
 - Keep entries focused on something built with OpenSpec or supporting its use, rather than general product advertising.
 - Describe what people can use. Avoid promotional claims, referral links, and tracking links.
