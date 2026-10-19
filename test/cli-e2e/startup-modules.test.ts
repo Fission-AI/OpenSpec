@@ -236,6 +236,8 @@ describe('CLI startup loads only what the command needs', () => {
   it.each([
     ['status --json', 'status'],
     ['validate --all --json', 'validate'],
+    ['templates --json', 'templates'],
+    ['new change probe --json', 'new'],
   ])('`openspec %s` does not load ora', async (invocation, command) => {
     await ensureCliBuilt();
     const { own, packages, status } = loadedModules(invocation.split(' '), true);
