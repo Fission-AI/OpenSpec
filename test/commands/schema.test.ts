@@ -540,6 +540,17 @@ artifacts:
       ).toContain('schema: my-workflow');
     });
 
+    it('reads the project config once while creating a change', async () => {
+      const openspecDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(path.join(openspecDir, 'specs'), { recursive: true });
+      fs.mkdirSync(path.join(openspecDir, 'changes'), { recursive: true });
+      fs.writeFileSync(path.join(openspecDir, 'config.yaml'), 'schema: spec-driven\ncontext: 5\n');
+
+      const created = await runCLI(['new', 'change', 'one-warning'], { cwd: tempDir });
+      expect(created.exitCode).toBe(0);
+      expect(created.stderr.match(/Invalid 'context' field/g)).toHaveLength(1);
+    });
+
     it('scaffolds every template with a top-level heading', async () => {
       const initialized = await runCLI(
         [

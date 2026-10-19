@@ -144,20 +144,18 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       validateSchemaExists(options.schema, projectRoot);
     }
 
-    // Same precedence createChange persists: --schema, then the project's
-    // configured schema, then the root default. Reading config here keeps
-    // the progress line from naming a schema the change never got. The
-    // explicit option uses `||`, not `??`, because createChange ignores a
-    // falsy --schema the same way (`if (options.schema)`); an empty
-    // `--schema ''` is absent, not a schema named "".
-    const configSchema = readProjectConfig(projectRoot)?.schema;
-    const resolvedSchema = options.schema || (configSchema ?? root.defaultSchema);
+    // Resolve the schema once (--schema, then config, then the root default)
+    // and hand it to createChange, so the progress line names the schema the
+    // change gets and config warnings print only once. An empty --schema is
+    // absent, matching createChange's `if (options.schema)`.
+    const resolvedSchema =
+      options.schema || (readProjectConfig(projectRoot)?.schema ?? root.defaultSchema);
     if (spinner) {
       spinner.start(`Creating change '${name}' with schema '${resolvedSchema}'...`);
     }
 
     const result = await createChange(projectRoot, name, {
-      schema: options.schema,
+      schema: resolvedSchema,
       defaultSchema: root.defaultSchema,
       changesDir: root.changesDir,
       metadata: {
