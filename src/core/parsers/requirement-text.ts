@@ -111,15 +111,16 @@ export function countScenarios(bodyLines: string[]): number {
 }
 
 /**
- * A step keyword as it is actually written: bolded in any case (`**WHEN**`,
- * `**Given**`) or bare and uppercase (`WHEN`). Bold carries the step-ness, so
- * its case can be liberal; a bare word must be uppercase to count — lowercase
- * `when`/`then` are ordinary English prose, and the missing-SHALL/MUST check
- * is uppercase-only for the same reason.
+ * A step keyword as it is actually written: bolded in any case, with or
+ * without a colon inside the bold (`**WHEN**`, `**Given:**`), or bare and
+ * uppercase (`WHEN`). Bold carries the step-ness, so its case can be liberal;
+ * a bare word must be uppercase to count — lowercase `when`/`then` are
+ * ordinary English prose, and the missing-SHALL/MUST check is uppercase-only
+ * for the same reason.
  */
-const BOLD_TRIGGER_STEP = /\*\*(?:WHEN|GIVEN)\*\*/i;
+const BOLD_TRIGGER_STEP = /\*\*(?:WHEN|GIVEN):?\*\*/i;
 const BARE_TRIGGER_STEP = /\b(?:WHEN|GIVEN)\b/;
-const BOLD_OUTCOME_STEP = /\*\*THEN\*\*/i;
+const BOLD_OUTCOME_STEP = /\*\*THEN:?\*\*/i;
 const BARE_OUTCOME_STEP = /\bTHEN\b/;
 
 /** The two halves of a scenario, as carried by its non-fenced body lines. */

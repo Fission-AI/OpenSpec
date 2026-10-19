@@ -55,6 +55,11 @@ describe('scenarioStepCoverage reads only real steps', () => {
     expect(scenarioStepCoverage(raw)).toEqual({ hasTrigger: true, hasOutcome: true });
   });
 
+  it('accepts a colon inside the bold: **Given:** is a step', () => {
+    const raw = scenario('Labeled', '- **Given:** a request', '- **When:** it is handled', '- **Then:** the behavior occurs').join('\n');
+    expect(scenarioStepCoverage(raw)).toEqual({ hasTrigger: true, hasOutcome: true });
+  });
+
   it('AND lines carry neither half', () => {
     expect(scenarioStepCoverage(ONLY_AND.join('\n'))).toEqual({
       hasTrigger: false,
