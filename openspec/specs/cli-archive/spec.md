@@ -10,7 +10,9 @@ openspec archive [change-name] [--yes|-y]
 
 Options:
 - `--yes`, `-y`: Skip confirmation prompts (for automation)
+
 ## Requirements
+
 ### Requirement: Change Selection
 
 The command SHALL support both interactive and direct change selection methods.
@@ -78,6 +80,13 @@ The archive operation SHALL follow a structured process to safely move changes t
 
 - **WHEN** move succeeds
 - **THEN** display success message with archived name and list of updated specs
+
+#### Scenario: Successful archive releases its own claim
+
+- **WHEN** an archive run successfully moves a change to its archive destination
+- **THEN** remove the temporary archive claim it created
+- **AND** do so on supported platforms even when a path stat does not report a device id
+- **AND** never remove a claim whose path identity or contents changed before cleanup
 
 ### Requirement: Spec Update Process
 
@@ -160,8 +169,8 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 - **WHEN** a rebuilt spec is retirable but the change does not declare `retire_capabilities: true` in its metadata, or declares it in metadata that cannot be honored
 - **THEN** write the spec as any other, so the archive aborts on it exactly as it did before this behavior existed
-- **AND** name the marker as the fix in that abort, and say when a marker that is present cannot be honored
-- **AND** say nothing about the marker when retiring would not have made the spec writable anyway
+- **AND** name the marker as the fix in that abort, and say when a marker that is present cannot be honored, with control characters replaced in the reason because it repeats what the author wrote
+- **AND** say nothing about adding the marker when retiring would not have made the spec writable anyway, while still reporting a marker that is present but cannot be honored
 
 #### Scenario: Delta removes the capability's last requirement
 
@@ -196,7 +205,9 @@ A delta whose REMOVED entries cover every requirement a capability has SHALL ret
 
 - **WHEN** the spec holds any non-blank line the merge cannot name - anywhere in the file, including above the requirements section and inside a requirement block, where content the parser did not read as a new header rides along
 - **THEN** refuse the retirement, because deleting the file would take that content with it
-- **AND** say which lines stood in the way when the change declared the marker, rather than aborting on the bare validation error
+- **AND** say which lines stood in the way whether or not the change declared the marker, rather than aborting on the bare validation error
+- **AND** name the marker only when adding it would let the archive through, so an author whose spec still holds such content is pointed at that content first
+- **AND** render those lines with control characters replaced and their length bounded, because a spec that redraws the terminal or fills the screen would take the way out of the abort with it
 
 #### Scenario: Main spec is already gone
 
@@ -335,6 +346,53 @@ The archive command SHALL validate changes before applying them to ensure data i
 - **WHEN** executing `openspec archive change-name --no-validate`
 - **THEN** skip validation (unsafe mode)
 - **AND** show warning about skipping validation
+
+### Requirement: Archive incomplete-task gate SHALL use the tracked-tasks artifact glob
+
+`openspec archive`'s incomplete-task gate — the check that prevents archiving a change whose tasks are not all complete — SHALL read task progress through the change's tracked-tasks artifact glob, the same file-resolution `openspec status` and `openspec view` use, rather than a fixed `changes/<name>/tasks.md` path. The tracked-tasks artifact SHALL be identified as the artifact whose `generates` equals the schema's `apply.tracks` value, falling back to the artifact with id `tasks` when no `apply` block is present; checkbox counts SHALL be aggregated across every file matched by that artifact's `generates` glob, scoped to the change directory. When the schema cannot be resolved or no tracked-tasks artifact is found, the gate SHALL fall back to a single top-level `tasks.md` exactly as today and SHALL NOT crash. This closes the data-safety gap where a change whose tasks live in nested/glob `tasks.md` files is read as having zero tasks, no incomplete work, and is allowed to archive while unfinished.
+
+#### Scenario: Glob-tasks change with unfinished work cannot archive
+
+- **GIVEN** a schema whose tasks artifact `generates` is `**/tasks.md`
+- **AND** a change with `backend/tasks.md` containing unchecked tasks and no top-level `tasks.md`
+- **WHEN** running `openspec archive` on that change
+- **THEN** the incomplete-task gate SHALL detect the unfinished tasks and block (or require explicit override of) the archive
+- **AND** SHALL NOT treat the change as having zero tasks
+
+#### Scenario: Archive gate resolves the same tracked files as view
+
+- **GIVEN** any change with a tracked-tasks glob
+- **WHEN** the `archive` incomplete-task gate and `openspec view` each compute task progress for that change
+- **THEN** they SHALL resolve the same set of `tasks.md` files and count the same checkboxes
+
+#### Scenario: Unresolvable schema falls back without error
+
+- **GIVEN** a change whose configured schema cannot be resolved
+- **WHEN** running `openspec archive` on that change
+- **THEN** the incomplete-task gate SHALL fall back to a single top-level `tasks.md`
+- **AND** SHALL NOT crash
+
+#### Scenario: Single top-level tasks file archiving is unchanged
+
+- **GIVEN** a change with a single top-level `changes/<name>/tasks.md`, or a project with no resolvable schema
+- **WHEN** running `openspec archive`
+- **THEN** the incomplete-task gate SHALL behave exactly as today
+
+### Requirement: Local Archive Date
+
+The archive command SHALL derive the `YYYY-MM-DD` prefix of a new archive target from the calendar date in the effective local time zone of the Node.js process executing the CLI.
+
+#### Scenario: Archive crosses a UTC date boundary
+
+- **GIVEN** the CLI process's effective local time zone is `Asia/Shanghai`
+- **AND** the current instant is `2026-07-14T16:30:00.000Z`
+- **WHEN** the user archives a change named `add-auth`
+- **THEN** the target archive name begins with `2026-07-15-add-auth`
+
+#### Scenario: Non-interactive archive uses the local date
+
+- **WHEN** an automation invokes `openspec archive <change-name> --yes`
+- **THEN** the target archive name uses the CLI process's effective local calendar date
 
 ## Why These Decisions
 

@@ -3,7 +3,9 @@
 ## Purpose
 
 The `openspec init` command SHALL create a complete OpenSpec directory structure in any project, enabling immediate adoption of OpenSpec conventions with support for multiple AI coding assistants.
+
 ## Requirements
+
 ### Requirement: Progress Indicators
 
 The command SHALL display progress indicators during initialization to provide clear feedback about each step.
@@ -293,6 +295,37 @@ The command SHALL maintain backward compatibility with the experimental command.
 - **WHEN** user runs `openspec experimental`
 - **THEN** delegate to `openspec init`
 - **AND** the command SHALL be hidden from help output
+
+### Requirement: Oh My Pi tool supported in init
+The `openspec init` command SHALL support Oh My Pi as a configurable tool, generating both skill files and command files using Oh My Pi's conventions when selected.
+
+#### Scenario: Selecting Oh My Pi during init
+- **WHEN** a user selects Oh My Pi during `openspec init`
+- **THEN** skill files are written to `.omp/skills/openspec-<id>/SKILL.md` for each active command
+- **AND** command files are written to `.omp/commands/opsx-<id>.md` for each active command
+- **AND** skill file bodies use hyphen-based `/opsx-<id>` command references
+- **AND** command file bodies have `**Provided arguments**: $@` injected after any `**Input**:` heading
+
+#### Scenario: Oh My Pi listed when .omp directory is detected
+- **WHEN** the project root contains a `.omp/` directory
+- **THEN** Oh My Pi is pre-checked in the tool selection during `openspec init`
+
+### Requirement: Shared .agents target initialization
+
+`openspec init` SHALL accept the shared `agents` target wherever tool IDs are selected, and SHALL treat it as a skills-only tool.
+
+#### Scenario: Non-interactive selection of the shared target
+
+- **WHEN** the user runs `openspec init --tools agents`
+- **THEN** OpenSpec SHALL generate skills for the `agents` target
+- **AND** initialization SHALL NOT fail because `agents` has no registered command adapter
+
+#### Scenario: Shared agents target skips command-file generation
+
+- **GIVEN** the configured delivery includes command generation
+- **WHEN** the user selects the shared `agents` target during initialization
+- **THEN** command-file generation SHALL be skipped because no `agents` adapter is registered
+- **AND** `agents` SHALL be listed among the tools reported as having commands skipped
 
 ## Why
 

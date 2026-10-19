@@ -19,4 +19,4 @@
 - [x] 3.1 Run `pnpm exec vitest run test/cli-e2e/basic.test.ts test/commands/context.test.ts test/commands/global-default-store.test.ts test/core/root-selection.test.ts test/core/artifact-graph/resolver.test.ts` to verify adjacent root and schema behavior.
 - [x] 3.2 Run `pnpm run lint`, `pnpm run build`, and `pnpm test`; confirm no successful `schemas` output regression and no changes outside the scoped CLI, tests, generated guidance/documentation, and proposal files.
 - [x] 3.3 Run `pnpm exec openspec validate fix-schemas-root-selection --strict` and `git diff --check`.
-- [ ] 3.4 Verify the focused schemas suite on Windows CI, specifically the spaced native store path and absence of hard-coded path separators.
+- [x] 3.4 Verify the focused schemas suite on Windows CI, specifically the spaced native store path and absence of hard-coded path separators.

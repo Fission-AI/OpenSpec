@@ -2,7 +2,9 @@
 
 ## Purpose
 Define AI tool path metadata used to generate OpenSpec skills and commands in tool-specific directories.
+
 ## Requirements
+
 ### Requirement: AIToolOption skillsDir field
 
 The `AIToolOption` interface SHALL include an optional `skillsDir` field for skill generation path configuration.
@@ -100,3 +102,61 @@ The system SHALL handle paths correctly across operating systems.
 
 - **WHEN** constructing skill paths on macOS or Linux
 - **THEN** the system SHALL use `path.join()` for consistency
+
+### Requirement: Amp skills integration
+
+OpenSpec SHALL expose Amp as a supported skills-only tool that uses Amp's project Agent Skills directory.
+
+#### Scenario: Selecting Amp
+
+- **WHEN** the user selects Amp in `openspec init` or passes `--tools amp`
+- **THEN** OpenSpec SHALL generate the active profile's skills under `.agents/skills/`
+- **AND** the generated skills SHALL use `/openspec-<skill>` references
+- **AND** OpenSpec SHALL NOT generate command files for Amp
+
+#### Scenario: Detecting an Amp project
+
+- **WHEN** a project contains an `.amp/` directory
+- **THEN** OpenSpec SHALL detect Amp as an available tool
+
+#### Scenario: Updating an Amp-owned skill tree
+
+- **GIVEN** `.agents/skills/.openspec-target` names `amp`
+- **WHEN** `openspec update` runs
+- **THEN** OpenSpec SHALL refresh the Amp skill tree through the shared skill generator
+
+#### Scenario: Sharing the Agent Skills directory
+
+- **WHEN** Amp is selected with another tool that writes `.agents/skills/`
+- **THEN** OpenSpec SHALL write one compatible skill tree rather than letting the tools overwrite each other
+
+### Requirement: IBM Bob tool identity
+
+The `AI_TOOLS` entry for `bob` SHALL use the IBM Bob product name without changing its skill or command paths.
+
+#### Scenario: IBM Bob paths and display name
+
+- **WHEN** looking up the `bob` tool
+- **THEN** `name` and `successLabel` SHALL be `IBM Bob`
+- **AND** `skillsDir` SHALL be `.bob`
+- **AND** generated commands SHALL remain under `.bob/commands/`
+
+### Requirement: Shared .agents skills target
+
+OpenSpec SHALL provide a vendor-neutral `agents` tool target rooted at the shared `.agents` directory, for assistants that read skills from the shared location rather than a vendor-specific one.
+
+#### Scenario: Shared agents target paths defined
+
+- **WHEN** looking up the `agents` tool
+- **THEN** `skillsDir` SHALL be `.agents`
+
+#### Scenario: Detection keys off the shared skills subtree
+
+- **WHEN** a project contains a `.agents/skills` path
+- **THEN** OpenSpec SHALL detect `agents` as an available target
+
+#### Scenario: A bare shared root does not select the target
+
+- **GIVEN** a project contains `.agents` but no `.agents/skills` path
+- **WHEN** OpenSpec detects available tools
+- **THEN** `agents` SHALL NOT be reported as available
