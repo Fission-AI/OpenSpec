@@ -4,6 +4,7 @@
 Define tool-agnostic command content and adapter contracts for generating tool-specific OpenSpec command files.
 
 ## Requirements
+
 ### Requirement: CommandContent interface
 
 The system SHALL define a tool-agnostic `CommandContent` interface for command data.
@@ -28,13 +29,14 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 - **WHEN** implementing a tool adapter
 - **THEN** `ToolCommandAdapter` SHALL require:
   - `toolId`: string identifier matching `AIToolOption.value`
-  - `getFilePath(commandId: string)`: returns file path for command (relative from project root, or absolute for global-scoped tools like Codex)
+  - `getFilePath(commandId: string)`: returns file path for command relative from project root unless a supported scoped install resolver provides an absolute target for that adapter
   - `formatFile(content: CommandContent)`: returns complete file content with frontmatter
 
 #### Scenario: Claude adapter formatting
 
 - **WHEN** formatting a command for Claude Code
-- **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
+- **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `allowed-tools`, `category`, `tags` fields
+- **AND** the `allowed-tools` field SHALL have the value `Bash(openspec:*)` so Claude Code runs `openspec` commands from the slash command without prompting for approval
 - **AND** file path SHALL follow pattern `.claude/commands/opsx/<id>.md`
 
 #### Scenario: Cursor adapter formatting
@@ -45,15 +47,28 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 
 #### Scenario: Windsurf adapter formatting
 
-- **WHEN** formatting a command for Windsurf
+- **GIVEN** RETIRED — Windsurf was rebranded to Devin Desktop and its config directory moved
+- **WHEN** looking for a Windsurf adapter
+- **THEN** none SHALL be registered — it is replaced by the Devin adapter below, not kept alongside a second adapter for the same product
+
+#### Scenario: Devin Desktop adapter formatting
+
+- **WHEN** formatting a command for Devin Desktop
 - **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
-- **AND** file path SHALL follow pattern `.windsurf/workflows/opsx-<id>.md`
+- **AND** file path SHALL follow pattern `.devin/workflows/opsx-<id>.md`
 
 #### Scenario: Trae adapter formatting
 
 - **WHEN** formatting a command for Trae
 - **THEN** the adapter SHALL output YAML frontmatter with `name` and `description` fields
 - **AND** file path SHALL follow pattern `.trae/commands/opsx-<id>.md`
+
+#### Scenario: OpenCode adapter formatting
+
+- **WHEN** formatting a command for OpenCode
+- **THEN** the adapter SHALL output YAML frontmatter with `description` field
+- **AND** file path SHALL follow pattern `.opencode/commands/opsx-<id>.md` using `path.join('.opencode', 'commands', ...)` for cross-platform compatibility
+- **AND** the adapter SHALL transform colon-based command references (`/opsx:name`) to hyphen-based (`/opsx-name`) in the body
 
 ### Requirement: Command generator function
 
@@ -115,3 +130,52 @@ The body content of commands SHALL be shared across all tools.
 - **WHEN** generating the 'explore' command for Claude and Cursor
 - **THEN** both SHALL use the same `body` content
 - **AND** only the frontmatter, the file path, and the spelling of `/opsx:*` command references SHALL differ
+
+### Requirement: Legacy cleanup for renamed OpenCode command directory
+
+The legacy cleanup module SHALL detect and remove old OpenCode command files from the previous singular `.opencode/command/` directory path.
+
+#### Scenario: Detect old singular-path OpenCode command files
+
+- **WHEN** running legacy artifact detection on a project with files matching `.opencode/command/opsx-*.md` or `.opencode/command/openspec-*.md`
+- **THEN** the system SHALL include those files in the legacy slash command files list via `LEGACY_SLASH_COMMAND_PATHS`
+- **AND** `LegacySlashCommandPattern.pattern` SHALL accept `string | string[]` to support multiple glob patterns per tool
+
+#### Scenario: Clean up old OpenCode command files on init
+
+- **WHEN** a user runs `openspec init` in a project with old `.opencode/command/` artifacts
+- **THEN** the system SHALL remove the old files
+- **AND** generate new command files at `.opencode/commands/`
+
+#### Scenario: Auto-cleanup legacy artifacts in non-interactive mode
+
+- **WHEN** a user runs `openspec init` in non-interactive mode (e.g., CI) and legacy artifacts are detected
+- **THEN** the system SHALL auto-cleanup legacy artifacts without requiring `--force`
+- **AND** legacy slash command files (100% OpenSpec-managed) SHALL be removed
+- **AND** config file cleanup SHALL only remove OpenSpec markers (never delete user files)
+
+### Requirement: Codex is not a command generation target
+The command-generation system SHALL exclude Codex from active command adapter lookup and generation.
+
+#### Scenario: Codex adapter lookup
+- **WHEN** callers request a command adapter for `codex`
+- **THEN** the registry SHALL return no command adapter
+- **AND** command-file generation callers SHALL treat Codex the same as other skills-only tools
+
+#### Scenario: Generating commands for all registered adapters
+- **WHEN** callers enumerate registered command adapters
+- **THEN** the returned adapter list SHALL NOT include Codex
+- **AND** no generated command path SHALL point to a Codex global prompt directory
+
+#### Scenario: Codex command adapter module is not exported
+- **WHEN** callers import supported command adapters through the command-generation adapter index
+- **THEN** Codex SHALL NOT be exported as a supported command adapter
+
+### Requirement: Skills-only command skip behavior remains valid for Codex
+The system SHALL skip Codex command-file generation while still allowing Codex skill generation.
+
+#### Scenario: Command generation requested for selected Codex tool
+- **WHEN** a selected tool is Codex
+- **AND** command generation would otherwise be included by delivery mode
+- **THEN** the command generation step SHALL skip Codex command files
+- **AND** the Codex skill generation step SHALL remain valid

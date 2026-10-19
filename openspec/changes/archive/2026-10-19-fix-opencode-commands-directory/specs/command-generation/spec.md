@@ -30,6 +30,12 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 - **THEN** the adapter SHALL output YAML frontmatter with `name`, `description`, `category`, `tags` fields
 - **AND** file path SHALL follow pattern `.windsurf/workflows/opsx-<id>.md`
 
+#### Scenario: Trae adapter formatting
+
+- **WHEN** formatting a command for Trae
+- **THEN** the adapter SHALL output YAML frontmatter with `name` and `description` fields
+- **AND** file path SHALL follow pattern `.trae/commands/opsx-<id>.md`
+
 #### Scenario: OpenCode adapter formatting
 
 - **WHEN** formatting a command for OpenCode
