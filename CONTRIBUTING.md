@@ -2,7 +2,7 @@
 
 Thanks for helping improve OpenSpec.
 
-**We are not accepting unsolicited pull requests.** Contributions start with a GitHub issue, and pull requests come from maintainers or from contributors we have invited to build a change with us. See [An Update to OpenSpec's Contribution Policy](https://openspec.dev/blog/openspec-contribution-policy/) for why.
+Every contribution starts with a GitHub issue. We discuss the problem there, and if we agree to pursue it, a maintainer implements the change or invites you to build it with us. Pull requests come from maintainers and invited contributors. [An Update to OpenSpec's Contribution Policy](https://openspec.dev/blog/openspec-contribution-policy/) explains why.
 
 ## 1. Open an issue
 
@@ -14,7 +14,7 @@ Thanks for helping improve OpenSpec.
 
 From a project you're working in, `openspec feedback "what happened"` files a bug for you with your version and platform filled in, or hands you a prefilled form link.
 
-Write the issue yourself rather than forwarding an agent's diagnosis. We don't expect you to have all the answers, but we do want the issue to show that you have considered the problem.
+If an agent drafts the issue, read it through and make it yours. We don't expect you to have all the answers, but we do want the issue to show that you have considered the problem.
 
 ## 2. We discuss it on the issue
 
@@ -22,13 +22,13 @@ We work out the problem, the possible approaches, and whether it fits OpenSpec's
 
 If we agree to pursue it, a maintainer adds the `approved` label and then either implements it or invites you to build it with us. Say on the issue if you would like to write the fix. We can't promise to take on every suggestion.
 
-Opening pull requests is restricted to maintainers, so please don't start one until we have invited you to.
+Opening pull requests is limited to maintainers, so wait for an invitation on the issue before you start one.
 
 ## 3. Open the PR (invited contributors and maintainers)
 
 **Bug or docs:** one PR with the fix. Write `Closes #123` in the description. It shouldn't change `openspec/`, since specs are for features.
 
-**Feature:** two PRs. This is how we build a change we've already agreed on — a proposal PR is not a way to pitch one, which is the step the announcement moves back to the issue.
+**Feature:** two PRs, once we've agreed on the change in the issue.
 
 1. **Proposal:** only `openspec/changes/<name>/`. Write `Part of #123`, so the issue stays open.
 2. **Implementation:** after the proposal merges, the code plus updates to that change, such as checking off its `tasks.md`. Write `Closes #123`.
