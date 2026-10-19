@@ -22,6 +22,13 @@ The command SHALL generate Agent Skills for selected AI tools.
 - **AND** each SKILL.md SHALL contain YAML frontmatter with name and description
 - **AND** each SKILL.md SHALL contain the skill instructions
 
+#### Scenario: Pre-approving the OpenSpec CLI in skill frontmatter
+
+- **WHEN** generating a skill's YAML frontmatter
+- **THEN** the frontmatter SHALL include an `allowed-tools` field with the value `Bash(openspec:*)`
+- **AND** an agent that honors `allowed-tools` SHALL run `openspec` commands from the skill without prompting for approval
+- **AND** because `allowed-tools` pre-approves rather than restricts, any other tool the skill uses SHALL remain available under the user's existing permission settings
+
 #### Scenario: Devin skills reference skills rather than workflows
 
 - **GIVEN** the Devin Local agent does not support workflows and its documentation directs users to skills instead
@@ -63,6 +70,12 @@ The command SHALL generate opsx slash commands only for selected tools that have
 - **WHEN** the user selects Kimi Code during initialization
 - **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.kimi-code'`
 - **AND** command-file generation SHALL be skipped because no Kimi adapter is registered
+
+#### Scenario: Grok Build skips command-file generation
+
+- **WHEN** the user selects Grok Build during initialization
+- **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.grok'`
+- **AND** command-file generation SHALL be skipped because no Grok adapter is registered
 
 #### Scenario: Generating workflows for Devin Desktop
 

@@ -98,12 +98,18 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **WHEN** looking up the `cursor` tool
 - **THEN** `skillsDir` SHALL be `.cursor`
 
-#### Scenario: Windsurf paths defined
+#### Scenario: Devin Desktop paths defined
 
-- **GIVEN** RETIRED — Windsurf was rebranded to Devin Desktop and `windsurf` is no longer a tool id
-- **WHEN** looking up the `windsurf` tool
-- **THEN** no `AI_TOOLS` entry SHALL exist for it
-- **AND** the id SHALL resolve to `devin`, whose `skillsDir` is `.devin` and whose `detectionPaths` still include the legacy `.windsurf`
+- **WHEN** looking up the `devin` tool
+- **THEN** `skillsDir` SHALL be `.devin`
+- **AND** workflow files SHALL be written to `.devin/workflows/opsx-<id>.md`
+- **AND** `detectionPaths` SHALL include both `.devin` and the legacy `.windsurf`, so a project set up before the rebrand is still recognized
+
+#### Scenario: Legacy Windsurf tool ID
+
+- **WHEN** initializing with `openspec init --tools windsurf`
+- **THEN** the `windsurf` alias SHALL resolve to `devin`
+- **AND** when skill delivery is enabled, skills SHALL be generated under `.devin/skills/`, not `.windsurf/skills/`
 
 #### Scenario: Kimi Code paths defined
 
@@ -118,18 +124,30 @@ The `AI_TOOLS` array SHALL include `skillsDir` for tools that support the Agent 
 - **AND** `setupNote` SHALL explain that project `.hermes/skills` must be added to `skills.external_dirs` in `~/.hermes/config.yaml`
 - **AND** `openspec init` and `openspec update` SHALL display the note whenever `hermes` is configured
 
-#### Scenario: Devin Desktop paths defined
+#### Scenario: DeepSeek Harness paths defined
 
-- **WHEN** looking up the `devin` tool
-- **THEN** `skillsDir` SHALL be `.devin`
-- **AND** workflow files SHALL be written to `.devin/workflows/opsx-<id>.md`
-- **AND** `detectionPaths` SHALL include both `.devin` and the legacy `.windsurf`, so a project set up before the rebrand is still recognized
+- **WHEN** looking up the `dsh` tool
+- **THEN** `skillsDir` SHALL be `.dsh`
+- **AND** auto-detection SHALL require `.dsh` to be a directory
+- **AND** OpenSpec SHALL write dsh skills under `<projectRoot>/.dsh/skills/` using platform-native path joining
 
-#### Scenario: Retired tool ids resolve on the command line
+#### Scenario: Grok Build paths defined
 
-- **WHEN** a retired brand is named on the command line, such as `--tools windsurf`
-- **THEN** it SHALL resolve to the current tool id `devin` rather than erroring as unknown
-- **AND** generation SHALL write the current directory `.devin/`, not the retired one
+- **WHEN** looking up the `grok` tool
+- **THEN** `skillsDir` SHALL be `.grok`
+
+#### Scenario: Warp paths and detection defined
+
+- **WHEN** looking up the `warp` tool
+- **THEN** `skillsDir` SHALL be `.warp`
+- **AND** `detectionPaths` SHALL include `.warp` and `WARP.md`
+
+#### Scenario: Warp invokes skills without command files
+
+- **WHEN** generating workflows for the `warp` tool with delivery set to `commands`
+- **THEN** skills SHALL remain installed in `.warp/skills/`
+- **AND** no command adapter or command files SHALL be required
+- **AND** each skill SHALL be directly invocable by its `/openspec-*` name
 
 #### Scenario: Tools without skillsDir
 
