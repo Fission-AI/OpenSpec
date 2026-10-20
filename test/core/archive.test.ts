@@ -6,7 +6,7 @@ import { MarkdownParser } from '../../src/core/parsers/markdown-parser.js';
 import { findMainSpecStructureIssues } from '../../src/core/parsers/spec-structure.js';
 import { VALIDATION_MESSAGES } from '../../src/core/validation/constants.js';
 import { formatLocalDate } from '../../src/utils/date.js';
-import { promises as fs, realpathSync } from 'fs';
+import { constants as fsConstants, promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import os from 'os';
 
@@ -7863,12 +7863,15 @@ The system SHALL provide a new behavior.
         });
 
         await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
-          /Path is outside the allowed directory/
+          /changed while archive was securing it for retirement/
         );
 
         expect((await fs.lstat(linkedSpec)).isSymbolicLink()).toBe(true);
         expect(await fs.readlink(linkedSpec)).toBe(shared);
-        await expect(fs.readFile(shared, 'utf-8')).resolves.toBe(mainSpec('a-layer'));
+        // The link is back, and the update that landed on its target while the
+        // retirement was in flight is still there - restoring the link must not
+        // write through it.
+        await expect(fs.readFile(shared, 'utf-8')).resolves.toBe('concurrent update\n');
         await expect(fs.access(changeDir)).resolves.not.toThrow();
       }
     );
@@ -7912,11 +7915,31 @@ The system SHALL provide a new behavior.
         });
 
         await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
-          /Path is outside the allowed directory/
+          /A concurrent file appeared at/
         );
 
-        expect((await fs.lstat(linkedSpec)).isSymbolicLink()).toBe(true);
-        expect(await fs.readlink(linkedSpec)).toBe(shared);
+        // The occupant that appeared at the link's path is left exactly as it
+        // was found; the displaced link is retained beside it instead.
+        // O_NOFOLLOW makes the open itself fail if the path is a link again, so
+        // one handle both proves the occupant is a regular file and carries its
+        // bytes - no second lookup that could land on a different file.
+        const occupant = await fs.open(
+          linkedSpec,
+          fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW
+        );
+        try {
+          expect((await occupant.stat()).isFile()).toBe(true);
+          await expect(occupant.readFile('utf-8')).resolves.toBe('concurrent occupant\n');
+        } finally {
+          await occupant.close();
+        }
+        const retained = (await fs.readdir(path.dirname(linkedSpec))).find((name) =>
+          name.includes('.openspec-retire-')
+        );
+        expect(retained).toBeDefined();
+        expect(
+          (await fs.lstat(path.join(path.dirname(linkedSpec), retained!))).isSymbolicLink()
+        ).toBe(true);
         await expect(fs.readFile(shared, 'utf-8')).resolves.toBe(mainSpec('a-layer'));
         await expect(fs.access(changeDir)).resolves.not.toThrow();
       }
@@ -7973,7 +7996,7 @@ The system SHALL provide a new behavior.
         });
 
         await expect(archiveCommand.execute(changeName, { yes: true })).rejects.toThrow(
-          /Path is outside the allowed directory/
+          /permission denied/
         );
 
         await expect(fs.readFile(shared, 'utf-8')).resolves.toBe(original);
@@ -8372,10 +8395,12 @@ The system SHALL provide a new behavior.
         await archiveCommand.execute(changeName, { yes: true, json: true });
 
         const payload = JSON.parse(lastJsonPayload());
-        expect(payload.archive).toBeNull();
-        expect(payload.status[0].message).toContain('Path is outside the allowed directory');
-        expect((await fs.lstat(path.join(mainSpecDir, 'spec.md'))).isSymbolicLink()).toBe(true);
-        // The shared file really is still there.
+        expect(payload.archive.specsUpdated).toBe(true);
+        const notes = payload.archive.warnings.join('\n');
+        expect(notes).toContain('openspec/specs/legacy-layer/spec.md');
+        expect(notes).not.toContain('shared-legacy.md');
+        // The link is gone, and the shared file it pointed at really is still there.
+        await expect(fs.lstat(path.join(mainSpecDir, 'spec.md'))).rejects.toThrow();
         await expect(fs.readFile(shared, 'utf-8')).resolves.toContain('### Requirement:');
       }
     );

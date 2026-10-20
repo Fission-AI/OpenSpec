@@ -82,7 +82,7 @@ function findMarkerIndex(
 export class FileSystemUtils {
   /**
    * Converts a path to use forward slashes (POSIX style).
-   * Essential for cross-platform compatibility with glob libraries like fast-glob.
+   * Essential for cross-platform compatibility with glob libraries like tinyglobby.
    */
   static toPosixPath(p: string): string {
     return p.replace(/\\/g, '/');

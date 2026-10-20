@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import fg from 'fast-glob';
+import * as globby from 'tinyglobby';
+
+vi.mock('tinyglobby', async () => {
+  const actual = await vi.importActual<typeof import('tinyglobby')>('tinyglobby');
+  return {
+    ...actual,
+    globSync: vi.fn((...args: Parameters<typeof actual.globSync>) => actual.globSync(...args)),
+  };
+});
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -18,6 +26,7 @@ describe('artifact-graph/outputs', () => {
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-outputs-test-'));
+    vi.mocked(globby.globSync).mockClear();
   });
 
   afterEach(() => {
@@ -138,7 +147,7 @@ describe('artifact-graph/outputs', () => {
     const outsideDir = fs.mkdtempSync(path.join(path.dirname(tempDir), 'openspec-outside-'));
     const pattern = `{safe,../${path.basename(outsideDir)}}/review.md`;
     if (exists) fs.writeFileSync(path.join(outsideDir, 'review.md'), 'private');
-    const glob = vi.spyOn(fg, 'sync');
+    const glob = vi.mocked(globby.globSync);
     try {
       expect(() => resolveArtifactOutputs(tempDir, pattern)).toThrow(
         /outside the allowed directory/u
@@ -158,6 +167,39 @@ describe('artifact-graph/outputs', () => {
       pattern.includes('{{api}') ? 'report-{draft}-{api}.md' : 'report-{draft}-api.md');
     fs.writeFileSync(filePath, 'content');
     expect(resolveArtifactOutputs(tempDir, pattern)).toEqual([canonical(filePath)]);
+  });
+
+  it.each([
+    ['{prefix{a,b}}.md', ['{prefixa}.md', '{prefixb}.md']],
+    ['{prefix{1..2}}.md', ['{prefix1}.md', '{prefix2}.md']],
+    ['{pre{a,b}post}.md', ['{preapost}.md', '{prebpost}.md']],
+    ['{{a,b}}.md', ['{a}.md', '{b}.md']],
+    ['{draft{nope}{a,b}}.md', ['{draft{nope}a}.md', '{draft{nope}b}.md']],
+  ])('expands a nested group inside non-expanding braces in %s', (pattern, filenames) => {
+    for (const filename of filenames) {
+      fs.writeFileSync(path.join(tempDir, filename), 'content');
+    }
+    fs.writeFileSync(path.join(tempDir, pattern), 'unexpanded');
+
+    expect(resolveArtifactOutputs(tempDir, pattern)).toEqual(
+      filenames.map((filename) => canonical(path.join(tempDir, filename)))
+    );
+  });
+
+  it('keeps a brace group literal when neither it nor its nested groups expand', () => {
+    const literalPath = path.join(tempDir, 'notes-{prefix{draft}}-a.md');
+    fs.writeFileSync(literalPath, 'content');
+    fs.writeFileSync(path.join(tempDir, 'notes-{prefix{draft}}-b.md'), 'content');
+    fs.writeFileSync(path.join(tempDir, 'notes-{prefixdraft}-a.md'), 'stripped');
+    fs.writeFileSync(path.join(tempDir, '{prefix{draft}}.md'), 'content');
+
+    expect(resolveArtifactOutputs(tempDir, 'notes-{prefix{draft}}-{a,b}.md')).toEqual([
+      canonical(literalPath),
+      canonical(path.join(tempDir, 'notes-{prefix{draft}}-b.md')),
+    ]);
+    expect(resolveArtifactOutputs(tempDir, '{prefix{draft}}.md')).toEqual([
+      canonical(path.join(tempDir, '{prefix{draft}}.md')),
+    ]);
   });
 
   it('resolves a brace range after a literal brace group', () => {
@@ -272,11 +314,11 @@ describe('artifact-graph/outputs', () => {
     expect(artifactOutputExists(tempDir, 'file-{1..3}.md')).toBe(true);
   });
 
-  it('rejects brace nesting deeper than any artifact pattern needs', () => {
+  it('rejects brace nesting deeper than any artifact pattern needs before it can overflow', () => {
     const fileA = path.join(tempDir, 'a.md');
     fs.writeFileSync(fileA, 'content');
     const nested = (depth: number) => `${'{a,'.repeat(depth)}b${'}'.repeat(depth)}.md`;
-    const globSpy = vi.spyOn(fg, 'generateTasks');
+    const globSpy = vi.mocked(globby.globSync);
 
     expect(resolveArtifactOutputs(tempDir, nested(16))).toEqual([canonical(fileA)]);
     globSpy.mockClear();
@@ -293,8 +335,81 @@ describe('artifact-graph/outputs', () => {
       `16 levels deep: ${nested(4000).slice(0, 80)}...`
     );
     expect(() => resolveArtifactOutputs(tempDir, nested(4000))).not.toThrow(nested(4000));
+    expect(() => resolveArtifactOutputs(tempDir, nested(4000))).not.toThrow(
+      /Maximum call stack size exceeded/u
+    );
     expect(globSpy).not.toHaveBeenCalled();
     globSpy.mockRestore();
+  });
+
+  it('rejects a brace pattern that is wide rather than deep before it exhausts the heap', () => {
+    // Nesting depth is 1 here, so the depth guard never fires. `{a,b}` repeated
+    // 20 times is 1,048,576 patterns and crashed the expander with
+    // "JavaScript heap out of memory"; fast-glob compiled it to a regex instead.
+    const wide = (groups: number) => `${'{a,b}'.repeat(groups)}.md`;
+    const globSpy = vi.mocked(globby.globSync);
+
+    expect(() => resolveArtifactOutputs(tempDir, wide(20))).toThrow(
+      'Artifact output pattern expands to more than 1024 patterns'
+    );
+    // The error quotes only the start of a pattern that long.
+    expect(() => resolveArtifactOutputs(tempDir, wide(20))).toThrow(
+      `1024 patterns: ${wide(20).slice(0, 80)}...`
+    );
+    // A range is bounded by the same budget. brace-expansion caps itself at
+    // 100,000 results, so the budget is passed down as its `max` and the
+    // allocation stops just past 1024 instead.
+    expect(() => resolveArtifactOutputs(tempDir, 'file-{1..200000}.md')).toThrow(
+      'Artifact output pattern expands to more than 1024 patterns'
+    );
+    // Far past brace-expansion's own cap, so only our `max` can stop it early.
+    expect(() => resolveArtifactOutputs(tempDir, 'file-{1..1000000000}.md')).toThrow(
+      'Artifact output pattern expands to more than 1024 patterns'
+    );
+    expect(globSpy).not.toHaveBeenCalled();
+    globSpy.mockRestore();
+  });
+
+  it('still resolves the widest pattern inside the expansion budget', () => {
+    // 2^10 = 1024 alternatives: at the budget, not over it.
+    const file = path.join(tempDir, `${'a'.repeat(10)}.md`);
+    fs.writeFileSync(file, 'content');
+
+    expect(resolveArtifactOutputs(tempDir, `${'{a,b}'.repeat(10)}.md`)).toEqual([canonical(file)]);
+  });
+
+  it('rejects an absolute pattern before globbing, however little it matches', () => {
+    // fast-glob's generateTasks reported `/etc` as the task base, so the
+    // containment check rejected the pattern. A base that silently drops the
+    // leading slash resolves inside the change directory and lets the glob read
+    // a directory the change does not own.
+    const globSpy = vi.mocked(globby.globSync);
+
+    expect(() => resolveArtifactOutputs(tempDir, '/etc/openspec-nope-*.md')).toThrow(
+      /outside the allowed directory/u
+    );
+    expect(() => resolveArtifactOutputs(tempDir, '/openspec-nope-*.md')).toThrow(
+      /outside the allowed directory/u
+    );
+    expect(globSpy).not.toHaveBeenCalled();
+    globSpy.mockRestore();
+  });
+
+  it('keeps a control character in a filename literal instead of reading it as a brace', () => {
+    // The expander parks a non-expanding brace group on a sentinel. A
+    // single-character sentinel is a legal filename character on POSIX, so a
+    // pattern containing one came back out as `{` or `}` and matched the wrong
+    // file. The decoy is what the bug returned, and it must never match on any
+    // platform; Windows forbids U+0001 in a filename, so there the real file
+    // cannot exist and the pattern has to come back empty.
+    fs.writeFileSync(path.join(tempDir, 'x}y.md'), 'wrong');
+    const literal = path.join(tempDir, 'x\u0001y.md');
+    const literalIsCreatable = process.platform !== 'win32';
+    if (literalIsCreatable) fs.writeFileSync(literal, 'content');
+
+    expect(resolveArtifactOutputs(tempDir, 'x\u0001y*.md')).toEqual(
+      literalIsCreatable ? [canonical(literal)] : []
+    );
   });
 
   it.each([
@@ -303,7 +418,7 @@ describe('artifact-graph/outputs', () => {
     ['an open parenthesis', (depth: number) => `*${'{a,(}'.repeat(depth)}${')}'.repeat(depth)}`],
     ['parentheses alone', (depth: number) => `*{a,b}${'('.repeat(depth)}${')'.repeat(depth)}`],
   ])('counts nesting the braces parser sees past %s', (_label, nested) => {
-    const globSpy = vi.spyOn(fg, 'generateTasks');
+    const globSpy = vi.mocked(globby.globSync);
 
     expect(() => resolveArtifactOutputs(tempDir, nested(17))).toThrow(
       'Artifact output pattern nests braces more than 16 levels deep'

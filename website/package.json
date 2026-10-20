@@ -8,7 +8,7 @@
     "sync:docs:watch": "node --watch-path=../docs --watch-path=../docs-lab --watch-path=docs.sync.config.mjs --watch-preserve-output scripts/sync-docs.mjs",
     "build": "pnpm run sync:docs && fumadocs-mdx && next build",
     "dev": "pnpm run sync:docs && (pnpm run sync:docs:watch & next dev)",
-    "start": "serve out",
+    "start": "node scripts/preview.mjs",
     "types:check": "pnpm run sync:docs && fumadocs-mdx && next typegen && tsc --noEmit"
   },
   "dependencies": {
@@ -29,7 +29,6 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "postcss": "^8.5.29",
-    "serve": "^14.2.6",
     "tailwindcss": "^4.3.1",
     "typescript": "^6.0.3"
   }

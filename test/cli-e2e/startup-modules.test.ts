@@ -134,17 +134,19 @@ describe('CLI startup loads only what the command needs', () => {
     }
   );
 
-  it('`openspec __complete schemas` loads the schema reader but not fast-glob or ora', async () => {
+  it('`openspec __complete schemas` loads the schema reader but not tinyglobby or ora', async () => {
     await ensureCliBuilt();
     const { own, packages, status } = loadedModules(['__complete', 'schemas']);
 
     expect(status).toBe(0);
     expect([...packages]).not.toContain('fast-glob');
+    expect([...packages]).not.toContain('tinyglobby');
+    expect([...packages]).not.toContain('brace-expansion');
     expect([...packages]).not.toContain('ora');
     expect(own).not.toContain('telemetry/index.js');
     // The name promises a schema reader, so pin it: the resolver directly, not
     // the artifact-graph barrel, which re-exports it but also pulls outputs.js
-    // and with it fast-glob.
+    // and with it tinyglobby.
     expect(own).toContain('core/artifact-graph/resolver.js');
     expect(own).not.toContain('core/artifact-graph/index.js');
   });
