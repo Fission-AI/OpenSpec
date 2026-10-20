@@ -7,15 +7,27 @@ body:
       value: |
         Thanks for reporting this.
 
+        What helps most here is reproducibility. If an agent wrote this report,
+        please read it through and check it says what you actually hit.
+
         You can also run `openspec feedback "your report"` to submit an issue
         immediately with your version and platform, or get a submission link
         if GitHub CLI is unavailable or unauthenticated.
 
   - type: textarea
+    id: goal
+    attributes:
+      label: What you were trying to do
+      description: The task you were in the middle of, not the symptom. It tells us whether the behavior is a bug or a trade-off.
+      placeholder: Archiving a finished change so its specs land in openspec/specs/.
+    validations:
+      required: true
+
+  - type: textarea
     id: what_happened
     attributes:
       label: What happened
-      description: The actual behavior. Paste the command you ran and its output if you have it.
+      description: The actual behavior. Paste the command you ran and its full output, plus any error message or log, if you have them. Remove credentials, tokens, personal data, and anything private before posting.
       placeholder: |
         I ran `openspec archive add-login` and it exited 0 without writing the main spec.
     validations:
@@ -33,7 +45,7 @@ body:
     id: repro
     attributes:
       label: Minimal steps to reproduce
-      description: The shortest path from a fresh project to the problem. This is the single most useful thing you can give us.
+      description: The shortest path from a fresh project to the problem, ideally a minimal example. This is the single most useful thing you can give us — we can't fix what we can't reproduce.
       placeholder: |
         1. `openspec init` in an empty directory
         2. ...
@@ -56,6 +68,14 @@ body:
       label: Coding agent and model
       description: Which agent and model were driving OpenSpec, if any. Behavior often differs between them.
       placeholder: Claude Code, Opus 4.6
+    validations:
+      required: false
+
+  - type: textarea
+    id: agent_trace
+    attributes:
+      label: Agent session trace
+      description: If a coding agent was involved, paste or link the session trace, and say whether the behavior repeats across sessions. Traces often hold credentials, personal data, or private code and context; remove them before posting. Which files the agent read, which tools it called, and what was in its context is often what narrows an agent-behavior problem down.
     validations:
       required: false
 

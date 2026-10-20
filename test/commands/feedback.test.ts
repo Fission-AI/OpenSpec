@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { FeedbackCommand } from '../../src/commands/feedback.js';
 import { execFileSync } from 'child_process';
+import { readFileSync } from 'fs';
 
 // Every subprocess the command runs — the gh lookup, the auth probe, and the
 // issue creation — goes through execFileSync; there is no shell anywhere.
@@ -216,7 +217,7 @@ describe('FeedbackCommand', () => {
       const args = ghIssueSync.mock.calls[0][1] as string[];
       const body = args[args.indexOf('--body') + 1];
       expect(body).toContain(
-        `## Summary\n\n${message}\n\n## Details\n\n${details}\n\n---`
+        `### What happened\n\n${message}\n\n### Details\n\n${details}\n\n### Minimal steps to reproduce`
       );
     });
 
@@ -238,7 +239,7 @@ describe('FeedbackCommand', () => {
       );
       expect(title.length).toBeLessThanOrEqual(72);
       expect(title).not.toMatch(/[\r\n]/);
-      expect(body).toContain(`## Summary\n\n${message}`);
+      expect(body).toContain(`### What happened\n\n${message}`);
     });
 
     it('should not split Unicode grapheme clusters when shortening a title', async () => {
@@ -526,10 +527,10 @@ describe('FeedbackCommand', () => {
         expect.stringContaining('--- END FEEDBACK ---')
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining(`## Summary\n\n${message}`)
+        expect.stringContaining(`### What happened\n\n${message}`)
       );
       expect(consoleLogSpy).toHaveBeenCalledWith(
-        expect.stringContaining('## Details\n\nTest body')
+        expect.stringContaining('### Details\n\nTest body')
       );
     });
 
@@ -561,11 +562,62 @@ describe('FeedbackCommand', () => {
       });
       expect(urlCall).toBeDefined();
 
-      // Verify URL has proper parameters
-      const url = urlCall?.[0];
-      expect(url).toContain('title=');
-      expect(url).toContain('body=');
-      expect(url).toContain('labels=feedback');
+      // Verify the URL opens the bug form with the fields the CLI knows
+      // prefilled by their form ids, and leaves the rest to the reporter.
+      const parsed = new URL(/https?:\/\/\S+/.exec(String(urlCall?.[0]))![0]);
+      expect(parsed.searchParams.get('template')).toBe('bug_report.yml');
+      expect(parsed.searchParams.get('title')).toBe('Feedback: Test');
+      expect(parsed.searchParams.get('what_happened')).toBe('Test');
+      expect(parsed.searchParams.get('version')).toBeTruthy();
+      expect(parsed.searchParams.get('environment')).toContain('Node ');
+      expect(parsed.searchParams.get('repro')).toBeNull();
+      expect(parsed.searchParams.get('body')).toBeNull();
+    });
+
+    it('should prefill only ids the bug form actually defines', async () => {
+      setGhProbes({ installed: false });
+
+      try {
+        await feedbackCommand.execute('Test');
+      } catch {
+        // Expected to exit
+      }
+
+      const urlCall = consoleLogSpy.mock.calls.find((call: any[]) =>
+        String(call[0] ?? '').includes('template=bug_report.yml')
+      );
+      const parsed = new URL(/https?:\/\/\S+/.exec(String(urlCall?.[0]))![0]);
+
+      // GitHub prefills an issue form by field id, so a renamed or mistyped id
+      // silently drops the value. Check the URL against the form itself.
+      const form = readFileSync('.github/ISSUE_TEMPLATE/bug_report.yml', 'utf-8');
+      const fieldIds = [...form.matchAll(/^\s*id:\s*(\S+)$/gm)].map((match) => match[1]);
+
+      const prefilled = [...parsed.searchParams.keys()].filter(
+        (key) => key !== 'template' && key !== 'title'
+      );
+      expect(prefilled.length).toBeGreaterThan(0);
+      for (const key of prefilled) {
+        expect(fieldIds).toContain(key);
+      }
+    });
+
+    it('should prefill the form with the message and details together', async () => {
+      setGhProbes({ installed: false });
+
+      try {
+        await feedbackCommand.execute('Archive wrote nothing', { body: 'Exited 0.' });
+      } catch {
+        // Expected to exit
+      }
+
+      const urlCall = consoleLogSpy.mock.calls.find((call: any[]) =>
+        String(call[0] ?? '').includes('template=bug_report.yml')
+      );
+      const parsed = new URL(/https?:\/\/\S+/.exec(String(urlCall?.[0]))![0]);
+      expect(parsed.searchParams.get('what_happened')).toBe(
+        'Archive wrote nothing\n\nExited 0.'
+      );
     });
   });
 });

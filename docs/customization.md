@@ -425,7 +425,7 @@ Community schemas are not vendored into OpenSpec core — they live in their own
 | `anvil` | @jikkujoyce | [jikkujoyce/openspec-schemas](https://github.com/jikkujoyce/openspec-schemas/tree/main/schemas/anvil) | Spec-driven workflow with TDD discipline and an adversarial review step. Flow: `proposal` → `specs` → `design` → `review` → `test-plan` → `tasks` → `apply` → `verify`. `review` is written by a fresh-context, read-only reviewer (a second model when one is available) and emits a `VERDICT:` line telling the agent to gate `test-plan`, `tasks`, and `apply`; OpenSpec only checks that artifacts exist, so enforce the gate with your own CI or hook. `test-plan` maps every spec scenario to a named test and doubles as a red/green ledger that `verify` audits. |
 | `ml-research` | @tsenst | [idealo/openspec-schemas](https://github.com/idealo/openspec-schemas/tree/main/openspec/schemas/ml-research) | Machine-learning experiment workflow. Flow: `proposal` → `design` → `evaluation` → `tasks` → `apply` → `specs`. `evaluation` fixes metrics, success criteria, and the falsification condition before the run; `apply` writes `results.md`; `specs` records only evidence-backed findings (refuted hypotheses included) as `Finding:` requirements with linked `Evidence:` blocks. |
 
-> Want to contribute a community schema? Open an issue with a link to your repository, or submit a PR adding a row to this table.
+> Want to contribute a community schema? Open an issue with a link to your repository and a one-line description, and a maintainer adds the row.
 
 ---
 

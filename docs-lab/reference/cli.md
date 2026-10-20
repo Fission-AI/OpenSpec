@@ -2288,7 +2288,7 @@ openspec feedback "Validate output is hard to scan"
 openspec feedback "Archive fails on Windows" --body "Steps: init, propose, archive. Error: EPERM."
 ```
 
-The CLI files your message as a GitHub issue on the `Fission-AI/OpenSpec` repo through your `gh` CLI. The title becomes `Feedback: <message>`. The body holds your `--body` text plus a footer with CLI version, platform, and timestamp. The issue gets the `feedback` label. If the repo doesn't define that label, the CLI retries without it and says so.
+The CLI files your message as a GitHub issue on the `Fission-AI/OpenSpec` repo through your `gh` CLI. The title becomes `Feedback: <message>`. The body uses the bug form's headings: your message under `What happened`, your `--body` text under `Details`, and a `Minimal steps to reproduce` section asking you to add the steps, since the CLI can't fill those in. A footer adds CLI version, platform, and timestamp. The issue gets the `feedback` label. If the repo doesn't define that label, the CLI retries without it and says so.
 
 **Arguments**
 
@@ -2311,7 +2311,7 @@ On success:
 Issue URL: https://github.com/Fission-AI/OpenSpec/issues/1234
 ```
 
-Without `gh` installed, or with `gh` not logged in, nothing is submitted. The CLI prints your formatted feedback between `--- FORMATTED FEEDBACK ---` markers, then a prefilled new-issue URL to open in the browser. The not-logged-in path adds `To auto-submit in the future: gh auth login`.
+Without `gh` installed, or with `gh` not logged in, nothing is submitted. The CLI prints your formatted feedback between `--- FORMATTED FEEDBACK ---` markers, then a link that opens the bug report form with the title, what happened (your message and `--body` text), CLI version, and environment (platform and Node version) filled in. You complete the rest of the form in the browser. The not-logged-in path adds `To auto-submit in the future: gh auth login`.
 
 **Exit codes**
 

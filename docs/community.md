@@ -1,6 +1,6 @@
 # Community Showcase
 
-A community-owned awesome list of projects and resources built with and for OpenSpec. Tools, integrations, workflows, and learning resources are welcome. Community members grow and maintain this showcase through pull requests.
+A community-owned awesome list of projects and resources built with and for OpenSpec. Tools, integrations, workflows, and learning resources are welcome. Community members grow this showcase by opening issues; maintainers add the entries.
 
 Listed projects are maintained independently. Inclusion does not imply official support or endorsement by OpenSpec. See each project's documentation and issue tracker for setup and support.
 
@@ -19,7 +19,7 @@ Hosted products that add an OpenSpec capability the CLI does not provide. Each e
 
 ## Add your project
 
-Open a pull request adding one line to this file with your project's name, a direct link, and a short description of how it relates to OpenSpec.
+Open an issue with the one line you would like added: your project's name, a direct link, and a short description of how it relates to OpenSpec. A maintainer adds it to this file.
 
 - Keep entries focused on something built with OpenSpec or supporting its use, rather than general product advertising.
 - Describe what people can use. Avoid promotional claims, referral links, and tracking links.
