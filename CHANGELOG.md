@@ -6,7 +6,7 @@
 
 - [#2101](https://github.com/Fission-AI/OpenSpec/pull/2101) [`87a69a2`](https://github.com/Fission-AI/OpenSpec/commit/87a69a2bf8eb3315a8c042d001520eb7766ab580) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
   
-  - **A capability's `spec.md` may be a symlink to a file elsewhere in the project** — `list --specs`, `show`, `validate` and `archive` no longer refuse `openspec/specs/<capability>/spec.md` when it links to the file the project keeps somewhere else, such as beside the product documentation it belongs to. A link that resolves outside the project is still refused.
+  - **Symlinked spec files no longer refused** — `list --specs`, `show`, `validate` and `archive` no longer error out when `openspec/specs/<capability>/spec.md` is a symlink inside the project. Symlinked layouts are not officially supported. A link that resolves outside the project is still refused.
 
 - [#2103](https://github.com/Fission-AI/OpenSpec/pull/2103) [`e33245d`](https://github.com/Fission-AI/OpenSpec/commit/e33245d22ba6f994596a1747baf17130fe04515d) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
   
@@ -38,7 +38,7 @@
 
 - [#2052](https://github.com/Fission-AI/OpenSpec/pull/2052) [`90c95c2`](https://github.com/Fission-AI/OpenSpec/commit/90c95c2a235e0d4088006a879c19cd1febff2a9e) Thanks [@drakeo338](https://github.com/drakeo338)! - ### Bug Fixes
   
-  - **Archive accepts `openspec/`, `openspec/changes` or `openspec/specs` as a symlink** — `openspec archive` no longer refuses a project-owned symlink that points to another directory, such as a shared docs repository. An `archive/` directory that resolves outside the changes directory is still refused.
+  - **Archive no longer refuses a symlinked `openspec/`, `openspec/changes` or `openspec/specs`** — `openspec archive` no longer errors out when one of these is a project-owned symlink to another directory. Symlinked layouts are not officially supported. An `archive/` directory that resolves outside the changes directory is still refused.
 
 - [#2061](https://github.com/Fission-AI/OpenSpec/pull/2061) [`7acf282`](https://github.com/Fission-AI/OpenSpec/commit/7acf282050c0b2a27bd18f30c48fbcc0986bfc45) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
   
