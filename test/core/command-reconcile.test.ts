@@ -1,0 +1,184 @@
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'fs/promises';
+import os from 'os';
+import path from 'path';
+import {
+  reconcileCommandFiles,
+  formatKeptCommandFiles,
+} from '../../src/core/shared/command-reconcile.js';
+import { getCommandContents } from '../../src/core/shared/skill-generation.js';
+import {
+  CommandAdapterRegistry,
+  generateCommands,
+} from '../../src/core/command-generation/index.js';
+import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
+
+const WORKFLOWS = ['propose', 'apply', 'archive'] as const;
+
+async function writeGeneratedCommands(
+  projectPath: string,
+  toolId: string,
+  workflows: readonly string[]
+): Promise<string[]> {
+  const adapter = CommandAdapterRegistry.get(toolId)!;
+  const generated = generateCommands(getCommandContents(workflows), adapter);
+
+  for (const cmd of generated) {
+    const full = path.join(projectPath, cmd.path);
+    await fs.mkdir(path.dirname(full), { recursive: true });
+    await fs.writeFile(full, cmd.fileContent);
+  }
+
+  return generated.map((cmd) => cmd.path);
+}
+
+describe('reconcileCommandFiles', () => {
+  let projectPath: string;
+
+  beforeEach(async () => {
+    projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-reconcile-'));
+  });
+
+  afterEach(async () => {
+    await fs.rm(projectPath, { recursive: true, force: true });
+  });
+
+  it('removes command files it generated', async () => {
+    const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
+
+    const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+
+    expect(result.removed.sort()).toEqual([...written].sort());
+    expect(result.kept).toEqual([]);
+    for (const cmdPath of written) {
+      await expect(fs.access(path.join(projectPath, cmdPath))).rejects.toThrow();
+    }
+  });
+
+  it('keeps a hand-edited command file and reports it', async () => {
+    const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
+    const edited = written.find((p) => p.endsWith('propose.md'))!;
+    const editedFull = path.join(projectPath, edited);
+    const original = await fs.readFile(editedFull, 'utf-8');
+    await fs.writeFile(editedFull, `${original}\n<!-- our team's extra step -->\n`);
+
+    const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+
+    expect(result.kept).toEqual([edited]);
+    expect(result.removed).not.toContain(edited);
+    // The edit survives byte-for-byte: kept means untouched, not rewritten.
+    expect(await fs.readFile(editedFull, 'utf-8')).toBe(
+      `${original}\n<!-- our team's extra step -->\n`
+    );
+    expect(formatKeptCommandFiles(result)).toEqual([
+      [
+        'Kept 1 command file that does not match generated output (edited, or written by an older OpenSpec version):',
+        `  ${edited}`,
+        'Move anything worth keeping into the skill, then delete by hand.',
+      ],
+    ]);
+  });
+
+  it('treats a BOM and CRLF checkout as untouched, not edited', async () => {
+    const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
+    const checkedOut = path.join(projectPath, written[0]);
+    const original = await fs.readFile(checkedOut, 'utf-8');
+    await fs.writeFile(checkedOut, `﻿${original.replace(/\n/g, '\r\n')}`);
+
+    const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+
+    expect(result.kept).toEqual([]);
+    expect(result.removed).toContain(written[0]);
+  });
+
+  it('removes a file left over from a wider profile than the one in use', async () => {
+    // Written when every workflow was installed, reconciled against a narrower
+    // set: still our generated output, so it must not be reported as an edit.
+    const written = await writeGeneratedCommands(projectPath, 'claude', ALL_WORKFLOWS);
+
+    const result = await reconcileCommandFiles(projectPath, 'claude', ['propose']);
+
+    expect(result.kept).toEqual([]);
+    expect(result.removed.sort()).toEqual([...written].sort());
+  });
+
+  it('keeps and reports a file it cannot read rather than passing over it', async () => {
+    // A file left on disk must always be named. Silently skipping an
+    // unreadable one would tell the user the directory was cleared when it
+    // was not.
+    const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
+    const unreadable = written.find((p) => p.endsWith('apply.md'))!;
+    // A directory at the command path exists but cannot be read as a file
+    // (EISDIR), on every platform and without mocking the read.
+    await fs.rm(path.join(projectPath, unreadable));
+    await fs.mkdir(path.join(projectPath, unreadable));
+
+    const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+    // Reported as unchecked, not as an edit: no mismatch was established.
+    expect(result.unchecked).toEqual([unreadable]);
+    expect(result.kept).toEqual([]);
+    expect(result.removed).not.toContain(unreadable);
+    expect(formatKeptCommandFiles(result)).toEqual([
+      [
+        'Left 1 command file in place because it could not be read or removed:',
+        `  ${unreadable}`,
+        'Check the file permissions or symbolic links, then delete by hand.',
+      ],
+    ]);
+
+    // Still on disk, which is what being reported as kept has to mean.
+    await expect(fs.access(path.join(projectPath, unreadable))).resolves.toBeUndefined();
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'never follows a command symlink that escapes the project, and still cleans the rest',
+    async () => {
+      const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
+      const linked = written.find((p) => p.endsWith('apply.md'))!;
+      const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-reconcile-outside-'));
+      const outsideFile = path.join(outsideDir, 'apply.md');
+      // Same bytes as generated output, so only the confinement check can
+      // stop it being deleted through the link.
+      await fs.copyFile(path.join(projectPath, linked), outsideFile);
+      await fs.rm(path.join(projectPath, linked));
+      await fs.symlink(outsideFile, path.join(projectPath, linked));
+
+      try {
+        const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+
+        expect(result.unchecked).toEqual([linked]);
+        // One bad entry must not abort cleanup of the tool's other files.
+        expect(result.removed.sort()).toEqual(written.filter((p) => p !== linked).sort());
+        await expect(fs.access(outsideFile)).resolves.toBeUndefined();
+        await expect(fs.lstat(path.join(projectPath, linked))).resolves.toBeTruthy();
+      } finally {
+        await fs.rm(outsideDir, { recursive: true, force: true });
+      }
+    }
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'reports a dangling command symlink instead of failing the run',
+    async () => {
+      const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
+      const dangling = written.find((p) => p.endsWith('apply.md'))!;
+      await fs.rm(path.join(projectPath, dangling));
+      await fs.symlink(path.join(projectPath, 'does-not-exist.md'), path.join(projectPath, dangling));
+
+      const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+
+      expect(result.unchecked).toEqual([dangling]);
+      expect(result.removed).toHaveLength(written.length - 1);
+    }
+  );
+
+  it('does nothing for a tool with no command adapter', async () => {
+    const result = await reconcileCommandFiles(projectPath, 'codex', WORKFLOWS);
+
+    expect(result).toEqual({ removed: [], kept: [], unchecked: [] });
+  });
+
+  it('reports nothing when nothing was left behind', () => {
+    expect(formatKeptCommandFiles({ kept: [], unchecked: [] })).toEqual([]);
+  });
+});
