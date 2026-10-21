@@ -44,6 +44,9 @@ The picker asks what to configure ([delivery](#delivery-skills-commands-or-both)
 
 Delivery is a profile setting that lets you choose to have only skills or only commands installed. The default is `both`. [Set up your project](../start/setup.md#the-workflow-files-skills-and-commands) explains the two forms and why both exist. The field's exact contract is in [CLI settings (config.json)](../reference/configuration/config-json.md#delivery).
 
+> [!IMPORTANT]
+> Command files are deprecated. The next major version of OpenSpec installs skills only by default, and `openspec update` says so on every run while your delivery setting gives a configured tool command files, including runs where everything is already up to date. To switch now, set `delivery` to `skills` and run `openspec update`: it removes the command files OpenSpec generated and lists any you edited instead of deleting them. To keep commands through the next major, set `delivery` to `both` explicitly. The plan is tracked in [#2022](https://github.com/Fission-AI/OpenSpec/issues/2022).
+
 Two ways to change it:
 
 **Interactively**: run `openspec config profile` and choose "Delivery only". Here's switching to skills only:
