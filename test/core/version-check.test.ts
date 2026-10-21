@@ -1242,3 +1242,50 @@ describe('displayCliUpdateNote', () => {
     expect(isEphemeralRunnerInstall(null)).toBe(false);
   });
 });
+
+describe('standalone binary', () => {
+  // A path with a space and a quote, to prove the printed command survives a shell.
+  const executable = path.join(os.tmpdir(), "it's bin", process.platform === 'win32' ? 'openspec.exe' : 'openspec');
+
+  async function loadMarked() {
+    // A fresh module copy, so the mark cannot leak into other tests.
+    vi.resetModules();
+    const versionCheck = await import('../../src/core/version-check.js');
+    versionCheck.markStandaloneBinary(executable);
+    return versionCheck;
+  }
+
+  it('reports itself as standalone, located where the binary is', async () => {
+    const { getCliInstallInfo, getInstallDir, buildVersionReportLines } = await loadMarked();
+    // Not a package install: no package-manager logic may act on a directory.
+    expect(getInstallDir()).toBeNull();
+    const install = getCliInstallInfo(null);
+
+    expect(install).toEqual({ location: path.dirname(executable), packageManager: null, scope: 'standalone' });
+    expect(buildVersionReportLines('1.0.0', install)[0]).toBe('OpenSpec 1.0.0 (standalone)');
+  });
+
+  it('upgrades by replacing the binary in place, never through a package manager', async () => {
+    const { getCliInstallInfo, getCliUpdateCommand, buildCliUpdateLines, canSelfUpgrade } = await loadMarked();
+    const command = getCliUpdateCommand(getCliInstallInfo(null));
+    const lines = buildCliUpdateLines('9.9.9', null, PROJECT_ROOT).join('\n');
+
+    if (process.platform === 'win32') {
+      expect(command).toBe(
+        `Invoke-WebRequest https://github.com/Fission-AI/OpenSpec/releases/latest/download/openspec-windows-${process.arch}.exe -OutFile '${executable.replace(/'/g, "''")}'`
+      );
+    } else {
+      expect(command).toMatch(
+        /^curl -fsSL https:\/\/github\.com\/Fission-AI\/OpenSpec\/releases\/latest\/download\/install\.sh \| OPENSPEC_INSTALL_DIR='.*' sh$/
+      );
+      // The quoted directory is exactly the binary's directory once a shell reads it.
+      const quoted = command!.match(/OPENSPEC_INSTALL_DIR=(.*) sh$/)![1];
+      const { execFileSync } = await import('child_process');
+      expect(execFileSync('sh', ['-c', `printf %s ${quoted}`], { encoding: 'utf8' })).toBe(path.dirname(executable));
+    }
+    expect(lines).toContain(command!);
+    expect(lines).toContain('Then run "openspec update" again');
+    expect(lines).not.toMatch(/npm|pnpm|yarn|volta|bun add/);
+    expect(canSelfUpgrade(null, PROJECT_ROOT)).toBe(false);
+  });
+});

@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { getGlobalDataDir } from '../../dist/core/global-config.js';
 import { setPackageSchemasDir } from '../../dist/core/artifact-graph/resolver.js';
+import { markStandaloneBinary } from '../../dist/core/version-check.js';
 
 // Replaced by build.mjs: { hash, files: { 'spec-driven/schema.yaml': '...' } }
 const { hash, files } = OPENSPEC_EMBEDDED_SCHEMAS;
@@ -67,6 +68,8 @@ function extractSchemas() {
     return dir;
   }
 }
+
+markStandaloneBinary(process.execPath);
 
 let schemasDir;
 setPackageSchemasDir(() => {
