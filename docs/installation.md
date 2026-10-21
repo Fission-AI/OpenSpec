@@ -15,8 +15,13 @@ Install OpenSpec in this project and set it up for me. Follow these steps in
 order, and stop where a step tells you to stop.
 
 1. RUNTIME. Run `node --version`. OpenSpec needs Node.js 20.19.0 or higher. If
-   Node is missing or older, say so and stop — don't install Node, switch
-   versions, or reconfigure my version manager for me.
+   Node is missing or older, don't install Node, switch versions, or
+   reconfigure my version manager for me. Offer the standalone binary instead,
+   which needs no Node. On macOS or Linux, show me this command and run it only
+   once I confirm, then skip to step 3:
+     curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
+   On Windows, or if I decline or it fails, point me at the "Standalone binary"
+   section of the OpenSpec installation docs and stop.
 
 2. INSTALL. Use whichever package manager is already on my PATH, preferring npm:
      npm install -g @fission-ai/openspec@latest
@@ -138,10 +143,10 @@ To install by hand, download your platform's file, rename it to `openspec` (`ope
 
 | Platform | File |
 |---|---|
-| macOS (Apple Silicon / Intel) | `openspec-darwin-arm64` / `openspec-darwin-x64` |
+| macOS 13+ (Apple Silicon / Intel) | `openspec-darwin-arm64` / `openspec-darwin-x64` |
 | Linux (glibc 2.17+) | `openspec-linux-x64` / `openspec-linux-arm64` |
 | Alpine 3.17+ (needs `apk add libstdc++ libgcc`) | `openspec-linux-x64-musl` / `openspec-linux-arm64-musl` |
-| Windows | `openspec-windows-x64.exe` / `openspec-windows-arm64.exe` |
+| Windows 10+ | `openspec-windows-x64.exe` / `openspec-windows-arm64.exe` |
 
 On macOS, a file downloaded with a browser is blocked until you run `xattr -d com.apple.quarantine openspec`; the install script avoids this. On Windows, SmartScreen may warn the first time you run it from Explorer.
 
@@ -205,7 +210,7 @@ There's no `openspec uninstall` command, because OpenSpec is just a global packa
 npm uninstall -g @fission-ai/openspec   # or: pnpm rm -g / yarn global remove / bun rm -g
 ```
 
-With the standalone binary, delete the file instead (`rm ~/.local/bin/openspec` if you used the install script). It also keeps a copy of its built-in schemas under your OpenSpec data directory (`~/.local/share/openspec/binary-schemas` on macOS and Linux, `%LOCALAPPDATA%\openspec\binary-schemas` on Windows), which you can delete too.
+With the standalone binary, delete the file instead (`rm ~/.local/bin/openspec` if you used the install script). When that directory is writable, it also keeps a copy of its built-in schemas under your OpenSpec data directory (`~/.local/share/openspec/binary-schemas` on macOS and Linux, `%LOCALAPPDATA%\openspec\binary-schemas` on Windows), which you can delete too.
 
 **2. Remove OpenSpec from a project (optional).** Delete the `openspec/` directory if you no longer want its specs and changes:
 

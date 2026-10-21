@@ -22,7 +22,7 @@ TODO:
 
 ## 1. Runtime
 
-Run `node --version`. OpenSpec needs Node.js 20.19.0 or higher. If Node is missing or older, say so and stop, but leave the user with their next move: point them at https://nodejs.org, or if they use a version manager like nvm, name the command that would switch to a newer version. Don't install Node, switch versions, or reconfigure the user's version manager yourself.
+Run `node --version`. OpenSpec needs Node.js 20.19.0 or higher. If Node is missing or older, don't install Node, switch versions, or reconfigure the user's version manager yourself. Offer the standalone binary instead, which needs no Node: on macOS or Linux, show `curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh`, run it only once the user confirms, then skip to step 3. On Windows, or if the user declines or it fails, stop and leave them with their next move: the standalone binary section of https://openspec.dev/docs/installation, https://nodejs.org, or, if they use a version manager like nvm, the command that would switch to a newer version.
 
 ## 2. Install
 
