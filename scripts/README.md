@@ -70,3 +70,21 @@ test file mid-suite.
 ## pack-version-check.mjs
 
 Validates package version consistency before publishing.
+
+## binary/
+
+Builds standalone `openspec` executables with Bun, for people without Node.js.
+CI smoke-tests them on every PR and attaches them to each published release
+(`.github/workflows/binaries.yml`).
+
+**Usage**:
+```bash
+pnpm build
+bun scripts/binary/build.mjs                  # this machine → dist-bin/
+bun scripts/binary/build.mjs bun-linux-x64    # cross-compile any Bun target
+bash scripts/binary/smoke.sh dist-bin/openspec-<os>-<arch>
+```
+
+The binary has no package directory, so `build.mjs` bundles `package.json`
+and embeds `schemas/`, which `entry.mjs` writes to
+`<data dir>/binary-schemas/<content hash>/` on first run.

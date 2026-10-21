@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -33,6 +33,23 @@ describe('artifact-graph/resolver', () => {
       const schemasDir = getPackageSchemasDir();
       expect(typeof schemasDir).toBe('string');
       expect(schemasDir.length).toBeGreaterThan(0);
+    });
+
+    it('serves built-in schemas from the directory the standalone binary sets', async () => {
+      // A fresh module copy, so the override cannot leak into other tests.
+      vi.resetModules();
+      process.env.XDG_DATA_HOME = tempDir; // no user overrides in the way
+      const resolver = await import('../../../src/core/artifact-graph/resolver.js');
+      const packageDir = path.join(tempDir, 'extracted');
+      fs.cpSync(path.join(getPackageSchemasDir(), 'spec-driven'), path.join(packageDir, 'spec-driven'), {
+        recursive: true,
+      });
+
+      resolver.setPackageSchemasDir(packageDir);
+
+      expect(resolver.getPackageSchemasDir()).toBe(packageDir);
+      expect(resolver.getSchemaDir('spec-driven')).toBe(path.join(packageDir, 'spec-driven'));
+      expect(resolver.listSchemas()).toContain('spec-driven');
     });
   });
 
