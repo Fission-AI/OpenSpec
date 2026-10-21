@@ -1,8 +1,8 @@
 name: Binaries
 
 # Standalone `openspec` executables for people without Node.js (#2055).
-# Pull requests smoke-test the host binary on each OS; a published release gets
-# every platform's binary attached, cross-compiled from one Linux runner.
+# One Linux job cross-compiles every asset; each is then tested on its own OS
+# and CPU, and only then attached to a published release.
 on:
   pull_request:
     branches: [main]
@@ -21,82 +21,150 @@ permissions:
 
 concurrency:
   group: binaries-${{ github.ref }}-${{ inputs.tag }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   BUN_VERSION: '1.4.3'
+  # The release's tag, or the commit under test.
+  REF: ${{ github.event.release.tag_name || inputs.tag || github.sha }}
 
 jobs:
-  smoke:
-    name: Smoke (${{ matrix.os }})
-    if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      # No dependency caches: this job builds release binaries, and a cache
+      # written by a pull request run could poison them.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20.19.0'
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+          no-cache: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: bun scripts/binary/build.mjs --all
+      # The binaries report package.json's version (smoke.sh checks), so this
+      # keeps assets off a release they do not belong to.
+      - name: Check the version matches the release tag
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+        run: |
+          version=$(node -p "require('./package.json').version")
+          [[ "$REF" == *"$version" ]] || {
+            echo "::error::package.json version $version does not match tag $REF"
+            exit 1
+          }
+      - name: Checksums and installer
+        run: |
+          cd dist-bin
+          sha256sum openspec-* > SHA256SUMS
+          cp ../scripts/binary/install.sh .
+          cat SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: binaries
+          path: dist-bin/
+          if-no-files-found: error
+          retention-days: 7
+
+  verify:
+    name: Verify ${{ matrix.asset }}
+    needs: build
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        include:
+          - { asset: linux-x64, os: ubuntu-latest }
+          - { asset: linux-arm64, os: ubuntu-24.04-arm }
+          # Oldest Alpine whose libstdc++ the musl build links against.
+          - { asset: linux-x64-musl, os: ubuntu-latest, alpine: '3.17' }
+          - { asset: linux-arm64-musl, os: ubuntu-24.04-arm, alpine: '3.17' }
+          - { asset: darwin-x64, os: macos-15-intel }
+          - { asset: darwin-arm64, os: macos-latest }
+          - { asset: windows-x64, os: windows-latest }
+          - { asset: windows-arm64, os: windows-11-arm }
     defaults:
       run:
         shell: bash
+    env:
+      ASSET: ${{ matrix.asset }}
+      ALPINE: ${{ matrix.alpine }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.REF }}
           persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          node-version: '20.19.0'
-          cache: 'pnpm'
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
-      - run: bun scripts/binary/build.mjs
-      - name: Smoke-test the binary
-        run: bash scripts/binary/smoke.sh dist-bin/openspec-*
+          name: binaries
+          path: dist-bin
+      - run: chmod +x dist-bin/openspec-*
+
+      - name: Smoke test
+        run: |
+          if [ -n "$ALPINE" ]; then
+            docker run --rm -v "$PWD:/src" -w /src "alpine:$ALPINE" sh -c \
+              "apk add --no-cache bash libstdc++ libgcc >/dev/null && bash scripts/binary/smoke.sh dist-bin/openspec-$ASSET"
+          elif [ "$RUNNER_OS" = Windows ]; then
+            bash scripts/binary/smoke.sh "dist-bin/openspec-$ASSET.exe"
+          else
+            bash scripts/binary/smoke.sh "dist-bin/openspec-$ASSET"
+          fi
+
+      - name: Run from PowerShell and cmd
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $exe = "dist-bin\openspec-$env:ASSET.exe"
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          cmd /c "$exe --version"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # Serves this build as a release and checks the installer picks exactly
+      # this asset on this machine, verifies it, and installs a working copy.
+      - name: Install script
+        if: runner.os != 'Windows'
+        run: |
+          python3 -m http.server 8765 --directory dist-bin >/dev/null 2>&1 &
+          for _ in $(seq 20); do curl -sf -o /dev/null http://127.0.0.1:8765/SHA256SUMS && break; sleep 0.5; done
+          if [ -n "$ALPINE" ]; then
+            docker run --rm --network host -v "$PWD/dist-bin:/dist:ro" "alpine:$ALPINE" sh -c \
+              "apk add --no-cache libstdc++ libgcc >/dev/null &&
+               OPENSPEC_DOWNLOAD_URL=http://127.0.0.1:8765 OPENSPEC_INSTALL_DIR=/opt/bin sh /dist/install.sh &&
+               cmp /opt/bin/openspec /dist/openspec-$ASSET"
+          else
+            OPENSPEC_DOWNLOAD_URL=http://127.0.0.1:8765 OPENSPEC_INSTALL_DIR="$RUNNER_TEMP/bin" sh dist-bin/install.sh
+            cmp "$RUNNER_TEMP/bin/openspec" "dist-bin/openspec-$ASSET"
+          fi
 
   release:
     name: Attach to release
+    needs: verify
     if: github.repository == 'Fission-AI/OpenSpec' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     permissions:
       contents: write # upload release assets
-    env:
-      TAG: ${{ github.event.release.tag_name || inputs.tag }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          ref: ${{ env.TAG }}
-          persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: '20.19.0'
-          cache: 'pnpm'
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
-        with:
-          bun-version: ${{ env.BUN_VERSION }}
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm run build
-      - run: >-
-          bun scripts/binary/build.mjs
-          bun-linux-x64 bun-linux-arm64 bun-darwin-x64 bun-darwin-arm64 bun-windows-x64
-      # Also checks the binary reports the version the tag names, so assets
-      # never land on the wrong release.
-      - name: Smoke-test the Linux binary
-        run: |
-          bash scripts/binary/smoke.sh dist-bin/openspec-linux-x64
-          [[ "$TAG" == *"$(dist-bin/openspec-linux-x64 --version)" ]] || {
-            echo "::error::Binary version does not match release tag $TAG"
-            exit 1
-          }
+          name: binaries
+          path: dist-bin
       - name: Upload
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd dist-bin
-          sha256sum openspec-* > SHA256SUMS
-          gh release upload "$TAG" openspec-* SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
+          sha256sum --check SHA256SUMS
+          gh release upload "$REF" openspec-* SHA256SUMS install.sh --clobber --repo "$GITHUB_REPOSITORY"
