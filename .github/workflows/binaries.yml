@@ -2,11 +2,10 @@ name: Binaries
 
 # Standalone `openspec` executables for people without Node.js (#2055).
 # One Linux job cross-compiles every asset; each is then tested on its own OS
-# and CPU, and only then attached to a published release.
+# and CPU, and only then attached to a published release. Not run in the merge
+# queue: the PR run covers the change, and a release re-verifies before upload.
 on:
   pull_request:
-    branches: [main]
-  merge_group:
     branches: [main]
   release:
     types: [published]
@@ -58,7 +57,11 @@ jobs:
         if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
         run: |
           version=$(node -p "require('./package.json').version")
-          [[ "$REF" == *"$version" ]] || {
+          # Tags are v1.2.3, or @fission-ai/openspec@1.2.3 as changesets first
+          # creates them. Exact match: a suffix match would let v11.0.0 pass for 1.0.0.
+          tag_version=${REF##*@}
+          tag_version=${tag_version#v}
+          [[ "$tag_version" == "$version" ]] || {
             echo "::error::package.json version $version does not match tag $REF"
             exit 1
           }

@@ -58,12 +58,23 @@ const staticRequire = {
   },
 };
 
+// Sorted, so the same schemas give the same hash on every filesystem.
 const files = {};
 const schemasDir = path.join(root, 'schemas');
-for (const entry of fs.readdirSync(schemasDir, { recursive: true, withFileTypes: true })) {
-  if (!entry.isFile()) continue;
-  const file = path.join(entry.parentPath, entry.name);
-  files[path.relative(schemasDir, file).split(path.sep).join('/')] = fs.readFileSync(file, 'utf8');
+const schemaFiles = fs
+  .readdirSync(schemasDir, { recursive: true, withFileTypes: true })
+  .filter((entry) => entry.isFile())
+  .map((entry) => path.relative(schemasDir, path.join(entry.parentPath, entry.name)).split(path.sep).join('/'))
+  .sort();
+for (const relativePath of schemaFiles) {
+  const bytes = fs.readFileSync(path.join(schemasDir, relativePath));
+  const content = bytes.toString('utf8');
+  // Embedded as text; anything else would be silently corrupted.
+  if (!Buffer.from(content, 'utf8').equals(bytes)) {
+    console.error(`schemas/${relativePath} is not UTF-8 text and cannot be embedded`);
+    process.exit(1);
+  }
+  files[relativePath] = content;
 }
 const hash = createHash('sha256').update(JSON.stringify(files)).digest('hex').slice(0, 16);
 
@@ -80,6 +91,12 @@ for (const asset of assets) {
   });
   if (!result.success) {
     for (const log of result.logs) console.error(log);
+    process.exit(1);
+  }
+  // Bun resolves some paths at build time; one baked into the binary points
+  // at this machine and would mislead the CLI everywhere else.
+  if (fs.readFileSync(outfile).includes(root)) {
+    console.error(`${path.relative(root, outfile)} embeds the build path ${root}`);
     process.exit(1);
   }
   console.log(`Built ${path.relative(root, outfile)}`);
