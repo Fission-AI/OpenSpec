@@ -20,15 +20,15 @@ export class SchemaLoadError extends Error {
   }
 }
 
-let packageSchemasDirOverride: string | undefined;
+let packageSchemasDirOverride: (() => string) | undefined;
 
 /**
  * Points the built-in schemas at another directory. The standalone binary has
- * no package directory on disk, so it extracts its embedded schemas and calls
- * this before the CLI runs.
+ * no package directory on disk, so it passes a function that extracts its
+ * embedded schemas; it runs only when a command first needs them.
  */
-export function setPackageSchemasDir(dir: string): void {
-  packageSchemasDirOverride = dir;
+export function setPackageSchemasDir(resolveDir: () => string): void {
+  packageSchemasDirOverride = resolveDir;
 }
 
 /**
@@ -36,7 +36,7 @@ export function setPackageSchemasDir(dir: string): void {
  * Uses import.meta.url to resolve relative to the current module.
  */
 export function getPackageSchemasDir(): string {
-  if (packageSchemasDirOverride) return packageSchemasDirOverride;
+  if (packageSchemasDirOverride) return packageSchemasDirOverride();
   const currentFile = fileURLToPath(import.meta.url);
   // Navigate from dist/core/artifact-graph/ to package root's schemas/
   return path.join(path.dirname(currentFile), '..', '..', '..', 'schemas');

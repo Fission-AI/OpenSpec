@@ -45,7 +45,12 @@ describe('artifact-graph/resolver', () => {
         recursive: true,
       });
 
-      resolver.setPackageSchemasDir(packageDir);
+      let calls = 0;
+      resolver.setPackageSchemasDir(() => {
+        calls++;
+        return packageDir;
+      });
+      expect(calls).toBe(0); // nothing is extracted until a command needs it
 
       expect(resolver.getPackageSchemasDir()).toBe(packageDir);
       expect(resolver.getSchemaDir('spec-driven')).toBe(path.join(packageDir, 'spec-driven'));
