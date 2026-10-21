@@ -74,17 +74,20 @@ Validates package version consistency before publishing.
 ## binary/
 
 Builds standalone `openspec` executables with Bun, for people without Node.js.
-CI smoke-tests them on every PR and attaches them to each published release
-(`.github/workflows/binaries.yml`).
+`.github/workflows/binaries.yml` cross-compiles every asset on Linux, tests
+each on its own OS and CPU (Alpine for the musl ones), and attaches them,
+`SHA256SUMS`, and `install.sh` to each published release.
 
 **Usage**:
 ```bash
 pnpm build
-bun scripts/binary/build.mjs                  # this machine → dist-bin/
-bun scripts/binary/build.mjs bun-linux-x64    # cross-compile any Bun target
-bash scripts/binary/smoke.sh dist-bin/openspec-<os>-<arch>
+bun scripts/binary/build.mjs                    # this machine → dist-bin/
+bun scripts/binary/build.mjs --all              # every release asset
+bun scripts/binary/build.mjs linux-x64-musl     # named assets (see ASSETS in build.mjs)
+bash scripts/binary/smoke.sh dist-bin/openspec-<asset>
 ```
 
 The binary has no package directory, so `build.mjs` bundles `package.json`
-and embeds `schemas/`, which `entry.mjs` writes to
-`<data dir>/binary-schemas/<content hash>/` on first run.
+and embeds `schemas/`; `entry.mjs` writes them to
+`<data dir>/binary-schemas/<content hash>/` the first time a command needs
+them, and rewrites that copy if it was edited or partly deleted.

@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- **Node.js 20.19.0 or higher** — Check your version: `node --version`
+- **Node.js 20.19.0 or higher** — Check your version: `node --version`. Not needed for the [standalone binary](#standalone-binary-no-nodejs).
 
 ## Install with your AI assistant
 
@@ -124,6 +124,27 @@ You still need Node.js 20.19.0 or higher available on `PATH`.
 bun add -g @fission-ai/openspec@latest
 ```
 
+## Standalone binary (no Node.js)
+
+Each [GitHub release](https://github.com/Fission-AI/OpenSpec/releases) includes a single-file `openspec` executable for every platform, with Node built in. On macOS or Linux:
+
+```bash
+curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
+```
+
+The script picks the right file for your machine, checks it against the release's `SHA256SUMS`, and installs it to `~/.local/bin` (set `OPENSPEC_INSTALL_DIR` to change that, or `OPENSPEC_VERSION=v1.15.0` to pin a release).
+
+To install by hand, download your platform's file, rename it to `openspec` (`openspec.exe` on Windows), and put it on your `PATH`:
+
+| Platform | File |
+|---|---|
+| macOS (Apple Silicon / Intel) | `openspec-darwin-arm64` / `openspec-darwin-x64` |
+| Linux (glibc 2.17+) | `openspec-linux-x64` / `openspec-linux-arm64` |
+| Alpine 3.17+ (needs `apk add libstdc++ libgcc`) | `openspec-linux-x64-musl` / `openspec-linux-arm64-musl` |
+| Windows | `openspec-windows-x64.exe` / `openspec-windows-arm64.exe` |
+
+On macOS, a file downloaded with a browser is blocked until you run `xattr -d com.apple.quarantine openspec`; the install script avoids this. On Windows, SmartScreen may warn the first time you run it from Explorer.
+
 ## Nix
 
 Run OpenSpec directly without installation:
@@ -170,6 +191,8 @@ npm install -g @fission-ai/openspec@latest   # or pnpm/yarn/bun equivalent
 openspec update                              # run inside each project
 ```
 
+With the standalone binary, run the install script again (or download the new file) instead of the package manager command.
+
 `openspec update` regenerates the skill and command files for the tools you've configured, so your slash commands stay current with the installed version. It also checks whether a newer CLI has been published and offers to upgrade, since upgrading is what makes new workflows available in the first place — see [CLI Reference](cli.md#openspec-update).
 
 ## Uninstalling
@@ -181,6 +204,8 @@ There's no `openspec uninstall` command, because OpenSpec is just a global packa
 ```bash
 npm uninstall -g @fission-ai/openspec   # or: pnpm rm -g / yarn global remove / bun rm -g
 ```
+
+With the standalone binary, delete the file instead (`rm ~/.local/bin/openspec` if you used the install script). It also keeps a copy of its built-in schemas under your OpenSpec data directory (`~/.local/share/openspec/binary-schemas` on macOS and Linux, `%LOCALAPPDATA%\openspec\binary-schemas` on Windows), which you can delete too.
 
 **2. Remove OpenSpec from a project (optional).** Delete the `openspec/` directory if you no longer want its specs and changes:
 
