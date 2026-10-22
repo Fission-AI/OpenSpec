@@ -68,8 +68,9 @@ main() {
   }
 
   echo "Downloading $asset ($version)..."
-  download "$base/$asset" "$tmp/$asset" || fail "could not download $base/$asset"
-  download "$base/SHA256SUMS" "$tmp/SHA256SUMS" || fail "could not download $base/SHA256SUMS"
+  npm_hint="or install with npm (Node.js 20.19+): npm install -g @fission-ai/openspec"
+  download "$base/$asset" "$tmp/$asset" || fail "could not download $base/$asset; $npm_hint"
+  download "$base/SHA256SUMS" "$tmp/SHA256SUMS" || fail "could not download $base/SHA256SUMS; $npm_hint"
 
   expected=$(awk -v f="$asset" '$2 == f { print $1 }' "$tmp/SHA256SUMS")
   [ -n "$expected" ] || fail "$asset is not listed in SHA256SUMS"

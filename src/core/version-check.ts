@@ -45,8 +45,8 @@ export function markStandaloneBinary(executablePath: string): void {
 function standaloneUpgradeCommand(): string | null {
   if (!standaloneBinaryPath) return null;
   if (process.platform === 'win32') {
-    const target = standaloneBinaryPath.replace(/'/g, "''");
-    return `Invoke-WebRequest ${RELEASE_DOWNLOAD_URL}/openspec-windows-${process.arch}.exe -OutFile '${target}'`;
+    const dir = path.dirname(standaloneBinaryPath).replace(/'/g, "''");
+    return `$env:OPENSPEC_INSTALL_DIR='${dir}'; irm ${RELEASE_DOWNLOAD_URL}/install.ps1 | iex`;
   }
   const dir = path.dirname(standaloneBinaryPath).replace(/'/g, `'\\''`);
   return `curl -fsSL ${RELEASE_DOWNLOAD_URL}/install.sh | OPENSPEC_INSTALL_DIR='${dir}' sh`;

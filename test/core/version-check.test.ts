@@ -1272,7 +1272,7 @@ describe('standalone binary', () => {
 
     if (process.platform === 'win32') {
       expect(command).toBe(
-        `Invoke-WebRequest https://github.com/Fission-AI/OpenSpec/releases/latest/download/openspec-windows-${process.arch}.exe -OutFile '${executable.replace(/'/g, "''")}'`
+        `$env:OPENSPEC_INSTALL_DIR='${path.dirname(executable).replace(/'/g, "''")}'; irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex`
       );
     } else {
       expect(command).toMatch(
