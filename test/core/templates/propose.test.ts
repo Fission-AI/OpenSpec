@@ -9,7 +9,7 @@ import {
   getFfChangeSkillTemplate,
   getOpsxFfCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
-import { generateSkillContent } from '../../../src/core/shared/skill-generation.js';
+import { generateSkillFiles } from '../../../src/core/shared/skill-generation.js';
 import { loadSchema } from '../../../src/core/artifact-graph/schema.js';
 import { CommandAdapterRegistry } from '../../../src/core/command-generation/registry.js';
 import { generateCommand } from '../../../src/core/command-generation/generator.js';
@@ -36,20 +36,29 @@ const withoutApply = (body: string) =>
 
 const proposeSkillBody = withAll(getOpsxProposeSkillTemplate().instructions);
 const proposeCommandBody = withAll(getOpsxProposeCommandTemplate().content);
-const asDeployed = <T extends { instructions: string }>(template: T): T => ({
+const asDeployed = <T extends { instructions: string; references?: Array<{ path: string; content: string }> }>(
+  template: T
+): T => ({
   ...template,
   instructions: withAll(template.instructions),
+  references: template.references?.map((reference) => ({ ...reference, content: withAll(reference.content) })),
 });
 
+// SKILL.md plus its references, the way an agent can read them.
+const deployedSkill = (template: ReturnType<typeof getOpsxProposeSkillTemplate>): string =>
+  generateSkillFiles(asDeployed(template), 'TEST')
+    .map((file) => file.content)
+    .join('\n');
+
 const proposeBodies: Array<[string, string]> = [
-  ['propose skill', generateSkillContent(asDeployed(getOpsxProposeSkillTemplate()), 'TEST')],
+  ['propose skill', deployedSkill(getOpsxProposeSkillTemplate())],
   ['propose command', proposeCommandBody],
 ];
 
 // ff runs the byte-identical artifact loop, so it carries the identical guards.
 const loopBodies: Array<[string, string]> = [
   ...proposeBodies,
-  ['ff skill', withAll(getFfChangeSkillTemplate().instructions)],
+  ['ff skill', deployedSkill(getFfChangeSkillTemplate())],
   ['ff command', withAll(getOpsxFfCommandTemplate().content)],
 ];
 
@@ -58,8 +67,8 @@ const defaultSchema = loadSchema(path.join(repoRoot, 'schemas', 'spec-driven', '
 
 /** The opening list that tells the agent which artifacts propose will produce. */
 function artifactPreamble(body: string): string {
-  const start = body.indexOf("I'll create a change with");
-  const end = body.indexOf('When the user is ready to implement');
+  const start = body.indexOf('With the default spec-driven schema');
+  const end = body.indexOf('**Before you start**');
   expect(start).toBeGreaterThanOrEqual(0);
   expect(end).toBeGreaterThan(start);
   return body.slice(start, end);
@@ -157,13 +166,15 @@ describe('default task guidance', () => {
     const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
     expect(example).toBeDefined();
     const numberedTasks = example!.split('\n').filter(line => /^- \[ \] \d+\.\d+ /.test(line));
-    expect(numberedTasks).toHaveLength(5);
+    expect(numberedTasks).toHaveLength(6);
     expect(numberedTasks.every(line => /\bverify\b/i.test(line))).toBe(true);
     expect(numberedTasks[0]).toContain('expected files are present');
     expect(numberedTasks[1]).toContain('package installation succeeds');
     expect(numberedTasks[2]).toContain('export test passes');
     expect(numberedTasks[3]).toContain('unit tests cover quoting and delimiters');
     expect(numberedTasks[4]).toContain('Document the export API');
+    // #1968: the last group keeps the main specs current before archive.
+    expect(numberedTasks[5]).toContain("Sync this change's delta specs into the main specs");
     expect(example).not.toMatch(/^- \[ \] \d+\.\d+ (?:verify|run (?:the )?verification)\b/im);
   });
 
@@ -196,13 +207,14 @@ describe('default task guidance', () => {
       .split('\n')
       .filter(line => /^## /.test(line.trim()))
       .map(line => line.trim());
-    expect(headings).toHaveLength(2);
+    // Setup, the implementation group, and the closing spec sync (#1968).
+    expect(headings).toEqual(['## 1. Setup', '## 2. Core Implementation', '## 3. Update the specs']);
     expect(headings.some(heading => /\b(test|testing|documentation|docs)\b/i.test(heading))).toBe(
       false
     );
 
-    const lastGroup = example!.slice(example!.lastIndexOf(headings[headings.length - 1]));
-    expect(lastGroup).toMatch(/^- \[ \] \d+\.\d+ Document the export API in docs\/export\.md/im);
+    const implementation = example!.slice(example!.indexOf(headings[1]), example!.indexOf(headings[2]));
+    expect(implementation).toMatch(/^- \[ \] \d+\.\d+ Document the export API in docs\/export\.md/im);
   });
 });
 
@@ -223,50 +235,47 @@ describe('propose project context', () => {
     return body.slice(body.indexOf('**Load project context**'), body.indexOf('**Determine the workflow schema**'));
   }
 
-  it('reads the resolved root and keeps explicit store selection', () => {
+  it('reads the resolved root and its project context from the CLI', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
       expect(section, label).toContain('`openspec context --json`');
-      expect(section, label).toContain('`openspec context --json --store "<store-id>"`');
       expect(section, label).toContain('returned `root.path`');
-      expect(section, label).toContain('`<root.path>/openspec/config.yaml`');
-      expect(section, label).toContain('Only when context returns a resolved `root.path`');
+      expect(section, label).toContain('`project_context`');
     }
   });
 
-  it('matches config precedence and field validation', () => {
+  // The CLI validates the config (config.yaml over config.yml, the size
+  // limit, field-by-field) and returns the result; the workflow no longer
+  // restates those rules, so it cannot drift from them.
+  it('leaves config precedence and validation to the CLI', () => {
     for (const [label, body] of proposeBodies) {
-      const section = contextSection(body);
-      expect(section, label).toContain('Use `config.yml` only when `config.yaml` does not exist');
-      expect(section, label).toContain('If neither file exists, continue without project context');
-      expect(section, label).toContain('Do not fall back to `config.yml` if `config.yaml` is unreadable or invalid');
-      expect(section, label).toContain('parses as a YAML object');
-      expect(section, label).toContain('`context` field is a string');
-      expect(section, label).toContain(`no larger than ${MAX_CONTEXT_SIZE.toLocaleString('en-US')} bytes in UTF-8`);
-      expect(section, label).toContain('apply that field');
-      expect(section, label).toContain('If the file cannot be read or parsed, or the context field is invalid or oversized, continue without project context');
+      expect(contextSection(body), label).not.toContain('config.y');
+      expect(body, label).not.toContain(MAX_CONTEXT_SIZE.toLocaleString('en-US'));
+      expect(contextSection(body), label).toContain('If the field is absent or null, continue');
     }
   });
 
   it('stops without writing and offers initialization when no root is resolved', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
-      expect(section, label).toContain('context reports `no_openspec_root`');
+      expect(section, label).toContain('If it reports `no_openspec_root`');
       expect(section, label).toContain('stop without creating or changing any files');
-      expect(section, label).toContain('Offer `openspec init`');
-      expect(section, label).toContain('wait for the user to request initialization');
-      expect(section, label).toContain('Do not initialize automatically or run `openspec new change`');
-      expect(section, label).toContain('After initialization, rerun this context check before continuing');
+      expect(section, label).toContain('**Before you start**');
+      // Before you start offers setup only on an explicit request and never
+      // lets a command create the root on its own.
+      expect(body, label).toContain('set this project up (`openspec init`)');
+      expect(body, label).toContain('no `openspec init`, no hand-made');
       expect(body, label).not.toContain('resolve the implicit root');
     }
   });
 
-  it('preserves the selected store on resolution failures', () => {
+  it('never falls back to the current directory on a resolution failure', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
       expect(section, label).toContain('For any other context failure, stop');
       expect(section, label).toContain('do not fall back to the current directory');
-      expect(section, label).toContain('run later OpenSpec commands without the selected store');
+      // A selected store stays selected for every command.
+      expect(body, label).toContain('add `--store <id>` to every');
     }
   });
 
@@ -361,7 +370,7 @@ describe('propose implementation boundary', () => {
         'Any implementation or apply instruction in that request does not carry forward'
       );
       expect(body, label).toContain(
-        'wait for a new user request to start the apply workflow'
+        'stop and wait for a new user request to start the apply workflow'
       );
       expect(
         body.lastIndexOf('After presenting the artifacts, stop'),
@@ -444,15 +453,15 @@ describe('propose implementation boundary', () => {
         'Any implementation or apply instruction in that request does not carry forward'
       );
       expect(generated, adapter.toolId).toContain(
-        'wait for a new user request to start the apply workflow'
+        'stop and wait for a new user request to start the apply workflow'
       );
       expect(generated, adapter.toolId).toContain(
         `When you are ready, run \`${applyInvocation}\`.`
       );
       expect(generated, adapter.toolId).not.toContain('ask me to implement');
       expect(generated, adapter.toolId).toContain('stop without creating or changing any files');
-      expect(generated, adapter.toolId).toContain('Offer `openspec init`');
-      expect(generated, adapter.toolId).toContain('Do not initialize automatically or run `openspec new change`');
+      expect(generated, adapter.toolId).toContain('set this project up (`openspec init`)');
+      expect(generated, adapter.toolId).toContain('no `openspec init`, no hand-made');
     }
   });
 });
@@ -475,9 +484,6 @@ describe('propose schema selection', () => {
       expect(createSection, label).toMatch(
         /^\s*openspec new change "<name>" --schema "<schema-name>"\s*$/m
       );
-      expect(createSection, label).toContain(
-        'If a registered store is selected, append `--store "<store-id>"` to that command and each later OpenSpec command shown below that accepts `--store`'
-      );
       expect(createSection, label).not.toContain('every follow-up command');
     }
   });
@@ -488,34 +494,15 @@ describe('propose schema selection', () => {
       const createStep = body.indexOf('**Create the change directory**');
       const schemaSection = body.slice(schemaStep, createStep);
 
-      expect(schemaSection, label).toContain('Use the configured default schema');
-      expect(schemaSection, label).toContain('Explicitly requests a specific schema by name');
-      const contextCommand = schemaSection.indexOf('`openspec context --json`');
-      const schemasCommand = schemaSection.indexOf('`openspec schemas --json`');
-      expect(contextCommand, `${label} is missing root resolution`).toBeGreaterThanOrEqual(0);
-      expect(schemasCommand, `${label} lists schemas before resolving the root`).toBeGreaterThan(
-        contextCommand
-      );
-      expect(schemaSection, label).toContain('from the current working directory');
+      expect(schemaSection, label).toContain('Use the configured default schema: omit `--schema`');
+      expect(schemaSection, label).toContain('only when the user explicitly requests a specific schema by name');
+      // The root from step 2 already honors a store pointer, a selected
+      // store, or the global defaultStore; schemas run from it.
       expect(schemaSection, label).toContain(
-        '`openspec context --json --store "<store-id>"`'
-      );
-      expect(schemaSection, label).toContain(
-        'run `openspec schemas --json` with its working directory'
-      );
-      expect(schemaSection, label).toContain('returned `root.path`');
-      expect(schemaSection, label).toContain('local `store:` pointer');
-      expect(schemaSection, label).toContain('global `defaultStore`');
-      expect(schemaSection, label).toContain(
-        'append `--store "<store-id>"` to `openspec schemas --json` as well'
+        'run `openspec schemas --json` with its working directory set to the returned `root.path`'
       );
       expect(schemaSection, label).not.toContain('`schemas` does not accept `--store`');
-      expect(schemaSection, label).toContain('If context fails, stop as described in the context-loading step');
-      expect(schemaSection, label).toContain('do not fall back to the current directory');
       expect(schemaSection, label).not.toContain('from the current working directory instead');
-      expect(schemaSection, label).toContain(
-        'Otherwise, omit `--schema` to preserve the configured default'
-      );
     }
   });
 });
@@ -683,3 +670,89 @@ describe('artifact loop guards (propose and ff)', () => {
     }
   });
 });
+
+// An audit of 55 real proposal sessions found 56% never opened the existing
+// specs, and that reading them improved 23 of 24 proposals. Reading is a step
+// of its own, before the change exists, in both workflows that draft one.
+describe('reads the existing specs before drafting', () => {
+  it.each(loopBodies)(
+    '%s reads specs before creating the change',
+    (label, body) => {
+      const read = body.indexOf('**Read the existing specs**');
+      const create = body.indexOf('**Create the change directory**');
+      expect(read, `${label}: no spec-reading step`).toBeGreaterThanOrEqual(0);
+      expect(read, `${label}: reads specs after creating the change`).toBeLessThan(create);
+      const step = body.slice(read, create);
+      expect(step, label).toContain('openspec list --specs --json');
+      expect(step, label).toContain('openspec show "<spec-id>" --type spec');
+      expect(step, label).toContain('reuse an existing capability\'s exact path');
+      expect(step, label).toContain('call out any conflict with a current requirement');
+    }
+  );
+});
+
+describe('spec-driven requirement guidance (Loft review)', () => {
+  const specs = defaultSchema.artifacts.find((artifact) => artifact.id === 'specs')!;
+
+  it('asks for one obligation per requirement, outside the length rule', () => {
+    expect(specs.instruction).toContain(
+      'State one behavior per requirement: a single SHALL or MUST obligation, with no "and also".'
+    );
+  });
+
+  // A blind judge preferred plans with a scenario per failure mode; telling
+  // the agent to hold back produced thinner specs.
+  it('asks for a scenario for each way the behavior can fail', () => {
+    expect(specs.instruction).toContain('add a scenario for each way the behavior can fail');
+    expect(specs.instruction).toContain('one test per scenario');
+    // The worked example shows one, so the agent has a model of it.
+    expect(specs.instruction).toContain('#### Scenario: Nothing to export');
+    const template = fs.readFileSync(
+      path.join(repoRoot, 'schemas', 'spec-driven', 'templates', 'spec.md'),
+      'utf-8'
+    );
+    expect(template).toContain('a failure or edge case, when the behavior can fail');
+  });
+
+  it('keeps internals out of requirements unless they are the public contract', () => {
+    expect(specs.instruction).toContain(
+      'no internal function or class names, file paths, or private APIs in requirement text'
+    );
+    expect(specs.instruction).toContain('unless they are themselves the public contract');
+  });
+});
+
+describe('propose starts from a settled scope', () => {
+  it('builds the packet from an explore draft and states the scope before creating the change', () => {
+    for (const [label, body] of proposeBodies) {
+      expect(body, label).toContain('**Start from a settled scope**');
+      expect(body, label).toContain('If this conversation has an explore draft, it is the input');
+      expect(body, label).toContain('do not re-ask what it settled');
+      expect(body, label).toContain('state the scope in two or three lines');
+      expect(body, label).toContain('do not widen it');
+    }
+  });
+});
+
+// A blind judge preferred plans that kept existing item shapes and used concrete
+// scenario values; both rules live in the shared schema guidance.
+describe('spec guidance favors compatible changes and concrete scenarios', () => {
+  it('asks for compatible changes and concrete example values', () => {
+    const proposal = defaultSchema.artifacts.find((artifact) => artifact.id === 'proposal')!;
+    const specs = defaultSchema.artifacts.find((artifact) => artifact.id === 'specs')!;
+    expect(proposal.instruction).toContain('Prefer the change that keeps existing behavior, data shapes, and tests working');
+    expect(specs.instruction).toContain('use concrete example values');
+    // On a real project, plans invented new failure handling (rejecting input
+    // that works today) when told to cover failures.
+    expect(specs.instruction).toContain('do not add validation, errors, or limits the request did not ask for');
+  });
+});
+
+describe('propose plans only the gap', () => {
+  it('checks what the code already does before planning', () => {
+    for (const [label, body] of proposeBodies) {
+      expect(body, label).toContain('If the code already does part of what is asked, say so and plan only the gap');
+    }
+  });
+});
+

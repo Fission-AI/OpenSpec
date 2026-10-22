@@ -6,6 +6,7 @@ import {
   getVerifyChangeSkillTemplate,
   getOpsxVerifyCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
+import { skillSource } from '../../helpers/skill-text.js';
 
 // #1959: verify treated every "### Requirement:" in a change's delta specs as
 // behavior that must exist, whichever section it sat under. A REMOVED
@@ -13,14 +14,30 @@ import {
 // found" with the recommendation to implement it, so an agent following the
 // report restored what the change had just deleted.
 const bodies: Array<[string, string]> = [
-  ['skill', getVerifyChangeSkillTemplate().instructions],
+  ['skill', skillSource(getVerifyChangeSkillTemplate())],
   ['command', getOpsxVerifyCommandTemplate().content],
   // The committed skills.sh mirror is what `npx skills add` installs.
   [
-    'committed skill file',
-    readFileSync(new URL('../../../skills/openspec-verify-change/SKILL.md', import.meta.url), 'utf8'),
+    'committed skill files',
+    ['references/verify.md', 'references/evidence-rules.md', 'references/removed-and-renamed.md']
+      .map((file) =>
+        readFileSync(new URL(`../../../skills/openspec-beta/${file}`, import.meta.url), 'utf8')
+      )
+      .join('\n\n'),
   ],
 ];
+
+// REMOVED and RENAMED checks live in the skill's removed-and-renamed reference;
+// the command carries the same text appended to its body.
+const REMOVED = '## REMOVED requirements';
+const RENAMED = '## RENAMED requirements';
+
+function renamedSection(body: string, label: string): string {
+  const from = body.indexOf(RENAMED);
+  expect(from, `${label}: "${RENAMED}" not found`).toBeGreaterThanOrEqual(0);
+  const next = body.indexOf('\n## ', from + RENAMED.length);
+  return body.slice(from, next === -1 ? undefined : next);
+}
 
 function section(body: string, start: string, end: string, label: string): string {
   const from = body.indexOf(start);
@@ -46,14 +63,13 @@ describe('verify checks each requirement by its delta operation', () => {
 
   it.each(bodies)('%s: reports a missing requirement only for ADDED or MODIFIED', (label, body) => {
     const coverage = section(body, '**Spec Coverage**', '6. **Verify Correctness**', label);
-    const addedOrModified = section(coverage, '- For each ADDED or MODIFIED requirement', '- For each REMOVED requirement', label);
+    const addedOrModified = section(coverage, '- For each ADDED or MODIFIED requirement', '- For each REMOVED or RENAMED requirement', label);
 
     expect(addedOrModified, label).toContain('Add CRITICAL issue: "Requirement not found: <requirement name>"');
   });
 
   it.each(bodies)('%s: inverts the check for a REMOVED requirement', (label, body) => {
-    const coverage = section(body, '**Spec Coverage**', '6. **Verify Correctness**', label);
-    const removed = section(coverage, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+    const removed = section(body, REMOVED, RENAMED, label);
 
     expect(removed, label).toContain('Finding no implementation is the expected result, but only once the baseline behavior was the thing you searched for.');
     expect(removed, label).toContain('Never report a REMOVED requirement as "Requirement not found"');
@@ -62,7 +78,7 @@ describe('verify checks each requirement by its delta operation', () => {
   });
 
   it.each(bodies)('%s: does not report the old name of a RENAMED requirement as missing', (label, body) => {
-    const renamed = section(body, '- For each RENAMED entry', '6. **Verify Correctness**', label);
+    const renamed = renamedSection(body, label);
 
     expect(renamed, label).toContain('Do not report the FROM name as missing');
     expect(renamed, label).toContain('do not require code symbols, identifiers, or file names to be renamed');
@@ -72,7 +88,7 @@ describe('verify checks each requirement by its delta operation', () => {
   // behavior exists before verify can call it ready. Its evidence is the
   // baseline requirement in the main spec, not the RENAMED entry itself.
   it.each(bodies)('%s: verifies the unchanged behavior of a RENAMED requirement against its baseline', (label, body) => {
-    const renamed = section(body, '- For each RENAMED entry', '6. **Verify Correctness**', label);
+    const renamed = renamedSection(body, label);
 
     expect(renamed, label).toContain('check the TO requirement for that unchanged behavior');
     expect(renamed, label).toContain('`<planningHome.root>/openspec/specs/<capability-path>/spec.md`');
@@ -85,7 +101,7 @@ describe('verify checks each requirement by its delta operation', () => {
   });
 
   it.each(bodies)('%s: never counts an unchecked rename as passing', (label, body) => {
-    const renamed = section(body, '- For each RENAMED entry', '6. **Verify Correctness**', label);
+    const renamed = renamedSection(body, label);
 
     expect(renamed, label).toContain('If the baseline requirement cannot be found or read, mark **Spec Coverage** as not verified for that entry');
     expect(renamed, label).toContain('Never count an unchecked rename as passing.');
@@ -116,7 +132,7 @@ describe('verify checks each requirement by its delta operation', () => {
   });
 
   it.each(bodies)('%s: does not treat artifacts or replacement code as the removed behavior', (label, body) => {
-    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+    const removed = section(body, REMOVED, RENAMED, label);
 
     expect(removed, label).toContain('Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves.');
     expect(removed, label).toContain('Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.');
@@ -129,7 +145,7 @@ describe('verify checks each requirement by its delta operation', () => {
   // written in different vocabulary read as a clean removal. The RENAMED
   // branch beside it already loaded the baseline from the main spec first.
   it.each(bodies)('%s: reads the removed requirement baseline before searching', (label, body) => {
-    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+    const removed = section(body, REMOVED, RENAMED, label);
 
     expect(removed, label).toContain('A REMOVED block carries only the requirement name and any `**Reason**`/`**Migration**` notes');
     expect(removed, label).toContain('`<planningHome.root>/openspec/specs/<capability-path>/spec.md`');
@@ -145,7 +161,7 @@ describe('verify checks each requirement by its delta operation', () => {
   // returns -1, and -1 is less than everything, so a reworded sentence would
   // satisfy a bare ordering comparison and silently retire this guard.
   it.each(bodies)('%s: orders the baseline read, then the fallback, then the search', (label, body) => {
-    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+    const removed = section(body, REMOVED, RENAMED, label);
 
     const baselineAt = removed.indexOf('Before searching, read the baseline requirement');
     const fallbackAt = removed.indexOf("recover the baseline from the same file's history");
@@ -169,7 +185,7 @@ describe('verify checks each requirement by its delta operation', () => {
   // path missing the `openspec/specs/` prefix reads as "no baseline in
   // history" and sends every post-sync removal to the not-verified branch.
   it.each(bodies)('%s: gives a runnable, store-aware history command', (label, body) => {
-    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+    const removed = section(body, REMOVED, RENAMED, label);
 
     expect(removed, label).toContain('git -C "<planningHome.root>" log -p -- openspec/specs/<capability-path>/spec.md');
     // `rev:path` resolves from the repository root, not from `-C`; the `./`
@@ -188,7 +204,7 @@ describe('verify checks each requirement by its delta operation', () => {
   });
 
   it.each(bodies)('%s: never counts an unsearched removal as passing', (label, body) => {
-    const removed = section(body, '- For each REMOVED requirement', '- For each RENAMED entry', label);
+    const removed = section(body, REMOVED, RENAMED, label);
 
     expect(removed, label).toContain('mark **Spec Coverage** as not verified for that entry with the reason and stop there');
     expect(removed, label).toContain('do not search, and never count an unsearched removal as passing');

@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  generateSkillContent,
+  generateSkillFiles,
   getCommandTemplates,
   getSkillTemplates,
 } from '../../../src/core/shared/skill-generation.js';
@@ -17,19 +17,29 @@ import { runCLI } from '../../helpers/run-cli.js';
 // generation rejects. The set names sync so the installed branch is chosen,
 // which is the wording these assertions are about.
 const WORKFLOWS = ['archive', 'bulk-archive', 'sync'];
+// SKILL.md followed by its references, as an agent can read them.
 const skill = (workflowId: string): string =>
-  generateSkillContent(
+  generateSkillFiles(
     getSkillTemplates(WORKFLOWS).find((entry) => entry.workflowId === workflowId)!.template,
     'test'
-  );
+  )
+    .map((file) => file.content)
+    .join('\n');
 const command = (id: string): string =>
   getCommandTemplates(WORKFLOWS).find((entry) => entry.id === id)!.template.content;
 
+// Bulk archive counts tasks itself to build its status table. Single archive
+// leaves the count to `openspec archive`, which refuses with
+// `archive_tasks_incomplete` until the user confirms; that path is checked by
+// running the CLI below.
 const surfaces = [
-  ['archive skill', skill('archive')],
-  ['archive command', command('archive')],
   ['bulk archive skill', skill('bulk-archive')],
   ['bulk archive command', command('bulk-archive')],
+] as const;
+
+const archiveSurfaces = [
+  ['archive skill', skill('archive')],
+  ['archive command', command('archive')],
 ] as const;
 
 describe('archive task discovery uses schema-resolved CLI progress', () => {
@@ -94,7 +104,7 @@ describe('archive task discovery uses schema-resolved CLI progress', () => {
       // Execute the lookup actually taught in the task-checking step. The old
       // single workflow read tasks.md, and bulk assumed an artifact id "tasks";
       // neither can find this schema's implementation checklist.
-      const step = content.split('3. **')[1].split('4. **')[0];
+      const step = content.split('2. **')[1].split('3. **')[0];
       const command = step.match(/`openspec (list[^`]*)`/);
       expect(command, surface).not.toBeNull();
       expect(step).toContain('same selected-root flags');
@@ -108,9 +118,9 @@ describe('archive task discovery uses schema-resolved CLI progress', () => {
 
       const args = command![1].trim().split(/\s+/);
       expect(args).toEqual(['list', '--json']);
-      const storeFlag = content.match(/then pass `(--store) <id>`/);
+      // The skill-wide store rule puts the flag on this `list` too.
+      const storeFlag = content.match(/add `(--store) <id>` to every[^\n]*`list`/);
       expect(storeFlag).not.toBeNull();
-      expect(content).toContain('Every unscoped example of those commands below is shorthand: before running it, append the flag');
       const scopedArgs = [...args, storeFlag![1], storeId];
       expect(scopedArgs).toEqual(['list', '--json', '--store', storeId]);
 
@@ -132,6 +142,40 @@ describe('archive task discovery uses schema-resolved CLI progress', () => {
         status: 'in-progress',
       });
       await expect(fs.access(path.join(root, 'openspec/changes/selected/tasks.md'))).rejects.toThrow();
+    });
+  }
+
+  for (const [surface, content] of archiveSurfaces) {
+    it(`${surface}: relays the CLI's own count of unfinished tasks`, async () => {
+      await write('openspec/schemas/custom/schema.yaml', [
+        'name: custom',
+        'version: 1',
+        'artifacts:',
+        '  - id: implementation',
+        '    generates: "work/*.md"',
+        '    description: Implementation checklist',
+        '    template: checklist.md',
+        '    requires: []',
+        'apply:',
+        '  requires: [implementation]',
+        '  tracks: "work/*.md"',
+      ].join('\n'));
+      await write('openspec/schemas/custom/templates/checklist.md', '# Checklist\n');
+      await write('openspec/changes/selected/.openspec.yaml', 'schema: custom\n');
+      await write('openspec/changes/selected/work/backend.md', '- [ x ] Finished\n- [~] Pending\n- [ ] Pending\n');
+
+      // The preview call the workflow teaches, without --yes.
+      expect(content, surface).toContain('openspec archive "<name>" --json');
+      expect(content, surface).toContain('`archive_tasks_incomplete`');
+
+      const result = await runCLI(['archive', 'selected', '--json', '--store', storeId], { cwd: callerRoot, env });
+      const report = JSON.parse(result.stdout);
+      expect(report.archive, surface).toBeNull();
+      expect(report.status, surface).toEqual([
+        expect.objectContaining({ code: 'archive_tasks_incomplete', message: expect.stringContaining('2 incomplete') }),
+      ]);
+      // Nothing moved: the change waits for the user's answer.
+      await expect(fs.access(path.join(root, 'openspec/changes/selected/work/backend.md'))).resolves.toBeUndefined();
     });
   }
 });

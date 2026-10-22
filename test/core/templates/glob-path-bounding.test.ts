@@ -20,6 +20,7 @@ import {
 } from '../../../src/core/templates/skill-templates.js';
 import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
+import { skillSource } from '../../helpers/skill-text.js';
 
 const withAllWorkflows = (body: string) =>
   resolveOptionalWorkflows(body, new Set<string>(ALL_WORKFLOWS));
@@ -46,15 +47,15 @@ const boundFor = (label: string) => (label.startsWith('update-change') ? CREATE_
 
 /** Every surface that writes glob artifacts, skill and slash-command alike. */
 const SURFACES: Array<[label: string, body: string]> = [
-  ['propose skill', withAllWorkflows(getOpsxProposeSkillTemplate().instructions)],
+  ['propose skill', withAllWorkflows(skillSource(getOpsxProposeSkillTemplate()))],
   ['propose command', withAllWorkflows(getOpsxProposeCommandTemplate().content)],
-  ['ff-change skill', withAllWorkflows(getFfChangeSkillTemplate().instructions)],
+  ['ff-change skill', withAllWorkflows(skillSource(getFfChangeSkillTemplate()))],
   ['ff-change command', withAllWorkflows(getOpsxFfCommandTemplate().content)],
-  ['continue-change skill', withAllWorkflows(getContinueChangeSkillTemplate().instructions)],
+  ['continue-change skill', withAllWorkflows(skillSource(getContinueChangeSkillTemplate()))],
   ['continue-change command', withAllWorkflows(getOpsxContinueCommandTemplate().content)],
-  ['update-change skill', withAllWorkflows(getUpdateChangeSkillTemplate().instructions)],
+  ['update-change skill', withAllWorkflows(skillSource(getUpdateChangeSkillTemplate()))],
   ['update-change command', withAllWorkflows(getOpsxUpdateCommandTemplate().content)],
-  ['explore skill', withAllWorkflows(getExploreSkillTemplate().instructions)],
+  ['explore skill', withAllWorkflows(skillSource(getExploreSkillTemplate()))],
   ['explore command', withAllWorkflows(getOpsxExploreCommandTemplate().content)],
 ];
 
@@ -159,7 +160,7 @@ describe('glob output paths stay inside changeRoot (#2099)', () => {
   );
 
   it.each([
-    ['continue-change skill', withAllWorkflows(getContinueChangeSkillTemplate().instructions)],
+    ['continue-change skill', withAllWorkflows(skillSource(getContinueChangeSkillTemplate()))],
     ['continue-change command', withAllWorkflows(getOpsxContinueCommandTemplate().content)],
   ])('%s verifies the output after either creation branch', (label, body) => {
     const lines = body.split('\n');
@@ -193,7 +194,7 @@ describe('glob output paths stay inside changeRoot (#2099)', () => {
   // expected paths against what exists instead of choosing a new one, so the
   // bound has to sit on that bullet too.
   it.each([
-    ['continue-change skill', withAllWorkflows(getContinueChangeSkillTemplate().instructions)],
+    ['continue-change skill', withAllWorkflows(skillSource(getContinueChangeSkillTemplate()))],
     ['continue-change command', withAllWorkflows(getOpsxContinueCommandTemplate().content)],
   ])('%s bounds the partly-written-artifact check', (label, body) => {
     const bullets = body

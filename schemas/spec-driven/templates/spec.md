@@ -11,3 +11,7 @@
 #### Scenario: <!-- scenario name -->
 - **WHEN** <!-- condition -->
 - **THEN** <!-- expected outcome -->
+
+#### Scenario: <!-- a failure or edge case, when the behavior can fail -->
+- **WHEN** <!-- condition -->
+- **THEN** <!-- expected outcome -->

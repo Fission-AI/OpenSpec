@@ -70,3 +70,7 @@ test file mid-suite.
 ## pack-version-check.mjs
 
 Validates package version consistency before publishing.
+
+## skill-eval/
+
+A/B test for generated skills: runs headless agent sessions on a fixture project and grades them with the OpenSpec CLI. See [skill-eval/README.md](skill-eval/README.md).

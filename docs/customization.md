@@ -130,24 +130,22 @@ artifacts, or summaries unless the user separately requests that content.
 
 **Archive and spec-sync input safety:**
 
-Archive, bulk archive, and standalone sync use
+Archive and bulk archive hand the merge to `openspec archive`, which applies a
+change's delta specs, validates the result, and moves the change, or refuses
+without changing anything. Standalone sync merges by hand and uses
 `artifactPaths.specs.existingOutputPaths` from `openspec status --json` as the
 only delta-spec source. A schema without a `specs` artifact, or a change whose
 concrete output list is empty, has nothing to sync; other artifacts are not used
 to infer delta specs.
 
-Before a semantic merge writes a main spec, the workflow consumes current
+Before a hand merge writes a main spec, the sync workflow consumes current
 `openspec instructions specs --change <name> --json` output. The returned
-`specs` rules constrain only the main specs produced by that merge. Single archive
-passes that snapshot into inline sync, standalone sync fetches it directly, and
-bulk archive obtains every required snapshot before its first spec write. A
-non-zero or invalid JSON archive/specs instruction response is a lookup failure,
-not an empty input: the workflow stops before the affected spec write or change
-move (for bulk archive, before any batch write or move).
+`specs` rules constrain only the main specs produced by that merge. A non-zero
+or invalid JSON response is a lookup failure, not an empty input: the workflow
+stops before writing any main spec.
 
-This configuration does not change archive execution phases, user prompts,
-filesystem operations, semantic merge ownership, the direct `openspec archive`
-command, or the structure and output of artifact `rules`.
+This configuration does not change the direct `openspec archive` command or the
+structure and output of artifact `rules`.
 
 ### Schema Resolution Order
 
