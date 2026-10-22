@@ -2,7 +2,7 @@
 
 ## Install
 
-OpenSpec is a single file. It has nothing else to install, not even Node.js.
+OpenSpec is a single file. It needs no Node.js or anything else (on Alpine Linux, first run `apk add libstdc++ libgcc`).
 
 macOS and Linux:
 
@@ -18,7 +18,7 @@ irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 
 
 The installer picks the right file for your machine, checks it against the release's `SHA256SUMS`, and installs it to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`, added to your user `PATH`). Set `OPENSPEC_INSTALL_DIR` to choose another folder, or `OPENSPEC_VERSION=v1.15.0` to pin a release. Prefer npm or another package manager? See [Package Managers](#package-managers).
 
-To install by hand, download your platform's file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest), rename it to `openspec` (`openspec.exe` on Windows), and put it on your `PATH`:
+To install by hand, download your platform's file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest), rename it to `openspec` (`openspec.exe` on Windows), make it executable on macOS and Linux (`chmod +x openspec`), and put it on your `PATH`:
 
 | Platform | File |
 |---|---|
@@ -39,11 +39,13 @@ The manual steps below are the source of truth — the prompt just runs them for
 Install OpenSpec in this project and set it up for me. Follow these steps in
 order, and stop where a step tells you to stop.
 
-1. INSTALL. Run `openspec --version` first; if it prints a version, OpenSpec is
-   already installed, so offer to update it with the command below and skip to
-   step 3 if I decline. Otherwise install the standalone OpenSpec binary, which
-   needs nothing else, not even Node.js. Show me the command for my OS and run
-   it only once I confirm, then skip to step 3:
+1. INSTALL. Run `openspec --version` first. If it prints a version, OpenSpec is
+   already installed: run `openspec version --check`, which prints the update
+   command for how it was installed when it can tell (otherwise update it the
+   way it was installed, e.g. `brew upgrade openspec`), offer to run that, and
+   skip to step 3. Never switch it to a different install method. Otherwise install
+   the standalone OpenSpec binary, which needs no Node.js. Show me the command
+   for my OS and run it only once I confirm, then skip to step 3:
      macOS / Linux:        curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
      Windows (PowerShell): irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex
    If I'd rather use a package manager, or the installer fails, go to step 2.
@@ -71,9 +73,11 @@ order, and stop where a step tells you to stop.
    me — show me the change and let me make it.
 
 3. PATH. Run `openspec --version`. If the command isn't found, it may just be
-   missing from this shell: tell me where the package manager installed it and
-   how to add that directory to PATH for my shell and OS, then stop until I
-   confirm. If it prints an older version than the one the install just
+   missing from this shell: tell me where it was installed (the standalone
+   installer prints the folder, ~/.local/bin by default; a package manager has
+   its own global bin folder) and how to add that folder to PATH for my shell
+   and OS, then stop until I confirm. On Windows the standalone installer adds
+   it for me; a new terminal picks it up. If it prints an older version than the one the install just
    reported, an earlier copy is shadowing it on PATH — tell me both versions
    instead of continuing. If I use a version manager, say so rather than editing
    PATH around it: with nvm or fnm the CLI is tied to the Node version that was

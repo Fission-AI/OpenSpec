@@ -21,9 +21,9 @@ TODO:
 
 ## 1. Install
 
-Run `openspec --version` first. If it already prints a version, the CLI is installed: say so, offer to update it with the install command below, and if the user declines skip ahead to step 4.
+Run `openspec --version` first. If it already prints a version, the CLI is installed: say so, run `openspec version --check` (it prints the update command for how OpenSpec was installed when it can tell; otherwise update it the way it was installed, e.g. `brew upgrade openspec`), offer to run that command, and skip ahead to step 3. Never switch an existing install to a different method; that leaves two copies competing on PATH.
 
-Install the standalone OpenSpec binary. It is a single file and needs nothing else, not even Node.js. Show the command for the user's OS and run it only once they confirm, then skip to step 3:
+Install the standalone OpenSpec binary. It is a single file and needs no Node.js (on Alpine Linux, `apk add libstdc++ libgcc` first). Show the command for the user's OS and run it only once they confirm, then skip to step 3:
 
 ```bash
 # macOS / Linux
@@ -58,7 +58,7 @@ Stop and ask again if the install needs sudo or admin rights, fails with a permi
 
 ## 3. PATH
 
-Run `openspec --version`. If the command isn't found, it may only be missing from this shell: say where the package manager installed it and how to add that directory to PATH for the user's shell and OS, then stop until they confirm. If it prints an older version than the one the install just reported, an earlier copy is shadowing it on PATH; report both versions instead of continuing. If the user uses a version manager, say so rather than editing PATH around it: with nvm or fnm the CLI is tied to the Node version that was active at install time, and with asdf or volta a shim may need regenerating.
+Run `openspec --version`. If the command isn't found, it may only be missing from this shell: say where it was installed (the standalone installer prints the folder, `~/.local/bin` by default; a package manager has its own global bin folder) and how to add that folder to PATH for the user's shell and OS, then stop until they confirm. On Windows the standalone installer adds its folder to the user PATH itself; a new terminal picks it up. If it prints an older version than the one the install just reported, an earlier copy is shadowing it on PATH; report both versions instead of continuing. If the user uses a version manager, say so rather than editing PATH around it: with nvm or fnm the CLI is tied to the Node version that was active at install time, and with asdf or volta a shim may need regenerating.
 
 ## 4. Initialize
 

@@ -117,7 +117,7 @@ Solo, OpenSpec keeps you and your AI honest on a single repo. On a team, the har
 
 ## Quick Start
 
-Install OpenSpec. It is a single file with nothing else to install, not even Node.js.
+Install OpenSpec. It is a single file and needs no Node.js (on Alpine Linux, first run `apk add libstdc++ libgcc`).
 
 macOS and Linux:
 
