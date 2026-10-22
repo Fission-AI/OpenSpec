@@ -10,9 +10,10 @@ import { ensureCliBuilt, runCLI } from '../helpers/run-cli.js';
 
 /**
  * `openspec setup` and `--revert` against the real Claude Code CLI, in a
- * throwaway home and Claude config. Opt-in (OPENSPEC_REAL_CLAUDE=1, with
- * `claude` on PATH): CI installs Claude Code and runs it on macOS, Linux, and
- * Windows. Plugin registration needs no login.
+ * throwaway home and Claude config, plus discovery checks with the real Codex
+ * and Gemini CLIs when they are on PATH. Opt-in (OPENSPEC_REAL_CLAUDE=1): CI
+ * installs pinned versions and runs it on macOS, Linux, and Windows. None of
+ * these checks needs a login.
  */
 const enabled = process.env.OPENSPEC_REAL_CLAUDE === '1';
 
@@ -21,8 +22,9 @@ describe.skipIf(!enabled)('openspec setup with the real Claude Code CLI', () => 
   let env: NodeJS.ProcessEnv;
   const plugin = `${NS}@${NS}-local`;
 
-  const claude = (args: string[]) => {
-    const result = spawnSync('claude', args, {
+  const tool = (command: string, args: string[]) => {
+    const result = spawnSync(command, args, {
+      cwd: root,
       env: { ...process.env, ...env },
       encoding: 'utf8',
       shell: process.platform === 'win32',
@@ -30,6 +32,13 @@ describe.skipIf(!enabled)('openspec setup with the real Claude Code CLI', () => 
     });
     return { code: result.status, out: `${result.stdout ?? ''}${result.stderr ?? ''}` };
   };
+  const claude = (args: string[]) => tool('claude', args);
+  const onPath = (command: string) => tool(command, ['--version']).code === 0;
+  /** The openspec-beta skills an agent reports, or null when it is not installed. */
+  const agentSees = (): Record<string, number | null> => ({
+    codex: onPath('codex') ? (tool('codex', ['debug', 'prompt-input', 'hello']).out.match(new RegExp(`${NS}-propose`, 'g')) ?? []).length : null,
+    gemini: onPath('gemini') ? (tool('gemini', ['skills', 'list']).out.match(new RegExp(`${NS}-propose`, 'g')) ?? []).length : null,
+  });
   const installed = () => {
     const list = claude(['plugin', 'list', '--json']);
     expect(list.code, list.out).toBe(0);
@@ -50,12 +59,20 @@ describe.skipIf(!enabled)('openspec setup with the real Claude Code CLI', () => 
       XDG_CONFIG_HOME: path.join(root, 'config'),
       XDG_DATA_HOME: path.join(root, 'data dir'),
       CLAUDE_CONFIG_DIR: path.join(home, '.claude'),
+      CODEX_HOME: path.join(home, '.codex'),
       OPENSPEC_TELEMETRY: '0',
     };
   }, 120_000);
 
   afterAll(() => {
     fs.rmSync(root, { recursive: true, force: true });
+  });
+
+  // CI names the agents it installed, so a failed install fails here instead of skipping.
+  it('has every required agent CLI on PATH', () => {
+    for (const agent of (process.env.OPENSPEC_REQUIRE_AGENTS ?? '').split(',').filter(Boolean)) {
+      expect(onPath(agent), `${agent} on PATH`).toBe(true);
+    }
   });
 
   it('registers the plugin, and Claude Code loads its skills', async () => {
@@ -68,6 +85,11 @@ describe.skipIf(!enabled)('openspec setup with the real Claude Code CLI', () => 
     for (const skill of [NS, 'propose', 'explore', 'apply', 'archive']) {
       expect(details.out, skill).toMatch(new RegExp(`\\b${skill}\\b`));
     }
+
+    // Codex and Gemini CLI read ~/.agents/skills.
+    for (const [agent, seen] of Object.entries(agentSees())) {
+      if (seen !== null) expect(seen, `${agent} lists ${NS}-propose`).toBeGreaterThan(0);
+    }
   }, 240_000);
 
   it('reverts: the plugin is gone from Claude Code and from disk', async () => {
@@ -76,5 +98,8 @@ describe.skipIf(!enabled)('openspec setup with the real Claude Code CLI', () => 
     expect(installed()).toEqual([]);
     expect(fs.existsSync(path.join(root, 'data dir', 'openspec', 'claude-plugin'))).toBe(false);
     expect(fs.existsSync(path.join(env.HOME!, '.agents', 'skills', NS))).toBe(false);
+    for (const [agent, seen] of Object.entries(agentSees())) {
+      if (seen !== null) expect(seen, `${agent} still lists ${NS}-propose`).toBe(0);
+    }
   }, 240_000);
 });

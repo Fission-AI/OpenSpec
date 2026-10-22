@@ -128,9 +128,9 @@ jobs:
           retention-days: 7
 
   skills_setup_real_claude:
-    # `openspec setup` and `--revert` against the real Claude Code CLI on every
-    # OS. Not a required check: it depends on an external package.
-    name: Skills setup (${{ matrix.os }}, real Claude Code)
+    # `openspec setup` and `--revert` against the real Claude Code, Codex, and
+    # Gemini CLIs on every OS. Not a required check: it depends on external packages.
+    name: Skills setup (${{ matrix.os }}, real agent CLIs)
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
@@ -159,12 +159,13 @@ jobs:
       - name: Build project
         run: pnpm run build
 
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code@2.1.306
+      - name: Install Claude Code, Codex, and Gemini CLI
+        run: npm install -g @anthropic-ai/claude-code@2.1.306 @openai/codex@0.163.0 @google/gemini-cli@0.65.0
 
       - name: Run setup and revert end to end
         env:
           OPENSPEC_REAL_CLAUDE: '1'
+          OPENSPEC_REQUIRE_AGENTS: 'claude,codex,gemini'
           DISABLE_AUTOUPDATER: '1'
         run: pnpm exec vitest run test/cli-e2e/setup-real-claude.test.ts test/cli-e2e/setup-revert-journey.test.ts
 
