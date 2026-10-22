@@ -1,6 +1,6 @@
 import { promises as fs, type Dirent } from 'node:fs';
 import path from 'node:path';
-import { resolveOpenSpecRoot, findQualifyingRootSync, emitStoreRootBanner, type StoreSelectorOptions, type ResolvedOpenSpecRoot } from './root-selection.js';
+import { resolveRootForCommand, findQualifyingRootSync, type StoreSelectorOptions, type ResolvedOpenSpecRoot } from './root-selection.js';
 import { classifyOpenSpecDir } from './project-config.js';
 
 const excluded = new Set([
@@ -74,8 +74,8 @@ export async function discoverListLibraries(start: string): Promise<ListLibrary[
 
 /** Listing alone may browse descendants when no local selection exists. */
 export async function resolveListRoot(selector: StoreSelectorOptions, output: {
-  json?: boolean; allowImplicitRoot?: boolean;
-}): Promise<ResolvedOpenSpecRoot> {
+  json?: boolean; failurePayload?: Record<string, unknown>; allowImplicitRoot?: boolean;
+}): Promise<ResolvedOpenSpecRoot | null> {
   if (selector.store === undefined && selector.storePath === undefined &&
       !findQualifyingRootSync(process.cwd()) && (await discoverListLibraries(process.cwd())).length) {
     const cwd = await fs.realpath(process.cwd());
@@ -88,7 +88,6 @@ export async function resolveListRoot(selector: StoreSelectorOptions, output: {
       source: 'implicit',
     };
   }
-  const root = await resolveOpenSpecRoot({ ...selector, allowImplicitRoot: output.allowImplicitRoot });
-  if (!output.json) emitStoreRootBanner(root);
-  return root;
+  // Otherwise keep the shared resolver's banner and JSON failure contract.
+  return resolveRootForCommand(selector, output);
 }

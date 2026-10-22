@@ -469,6 +469,7 @@ program
       ]);
       const root = await resolveListRoot(options ?? {}, {
         json: options?.json,
+        failurePayload: options?.specs ? { specs: [], root: null } : { changes: [], root: null },
         // Retain the legacy cwd fallback when recursive discovery finds no roots.
         allowImplicitRoot: existsSync(path.join(process.cwd(), 'openspec', 'project.md')),
       });
