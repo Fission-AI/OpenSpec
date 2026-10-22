@@ -22,6 +22,7 @@ import {
   type RootOutput,
   isStoreSelectedRoot,
 } from '../../core/root-selection.js';
+import { readProjectConfig } from '../../core/project-config.js';
 import { printJson, statusFromError, validateSchemaExists } from './shared.js';
 
 // -----------------------------------------------------------------------------
@@ -143,13 +144,18 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       validateSchemaExists(options.schema, projectRoot);
     }
 
-    const resolvedSchema = options.schema ?? root.defaultSchema;
+    // Resolve the schema once (--schema, then config, then the root default)
+    // and hand it to createChange, so the progress line names the schema the
+    // change gets and config warnings print only once. An empty --schema is
+    // absent, matching createChange's `if (options.schema)`.
+    const resolvedSchema =
+      options.schema || (readProjectConfig(projectRoot)?.schema ?? root.defaultSchema);
     if (spinner) {
       spinner.start(`Creating change '${name}' with schema '${resolvedSchema}'...`);
     }
 
     const result = await createChange(projectRoot, name, {
-      schema: options.schema,
+      schema: resolvedSchema,
       defaultSchema: root.defaultSchema,
       changesDir: root.changesDir,
       metadata: {
