@@ -201,6 +201,14 @@ Or add to your development environment in `flake.nix`:
 openspec --version
 ```
 
+## Switch from npm to the standalone install
+
+Your settings and projects carry over; only the program changes.
+
+1. Run the [install command](#install) for your system.
+2. Remove the npm copy, which otherwise keeps running first on your PATH: `npm uninstall -g @fission-ai/openspec` (Homebrew: `brew uninstall openspec`).
+3. In a new terminal, run `openspec version`. It should print `OpenSpec <version> (standalone)`. If it names a package manager, another copy is still on your PATH: `which -a openspec` (Windows: `where.exe openspec`) lists them.
+
 ## Updating
 
 Upgrade the CLI by running the [install command](#install) again (with a package manager: `npm install -g @fission-ai/openspec@latest` or its pnpm/yarn/bun equivalent). Then refresh each project's generated files:

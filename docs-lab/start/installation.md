@@ -3,23 +3,46 @@
 > Install the `openspec` CLI on your machine, update it, and uninstall it.
 
 
-## Prerequisites
+## Install
 
-OpenSpec runs on Node.js 20.19.0 or newer. Homebrew installs Node.js as a
-dependency, and the Nix package includes the runtime. Check your installed version
-before using another install method.
+OpenSpec installs as a single `openspec` file. It needs no Node.js.
 
-In your terminal:
+On macOS or Linux, in your terminal:
 
 ```bash
-node --version
+curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
 ```
 
-If that prints `v20.19.0` or higher, you're set. If not, install a newer Node from
-[nodejs.org](https://nodejs.org) or through your version manager (nvm, fnm, asdf,
-volta). You can skip this check when you install with Homebrew or Nix.
+On Windows, in PowerShell:
+
+```powershell
+irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex
+```
+
+- **Where it goes**: `~/.local/bin`; on Windows, `%LOCALAPPDATA%\Programs\openspec`, which it adds to your user PATH.
+- **What it checks**: it picks the file for your machine and verifies it against the release's `SHA256SUMS` before installing.
+- **Alpine Linux**: run `apk add libstdc++ libgcc` first.
+- **Options**: set `OPENSPEC_INSTALL_DIR` to install elsewhere, or `OPENSPEC_VERSION=v1.15.0` to pin a release.
+
+If the installer says the folder isn't on your PATH, add it as it shows. Then [check it worked](#check-it-worked).
 
 The workflow itself runs inside an AI coding tool: Claude Code, Cursor, or any other tool on the [supported list](../reference/supported-tools.md).
+
+### Download it yourself
+
+Each [release](https://github.com/Fission-AI/OpenSpec/releases/latest) has one file per platform:
+
+| Platform | File |
+|---|---|
+| macOS 13+ (Apple silicon / Intel) | `openspec-darwin-arm64` / `openspec-darwin-x64` |
+| Linux, glibc 2.17+ (arm64 / x64) | `openspec-linux-arm64` / `openspec-linux-x64` |
+| Alpine 3.17+ (arm64 / x64) | `openspec-linux-arm64-musl` / `openspec-linux-x64-musl` |
+| Windows 10+ (arm64 / x64) | `openspec-windows-arm64.exe` / `openspec-windows-x64.exe` |
+
+Rename it to `openspec` (`openspec.exe` on Windows), run `chmod +x openspec` on macOS or Linux, and put it in a folder on your PATH.
+
+> [!NOTE]
+> macOS blocks a file downloaded in a browser until you run `xattr -d com.apple.quarantine openspec`. The install command above doesn't need this.
 
 ## Install with your AI assistant
 
@@ -37,25 +60,31 @@ curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/install.md
 
 That fetches [install.md at the repo root](https://github.com/Fission-AI/OpenSpec/blob/main/install.md), a prompt written for any agent that can run shell commands (a few IDE integrations can't). Expect your assistant to:
 
-1. Check your Node version, and stop if it's older than 20.19.0.
-2. Skip the install if the CLI is already on your machine. Otherwise, show you the install command and wait for your confirmation before running it.
+1. Skip the install if the CLI is already on your machine, and offer to update it the way it was installed. Otherwise, show you the install command above and wait for your confirmation before running it.
+2. Use npm instead only if you ask for it or the installer fails, and stop if your Node is older than 20.19.0.
 3. Verify `openspec` is on your PATH.
 4. Name the folder it thinks you mean, suggest the AI tool you're already talking to, and ask which others you use, then run `openspec init` there (the [project setup](setup.md) step).
 5. Report what init created and the exact spelling to invoke OpenSpec in your tool.
 
-It stops before anything privileged and never edits your shell startup files. The [manual methods below](#install-methods) are the source of truth, and the prompt runs them for you.
+It stops before anything privileged and never edits your shell startup files. The [install command above](#install) and the [package managers below](#package-managers) are the source of truth, and the prompt runs them for you.
 
 This install method is new and can have varying results depending on model used. Only use if you're comfortable correcting AI mistakes. Otherwise we recommend following the standard method below.
 
-## Install methods
+## Package managers
 
-Install the CLI globally; [setting up your project](setup.md) comes after.
+These install OpenSpec as a Node.js package, so they need Node.js 20.19.0 or newer (Homebrew and Nix bring their own). In your terminal:
 
-In your terminal:
+```bash
+node --version
+```
+
+If that prints `v20.19.0` or higher, install with npm:
 
 ```npm
 npm install -g @fission-ai/openspec@latest
 ```
+
+If not, install a newer Node from [nodejs.org](https://nodejs.org) or through your version manager (nvm, fnm, asdf, volta), or use the [standalone install](#install) instead.
 
 ### Homebrew
 
@@ -73,7 +102,7 @@ The formula is published in [homebrew-core](https://formulae.brew.sh/formula/ope
 
 ### Bun
 
-Bun installs OpenSpec but doesn't run it, so you still need Node on your machine (the [prerequisite](#prerequisites) above). Without it, every command fails with `env: node: No such file or directory`. Bun treats [every Node CLI](https://bun.com/docs/pm/bunx#shebangs) this way.
+Bun installs OpenSpec but doesn't run it, so you still need Node on your machine (see [Package managers](#package-managers)). Without it, every command fails with `env: node: No such file or directory`. Bun treats [every Node CLI](https://bun.com/docs/pm/bunx#shebangs) this way.
 
 ### Deno
 
@@ -113,7 +142,7 @@ locations (`share/bash-completion/completions`, `share/fish/vendor_completions.d
 `share/zsh/site-functions`), so they load with the package and there is no need to run
 `openspec completion install`.
 
-### Check it worked
+## Check it worked
 
 Whichever method you used, in your terminal:
 
@@ -124,6 +153,30 @@ openspec --version
 If that prints a version number, the CLI is on your PATH. It installs once per machine.
 
 Next, [set up your project](setup.md). If your assistant already ran init, that page shows what it wrote and how to adjust it.
+
+## Switch from npm to the standalone install
+
+Your settings and your projects carry over; only the program changes.
+
+**1. Install the standalone file.** Run the [install command](#install) for your system.
+
+**2. Remove the npm copy.** It usually comes first on your PATH, so until it's gone it keeps running instead. In your terminal:
+
+```npm
+npm uninstall -g @fission-ai/openspec
+```
+
+On Homebrew, run `brew uninstall openspec` instead.
+
+**3. Check which copy runs.** Open a new terminal:
+
+```bash
+openspec version
+```
+
+It should print `OpenSpec <version> (standalone)`. If it names a package manager instead, another copy is still on your PATH: `which -a openspec` (Windows: `where.exe openspec`) lists every copy, so remove the others.
+
+No project needs re-initializing. To switch back, delete the file and run the npm install again.
 
 ## Updating
 
@@ -137,7 +190,7 @@ When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update
 
 
 > [!WARNING]
-> On Homebrew, run `brew upgrade openspec`. On Deno, re-run the [Deno install](#deno) with `-f`; it won't overwrite the installed command without it. On Nix, use `nix profile upgrade openspec`.
+> With the standalone install, `openspec update` prints the command that replaces your copy in place; run it, or the [install command](#install) again. On Homebrew, run `brew upgrade openspec`. On Deno, re-run the [Deno install](#deno) with `-f`; it won't overwrite the installed command without it. On Nix, use `nix profile upgrade openspec`.
 
 > [!NOTE]
 > A global npm install belongs to one Node installation. Switch Node versions with nvm and the `openspec` command doesn't come along, so install it again under the new version.
@@ -152,7 +205,7 @@ To uninstall OpenSpec, run through the steps below; none of them touch your sour
 openspec completion uninstall
 ```
 
-**2. Remove the package.** In your terminal:
+**2. Remove the CLI.** For the standalone install, delete `~/.local/bin/openspec` (Windows: `%LOCALAPPDATA%\Programs\openspec`, and that folder from your user PATH). For npm, in your terminal:
 
 ```npm
 npm uninstall -g @fission-ai/openspec
@@ -165,4 +218,4 @@ On Homebrew: `brew uninstall openspec`. On Deno: `deno uninstall --global opensp
 - Generated agent files: `openspec-*` skills and `opsx` commands under directories like `.claude/` or `.agents/`, per project. [Supported tools](../reference/supported-tools.md) lists each tool's paths; MiniMax Code keeps skills in `~/.minimax/skills`.
 - Leftovers from older versions: marker blocks in `CLAUDE.md` or `AGENTS.md` (delete the block, keep the file) and `opsx-*.md` prompts in `~/.codex/prompts`.
 - The `openspec/` folder: pause first. `specs/` and `changes/archive/` are your record of the system, plain Markdown that reads fine without OpenSpec.
-- Per-machine state: settings and the telemetry id in `~/.config/openspec/`; schema overrides and store registrations in `~/.local/share/openspec/` (Windows: `%APPDATA%\openspec`, `%LOCALAPPDATA%\openspec`). Registrations are pointers; the store repos they point to are untouched.
+- Per-machine state: settings and the telemetry id in `~/.config/openspec/`; schema overrides, store registrations, and the standalone install's built-in schemas (`binary-schemas/`) in `~/.local/share/openspec/` (Windows: `%APPDATA%\openspec`, `%LOCALAPPDATA%\openspec`). Registrations are pointers; the store repos they point to are untouched.
