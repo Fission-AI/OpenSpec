@@ -69,7 +69,7 @@ jobs:
         run: |
           cd dist-bin
           sha256sum openspec-* > SHA256SUMS
-          cp ../scripts/binary/install.sh .
+          cp ../scripts/binary/install.sh ../scripts/binary/install.ps1 .
           cat SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -82,7 +82,7 @@ jobs:
     name: Verify ${{ matrix.asset }}
     needs: build
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -151,6 +151,67 @@ jobs:
             cmp "$RUNNER_TEMP/bin/openspec" "dist-bin/openspec-$ASSET"
           fi
 
+      # Same as above for Windows, in both PowerShell 7 and the Windows
+      # PowerShell 5.1 every Windows 10/11 machine has, through `irm | iex`.
+      - name: Install script (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-ScriptAnalyzer -Path scripts/binary/install.ps1 -Severity Warning,Error -ExcludeRule PSAvoidUsingWriteHost -EnableExit
+          $server = Start-Process python -ArgumentList '-m', 'http.server', '8765', '--directory', 'dist-bin' -PassThru -WindowStyle Hidden
+          foreach ($i in 1..40) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/SHA256SUMS | Out-Null; break } catch { Start-Sleep -Milliseconds 500 } }
+          # A user PATH entry that relies on expansion must survive untouched.
+          $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+          $before = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
+          $key.SetValue('Path', "$before;%USERPROFILE%\openspec-path-probe", 'ExpandString')
+          try {
+            foreach ($shell in 'pwsh', 'powershell') {
+              $dir = Join-Path $env:RUNNER_TEMP "install $shell"
+              foreach ($run in 1, 2) {
+                & $shell -NoProfile -Command "`$env:OPENSPEC_DOWNLOAD_URL='http://127.0.0.1:8765'; `$env:OPENSPEC_INSTALL_DIR='$dir'; irm http://127.0.0.1:8765/install.ps1 | iex"
+                if ($LASTEXITCODE -ne 0) { throw "$shell install run $run failed" }
+              }
+              $exe = Join-Path $dir 'openspec.exe'
+              if ((Get-FileHash $exe).Hash -ne (Get-FileHash "dist-bin/openspec-$env:ASSET.exe").Hash) { throw "$shell installed the wrong file" }
+              & $exe --version
+              if ($LASTEXITCODE -ne 0) { throw "$shell's installed copy does not run" }
+              $raw = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
+              if (@($raw -split ';' | Where-Object { $_ -eq $dir }).Count -ne 1) { throw "$shell did not add $dir to the user PATH exactly once: $raw" }
+              if ($raw -notlike '*%USERPROFILE%\openspec-path-probe*') { throw "$shell expanded the user PATH: $raw" }
+              if ($key.GetValueKind('Path') -ne 'ExpandString') { throw "$shell changed the user PATH type" }
+            }
+          } finally {
+            $key.SetValue('Path', $before, 'ExpandString')
+            $key.Close()
+            Stop-Process $server
+          }
+
+      # The repo's own CLI tests, run against this binary instead of Node.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: matrix.alpine == ''
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: matrix.alpine == ''
+        with:
+          node-version: '20.19.0'
+          package-manager-cache: false
+      - name: CLI test suite against the binary
+        run: |
+          if [ -n "$ALPINE" ]; then
+            # Copied in: the container installs its own (musl) dependencies.
+            # Run as a normal user; root can read files the tests make unreadable.
+            docker run --rm -v "$PWD:/src:ro" node:22-alpine sh -c \
+              "apk add -q --no-cache bash git libstdc++ libgcc && corepack enable &&
+               mkdir /w && cd /src && tar --exclude=./node_modules -cf - . | tar -xf - -C /w && chown -R node /w &&
+               su node -c 'cd /w && pnpm install --frozen-lockfile && pnpm run build &&
+                 bash scripts/binary/e2e.sh dist-bin/openspec-$ASSET'"
+          else
+            pnpm install --frozen-lockfile
+            pnpm run build
+            bin="dist-bin/openspec-$ASSET"
+            [ "$RUNNER_OS" = Windows ] && bin="$bin.exe"
+            bash scripts/binary/e2e.sh "$bin"
+          fi
+
   release:
     name: Attach to release
     needs: verify
@@ -170,4 +231,4 @@ jobs:
         run: |
           cd dist-bin
           sha256sum --check SHA256SUMS
-          gh release upload "$REF" openspec-* SHA256SUMS install.sh --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$REF" openspec-* SHA256SUMS install.sh install.ps1 --clobber --repo "$GITHUB_REPOSITORY"
