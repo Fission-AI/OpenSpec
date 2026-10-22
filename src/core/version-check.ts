@@ -44,12 +44,17 @@ export function markStandaloneBinary(executablePath: string): void {
  */
 function standaloneUpgradeCommand(): string | null {
   if (!standaloneBinaryPath) return null;
+  const dir = path.dirname(standaloneBinaryPath);
+  const name = path.basename(standaloneBinaryPath);
   if (process.platform === 'win32') {
-    const dir = path.dirname(standaloneBinaryPath).replace(/'/g, "''");
-    return `$env:OPENSPEC_INSTALL_DIR='${dir}'; irm ${RELEASE_DOWNLOAD_URL}/install.ps1 | iex`;
+    const quote = (value: string) => `'${value.replace(/'/g, "''")}'`;
+    // A binary kept under its download name is replaced under that name.
+    const setName = name.toLowerCase() === 'openspec.exe' ? '' : ` $env:OPENSPEC_INSTALL_NAME=${quote(name)};`;
+    return `$env:OPENSPEC_INSTALL_DIR=${quote(dir)};${setName} irm ${RELEASE_DOWNLOAD_URL}/install.ps1 | iex`;
   }
-  const dir = path.dirname(standaloneBinaryPath).replace(/'/g, `'\\''`);
-  return `curl -fsSL ${RELEASE_DOWNLOAD_URL}/install.sh | OPENSPEC_INSTALL_DIR='${dir}' sh`;
+  const quote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
+  const setName = name === 'openspec' ? '' : ` OPENSPEC_INSTALL_NAME=${quote(name)}`;
+  return `curl -fsSL ${RELEASE_DOWNLOAD_URL}/install.sh | OPENSPEC_INSTALL_DIR=${quote(dir)}${setName} sh`;
 }
 
 /**

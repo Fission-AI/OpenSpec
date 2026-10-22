@@ -5,6 +5,7 @@
 #
 # OPENSPEC_VERSION      release to install (default: latest), e.g. v1.15.0
 # OPENSPEC_INSTALL_DIR  where to put it (default: ~/.local/bin)
+# OPENSPEC_INSTALL_NAME file name to install as (default: openspec)
 # OPENSPEC_DOWNLOAD_URL base URL of the release assets (mirrors, testing)
 set -eu
 
@@ -55,6 +56,9 @@ main() {
   # Staged inside the install dir, not /tmp: /tmp is often mounted noexec, and
   # a same-filesystem mv replaces an existing copy atomically.
   mkdir -p "$dir" || fail "cannot create $dir"
+  # Absolute, so the PATH advice below works from any directory.
+  dir=$(cd "$dir" && pwd) || fail "cannot use $dir"
+  name="${OPENSPEC_INSTALL_NAME:-openspec}"
   tmp=$(mktemp -d "$dir/.openspec-install.XXXXXX") || fail "cannot write to $dir"
   trap 'rm -rf "$tmp"' EXIT
   download() {
@@ -89,8 +93,8 @@ main() {
       *) fail "the downloaded $asset does not run on this machine" ;;
     esac
   fi
-  mv -f "$tmp/$asset" "$dir/openspec"
-  echo "Installed openspec $installed to $dir/openspec"
+  mv -f "$tmp/$asset" "$dir/$name"
+  echo "Installed openspec $installed to $dir/$name"
 
   case ":$PATH:" in
     *":$dir:"*) ;;

@@ -4,6 +4,7 @@
 #
 # $env:OPENSPEC_VERSION      release to install (default: latest), e.g. v1.15.0
 # $env:OPENSPEC_INSTALL_DIR  where to put it (default: %LOCALAPPDATA%\Programs\openspec)
+# $env:OPENSPEC_INSTALL_NAME file name to install as (default: openspec.exe)
 # $env:OPENSPEC_DOWNLOAD_URL base URL of the release assets (mirrors, testing)
 #
 # Runs in Windows PowerShell 5.1 and PowerShell 7. It throws instead of
@@ -34,6 +35,9 @@
     "https://github.com/Fission-AI/OpenSpec/releases/download/$version"
   }
   $dir = if ($env:OPENSPEC_INSTALL_DIR) { $env:OPENSPEC_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'Programs\openspec' }
+  # Absolute, so the user PATH entry works from any directory.
+  $dir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($dir)
+  $name = if ($env:OPENSPEC_INSTALL_NAME) { $env:OPENSPEC_INSTALL_NAME } else { 'openspec.exe' }
 
   # Staged inside the install dir so the final move is a same-volume rename.
   New-Item -ItemType Directory -Force -Path $dir | Out-Null
@@ -63,7 +67,7 @@
       throw "openspec install: the downloaded $asset does not run on this machine (needs Windows 10 or later)"
     }
 
-    $target = Join-Path $dir 'openspec.exe'
+    $target = Join-Path $dir $name
     try {
       Move-Item -Force -Path $exe -Destination $target
     } catch {

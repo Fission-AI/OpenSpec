@@ -180,6 +180,15 @@ jobs:
               if ($raw -notlike '*%USERPROFILE%\openspec-path-probe*') { throw "$shell expanded the user PATH: $raw" }
               if ($key.GetValueKind('Path') -ne 'ExpandString') { throw "$shell changed the user PATH type" }
             }
+            # A relative folder is saved to PATH as an absolute one; a custom name is kept.
+            Push-Location $env:RUNNER_TEMP
+            pwsh -NoProfile -Command "`$env:OPENSPEC_DOWNLOAD_URL='http://127.0.0.1:8765'; `$env:OPENSPEC_INSTALL_DIR='relative install'; `$env:OPENSPEC_INSTALL_NAME='openspec-renamed.exe'; irm http://127.0.0.1:8765/install.ps1 | iex"
+            Pop-Location
+            if ($LASTEXITCODE -ne 0) { throw 'relative install failed' }
+            $abs = Join-Path $env:RUNNER_TEMP 'relative install'
+            if (-not (Test-Path (Join-Path $abs 'openspec-renamed.exe'))) { throw 'custom name not used' }
+            $raw = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
+            if (($raw -split ';') -notcontains $abs) { throw "relative folder not saved as $abs : $raw" }
           } finally {
             $key.SetValue('Path', $before, 'ExpandString')
             $key.Close()

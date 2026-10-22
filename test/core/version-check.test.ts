@@ -1289,3 +1289,26 @@ describe('standalone binary', () => {
     expect(canSelfUpgrade(null, PROJECT_ROOT)).toBe(false);
   });
 });
+
+describe('standalone binary kept under its download name', () => {
+  it('upgrades the file the user actually runs', async () => {
+    const name = process.platform === 'win32' ? `openspec-windows-${process.arch}.exe` : `openspec-${process.platform}-${process.arch}`;
+    const executable = path.join(os.tmpdir(), "it's bin", name);
+    vi.resetModules();
+    const { markStandaloneBinary, getCliInstallInfo, getCliUpdateCommand } = await import('../../src/core/version-check.js');
+    markStandaloneBinary(executable);
+    const command = getCliUpdateCommand(getCliInstallInfo(null))!;
+
+    if (process.platform === 'win32') {
+      expect(command).toContain(`$env:OPENSPEC_INSTALL_NAME='${name}';`);
+    } else {
+      // Both variables read back exactly once a shell parses the command.
+      const vars = command.match(/\| (OPENSPEC_INSTALL_DIR=.*) sh$/)![1];
+      const { execFileSync } = await import('child_process');
+      const read = execFileSync('sh', ['-c', `${vars} sh -c 'printf "%s|%s" "$OPENSPEC_INSTALL_DIR" "$OPENSPEC_INSTALL_NAME"'`], {
+        encoding: 'utf8',
+      });
+      expect(read).toBe(`${path.dirname(executable)}|${name}`);
+    }
+  });
+});
