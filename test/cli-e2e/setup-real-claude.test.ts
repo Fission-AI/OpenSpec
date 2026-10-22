@@ -50,7 +50,11 @@ describe.skipIf(!enabled)('openspec setup with the real Claude Code CLI', () => 
   beforeAll(async () => {
     await ensureCliBuilt();
     root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-real-claude-')));
-    const home = path.join(root, 'home dir');
+    // Codex on Windows finds the home folder through the OS profile, not
+    // USERPROFILE, so a sandboxed home is invisible to it. On a CI runner,
+    // which is thrown away after the job, use the real home there instead.
+    const realHome = process.env.CI === 'true' && process.platform === 'win32';
+    const home = realHome ? os.homedir() : path.join(root, 'home dir');
     fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
     fs.mkdirSync(path.join(home, '.codex'), { recursive: true });
     env = {
