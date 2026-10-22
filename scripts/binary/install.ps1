@@ -57,7 +57,8 @@
     if ($actual -ne $expected) { throw "openspec install: checksum mismatch for $asset; refusing to install" }
 
     $installed = $null
-    try { $installed = & $exe --version } catch {}
+    # A binary that cannot start at all throws instead of setting an exit code.
+    try { $installed = & $exe --version } catch { Write-Verbose "openspec --version failed: $_" }
     if ($LASTEXITCODE -ne 0 -or -not $installed) {
       throw "openspec install: the downloaded $asset does not run on this machine (needs Windows 10 or later)"
     }
