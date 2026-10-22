@@ -127,6 +127,47 @@ jobs:
           path: coverage/
           retention-days: 7
 
+  skills_setup_real_claude:
+    # `openspec setup` and `--revert` against the real Claude Code CLI on every
+    # OS. Not a required check: it depends on an external package.
+    name: Skills setup (${{ matrix.os }}, real Claude Code)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20.19.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build project
+        run: pnpm run build
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code@2.1.306
+
+      - name: Run setup and revert end to end
+        env:
+          OPENSPEC_REAL_CLAUDE: '1'
+          DISABLE_AUTOUPDATER: '1'
+        run: pnpm exec vitest run test/cli-e2e/setup-real-claude.test.ts test/cli-e2e/setup-revert-journey.test.ts
+
   test_pr_required:
     name: Test
     runs-on: ubuntu-latest
