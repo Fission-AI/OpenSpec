@@ -42,6 +42,7 @@ export const GlobalConfigSchema = z
       .object({
         version: z.string(),
         claudePlugin: z.boolean(),
+        pluginName: z.string().optional(),
         sharedSkills: z.boolean(),
         backups: z.array(z.string()).optional(),
       })

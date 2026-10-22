@@ -237,6 +237,10 @@ export async function writeClaudePlugin(dir: string, workflows: readonly string[
   );
 }
 
+function inNamespace(name: string): boolean {
+  return name === SKILL_NAMESPACE || name.startsWith(`${SKILL_NAMESPACE}-`);
+}
+
 /** Skill folders in `dir` this setup wrote: the namespace's router and workflow skills. */
 function namespaceSkillDirs(dir: string): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -269,7 +273,9 @@ function findOlderFiles(home: string, env: NodeJS.ProcessEnv, projectPath?: stri
     for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
       if (!entry.isDirectory() || !/^openspec(-|$)/.test(entry.name)) continue;
       const dir = path.join(root, entry.name);
-      if (isOurs(dir) && !isCurrentLayout(dir)) found.push(dir);
+      // Skills from an earlier namespace (say openspec-beta, after a rename)
+      // carry the layout marker too, so the namespace decides what is current.
+      if (isOurs(dir) && !(inNamespace(entry.name) && isCurrentLayout(dir))) found.push(dir);
     }
   }
   // Anything else under the namespace's names in the machine folders that this
@@ -422,6 +428,13 @@ export async function setupMachine(options: MachineSetupOptions = {}): Promise<M
       await writeClaudePlugin(dir, workflows);
       if (register) {
         const runClaude = options.runClaude ?? defaultRunClaude(env);
+        // A plugin registered under an earlier name (before a namespace rename)
+        // would load beside this one; unregister it first.
+        const previous = config.machineSetup?.claudePlugin ? config.machineSetup.pluginName : undefined;
+        if (previous && previous !== PLUGIN_NAME) {
+          runClaude(['plugin', 'uninstall', `${previous}@${previous}-local`]);
+          runClaude(['plugin', 'marketplace', 'remove', `${previous}-local`]);
+        }
         for (const args of [
           ['plugin', 'marketplace', 'add', dir],
           ['plugin', 'install', `${PLUGIN_NAME}@${MARKETPLACE_NAME}`],
@@ -457,6 +470,7 @@ export async function setupMachine(options: MachineSetupOptions = {}): Promise<M
       machineSetup: {
         version: OPENSPEC_VERSION,
         claudePlugin: result.claudePlugin?.registered ?? false,
+        ...(result.claudePlugin?.registered ? { pluginName: PLUGIN_NAME } : {}),
         sharedSkills: result.sharedSkills !== undefined,
         ...(backups.length > 0 ? { backups } : {}),
       },
@@ -496,9 +510,10 @@ export async function revertMachineSetup(
   if (record.claudePlugin || fs.existsSync(pluginDir)) {
     if (record.claudePlugin) {
       const runClaude = options.runClaude ?? defaultRunClaude(env);
+      const name = record.pluginName ?? PLUGIN_NAME;
       for (const args of [
-        ['plugin', 'uninstall', `${PLUGIN_NAME}@${MARKETPLACE_NAME}`],
-        ['plugin', 'marketplace', 'remove', MARKETPLACE_NAME],
+        ['plugin', 'uninstall', `${name}@${name}-local`],
+        ['plugin', 'marketplace', 'remove', `${name}-local`],
       ]) {
         const outcome = runClaude(args);
         if (!outcome.ok) result.error ??= outcome.output || `claude ${args.join(' ')} failed`;

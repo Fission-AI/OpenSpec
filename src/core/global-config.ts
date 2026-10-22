@@ -47,6 +47,8 @@ export interface MachineSetupRecord {
   version: string;
   /** The Claude Code plugin is registered. */
   claudePlugin: boolean;
+  /** The name it is registered under, so a later rename can unregister it. */
+  pluginName?: string;
   /** Skills are installed in ~/.agents/skills. */
   sharedSkills: boolean;
   /** Backups of older OpenSpec skills setup moved, each with a manifest `--revert` reads. */

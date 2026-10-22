@@ -11,7 +11,7 @@ import {
   revertMachineSetup,
   setupMachine,
 } from '../../src/core/machine-setup.js';
-import { getGlobalConfig } from '../../src/core/global-config.js';
+import { getGlobalConfig, saveGlobalConfig } from '../../src/core/global-config.js';
 import { SKILL_NAMESPACE as NS } from '../../src/core/shared/openspec-skill.js';
 import { UpdateCommand } from '../../src/core/update.js';
 
@@ -237,6 +237,48 @@ describe('machine setup', () => {
       rename.mockRestore();
     }
     expect(read(dir, 'openspec-propose', 'SKILL.md')).toBe(OLD('openspec-propose'));
+  });
+
+  it('upgrades one beta to the next in place: newer files, turned-off workflows gone, nothing moved', async () => {
+    fs.mkdirSync(path.join(home, '.codex'));
+    saveGlobalConfig({ ...getGlobalConfig(), profile: 'custom', workflows: ['propose', 'apply', 'onboard'] });
+    await setupMachine({ homedir: home, env, runClaude, migrate: true });
+    const dir = path.join(home, '.agents', 'skills');
+    expect(fs.existsSync(path.join(dir, `${NS}-onboard`))).toBe(true);
+    // As an older beta left it.
+    const propose = path.join(dir, `${NS}-propose`, 'SKILL.md');
+    fs.writeFileSync(propose, read(propose).replace(/generatedBy: ".*"/, 'generatedBy: "0.0.1-beta.1"'));
+
+    saveGlobalConfig({ ...getGlobalConfig(), profile: 'custom', workflows: ['propose', 'apply'] });
+    const upgraded = await setupMachine({ homedir: home, env, runClaude, migrate: true });
+
+    expect(upgraded.moved).toEqual([]);
+    expect(upgraded.sharedSkills?.removed).toEqual([`${NS}-onboard`]);
+    expect(read(propose)).not.toContain('0.0.1-beta.1');
+    expect(fs.readdirSync(dir).sort()).toEqual([NS, `${NS}-apply`, `${NS}-propose`].sort());
+  });
+
+  it('moves skills from an earlier namespace and unregisters its plugin, so a rename is clean', async () => {
+    fs.mkdirSync(path.join(home, '.claude'));
+    fs.mkdirSync(path.join(home, '.codex'));
+    const dir = path.join(home, '.agents', 'skills');
+    const earlier = (name: string) =>
+      `---\nname: ${name}\nmetadata:\n  layout: "router"\n  generatedBy: "0.0.1"\n---\nearlier\n`;
+    writeSkill(dir, 'openspec-alpha', earlier('openspec-alpha'));
+    writeSkill(dir, 'openspec-alpha-propose', earlier('openspec-alpha-propose'));
+    saveGlobalConfig({
+      ...getGlobalConfig(),
+      machineSetup: { version: '0.0.1', claudePlugin: true, pluginName: 'openspec-alpha', sharedSkills: true },
+    });
+
+    const result = await setupMachine({ homedir: home, env, runClaude, migrate: true });
+
+    expect(result.moved.map(({ from }) => path.basename(from)).sort()).toEqual(['openspec-alpha', 'openspec-alpha-propose']);
+    expect(runClaude.mock.calls.map(([args]) => args).slice(0, 2)).toEqual([
+      ['plugin', 'uninstall', 'openspec-alpha@openspec-alpha-local'],
+      ['plugin', 'marketplace', 'remove', 'openspec-alpha-local'],
+    ]);
+    expect(getGlobalConfig().machineSetup?.pluginName).toBe(NS);
   });
 
   it('does not migrate on a refresh', async () => {
