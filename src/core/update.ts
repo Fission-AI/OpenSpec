@@ -22,7 +22,8 @@ import {
   getToolVersionStatus,
   getSkillTemplates,
   getCommandContents,
-  generateSkillContent,
+  generateSkillFiles,
+  writeSkillFiles,
   getToolsWithSkillsDir,
   hasGlobalSkillTarget,
   resolveToolSkillsDir,
@@ -77,6 +78,7 @@ import {
   resolveSharedSkillWriters,
   writeSharedSkillTarget,
 } from './shared-skill-target.js';
+import { formatMachineRefresh, refreshMachineSetup } from './machine-setup.js';
 import { includesGitHubCopilot, writeCopilotCloudFiles, removeCopilotCloudFiles, isCopilotCloudEnabled, readCopilotCloudOptIn, findUnmanagedCloudFiles } from './github-copilot/cloud-agent.js';
 
 const require = createRequire(import.meta.url);
@@ -154,8 +156,16 @@ export class UpdateCommand {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);
 
+    // Skills installed by `openspec setup` live outside any project; keep
+    // them on this version wherever update runs.
+    const machine = await refreshMachineSetup();
+    if (machine) {
+      console.log(formatMachineRefresh(machine));
+    }
+
     // 1. Check openspec directory exists
     if (!await FileSystemUtils.directoryExists(openspecPath)) {
+      if (machine) return;
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
     }
 
@@ -339,7 +349,6 @@ export class UpdateCommand {
         if (shouldGenerateSkills && writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
-            const skillFile = path.join(skillDir, 'SKILL.md');
 
             const transformer = getTransformerForTool(
               tool.value,
@@ -347,9 +356,11 @@ export class UpdateCommand {
               resolveCommandSurfaceCapability(tool.value),
               resolveCommandInvocation(tool.value)
             );
-            const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
-            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
-            await FileSystemUtils.writeFile(skillFile, skillContent);
+            await writeSkillFiles(
+              skillsRoot,
+              skillDir,
+              generateSkillFiles(template, OPENSPEC_VERSION, transformer)
+            );
           }
           writeSharedSkillTarget(resolvedProjectPath, tool.value);
 
@@ -628,12 +639,17 @@ export class UpdateCommand {
       );
 
       return getSkillTemplates(workflowsForTool(toolId)).some(({ template, dirName }) => {
-        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
-        if (!fs.existsSync(skillFile)) return false;
+        const skillDir = path.join(skillsDir, dirName);
+        if (!fs.existsSync(path.join(skillDir, 'SKILL.md'))) return false;
         try {
-          const existing = fs.readFileSync(skillFile, 'utf-8');
-          const generated = generateSkillContent(template, OPENSPEC_VERSION, transformer);
-          return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
+          // A reference file is part of the skill: a missing or edited one
+          // drifts the install just as an edited SKILL.md does.
+          return generateSkillFiles(template, OPENSPEC_VERSION, transformer).some((file) => {
+            const target = path.join(skillDir, file.relativePath);
+            if (!fs.existsSync(target)) return true;
+            const existing = fs.readFileSync(target, 'utf-8');
+            return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(file.content);
+          });
         } catch {
           return true;
         }
@@ -1343,7 +1359,6 @@ export class UpdateCommand {
         if (shouldGenerateSkills && writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
-            const skillFile = path.join(skillDir, 'SKILL.md');
 
             const transformer = getTransformerForTool(
               tool.value,
@@ -1351,9 +1366,11 @@ export class UpdateCommand {
               resolveCommandSurfaceCapability(tool.value),
               resolveCommandInvocation(tool.value)
             );
-            const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
-            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
-            await FileSystemUtils.writeFile(skillFile, skillContent);
+            await writeSkillFiles(
+              skillsRoot,
+              skillDir,
+              generateSkillFiles(template, OPENSPEC_VERSION, transformer)
+            );
           }
           writeSharedSkillTarget(projectPath, tool.value);
         }

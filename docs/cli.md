@@ -6,7 +6,7 @@ The OpenSpec CLI (`openspec`) provides terminal commands for project setup, vali
 
 | Category | Commands | Purpose |
 |----------|----------|---------|
-| **Setup** | `init`, `update` | Initialize and update OpenSpec in your project |
+| **Setup** | `setup`, `init`, `update` | Install OpenSpec for your agents, and initialize and update it in your project |
 | **Stores (standalone OpenSpec repos)** | `store setup`, `store register`, `store unregister`, `store remove`, `store list`, `store doctor` | Manage stores — standalone OpenSpec repos you've registered |
 | **Health** | `doctor` | Report relationship health for the resolved root |
 | **Working context** | `context` | Assemble the working set (root + referenced stores) |
@@ -77,6 +77,53 @@ These options work with all commands:
 ---
 
 ## Setup Commands
+
+### `openspec setup`
+
+Install OpenSpec's skills once for every coding agent on this machine, so no project needs skill files of its own. Beta.
+
+```
+openspec setup [--dry-run] [--revert] [--json]
+```
+
+It installs an `openspec-beta` router skill and one short skill per workflow. The router's `SKILL.md` names the workflows and holds the rules they all share; each workflow's steps are in `openspec-beta/references/<workflow>.md`. The `openspec-beta` names never clash with the `openspec-*` skills earlier versions installed. Each workflow skill only points there, so workflows autocomplete while every rule lives in one place. Setup finds your agents from the folders they create in your home directory:
+
+| Agent | What you get | Start a workflow |
+|-------|--------------|-----|
+| Claude Code | An `openspec-beta` plugin holding the skills | `/openspec-beta:propose` |
+| Codex, Gemini CLI, OpenCode, Cursor, GitHub Copilot, Amp, Qwen Code, Crush, Goose, Cline, Kilo Code | `openspec-beta` and `openspec-beta-<workflow>` in `~/.agents/skills`, the folder these agents share | `/openspec-beta-propose` (`$openspec-beta-propose` in Codex) |
+
+```text
+OpenSpec is set up on this machine.
+
+  Claude Code   plugin "openspec-beta": /openspec-beta:propose
+  Codex         ~/.agents/skills: $openspec-beta-propose
+
+Moved 18 older OpenSpec files to a backup:
+  .agents/skills (6)
+  .claude/skills (6)
+  .claude/commands/opsx (6)
+
+The "openspec-beta" skill picks the workflow; 6 workflow skills start one directly: explore, propose, update, apply, sync, archive.
+
+Undo all of this with `openspec setup --revert`.
+```
+
+Setup moves what an earlier OpenSpec wrote into a dated backup in OpenSpec's data directory (`~/.local/share/openspec/backups/`): its skills in `~/.agents/skills` and `~/.claude/skills` and, when you run it inside an OpenSpec project, that project's skills and `/opsx` command files. `openspec setup --revert` unregisters and removes the plugin, removes the skills setup wrote, and moves every backed-up file back. Files OpenSpec did not write are never touched, and a second run leaves the new skills alone.
+
+The workflows follow your profile (`openspec config profile`). Claude Code loads the plugin in place from `~/.local/share/openspec/claude-plugin`, so `openspec update` refreshes it, and `~/.agents/skills`, from any directory. If the `claude` command is not on your `PATH`, setup writes the plugin and prints the two commands that register it. Interactive `openspec init` offers this install instead of adding skill files to the project; `openspec init --tools <tool>` still installs into the project.
+
+Skills installed with `npx skills add` are not setup's to remove. Remove them by name:
+
+```bash
+npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive openspec-beta-bulk-archive openspec-beta-continue openspec-beta-explore openspec-beta-ff openspec-beta-new openspec-beta-onboard openspec-beta-propose openspec-beta-sync openspec-beta-update openspec-beta-verify
+```
+
+| Option | Description |
+|--------|-------------|
+| `--dry-run` | Show what would be installed without writing anything |
+| `--revert` | Remove what setup installed and restore the skills it replaced |
+| `--json` | Output as JSON |
 
 ### `openspec init`
 
@@ -392,7 +439,7 @@ Everything this work relates to through OpenSpec declarations, in one working se
 openspec context [--store <id>] [--json] [--code-workspace <path> [--force]]
 ```
 
-The JSON brief is agent-consumable (each available referenced store carries its fetch recipe; unresolved members carry the same fixes instructions and doctor show). `--code-workspace` additionally writes a VS Code workspace file containing the root plus the available referenced stores (`ref:<id>` folders) — the one write this command performs, refused without `--force` if the file exists. Unavailable members are reported, never guessed at.
+The JSON brief is agent-consumable (each available referenced store carries its fetch recipe; unresolved members carry the same fixes instructions and doctor show). It also carries `project_context`: the root's `context:` config field, validated the same way `openspec instructions` loads it, or `null` when there is none. `--code-workspace` additionally writes a VS Code workspace file containing the root plus the available referenced stores (`ref:<id>` folders) — the one write this command performs, refused without `--force` if the file exists. Unavailable members are reported, never guessed at.
 
 "Working context" is the assembled set; the `context:` field in `openspec/config.yaml` is project background injected into instructions — two different things. `openspec doctor` answers whether the set is healthy; `openspec context` answers what the set is.
 

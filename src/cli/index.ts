@@ -640,6 +640,22 @@ program
     }
   });
 
+program
+  .command('setup')
+  .description('Install OpenSpec skills for every coding agent on this machine (beta)')
+  .option('--dry-run', 'Show what would be installed without writing anything')
+  .option('--revert', 'Remove what setup installed and restore the skills it replaced')
+  .option('--json', 'Output as JSON')
+  .action(async (options?: { dryRun?: boolean; json?: boolean; revert?: boolean }) => {
+    try {
+      const { SetupCommand } = await import('../commands/setup.js');
+      await new SetupCommand().execute(options);
+    } catch (error) {
+      await failWithError(error);
+      process.exit(1);
+    }
+  });
+
 // Feedback command
 program
   .command('feedback <message>')
