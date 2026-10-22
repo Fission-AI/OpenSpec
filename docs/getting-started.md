@@ -14,7 +14,7 @@ This guide explains how OpenSpec works after you've installed and initialized it
 The whole loop, with each step labeled by where it happens:
 
 ```text
-TERMINAL   $ npm install -g @fission-ai/openspec@latest
+TERMINAL   $ curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
 TERMINAL   $ cd your-project && openspec init
 AI CHAT      /opsx:explore                    (optional: think it through first)
 AI CHAT      /opsx:propose add-dark-mode      (AI drafts the plan; you review it)
@@ -22,7 +22,7 @@ AI CHAT      /opsx:apply                      (AI builds it)
 AI CHAT      /opsx:archive                    (specs updated, change filed away)
 ```
 
-Two terminal steps to set up, then you live in chat. The rest of this guide unpacks what each step does and what you'll see.
+Two terminal steps to set up, then you live in chat. (Windows, npm, and other ways to install are in [Installation](installation.md).) The rest of this guide unpacks what each step does and what you'll see.
 
 **Don't want to do the terminal part yourself?** Paste the [setup prompt](installation.md#install-with-your-ai-assistant) into your assistant and it handles both lines, then reports what it created.
 

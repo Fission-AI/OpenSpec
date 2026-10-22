@@ -99,7 +99,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 ## The thirty-second version
 
 ```text
-1. Install        npm install -g @fission-ai/openspec@latest
+1. Install        curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
 2. Initialize     cd your-project && openspec init
 3. Explore        (in your AI chat)  /opsx:explore           ← optional, but a great habit
 4. Propose        (in your AI chat)  /opsx:propose add-dark-mode
@@ -107,7 +107,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 6. Archive        (in your AI chat)  /opsx:archive
 ```
 
-Steps 1 and 2 happen in your terminal. The rest happen in your AI assistant's chat. That split is the one thing worth memorizing, and [How Commands Work](how-commands-work.md) explains exactly why. Step 3 is optional, but starting with `/opsx:explore` when you're unsure is the habit most worth forming.
+Steps 1 and 2 happen in your terminal (for Windows or npm, see [Installation](installation.md)). The rest happen in your AI assistant's chat. That split is the one thing worth memorizing, and [How Commands Work](how-commands-work.md) explains exactly why. Step 3 is optional, but starting with `/opsx:explore` when you're unsure is the habit most worth forming.
 
 ## Where else to get help
 

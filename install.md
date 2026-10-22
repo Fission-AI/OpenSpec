@@ -14,19 +14,32 @@ DONE WHEN:
 
 TODO:
 
-- [ ] Check the Node.js runtime
-- [ ] Install the CLI globally, with the user's confirmation
+- [ ] Install the standalone CLI, with the user's confirmation (npm only as a fallback)
 - [ ] Verify `openspec` is on PATH
 - [ ] Confirm which folder to set up, then run `openspec init --tools <ids>` there
 - [ ] Report what init actually created and how to invoke it
 
-## 1. Runtime
-
-Run `node --version`. OpenSpec needs Node.js 20.19.0 or higher. If Node is missing or older, don't install Node, switch versions, or reconfigure the user's version manager yourself. Offer the standalone binary instead, which needs no Node: on macOS or Linux, show `curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh`, run it only once the user confirms, then skip to step 3. On Windows, or if the user declines or it fails, stop and leave them with their next move: the standalone binary section of https://openspec.dev/docs/installation, https://nodejs.org, or, if they use a version manager like nvm, the command that would switch to a newer version.
-
-## 2. Install
+## 1. Install
 
 Run `openspec --version` first. If it already prints a version, the CLI is installed: say so, offer to update it with the install command below, and if the user declines skip ahead to step 4.
+
+Install the standalone OpenSpec binary. It is a single file and needs nothing else, not even Node.js. Show the command for the user's OS and run it only once they confirm, then skip to step 3:
+
+```bash
+# macOS / Linux
+curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex
+```
+
+If the user would rather use a package manager, or the installer fails, continue with step 2.
+
+## 2. Package manager (only if step 1 did not install it)
+
+Run `node --version`. Installing with a package manager needs Node.js 20.19.0 or higher. If Node is missing or older, don't install Node, switch versions, or reconfigure the user's version manager yourself; stop and leave them with their next move: https://nodejs.org, or, if they use a version manager like nvm, the command that would switch to a newer version.
 
 Use whichever package manager is already on PATH, preferring npm:
 
