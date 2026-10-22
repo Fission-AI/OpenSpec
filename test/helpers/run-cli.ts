@@ -144,7 +144,8 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
   const [command, commandArgs] = testBinary
     ? [testBinary, finalArgs]
     : [process.execPath, [cliEntry, ...finalArgs]];
-  const invocation = [cliEntry, ...finalArgs].join(' ');
+  // What actually runs, so a failure names the binary when testing one.
+  const invocation = [command, ...commandArgs].join(' ');
   const explicitConfigHome = options.env?.XDG_CONFIG_HOME;
   const isolatedConfigHome =
     explicitConfigHome !== undefined
@@ -213,7 +214,7 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
         reject(
           new Error(
             [
-              `CLI command timed out after ${timeoutMs}ms: node ${invocation}`,
+              `CLI command timed out after ${timeoutMs}ms: ${invocation}`,
               stderr ? `stderr tail:\n${formatOutputTail(stderr)}` : '',
               stdout ? `stdout tail:\n${formatOutputTail(stdout)}` : '',
             ]
@@ -229,7 +230,7 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
         stdout,
         stderr,
         timedOut,
-        command: `node ${invocation}`,
+        command: invocation,
       });
     });
 
