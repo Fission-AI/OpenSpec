@@ -3,7 +3,7 @@ import type { Command } from 'commander';
 
 import { COMMAND_REGISTRY } from '../../../src/core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../../../src/core/completions/shared-flags.js';
-import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
+import { BEFORE_YOU_START as STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/references.js';
 import { getCommandPath, program } from '../../../src/cli/index.js';
 import type {
   CommandDefinition,
@@ -178,7 +178,7 @@ describe('command completion registry', () => {
       'view',
     ]);
 
-    // The store-selection guidance interpolated into every generated skill
+    // The store line in every generated skill's "Before you start" block
     // enumerates exactly these commands; drift here means agents are taught
     // a stale flag surface.
     for (const commandPath of seen) {

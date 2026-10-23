@@ -503,6 +503,21 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'setup',
+    description: 'Install OpenSpec skills for every coding agent on this machine (beta)',
+    flags: [
+      {
+        name: 'dry-run',
+        description: 'Show what would be installed without writing anything',
+      },
+      {
+        name: 'revert',
+        description: 'Remove what setup installed and restore the skills it replaced',
+      },
+      COMMON_FLAGS.json,
+    ],
+  },
+  {
     name: 'feedback',
     description: 'Submit feedback about OpenSpec',
     acceptsPositional: true,

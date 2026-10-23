@@ -6,7 +6,7 @@ OpenSpec works with many AI coding assistants. When you run `openspec init`, Ope
 
 For each selected tool, OpenSpec can install:
 
-1. **Skills** (if delivery includes skills): `.../skills/openspec-*/SKILL.md`
+1. **Skills** (if delivery includes skills): `.../skills/openspec-*/SKILL.md`, plus a `references/` folder beside it holding detail the skill reads only when a step needs it (for example, store selection or an uninitialized project)
 2. **Commands** (if delivery includes commands): tool-specific `opsx-*` command files
 
 Codex is skills-only: OpenSpec installs `.agents/skills/openspec-*/SKILL.md` for Codex even when delivery is set to `commands`, and it does not generate Codex custom prompt files. Existing OpenSpec-managed skills under the legacy `.codex/skills` path are reconciled after their replacements are written; custom and divergent files are preserved.

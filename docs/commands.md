@@ -525,10 +525,9 @@ Archive a completed change. Finalizes the change and moves it to the archive fol
 | `change-name` | No | Which change to archive (inferred from context if not provided) |
 
 **What it does:**
-- Checks artifact completion status
-- Checks task completion (warns if incomplete)
-- Offers to sync delta specs if not already synced
-- Moves change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`
+- Runs `openspec archive --json`. When nothing needs your go-ahead, that archives the change directly; otherwise it reports what needs approval and moves nothing
+- Shows you any warnings (incomplete tasks or artifacts, main specs that will change) and asks before going on
+- Runs `openspec archive --yes`, which merges the delta specs into the main specs, validates them, and moves the change folder to `openspec/changes/archive/YYYY-MM-DD-<name>/`; if anything fails, the CLI refuses and nothing changes
 - Preserves all artifacts for audit trail
 
 **Example:**
@@ -537,26 +536,19 @@ You: /opsx:archive
 
 AI:  Archiving add-dark-mode...
 
-     Artifact status:
-     ✓ proposal.md exists
-     ✓ specs/ exists
-     ✓ design.md exists
-     ✓ tasks.md exists (8/8 tasks complete)
-
-     Delta specs: Not yet synced
-     → Sync now? (recommended)
+     All 8 tasks are complete. Archiving will update 1 main spec
+     (specs/ui/spec.md: 1 requirement added).
+     → Archive and update the main specs? (recommended)
 
 You: Yes
 
-AI:  ✓ Synced specs to openspec/specs/ui/spec.md
-     ✓ Moved to openspec/changes/archive/2025-01-24-add-dark-mode/
-
-     Change archived successfully.
+AI:  ✓ Archived as openspec/changes/archive/2025-01-24-add-dark-mode/
+     ✓ Main specs updated and validated (1 added)
 ```
 
 **Tips:**
-- Archive won't block on incomplete tasks, but will warn
-- Delta specs can be synced during archive or beforehand
+- Archive won't block on incomplete tasks, but will warn and ask
+- Delta specs can be synced during archive or beforehand; archiving a change whose specs are already synced adds nothing twice
 - Archived changes are preserved for history
 - Use `/opsx:verify` first to catch issues
 
@@ -581,7 +573,7 @@ Archive multiple completed changes at once. Handles spec conflicts between chang
 - Validates each change before archiving
 - Detects spec conflicts across changes
 - Resolves conflicts by checking what's actually implemented
-- Archives in chronological order
+- Archives each change with `openspec archive`, in chronological order when changes conflict
 
 **Example:**
 ```

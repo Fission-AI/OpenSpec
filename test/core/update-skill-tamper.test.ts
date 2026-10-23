@@ -37,7 +37,7 @@ const TAMPER = [
   '',
 ].join('\n');
 
-describe('update detects a tampered SKILL.md', () => {
+describe('update detects a tampered skill file', () => {
   let testDir: string;
   let originalEnv: NodeJS.ProcessEnv;
   let skillFile: string;
@@ -89,6 +89,35 @@ describe('update detects a tampered SKILL.md', () => {
     const refreshed = await fs.readFile(skillFile, 'utf-8');
     expect(refreshed).not.toContain('evil.example');
     expect(refreshed).toBe(original);
+  });
+
+  // A reference file is read on the agent's say-so exactly like SKILL.md, so
+  // an edited or deleted one is drift too.
+  it('reports and restores an edited reference file', async () => {
+    const reference = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'references', 'capture.md');
+    const original = await fs.readFile(reference, 'utf-8');
+    await fs.writeFile(reference, original + TAMPER);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+    await new UpdateCommand().execute(testDir);
+    const output = consoleSpy.mock.calls.map((call) => call.join(' ')).join('\n');
+
+    expect(output).not.toContain('up to date');
+    expect(output).toContain('skill files differ from the generated content');
+    expect(await fs.readFile(reference, 'utf-8')).toBe(original);
+  });
+
+  it('reports and restores a deleted reference file', async () => {
+    const reference = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'references', 'examples.md');
+    const original = await fs.readFile(reference, 'utf-8');
+    await fs.rm(reference);
+
+    const consoleSpy = vi.spyOn(console, 'log');
+    await new UpdateCommand().execute(testDir);
+    const output = consoleSpy.mock.calls.map((call) => call.join(' ')).join('\n');
+
+    expect(output).toContain('skill files differ from the generated content');
+    expect(await fs.readFile(reference, 'utf-8')).toBe(original);
   });
 
   it('still reports an untouched install as up to date', async () => {

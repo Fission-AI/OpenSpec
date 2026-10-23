@@ -322,6 +322,8 @@ function migrateSkillDirs(
         disposition,
         needsConsent: sink.needsConsent,
       });
+      // The real move carries the skill's reference files too; plan them the same way.
+      if (sink) planSkillReferences(projectPath, source, destination, sink, view);
       moved++;
       continue;
     }
@@ -338,6 +340,7 @@ function migrateSkillDirs(
         fs.mkdirSync(destination, { recursive: true });
         fs.renameSync(sourceSkill, destinationSkill);
       }
+      kept += migrateSkillReferences(projectPath, source, destination);
       // Anything the user left beside it stays under the legacy root.
       removeDirIfEmpty(source);
       moved++;
@@ -347,6 +350,70 @@ function migrateSkillDirs(
   }
 
   return { moved, kept };
+}
+
+/**
+ * Generated skills ship `references/<name>.md` beside SKILL.md. Each one
+ * follows the same rule as SKILL.md: dropped when the destination already
+ * holds the same file, moved when it has none, and kept in place (and
+ * counted) when the two differ, since an edited copy is not ours to discard.
+ */
+function migrateSkillReferences(projectPath: string, source: string, destination: string): number {
+  const sourceRefs = path.join(source, 'references');
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(sourceRefs, { withFileTypes: true });
+  } catch {
+    return 0;
+  }
+  let kept = 0;
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+    const from = path.join(sourceRefs, entry.name);
+    const to = path.join(destination, 'references', entry.name);
+    if (!areProjectArtifacts(projectPath, from, to)) continue;
+    const disposition = classifyManagedFile(from, to);
+    try {
+      if (disposition === 'drop') {
+        fs.rmSync(from, { force: true });
+      } else if (disposition === 'move') {
+        fs.mkdirSync(path.dirname(to), { recursive: true });
+        fs.renameSync(from, to);
+      } else if (disposition === 'keep') {
+        kept++;
+      }
+    } catch {
+      kept++;
+    }
+  }
+  removeDirIfEmpty(sourceRefs);
+  return kept;
+}
+
+/** What `migrateSkillReferences` would do, recorded for a dry run instead of done. */
+function planSkillReferences(
+  projectPath: string,
+  source: string,
+  destination: string,
+  sink: MigrationPlanSink,
+  view: FileView
+): void {
+  const sourceRefs = path.join(source, 'references');
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(sourceRefs, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+    const from = path.join(sourceRefs, entry.name);
+    const to = path.join(destination, 'references', entry.name);
+    if (!areProjectArtifacts(projectPath, from, to)) continue;
+    const disposition = classifyManagedFile(from, to, view);
+    if (disposition !== 'move' && disposition !== 'drop') continue;
+    sink.ops.push({ toolId: sink.toolId, source: from, destination: to, disposition, needsConsent: sink.needsConsent });
+  }
 }
 
 function migrateCommandFiles(

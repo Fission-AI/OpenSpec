@@ -562,6 +562,27 @@ metadata:
       await expect(fs.access(migratedSkill)).resolves.toBeUndefined();
     });
 
+    // A skill's references are generated like its SKILL.md, so they follow it:
+    // dropped when the new root already has the same file, kept in place when
+    // the user edited them.
+    it('should move generated skill references with the skill and keep an edited one', async () => {
+      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
+      await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
+      await fs.rm(path.join(testDir, '.codex', 'skills', '.openspec-target'));
+      const legacyRef = (skill: string, file: string) =>
+        path.join(testDir, '.codex', 'skills', skill, 'references', file);
+      const edited = legacyRef('openspec-explore', 'capture.md');
+      await fs.appendFile(edited, '\nMy own note.\n');
+
+      await updateCommand.execute(testDir);
+
+      await expect(
+        fs.access(path.join(testDir, '.agents', 'skills', 'openspec-sync-specs', 'references', 'merge-rules.md'))
+      ).resolves.toBeUndefined();
+      await expect(fs.access(path.join(testDir, '.codex', 'skills', 'openspec-sync-specs'))).rejects.toThrow();
+      expect(await fs.readFile(edited, 'utf-8')).toContain('My own note.');
+    });
+
     it('should migrate legacy Codex skills after writing replacements and preserve user files', async () => {
       await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
       await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
@@ -876,9 +897,10 @@ metadata:
       // The codex marker is written (writeSharedSkillTarget on the non-owned path).
       expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('codex\n');
       // A single opsx-explore prompt infers only the `explore` workflow, and the
-      // generated skill carries Codex `$openspec-` syntax.
+      // generated skill carries Codex `$openspec-` syntax (its examples
+      // reference shows an explore invocation).
       const explore = await fs.readFile(
-        path.join(skillsDir, 'openspec-explore', 'SKILL.md'),
+        path.join(skillsDir, 'openspec-explore', 'references', 'examples.md'),
         'utf-8'
       );
       expect(explore).toContain('$openspec-');

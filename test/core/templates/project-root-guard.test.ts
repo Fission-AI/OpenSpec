@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PROJECT_ROOT_GUARD } from '../../../src/core/templates/workflows/project-root.js';
-import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
+import { BEFORE_YOU_START } from '../../../src/core/templates/workflows/references.js';
 import { getFeedbackSkillTemplate } from '../../../src/core/templates/skill-templates.js';
 import {
   generateSkillContent,
@@ -12,22 +11,21 @@ import {
 /**
  * Regression coverage for #1645.
  *
- * Skills and commands are installed once per machine and offered in every
- * repository, including ones that never ran `openspec init`. Nothing in the
- * CLI stops the workflow there - `openspec new change` falls back to an
- * implicit root and creates `openspec/` wherever the agent is standing - so
- * the guard has to live in the instructions themselves, in every workflow.
+ * Skills are offered in every repository the agent opens, including ones that
+ * never ran `openspec init`. Nothing in the CLI stops the workflow there -
+ * `openspec new change` falls back to an implicit root and creates `openspec/`
+ * wherever the agent is standing - so the check lives in every workflow's
+ * "Before you start" block.
  */
 describe('project root guard', () => {
-  /** One bullet of the no-root branch table, from its anchor to the next. */
-  function branch(anchor: string): string {
-    const start = PROJECT_ROOT_GUARD.indexOf(anchor);
-    expect(start, `${anchor} is missing`).toBeGreaterThanOrEqual(0);
-    const next = PROJECT_ROOT_GUARD.indexOf('\n- ', start);
-    return PROJECT_ROOT_GUARD.slice(start, next === -1 ? undefined : next);
+  /** One bullet of the block, from its bold label to the next bullet. */
+  function bullet(label: string): string {
+    const start = BEFORE_YOU_START.indexOf(`- **${label}**`);
+    expect(start, `${label} bullet is missing`).toBeGreaterThanOrEqual(0);
+    const next = BEFORE_YOU_START.indexOf('\n- ', start + 1);
+    return BEFORE_YOU_START.slice(start, next === -1 ? undefined : next);
   }
 
-  // Both surfaces, rendered exactly as they ship.
   function renderedBodies(): Array<[string, string]> {
     return [
       ...getSkillTemplates().map(
@@ -36,155 +34,84 @@ describe('project root guard', () => {
           generateSkillContent(template, 'PARITY-BASELINE'),
         ]
       ),
-      ...getCommandContents().map(
-        (entry): [string, string] => [`command ${entry.id}`, entry.body]
-      ),
+      ...getCommandContents().map((entry): [string, string] => [`command ${entry.id}`, entry.body]),
     ];
   }
 
-  it('warns about an uninitialized project in every deployed skill', () => {
-    for (const { template, dirName } of getSkillTemplates()) {
-      const content = generateSkillContent(template, 'PARITY-BASELINE');
-      expect(content, dirName).toContain(PROJECT_ROOT_GUARD);
+  it('carries the check in every deployed skill and command', () => {
+    for (const [label, body] of renderedBodies()) {
+      expect(body, label).toContain(BEFORE_YOU_START);
     }
   });
 
-  it('warns about an uninitialized project in every deployed opsx command', () => {
-    for (const entry of getCommandContents()) {
-      expect(entry.body, entry.id).toContain(PROJECT_ROOT_GUARD);
-    }
-  });
-
-  // Feedback files a GitHub issue through `openspec feedback`; it never reads
-  // or writes a root, so it ships outside both registries and carries neither
-  // the store teaching nor this guard.
+  // Feedback files a GitHub issue; it never reads or writes a root.
   it('leaves the rootless feedback skill alone', () => {
-    expect(getFeedbackSkillTemplate().instructions).not.toContain('**Project check:**');
+    expect(getFeedbackSkillTemplate().instructions).not.toContain('**Before you start**');
   });
 
   // The CLI contract behind this check - `list` reporting `root: null` instead
   // of fabricating an implicit root - is pinned in
   // test/commands/store-root-selection.test.ts.
   it('names the machine-readable signal rather than a guess', () => {
-    expect(PROJECT_ROOT_GUARD).toContain('openspec list --json');
-    // A selected store is a root, so the check has to carry the flag or it
-    // answers a question about the wrong directory.
-    expect(PROJECT_ROOT_GUARD).toContain('with `--store <id>` when a store is selected');
-    expect(PROJECT_ROOT_GUARD).toContain('`"root": null`');
-    // An agent that reads the non-zero exit as a broken CLI is one step from
-    // hand-creating `openspec/` instead, which is the failure being guarded.
-    expect(PROJECT_ROOT_GUARD).toContain('also exits non-zero, which is that answer rather than a broken CLI');
+    const check = bullet('No OpenSpec here:');
+    expect(check).toContain('run `openspec list --json`');
+    expect(check).toContain('`"root": null`');
+    // Reading the non-zero exit as a broken CLI is one step from hand-creating
+    // `openspec/`, which is the failure being guarded.
+    expect(check).toContain('that is the answer, not a broken CLI');
   });
 
-  // A store-only project whose `store:` line names a store this machine has not
-  // registered (a teammate's fresh clone) also reports `root: null`, with
-  // `unknown_store` or `no_registered_stores`. A stale global `defaultStore`
-  // reports the same codes in unrelated repositories, so only the message
-  // prefix pinned in test/core/root-selection.test.ts tells them apart. Treating
-  // that project as uninitialized would silently drop OpenSpec, or offer
-  // `openspec init`, in a project that is already set up.
-  it('does not mistake an unregistered declared store for an uninitialized project', () => {
-    expect(PROJECT_ROOT_GUARD).toContain('starts with `Declared in`');
-    expect(PROJECT_ROOT_GUARD).toContain('Do not treat it as uninitialized and skip the branches below');
-    expect(PROJECT_ROOT_GUARD).toContain("show the user that error's `message` and `fix`");
-    expect(PROJECT_ROOT_GUARD.indexOf('starts with `Declared in`')).toBeLessThan(
-      PROJECT_ROOT_GUARD.indexOf('**Auto-selected**')
-    );
+  // A selected store is the root, so the check runs against it.
+  it('keeps a selected store on the check', () => {
+    expect(bullet('Store:')).toContain('add `--store <id>` to every');
+    expect(bullet('Store:')).toContain('`list`');
   });
 
-  // #1645 asks for the workflow to get out of the way, not to interrogate the
-  // user: "if not exist it can go through the normal general propose not the
-  // openspec". So the two ways of arriving here get opposite answers, and both
-  // have to be pinned or the guard drifts back to one of them.
-  it('gets out of the way when it selected itself', () => {
-    const autoSelected = branch('**Auto-selected**');
-
-    expect(autoSelected).toContain('without the user naming OpenSpec');
-    expect(autoSelected).toContain('answer the request normally');
-    // The reported bug is being asked to choose a setup path for a project the
-    // user never said was an OpenSpec project.
-    expect(autoSelected).toContain('Do not ask them to set anything up');
-    expect(autoSelected).not.toContain('openspec init');
-    expect(autoSelected).not.toContain('--store <id>');
-  });
-
-  it('asks when the user named OpenSpec, this skill, or its command', () => {
-    const explicit = branch('**Explicit OpenSpec request**');
-
-    expect(explicit).toContain('named OpenSpec, named this skill, or ran its slash command');
-    expect(explicit).toContain('Stop before writing and ask how to proceed');
-    expect(explicit).toContain('`openspec init`');
-    expect(explicit).toContain('`--store <id>`');
-    expect(explicit).toContain('continue without OpenSpec');
-    expect(explicit).toContain('Wait for their answer');
-  });
-
-  // A slash command is an explicit invocation, so the ask branch is the one
-  // that applies there. The guard ships whole into command files, which is what
-  // keeps that branch reachable from a command surface.
-  it('carries the explicit branch into every deployed opsx command', () => {
-    for (const [label, body] of renderedBodies()) {
-      if (!label.startsWith('command ')) continue;
-      expect(body, label).toContain('**Explicit OpenSpec request**');
-      expect(body, label).toContain('Stop before writing and ask how to proceed');
-    }
+  // #1645: a workflow the agent picked for itself gets out of the way; one the
+  // user asked for asks. Both answers are pinned, or the guard drifts to one.
+  it('gets out of the way when it selected itself, and asks when the user named OpenSpec', () => {
+    const check = bullet('No OpenSpec here:');
+    expect(check).toContain('If you picked this workflow yourself, set OpenSpec aside and answer the request normally');
+    expect(check).toContain('If the user asked for OpenSpec, ask whether to set this project up (`openspec init`)');
+    expect(check).toContain('use a store they have (`--store <id>`)');
+    expect(check).toContain('continue without OpenSpec');
+    expect(check).toContain('wait for the answer');
   });
 
   it('never lets any branch create the root as a side effect', () => {
-    expect(PROJECT_ROOT_GUARD).toContain('In both branches, never create the root as a side effect');
-    expect(PROJECT_ROOT_GUARD).toContain('do not run `openspec init` until the user asks for it');
-    expect(PROJECT_ROOT_GUARD).toContain('do not hand-create `openspec/` files');
-    expect(PROJECT_ROOT_GUARD).toContain('do not let a command create it');
+    const check = bullet('No OpenSpec here:');
+    expect(check).toContain('Create nothing');
+    expect(check).toContain('no `openspec init`');
+    expect(check).toContain('no hand-made `openspec/` files');
+    expect(check).toContain('no command that would make them');
   });
 
-  // A guard printed after the workflow has already scaffolded a change is no
-  // guard at all, so nothing that runs a command or writes an artifact may
-  // appear before it. Asserting on the text *preceding* the guard catches a
-  // stray write wherever it sits - inside a fence or in bare prose - which
-  // looking only at the first fenced block would miss.
+  // A project that declares a store this machine cannot resolve also reports
+  // `root: null`. Treating it as uninitialized would offer `openspec init` in a
+  // project that is already set up; the message prefixes tell them apart.
+  it('does not mistake an unresolvable declared store for an uninitialized project', () => {
+    const unresolved = bullet('Unresolved store:');
+    expect(unresolved).toContain('starts with `Declared in` or `Invalid store declaration in`');
+    expect(unresolved).toContain("Show that error's `message` and `fix`, and stop");
+  });
+
+  // A check printed after the workflow has already scaffolded a change is no
+  // check, so nothing that runs a command or writes an artifact may come first.
   it('precedes every command block and write instruction it guards', () => {
-    const writeMarkers = [
-      '```', // any command block, whatever the language tag
-      'openspec new change',
-      'openspec archive',
-      'openspec sync',
-      'openspec instructions',
-      'openspec validate',
-    ];
-
+    const writeMarkers = ['```', 'openspec new change', 'openspec archive', 'openspec instructions', 'openspec validate'];
     for (const [label, body] of renderedBodies()) {
-      const guardStart = body.indexOf(PROJECT_ROOT_GUARD);
+      const guardStart = body.indexOf(BEFORE_YOU_START);
       expect(guardStart, label).toBeGreaterThanOrEqual(0);
-
-      // A skill's YAML frontmatter is metadata a host reads to pick the skill,
-      // not instructions the agent runs, so a description may quote a command
-      // name without running it. Only the body after the frontmatter is guarded.
       const frontmatter = /^---\n[\s\S]*?\n---\n/.exec(body)?.[0] ?? '';
       const beforeGuard = body.slice(frontmatter.length, guardStart);
       for (const marker of writeMarkers) {
-        expect(beforeGuard, `${label} runs "${marker}" before the project check`).not.toContain(
-          marker
-        );
+        expect(beforeGuard, `${label} runs "${marker}" before the project check`).not.toContain(marker);
       }
     }
   });
 
-  // The guard is worthless if it sits at the end of a long workflow, so pin
-  // where it lives: directly under the store-selection guidance, in the
-  // header every workflow reads before it starts.
-  it('sits directly under the store-selection guidance', () => {
-    for (const [label, body] of renderedBodies()) {
-      const storeStart = body.indexOf(STORE_SELECTION_GUIDANCE);
-      expect(storeStart, label).toBeGreaterThanOrEqual(0);
-      expect(body.indexOf(PROJECT_ROOT_GUARD), label).toBe(
-        storeStart + STORE_SELECTION_GUIDANCE.length + '\n\n'.length
-      );
-    }
-  });
-
-  // The other half of #1645: a host picks skills by description, so a
-  // description that never says "OpenSpec" reads as a generic offer to
-  // explore or propose and wins in repositories that have no OpenSpec at all.
+  // A host picks skills by description; one that never says "OpenSpec" wins in
+  // repositories that have no OpenSpec at all.
   it('scopes every deployed skill description to OpenSpec', () => {
     for (const { template, dirName } of getSkillTemplates()) {
       expect(template.description, dirName).toContain('OpenSpec');

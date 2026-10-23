@@ -166,3 +166,4 @@ opencode.json
 
 # Cursor
 .cursor/
+scripts/skill-eval/results/

@@ -123,6 +123,32 @@ describe('openspec context (4.1)', () => {
     expect(parseJson(fallback).members).toHaveLength(2);
   }, CONTEXT_MATRIX_TIMEOUT_MS);
 
+  // Workflows read project background before a change exists to ask
+  // `instructions` for it, so the brief carries it, validated like instructions.
+  it('includes the root\'s project context, or null without one', async () => {
+    const withoutContext = parseJson(
+      await runCLI(['context', '--json', '--store', 'team-context'], { cwd: tempDir, env })
+    );
+    expect(withoutContext.project_context).toBeNull();
+
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      'schema: spec-driven\ncontext: |\n  Tech: TypeScript, node:test.\n'
+    );
+    const withContext = parseJson(
+      await runCLI(['context', '--json', '--store', 'team-context'], { cwd: tempDir, env })
+    );
+    expect(withContext.project_context).toBe('Tech: TypeScript, node:test.\n');
+    expect(withContext.project_context).toBe(readProjectConfig(storeRoot)?.context);
+
+    fs.writeFileSync(
+      path.join(storeRoot, 'openspec', 'config.yaml'),
+      `schema: spec-driven\ncontext: "${'x'.repeat(51 * 1024)}"\n`
+    );
+    const oversized = await runCLI(['context', '--json', '--store', 'team-context'], { cwd: tempDir, env });
+    expect(parseJson(oversized).project_context).toBeNull();
+  });
+
   it('distinguishes self-reference omission from nothing declared', async () => {
     fs.writeFileSync(
       path.join(storeRoot, 'openspec', 'config.yaml'),

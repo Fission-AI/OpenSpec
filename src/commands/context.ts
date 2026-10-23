@@ -28,7 +28,7 @@ const FAILURE_PAYLOAD = { root: null, members: [] };
 
 async function gatherWorkingSet(
   root: ResolvedOpenSpecRoot
-): Promise<{ workingSet: WorkingSet; declaredReferenceCount: number }> {
+): Promise<{ workingSet: WorkingSet; declaredReferenceCount: number; projectContext: string | null }> {
   const data = await gatherRelationshipData(root);
 
   // Reuse the 3.6 composition for member classification; the
@@ -49,6 +49,7 @@ async function gatherWorkingSet(
       topLevelStatus: health.status,
     }),
     declaredReferenceCount: data.projectConfig?.references?.length ?? 0,
+    projectContext: data.projectConfig?.context ?? null,
   };
 }
 
@@ -172,7 +173,7 @@ export async function contextCommand(options: ContextOptions): Promise<void> {
       return;
     }
 
-    const { workingSet, declaredReferenceCount } = await gatherWorkingSet(root);
+    const { workingSet, declaredReferenceCount, projectContext } = await gatherWorkingSet(root);
 
     if (options.json) {
       // The write runs FIRST: a write failure must leave stdout
@@ -180,7 +181,10 @@ export async function contextCommand(options: ContextOptions): Promise<void> {
       if (options.codeWorkspace) {
         writeCodeWorkspace(workingSet, options.codeWorkspace, options.force === true);
       }
-      printJson(workingSet);
+      // The root's `context:` config field, validated exactly as instructions
+      // load it, so a workflow can apply project background before any
+      // change exists. Null when the config has none or it is invalid.
+      printJson({ ...workingSet, project_context: projectContext });
     } else {
       printHumanWorkingSet(workingSet, declaredReferenceCount);
       if (options.codeWorkspace) {

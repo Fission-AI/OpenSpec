@@ -4,7 +4,7 @@
  * Compatibility facade that re-exports split workflow template modules.
  */
 
-export type { SkillTemplate, CommandTemplate } from './types.js';
+export type { SkillTemplate, SkillReference, CommandTemplate } from './types.js';
 
 export { getExploreSkillTemplate, getOpsxExploreCommandTemplate } from './workflows/explore.js';
 export { getNewChangeSkillTemplate, getOpsxNewCommandTemplate } from './workflows/new-change.js';
