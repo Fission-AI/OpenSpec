@@ -37,7 +37,7 @@ describe('the openspec skill', () => {
     expect(count(all, BEFORE_YOU_START.replace('**Before you start**\n', ''))).toBe(0);
     expect(count(all, RUNTIME_INPUTS)).toBe(0);
     expect(count(all, '## Finding the project')).toBe(1);
-    expect(count(all, '**Context from the CLI:**')).toBe(1);
+    expect(count(all, '## Context from the CLI')).toBe(1);
     expect(count(all, '# Writing an artifact')).toBe(1);
   });
 
@@ -55,7 +55,7 @@ describe('the openspec skill', () => {
   it('ships sync as steps only, and folds explore capture into propose', () => {
     const files = render(['explore', 'propose', 'archive']);
     expect(files.some((file) => file.relativePath === 'references/sync.md')).toBe(true);
-    expect(files[0].content).toContain('| `references/sync.md` | ask for it |');
+    expect(files[0].content).toContain('| `references/sync.md` | ask: "sync the specs for <change>" |');
     const archive = files.find((file) => file.relativePath === 'references/archive.md')!.content;
     expect(archive).toContain('`references/sync.md`');
     expect(files.some((file) => file.relativePath === 'references/capture.md')).toBe(false);
