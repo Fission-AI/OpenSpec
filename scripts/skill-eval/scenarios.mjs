@@ -158,7 +158,7 @@ export const SCENARIOS = [
       if (!name) return {};
       // #1968: does the plan end by bringing the main specs up to date?
       const groups = (ctx.read(`openspec/changes/${name}/tasks.md`) ?? '').split(/^## /m);
-      return { ...specQuality(ctx, name), tasksEndWithSpecSync: /\bsync\b[^\n]*\bspecs?\b/i.test(groups.at(-1) ?? '') };
+      return { ...specQuality(ctx, name), tasksEndWithSpecSync: /\b(sync|merge|update)\b[^\n]*\bspecs?\b/i.test(groups.at(-1) ?? '') };
     },
     prompt:
       '/openspec-propose Todos need an optional due date, and callers need a way to list the todos that are overdue.' + AUTONOMOUS,

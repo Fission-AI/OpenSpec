@@ -37,15 +37,15 @@ describe('the openspec skill', () => {
     expect(count(all, BEFORE_YOU_START.replace('**Before you start**\n', ''))).toBe(0);
     expect(count(all, RUNTIME_INPUTS)).toBe(0);
     expect(count(all, '## Finding the project')).toBe(1);
-    expect(count(all, '## Context from the CLI')).toBe(1);
+    expect(count(all, '**Context from the CLI:**')).toBe(1);
     expect(count(all, '# Writing an artifact')).toBe(1);
   });
 
-  // Guides teach judgment any skill may need; the router lists each one.
-  it('ships every guide and lists it in SKILL.md', () => {
+  // Guides teach judgment any skill may need; a principle in SKILL.md points to each.
+  it('ships every guide and points to it from SKILL.md', () => {
     const files = render(CORE_WORKFLOWS);
     for (const guide of OPENSPEC_GUIDES) {
-      expect(files[0].content, guide.path).toContain(`| ${guide.when} | \`${guide.path}\` |`);
+      expect(files[0].content, guide.path).toContain(`\`${guide.path}\``);
       expect(files.some((file) => file.relativePath === guide.path), guide.path).toBe(true);
     }
   });

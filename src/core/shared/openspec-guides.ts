@@ -7,8 +7,6 @@
 
 export interface OpenSpecGuide {
   path: string;
-  /** When to read it, in the words of the router's guides table. */
-  when: string;
   content: string;
 }
 
@@ -92,8 +90,8 @@ After writing deltas, run \`openspec validate "<change>"\`. It catches a MODIFIE
 `;
 
 export const OPENSPEC_GUIDES: readonly OpenSpecGuide[] = [
-  { path: 'references/changes.md', when: 'deciding what a change covers, or whether to split it', content: CHANGES },
-  { path: 'references/capabilities.md', when: 'naming a capability, or choosing an existing one', content: CAPABILITIES },
-  { path: 'references/decisions.md', when: 'facing a choice that is costly to undo', content: DECISIONS },
-  { path: 'references/deltas.md', when: 'changing an existing spec, or merging specs', content: DELTAS },
+  { path: 'references/changes.md', content: CHANGES },
+  { path: 'references/capabilities.md', content: CAPABILITIES },
+  { path: 'references/decisions.md', content: DECISIONS },
+  { path: 'references/deltas.md', content: DELTAS },
 ];
