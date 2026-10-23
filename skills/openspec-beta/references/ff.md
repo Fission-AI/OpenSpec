@@ -39,7 +39,6 @@ Fast-forward through artifact creation - generate everything needed to start imp
 
    Stop when every artifact in the required set is `done`, `skipped`, or was deliberately skipped. **If an artifact requires user input** (critically unclear context), ask the user to clarify, then continue. Otherwise prefer making reasonable decisions to keep momentum.
 
-   Write the artifact as `references/writing-an-artifact.md` describes.
 
 6. **Show final status**
    ```bash

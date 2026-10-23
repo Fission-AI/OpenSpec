@@ -32,7 +32,6 @@ Continue working on a change: create its next artifact, one per invocation.
 
 4. **Show progress**: `openspec status --change "<name>"`, which artifact was created, and "Want to continue? Just ask me to continue or tell me what to do next."
 
-Write the artifact as `references/writing-an-artifact.md` describes.
 
 **Guardrails**
 - Create ONE artifact per invocation, in the schema's order

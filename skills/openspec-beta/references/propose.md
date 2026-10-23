@@ -63,7 +63,6 @@ With the default spec-driven schema the artifacts are proposal.md (what & why), 
 
    Stop when every artifact in the required set is `done`, `skipped`, or was deliberately skipped. **If an artifact requires user input** (unclear context), ask the user to clarify, then continue.
 
-   Write the artifact as `references/writing-an-artifact.md` describes.
 
 8. **Show final status, then stop**
    ```bash

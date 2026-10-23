@@ -6,10 +6,10 @@ Install the OpenSpec skills into any [skills.sh](https://skills.sh)-compatible a
 npx skills add Fission-AI/OpenSpec
 ```
 
-`openspec-beta/` is the router skill: its `SKILL.md` picks the workflow and
-holds the rules every workflow shares, and each workflow's steps live in
-`openspec-beta/references/<workflow>.md`. Each `openspec-beta-<workflow>/`
-skill is a short pointer into it, so workflows autocomplete
+`openspec-beta/` is the router skill: its `SKILL.md` says what OpenSpec is, the
+principles every skill follows, and which file to read. Each skill's steps and
+a few short guides live in `openspec-beta/references/`. Each
+`openspec-beta-<skill>/` is a short pointer into it, so skills autocomplete
 (`/openspec-beta-propose`). Install them together.
 
 The skills drive the `openspec` CLI. To install the CLI and the skills for
@@ -27,7 +27,7 @@ To go back:
   the router):
 
   ```bash
-  npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive openspec-beta-bulk-archive openspec-beta-continue openspec-beta-explore openspec-beta-ff openspec-beta-new openspec-beta-onboard openspec-beta-propose openspec-beta-sync openspec-beta-update openspec-beta-verify
+  npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive openspec-beta-bulk-archive openspec-beta-continue openspec-beta-explore openspec-beta-ff openspec-beta-new openspec-beta-onboard openspec-beta-propose openspec-beta-update openspec-beta-verify
   ```
 
 > These files are generated from the skill templates — do not edit by hand. Run

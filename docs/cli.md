@@ -104,19 +104,19 @@ Moved 18 older OpenSpec files to a backup:
   .claude/skills (6)
   .claude/commands/opsx (6)
 
-The "openspec-beta" skill picks the workflow; 6 workflow skills start one directly: explore, propose, update, apply, sync, archive.
+The "openspec-beta" skill explains OpenSpec and picks the right skill; 5 skills start one directly: explore, propose, update, apply, archive.
 
 Undo all of this with `openspec setup --revert`.
 ```
 
 Setup moves what an earlier OpenSpec wrote into a dated backup in OpenSpec's data directory (`~/.local/share/openspec/backups/`): its skills in `~/.agents/skills` and `~/.claude/skills` and, when you run it inside an OpenSpec project, that project's skills and `/opsx` command files. `openspec setup --revert` unregisters and removes the plugin, removes the skills setup wrote, and moves every backed-up file back. Files OpenSpec did not write are never touched, and a second run leaves the new skills alone.
 
-The workflows follow your profile (`openspec config profile`). Claude Code loads the plugin in place from `~/.local/share/openspec/claude-plugin`, so `openspec update` refreshes it, and `~/.agents/skills`, from any directory. If the `claude` command is not on your `PATH`, setup writes the plugin and prints the two commands that register it. Interactive `openspec init` offers this install instead of adding skill files to the project; `openspec init --tools <tool>` still installs into the project.
+The skills follow your profile (`openspec config profile`). Claude Code loads the plugin in place from `~/.local/share/openspec/claude-plugin`, so `openspec update` refreshes it, and `~/.agents/skills`, from any directory. If the `claude` command is not on your `PATH`, setup writes the plugin and prints the two commands that register it. Interactive `openspec init` offers this install instead of adding skill files to the project; `openspec init --tools <tool>` still installs into the project.
 
 Skills installed with `npx skills add` are not setup's to remove. Remove them by name:
 
 ```bash
-npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive openspec-beta-bulk-archive openspec-beta-continue openspec-beta-explore openspec-beta-ff openspec-beta-new openspec-beta-onboard openspec-beta-propose openspec-beta-sync openspec-beta-update openspec-beta-verify
+npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive openspec-beta-bulk-archive openspec-beta-continue openspec-beta-explore openspec-beta-ff openspec-beta-new openspec-beta-onboard openspec-beta-propose openspec-beta-update openspec-beta-verify
 ```
 
 | Option | Description |

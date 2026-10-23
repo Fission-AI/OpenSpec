@@ -22,7 +22,7 @@ Run `openspec setup --dry-run` first to see what it would install and move. Star
 | Claude Code | an `openspec-beta` plugin | `/openspec-beta:propose` |
 | Codex, Cursor, Gemini CLI, OpenCode, GitHub Copilot, and others that read `~/.agents/skills` | `~/.agents/skills/openspec-beta*` | `/openspec-beta-propose` (`$openspec-beta-propose` in Codex) |
 
-Or ask in plain words ("plan this as an OpenSpec change"). Explore keeps a living draft of the scope; propose turns the settled draft into the change. Setup moves your older OpenSpec skills and, when run inside a project, its `/opsx` command files into a backup, so you never see two copies.
+Or ask in plain words ("plan this as an OpenSpec change"). The `openspec-beta` skill tells the agent what OpenSpec is and holds short guides it reads when needed: sizing a change, naming capabilities, decisions to raise, and how specs change. Explore keeps a living draft of the scope; propose turns the settled draft into the change. Specs are merged by apply's last task and by archive, so there is no separate sync skill. Setup moves your older OpenSpec skills and, when run inside a project, its `/opsx` command files into a backup, so you never see two copies.
 
 ## Go back
 
@@ -34,7 +34,7 @@ npm i -g @fission-ai/openspec@latest
 `--revert` removes the plugin and the beta skills and moves every backed-up file back where it was. If you installed the skills with `npx skills add` instead, remove them by name (a wildcard removes only the router):
 
 ```bash
-npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive openspec-beta-bulk-archive openspec-beta-continue openspec-beta-explore openspec-beta-ff openspec-beta-new openspec-beta-onboard openspec-beta-propose openspec-beta-sync openspec-beta-update openspec-beta-verify
+npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive openspec-beta-bulk-archive openspec-beta-continue openspec-beta-explore openspec-beta-ff openspec-beta-new openspec-beta-onboard openspec-beta-propose openspec-beta-update openspec-beta-verify
 ```
 
 ## Known limits

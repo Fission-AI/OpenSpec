@@ -121,7 +121,7 @@ export interface GeneratedSkill {
 }
 
 function lift(body: string, workflowId: string): string {
-  const lifted = body
+  let lifted = body
     .replace(BEFORE_YOU_START, '')
     .replace(CHANGE_INPUT, '')
     .replace(RUNTIME_INPUTS, RUNTIME_INPUTS_POINTER)
@@ -130,6 +130,12 @@ function lift(body: string, workflowId: string): string {
     .replaceAll('as **Writing an artifact** below describes', 'as `references/writing-an-artifact.md` describes')
     .replaceAll('as **Before you start** says', 'as **Finding the project** in SKILL.md says')
     .replace(/\n{3,}/g, '\n\n');
+  // A step that already says to write the artifact this way makes the lifted
+  // block's pointer a second copy of the same line.
+  const pointed = lifted.split('`references/writing-an-artifact.md`').length - 1;
+  if (pointed > 1 && lifted.includes(WRITING_POINTER)) {
+    lifted = lifted.replace(new RegExp(`\\n[ \\t]*${WRITING_POINTER.replace(/[.*+?^${}()|[\]\\`]/g, '\\$&')}\\n`), '\n');
+  }
   // A shared block left behind would be the duplication this layout removes.
   for (const [name, text] of [
     ['Before you start', '**Before you start**\n'],
