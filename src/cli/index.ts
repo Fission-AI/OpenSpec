@@ -436,19 +436,6 @@ program
       const { maybeShowStandaloneTip } = await import('../core/standalone-tip.js');
       await maybeShowStandaloneTip({ silent: !process.stderr.isTTY });
     } catch (error) {
-      await failWithError(error);
-      process.exit(1);
-    }
-  });
-
-program
-  .command('install [version]')
-  .description('Install the standalone openspec, which runs without Node.js (latest release unless [version] is given)')
-  .action(async (version?: string) => {
-    try {
-      const { installStandalone } = await import('../commands/install-standalone.js');
-      await installStandalone({ version });
-    } catch (error) {
       // The --json dry run follows the agent contract: exactly one JSON
       // document on stdout, even on failure.
       // failWithError sets the exit code. Returning instead of process.exit()
@@ -463,6 +450,19 @@ program
     }
     }
   );
+
+program
+  .command('install [version]')
+  .description('Install the standalone openspec, which runs without Node.js (latest release unless [version] is given)')
+  .action(async (version?: string) => {
+    try {
+      const { installStandalone } = await import('../commands/install-standalone.js');
+      await installStandalone({ version });
+    } catch (error) {
+      await failWithError(error);
+      process.exit(1);
+    }
+  });
 
 program
   .command('list')
