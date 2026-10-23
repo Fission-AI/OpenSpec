@@ -3,6 +3,7 @@ import * as fs from 'fs';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { resolveCommandSurfaceCapability } from './command-surface.js';
+import { DISK_VIEW, type FileView } from './file-view.js';
 
 const TARGET_MARKER = '.openspec-target';
 
@@ -14,26 +15,31 @@ function markerPath(projectPath: string, skillsDir: string): string {
 /** Reads a valid-looking marker value without letting linked roots escape. */
 export function readSharedSkillTarget(
   projectPath: string,
-  skillsDir: string
+  skillsDir: string,
+  view: FileView = DISK_VIEW
 ): string | undefined {
   try {
     const target = markerPath(projectPath, skillsDir);
     FileSystemUtils.assertProjectArtifactPath(projectPath, target);
-    return fs.readFileSync(target, 'utf-8').trim() || undefined;
+    return view.read(target).trim() || undefined;
   } catch {
     return undefined;
   }
 }
 
 /** Whether a tool still has an allowlisted managed skill under an old root. */
-export function hasLegacySkills(projectPath: string, tool: AIToolOption): boolean {
+export function hasLegacySkills(
+  projectPath: string,
+  tool: AIToolOption,
+  view: FileView = DISK_VIEW
+): boolean {
   return (tool.legacySkillsDirs ?? []).some((root) => {
     const skillsDir = path.join(projectPath, root, 'skills');
     return OPENSPEC_SKILL_NAMES.some((skillName) => {
       try {
         const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
         FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
-        return fs.existsSync(skillFile);
+        return view.exists(skillFile);
       } catch {
         return false;
       }
@@ -45,14 +51,18 @@ export function hasLegacySkills(projectPath: string, tool: AIToolOption): boolea
  * Infers pre-marker ownership from generated invocation syntax. This preserves
  * both existing generic `.agents` trees and Codex trees users moved manually.
  */
-function inferSharedSkillTarget(projectPath: string, skillsDir: string): string | undefined {
+function inferSharedSkillTarget(
+  projectPath: string,
+  skillsDir: string,
+  view: FileView = DISK_VIEW
+): string | undefined {
   let foundGenericReference = false;
 
   for (const skillName of OPENSPEC_SKILL_NAMES) {
     const skillFile = path.join(projectPath, skillsDir, 'skills', skillName, 'SKILL.md');
     try {
       FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
-      const content = fs.readFileSync(skillFile, 'utf-8');
+      const content = view.read(skillFile);
       if (content.includes('$openspec-')) return 'codex';
       if (content.includes('/openspec-')) foundGenericReference = true;
     } catch {
@@ -64,12 +74,16 @@ function inferSharedSkillTarget(projectPath: string, skillsDir: string): string 
 }
 
 /** Whether the canonical shared root already contains an OpenSpec skill. */
-function hasCurrentSkills(projectPath: string, skillsDir: string): boolean {
+function hasCurrentSkills(
+  projectPath: string,
+  skillsDir: string,
+  view: FileView = DISK_VIEW
+): boolean {
   return OPENSPEC_SKILL_NAMES.some((skillName) => {
     const skillFile = path.join(projectPath, skillsDir, 'skills', skillName, 'SKILL.md');
     try {
       FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
-      return fs.existsSync(skillFile);
+      return view.exists(skillFile);
     } catch {
       return false;
     }
@@ -88,7 +102,8 @@ function hasCurrentSkills(projectPath: string, skillsDir: string): boolean {
  */
 export function resolveSharedSkillWriters(
   projectPath: string,
-  tools: AIToolOption[]
+  tools: AIToolOption[],
+  view: FileView = DISK_VIEW
 ): Set<string> {
   const byRoot = new Map<string, AIToolOption[]>();
   const writers = new Set<string>();
@@ -113,12 +128,12 @@ export function resolveSharedSkillWriters(
       (tool) => resolveCommandSurfaceCapability(tool.value) !== 'adapter-backed'
     );
     const preferredPool = skillsNative.length > 0 ? skillsNative : group;
-    const marked = readSharedSkillTarget(projectPath, root);
-    const inferred = inferSharedSkillTarget(projectPath, root);
+    const marked = readSharedSkillTarget(projectPath, root, view);
+    const inferred = inferSharedSkillTarget(projectPath, root, view);
     const owner =
       preferredPool.find((tool) => tool.value === marked) ??
       preferredPool.find((tool) => tool.value === inferred) ??
-      (hasCurrentSkills(projectPath, root)
+      (hasCurrentSkills(projectPath, root, view)
         ? preferredPool.find((tool) => tool.value === 'agents')
         : undefined) ??
       preferredPool.find((tool) => tool.value === 'codex') ??
@@ -137,7 +152,8 @@ export function resolveSharedSkillWriters(
  */
 export function reconcileSharedSkillTargets(
   projectPath: string,
-  tools: AIToolOption[]
+  tools: AIToolOption[],
+  view: FileView = DISK_VIEW
 ): AIToolOption[] {
   const byRoot = new Map<string, AIToolOption[]>();
   for (const tool of tools) {
@@ -155,16 +171,16 @@ export function reconcileSharedSkillTargets(
     }
 
     const root = group[0].skillsDir!;
-    const marked = readSharedSkillTarget(projectPath, root);
+    const marked = readSharedSkillTarget(projectPath, root, view);
     const markedTool = group.find((tool) => tool.value === marked);
     if (markedTool) {
       reconciled.push(markedTool);
       continue;
     }
 
-    const inferred = inferSharedSkillTarget(projectPath, root);
+    const inferred = inferSharedSkillTarget(projectPath, root, view);
     const legacyCodex = group.find(
-      (tool) => tool.value === 'codex' && hasLegacySkills(projectPath, tool)
+      (tool) => tool.value === 'codex' && hasLegacySkills(projectPath, tool, view)
     );
     if (inferred === 'agents' && legacyCodex) {
       // Before ownership markers existed, selecting both targets produced a
@@ -181,12 +197,12 @@ export function reconcileSharedSkillTargets(
 
     // An unmarked canonical tree predates Codex's move into `.agents`; keep
     // that established agents target instead of overwriting it from `.codex`.
-    if (hasCurrentSkills(projectPath, root)) {
+    if (hasCurrentSkills(projectPath, root, view)) {
       reconciled.push(group.find((tool) => tool.value === 'agents') ?? group[0]);
       continue;
     }
 
-    const legacyTool = group.find((tool) => hasLegacySkills(projectPath, tool));
+    const legacyTool = group.find((tool) => hasLegacySkills(projectPath, tool, view));
     if (legacyTool) {
       reconciled.push(legacyTool);
       continue;
@@ -204,12 +220,16 @@ export function reconcileSharedSkillTargets(
  * Returns whether a tool is the active writer for its physical skills root.
  * Non-shared roots are always active.
  */
-export function isSharedSkillTargetActive(projectPath: string, toolId: string): boolean {
+export function isSharedSkillTargetActive(
+  projectPath: string,
+  toolId: string,
+  view: FileView = DISK_VIEW
+): boolean {
   const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
   if (!tool?.skillsDir) return false;
   const sharingRoot = AI_TOOLS.filter((candidate) => candidate.skillsDir === tool.skillsDir);
   if (sharingRoot.length < 2) return true;
-  return reconcileSharedSkillTargets(projectPath, sharingRoot)
+  return reconcileSharedSkillTargets(projectPath, sharingRoot, view)
     .some((candidate) => candidate.value === toolId);
 }
 
@@ -245,13 +265,23 @@ export function sharedSkillRootOwnedByOther(projectPath: string, toolId: string)
   return sharedSkillRootOwner(projectPath, toolId) !== undefined;
 }
 
-export function writeSharedSkillTarget(projectPath: string, toolId: string): void {
+/**
+ * Path of the owner marker for a tool's shared skills root, or null when the
+ * tool has no shared root to mark. Lets a caller write the marker itself —
+ * `update` routes it through its write seam so a dry run can list it.
+ */
+export function sharedSkillTargetMarkerPath(projectPath: string, toolId: string): string | null {
   const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
-  if (!tool?.skillsDir) return;
+  if (!tool?.skillsDir) return null;
   const sharingRoot = AI_TOOLS.filter((candidate) => candidate.skillsDir === tool.skillsDir);
-  if (sharingRoot.length < 2) return;
+  if (sharingRoot.length < 2) return null;
+  return markerPath(projectPath, tool.skillsDir);
+}
 
-  const target = markerPath(projectPath, tool.skillsDir);
+export function writeSharedSkillTarget(projectPath: string, toolId: string): void {
+  const target = sharedSkillTargetMarkerPath(projectPath, toolId);
+  if (!target) return;
+
   FileSystemUtils.assertProjectArtifactPath(projectPath, target);
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, `${toolId}\n`, 'utf-8');

@@ -6,7 +6,7 @@
  */
 
 import { AI_TOOLS, type AIToolOption } from './config.js';
-import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlobalConfig, type Delivery } from './global-config.js';
+import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlobalConfig, type Delivery, type GlobalConfig, type Profile } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import {
   resolveCommandInvocation,
@@ -19,6 +19,7 @@ import { ALL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { isSharedSkillTargetActive } from './shared-skill-target.js';
+import { DISK_VIEW, type FileView } from './file-view.js';
 import { isLegacyCodexSkillEquivalentToCurrent } from './shared/skill-content-equivalence.js';
 import path from 'path';
 import * as fs from 'fs';
@@ -81,6 +82,23 @@ export interface LegacyToolMigration {
   needsConsent: boolean;
 }
 
+/** One file a legacy-root migration would move or drop. */
+export interface LegacyMigrationFileOp {
+  toolId: string;
+  source: string;
+  destination: string;
+  disposition: 'move' | 'drop';
+  /** Whether an interactive run asks before this move */
+  needsConsent: boolean;
+}
+
+interface MigrationPlanSink {
+  view: FileView;
+  ops: LegacyMigrationFileOp[];
+  toolId: string;
+  needsConsent: boolean;
+}
+
 /**
  * Classifies one OpenSpec-managed file. `move` is the fast path (nothing at
  * the destination yet); `drop` means the destination already holds equivalent
@@ -89,12 +107,16 @@ export interface LegacyToolMigration {
  */
 type FileDisposition = 'move' | 'drop' | 'keep' | 'skip';
 
-function classifyManagedFile(source: string, destination: string): FileDisposition {
+function classifyManagedFile(
+  source: string,
+  destination: string,
+  view: FileView = DISK_VIEW
+): FileDisposition {
   if (isSamePath(source, destination)) return 'skip';
-  if (!fs.existsSync(destination)) return 'move';
+  if (!view.exists(destination)) return 'move';
   try {
     const sourceContent = fs.readFileSync(source, 'utf-8');
-    const destinationContent = fs.readFileSync(destination, 'utf-8');
+    const destinationContent = view.read(destination);
     const equivalentGeneratedSkills =
       path.basename(source) === 'SKILL.md' &&
       path.basename(destination) === 'SKILL.md' &&
@@ -140,6 +162,23 @@ export function findLegacyToolMigrations(
 }
 
 /**
+ * Lists, file by file, what `migrateLegacyToolDirs` would move or drop, without
+ * touching anything. Consent-gated roots are included: a non-interactive run
+ * moves them without asking. `view` decides what already sits at each
+ * destination, so a dry run can plan against files it has not written.
+ */
+export function planLegacyToolMigrations(
+  projectPath: string,
+  timing: 'before-generation' | 'after-generation',
+  toolIds: string[] | undefined,
+  view: FileView
+): LegacyMigrationFileOp[] {
+  const ops: LegacyMigrationFileOp[] = [];
+  collectLegacyToolMigrations(projectPath, false, toolIds, timing, { view, ops });
+  return ops;
+}
+
+/**
  * Moves OpenSpec-managed skill directories (openspec-*) and command files
  * (opsx-*) from a tool's legacy root to its current one. When the destination
  * already exists the legacy copy is removed instead. Legacy directories are
@@ -162,7 +201,8 @@ function collectLegacyToolMigrations(
   projectPath: string,
   apply: boolean,
   toolIds?: string[],
-  timing: 'before-generation' | 'after-generation' = 'before-generation'
+  timing: 'before-generation' | 'after-generation' = 'before-generation',
+  plan?: { view: FileView; ops: LegacyMigrationFileOp[] }
 ): LegacyToolMigration[] {
   const migrations: LegacyToolMigration[] = [];
 
@@ -191,19 +231,24 @@ function collectLegacyToolMigrations(
         continue;
       }
 
+      const sink = plan
+        ? { ...plan, toolId: tool.value, needsConsent: legacy.needsConsent }
+        : undefined;
       const skills = migrateSkillDirs(
         projectPath,
         tool.skillsDir,
         legacy.root,
         apply,
-        legacyTiming === 'after-generation'
+        legacyTiming === 'after-generation',
+        sink
       );
       const commands = migrateCommandFiles(
         projectPath,
         tool,
         legacy.root,
         apply,
-        legacyTiming === 'after-generation'
+        legacyTiming === 'after-generation',
+        sink
       );
 
       if (apply) {
@@ -238,8 +283,10 @@ function migrateSkillDirs(
   currentRoot: string,
   legacyRoot: string,
   apply: boolean,
-  requireDestination = false
+  requireDestination = false,
+  sink?: MigrationPlanSink
 ): { moved: number; kept: number } {
+  const view = sink?.view ?? DISK_VIEW;
   const legacySkillsDir = path.join(projectPath, legacyRoot, 'skills');
   if (!fs.existsSync(legacySkillsDir)) return { moved: 0, kept: 0 };
   const currentSkillsDir = path.join(projectPath, currentRoot, 'skills');
@@ -254,20 +301,29 @@ function migrateSkillDirs(
 
     const destination = path.join(currentSkillsDir, dirName);
     const destinationSkill = path.join(destination, 'SKILL.md');
-    if (requireDestination && !fs.existsSync(destinationSkill)) continue;
+    if (requireDestination && !view.exists(destinationSkill)) continue;
     if (!areProjectArtifacts(projectPath, sourceSkill, destinationSkill)) {
       console.warn(
         `Skipping legacy ${legacyRoot}/skills/${dirName} migration because it resolves outside this project.`
       );
       continue;
     }
-    const disposition = classifyManagedFile(sourceSkill, destinationSkill);
+    const disposition = classifyManagedFile(sourceSkill, destinationSkill, view);
     if (disposition === 'skip') continue;
     if (disposition === 'keep') {
       kept++;
       continue;
     }
     if (!apply) {
+      sink?.ops.push({
+        toolId: sink.toolId,
+        source: sourceSkill,
+        destination: destinationSkill,
+        disposition,
+        needsConsent: sink.needsConsent,
+      });
+      // The real move carries the skill's reference files too; plan them the same way.
+      if (sink) planSkillReferences(projectPath, source, destination, sink, view);
       moved++;
       continue;
     }
@@ -334,13 +390,41 @@ function migrateSkillReferences(projectPath: string, source: string, destination
   return kept;
 }
 
+/** What `migrateSkillReferences` would do, recorded for a dry run instead of done. */
+function planSkillReferences(
+  projectPath: string,
+  source: string,
+  destination: string,
+  sink: MigrationPlanSink,
+  view: FileView
+): void {
+  const sourceRefs = path.join(source, 'references');
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(sourceRefs, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+    const from = path.join(sourceRefs, entry.name);
+    const to = path.join(destination, 'references', entry.name);
+    if (!areProjectArtifacts(projectPath, from, to)) continue;
+    const disposition = classifyManagedFile(from, to, view);
+    if (disposition !== 'move' && disposition !== 'drop') continue;
+    sink.ops.push({ toolId: sink.toolId, source: from, destination: to, disposition, needsConsent: sink.needsConsent });
+  }
+}
+
 function migrateCommandFiles(
   projectPath: string,
   tool: AIToolOption,
   legacyRoot: string,
   apply: boolean,
-  requireDestination = false
+  requireDestination = false,
+  sink?: MigrationPlanSink
 ): { moved: number; kept: number } {
+  const view = sink?.view ?? DISK_VIEW;
   const adapter = CommandAdapterRegistry.get(tool.value);
   if (!adapter || !tool.skillsDir) return { moved: 0, kept: 0 };
   let moved = 0;
@@ -362,20 +446,27 @@ function migrateCommandFiles(
     // No replacement means this command is not one OpenSpec installs now — a
     // skills-only delivery or a deselected workflow — so relocating the legacy
     // file would resurrect it under the current root.
-    if (requireDestination && !fs.existsSync(destination)) continue;
+    if (requireDestination && !view.exists(destination)) continue;
     if (!areProjectArtifacts(projectPath, source, destination)) {
       console.warn(
         `Skipping legacy ${legacyPath} migration because it resolves outside this project.`
       );
       continue;
     }
-    const disposition = classifyManagedFile(source, destination);
+    const disposition = classifyManagedFile(source, destination, view);
     if (disposition === 'skip') continue;
     if (disposition === 'keep') {
       kept++;
       continue;
     }
     if (!apply) {
+      sink?.ops.push({
+        toolId: sink.toolId,
+        source,
+        destination,
+        disposition,
+        needsConsent: sink.needsConsent,
+      });
       moved++;
       continue;
     }
@@ -497,7 +588,8 @@ interface InstalledWorkflowArtifacts {
 function scanInstalledWorkflowArtifacts(
   projectPath: string,
   tools: AIToolOption[],
-  includeLegacyRoots = false
+  includeLegacyRoots = false,
+  view: FileView = DISK_VIEW
 ): InstalledWorkflowArtifacts {
   const installed = new Set<string>();
   let hasSkills = false;
@@ -509,7 +601,7 @@ function scanInstalledWorkflowArtifacts(
     const skillsDirs: string[] = [];
     if (tool.globalSkillsDir) {
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
-    } else if (isSharedSkillTargetActive(projectPath, tool.value)) {
+    } else if (isSharedSkillTargetActive(projectPath, tool.value, view)) {
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
       if (includeLegacyRoots) {
         skillsDirs.push(
@@ -524,7 +616,7 @@ function scanInstalledWorkflowArtifacts(
       for (const workflowId of ALL_WORKFLOWS) {
         const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
         const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
-        if (fs.existsSync(skillFile)) {
+        if (view.exists(skillFile)) {
           installed.add(workflowId);
           hasSkills = true;
         }
@@ -555,7 +647,7 @@ function scanInstalledWorkflowArtifacts(
         const fullPath = path.isAbsolute(candidate)
           ? candidate
           : path.join(projectPath, candidate);
-        if (fs.existsSync(fullPath)) {
+        if (view.exists(fullPath)) {
           installed.add(workflowId);
           hasCommands = true;
           break;
@@ -575,8 +667,12 @@ function scanInstalledWorkflowArtifacts(
  * Scans installed workflow files across all detected tools and returns
  * the union of installed workflow IDs.
  */
-export function scanInstalledWorkflows(projectPath: string, tools: AIToolOption[]): string[] {
-  return scanInstalledWorkflowArtifacts(projectPath, tools).workflows;
+export function scanInstalledWorkflows(
+  projectPath: string,
+  tools: AIToolOption[],
+  view: FileView = DISK_VIEW
+): string[] {
+  return scanInstalledWorkflowArtifacts(projectPath, tools, false, view).workflows;
 }
 
 function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
@@ -598,14 +694,16 @@ function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
  * - If no profile field exists and no workflows are installed: no-op (defaults apply).
  * - If profile field already exists: no-op.
  */
-export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): void {
+export function computeProfileMigration(
+  projectPath: string,
+  tools: AIToolOption[],
+  view: FileView = DISK_VIEW
+): ProfileMigration | null {
   // A config that cannot be parsed, or is not a JSON object, is never saved
   // over; skip migration rather than fail init or update on it.
   if (isGlobalConfigUnreadable()) {
-    return;
+    return null;
   }
-
-  const config = getGlobalConfig();
 
   // Check raw config file for profile field presence
   const configPath = getGlobalConfigPath();
@@ -616,29 +714,52 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
       rawConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     }
   } catch {
-    return; // Can't read config, skip migration
+    return null; // Can't read config, skip migration
   }
 
   // If profile is already explicitly set, no migration needed
   if (rawConfig.profile !== undefined) {
-    return;
+    return null;
   }
 
   // Scan for installed workflows
-  const artifacts = scanInstalledWorkflowArtifacts(projectPath, tools, true);
+  const artifacts = scanInstalledWorkflowArtifacts(projectPath, tools, true, view);
   const installedWorkflows = artifacts.workflows;
 
   if (installedWorkflows.length === 0) {
     // No workflows installed, new user — defaults will apply
+    return null;
+  }
+
+  return {
+    profile: 'custom',
+    workflows: installedWorkflows,
+    ...(rawConfig.delivery === undefined ? { delivery: inferDelivery(artifacts) } : {}),
+  };
+}
+
+export type ProfileMigration = { profile: Profile; workflows: string[]; delivery?: Delivery };
+
+/** The global config the one-time profile migration saves. */
+export function applyProfileMigration(migration: ProfileMigration): GlobalConfig {
+  const config = getGlobalConfig();
+  // Migrate: set profile to custom with detected workflows
+  config.profile = migration.profile;
+  config.workflows = migration.workflows;
+  if (migration.delivery !== undefined) {
+    config.delivery = migration.delivery;
+  }
+  return config;
+}
+
+export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): void {
+  const migration = computeProfileMigration(projectPath, tools);
+  if (!migration) {
     return;
   }
 
-  // Migrate: set profile to custom with detected workflows
-  config.profile = 'custom';
-  config.workflows = installedWorkflows;
-  if (rawConfig.delivery === undefined) {
-    config.delivery = inferDelivery(artifacts);
-  }
+  const config = applyProfileMigration(migration);
+  const installedWorkflows = migration.workflows;
   saveGlobalConfig(config);
 
   console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);

@@ -151,9 +151,12 @@ describe('verify checks each requirement by its delta operation', () => {
     expect(removed, label).toContain('`<planningHome.root>/openspec/specs/<capability-path>/spec.md`');
     expect(removed, label).toContain('Its body and scenarios are the evidence for the behavior that must be gone');
     expect(removed, label).toContain('never search from the requirement name alone');
-    // A literal title lookup misses a differently-worded baseline and gets
-    // misread as "the sync already removed it".
-    expect(removed, label).toContain('Match it by normalized name');
+    // Exact normalized name only (#2098): after a sync, a near-named ADDED
+    // replacement must not be read as the removed requirement's baseline.
+    expect(removed, label).toContain('Match it by exact normalized name');
+    expect(removed, label).toContain('compared case-sensitively');
+    expect(removed, label).toContain('A similarly worded heading is not a match');
+    expect(removed, label).not.toContain('near-equivalent');
   });
 
   // The baseline read, the history fallback and the search have to stay in
