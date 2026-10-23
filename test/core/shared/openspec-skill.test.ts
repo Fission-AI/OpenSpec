@@ -55,7 +55,7 @@ describe('the openspec skill', () => {
   it('ships sync as steps only, and folds explore capture into propose', () => {
     const files = render(['explore', 'propose', 'archive']);
     expect(files.some((file) => file.relativePath === 'references/sync.md')).toBe(true);
-    expect(files[0].content).not.toContain('`references/sync.md` |');
+    expect(files[0].content).toContain('| `references/sync.md` | ask for it |');
     const archive = files.find((file) => file.relativePath === 'references/archive.md')!.content;
     expect(archive).toContain('`references/sync.md`');
     expect(files.some((file) => file.relativePath === 'references/capture.md')).toBe(false);
