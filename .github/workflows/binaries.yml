@@ -247,10 +247,18 @@ jobs:
       - name: Upload
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ github.event.release.id }}
         run: |
           cd dist-bin
           sha256sum --check SHA256SUMS
-          gh release upload "$REF" openspec-* SHA256SUMS install.sh install.ps1 --clobber --repo "$GITHUB_REPOSITORY"
+          # A release can be retagged while this runs (the scoped
+          # @fission-ai/openspec@x.y.z tag corrected to vx.y.z), so find it by
+          # id, which never changes, and upload to whatever tag it has now.
+          tag="$REF"
+          if [ -n "$RELEASE_ID" ]; then
+            tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq .tag_name)
+          fi
+          gh release upload "$tag" openspec-* SHA256SUMS install.sh install.ps1 --clobber --repo "$GITHUB_REPOSITORY"
       # Signed proof each binary was built by this workflow from this tag, which
       # anyone can check with `gh attestation verify`. The binaries are not
       # notarized or code-signed yet, so this is the verifiable trail meanwhile.
