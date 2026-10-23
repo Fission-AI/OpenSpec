@@ -10,7 +10,7 @@ Fast-forward through artifact creation - generate everything needed to start imp
 
 2. **Read the existing specs**
 
-   Run `openspec list --specs --json` for the capabilities the project already specifies. For every capability this change could touch, read the spec in full with `openspec show "<spec-id>" --type spec`. Use what you read: keep the existing names for components and behaviors, describe today's behavior accurately, reuse an existing capability's exact path instead of a near-duplicate, and call out any conflict with a current requirement. When the change alters what an existing requirement promises (a new field its export, listing, or format must now carry), add a MODIFIED delta for that requirement too. If no capability is related, say so in one line and continue.
+   Run `openspec list --specs --json` for the capabilities the project already specifies. For every capability this change could touch, read the spec in full with `openspec show "<spec-id>" --type spec`. Use what you read: keep the existing names for components and behaviors, describe today's behavior accurately, reuse an existing capability's exact path instead of a near-duplicate, and call out any conflict with a current requirement. When the change alters what an existing requirement promises (a new field its export, listing, or format must now carry), add a MODIFIED delta for that requirement too; read `references/deltas.md` before writing one. If no capability is related, say so in one line and continue. Before naming a new capability, read `references/capabilities.md`.
 
 3. **Create the change directory**
    ```bash

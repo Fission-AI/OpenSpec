@@ -92,6 +92,12 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
   ['run the `/opsx:sync` workflow for', 'follow `references/sync.md` for'],
   ['offer to run `/opsx:sync` for this change', 'offer to merge it with `references/sync.md`'],
   [' and how to pick another (`/opsx:sync <other>`)', ' and how to pick another'],
+  // Name each guide at the step where its decision is made: agents follow a
+  // pointer in the step they are on, and rarely one in SKILL.md alone.
+  ['The packet covers exactly that scope; do not widen it.', 'The packet covers exactly that scope; do not widen it. If the request holds more than one outcome, read `references/changes.md` first.'],
+  ['ask the user before creating the change.', 'ask the user before creating the change (`references/decisions.md` lists what to raise).'],
+  ['If no capability is related, say so in one line and continue.', 'If no capability is related, say so in one line and continue. Before naming a new capability, read `references/capabilities.md`.'],
+  ['add a MODIFIED delta for that requirement too.', 'add a MODIFIED delta for that requirement too; read `references/deltas.md` before writing one.'],
 ];
 
 /** Explore's capture path, folded into propose when propose is installed. */

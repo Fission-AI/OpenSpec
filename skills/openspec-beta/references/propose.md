@@ -12,9 +12,9 @@ With the default spec-driven schema the artifacts are proposal.md (what & why), 
 
    If this conversation has an explore draft, it is the input: build the packet from its scope, capabilities, and requirements, and do not re-ask what it settled. If there is no clear input, ask (open-ended, no preset options): "What change do you want to work on? Describe what you want to build or fix." Derive a kebab-case name ("add user authentication" → `add-user-auth`). Do NOT proceed without understanding what the user wants to build.
 
-   Before creating the change, state the scope in two or three lines (in, out, and the capabilities it touches). The packet covers exactly that scope; do not widen it.
+   Before creating the change, state the scope in two or three lines (in, out, and the capabilities it touches). The packet covers exactly that scope; do not widen it. If the request holds more than one outcome, read `references/changes.md` first.
 
-   If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change. For minor details, make a reasonable assumption and record it in the planning artifacts.
+   If the request contains ambiguity that would materially affect scope, externally observable behavior, compatibility, or acceptance criteria, ask the user before creating the change (`references/decisions.md` lists what to raise). For minor details, make a reasonable assumption and record it in the planning artifacts.
 
 2. **Load project context**
 
@@ -24,7 +24,7 @@ With the default spec-driven schema the artifacts are proposal.md (what & why), 
 
 3. **Read the existing specs**
 
-   Run `openspec list --specs --json` for the capabilities the project already specifies. For every capability this change could touch, read the spec in full with `openspec show "<spec-id>" --type spec`. Use what you read: keep the existing names for components and behaviors, describe today's behavior accurately, reuse an existing capability's exact path instead of a near-duplicate, and call out any conflict with a current requirement. When the change alters what an existing requirement promises (a new field its export, listing, or format must now carry), add a MODIFIED delta for that requirement too. If no capability is related, say so in one line and continue.
+   Run `openspec list --specs --json` for the capabilities the project already specifies. For every capability this change could touch, read the spec in full with `openspec show "<spec-id>" --type spec`. Use what you read: keep the existing names for components and behaviors, describe today's behavior accurately, reuse an existing capability's exact path instead of a near-duplicate, and call out any conflict with a current requirement. When the change alters what an existing requirement promises (a new field its export, listing, or format must now carry), add a MODIFIED delta for that requirement too; read `references/deltas.md` before writing one. If no capability is related, say so in one line and continue. Before naming a new capability, read `references/capabilities.md`.
 
 4. **Determine the workflow schema**
 

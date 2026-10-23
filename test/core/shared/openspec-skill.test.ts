@@ -50,6 +50,13 @@ describe('the openspec skill', () => {
     }
   });
 
+  // Agents read a guide when the step they are on names it (2026-10-23 A/B:
+  // guides named only in SKILL.md were read in 0 of 85 runs).
+  it('names each guide in the propose steps where its decision is made', () => {
+    const propose = render(CORE_WORKFLOWS).find((file) => file.relativePath === 'references/propose.md')!.content;
+    for (const guide of OPENSPEC_GUIDES) expect(propose, guide.path).toContain(`\`${guide.path}\``);
+  });
+
   // Sync is part of keeping specs current, not a task users start: its steps
   // ship for archive and the deltas guide, with no skill or route of its own.
   it('ships sync as steps only, and folds explore capture into propose', () => {
