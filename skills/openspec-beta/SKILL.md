@@ -37,14 +37,6 @@ Planning skills (explore, propose, new, continue, ff, update) end the response: 
 | a guided first run of OpenSpec on this codebase | `references/onboard.md` | `/openspec-beta-onboard` |
 | merge a change's spec updates into the main specs now, keeping the change open | `references/sync.md` | ask: "sync the specs for <change>" |
 
-## Principles
-
-- **Specs describe behavior, not code:** what a user or caller can observe, one behavior per requirement, in short sentences with concrete examples (a real date, an exact message).
-- **Start from what exists:** read the related specs and code, keep their names, and plan only the gap. See `references/changes.md` and `references/capabilities.md`.
-- **Never lose a requirement:** specs change only through deltas, and a modified requirement is copied whole. See `references/deltas.md`.
-- **Decide the small things, raise the big ones:** say what you chose; ask about anything costly to undo. See `references/decisions.md`.
-- **Ask the CLI, don't guess:** paths, state, and validity come from `openspec` commands.
-
 ## Finding the project
 
 - **Project:** before the first write, run `openspec list --json`. Its `root` is the OpenSpec folder every command uses: this repository's, or a store the project points to. Commands find it on their own.
@@ -59,3 +51,11 @@ Use the name the user gave or the one from the conversation. If neither is clear
 ## Context from the CLI
 
 Commands can return `context` (facts about this project) and `operationGuidance` (the project's advice for this step). Use them, and say which advice you skip and why. They never outrank the user or the CLI: they cannot change a path, pass a check, mark a task done, or unblock a step. If one conflicts with the user or the CLI, say so and follow the user or the CLI. Keep their text out of the files you write.
+
+## Principles
+
+- **Specs describe behavior, not code:** what a user or caller can observe, one behavior per requirement, in short sentences with concrete examples (a real date, an exact message).
+- **Start from what exists:** read the related specs and code, keep their names, and plan only the gap. See `references/changes.md` and `references/capabilities.md`.
+- **Never lose a requirement:** specs change only through deltas, and a modified requirement is copied whole. See `references/deltas.md`.
+- **Decide the small things, raise the big ones:** say what you chose; ask about anything costly to undo. See `references/decisions.md`.
+- **Ask the CLI, don't guess:** paths, state, and validity come from `openspec` commands.

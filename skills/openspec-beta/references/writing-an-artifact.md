@@ -1,7 +1,7 @@
 # Writing an artifact
 
 - If you have not loaded it yet, get its guidance: `openspec instructions <artifact-id> --change "<name>" --json`, and re-read each completed file in `dependencies` from disk first; the user may have edited it.
-- Before drafting, read the guide for what you are writing, if you have not yet: a proposal, `references/changes.md` and `references/capabilities.md`; specs, `references/deltas.md`; a design, `references/decisions.md`.
+- Read any guide SKILL.md's **Principles** point to that fits this artifact and that you have not read yet.
 - Its `instruction` field is the authoritative guidance, even for a familiar file name, and `template` is the file's structure.
 - `context` and `rules` constrain what you write. Never copy them, or `<context>` and `<rules>` blocks, into the file.
 - If the response has `skipped` or `warning`, the change declares `skip_specs`: create nothing for this artifact.
