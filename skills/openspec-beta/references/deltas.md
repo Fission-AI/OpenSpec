@@ -9,7 +9,7 @@ The main specs (`openspec/specs/`) say what the system does today. A change neve
 | `## REMOVED Requirements` | behavior that goes away | the name, a **Reason**, and a **Migration** |
 | `## RENAMED Requirements` | a new name, same behavior | `FROM:` and `TO:` lines |
 
-The deltas merge into the main specs in the change's last task ("Update the specs"), or at archive, where `openspec archive` merges and validates them for you. To merge them yourself, follow `references/sync.md`.
+The deltas merge into the main specs in the change's last task (with the default schema, "Update the specs"), or at archive, where `openspec archive` merges and validates them for you. To merge them yourself, follow `references/sync.md`.
 
 ## How requirements get lost
 
