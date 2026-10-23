@@ -9,6 +9,7 @@ import { isCiEnvironment } from '../utils/ci.js';
 import { isTelemetryOptedOutByEnv } from '../telemetry/opt-out.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { getGlobalConfig, isGlobalConfigUnreadable } from './global-config.js';
+import { findCopiesOnPath, samePath } from '../utils/executable-path.js';
 
 const require = createRequire(import.meta.url);
 const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package.json');
@@ -27,7 +28,6 @@ const MAX_REDIRECTS = 3;
  */
 const SAFE_VERSION = /^\d{1,10}\.\d{1,10}\.\d{1,10}(?:-[0-9A-Za-z.-]{1,64})?(?:\+[0-9A-Za-z.-]{1,64})?$/;
 
-const RELEASE_DOWNLOAD_URL = 'https://github.com/Fission-AI/OpenSpec/releases/latest/download';
 let standaloneBinaryPath: string | null = null;
 
 /**
@@ -38,23 +38,24 @@ export function markStandaloneBinary(executablePath: string): void {
   standaloneBinaryPath = executablePath;
 }
 
+/** The standalone binary's own path, or null when running from a package. */
+export function getStandaloneBinaryPath(): string | null {
+  return standaloneBinaryPath;
+}
+
 /**
- * Replaces the standalone binary where it already is, so the new copy cannot
- * end up shadowed by the old one on PATH. Null when this is not the binary.
+ * `openspec install` reinstalls the standalone binary where it already is,
+ * under its own name, so the new copy cannot end up shadowed by the old one.
+ * Spelled with the full path when `openspec` on PATH is some other copy.
+ * Null when this is not the binary.
  */
 function standaloneUpgradeCommand(): string | null {
   if (!standaloneBinaryPath) return null;
-  const dir = path.dirname(standaloneBinaryPath);
-  const name = path.basename(standaloneBinaryPath);
-  if (process.platform === 'win32') {
-    const quote = (value: string) => `'${value.replace(/'/g, "''")}'`;
-    // A binary kept under its download name is replaced under that name.
-    const setName = name.toLowerCase() === 'openspec.exe' ? '' : ` $env:OPENSPEC_INSTALL_NAME=${quote(name)};`;
-    return `$env:OPENSPEC_INSTALL_DIR=${quote(dir)};${setName} irm ${RELEASE_DOWNLOAD_URL}/install.ps1 | iex`;
-  }
-  const quote = (value: string) => `'${value.replace(/'/g, `'\\''`)}'`;
-  const setName = name === 'openspec' ? '' : ` OPENSPEC_INSTALL_NAME=${quote(name)}`;
-  return `curl -fsSL ${RELEASE_DOWNLOAD_URL}/install.sh | OPENSPEC_INSTALL_DIR=${quote(dir)}${setName} sh`;
+  const first = findCopiesOnPath()[0];
+  if (first && samePath(first, standaloneBinaryPath)) return 'openspec install';
+  return process.platform === 'win32'
+    ? `& '${standaloneBinaryPath.replace(/'/g, "''")}' install`
+    : `'${standaloneBinaryPath.replace(/'/g, `'\\''`)}' install`;
 }
 
 /**

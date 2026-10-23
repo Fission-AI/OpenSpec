@@ -403,6 +403,24 @@ program
       } else if (latestVersion) {
         displayCliUpdateNote(latestVersion, targetPath);
       }
+
+      // Once per machine, a package-manager user hears the standalone install
+      // exists. Offered, never pushed; deferred when stderr is not a terminal.
+      const { maybeShowStandaloneTip } = await import('../core/standalone-tip.js');
+      await maybeShowStandaloneTip({ silent: !process.stderr.isTTY });
+    } catch (error) {
+      await failWithError(error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('install [version]')
+  .description('Install the standalone openspec, which runs without Node.js (latest release unless [version] is given)')
+  .action(async (version?: string) => {
+    try {
+      const { installStandalone } = await import('../commands/install-standalone.js');
+      await installStandalone({ version });
     } catch (error) {
       await failWithError(error);
       process.exit(1);

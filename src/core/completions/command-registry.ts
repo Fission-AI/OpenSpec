@@ -56,6 +56,13 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
     ],
   },
   {
+    name: 'install',
+    description: 'Install the standalone openspec, which runs without Node.js (latest release unless [version] is given)',
+    acceptsPositional: true,
+    positionals: [{ name: 'version', optional: true }],
+    flags: [],
+  },
+  {
     name: 'version',
     description: 'Report the installed OpenSpec version and update availability',
     flags: [

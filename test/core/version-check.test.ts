@@ -1265,33 +1265,32 @@ describe('standalone binary', () => {
     expect(buildVersionReportLines('1.0.0', install)[0]).toBe('OpenSpec 1.0.0 (standalone)');
   });
 
-  it('upgrades by replacing the binary in place, never through a package manager', async () => {
+  it('upgrades with `openspec install`, never through a package manager', async () => {
     const { getCliInstallInfo, getCliUpdateCommand, buildCliUpdateLines, canSelfUpgrade } = await loadMarked();
-    const command = getCliUpdateCommand(getCliInstallInfo(null));
-    const lines = buildCliUpdateLines('9.9.9', null, PROJECT_ROOT).join('\n');
+    // `openspec` on PATH is this binary.
+    const binDir = path.dirname(executable);
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.writeFileSync(executable, '', { mode: 0o755 });
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${binDir}${path.delimiter}${originalPath ?? ''}`;
+    try {
+      const command = getCliUpdateCommand(getCliInstallInfo(null));
+      const lines = buildCliUpdateLines('9.9.9', null, PROJECT_ROOT).join('\n');
 
-    if (process.platform === 'win32') {
-      expect(command).toBe(
-        `$env:OPENSPEC_INSTALL_DIR='${path.dirname(executable).replace(/'/g, "''")}'; irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex`
-      );
-    } else {
-      expect(command).toMatch(
-        /^curl -fsSL https:\/\/github\.com\/Fission-AI\/OpenSpec\/releases\/latest\/download\/install\.sh \| OPENSPEC_INSTALL_DIR='.*' sh$/
-      );
-      // The quoted directory is exactly the binary's directory once a shell reads it.
-      const quoted = command!.match(/OPENSPEC_INSTALL_DIR=(.*) sh$/)![1];
-      const { execFileSync } = await import('child_process');
-      expect(execFileSync('sh', ['-c', `printf %s ${quoted}`], { encoding: 'utf8' })).toBe(path.dirname(executable));
+      expect(command).toBe('openspec install');
+      expect(lines).toContain('  openspec install');
+      expect(lines).toContain('Then run "openspec update" again');
+      expect(lines).not.toMatch(/npm|pnpm|yarn|volta|bun add/);
+      expect(canSelfUpgrade(null, PROJECT_ROOT)).toBe(false);
+    } finally {
+      process.env.PATH = originalPath;
+      fs.rmSync(binDir, { recursive: true, force: true });
     }
-    expect(lines).toContain(command!);
-    expect(lines).toContain('Then run "openspec update" again');
-    expect(lines).not.toMatch(/npm|pnpm|yarn|volta|bun add/);
-    expect(canSelfUpgrade(null, PROJECT_ROOT)).toBe(false);
   });
 });
 
-describe('standalone binary kept under its download name', () => {
-  it('upgrades the file the user actually runs', async () => {
+describe('standalone binary that `openspec` on PATH does not find', () => {
+  it('names its own path, so the upgrade reaches the file the user runs', async () => {
     const name = process.platform === 'win32' ? `openspec-windows-${process.arch}.exe` : `openspec-${process.platform}-${process.arch}`;
     const executable = path.join(os.tmpdir(), "it's bin", name);
     vi.resetModules();
@@ -1300,15 +1299,13 @@ describe('standalone binary kept under its download name', () => {
     const command = getCliUpdateCommand(getCliInstallInfo(null))!;
 
     if (process.platform === 'win32') {
-      expect(command).toContain(`$env:OPENSPEC_INSTALL_NAME='${name}';`);
+      expect(command).toBe(`& '${executable.replace(/'/g, "''")}' install`);
     } else {
-      // Both variables read back exactly once a shell parses the command.
-      const vars = command.match(/\| (OPENSPEC_INSTALL_DIR=.*) sh$/)![1];
+      expect(command).toMatch(/^'.*' install$/);
+      // The quoted path reads back exactly once a shell parses it.
+      const quoted = command.replace(/ install$/, '');
       const { execFileSync } = await import('child_process');
-      const read = execFileSync('sh', ['-c', `${vars} sh -c 'printf "%s|%s" "$OPENSPEC_INSTALL_DIR" "$OPENSPEC_INSTALL_NAME"'`], {
-        encoding: 'utf8',
-      });
-      expect(read).toBe(`${path.dirname(executable)}|${name}`);
+      expect(execFileSync('sh', ['-c', `printf %s ${quoted}`], { encoding: 'utf8' })).toBe(executable);
     }
   });
 });
