@@ -142,8 +142,9 @@ Restart your IDE for the new commands to take effect.
 Updates OpenSpec's installed instruction files.
 
 ```bash
-openspec update           # refresh tools whose files are older than the CLI
-openspec update --force   # rewrite files even when they're current
+openspec update             # refresh tools whose files are older than the CLI
+openspec update --force     # rewrite files even when they're current
+openspec update --dry-run   # list what an update would change, and change nothing
 ```
 
 update finds the tools init configured and compares their generated files against the CLI's version. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
@@ -159,6 +160,50 @@ update finds the tools init configured and compares their generated files agains
 | Flag | Effect |
 |---|---|
 | `--force` | Rewrite every configured tool's files even when they're up to date. |
+| `--dry-run` | Report every file the update would add, change, or delete, and write nothing. No CLI upgrade check, no prompts. Combine with `--force` to preview a forced update. |
+| `--json` | With `--dry-run`, print the plan as JSON. Without `--dry-run` it exits 1. |
+
+**Previewing an update**
+
+`--dry-run` plans the update a non-interactive run would make: the same code path, with every write and delete recorded instead of performed. Every file the real update would touch is listed, including:
+
+- moving OpenSpec files out of a tool's former directory (`.kimi/` to `.kimi-code/`, `.windsurf/` to `.devin/`, `.codex/` and `.agent/` to `.agents/`);
+- saving the global config when an install from before profiles gets one;
+- syncing the GitHub Copilot cloud agent files;
+- with `--force`, setting up tools found only in legacy artifacts and cleaning those artifacts up, including retired global Codex prompts.
+
+```bash
+openspec update --dry-run
+```
+
+```
+2 file(s) would change:
+  update  .claude/skills/openspec-propose/SKILL.md  (claude)
+  add     ~/.config/openspec/config.json  (openspec)
+```
+
+`--dry-run --json` prints the same plan as one JSON document:
+
+```json
+{
+  "changes": [
+    { "path": ".claude/skills/openspec-propose/SKILL.md", "action": "update", "tool": "claude" },
+    { "path": "~/.config/openspec/config.json", "action": "add", "tool": "openspec" }
+  ],
+  "notes": [],
+  "failures": []
+}
+```
+
+| Field | What it holds |
+|---|---|
+| `changes[].path` | Project-relative path. A file outside the project, such as a global skill or the global config, is shown from your home directory as `~/...`, or as an absolute path when it is outside home too. |
+| `changes[].action` | `add`, `update`, or `delete`. A file whose new bytes match the old ones is not listed. |
+| `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to OpenSpec itself rather than one tool, the global config and legacy-artifact cleanup, are `openspec`. |
+| `notes[]` | `{ code, message }` for a step a terminal user would be asked about. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. Empty for an ordinary refresh. |
+| `failures[]` | `{ tool, error }` for each tool the real update would fail on, including a write it cannot make: a directory where a file belongs, a file where a directory belongs, or a file or folder without write permission. For that tool, `changes` stops where the real update stops; the other tools are still planned. Failures the disk only reports while writing, such as running out of space, cannot be foreseen. |
+
+A failure before planning, such as no OpenSpec directory, still prints exactly one JSON document: the empty plan plus a `status` array with `severity`, `code` (`update_error`), and `message`. The exit code is 1.
 
 **Output**
 

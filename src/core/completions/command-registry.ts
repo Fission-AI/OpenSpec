@@ -53,6 +53,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'force',
         description: 'Force update even when tools are up to date',
       },
+      {
+        name: 'dry-run',
+        description: 'Report what the update would change without writing anything',
+      },
+      {
+        name: 'json',
+        description: 'With --dry-run, print the planned changes as JSON',
+      },
     ],
   },
   {

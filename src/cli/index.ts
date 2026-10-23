@@ -330,8 +330,35 @@ program
   .command('update [path]')
   .description('Update OpenSpec instruction files')
   .option('--force', 'Force update even when tools are up to date')
-  .action(async (targetPath = '.', options?: { force?: boolean }) => {
+  .option('--dry-run', 'Report what the update would change without writing anything')
+  .option('--json', 'With --dry-run, print the planned changes as JSON')
+  .action(
+    async (
+      targetPath = '.',
+      options?: { force?: boolean; dryRun?: boolean; json?: boolean }
+    ) => {
     try {
+      if (options?.json && !options?.dryRun) {
+        console.error('--json is only available with --dry-run.');
+        process.exitCode = 1;
+        return;
+      }
+
+      // A dry run reports the plan and nothing else: no network check, no
+      // upgrade prompt, no output that would break --json.
+      if (options?.dryRun) {
+        const [{ UpdateCommand }, { formatUpdatePlan }] = await Promise.all([
+          import('../core/update.js'),
+          import('../core/update-plan.js'),
+        ]);
+        const plan = await new UpdateCommand({
+          force: options?.force,
+          dryRun: true,
+        }).plan(targetPath);
+        console.log(options?.json ? JSON.stringify(plan, null, 2) : formatUpdatePlan(plan));
+        return;
+      }
+
       const [
         {
           getInstallDir,
@@ -422,10 +449,20 @@ program
       const { installStandalone } = await import('../commands/install-standalone.js');
       await installStandalone({ version });
     } catch (error) {
-      await failWithError(error);
-      process.exit(1);
+      // The --json dry run follows the agent contract: exactly one JSON
+      // document on stdout, even on failure.
+      // failWithError sets the exit code. Returning instead of process.exit()
+      // lets piped stdout drain - an exit can cut the JSON document short where
+      // pipes are asynchronous (macOS, Windows) - and keeps commander's
+      // postAction telemetry flush, as the upgrade paths above already do.
+      await failWithError(error, {
+        enabled: options?.dryRun && options?.json,
+        payload: { changes: [], notes: [], failures: [] },
+        fallbackCode: 'update_error',
+      });
     }
-  });
+    }
+  );
 
 program
   .command('list')
