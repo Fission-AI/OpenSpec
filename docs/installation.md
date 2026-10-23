@@ -43,7 +43,9 @@ order, and stop where a step tells you to stop.
    already installed: run `openspec version --check`, which prints the update
    command for how it was installed when it can tell (otherwise update it the
    way it was installed, e.g. `brew upgrade openspec`), offer to run that, and
-   skip to step 3. Never switch it to a different install method. Otherwise install
+   skip to step 3. If I installed it with a package manager, mention once that
+   `openspec install` switches to the standalone install, but only switch if I
+   ask; never switch it to a different install method on your own. Otherwise install
    the standalone OpenSpec binary, which needs no Node.js. Show me the command
    for my OS and run it only once I confirm, then skip to step 3:
      macOS / Linux:        curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
@@ -205,8 +207,8 @@ openspec --version
 
 Your settings and projects carry over; only the program changes.
 
-1. Run the [install command](#install) for your system.
-2. Remove the npm copy, which otherwise keeps running first on your PATH: `npm uninstall -g @fission-ai/openspec` (Homebrew: `brew uninstall openspec`).
+1. Run `openspec install`. It installs the standalone copy and prints the command that removes your old one.
+2. Run that command, for example `npm uninstall -g @fission-ai/openspec` (Homebrew: `brew uninstall openspec`). Until then the old copy keeps running first on your PATH.
 3. In a new terminal, run `openspec version`. It should print `OpenSpec <version> (standalone)`. If it names a package manager, another copy is still on your PATH: `which -a openspec` (Windows: `where.exe openspec`) lists them.
 
 ## Updating

@@ -196,7 +196,7 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 
 **Upgrade the CLI**
 
-Run the install command from [Quick Start](#quick-start) again. If you installed with npm:
+With the standalone install, run `openspec install`. If you installed with npm:
 
 ```bash
 npm install -g @fission-ai/openspec@latest

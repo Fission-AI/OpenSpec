@@ -44,6 +44,16 @@ Rename it to `openspec` (`openspec.exe` on Windows), run `chmod +x openspec` on 
 > [!NOTE]
 > macOS blocks a file downloaded in a browser until you run `xattr -d com.apple.quarantine openspec`. The install command above doesn't need this.
 
+### Verify a download
+
+Each release binary comes with a signed record of the workflow run that built it. With the [GitHub CLI](https://cli.github.com), in your terminal:
+
+```bash
+gh attestation verify openspec-darwin-arm64 --repo Fission-AI/OpenSpec
+```
+
+It confirms the file is the one that release's workflow built, or fails. This is optional; the installer already checks every download against `SHA256SUMS`.
+
 ## Install with your AI assistant
 
 Paste this into your AI chat:
@@ -60,7 +70,7 @@ curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/install.md
 
 That fetches [install.md at the repo root](https://github.com/Fission-AI/OpenSpec/blob/main/install.md), a prompt written for any agent that can run shell commands (a few IDE integrations can't). Expect your assistant to:
 
-1. Skip the install if the CLI is already on your machine, and offer to update it the way it was installed. Otherwise, show you the install command above and wait for your confirmation before running it.
+1. Skip the install if the CLI is already on your machine, and offer to update it the way it was installed. If that was npm or Homebrew, mention once that `openspec install` switches to the standalone install, without pushing it. Otherwise, show you the install command above and wait for your confirmation before running it.
 2. Use npm instead only if you ask for it or the installer fails, and stop if your Node is older than 20.19.0.
 3. Verify `openspec` is on your PATH.
 4. Name the folder it thinks you mean, suggest the AI tool you're already talking to, and ask which others you use, then run `openspec init` there (the [project setup](setup.md) step).
@@ -156,17 +166,21 @@ Next, [set up your project](setup.md). If your assistant already ran init, that 
 
 ## Switch from npm to the standalone install
 
-Your settings and your projects carry over; only the program changes.
+Switching is optional; npm keeps working. Your settings and your projects carry over; only the program changes.
 
-**1. Install the standalone file.** Run the [install command](#install) for your system.
+**1. Install the standalone copy.** In your terminal:
 
-**2. Remove the npm copy.** It usually comes first on your PATH, so until it's gone it keeps running instead. In your terminal:
+```bash
+openspec install
+```
+
+It installs the standalone `openspec` and prints the command that removes your npm or Homebrew copy.
+
+**2. Remove the old copy.** It usually comes first on your PATH, so until it's gone it keeps running instead. Run the command step 1 printed, for example:
 
 ```npm
 npm uninstall -g @fission-ai/openspec
 ```
-
-On Homebrew, run `brew uninstall openspec` instead.
 
 **3. Check which copy runs.** Open a new terminal:
 
@@ -190,7 +204,7 @@ When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update
 
 
 > [!WARNING]
-> With the standalone install, `openspec update` prints the command that replaces your copy in place; run it, or the [install command](#install) again. On Homebrew, run `brew upgrade openspec`. On Deno, re-run the [Deno install](#deno) with `-f`; it won't overwrite the installed command without it. On Nix, use `nix profile upgrade openspec`.
+> With the standalone install, run `openspec install` to replace your copy in place; `openspec update` tells you when a newer one is out. On Homebrew, run `brew upgrade openspec`. On Deno, re-run the [Deno install](#deno) with `-f`; it won't overwrite the installed command without it. On Nix, use `nix profile upgrade openspec`.
 
 > [!NOTE]
 > A global npm install belongs to one Node installation. Switch Node versions with nvm and the `openspec` command doesn't come along, so install it again under the new version.
