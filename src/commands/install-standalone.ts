@@ -71,38 +71,53 @@ export function removeCommandFor(install: CliInstallInfo): string | null {
   }
 }
 
-function releaseBase(version: string | undefined): string {
-  if (process.env.OPENSPEC_DOWNLOAD_URL) return process.env.OPENSPEC_DOWNLOAD_URL.replace(/\/+$/, '');
+/**
+ * Where the release files come from. OPENSPEC_DOWNLOAD_URL (a mirror, or a
+ * local server in tests) must be HTTPS, or plain HTTP to this machine only:
+ * the binary is checked against SHA256SUMS from the same place, so a remote
+ * HTTP source could swap both.
+ */
+export function releaseBase(version: string | undefined, override = process.env.OPENSPEC_DOWNLOAD_URL): string {
+  if (override) {
+    let url: URL;
+    try {
+      url = new URL(override);
+    } catch {
+      throw new Error(`OPENSPEC_DOWNLOAD_URL is not a URL: ${override}`);
+    }
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) {
+      throw new Error(`OPENSPEC_DOWNLOAD_URL must use https (or http to localhost): ${override}`);
+    }
+    return url.href.replace(/\/+$/, '');
+  }
   if (!version || version === 'latest') return `${RELEASES_URL}/latest/download`;
   return `${RELEASES_URL}/download/${version.startsWith('v') ? version : `v${version}`}`;
 }
 
+// Fixed scripts: the installer URL reaches them as data (an argument, or an
+// environment variable), never as part of the command text.
+const POSIX_RUNNER =
+  'f=$(mktemp) || exit 1; { curl -fsSL "$1" -o "$f" 2>/dev/null || wget -q -O "$f" "$1"; } && sh "$f"; s=$?; rm -f "$f"; exit $s';
+const WINDOWS_RUNNER = 'irm $env:OPENSPEC_INSTALLER_URL | iex';
+
 /**
  * Downloads and runs the installer with the same tools as the documented
  * one-liners (curl or wget; PowerShell's irm), so proxies and certificates
- * behave as they do for those. Saved to a file first: piped straight into sh,
- * a failed download would look like a successful run.
+ * behave as they do for those. Saved to a file first on macOS and Linux:
+ * piped straight into sh, a failed download would look like a successful run.
  */
 function runInstaller(scriptUrl: string, env: NodeJS.ProcessEnv): Promise<number> {
-  const [command, args] =
-    process.platform === 'win32'
-      ? [
-          'powershell.exe',
-          ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', `irm '${scriptUrl.replace(/'/g, "''")}' | iex`],
-        ]
-      : [
-          'sh',
-          [
-            '-c',
-            'f=$(mktemp) || exit 1; ' +
-              '{ curl -fsSL "$1" -o "$f" 2>/dev/null || wget -q -O "$f" "$1"; } && sh "$f"; ' +
-              's=$?; rm -f "$f"; exit $s',
-            'openspec-install',
-            scriptUrl,
-          ],
-        ];
+  const windows = process.platform === 'win32';
+  const command = windows ? 'powershell.exe' : 'sh';
+  const args = windows
+    ? ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', WINDOWS_RUNNER]
+    : ['-c', POSIX_RUNNER, 'openspec-install', scriptUrl];
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: 'inherit', env });
+    const child = spawn(command, args, {
+      stdio: 'inherit',
+      env: windows ? { ...env, OPENSPEC_INSTALLER_URL: scriptUrl } : env,
+    });
     child.on('error', reject);
     child.on('close', (code) => resolve(code ?? 1));
   });

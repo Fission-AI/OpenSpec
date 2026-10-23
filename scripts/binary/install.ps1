@@ -28,6 +28,13 @@
   $version = if ($env:OPENSPEC_VERSION) { $env:OPENSPEC_VERSION } else { 'latest' }
   if ($version -ne 'latest' -and -not $version.StartsWith('v')) { $version = "v$version" }
   $base = if ($env:OPENSPEC_DOWNLOAD_URL) {
+    # The binary and SHA256SUMS come from the same place, so a remote plain
+    # HTTP source could swap both.
+    $uri = $null
+    if (-not [Uri]::TryCreate($env:OPENSPEC_DOWNLOAD_URL, 'Absolute', [ref]$uri) -or
+        -not ($uri.Scheme -eq 'https' -or ($uri.Scheme -eq 'http' -and $uri.IsLoopback))) {
+      throw "openspec install: OPENSPEC_DOWNLOAD_URL must use https (or http to localhost): $($env:OPENSPEC_DOWNLOAD_URL)"
+    }
     $env:OPENSPEC_DOWNLOAD_URL
   } elseif ($version -eq 'latest') {
     'https://github.com/Fission-AI/OpenSpec/releases/latest/download'

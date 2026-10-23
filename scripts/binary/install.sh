@@ -40,6 +40,12 @@ main() {
   case "$version" in latest | v*) ;; *) version="v$version" ;; esac
   if [ -n "${OPENSPEC_DOWNLOAD_URL:-}" ]; then
     base="$OPENSPEC_DOWNLOAD_URL"
+    # The binary and SHA256SUMS come from the same place, so a remote plain
+    # HTTP source could swap both.
+    case "$base" in
+      https://* | http://localhost[:/]* | http://localhost | http://127.0.0.1[:/]* | http://127.0.0.1 | "http://[::1]"*) ;;
+      *) fail "OPENSPEC_DOWNLOAD_URL must use https (or http to localhost): $base" ;;
+    esac
   elif [ "$version" = latest ]; then
     base="https://github.com/Fission-AI/OpenSpec/releases/latest/download"
   else

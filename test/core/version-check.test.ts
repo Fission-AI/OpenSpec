@@ -1266,11 +1266,14 @@ describe('standalone binary', () => {
   });
 
   it('upgrades with `openspec install`, never through a package manager', async () => {
-    const { getCliInstallInfo, getCliUpdateCommand, buildCliUpdateLines, canSelfUpgrade } = await loadMarked();
-    // `openspec` on PATH is this binary.
-    const binDir = path.dirname(executable);
-    fs.mkdirSync(binDir, { recursive: true });
-    fs.writeFileSync(executable, '', { mode: 0o755 });
+    // `openspec` on PATH is this binary, in a fresh private folder.
+    const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "it's bin-"));
+    const onPath = path.join(binDir, path.basename(executable));
+    fs.writeFileSync(onPath, '', { mode: 0o755 });
+    vi.resetModules();
+    const { markStandaloneBinary, getCliInstallInfo, getCliUpdateCommand, buildCliUpdateLines, canSelfUpgrade } =
+      await import('../../src/core/version-check.js');
+    markStandaloneBinary(onPath);
     const originalPath = process.env.PATH;
     process.env.PATH = `${binDir}${path.delimiter}${originalPath ?? ''}`;
     try {

@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   installStandalone,
+  releaseBase,
   removeCommandFor,
   resolveInstallTarget,
 } from '../../src/commands/install-standalone.js';
@@ -92,6 +93,24 @@ describe('openspec install', () => {
       const pathValue = [path.join(root, 'a'), path.join(root, 'b')].join(path.delimiter);
 
       expect(findCopiesOnPath(pathValue, 'win32')).toEqual([exe, shim]);
+    });
+  });
+
+  describe('releaseBase', () => {
+    it('downloads from the latest release, or the release named', () => {
+      const releases = 'https://github.com/Fission-AI/OpenSpec/releases';
+      expect(releaseBase(undefined, '')).toBe(`${releases}/latest/download`);
+      expect(releaseBase('1.15.0', '')).toBe(`${releases}/download/v1.15.0`);
+      expect(releaseBase('v1.15.0', '')).toBe(`${releases}/download/v1.15.0`);
+    });
+
+    it('accepts a mirror over https, and plain http only to this machine', () => {
+      expect(releaseBase(undefined, 'https://mirror.example.com/openspec/')).toBe('https://mirror.example.com/openspec');
+      expect(releaseBase(undefined, 'http://127.0.0.1:8765')).toBe('http://127.0.0.1:8765');
+      expect(releaseBase(undefined, 'http://localhost:9/x')).toBe('http://localhost:9/x');
+      for (const unsafe of ['http://mirror.example.com', 'http://localhost.example.com', 'ftp://x', 'not a url']) {
+        expect(() => releaseBase(undefined, unsafe)).toThrow('OPENSPEC_DOWNLOAD_URL');
+      }
     });
   });
 
