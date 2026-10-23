@@ -34,3 +34,8 @@ overrides:
   # @changesets/cli > launch-editor); never in the published CLI. Remove once
   # transitive shell-quote is >=1.11.0 (check: pnpm why shell-quote).
   shell-quote@>=1.8.4 <1.11.0: '>=1.11.0 <2'
+  # GHSA-587h-7wmj-h5pm, GHSA-698v-4r3x-3vcv, GHSA-r825-w8mm-5pxw — launch-editor
+  # command execution on Windows. Dev-only (transitive via @changesets/cli); never
+  # in the published CLI. Remove once transitive launch-editor is >=2.14.2
+  # (check: pnpm why launch-editor).
+  launch-editor@<2.14.2: '>=2.14.2 <3'
