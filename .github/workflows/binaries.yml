@@ -203,22 +203,29 @@ jobs:
         with:
           node-version: '20.19.0'
           package-manager-cache: false
-      - name: CLI test suite against the binary
+      - name: CLI test suite and `openspec install` against the binary
         run: |
+          # `openspec install` (install-check.sh) downloads from this build, served locally.
+          # On Windows, python3 can be the Microsoft Store stub; python is the real one.
+          py=python3; [ "$RUNNER_OS" = Windows ] && py=python
+          $py -m http.server 8766 --directory dist-bin >/dev/null 2>&1 &
+          for _ in $(seq 20); do curl -sf -o /dev/null http://127.0.0.1:8766/SHA256SUMS && break; sleep 0.5; done
           if [ -n "$ALPINE" ]; then
             # Copied in: the container installs its own (musl) dependencies.
             # Run as a normal user; root can read files the tests make unreadable.
-            docker run --rm -v "$PWD:/src:ro" node:22-alpine sh -c \
+            docker run --rm --network host -v "$PWD:/src:ro" node:22-alpine sh -c \
               "apk add -q --no-cache bash git libstdc++ libgcc && corepack enable &&
                mkdir /w && cd /src && tar --exclude=./node_modules -cf - . | tar -xf - -C /w && chown -R node /w &&
                su node -c 'cd /w && pnpm install --frozen-lockfile && pnpm run build &&
-                 bash scripts/binary/e2e.sh dist-bin/openspec-$ASSET'"
+                 bash scripts/binary/e2e.sh dist-bin/openspec-$ASSET &&
+                 OPENSPEC_DOWNLOAD_URL=http://127.0.0.1:8766 bash scripts/binary/install-check.sh dist-bin/openspec-$ASSET'"
           else
             pnpm install --frozen-lockfile
             pnpm run build
             bin="dist-bin/openspec-$ASSET"
             [ "$RUNNER_OS" = Windows ] && bin="$bin.exe"
             bash scripts/binary/e2e.sh "$bin"
+            OPENSPEC_DOWNLOAD_URL=http://127.0.0.1:8766 bash scripts/binary/install-check.sh "$bin"
           fi
 
   release:
@@ -229,6 +236,9 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: write # upload release assets
+      id-token: write # sign the provenance attestation
+      attestations: write # store it
+      artifact-metadata: write # record the attested files
     steps:
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
@@ -241,3 +251,11 @@ jobs:
           cd dist-bin
           sha256sum --check SHA256SUMS
           gh release upload "$REF" openspec-* SHA256SUMS install.sh install.ps1 --clobber --repo "$GITHUB_REPOSITORY"
+      # Signed proof each binary was built by this workflow from this tag, which
+      # anyone can check with `gh attestation verify`. The binaries are not
+      # notarized or code-signed yet, so this is the verifiable trail meanwhile.
+      # After the upload, so a first-time problem here never holds binaries back.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        continue-on-error: true
+        with:
+          subject-path: 'dist-bin/openspec-*'
