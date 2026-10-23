@@ -98,6 +98,7 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
   ['ask the user before creating the change.', 'ask the user before creating the change (`references/decisions.md` lists what to raise).'],
   ['If no capability is related, say so in one line and continue.', 'If no capability is related, say so in one line and continue. Before naming a new capability, read `references/capabilities.md`.'],
   ['add a MODIFIED delta for that requirement too.', 'add a MODIFIED delta for that requirement too; read `references/deltas.md` before writing one.'],
+  ['Draft the requested edit in the conversation, not in files.', 'Draft the requested edit in the conversation, not in files. If it changes a spec, read `references/deltas.md` first; if it widens the change, `references/changes.md`.'],
 ];
 
 /** Explore's capture path, folded into propose when propose is installed. */

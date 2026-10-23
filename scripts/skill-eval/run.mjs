@@ -11,7 +11,7 @@ import { SCENARIOS } from './scenarios.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
 const HERE = path.dirname(SELF);
-const WORKFLOWS = ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'verify'];
+const WORKFLOWS = ['propose', 'explore', 'continue', 'apply', 'update', 'sync', 'archive', 'verify'];
 
 const { values } = parseArgs({
   options: {
@@ -109,6 +109,8 @@ const WORKFLOW_OF = {
   'openspec-verify-change': 'verify',
   'openspec-sync-specs': 'sync',
   'openspec-archive-change': 'archive',
+  'openspec-continue-change': 'continue',
+  'openspec-update-change': 'update',
 };
 
 function promptFor(prompt) {

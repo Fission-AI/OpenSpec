@@ -150,6 +150,43 @@ function closure(ctx, name, requirement) {
   };
 }
 
+/** A second capability, todo-export, whose "every field" promise a new todo field ripples into. */
+function seedExportSpec(root) {
+  fs.mkdirSync(path.join(root, 'openspec/specs/todo-export'), { recursive: true });
+  fs.writeFileSync(
+    path.join(root, 'openspec/specs/todo-export/spec.md'),
+    `# todo-export Specification
+
+## Purpose
+Callers can export the whole todo list as JSON to back it up or move it elsewhere.
+
+## Requirements
+### Requirement: Exporting every field
+The list SHALL export every todo as a JSON object containing every field the todo has, in the order the todos were added.
+
+#### Scenario: Export round-trips
+- **WHEN** a caller exports a list and parses the result
+- **THEN** each parsed object has exactly the fields of the matching todo, with the same values
+
+#### Scenario: Empty list
+- **WHEN** a caller exports an empty list
+- **THEN** the result is an empty JSON array
+`
+  );
+  const src = path.join(root, 'src/todo.js');
+  fs.writeFileSync(
+    src,
+    fs.readFileSync(src, 'utf8').replace(
+      '  items() {',
+      `  exportJson() {
+return JSON.stringify(this.#items.map((item) => ({ id: item.id, title: item.title, done: item.done })));
+  }
+
+  items() {`
+    )
+  );
+}
+
 export const SCENARIOS = [
   {
     id: 'propose',
@@ -315,41 +352,7 @@ export const SCENARIOS = [
     // export spec promises "every field of every todo", which a new due date
     // changes. Only a proposal that reads the specs (or code closely) updates it.
     id: 'propose-ripple',
-    setup: (root) => {
-      fs.mkdirSync(path.join(root, 'openspec/specs/todo-export'), { recursive: true });
-      fs.writeFileSync(
-        path.join(root, 'openspec/specs/todo-export/spec.md'),
-        `# todo-export Specification
-
-## Purpose
-Callers can export the whole todo list as JSON to back it up or move it elsewhere.
-
-## Requirements
-### Requirement: Exporting every field
-The list SHALL export every todo as a JSON object containing every field the todo has, in the order the todos were added.
-
-#### Scenario: Export round-trips
-- **WHEN** a caller exports a list and parses the result
-- **THEN** each parsed object has exactly the fields of the matching todo, with the same values
-
-#### Scenario: Empty list
-- **WHEN** a caller exports an empty list
-- **THEN** the result is an empty JSON array
-`
-      );
-      const src = path.join(root, 'src/todo.js');
-      fs.writeFileSync(
-        src,
-        fs.readFileSync(src, 'utf8').replace(
-          '  items() {',
-          `  exportJson() {
-    return JSON.stringify(this.#items.map((item) => ({ id: item.id, title: item.title, done: item.done })));
-  }
-
-  items() {`
-        )
-      );
-    },
+    setup: seedExportSpec,
     prompt: '/openspec-propose Todos need an optional due date.' + AUTONOMOUS,
     metrics: (ctx) => {
       const name = newChangeNames(ctx)[0];
@@ -369,6 +372,52 @@ The list SHALL export every todo as a JSON object containing every field the tod
       }
       results.push(onlyOpenspecChanged(ctx));
       return results;
+    },
+  },
+  {
+    // Continue writes the next artifact, and only that one, from an existing proposal.
+    id: 'continue-specs',
+    setup: (root) => {
+      seedChange(root, 'add-priority');
+      const change = path.join(root, 'openspec/changes/add-priority');
+      for (const file of ['specs', 'design.md', 'tasks.md']) fs.rmSync(path.join(change, file), { recursive: true, force: true });
+    },
+    prompt: '/openspec-continue-change add-priority.' + AUTONOMOUS,
+    metrics: (ctx) => specQuality(ctx, 'add-priority'),
+    checks: (ctx) => {
+      const validate = ctx.openspec(['validate', 'add-priority', '--strict']);
+      return [
+        { name: 'specs written', pass: deltaSpecs(ctx, 'add-priority').length > 0 },
+        {
+          name: 'only one artifact written',
+          pass: !ctx.exists('openspec/changes/add-priority/design.md') && !ctx.exists('openspec/changes/add-priority/tasks.md'),
+        },
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        onlyOpenspecChanged(ctx),
+      ];
+    },
+  },
+  {
+    // Update revises a finished plan when a new need ripples into a second capability.
+    id: 'update-ripple',
+    setup: (root) => {
+      seedChange(root, 'add-priority');
+      seedExportSpec(root);
+    },
+    prompt: '/openspec-update-change add-priority Callers now need each todo\'s priority in the JSON export too.' + AUTONOMOUS,
+    metrics: (ctx) => ({
+      ...specQuality(ctx, 'add-priority'),
+      updatesExportSpec: deltaSpecs(ctx, 'add-priority').some((spec) => spec.file.startsWith('todo-export')),
+      usesExistingCapability: deltaSpecs(ctx, 'add-priority').every((spec) => /^todo-(list|export)/.test(spec.file)),
+    }),
+    checks: (ctx) => {
+      const validate = ctx.openspec(['validate', 'add-priority', '--strict']);
+      const tasks = ctx.read('openspec/changes/add-priority/tasks.md') ?? '';
+      return [
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        { name: 'tasks mention the export', pass: /export/i.test(tasks) },
+        onlyOpenspecChanged(ctx),
+      ];
     },
   },
   {
