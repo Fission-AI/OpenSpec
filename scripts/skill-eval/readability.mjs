@@ -39,20 +39,34 @@ const OLD_DIR = {
   'bulk-archive': 'openspec-bulk-archive-change',
   onboard: 'openspec-onboard',
 };
-const router = fs
-  .readdirSync(path.join(newRoot, 'skills'))
-  .find((name) => fs.existsSync(path.join(newRoot, 'skills', name, 'references')));
+// A checkout with the router layout ships one skill whose SKILL.md carries the
+// layout marker; either side of the comparison may be one.
+function routerOf(root) {
+  return fs
+    .readdirSync(path.join(root, 'skills'))
+    .find((name) => {
+      const skill = path.join(root, 'skills', name, 'SKILL.md');
+      return fs.existsSync(skill) && fs.existsSync(path.join(root, 'skills', name, 'references')) && /^\s+layout: "router"$/m.test(fs.readFileSync(skill, 'utf8'));
+    });
+}
+const router = routerOf(newRoot);
+const oldRouter = routerOf(oldRoot);
 
 const read = (file) => fs.readFileSync(file, 'utf8');
 const body = (markdown) => markdown.replace(/^---\n[\s\S]*?\n---\n/, '').trim();
 
+function routerText(root, name, id) {
+  const dir = path.join(root, 'skills', name);
+  return `${body(read(path.join(dir, 'SKILL.md')))}\n\n--- references/${id}.md\n\n${read(path.join(dir, 'references', `${id}.md`)).trim()}`;
+}
+
 function oldText(id) {
+  if (oldRouter) return routerText(oldRoot, oldRouter, id);
   return body(read(path.join(oldRoot, 'skills', OLD_DIR[id], 'SKILL.md')));
 }
 
 function newText(id) {
-  const dir = path.join(newRoot, 'skills', router);
-  return `${body(read(path.join(dir, 'SKILL.md')))}\n\n--- references/${id}.md\n\n${read(path.join(dir, 'references', `${id}.md`)).trim()}`;
+  return routerText(newRoot, router, id);
 }
 
 /** Words, lines, words per sentence, and lines (40+ chars) that appear more than once. */
@@ -74,7 +88,9 @@ Reply with JSON only: {"winner": "1" | "2" | "tie", "reason": "<one sentence>"}`
 
 const workflows = Object.keys(OLD_DIR).filter(
   (id) =>
-    fs.existsSync(path.join(oldRoot, 'skills', OLD_DIR[id], 'SKILL.md')) &&
+    (oldRouter
+      ? fs.existsSync(path.join(oldRoot, 'skills', oldRouter, 'references', `${id}.md`))
+      : fs.existsSync(path.join(oldRoot, 'skills', OLD_DIR[id], 'SKILL.md'))) &&
     fs.existsSync(path.join(newRoot, 'skills', router, 'references', `${id}.md`))
 );
 

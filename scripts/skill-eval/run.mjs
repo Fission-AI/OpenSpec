@@ -82,7 +82,7 @@ async function buildPlugin(dir) {
   return dir;
 }
 
-const { generateOpenSpecSkillSet, workflowSkillName, SKILL_NAMESPACE } =
+const { generateOpenSpecSkillSet, workflowSkillName, SKILL_NAMESPACE, WORKFLOW_ORDER } =
   values.install === 'project' ? {} : await import(path.join(cliRoot, 'dist/core/shared/openspec-skill.js'));
 
 function writeSingleSkill(root) {
@@ -116,6 +116,10 @@ function promptFor(prompt) {
   return prompt.replace(/^\/(openspec-[a-z-]+)/, (match, skill) => {
     const id = WORKFLOW_OF[skill];
     if (!id) throw new Error(`no workflow for ${skill}`);
+    // A workflow the router ships as steps only (sync) is started through the router.
+    if (!WORKFLOW_ORDER.includes(id)) {
+      return values.install === 'plugin' ? `/${SKILL_NAMESPACE}:${SKILL_NAMESPACE} ${id}` : `/${SKILL_NAMESPACE} ${id}`;
+    }
     return values.install === 'plugin' ? `/${SKILL_NAMESPACE}:${id}` : `/${workflowSkillName(id)}`;
   });
 }

@@ -13,7 +13,7 @@ Implement the tasks of an OpenSpec change, one checkbox at a time.
    openspec status --change "<name>" --json
    openspec instructions apply --change "<name>" --json
    ```
-   Status gives the `schemaName`, the `planningHome` and `changeRoot` paths, and `actionContext` (where code may be edited; for a store, where the implementation lives). The apply instructions give the `state`, the `instruction`, progress, each task with its `sourcePath` and `line`, `contextFiles` (artifact ID -> array of concrete file paths), and `missingArtifacts`. Treat `context` and `operationGuidance` as **Runtime inputs** in SKILL.md describes.
+   Status gives the `schemaName`, the `planningHome` and `changeRoot` paths, and `actionContext` (where code may be edited; for a store, where the implementation lives). The apply instructions give the `state`, the `instruction`, progress, each task with its `sourcePath` and `line`, `contextFiles` (artifact ID -> array of concrete file paths), and `missingArtifacts`. Use `context` and `operationGuidance` as **Context from the CLI** in SKILL.md says.
 
    - If `state: "blocked"`: show the message and pause implementation. If `missingArtifacts` is non-empty, suggest using `/openspec-beta-continue` to create them. Otherwise follow the CLI instruction to repair the tracking file. Do not assume another artifact is ready or start implementation while blocked.
    - If `state: "all_done"`: report that all tracked tasks are complete and suggest review or verification as appropriate before archiving.

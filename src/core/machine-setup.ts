@@ -218,7 +218,7 @@ export async function writeClaudePlugin(dir: string, workflows: readonly string[
 
   const manifestDir = path.join(dir, '.claude-plugin');
   await fs.promises.mkdir(manifestDir, { recursive: true });
-  const description = 'OpenSpec workflows: propose, apply, verify, and archive spec-driven changes';
+  const description = 'OpenSpec skills: write and maintain specs, and propose, apply, verify, and archive changes';
   await fs.promises.writeFile(
     path.join(manifestDir, 'plugin.json'),
     `${JSON.stringify({ name: PLUGIN_NAME, version: OPENSPEC_VERSION, description }, null, 2)}\n`
@@ -382,9 +382,11 @@ export async function setupMachine(options: MachineSetupOptions = {}): Promise<M
   const register = options.register ?? true;
   const config = getGlobalConfig();
   // Resolved through the templates so a workflow that needs another (archive
-  // needs sync) brings it along.
+  // needs sync) brings it along. Only workflows with a skill of their own are
+  // listed; the router ships the rest (sync) as steps.
   const workflows = getSkillTemplates(getProfileWorkflows(config.profile ?? 'core', config.workflows))
     .map((entry) => entry.workflowId)
+    .filter((id) => WORKFLOW_ORDER.includes(id))
     .sort((a, b) => WORKFLOW_ORDER.indexOf(a) - WORKFLOW_ORDER.indexOf(b));
   const agents = detectMachineAgents({ homedir: home, env });
   const result: MachineSetupResult = { agents, workflows, moved: [] };
@@ -661,7 +663,7 @@ export function formatMachineSetup(result: MachineSetupResult, options: { dryRun
   }
   lines.push(
     '',
-    `The "${SKILL_NAMESPACE}" skill picks the workflow; ${result.workflows.length} workflow skills start one directly: ${result.workflows.join(', ')}.`,
+    `The "${SKILL_NAMESPACE}" skill explains OpenSpec and picks the right skill; ${result.workflows.length} skills start one directly: ${result.workflows.join(', ')}.`,
     ''
   );
   if (!options.dryRun) lines.push('Undo all of this with `openspec setup --revert`.');

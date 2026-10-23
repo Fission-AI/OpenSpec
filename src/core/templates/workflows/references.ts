@@ -62,6 +62,7 @@ export function writingAnArtifactReference(): string {
     '# Writing an artifact',
     '',
     '- If you have not loaded it yet, get its guidance: `openspec instructions <artifact-id> --change "<name>" --json`, and re-read each completed file in `dependencies` from disk first; the user may have edited it.',
+    '- Read any guide in SKILL.md\'s **Guides** table that fits this artifact and that you have not read yet.',
     ...ARTIFACT_WRITE,
   ].join('\n');
 }

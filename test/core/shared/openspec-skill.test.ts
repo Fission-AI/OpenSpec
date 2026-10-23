@@ -3,6 +3,7 @@ import { parse as parseYaml } from 'yaml';
 
 import { SKILL_NAMESPACE as NS, generateOpenSpecSkill, generateOpenSpecSkillSet, hasLayoutMarker, workflowSkillName } from '../../../src/core/shared/openspec-skill.js';
 import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../../src/core/profiles.js';
+import { OPENSPEC_GUIDES } from '../../../src/core/shared/openspec-guides.js';
 import { BEFORE_YOU_START, RUNTIME_INPUTS } from '../../../src/core/templates/workflows/references.js';
 
 function render(workflows: readonly string[]) {
@@ -19,7 +20,7 @@ describe('the openspec skill', () => {
     const skill = files[0];
     expect(skill.relativePath).toBe('SKILL.md');
     expect(skill.content).toMatch(new RegExp(`^name: ${NS}$`, 'm'));
-    for (const id of CORE_WORKFLOWS) {
+    for (const id of CORE_WORKFLOWS.filter((workflow) => workflow !== 'sync')) {
       expect(skill.content, id).toContain(`| \`references/${id}.md\` | \`/openspec:${id}\` |`);
       expect(files.some((file) => file.relativePath === `references/${id}.md`), id).toBe(true);
     }
@@ -29,11 +30,40 @@ describe('the openspec skill', () => {
   });
 
   // The point of one skill: a rule every workflow follows is written once.
+  // SKILL.md states the project check and the CLI's context in its own words,
+  // so the per-workflow blocks are lifted out entirely.
   it('states each shared rule exactly once across all its files', () => {
     const all = render(ALL_WORKFLOWS).map((file) => file.content).join('\n');
-    expect(count(all, BEFORE_YOU_START.replace('**Before you start**\n', ''))).toBe(1);
-    expect(count(all, RUNTIME_INPUTS)).toBe(1);
+    expect(count(all, BEFORE_YOU_START.replace('**Before you start**\n', ''))).toBe(0);
+    expect(count(all, RUNTIME_INPUTS)).toBe(0);
+    expect(count(all, '## Finding the project')).toBe(1);
+    expect(count(all, '## Context from the CLI')).toBe(1);
     expect(count(all, '# Writing an artifact')).toBe(1);
+  });
+
+  // Guides teach judgment any skill may need; the router lists each one.
+  it('ships every guide and lists it in SKILL.md', () => {
+    const files = render(CORE_WORKFLOWS);
+    for (const guide of OPENSPEC_GUIDES) {
+      expect(files[0].content, guide.path).toContain(`| ${guide.when} | \`${guide.path}\` |`);
+      expect(files.some((file) => file.relativePath === guide.path), guide.path).toBe(true);
+    }
+  });
+
+  // Sync is part of keeping specs current, not a task users start: its steps
+  // ship for archive and the deltas guide, with no skill or route of its own.
+  it('ships sync as steps only, and folds explore capture into propose', () => {
+    const files = render(['explore', 'propose', 'archive']);
+    expect(files.some((file) => file.relativePath === 'references/sync.md')).toBe(true);
+    expect(files[0].content).not.toContain('`references/sync.md` |');
+    const archive = files.find((file) => file.relativePath === 'references/archive.md')!.content;
+    expect(archive).toContain('`references/sync.md`');
+    expect(files.some((file) => file.relativePath === 'references/capture.md')).toBe(false);
+    const explore = files.find((file) => file.relativePath === 'references/explore.md')!.content;
+    expect(explore).toContain('follow `references/propose.md`, with the draft as the settled scope');
+    // Without propose, explore keeps its own capture steps.
+    const alone = render(['explore']);
+    expect(alone.some((file) => file.relativePath === 'references/capture.md')).toBe(true);
   });
 
   it('repeats no line across the default install', () => {
@@ -51,13 +81,13 @@ describe('the openspec skill', () => {
   // the boundary lived only in the propose file; SKILL.md states it for all.
   it('keeps planning workflows from editing code, in SKILL.md itself', () => {
     const skill = render(CORE_WORKFLOWS)[0].content;
-    expect(skill).toContain('Planning workflows (explore, propose, update) end the response: they never edit project code');
+    expect(skill).toContain('Planning skills (explore, propose, update) end the response: they never edit project code');
   });
 
   it('points every workflow at the shared rules instead of copying them', () => {
     const files = render(ALL_WORKFLOWS);
     const archive = files.find((file) => file.relativePath === 'references/archive.md')!.content;
-    expect(archive).toContain('**Runtime inputs** in SKILL.md');
+    expect(archive).toContain('**Context from the CLI** in SKILL.md');
     const propose = files.find((file) => file.relativePath === 'references/propose.md')!.content;
     expect(propose).toContain('references/writing-an-artifact.md');
     expect(files.some((file) => file.relativePath === 'references/writing-an-artifact.md')).toBe(true);
@@ -71,17 +101,18 @@ describe('the openspec skill', () => {
   });
 
   // Budgets keep the skill from growing back. Raise one only on purpose, with
-  // an eval run showing the extra text pays for itself.
+  // an eval run showing the extra text pays for itself. Raised for the role,
+  // principles, and guides (2026-10-23 A/B).
   it('stays within its size budgets', () => {
     const files = render(ALL_WORKFLOWS);
     const size = (file: { content: string }) => Buffer.byteLength(file.content);
-    expect(size(files[0]), 'SKILL.md').toBeLessThanOrEqual(5_000);
+    expect(size(files[0]), 'SKILL.md').toBeLessThanOrEqual(6_000);
     const workflows = new Set(ALL_WORKFLOWS.map((id) => `references/${id}.md`));
     for (const file of files.filter((entry) => workflows.has(entry.relativePath))) {
       expect(size(file), file.relativePath).toBeLessThanOrEqual(12_000);
     }
     const core = render(CORE_WORKFLOWS).reduce((total, file) => total + size(file), 0);
-    expect(core, 'default install').toBeLessThanOrEqual(50_000);
+    expect(core, 'default install').toBeLessThanOrEqual(52_000);
   });
 
   // A host picks the skill by its description alone, so it must say what the
@@ -108,7 +139,8 @@ describe('the openspec skill', () => {
       skillName: workflowSkillName,
       invoke: (id) => `/${workflowSkillName(id)}`,
     });
-    expect(set.map((skill) => skill.dirName).sort()).toEqual([NS, ...CORE_WORKFLOWS.map(workflowSkillName)].sort());
+    const own = CORE_WORKFLOWS.filter((id) => id !== 'sync');
+    expect(set.map((skill) => skill.dirName).sort()).toEqual([NS, ...own.map(workflowSkillName)].sort());
     const propose = set.find((skill) => skill.dirName === `${NS}-propose`)!;
     expect(propose.files.map((file) => file.relativePath)).toEqual(['SKILL.md']);
     const body = propose.files[0].content;

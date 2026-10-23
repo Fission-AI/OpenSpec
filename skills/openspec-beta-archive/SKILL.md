@@ -11,7 +11,7 @@ metadata:
 
 # OpenSpec archive
 
-1. Read `../openspec-beta/SKILL.md`: the rules every OpenSpec workflow follows.
+1. Read `../openspec-beta/SKILL.md`: what OpenSpec is and the principles every OpenSpec skill follows.
 2. Follow `../openspec-beta/references/archive.md` step by step.
 
 If `../openspec-beta/` is missing, ask the user to install it with `openspec setup`.

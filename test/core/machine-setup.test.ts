@@ -12,7 +12,7 @@ import {
   setupMachine,
 } from '../../src/core/machine-setup.js';
 import { getGlobalConfig, saveGlobalConfig } from '../../src/core/global-config.js';
-import { SKILL_NAMESPACE as NS } from '../../src/core/shared/openspec-skill.js';
+import { LAYOUT_MARKER, SKILL_NAMESPACE as NS } from '../../src/core/shared/openspec-skill.js';
 import { UpdateCommand } from '../../src/core/update.js';
 
 describe('machine setup', () => {
@@ -127,15 +127,21 @@ describe('machine setup', () => {
 
   it('installs the router and one skill per workflow in ~/.agents/skills, spelled for Codex', async () => {
     fs.mkdirSync(path.join(home, '.codex'));
+    const dir = path.join(home, '.agents', 'skills');
+    // An earlier beta shipped a sync skill; sync is now steps inside the router.
+    writeSkill(dir, `${NS}-sync`, `---\nname: ${NS}-sync\nmetadata:\n${LAYOUT_MARKER}\n  generatedBy: "1.14.3"\n---\n`);
     const result = await setupMachine({ homedir: home, env, runClaude });
 
-    const dir = path.join(home, '.agents', 'skills');
+    expect(result.workflows).not.toContain('sync');
     expect(result.sharedSkills?.installed.sort()).toEqual([NS, ...result.workflows.map((id) => `${NS}-${id}`)].sort());
+    expect(result.sharedSkills?.removed).toEqual([`${NS}-sync`]);
+    expect(fs.existsSync(path.join(dir, `${NS}-sync`))).toBe(false);
+    expect(fs.existsSync(path.join(dir, NS, 'references', 'sync.md'))).toBe(true);
     expect(read(dir, NS, 'SKILL.md')).toMatch(new RegExp(`^name: ${NS}$`, 'm'));
     expect(read(dir, `${NS}-propose`, 'SKILL.md')).toMatch(new RegExp(`^name: ${NS}-propose$`, 'm'));
-    // A planning workflow skill states the plan-only boundary where it is invoked.
-    expect(read(dir, `${NS}-propose`, 'SKILL.md')).toContain('This workflow plans only');
-    expect(read(dir, `${NS}-apply`, 'SKILL.md')).not.toContain('This workflow plans only');
+    // A planning skill states the plan-only boundary where it is invoked.
+    expect(read(dir, `${NS}-propose`, 'SKILL.md')).toContain('This skill plans only');
+    expect(read(dir, `${NS}-apply`, 'SKILL.md')).not.toContain('This skill plans only');
     const steps = read(dir, NS, 'references', 'propose.md');
     expect(steps).toContain(`/${NS}-apply ($${NS}-apply in Codex)`);
     expect(steps).not.toContain('/opsx:');

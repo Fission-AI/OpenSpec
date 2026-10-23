@@ -4,7 +4,7 @@ Archive a completed change: merge its delta specs into the main specs, validate 
 
 1. **Pick the change.** Use the name given, the one from the conversation, or the only active change. Otherwise run `openspec list --json` and ask, listing active changes with their schema. Say "Using change: <name>" and how to pick another (`/openspec-beta-archive <other>`).
 
-2. **Load advisory inputs.** Run `openspec instructions archive --change "<name>" --json`. Treat `context` and `operationGuidance` as **Runtime inputs** in SKILL.md describes. This lookup is advisory and optional: if it fails or returns invalid JSON (for example on an older CLI), continue with neither. Do not report an error and do not stop.
+2. **Load advisory inputs.** Run `openspec instructions archive --change "<name>" --json`. Use `context` and `operationGuidance` as **Context from the CLI** in SKILL.md says. This lookup is advisory and optional: if it fails or returns invalid JSON (for example on an older CLI), continue with neither. Do not report an error and do not stop.
 
 3. **Check unfinished artifacts.** Run `openspec status --change "<name>" --json` and note any artifact that is neither `done` nor `skipped`. The preview in step 4 archives at once when nothing else needs confirmation, so if any artifact is unfinished, list them and ask whether to continue first. On "Cancel", stop.
 
@@ -16,7 +16,7 @@ Archive a completed change: merge its delta specs into the main specs, validate 
    - `archive` is set: nothing needed confirmation, so the CLI already archived the change. Go to step 6.
    - `archive_confirmation_required` (main specs will change) or `archive_tasks_incomplete`: show each message, plus any unfinished artifact, and ask: "Archive and update the main specs (recommended)", "Archive without updating specs", or "Cancel".
    - `archive_change_not_found`: the name does not match an active change. Show the message, which lists the available changes, and stop.
-   - `archive_spec_update_failed` with "already exists": a requirement this change ADDs is already in the main spec. Show the message and offer to run `/openspec-beta-sync` for this change (it updates a requirement that already exists), then archive with `--yes --skip-specs` once sync succeeds.
+   - `archive_spec_update_failed` with "already exists": a requirement this change ADDs is already in the main spec. Show the message and offer to merge it with `references/sync.md` (it updates a requirement that already exists), then archive with `--yes --skip-specs` once sync succeeds.
    - Any other code is a problem `--yes` cannot fix. Show the `message` and `fix`, then stop: nothing has moved.
 
    Route on the answer:

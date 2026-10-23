@@ -2,7 +2,7 @@ Merge a change's delta specs into the main specs, without archiving the change. 
 
 **Steps**
 
-1. **Pick the change.** Use the name given, the one from the conversation, or the only active change. Otherwise run `openspec list --json` and ask, listing changes that have delta specs. Say "Using change: <name>" and how to pick another (`/openspec-beta-sync <other>`).
+1. **Pick the change.** Use the name given, the one from the conversation, or the only active change. Otherwise run `openspec list --json` and ask, listing changes that have delta specs. Say "Using change: <name>" and how to pick another.
 
 2. **Find the delta specs.** Run `openspec status --change "<name>" --json`. Main specs live under `<planningHome.root>/openspec/specs/` (the store, when one is selected). `artifactPaths.specs.existingOutputPaths` is the only source of delta spec paths. If it is missing or empty, report that there are no delta specs to sync and stop, without inferring them from other artifacts.
 

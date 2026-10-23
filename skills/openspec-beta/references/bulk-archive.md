@@ -6,7 +6,7 @@ Archive several completed changes in one confirmed batch. The CLI archives each 
 
 1. **List and choose.** Run `openspec list --json`; if there are no active changes, say "No active changes found. Create a new change to get started." and stop. Ask the user to choose changes (multi-select). Show each change name and task status from the list output, and include an "All changes" option. **IMPORTANT**: Do NOT auto-select. Always let the user choose.
 
-   Then run `openspec instructions archive --change "<selected-change>" --json` once for one selected change. Treat `context` and `operationGuidance` as **Runtime inputs** in SKILL.md describes. This lookup is advisory: if it fails or returns invalid JSON, continue with neither.
+   Then run `openspec instructions archive --change "<selected-change>" --json` once for one selected change. Use `context` and `operationGuidance` as **Context from the CLI** in SKILL.md says. This lookup is advisory: if it fails or returns invalid JSON, continue with neither.
 
 2. **Check each change.** From the `openspec list --json` output (with the same selected-root flags), find the entry in `changes` whose `name` exactly matches each change, and require nonnegative integer `totalTasks` and `completedTasks`, with `completedTasks <= totalTasks`. Incomplete tasks = `totalTasks - completedTasks`. If a change is missing, duplicated, or miscounted, report it and stop. The CLI counts only `x`/`X` checkbox markers as complete; other markers remain incomplete. Never infer completion from artifact status or the absence of a `tasks.md`.
 
@@ -24,7 +24,7 @@ Archive several completed changes in one confirmed batch. The CLI archives each 
    - Both are implemented: apply both in chronological order (older first). `openspec archive` refuses an ADDED requirement that already exists, so when the later change ADDs a requirement the earlier one already added, send that later delta through sync, like a partly excluded change below.
    - Neither is implemented: exclude both and warn.
 
-   Record an inclusion or exclusion decision for every delta spec, keyed by change and `<capability-path>`, with the evidence you found. A single change can have both included and excluded delta specs. A change whose deltas are all excluded is archived with `--skip-specs`. If a change has both included and excluded deltas, run the `/openspec-beta-sync` workflow for that change with only its included delta paths. Archive it with `--skip-specs` only once sync reports every included path merged; otherwise record the change as failed and leave it active.
+   Record an inclusion or exclusion decision for every delta spec, keyed by change and `<capability-path>`, with the evidence you found. A single change can have both included and excluded delta specs. A change whose deltas are all excluded is archived with `--skip-specs`. If a change has both included and excluded deltas, follow `references/sync.md` for that change with only its included delta paths. Archive it with `--skip-specs` only once sync reports every included path merged; otherwise record the change as failed and leave it active.
 
 4. **Confirm once.** Show one table:
 

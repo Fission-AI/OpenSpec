@@ -11,9 +11,9 @@ metadata:
 
 # OpenSpec continue
 
-1. Read `../openspec-beta/SKILL.md`: the rules every OpenSpec workflow follows.
+1. Read `../openspec-beta/SKILL.md`: what OpenSpec is and the principles every OpenSpec skill follows.
 2. Follow `../openspec-beta/references/continue.md` step by step.
 
-This workflow plans only: finish the plan and stop, even if the request also asks to build it.
+This skill plans only: finish the plan and stop, even if the request also asks to build it.
 
 If `../openspec-beta/` is missing, ask the user to install it with `openspec setup`.
