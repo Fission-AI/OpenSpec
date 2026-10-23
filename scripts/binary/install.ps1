@@ -41,6 +41,9 @@
 
   # Staged inside the install dir so the final move is a same-volume rename.
   New-Item -ItemType Directory -Force -Path $dir | Out-Null
+  # Copies set aside by an earlier upgrade, once nothing runs them any more.
+  Get-ChildItem -Path $dir -Filter "$name.old-*" -ErrorAction SilentlyContinue |
+    Remove-Item -Force -ErrorAction SilentlyContinue
   $tmp = Join-Path $dir ('.openspec-install-' + [Guid]::NewGuid().ToString('N'))
   New-Item -ItemType Directory -Path $tmp | Out-Null
   try {
@@ -68,11 +71,23 @@
     }
 
     $target = Join-Path $dir $name
-    try {
-      Move-Item -Force -Path $exe -Destination $target
-    } catch {
-      throw "openspec install: could not replace $target. Close any running openspec and try again."
+    # Windows cannot overwrite a running exe, and `openspec install` runs this
+    # from the very exe it replaces. Renaming a running exe is allowed, so the
+    # old copy moves aside: deleted now, or by the next install if still running.
+    $old = $null
+    if (Test-Path $target) {
+      $old = "$target.old-" + [Guid]::NewGuid().ToString('N')
+      Rename-Item -Path $target -NewName (Split-Path $old -Leaf)
     }
+    try {
+      Move-Item -Path $exe -Destination $target
+    } catch {
+      if ($old) { Rename-Item -Path $old -NewName $name -ErrorAction SilentlyContinue }
+      throw "openspec install: could not install to ${target}: $($_.Exception.Message)"
+    }
+    if ($old) { Remove-Item -Force -Path $old -ErrorAction SilentlyContinue }
+    # Clear any "downloaded from the internet" mark so Windows does not block it.
+    Unblock-File -Path $target -ErrorAction SilentlyContinue
     Write-Host "Installed openspec $installed to $target"
   } finally {
     Remove-Item -Recurse -Force -Path $tmp -ErrorAction SilentlyContinue
