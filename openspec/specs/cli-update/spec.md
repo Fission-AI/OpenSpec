@@ -3,7 +3,9 @@
 ## Purpose
 
 As a developer using OpenSpec, I want to update the OpenSpec instructions in my project when new versions are released, so that I can benefit from improvements to AI agent instructions.
+
 ## Requirements
+
 ### Requirement: Update Behavior
 The update command SHALL update OpenSpec instruction files to the latest templates in a team-friendly manner.
 
@@ -171,3 +173,15 @@ The archive slash command template SHALL support optional change ID arguments fo
 - **THEN** include the `$ARGUMENTS` placeholder in the frontmatter
 - **AND** wrap it in a clear structure like `<ChangeId>\n  $ARGUMENTS\n</ChangeId>` to indicate the expected argument
 - **AND** include validation steps in the template body to check if the change ID is valid
+
+### Requirement: Oh My Pi tool supported in update
+The `openspec update` command SHALL refresh Oh My Pi skill files and command files when Oh My Pi is configured, using Oh My Pi's hyphen-based command reference convention.
+
+#### Scenario: Updating Oh My Pi skill files
+- **WHEN** `openspec update` runs and Oh My Pi is a configured tool
+- **THEN** skill files in `.omp/skills/openspec-<id>/SKILL.md` are refreshed with the latest templates
+- **AND** skill file bodies use hyphen-based `/opsx-<id>` command references
+
+#### Scenario: Updating Oh My Pi command files
+- **WHEN** `openspec update` runs and Oh My Pi is a configured tool
+- **THEN** command files are written to `.omp/commands/opsx-<id>.md` for each workflow in the active profile, creating them if they do not yet exist and overwriting them if they do
