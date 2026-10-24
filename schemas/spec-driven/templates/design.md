@@ -13,8 +13,21 @@
 <!-- What is explicitly out of scope -->
 
 ## Decisions
+<!-- Give each decision the next unused ID (D1, D2, D3, ...).
+Keep IDs unchanged if a decision title changes or decisions are reordered.
+Never reuse an ID after removing a decision. -->
 
-<!-- Key design decisions with rationale and alternatives considered -->
+### D1
+
+**Title:** Decision title goes here
+
+**Context:** <!-- Why this decision is needed -->
+
+**Decision:** <!-- What was chosen -->
+
+**Rationale:** <!-- Why this option was selected -->
+
+**Alternatives considered:** <!-- Other options and why they were not selected -->
 
 ## Risks / Trade-offs
 
