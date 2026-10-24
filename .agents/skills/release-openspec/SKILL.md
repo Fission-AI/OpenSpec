@@ -146,7 +146,8 @@ After the Version Packages PR merges:
    - `npm view @fission-ai/openspec@<version> version`
    - remote tag `v<version>` points at the expected commit;
    - `gh release view v<version>` exists and is not a prerelease.
-3. If only some artifacts exist, report partial state and resume verification before retrying any publish action. Never republish a version already on npm.
+   - The release's assets include the 8 `openspec-*` standalone binaries and `SHA256SUMS`, attached by the Binaries workflow (`binaries.yml`) about 10 minutes after the release is published. Until `SHA256SUMS` is there, the install scripts keep installing the previous release, so users are never left without one.
+3. If only some artifacts exist, report partial state and resume verification before retrying any publish action. Never republish a version already on npm. Missing binaries never need an npm action: re-run `binaries.yml` with `workflow_dispatch` and the release tag to attach them.
 4. Once all artifacts exist, read [references/release-notes.md](references/release-notes.md), polish the GitHub Release, and verify the saved title/body.
 
 ## Cut a beta

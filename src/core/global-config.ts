@@ -38,6 +38,8 @@ export interface GlobalConfig {
   telemetry?: TelemetryConfig;
   /** Whether the first-run shell-completions tip has been shown. */
   completionTipSeen?: boolean;
+  /** Whether the one-time note about the standalone install has been shown. */
+  standaloneTipSeen?: boolean;
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {

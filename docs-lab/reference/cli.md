@@ -51,6 +51,7 @@ Your agent runs most of these during the workflow.
 | Command | What it does |
 |---|---|
 | [`openspec version`](#openspec-version) | Report the installed version and optionally check for an update. |
+| [`openspec install`](#openspec-install) | Install the standalone `openspec`, which runs without Node.js. |
 | [`openspec feedback`](#openspec-feedback) | Submit feedback about OpenSpec. |
 | [`openspec completion`](#openspec-completion) | Install or generate shell completions. |
 
@@ -2266,7 +2267,7 @@ For a global npm install:
 OpenSpec 1.13.2 (npm, global)
 ```
 
-The install scope is `global`, `project`, `temporary` for an ephemeral runner such as npx, or `source` for a checkout. OpenSpec omits details it cannot identify instead of guessing.
+The install scope is `global`, `project`, `temporary` for an ephemeral runner such as npx, `source` for a checkout, or `standalone` for the [standalone install](../start/installation.md#install). OpenSpec omits details it cannot identify instead of guessing.
 
 `--json` keeps unknown details as explicit `null` values:
 
@@ -2317,12 +2318,43 @@ Update status values:
 | `disabled` | An existing privacy or update-check setting blocked registry access. `latest` is `null`. |
 | `offline` | The registry was unavailable or returned an unusable response. `latest` is `null`. |
 
+For the standalone install, the update command is `openspec install`.
+
 `DO_NOT_TRACK`, telemetry opt-outs, `OPENSPEC_NO_UPDATE_CHECK`, CI detection, and rejected non-HTTPS registry overrides disable the check. Disabled and offline checks still exit 0 because update availability is advisory. This command never upgrades OpenSpec; `canSelfUpgrade` only reports whether the existing `openspec update` path could safely upgrade this copy.
 
 **Exit codes**
 
 - `0`: the local report printed, including disabled or offline update checks.
 - `1`: command syntax was invalid, such as the unsupported `--upgrade` option.
+
+## openspec install
+
+Installs the standalone `openspec`, a single file that runs without Node.js. Run it from an npm or Homebrew install to switch, or from the standalone install to upgrade it in place.
+
+```bash
+openspec install          # newest release
+openspec install 1.15.0   # a specific release
+```
+
+It runs the [install script](../start/installation.md#install), which picks the newest release whose files are all attached and the file for your machine, and checks it against that release's `SHA256SUMS`:
+
+- **From a package manager**: installs to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`) and prints the command that removes the old copy, such as `npm uninstall -g @fission-ai/openspec`. It never removes that copy itself.
+- **From the standalone install**: replaces the running file where it is, under its own name.
+
+Afterwards it says which copy `openspec` now runs, since a package-manager copy earlier on your PATH keeps running until you remove it.
+
+**Arguments**
+
+| Argument | What it is |
+|---|---|
+| `version` | Release to install, like `1.15.0`. Optional; defaults to the latest. |
+
+`OPENSPEC_INSTALL_DIR` and `OPENSPEC_INSTALL_NAME` choose another folder or file name.
+
+**Exit codes**
+
+- `0`: installed.
+- `1`: the version isn't a release version, or the download or install failed. Your current copy is left as it was.
 
 ## openspec feedback
 
