@@ -34,6 +34,8 @@ import {
   validateStoreId,
 } from './store/foundation.js';
 import { getStoreRootForBackend } from './store/registry.js';
+import { gitOriginUrl, repoNameFromGitUrl } from './store/git.js';
+import { toKebabCase, isKebabId } from './id.js';
 import { inspectOpenSpecRoot } from './openspec-root.js';
 import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
@@ -44,6 +46,7 @@ export type OpenSpecRootSource =
   | 'store'
   | 'declared'
   | 'global_default'
+  | 'git_remote'
   | 'nearest'
   | 'implicit';
 
@@ -389,6 +392,45 @@ async function resolveDefaultStoreRoot(
   }
 }
 
+/**
+ * Git-remote store match: when the current repo has no local `openspec/`
+ * directory, derive a candidate store id from the repo's origin URL and
+ * resolve a registered store with that id. Best-effort — no match (no remote,
+ * no parseable name, or no registered store with that id) is `null`, never an
+ * error, so the fallback chain simply continues.
+ */
+async function resolveGitRemoteStore(
+  startPath: string,
+  globalDataDir?: string
+): Promise<ResolvedOpenSpecRoot | null> {
+  // `git -C <path>` needs a directory; a file entry path would make the probe
+  // fail and silently skip a matching store. canonicalDirectory resolves that.
+  const url = await gitOriginUrl(canonicalDirectory(startPath));
+  if (!url) return null;
+
+  const repoName = repoNameFromGitUrl(url);
+  if (!repoName) return null;
+
+  const candidateId = toKebabCase(repoName);
+  if (!candidateId || !isKebabId(candidateId)) return null;
+
+  let registry;
+  try {
+    registry = await readStoreRegistryState(globalDataDir ? { globalDataDir } : {});
+  } catch (error) {
+    fromStoreError(error);
+  }
+  const entries = registry ? listStoreRegistryEntries(registry) : [];
+  if (!entries.some((entry) => entry.id === candidateId)) return null;
+
+  return resolveStoreRoot(candidateId, globalDataDir, 'git_remote');
+}
+
+/**
+ * Resolve the OpenSpec root for a command, in precedence order: `--store <id>`,
+ * the nearest local `openspec/` directory, a git-remote store match, the global
+ * `defaultStore`, then the registered-store hint or an implicit root.
+ */
 export async function resolveOpenSpecRoot(
   options: ResolveOpenSpecRootOptions = {}
 ): Promise<ResolvedOpenSpecRoot> {
@@ -411,6 +453,14 @@ export async function resolveOpenSpecRoot(
   const nearestRoot = findQualifyingRootSync(startPath);
   if (nearestRoot) {
     return resolveNearestOrDeclaredRoot(nearestRoot, options.globalDataDir);
+  }
+
+  // Git-remote match: a repo without a local openspec/ directory may keep its
+  // specs in a store whose id matches the repo name from origin. Best-effort;
+  // a miss falls through to the machine-level default below.
+  const gitRemoteRoot = await resolveGitRemoteStore(startPath, options.globalDataDir);
+  if (gitRemoteRoot) {
+    return gitRemoteRoot;
   }
 
   // Machine-level fallback: a global defaultStore is consulted only after
