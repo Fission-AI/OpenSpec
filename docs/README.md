@@ -99,7 +99,7 @@ That second one matters more than it looks. OpenSpec has two halves: a command l
 ## The thirty-second version
 
 ```text
-1. Install        curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
+1. Install        curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
 2. Initialize     cd your-project && openspec init
 3. Explore        (in your AI chat)  /opsx:explore           ← optional, but a great habit
 4. Propose        (in your AI chat)  /opsx:propose add-dark-mode

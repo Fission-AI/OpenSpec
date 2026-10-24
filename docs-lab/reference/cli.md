@@ -2332,11 +2332,11 @@ For the standalone install, the update command is `openspec install`.
 Installs the standalone `openspec`, a single file that runs without Node.js. Run it from an npm or Homebrew install to switch, or from the standalone install to upgrade it in place.
 
 ```bash
-openspec install          # latest release
+openspec install          # newest release
 openspec install 1.15.0   # a specific release
 ```
 
-It runs the release's installer, which picks the file for your machine and checks it against the release's `SHA256SUMS`:
+It runs the [install script](../start/installation.md#install), which picks the newest release whose files are all attached and the file for your machine, and checks it against that release's `SHA256SUMS`:
 
 - **From a package manager**: installs to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`) and prints the command that removes the old copy, such as `npm uninstall -g @fission-ai/openspec`. It never removes that copy itself.
 - **From the standalone install**: replaces the running file where it is, under its own name.

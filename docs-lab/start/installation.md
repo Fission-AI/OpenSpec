@@ -10,17 +10,18 @@ OpenSpec installs as a single `openspec` file. It needs no Node.js.
 On macOS or Linux, in your terminal:
 
 ```bash
-curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
-irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex
+irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
 ```
 
 - **Where it goes**: `~/.local/bin`; on Windows, `%LOCALAPPDATA%\Programs\openspec`, which it adds to your user PATH.
 - **What it checks**: it picks the file for your machine and verifies it against the release's `SHA256SUMS` before installing.
+- **Which release**: the newest one whose files are all attached. For the few minutes after a release is published while its files upload, it installs the previous one and says so.
 - **Alpine Linux**: run `apk add libstdc++ libgcc` first.
 - **Options**: set `OPENSPEC_INSTALL_DIR` to install elsewhere, or `OPENSPEC_VERSION=v1.15.0` to pin a release.
 

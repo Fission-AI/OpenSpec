@@ -27,12 +27,12 @@ Install the standalone OpenSpec binary. It is a single file and needs no Node.js
 
 ```bash
 # macOS / Linux
-curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
 ```
 
 ```powershell
 # Windows (PowerShell)
-irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex
+irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
 ```
 
 If the user would rather use a package manager, or the installer fails, continue with step 2.

@@ -122,13 +122,13 @@ Install OpenSpec. It is a single file and needs no Node.js (on Alpine Linux, fir
 macOS and Linux:
 
 ```bash
-curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex
+irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
 ```
 
 Prefer a package manager? `npm install -g @fission-ai/openspec@latest` (needs Node.js 20.19.0 or higher) or the official [Homebrew formula](https://formulae.brew.sh/formula/openspec), `brew install openspec`.

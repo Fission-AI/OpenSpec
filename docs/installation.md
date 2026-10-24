@@ -7,16 +7,16 @@ OpenSpec is a single file. It needs no Node.js or anything else (on Alpine Linux
 macOS and Linux:
 
 ```bash
-curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex
+irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
 ```
 
-The installer picks the right file for your machine, checks it against the release's `SHA256SUMS`, and installs it to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`, added to your user `PATH`). Set `OPENSPEC_INSTALL_DIR` to choose another folder, or `OPENSPEC_VERSION=v1.15.0` to pin a release. Prefer npm or another package manager? See [Package Managers](#package-managers).
+The installer picks the newest release whose files are all attached and the right file for your machine, checks it against the release's `SHA256SUMS`, and installs it to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`, added to your user `PATH`). Set `OPENSPEC_INSTALL_DIR` to choose another folder, or `OPENSPEC_VERSION=v1.15.0` to pin a release. Prefer npm or another package manager? See [Package Managers](#package-managers).
 
 To install by hand, download your platform's file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest), rename it to `openspec` (`openspec.exe` on Windows), make it executable on macOS and Linux (`chmod +x openspec`), and put it on your `PATH`:
 
@@ -48,8 +48,8 @@ order, and stop where a step tells you to stop.
    ask; never switch it to a different install method on your own. Otherwise install
    the standalone OpenSpec binary, which needs no Node.js. Show me the command
    for my OS and run it only once I confirm, then skip to step 3:
-     macOS / Linux:        curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
-     Windows (PowerShell): irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex
+     macOS / Linux:        curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
+     Windows (PowerShell): irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
    If I'd rather use a package manager, or the installer fails, go to step 2.
 
 2. PACKAGE MANAGER (only if step 1 did not install it). Run `node --version`:

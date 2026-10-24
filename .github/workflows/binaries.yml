@@ -189,6 +189,28 @@ jobs:
             if (-not (Test-Path (Join-Path $abs 'openspec-renamed.exe'))) { throw 'custom name not used' }
             $raw = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
             if (($raw -split ';') -notcontains $abs) { throw "relative folder not saved as $abs : $raw" }
+
+            # Mid-release: the newest release has no SHA256SUMS yet (still
+            # uploading, or the upload failed). Its previous release installs.
+            $site = Join-Path (Get-Location) 'dist-bin/site'
+            foreach ($tag in 'v1.1.0', 'v1.2.0') {
+              $d = Join-Path $site "releases/download/$tag"
+              New-Item -ItemType Directory -Force -Path $d | Out-Null
+              Copy-Item "dist-bin/openspec-$env:ASSET.exe" $d
+              if ($tag -eq 'v1.1.0') { Copy-Item dist-bin/SHA256SUMS $d }
+            }
+            Set-Content -Path (Join-Path $site 'releases.atom') -Value ('<feed>' + (('v1.2.0', 'v1.1.0' | ForEach-Object { "<link href=""https://github.com/Fission-AI/OpenSpec/releases/tag/$_""/>" }) -join '') + '</feed>')
+            foreach ($shell in 'pwsh', 'powershell') {
+              $dir = Join-Path $env:RUNNER_TEMP "fallback $shell"
+              $out = & $shell -NoProfile -Command "`$env:OPENSPEC_RELEASES_URL='http://127.0.0.1:8765/site/releases'; `$env:OPENSPEC_INSTALL_DIR='$dir'; irm http://127.0.0.1:8765/install.ps1 | iex" 2>&1 | Out-String
+              if ($LASTEXITCODE -ne 0) { throw "$shell fallback install failed: $out" }
+              if ($out -notmatch 'v1\.2\.0 is still being prepared; installing v1\.1\.0\.') { throw "$shell did not fall back with a note: $out" }
+              if ((Get-FileHash (Join-Path $dir 'openspec.exe')).Hash -ne (Get-FileHash "dist-bin/openspec-$env:ASSET.exe").Hash) { throw "$shell fallback installed the wrong file" }
+              # A localhost-looking URL whose real host is remote is refused before any download.
+              $out = & $shell -NoProfile -Command "`$env:OPENSPEC_DOWNLOAD_URL='http://localhost:80@evil.example/x'; `$env:OPENSPEC_INSTALL_DIR='$dir-evil'; irm http://127.0.0.1:8765/install.ps1 | iex" 2>&1 | Out-String
+              if ($LASTEXITCODE -eq 0 -or $out -notmatch 'must use https') { throw "$shell accepted a remote host behind localhost: $out" }
+              if (Test-Path "$dir-evil/openspec.exe") { throw "$shell installed from a refused source" }
+            }
           } finally {
             $key.SetValue('Path', $before, 'ExpandString')
             $key.Close()
@@ -258,7 +280,11 @@ jobs:
           if [ -n "$RELEASE_ID" ]; then
             tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq .tag_name)
           fi
-          gh release upload "$tag" openspec-* SHA256SUMS install.sh install.ps1 --clobber --repo "$GITHUB_REPOSITORY"
+          # SHA256SUMS goes last: installers treat a release that has it as
+          # complete and keep installing the previous one until then. The
+          # installers themselves are served from main, not from releases.
+          gh release upload "$tag" openspec-* --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$tag" SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
       # Signed proof each binary was built by this workflow from this tag, which
       # anyone can check with `gh attestation verify`. The binaries are not
       # notarized or code-signed yet, so this is the verifiable trail meanwhile.
