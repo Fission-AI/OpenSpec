@@ -1,6 +1,10 @@
 import * as os from 'node:os';
+import * as fsPromises from 'node:fs/promises';
 import { asErrorMessage, emitFailure, printJson } from './shared-output.js';
 import * as path from 'node:path';
+import { Command, Option } from 'commander';
+
+import { COMMAND_REGISTRY } from '../core/completions/command-registry.js';
 
 import {
   StoreError,
@@ -22,8 +26,28 @@ import {
   type StoreListResult,
   type StoreMutationResult,
   type SetupStoreInput,
+  type StorePathOptions,
 } from '../core/store/index.js';
 import { isInteractive } from '../utils/interactive.js';
+
+async function pathKind(targetPath: string): Promise<'missing' | 'directory' | 'file' | 'other'> {
+  try {
+    const stat = await fsPromises.stat(targetPath);
+    if (stat.isDirectory()) return 'directory';
+    if (stat.isFile()) return 'file';
+    return 'other';
+  } catch (error) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      (error as NodeJS.ErrnoException).code === 'ENOENT'
+    ) {
+      return 'missing';
+    }
+    throw error;
+  }
+}
 
 export interface StoreSetupOptions {
   path?: string;
@@ -36,15 +60,18 @@ export interface StoreRegisterOptions {
   id?: string;
   yes?: boolean;
   json?: boolean;
+  scope?: string;
 }
 
 export interface StoreRemoveOptions {
   yes?: boolean;
   json?: boolean;
+  scope?: string;
 }
 
 export interface StoreJsonOptions {
   json?: boolean;
+  scope?: string;
 }
 
 interface ResolvedStoreSetupInput extends SetupStoreInput {
@@ -55,6 +82,8 @@ interface StoreOutput {
   id: string;
   root: string;
   metadata_path?: string;
+  /** For project-scoped entries, the directory containing the owning registry file. */
+  registry?: string;
 }
 
 interface StoreMutationOutput {
@@ -63,6 +92,7 @@ interface StoreMutationOutput {
     path: string;
     registered: boolean;
     already_registered: boolean;
+    scope: 'global' | 'project';
   } | null;
   git: {
     is_repository: boolean;
@@ -123,16 +153,18 @@ function toStoreOutput(store: StoreInfo): StoreOutput {
     id: store.id,
     root: store.root,
     ...(store.metadataPath ? { metadata_path: store.metadataPath } : {}),
+    ...(store.registryDir !== undefined ? { registry: store.registryDir } : {}),
   };
 }
 
-function toMutationOutput(result: StoreMutationResult): StoreMutationOutput {
+function toMutationOutput(result: StoreMutationResult, scope: 'global' | 'project' = 'global'): StoreMutationOutput {
   return {
     store: toStoreOutput(result.store),
     registry: {
       path: result.registryCommit.path,
       registered: result.registryCommit.registered,
       already_registered: result.registryCommit.alreadyRegistered,
+      scope,
     },
     git: {
       is_repository: result.git.isRepository,
@@ -163,7 +195,7 @@ function toCleanupOutput(result: StoreCleanupResult): StoreCleanupOutput {
 function toListOutput(result: StoreListResult): StoreListOutput {
   return {
     stores: result.stores.map(toStoreOutput),
-    status: [],
+    status: result.diagnostics,
   };
 }
 
@@ -424,6 +456,10 @@ function printCleanupHuman(title: string, payload: StoreCleanupOutput): void {
 
   console.log(`${title}: ${payload.store.id}`);
 
+  if (payload.registry?.path) {
+    console.log(`Registry updated: ${formatPathForHuman(payload.registry.path)}`);
+  }
+
   if (payload.files.deleted_path) {
     console.log(`Deleted: ${formatPathForHuman(payload.files.deleted_path)}`);
   } else if (payload.files.left_on_disk) {
@@ -447,11 +483,23 @@ function printListHuman(payload: StoreListOutput): void {
     return;
   }
 
+  const showRegistry = payload.stores.some((store) => store.registry !== undefined);
   console.log(`OpenSpec stores (${payload.stores.length})`);
   console.log('');
-  console.log(`${'ID'.padEnd(16)}Location`);
-  for (const store of payload.stores) {
-    console.log(`${store.id.padEnd(16)}${store.root}`);
+  if (showRegistry) {
+    console.log(`${'ID'.padEnd(16)}  Registry  Location`);
+    for (const store of payload.stores) {
+      console.log(`${store.id.padEnd(16)}  ${store.registry ?? ''}  ${store.root}`);
+    }
+  } else {
+    console.log(`${'ID'.padEnd(16)}  Location`);
+    for (const store of payload.stores) {
+      console.log(`${store.id.padEnd(16)}  ${store.root}`);
+    }
+  }
+
+  for (const status of payload.status) {
+    console.log(`${status.severity === 'error' ? 'Issue' : 'Note'}: ${status.message}`);
   }
 }
 
@@ -542,12 +590,16 @@ export class StoreCommand {
 
   async register(inputPath: string | undefined, options: StoreRegisterOptions = {}): Promise<void> {
     try {
+      const scopeOptions: StorePathOptions = options.scope === 'project'
+        ? { projectRoot: process.cwd() }
+        : {};
       let result: StoreMutationResult;
       try {
         result = await registerExistingStore({
           path: inputPath,
           id: options.id,
           allowCreateIdentity: options.yes,
+          ...scopeOptions,
         });
       } catch (error) {
         if (!isRegisterIdentityConfirmationError(error) || options.json || !isInteractive()) {
@@ -559,17 +611,19 @@ export class StoreCommand {
           path: inputPath,
           id: options.id,
           allowCreateIdentity: true,
+          ...scopeOptions,
         });
       }
 
-      const payload = toMutationOutput(result);
+      const scope: 'global' | 'project' = options.scope === 'project' ? 'project' : 'global';
+      const payload = toMutationOutput(result, scope);
 
       if (options.json) {
         printJson(payload);
         return;
       }
 
-      printMutationHuman('Store registered', payload, result.remotes);
+      printMutationHuman(scope === 'project' ? 'Store registered (project-scoped)' : 'Store registered', payload, result.remotes);
     } catch (error) {
       this.handleFailure(
         options.json,
@@ -581,7 +635,10 @@ export class StoreCommand {
 
   async unregister(id: string, options: StoreJsonOptions = {}): Promise<void> {
     try {
-      const payload = toCleanupOutput(await unregisterStore({ id }));
+      const scopeOptions: StorePathOptions = options.scope === 'project'
+        ? { projectRoot: process.cwd() }
+        : {};
+      const payload = toCleanupOutput(await unregisterStore({ id, ...scopeOptions }));
 
       if (options.json) {
         printJson(payload);
@@ -600,7 +657,20 @@ export class StoreCommand {
 
   async remove(id: string, options: StoreRemoveOptions = {}): Promise<void> {
     try {
-      const target = await prepareStoreCleanup({ id });
+      const scopeOptions: StorePathOptions = options.scope === 'project'
+        ? { projectRoot: process.cwd() }
+        : {};
+      const target = await prepareStoreCleanup({ id, ...scopeOptions });
+      if (options.scope === 'project' && (await pathKind(target.root)) === 'missing') {
+        throw new StoreError(
+          `Store '${target.id}' folder is missing: ${target.root}`,
+          'store_root_missing',
+          {
+            target: 'store.root',
+            fix: 'Restore the store folder or unregister the store instead.',
+          }
+        );
+      }
       await confirmRemove(target.id, target.root, options);
       const payload = toCleanupOutput(await removeStore(target));
 
@@ -621,7 +691,10 @@ export class StoreCommand {
 
   async list(options: StoreJsonOptions = {}): Promise<void> {
     try {
-      const payload = toListOutput(await listStores());
+      const scopeOptions: StorePathOptions = options.scope === 'project'
+        ? { projectRoot: process.cwd() }
+        : {};
+      const payload = toListOutput(await listStores(scopeOptions));
 
       if (options.json) {
         printJson(payload);
@@ -636,7 +709,10 @@ export class StoreCommand {
 
   async doctor(id: string | undefined, options: StoreJsonOptions = {}): Promise<void> {
     try {
-      const payload = toDoctorOutput(await doctorStores(id));
+      const scopeOptions: StorePathOptions = options.scope === 'project'
+        ? { projectRoot: process.cwd() }
+        : {};
+      const payload = toDoctorOutput(await doctorStores(id, scopeOptions));
 
       if (options.json) {
         printJson(payload);
@@ -656,4 +732,149 @@ export class StoreCommand {
   ): void {
     emitFailure(json, payload, error, 'store_error');
   }
+}
+
+export function registerStoreCommand(program: Command): void {
+  const storeCommand = new StoreCommand();
+  // One source for the locked group one-liner: the completions registry
+  // entry, which shell completion scripts also consume.
+  const storeGroupDescription =
+    COMMAND_REGISTRY.find((entry) => entry.name === 'store')?.description ??
+    'Create and manage stores - standalone OpenSpec repos you register on this machine';
+  const store = program.command('store').description(storeGroupDescription);
+
+  store
+    .command('setup [id]')
+    .description('Create and register a local store')
+    .option('--path <path>', 'Folder where the store should live (for example ~/openspec/<id>)')
+    .option('--init-git', 'Initialize a Git repository with an initial commit (default)')
+    .option('--no-init-git', 'Skip every Git action: no init, no initial commit')
+    .option('--remote <url>', 'Canonical clone source recorded in store.yaml')
+    .option('--json', 'Output as JSON')
+    .action(async (id: string | undefined, options: StoreSetupOptions) => {
+      await storeCommand.setup(id, options);
+    });
+
+  store
+    .command('register [path]')
+    .description('Register an existing local store')
+    .option('--id <id>', 'Store id; defaults to metadata or folder name')
+    .option('--yes', 'Confirm creating store identity metadata for a healthy OpenSpec root')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
+    .option('--json', 'Output as JSON')
+    .action(async (inputPath: string | undefined, options: StoreRegisterOptions) => {
+      await storeCommand.register(inputPath, options);
+    });
+
+  store
+    .command('unregister <id>')
+    .description('Forget a local store registration without deleting files')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
+    .option('--json', 'Output as JSON')
+    .action(async (id: string, options: StoreJsonOptions) => {
+      await storeCommand.unregister(id, options);
+    });
+
+  store
+    .command('remove <id>')
+    .description('Forget a local store registration and delete its local folder')
+    .option('--yes', 'Confirm local store folder deletion')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
+    .option('--json', 'Output as JSON')
+    .action(async (id: string, options: StoreRemoveOptions) => {
+      await storeCommand.remove(id, options);
+    });
+
+  store
+    .command('list')
+    .alias('ls')
+    .description('List locally registered stores')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
+    .option('--json', 'Output as JSON')
+    .action(async (options: StoreJsonOptions) => {
+      await storeCommand.list(options);
+    });
+
+  store
+    .command('doctor [id]')
+    .description('Check local store registration and metadata')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
+    .option('--json', 'Output as JSON')
+    .action(async (id: string | undefined, options: StoreJsonOptions) => {
+      await storeCommand.doctor(id, options);
+    });
+
+  const lifecycleRedirects = new Set(
+    COMMAND_REGISTRY.filter(
+      (entry) =>
+        entry.flags.some((flag) => flag.name === 'store') ||
+        (entry.subcommands ?? []).some((subcommand) =>
+          subcommand.flags.some((flag) => flag.name === 'store')
+        )
+    ).map((entry) => entry.name)
+  );
+  const storeSubcommandsLine = store.commands
+    .map((subcommand) => {
+      const aliases = subcommand.aliases();
+      return aliases.length > 0 ? `${subcommand.name()} (${aliases.join(', ')})` : subcommand.name();
+    })
+    .join(', ');
+  // One group action owns missing AND unknown subcommands. Known
+  // subcommands dispatch above; everything else — including a bare
+  // `store --json` with no operand — lands here, so the handler owns the
+  // entire message and exit path (same text for human and --json). The
+  // permissive flags route unknown operands/options here instead of
+  // letting Commander emit a raw error before the action runs. We detect
+  // `--json` in the residual args rather than declaring a group option,
+  // which would otherwise shadow each subcommand's own `--json` flag.
+  store.allowExcessArguments(true);
+  store.allowUnknownOption(true);
+  store.action(() => {
+    const operands = store.args;
+    // Flag values are indistinguishable from operands without a full
+    // parse, so the verbatim echo only applies to plain-operand input.
+    const attempted = operands.filter((operand) => !operand.startsWith('-'));
+    const hasFlagLikeToken = operands.some((operand) => operand.startsWith('-'));
+    // The agent contract: --json failures emit one JSON document.
+    if (operands.includes('--json')) {
+      const message =
+        attempted.length > 0
+          ? `Unknown command '${attempted[0]}' for 'openspec store'. Store subcommands: ${storeSubcommandsLine}.`
+          : `Missing subcommand for 'openspec store'. Store subcommands: ${storeSubcommandsLine}.`;
+      printJson({
+        status: [
+          {
+            severity: 'error',
+            code: 'unknown_store_subcommand',
+            message,
+            fix: 'Run a store subcommand, or use the lifecycle command with --store <id>.',
+          },
+        ],
+      });
+      process.exitCode = 1;
+      return;
+    }
+    let example = 'openspec new change <change-id> --store <id>';
+    if (!hasFlagLikeToken && attempted.length > 0 && lifecycleRedirects.has(attempted[0])) {
+      if (attempted[0] === 'new') {
+        const changeId = attempted[1] === 'change' && attempted[2] ? attempted[2] : '<change-id>';
+        example = `openspec new change ${changeId} --store <id>`;
+      } else {
+        example = `openspec ${attempted.join(' ')} --store <id>`;
+      }
+    }
+    console.error(
+      attempted.length > 0
+        ? `Error: unknown command '${attempted[0]}' for 'openspec store'.`
+        : "Error: missing subcommand for 'openspec store'."
+    );
+    console.error(
+      `Store subcommands manage store registration: ${storeSubcommandsLine}.`
+    );
+    console.error(
+      'To create or work on a change in a store, use the normal command with --store, for example:'
+    );
+    console.error(`  ${example}`);
+    process.exitCode = 1;
+  });
 }

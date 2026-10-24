@@ -123,6 +123,45 @@ describe('openspec context (4.1)', () => {
     expect(parseJson(fallback).members).toHaveLength(2);
   }, CONTEXT_MATRIX_TIMEOUT_MS);
 
+  it('resolves references from a project-scoped registry (5.2 wiring)', async () => {
+    // The root project declares a reference bound only in its own
+    // .openspec-store/registry.yaml — proving context passes the project
+    // registry directory through to reference assembly.
+    const projRoot = path.join(tempDir, 'proj');
+    fs.mkdirSync(path.join(projRoot, 'openspec', 'specs'), { recursive: true });
+    fs.mkdirSync(path.join(projRoot, 'openspec', 'changes'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projRoot, 'openspec', 'config.yaml'),
+      'schema: spec-driven\nreferences:\n  - team-plugins\n'
+    );
+    const plugins = path.join(projRoot, 'team-plugins');
+    createOpenSpecRoot(plugins);
+    fs.mkdirSync(path.join(plugins, '.openspec-store'), { recursive: true });
+    fs.writeFileSync(
+      path.join(plugins, '.openspec-store', 'store.yaml'),
+      'version: 1\nid: team-plugins\n'
+    );
+    fs.mkdirSync(path.join(projRoot, '.openspec-store'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projRoot, '.openspec-store', 'registry.yaml'),
+      'version: 1\nstores:\n  team-plugins:\n    path: team-plugins\n'
+    );
+
+    const result = await runCLI(['context', '--json'], { cwd: projRoot, env });
+    expect(result.exitCode).toBe(0);
+    const payload = parseJson(result);
+    expect(payload.root.source).toBe('nearest');
+    expect(payload.members).toEqual([
+      {
+        role: 'referenced_store',
+        id: 'team-plugins',
+        path: plugins,
+        fetch: 'openspec show <spec-id> --type spec --store team-plugins',
+        status: [],
+      },
+    ]);
+  }, CONTEXT_MATRIX_TIMEOUT_MS);
+
   it('distinguishes self-reference omission from nothing declared', async () => {
     fs.writeFileSync(
       path.join(storeRoot, 'openspec', 'config.yaml'),
