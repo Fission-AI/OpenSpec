@@ -1,15 +1,44 @@
 #!/bin/sh
 # Installs the standalone `openspec` binary (no Node.js needed) on Linux or macOS.
 #
-#   curl -fsSL https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
 #
-# OPENSPEC_VERSION      release to install (default: latest), e.g. v1.15.0
+# OPENSPEC_VERSION      release to install (default: the newest complete one), e.g. v1.15.0
 # OPENSPEC_INSTALL_DIR  where to put it (default: ~/.local/bin)
 # OPENSPEC_INSTALL_NAME file name to install as (default: openspec)
-# OPENSPEC_DOWNLOAD_URL base URL of the release assets (mirrors, testing)
+# OPENSPEC_RELEASES_URL releases page to install from (default: GitHub's; mirrors, testing)
+# OPENSPEC_DOWNLOAD_URL one folder holding the release files (mirrors, testing)
 set -eu
 
 fail() { echo "openspec install: $*" >&2; exit 1; }
+
+# The binary and SHA256SUMS come from the same place, so a remote plain HTTP
+# source could swap both: only https, or http to this machine. The host is
+# parsed, not prefix-matched: http://localhost:80@evil.example/ names
+# evil.example, so anything with a user part is refused.
+check_source() {
+  case "$2" in
+    https://*) scheme=https authority=${2#https://} ;;
+    http://*) scheme=http authority=${2#http://} ;;
+    *) fail "$1 must use https (or http to localhost): $2" ;;
+  esac
+  authority=${authority%%/*}
+  authority=${authority%%\?*}
+  authority=${authority%%#*}
+  case "$authority" in *@*) fail "$1 must use https (or http to localhost): $2" ;; esac
+  [ "$scheme" = https ] && return 0
+  host=$authority
+  case "$authority" in
+    "[::1]:"* | localhost:* | 127.0.0.1:*)
+      host=${authority%:*}
+      case "${authority##*:}" in "" | *[!0-9]*) fail "$1 has an invalid port: $2" ;; esac
+      ;;
+  esac
+  case "$host" in
+    localhost | 127.0.0.1 | "[::1]") return 0 ;;
+    *) fail "$1 must use https (or http to localhost): $2" ;;
+  esac
+}
 
 # Everything runs from main, so a download cut short while piped into sh
 # runs nothing instead of half a script.
@@ -38,18 +67,11 @@ main() {
 
   version="${OPENSPEC_VERSION:-latest}"
   case "$version" in latest | v*) ;; *) version="v$version" ;; esac
+  releases="${OPENSPEC_RELEASES_URL:-https://github.com/Fission-AI/OpenSpec/releases}"
+  releases=${releases%/}
+  check_source OPENSPEC_RELEASES_URL "$releases"
   if [ -n "${OPENSPEC_DOWNLOAD_URL:-}" ]; then
-    base="$OPENSPEC_DOWNLOAD_URL"
-    # The binary and SHA256SUMS come from the same place, so a remote plain
-    # HTTP source could swap both.
-    case "$base" in
-      https://* | http://localhost[:/]* | http://localhost | http://127.0.0.1[:/]* | http://127.0.0.1 | "http://[::1]"*) ;;
-      *) fail "OPENSPEC_DOWNLOAD_URL must use https (or http to localhost): $base" ;;
-    esac
-  elif [ "$version" = latest ]; then
-    base="https://github.com/Fission-AI/OpenSpec/releases/latest/download"
-  else
-    base="https://github.com/Fission-AI/OpenSpec/releases/download/$version"
+    check_source OPENSPEC_DOWNLOAD_URL "$OPENSPEC_DOWNLOAD_URL"
   fi
   if [ -n "${OPENSPEC_INSTALL_DIR:-}" ]; then
     dir="$OPENSPEC_INSTALL_DIR"
@@ -76,11 +98,51 @@ main() {
       fail "curl or wget is required"
     fi
   }
+  fetch() {
+    if command -v curl >/dev/null 2>&1; then
+      curl -fsSL --retry 3 "$1"
+    elif command -v wget >/dev/null 2>&1; then
+      wget -q -O - "$1"
+    else
+      fail "curl or wget is required"
+    fi
+  }
+
+  npm_hint="or install with npm (Node.js 20.19+): npm install -g @fission-ai/openspec"
+  if [ -n "${OPENSPEC_DOWNLOAD_URL:-}" ]; then
+    base=${OPENSPEC_DOWNLOAD_URL%/}
+  elif [ "$version" != latest ]; then
+    base="$releases/download/$version"
+  else
+    # The newest stable release whose files are all attached. GitHub calls a
+    # release "latest" the moment it is published, minutes before the Binaries
+    # workflow attaches the files (and for good, if that fails), so "latest"
+    # is not trusted. SHA256SUMS is uploaded last: a release that has it is
+    # complete.
+    newest=""
+    tags=$(fetch "$releases.atom" 2>/dev/null |
+      grep -o '/releases/tag/v[0-9]*\.[0-9]*\.[0-9]*"' | sed 's#.*/tag/##; s/"$//' | awk '!seen[$0]++') || tags=""
+    for tag in $tags; do
+      [ -n "$newest" ] || newest=$tag
+      if download "$releases/download/$tag/SHA256SUMS" "$tmp/SHA256SUMS" 2>/dev/null; then
+        version=$tag
+        break
+      fi
+    done
+    if [ "$version" = latest ]; then
+      fail "found no release with the standalone files at $releases; $npm_hint"
+    fi
+    if [ "$version" != "$newest" ]; then
+      echo "$newest is still being prepared; installing $version."
+    fi
+    base="$releases/download/$version"
+  fi
 
   echo "Downloading $asset ($version)..."
-  npm_hint="or install with npm (Node.js 20.19+): npm install -g @fission-ai/openspec"
   download "$base/$asset" "$tmp/$asset" || fail "could not download $base/$asset; $npm_hint"
-  download "$base/SHA256SUMS" "$tmp/SHA256SUMS" || fail "could not download $base/SHA256SUMS; $npm_hint"
+  if [ ! -s "$tmp/SHA256SUMS" ]; then
+    download "$base/SHA256SUMS" "$tmp/SHA256SUMS" || fail "could not download $base/SHA256SUMS; $npm_hint"
+  fi
 
   expected=$(awk -v f="$asset" '$2 == f { print $1 }' "$tmp/SHA256SUMS")
   [ -n "$expected" ] || fail "$asset is not listed in SHA256SUMS"

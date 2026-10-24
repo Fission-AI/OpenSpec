@@ -4,7 +4,8 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   installStandalone,
-  releaseBase,
+  checkSource,
+  installerBase,
   removeCommandFor,
   resolveInstallTarget,
 } from '../../src/commands/install-standalone.js';
@@ -96,21 +97,38 @@ describe('openspec install', () => {
     });
   });
 
-  describe('releaseBase', () => {
-    it('downloads from the latest release, or the release named', () => {
-      const releases = 'https://github.com/Fission-AI/OpenSpec/releases';
-      expect(releaseBase(undefined, '')).toBe(`${releases}/latest/download`);
-      expect(releaseBase('1.15.0', '')).toBe(`${releases}/download/v1.15.0`);
-      expect(releaseBase('v1.15.0', '')).toBe(`${releases}/download/v1.15.0`);
+  describe('installerBase', () => {
+    it('takes the installer from main, which always has it, unless a mirror is set', () => {
+      expect(installerBase({})).toBe('https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary');
+      expect(installerBase({ OPENSPEC_DOWNLOAD_URL: 'http://127.0.0.1:8765/' })).toBe('http://127.0.0.1:8765');
     });
 
-    it('accepts a mirror over https, and plain http only to this machine', () => {
-      expect(releaseBase(undefined, 'https://mirror.example.com/openspec/')).toBe('https://mirror.example.com/openspec');
-      expect(releaseBase(undefined, 'http://127.0.0.1:8765')).toBe('http://127.0.0.1:8765');
-      expect(releaseBase(undefined, 'http://localhost:9/x')).toBe('http://localhost:9/x');
-      for (const unsafe of ['http://mirror.example.com', 'http://localhost.example.com', 'ftp://x', 'not a url']) {
-        expect(() => releaseBase(undefined, unsafe)).toThrow('OPENSPEC_DOWNLOAD_URL');
-      }
+    it('checks OPENSPEC_RELEASES_URL too, though the installer is what reads it', () => {
+      expect(() => installerBase({ OPENSPEC_RELEASES_URL: 'http://localhost:80@evil.example/' })).toThrow(
+        'OPENSPEC_RELEASES_URL must use https'
+      );
+    });
+  });
+
+  describe('checkSource', () => {
+    it('accepts https anywhere, and plain http only to this machine', () => {
+      expect(checkSource('X', 'https://mirror.example.com/openspec/')).toBe('https://mirror.example.com/openspec');
+      expect(checkSource('X', 'http://127.0.0.1:8765')).toBe('http://127.0.0.1:8765');
+      expect(checkSource('X', 'http://localhost:9/x')).toBe('http://localhost:9/x');
+      expect(checkSource('X', 'http://[::1]:8/x')).toBe('http://[::1]:8/x');
+    });
+
+    it.each([
+      'http://localhost:80@evil.example/x',
+      'http://localhost@evil.example',
+      'https://user@mirror.example.com',
+      'http://127.0.0.1.evil.example/',
+      'http://localhost.evil.example',
+      'http://mirror.example.com',
+      'ftp://localhost/',
+      'not a url',
+    ])('refuses %s', (unsafe) => {
+      expect(() => checkSource('OPENSPEC_DOWNLOAD_URL', unsafe)).toThrow('OPENSPEC_DOWNLOAD_URL');
     });
   });
 

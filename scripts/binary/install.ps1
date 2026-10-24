@@ -1,11 +1,12 @@
 # Installs the standalone `openspec.exe` (no Node.js needed) on Windows.
 #
-#   irm https://github.com/Fission-AI/OpenSpec/releases/latest/download/install.ps1 | iex
+#   irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
 #
-# $env:OPENSPEC_VERSION      release to install (default: latest), e.g. v1.15.0
+# $env:OPENSPEC_VERSION      release to install (default: the newest complete one), e.g. v1.15.0
 # $env:OPENSPEC_INSTALL_DIR  where to put it (default: %LOCALAPPDATA%\Programs\openspec)
 # $env:OPENSPEC_INSTALL_NAME file name to install as (default: openspec.exe)
-# $env:OPENSPEC_DOWNLOAD_URL base URL of the release assets (mirrors, testing)
+# $env:OPENSPEC_RELEASES_URL releases page to install from (default: GitHub's; mirrors, testing)
+# $env:OPENSPEC_DOWNLOAD_URL one folder holding the release files (mirrors, testing)
 #
 # Runs in Windows PowerShell 5.1 and PowerShell 7. It throws instead of
 # calling exit, which would close the window of anyone who piped it into iex.
@@ -27,20 +28,20 @@
 
   $version = if ($env:OPENSPEC_VERSION) { $env:OPENSPEC_VERSION } else { 'latest' }
   if ($version -ne 'latest' -and -not $version.StartsWith('v')) { $version = "v$version" }
-  $base = if ($env:OPENSPEC_DOWNLOAD_URL) {
-    # The binary and SHA256SUMS come from the same place, so a remote plain
-    # HTTP source could swap both.
+  # The binary and SHA256SUMS come from the same place, so a remote plain HTTP
+  # source could swap both: only https, or http to this machine. [Uri] parses
+  # the host, so http://localhost:80@evil.example/ is evil.example, not loopback.
+  function Assert-Source($label, $value) {
     $uri = $null
-    if (-not [Uri]::TryCreate($env:OPENSPEC_DOWNLOAD_URL, 'Absolute', [ref]$uri) -or
+    if (-not [Uri]::TryCreate($value, 'Absolute', [ref]$uri) -or $uri.UserInfo -or
         -not ($uri.Scheme -eq 'https' -or ($uri.Scheme -eq 'http' -and $uri.IsLoopback))) {
-      throw "openspec install: OPENSPEC_DOWNLOAD_URL must use https (or http to localhost): $($env:OPENSPEC_DOWNLOAD_URL)"
+      throw "openspec install: $label must use https (or http to localhost): $value"
     }
-    $env:OPENSPEC_DOWNLOAD_URL
-  } elseif ($version -eq 'latest') {
-    'https://github.com/Fission-AI/OpenSpec/releases/latest/download'
-  } else {
-    "https://github.com/Fission-AI/OpenSpec/releases/download/$version"
   }
+  $releases = if ($env:OPENSPEC_RELEASES_URL) { $env:OPENSPEC_RELEASES_URL.TrimEnd('/') } else { 'https://github.com/Fission-AI/OpenSpec/releases' }
+  Assert-Source 'OPENSPEC_RELEASES_URL' $releases
+  if ($env:OPENSPEC_DOWNLOAD_URL) { Assert-Source 'OPENSPEC_DOWNLOAD_URL' $env:OPENSPEC_DOWNLOAD_URL }
+  $npmHint = 'Or install with npm (Node.js 20.19+): npm install -g @fission-ai/openspec'
   $dir = if ($env:OPENSPEC_INSTALL_DIR) { $env:OPENSPEC_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA 'Programs\openspec' }
   # Absolute, so the user PATH entry works from any directory.
   $dir = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($dir)
@@ -54,14 +55,41 @@
   $tmp = Join-Path $dir ('.openspec-install-' + [Guid]::NewGuid().ToString('N'))
   New-Item -ItemType Directory -Path $tmp | Out-Null
   try {
-    Write-Host "Downloading $asset ($version)..."
     $exe = Join-Path $tmp $asset
     $sums = Join-Path $tmp 'SHA256SUMS'
+    if ($env:OPENSPEC_DOWNLOAD_URL) {
+      $base = $env:OPENSPEC_DOWNLOAD_URL.TrimEnd('/')
+    } elseif ($version -ne 'latest') {
+      $base = "$releases/download/$version"
+    } else {
+      # The newest stable release whose files are all attached. GitHub calls a
+      # release "latest" the moment it is published, minutes before the
+      # Binaries workflow attaches the files (and for good, if that fails), so
+      # "latest" is not trusted. SHA256SUMS is uploaded last: a release that
+      # has it is complete.
+      $feed = ''
+      try { $feed = (Invoke-WebRequest -UseBasicParsing -Uri "$releases.atom").Content } catch { Write-Verbose "No release feed: $_" }
+      $tags = @([regex]::Matches($feed, '/releases/tag/(v\d+\.\d+\.\d+)"') | ForEach-Object { $_.Groups[1].Value } | Select-Object -Unique)
+      foreach ($tag in $tags) {
+        try {
+          Invoke-WebRequest -UseBasicParsing -Uri "$releases/download/$tag/SHA256SUMS" -OutFile $sums
+          $version = $tag
+          break
+        } catch {
+          Write-Verbose "$tag is not complete yet: $_"
+        }
+      }
+      if ($version -eq 'latest') { throw "openspec install: found no release with the standalone files at $releases. $npmHint" }
+      if ($tags.Count -gt 0 -and $version -ne $tags[0]) { Write-Host "$($tags[0]) is still being prepared; installing $version." }
+      $base = "$releases/download/$version"
+    }
+
+    Write-Host "Downloading $asset ($version)..."
     try {
       Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $exe
-      Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile $sums
+      if (-not (Test-Path $sums)) { Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile $sums }
     } catch {
-      throw "openspec install: could not download from ${base}: $($_.Exception.Message). Or install with npm (Node.js 20.19+): npm install -g @fission-ai/openspec"
+      throw "openspec install: could not download from ${base}: $($_.Exception.Message). $npmHint"
     }
 
     $line = Get-Content $sums | Where-Object { ($_ -split '\s+')[1] -eq $asset } | Select-Object -First 1

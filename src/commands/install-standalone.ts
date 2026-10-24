@@ -16,7 +16,9 @@ import {
  * is the user's choice, and so is when.
  */
 
-const RELEASES_URL = 'https://github.com/Fission-AI/OpenSpec/releases';
+// The installers come from main, which always has them; they then pick the
+// newest release whose files are all attached (see install.sh).
+const INSTALLER_BASE = 'https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary';
 const RELEASE_VERSION = /^v?\d{1,10}\.\d{1,10}\.\d{1,10}(?:-[0-9A-Za-z.-]{1,64})?$/;
 
 export interface InstallTarget {
@@ -72,27 +74,30 @@ export function removeCommandFor(install: CliInstallInfo): string | null {
 }
 
 /**
- * Where the release files come from. OPENSPEC_DOWNLOAD_URL (a mirror, or a
- * local server in tests) must be HTTPS, or plain HTTP to this machine only:
- * the binary is checked against SHA256SUMS from the same place, so a remote
- * HTTP source could swap both.
+ * Checks a download source given through the environment. Release files and
+ * SHA256SUMS come from the same place, so a remote plain-HTTP source could
+ * swap both: only https, or http to this machine. The host is parsed, not
+ * prefix-matched, and a user part (http://localhost:80@evil.example/) is
+ * refused.
  */
-export function releaseBase(version: string | undefined, override = process.env.OPENSPEC_DOWNLOAD_URL): string {
-  if (override) {
-    let url: URL;
-    try {
-      url = new URL(override);
-    } catch {
-      throw new Error(`OPENSPEC_DOWNLOAD_URL is not a URL: ${override}`);
-    }
-    const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-    if (url.protocol !== 'https:' && !(url.protocol === 'http:' && local)) {
-      throw new Error(`OPENSPEC_DOWNLOAD_URL must use https (or http to localhost): ${override}`);
-    }
-    return url.href.replace(/\/+$/, '');
+export function checkSource(label: string, value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${label} is not a URL: ${value}`);
   }
-  if (!version || version === 'latest') return `${RELEASES_URL}/latest/download`;
-  return `${RELEASES_URL}/download/${version.startsWith('v') ? version : `v${version}`}`;
+  const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if (url.username || url.password || (url.protocol !== 'https:' && !(url.protocol === 'http:' && local))) {
+    throw new Error(`${label} must use https (or http to localhost): ${value}`);
+  }
+  return url.href.replace(/\/+$/, '');
+}
+
+/** Where the installer script comes from: OPENSPEC_DOWNLOAD_URL when set (mirrors, tests), else main. */
+export function installerBase(env: NodeJS.ProcessEnv = process.env): string {
+  if (env.OPENSPEC_RELEASES_URL) checkSource('OPENSPEC_RELEASES_URL', env.OPENSPEC_RELEASES_URL);
+  return env.OPENSPEC_DOWNLOAD_URL ? checkSource('OPENSPEC_DOWNLOAD_URL', env.OPENSPEC_DOWNLOAD_URL) : INSTALLER_BASE;
 }
 
 // Fixed scripts: the installer URL reaches them as data (an argument, or an
@@ -129,8 +134,7 @@ export async function installStandalone(options: { version?: string } = {}): Pro
     throw new Error(`Not a release version: ${version}. Use one like 1.15.0, or leave it out for the latest.`);
   }
 
-  const base = releaseBase(version);
-  const scriptUrl = `${base}/${process.platform === 'win32' ? 'install.ps1' : 'install.sh'}`;
+  const scriptUrl = `${installerBase()}/${process.platform === 'win32' ? 'install.ps1' : 'install.sh'}`;
   const target = resolveInstallTarget();
   const exitCode = await runInstaller(scriptUrl, {
     ...process.env,
