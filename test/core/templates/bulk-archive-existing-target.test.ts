@@ -30,27 +30,21 @@ describe('bulk archive existing-target handling', () => {
   // `mv` moves changeRoot *inside* an existing target directory and exits 0,
   // so a same-day name collision produced
   // archive/<target>/<target>/ and was recorded as a successful archive.
-  it('checks the archive target before moving changeRoot (#1827)', () => {
+  it('delegates the final move and collision checks to the CLI (#1827)', () => {
     for (const [label, body] of bodies) {
       const step = archiveStep(body, label);
-
-      expect(step, label).toContain('**Check if target already exists:**');
-      expect(step, label).toContain('Archive directory already exists');
-      expect(step, label).toContain('leave `changeRoot` where it is');
-      expect(step, label).toContain('continue with the remaining changes');
+      expect(step, label).toContain('openspec archive "<name>" --skip-specs --yes --json');
+      expect(step, label).toContain('archive lock and destination-collision checks');
+      expect(step, label).not.toContain('mv "<changeRoot>"');
     }
   });
 
-  it('orders the existence check between the target name and the move (#1827)', () => {
+  it('records failures and continues only after checking the CLI result (#1827)', () => {
     for (const [label, body] of bodies) {
       const step = archiveStep(body, label);
-      const targetName = step.indexOf('Target name: use the `<target-name>` recorded');
-      const existenceCheck = step.indexOf('**Check if target already exists:**');
-      const move = step.indexOf('mv "<changeRoot>"');
-
-      expect(targetName, label).toBeGreaterThanOrEqual(0);
-      expect(existenceCheck, label).toBeGreaterThan(targetName);
-      expect(move, label).toBeGreaterThan(existenceCheck);
+      expect(step, label).toContain('Require a zero exit status and an `archive` result');
+      expect(step, label).toContain('record the diagnostics and continue');
+      expect(step, label).toContain('remaining confirmed changes');
     }
   });
 
@@ -79,41 +73,23 @@ describe('bulk archive existing-target handling', () => {
     }
   });
 
-  // The dated name must be computed once. Recomputing it at the move lets a
-  // batch that crosses midnight check yesterday's target in step 3, sync main
-  // specs, then collide at today's target with the change still active.
-  it('reuses the target name recorded in step 3 for the move (#1827)', () => {
+  // The CLI owns the final dated destination; preflight previews can become
+  // stale across midnight, and a late collision must be reported as a failure.
+  it('uses the CLI destination rather than promising to reuse the preview (#1827)', () => {
     for (const [label, body] of bodies) {
-      const preflight = body.slice(
-        body.indexOf('   d. **Archive target**'),
-        body.indexOf('4. **Detect spec conflicts**')
-      );
       const step = archiveStep(body, label);
-
-      expect(preflight, label).toContain("record it as that change's `<target-name>`");
-      expect(preflight, label).toContain('prepend the current date');
-      expect(step, label).toContain(
-        'Target name: use the `<target-name>` recorded for this change in step 3d, unchanged'
-      );
-      expect(step, label).not.toContain('prepend the current date');
-      expect(body, label).toContain('computed once in step 3d and reused at the move');
+      expect(step, label).toContain('preflight target is advisory');
+      expect(step, label).toContain('at invocation time');
+      expect(step, label).toContain('Record the returned `archive.path`');
+      expect(body, label).not.toContain('computed once in step 3d and reused at the move');
     }
   });
 
-  // The last check and the `mv` are separate steps, so a target created in
-  // between still nests the change with exit 0. The workflow must detect the
-  // nesting after the move and undo it instead of reporting success.
-  it('detects and undoes a move that nested inside a late target (#1827)', () => {
+  it('preserves existing archives without a shell fallback (#1827)', () => {
     for (const [label, body] of bodies) {
       const step = archiveStep(body, label);
-      const move = step.indexOf('mv "<changeRoot>"');
-      const confirm = step.indexOf('**Confirm the move did not nest:**');
-
-      expect(move, label).toBeGreaterThanOrEqual(0);
-      expect(confirm, label).toBeGreaterThan(move);
-      expect(step.slice(confirm), label).toContain(
-        'move that directory back to `changeRoot` and record this change as Failed'
-      );
+      expect(step, label).toContain('Do not fall back to a shell move or bypass');
+      expect(step, label).toContain('an existing archive must remain intact');
     }
   });
 
