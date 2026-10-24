@@ -78,11 +78,16 @@ describe.skipIf(process.platform === 'win32')('standalone installer (install.sh)
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-installer-'));
     server = http.createServer((req, res) => {
       const file = path.join(root, decodeURIComponent(new URL(req.url ?? '/', 'http://x').pathname));
-      if (!file.startsWith(root) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+      // Read, rather than check and then read: missing files and folders are a 404.
+      let body: Buffer;
+      try {
+        if (!file.startsWith(root + path.sep)) throw new Error('outside the site');
+        body = fs.readFileSync(file);
+      } catch {
         res.writeHead(404).end();
         return;
       }
-      res.writeHead(200).end(fs.readFileSync(file));
+      res.writeHead(200).end(body);
     });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
