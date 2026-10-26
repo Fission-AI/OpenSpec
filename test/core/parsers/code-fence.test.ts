@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildCodeFenceMask } from '../../../src/core/parsers/code-fence.js';
 import { MarkdownParser } from '../../../src/core/parsers/markdown-parser.js';
+import { extractRequirementsSection } from '../../../src/core/parsers/requirement-blocks.js';
 
 describe('buildCodeFenceMask', () => {
   it('does not open a fence on a backtick line whose info string contains a backtick', () => {
@@ -18,6 +19,26 @@ describe('buildCodeFenceMask', () => {
   it('still opens a plain backtick fence with an info string', () => {
     const lines = ['```ts', 'code', '```', 'after'];
     expect(buildCodeFenceMask(lines)).toEqual([true, true, true, false]);
+  });
+
+  it('still opens and closes fences on lines that keep a CRLF ending', () => {
+    const lines = ['```ts\r', '### Requirement: hidden\r', '```\r', 'after\r'];
+    expect(buildCodeFenceMask(lines)).toEqual([true, true, true, false]);
+  });
+
+  it('keeps the archive parser seeing requirements after triple-backtick inline code', () => {
+    const content = [
+      '## Requirements',
+      '',
+      '### Requirement: First',
+      '```openspec validate``` SHALL exit 0.',
+      '',
+      '### Requirement: Second',
+      'The system SHALL keep this requirement.',
+      '',
+    ].join('\n');
+    const parts = extractRequirementsSection(content);
+    expect(parts.bodyBlocks.map((b) => b.name)).toEqual(['First', 'Second']);
   });
 
   it('keeps requirements after a line that starts with triple-backtick inline code', () => {

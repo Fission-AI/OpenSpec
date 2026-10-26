@@ -14,7 +14,9 @@ interface ActiveFence {
 }
 
 function getFenceMarker(line: string): ActiveFence | null {
-  const fenceMatch = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+  // Unanchored at the end: `.` does not match `\r`, so `(.*)$` would reject
+  // every opener on a line that still carries a CRLF ending.
+  const fenceMatch = line.match(/^\s*(`{3,}|~{3,})(.*)/);
   if (!fenceMatch) {
     return null;
   }
