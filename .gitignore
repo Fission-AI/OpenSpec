@@ -167,3 +167,7 @@ opencode.json
 # Cursor
 .cursor/
 scripts/skill-eval/results/
+
+# Standalone binaries (scripts/binary/build.mjs); Bun can leave .bun-build temp files
+dist-bin/
+*.bun-build

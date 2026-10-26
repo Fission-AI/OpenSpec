@@ -1,5 +1,27 @@
 # @fission-ai/openspec
 
+## 1.15.0
+
+### Minor Changes
+
+- [#2137](https://github.com/Fission-AI/OpenSpec/pull/2137) [`31c6d1c`](https://github.com/Fission-AI/OpenSpec/commit/31c6d1c43468754332d1ab16de6dff1e1e92419c) Thanks [@clay-good](https://github.com/clay-good)! - OpenSpec now installs as a single file with no Node.js needed: `curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh` on macOS and Linux, or `irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex` on Windows. Every release now includes binaries for macOS, Linux (glibc and musl) and Windows on x64 and arm64, with `SHA256SUMS`. npm and the other package managers keep working as before.
+
+- [#2109](https://github.com/Fission-AI/OpenSpec/pull/2109) [`c230424`](https://github.com/Fission-AI/OpenSpec/commit/c2304240c5b671d86eb6756743ab921fe20270e1) Thanks [@clay-good](https://github.com/clay-good)! - Add `openspec update --dry-run` (with `--json`) to report the files an update would add, change or delete without writing anything.
+
+### Patch Changes
+
+- [#2044](https://github.com/Fission-AI/OpenSpec/pull/2044) [`f988c52`](https://github.com/Fission-AI/OpenSpec/commit/f988c526edfe9748ced5d18512976974ac10e089) Thanks [@clay-good](https://github.com/clay-good)! - `openspec feedback` now files issues that match the bug form: the body uses the form's headings and spells out the missing repro steps, and the manual-submission link opens the bug form itself with the message, version, and environment prefilled.
+
+- [#2116](https://github.com/Fission-AI/OpenSpec/pull/2116) [`15b3b50`](https://github.com/Fission-AI/OpenSpec/commit/15b3b50f15dc7210b2ae6189b5d76f74fd528b0f) Thanks [@surlymochan](https://github.com/surlymochan)! - Commands run with `--json` start a little faster. `status`, `instructions`, `new change`, `templates`, `validate` and `schema` no longer load the `ora` spinner package when they are run with `--json`, which never shows a spinner. `openspec status --json` now loads 163 modules instead of 186. Output is unchanged.
+
+- [#2120](https://github.com/Fission-AI/OpenSpec/pull/2120) [`832e2cf`](https://github.com/Fission-AI/OpenSpec/commit/832e2cf836b8c8cdefa2f5e500145bd55323ea06) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
+  
+  - `openspec new change` no longer announces `with schema 'spec-driven'` in its progress line when `openspec/config.yaml` selects a different schema; the progress line now names the same schema the change is created with.
+
+- [#2114](https://github.com/Fission-AI/OpenSpec/pull/2114) [`6b15619`](https://github.com/Fission-AI/OpenSpec/commit/6b15619931472f4b6bf9c91cafd4c76bd72d72b5) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
+  
+  - `/opsx:verify` now matches a REMOVED requirement's baseline by its exact name. After a sync, a similarly named ADDED requirement that replaced it is no longer read as the removed one, so the removal is not reported as still implemented.
+
 ## 1.14.3
 
 ### Patch Changes

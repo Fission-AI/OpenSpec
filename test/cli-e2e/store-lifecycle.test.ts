@@ -4,7 +4,7 @@ import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { promisify } from 'util';
-import { runCLI } from '../helpers/run-cli.js';
+import { runCLI, testBinary } from '../helpers/run-cli.js';
 import { cleanupTempPath } from '../helpers/temp-cleanup.js';
 
 const execFileAsync = promisify(execFile);
@@ -480,7 +480,11 @@ describe('standalone store lifecycle journey', () => {
         path.join(env.XDG_DATA_HOME as string, 'openspec'),
         new Set()
       );
-      expect(dataEntries).toEqual(['stores/', 'stores/registry.yaml']);
+      // The standalone binary also keeps its built-in schemas here.
+      const planningState = testBinary
+        ? dataEntries.filter((entry) => !entry.startsWith('binary-schemas/'))
+        : dataEntries;
+      expect(planningState).toEqual(['stores/', 'stores/registry.yaml']);
     }
   });
 

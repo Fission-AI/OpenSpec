@@ -47,6 +47,7 @@ export const GlobalConfigSchema = z
         backups: z.array(z.string()).optional(),
       })
       .optional(),
+    standaloneTipSeen: z.boolean().optional(),
   })
   .passthrough();
 

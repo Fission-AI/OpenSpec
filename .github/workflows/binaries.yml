@@ -1,0 +1,295 @@
+name: Binaries
+
+# Standalone `openspec` executables for people without Node.js (#2055).
+# One Linux job cross-compiles every asset; each is then tested on its own OS
+# and CPU, and only then attached to a published release. Not run in the merge
+# queue: the PR run covers the change, and a release re-verifies before upload.
+on:
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to build and attach binaries to
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: binaries-${{ github.ref }}-${{ inputs.tag }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  BUN_VERSION: '1.4.3'
+  # The release's tag, or the commit under test.
+  REF: ${{ github.event.release.tag_name || inputs.tag || github.sha }}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      # No dependency caches: this job builds release binaries, and a cache
+      # written by a pull request run could poison them.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '20.19.0'
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+          no-cache: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: bun scripts/binary/build.mjs --all
+      # The binaries report package.json's version (smoke.sh checks), so this
+      # keeps assets off a release they do not belong to.
+      - name: Check the version matches the release tag
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+        run: |
+          version=$(node -p "require('./package.json').version")
+          # Tags are v1.2.3, or @fission-ai/openspec@1.2.3 as changesets first
+          # creates them. Exact match: a suffix match would let v11.0.0 pass for 1.0.0.
+          tag_version=${REF##*@}
+          tag_version=${tag_version#v}
+          [[ "$tag_version" == "$version" ]] || {
+            echo "::error::package.json version $version does not match tag $REF"
+            exit 1
+          }
+      - name: Checksums and installer
+        run: |
+          cd dist-bin
+          sha256sum openspec-* > SHA256SUMS
+          cp ../scripts/binary/install.sh ../scripts/binary/install.ps1 .
+          cat SHA256SUMS
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: binaries
+          path: dist-bin/
+          if-no-files-found: error
+          retention-days: 7
+
+  verify:
+    name: Verify ${{ matrix.asset }}
+    needs: build
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { asset: linux-x64, os: ubuntu-latest }
+          - { asset: linux-arm64, os: ubuntu-24.04-arm }
+          # Oldest Alpine whose libstdc++ the musl build links against.
+          - { asset: linux-x64-musl, os: ubuntu-latest, alpine: '3.17' }
+          - { asset: linux-arm64-musl, os: ubuntu-24.04-arm, alpine: '3.17' }
+          - { asset: darwin-x64, os: macos-15-intel }
+          - { asset: darwin-arm64, os: macos-latest }
+          - { asset: windows-x64, os: windows-latest }
+          - { asset: windows-arm64, os: windows-11-arm }
+    defaults:
+      run:
+        shell: bash
+    env:
+      ASSET: ${{ matrix.asset }}
+      ALPINE: ${{ matrix.alpine }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: binaries
+          path: dist-bin
+      - run: chmod +x dist-bin/openspec-*
+
+      - name: Smoke test
+        run: |
+          if [ -n "$ALPINE" ]; then
+            docker run --rm -v "$PWD:/src" -w /src "alpine:$ALPINE" sh -c \
+              "apk add --no-cache bash libstdc++ libgcc >/dev/null && bash scripts/binary/smoke.sh dist-bin/openspec-$ASSET"
+          elif [ "$RUNNER_OS" = Windows ]; then
+            bash scripts/binary/smoke.sh "dist-bin/openspec-$ASSET.exe"
+          else
+            bash scripts/binary/smoke.sh "dist-bin/openspec-$ASSET"
+          fi
+
+      - name: Run from PowerShell and cmd
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $exe = "dist-bin\openspec-$env:ASSET.exe"
+          & $exe --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          cmd /c "$exe --version"
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # Serves this build as a release and checks the installer picks exactly
+      # this asset on this machine, verifies it, and installs a working copy.
+      - name: Install script
+        if: runner.os != 'Windows'
+        run: |
+          python3 -m http.server 8765 --directory dist-bin >/dev/null 2>&1 &
+          for _ in $(seq 20); do curl -sf -o /dev/null http://127.0.0.1:8765/SHA256SUMS && break; sleep 0.5; done
+          if [ -n "$ALPINE" ]; then
+            docker run --rm --network host -v "$PWD/dist-bin:/dist:ro" "alpine:$ALPINE" sh -c \
+              "apk add --no-cache libstdc++ libgcc >/dev/null &&
+               OPENSPEC_DOWNLOAD_URL=http://127.0.0.1:8765 OPENSPEC_INSTALL_DIR=/opt/bin sh /dist/install.sh &&
+               cmp /opt/bin/openspec /dist/openspec-$ASSET"
+          else
+            OPENSPEC_DOWNLOAD_URL=http://127.0.0.1:8765 OPENSPEC_INSTALL_DIR="$RUNNER_TEMP/bin" sh dist-bin/install.sh
+            cmp "$RUNNER_TEMP/bin/openspec" "dist-bin/openspec-$ASSET"
+          fi
+
+      # Same as above for Windows, in both PowerShell 7 and the Windows
+      # PowerShell 5.1 every Windows 10/11 machine has, through `irm | iex`.
+      - name: Install script (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Invoke-ScriptAnalyzer -Path scripts/binary/install.ps1 -Severity Warning,Error -ExcludeRule PSAvoidUsingWriteHost -EnableExit
+          $server = Start-Process python -ArgumentList '-m', 'http.server', '8765', '--directory', 'dist-bin' -PassThru -WindowStyle Hidden
+          foreach ($i in 1..40) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/SHA256SUMS | Out-Null; break } catch { Start-Sleep -Milliseconds 500 } }
+          # A user PATH entry that relies on expansion must survive untouched.
+          $key = [Microsoft.Win32.Registry]::CurrentUser.OpenSubKey('Environment', $true)
+          $before = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
+          $key.SetValue('Path', "$before;%USERPROFILE%\openspec-path-probe", 'ExpandString')
+          try {
+            foreach ($shell in 'pwsh', 'powershell') {
+              $dir = Join-Path $env:RUNNER_TEMP "install $shell"
+              foreach ($run in 1, 2) {
+                & $shell -NoProfile -Command "`$env:OPENSPEC_DOWNLOAD_URL='http://127.0.0.1:8765'; `$env:OPENSPEC_INSTALL_DIR='$dir'; irm http://127.0.0.1:8765/install.ps1 | iex"
+                if ($LASTEXITCODE -ne 0) { throw "$shell install run $run failed" }
+              }
+              $exe = Join-Path $dir 'openspec.exe'
+              if ((Get-FileHash $exe).Hash -ne (Get-FileHash "dist-bin/openspec-$env:ASSET.exe").Hash) { throw "$shell installed the wrong file" }
+              & $exe --version
+              if ($LASTEXITCODE -ne 0) { throw "$shell's installed copy does not run" }
+              $raw = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
+              if (@($raw -split ';' | Where-Object { $_ -eq $dir }).Count -ne 1) { throw "$shell did not add $dir to the user PATH exactly once: $raw" }
+              if ($raw -notlike '*%USERPROFILE%\openspec-path-probe*') { throw "$shell expanded the user PATH: $raw" }
+              if ($key.GetValueKind('Path') -ne 'ExpandString') { throw "$shell changed the user PATH type" }
+            }
+            # A relative folder is saved to PATH as an absolute one; a custom name is kept.
+            Push-Location $env:RUNNER_TEMP
+            pwsh -NoProfile -Command "`$env:OPENSPEC_DOWNLOAD_URL='http://127.0.0.1:8765'; `$env:OPENSPEC_INSTALL_DIR='relative install'; `$env:OPENSPEC_INSTALL_NAME='openspec-renamed.exe'; irm http://127.0.0.1:8765/install.ps1 | iex"
+            Pop-Location
+            if ($LASTEXITCODE -ne 0) { throw 'relative install failed' }
+            $abs = Join-Path $env:RUNNER_TEMP 'relative install'
+            if (-not (Test-Path (Join-Path $abs 'openspec-renamed.exe'))) { throw 'custom name not used' }
+            $raw = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
+            if (($raw -split ';') -notcontains $abs) { throw "relative folder not saved as $abs : $raw" }
+
+            # Mid-release: the newest release has no SHA256SUMS yet (still
+            # uploading, or the upload failed). Its previous release installs.
+            $site = Join-Path (Get-Location) 'dist-bin/site'
+            foreach ($tag in 'v1.1.0', 'v1.2.0') {
+              $d = Join-Path $site "releases/download/$tag"
+              New-Item -ItemType Directory -Force -Path $d | Out-Null
+              Copy-Item "dist-bin/openspec-$env:ASSET.exe" $d
+              if ($tag -eq 'v1.1.0') { Copy-Item dist-bin/SHA256SUMS $d }
+            }
+            Set-Content -Path (Join-Path $site 'releases.atom') -Value ('<feed>' + (('v1.2.0', 'v1.1.0' | ForEach-Object { "<link href=""https://github.com/Fission-AI/OpenSpec/releases/tag/$_""/>" }) -join '') + '</feed>')
+            foreach ($shell in 'pwsh', 'powershell') {
+              $dir = Join-Path $env:RUNNER_TEMP "fallback $shell"
+              $out = & $shell -NoProfile -Command "`$env:OPENSPEC_RELEASES_URL='http://127.0.0.1:8765/site/releases'; `$env:OPENSPEC_INSTALL_DIR='$dir'; irm http://127.0.0.1:8765/install.ps1 | iex" 2>&1 | Out-String
+              if ($LASTEXITCODE -ne 0) { throw "$shell fallback install failed: $out" }
+              if ($out -notmatch 'v1\.2\.0 is still being prepared; installing v1\.1\.0\.') { throw "$shell did not fall back with a note: $out" }
+              if ((Get-FileHash (Join-Path $dir 'openspec.exe')).Hash -ne (Get-FileHash "dist-bin/openspec-$env:ASSET.exe").Hash) { throw "$shell fallback installed the wrong file" }
+              # A localhost-looking URL whose real host is remote is refused before any download.
+              $out = & $shell -NoProfile -Command "`$env:OPENSPEC_DOWNLOAD_URL='http://localhost:80@evil.example/x'; `$env:OPENSPEC_INSTALL_DIR='$dir-evil'; irm http://127.0.0.1:8765/install.ps1 | iex" 2>&1 | Out-String
+              if ($LASTEXITCODE -eq 0 -or $out -notmatch 'must use https') { throw "$shell accepted a remote host behind localhost: $out" }
+              if (Test-Path "$dir-evil/openspec.exe") { throw "$shell installed from a refused source" }
+            }
+          } finally {
+            $key.SetValue('Path', $before, 'ExpandString')
+            $key.Close()
+            Stop-Process $server
+          }
+
+      # The repo's own CLI tests, run against this binary instead of Node.
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: matrix.alpine == ''
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: matrix.alpine == ''
+        with:
+          node-version: '20.19.0'
+          package-manager-cache: false
+      - name: CLI test suite and `openspec install` against the binary
+        run: |
+          # `openspec install` (install-check.sh) downloads from this build, served locally.
+          # On Windows, python3 can be the Microsoft Store stub; python is the real one.
+          py=python3; [ "$RUNNER_OS" = Windows ] && py=python
+          $py -m http.server 8766 --directory dist-bin >/dev/null 2>&1 &
+          for _ in $(seq 20); do curl -sf -o /dev/null http://127.0.0.1:8766/SHA256SUMS && break; sleep 0.5; done
+          if [ -n "$ALPINE" ]; then
+            # Copied in: the container installs its own (musl) dependencies.
+            # Run as a normal user; root can read files the tests make unreadable.
+            docker run --rm --network host -v "$PWD:/src:ro" node:22-alpine sh -c \
+              "apk add -q --no-cache bash git libstdc++ libgcc && corepack enable &&
+               mkdir /w && cd /src && tar --exclude=./node_modules -cf - . | tar -xf - -C /w && chown -R node /w &&
+               su node -c 'cd /w && pnpm install --frozen-lockfile && pnpm run build &&
+                 bash scripts/binary/e2e.sh dist-bin/openspec-$ASSET &&
+                 OPENSPEC_DOWNLOAD_URL=http://127.0.0.1:8766 bash scripts/binary/install-check.sh dist-bin/openspec-$ASSET'"
+          else
+            pnpm install --frozen-lockfile
+            pnpm run build
+            bin="dist-bin/openspec-$ASSET"
+            [ "$RUNNER_OS" = Windows ] && bin="$bin.exe"
+            bash scripts/binary/e2e.sh "$bin"
+            OPENSPEC_DOWNLOAD_URL=http://127.0.0.1:8766 bash scripts/binary/install-check.sh "$bin"
+          fi
+
+  release:
+    name: Attach to release
+    needs: verify
+    if: github.repository == 'Fission-AI/OpenSpec' && (github.event_name == 'release' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # upload release assets
+      id-token: write # sign the provenance attestation
+      attestations: write # store it
+      artifact-metadata: write # record the attested files
+    steps:
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: binaries
+          path: dist-bin
+      - name: Upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ github.event.release.id }}
+        run: |
+          cd dist-bin
+          sha256sum --check SHA256SUMS
+          # A release can be retagged while this runs (the scoped
+          # @fission-ai/openspec@x.y.z tag corrected to vx.y.z), so find it by
+          # id, which never changes, and upload to whatever tag it has now.
+          tag="$REF"
+          if [ -n "$RELEASE_ID" ]; then
+            tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RELEASE_ID" --jq .tag_name)
+          fi
+          # SHA256SUMS goes last: installers treat a release that has it as
+          # complete and keep installing the previous one until then. The
+          # installers themselves are served from main, not from releases.
+          gh release upload "$tag" openspec-* --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$tag" SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
+      # Signed proof each binary was built by this workflow from this tag, which
+      # anyone can check with `gh attestation verify`. The binaries are not
+      # notarized or code-signed yet, so this is the verifiable trail meanwhile.
+      # After the upload, so a first-time problem here never holds binaries back.
+      - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        continue-on-error: true
+        with:
+          subject-path: 'dist-bin/openspec-*'

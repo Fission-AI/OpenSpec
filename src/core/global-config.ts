@@ -40,6 +40,8 @@ export interface GlobalConfig {
   completionTipSeen?: boolean;
   /** Set by `openspec setup`: skills installed for this machine's agents. */
   machineSetup?: MachineSetupRecord;
+  /** Whether the one-time note about the standalone install has been shown. */
+  standaloneTipSeen?: boolean;
 }
 
 export interface MachineSetupRecord {

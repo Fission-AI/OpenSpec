@@ -3,7 +3,7 @@ import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { execFileSync } from 'node:child_process';
-import { runCLI, cliProjectRoot } from '../helpers/run-cli.js';
+import { runCLI, cliProjectRoot, testBinary } from '../helpers/run-cli.js';
 import { isolatedGitEnv } from '../helpers/store-git.js';
 import { AI_TOOLS } from '../../src/core/config.js';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
@@ -104,6 +104,10 @@ describe('openspec CLI e2e basics', () => {
   });
 
   describe('version command', () => {
+    // From this checkout the CLI is a source install; the binary knows it is one.
+    const scope = testBinary ? 'standalone' : 'source';
+    const installRoot = testBinary ? path.dirname(testBinary) : cliProjectRoot;
+
     it('reports local version and source install details outside an OpenSpec project', async () => {
       const cwd = await fs.mkdtemp(path.join(tmpdir(), 'openspec-version-empty-'));
       tempRoots.push(cwd);
@@ -113,7 +117,7 @@ describe('openspec CLI e2e basics', () => {
       const result = await runCLI(['version'], { cwd });
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toBe(`OpenSpec ${pkg.version} (source)\n`);
+      expect(result.stdout).toBe(`OpenSpec ${pkg.version} (${scope})\n`);
       expect(result.stderr).toBe('');
     });
 
@@ -129,10 +133,10 @@ describe('openspec CLI e2e basics', () => {
         install: {
           location: expect.any(String),
           packageManager: null,
-          scope: 'source',
+          scope,
         },
       });
-      expect(await fs.realpath(output.install.location)).toBe(await fs.realpath(cliProjectRoot));
+      expect(await fs.realpath(output.install.location)).toBe(await fs.realpath(installRoot));
     });
 
     it('reports a disabled update check as data and exits successfully', async () => {
@@ -158,7 +162,7 @@ describe('openspec CLI e2e basics', () => {
       });
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toMatch(/^OpenSpec \S+ \(source\)\nUpdate check disabled\.\n$/);
+      expect(result.stdout).toMatch(new RegExp(`^OpenSpec \\S+ \\(${scope}\\)\\nUpdate check disabled\\.\\n$`));
       expect(result.stderr).toBe('');
     });
 
