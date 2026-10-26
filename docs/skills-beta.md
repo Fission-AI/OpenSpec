@@ -17,6 +17,8 @@ If you installed OpenSpec as a standalone binary, the npm install sits beside it
 
 Run `openspec setup --dry-run` first to see what it would install and move. Start a new agent session afterwards.
 
+Or install only the skills with `npx skills add "Fission-AI/OpenSpec#claude/openspec-skills-overhaul-1e6c68" -g` (you still need the CLI). To update, run the same command again.
+
 ## What you get
 
 | Agent | Where | Start a workflow |

@@ -56,7 +56,7 @@ Commands can return `context` (facts about this project) and `operationGuidance`
 ## Principles
 
 - **Specs describe behavior, not code:** what a user or caller can observe, one behavior per requirement, in short sentences with concrete examples (a real date, an exact message).
-- **Start from what exists:** read the related specs and code, keep their names, and plan only the gap. See `references/changes.md` and `references/capabilities.md`.
+- **Start from what exists:** read the related specs and code, keep their names, and plan only the gap, with nothing the request did not ask for. See `references/changes.md` and `references/capabilities.md`.
 - **Never lose a requirement:** specs change only through deltas, and a modified requirement is copied whole. See `references/deltas.md`.
 - **Decide the small things, raise the big ones:** say what you chose and what you assumed, plainly; ask about anything costly to undo. See `references/decisions.md`.
 - **Ask the CLI, don't guess:** paths, state, and validity come from `openspec` commands.
