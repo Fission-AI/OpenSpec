@@ -21,18 +21,18 @@ TODO:
 
 ## 1. Install
 
-Run `openspec --version` first. If it already prints a version, the CLI is installed: say so, run `openspec version --check` (it prints the update command for how OpenSpec was installed when it can tell; otherwise update it the way it was installed, e.g. `brew upgrade openspec`), offer to run that command, and skip ahead to step 3. If it was installed with npm or another package manager, mention once that `openspec install` switches to the standalone install, which runs without Node.js. Only offer it: the user may have chosen npm on purpose, so don't repeat it or switch unless they ask. Never switch an install to a different method on your own; that leaves two copies competing on PATH.
+Run `openspec --version` first. If it already prints a version, the CLI is installed: say so, run `openspec version --check` (it prints the update command for how OpenSpec was installed when it can tell; otherwise update it the way it was installed, e.g. `brew upgrade openspec`), offer to run that command, and skip ahead to step 3. If it was installed with npm or another package manager, mention once that `openspec install` switches to the standalone install. Only offer it: the user may have chosen npm on purpose, so don't repeat it or switch unless they ask. Never switch an install to a different method on your own; that leaves two copies competing on PATH.
 
-Install the standalone OpenSpec binary. It is a single file and needs no Node.js (on Alpine Linux, `apk add libstdc++ libgcc` first). Show the command for the user's OS and run it only once they confirm, then skip to step 3:
+Install the standalone OpenSpec binary (on Alpine Linux, `apk add libstdc++ libgcc` first). Show the command for the user's OS and run it only once they confirm, then skip to step 3:
 
 ```bash
 # macOS / Linux
-curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
+curl -fsSL https://openspec.dev/install.sh | sh
 ```
 
 ```powershell
 # Windows (PowerShell)
-irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
+irm https://openspec.dev/install.ps1 | iex
 ```
 
 If the user would rather use a package manager, or the installer fails, continue with step 2.

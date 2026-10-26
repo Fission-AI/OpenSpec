@@ -2,32 +2,19 @@
 
 ## Install
 
-OpenSpec is a single file. It needs no Node.js or anything else (on Alpine Linux, first run `apk add libstdc++ libgcc`).
-
 macOS and Linux:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
+curl -fsSL https://openspec.dev/install.sh | sh
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
+irm https://openspec.dev/install.ps1 | iex
 ```
 
-The installer picks the newest release whose files are all attached and the right file for your machine, checks it against the release's `SHA256SUMS`, and installs it to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`, added to your user `PATH`). Set `OPENSPEC_INSTALL_DIR` to choose another folder, or `OPENSPEC_VERSION=v1.15.0` to pin a release. Prefer npm or another package manager? See [Package Managers](#package-managers).
-
-To install by hand, download your platform's file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest), rename it to `openspec` (`openspec.exe` on Windows), make it executable on macOS and Linux (`chmod +x openspec`), and put it on your `PATH`:
-
-| Platform | File |
-|---|---|
-| macOS 13+ (Apple Silicon / Intel) | `openspec-darwin-arm64` / `openspec-darwin-x64` |
-| Linux (glibc 2.17+) | `openspec-linux-x64` / `openspec-linux-arm64` |
-| Alpine 3.17+ (needs `apk add libstdc++ libgcc`) | `openspec-linux-x64-musl` / `openspec-linux-arm64-musl` |
-| Windows 10+ | `openspec-windows-x64.exe` / `openspec-windows-arm64.exe` |
-
-On macOS, a file downloaded with a browser is blocked until you run `xattr -d com.apple.quarantine openspec`; the install script avoids this. On Windows, SmartScreen may warn the first time you run it from Explorer.
+Then [verify the installation](#verify-installation). Need a specific version or folder? See [install options](#install-options).
 
 ## Install with your AI assistant
 
@@ -46,10 +33,10 @@ order, and stop where a step tells you to stop.
    skip to step 3. If I installed it with a package manager, mention once that
    `openspec install` switches to the standalone install, but only switch if I
    ask; never switch it to a different install method on your own. Otherwise install
-   the standalone OpenSpec binary, which needs no Node.js. Show me the command
+   the standalone OpenSpec binary. Show me the command
    for my OS and run it only once I confirm, then skip to step 3:
-     macOS / Linux:        curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
-     Windows (PowerShell): irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
+     macOS / Linux:        curl -fsSL https://openspec.dev/install.sh | sh
+     Windows (PowerShell): irm https://openspec.dev/install.ps1 | iex
    If I'd rather use a package manager, or the installer fails, go to step 2.
 
 2. PACKAGE MANAGER (only if step 1 did not install it). Run `node --version`:
@@ -202,6 +189,21 @@ Or add to your development environment in `flake.nix`:
 ```bash
 openspec --version
 ```
+
+## Install options
+
+- **Folder**: set `OPENSPEC_INSTALL_DIR`. The default is `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`).
+- **Version**: set `OPENSPEC_VERSION`, for example `OPENSPEC_VERSION=v1.15.0`.
+- **Alpine Linux**: run `apk add libstdc++ libgcc` first.
+
+To download by hand, get the archive for your machine from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest), unpack it, and put `openspec` on your PATH. On macOS, also run `xattr -d com.apple.quarantine openspec`.
+
+| Platform | File |
+|---|---|
+| macOS (Apple Silicon / Intel) | `openspec-darwin-arm64.tar.gz` / `openspec-darwin-x64.tar.gz` |
+| Linux (arm64 / x64) | `openspec-linux-arm64.tar.gz` / `openspec-linux-x64.tar.gz` |
+| Alpine (arm64 / x64) | `openspec-linux-arm64-musl.tar.gz` / `openspec-linux-x64-musl.tar.gz` |
+| Windows (arm64 / x64) | `openspec-windows-arm64.zip` / `openspec-windows-x64.zip` |
 
 ## Switch from npm to the standalone install
 

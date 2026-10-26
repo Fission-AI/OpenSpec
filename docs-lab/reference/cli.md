@@ -2329,7 +2329,7 @@ For the standalone install, the update command is `openspec install`.
 
 ## openspec install
 
-Installs the standalone `openspec`, a single file that runs without Node.js. Run it from an npm or Homebrew install to switch, or from the standalone install to upgrade it in place.
+Installs the standalone `openspec`. Run it from an npm or Homebrew install to switch, or from the standalone install to upgrade it in place.
 
 ```bash
 openspec install          # newest release
