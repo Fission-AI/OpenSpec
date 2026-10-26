@@ -49,6 +49,24 @@ describe('validate with an unparseable config.yaml', () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('Error: Could not parse');
     expect(result.stderr).toContain('Fix: Fix the YAML syntax in');
+    expect(result.stderr).toContain(path.join('openspec', 'config.yaml'));
+  });
+
+  it('fails the same way when the config is spelled config.yml', async () => {
+    const ymlPath = path.join(testDir, 'openspec', 'config.yml');
+    await fs.rename(configPath, ymlPath);
+
+    const result = await runCLI(['validate', '--all'], { cwd: testDir });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain(path.join('openspec', 'config.yml'));
+  });
+
+  it('leaves other commands warning and carrying on', async () => {
+    const result = await runCLI(['list', '--specs'], { cwd: testDir });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain('alpha');
   });
 
   it('reports the parse error in the JSON status envelope', async () => {
@@ -59,6 +77,7 @@ describe('validate with an unparseable config.yaml', () => {
     expect(output.status).toHaveLength(1);
     expect(output.status[0]).toMatchObject({ severity: 'error', code: 'unparseable_config' });
     expect(output.status[0].message).toContain('Could not parse');
+    expect(output.status[0].message).toContain(path.join('openspec', 'config.yaml'));
   });
 
   it('still passes once the YAML is fixed', async () => {
