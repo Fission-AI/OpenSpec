@@ -5,13 +5,13 @@
 macOS and Linux:
 
 ```bash
-curl -fsSL https://openspec.dev/install.sh | sh
+curl -fsSL https://openspec.dev/cli/install.sh | sh
 ```
 
 Windows (PowerShell):
 
 ```powershell
-irm https://openspec.dev/install.ps1 | iex
+irm https://openspec.dev/cli/install.ps1 | iex
 ```
 
 Then [verify the installation](#verify-installation). Need a specific version or folder? See [install options](#install-options).
@@ -35,8 +35,8 @@ order, and stop where a step tells you to stop.
    ask; never switch it to a different install method on your own. Otherwise install
    the standalone OpenSpec binary. Show me the command
    for my OS and run it only once I confirm, then skip to step 3:
-     macOS / Linux:        curl -fsSL https://openspec.dev/install.sh | sh
-     Windows (PowerShell): irm https://openspec.dev/install.ps1 | iex
+     macOS / Linux:        curl -fsSL https://openspec.dev/cli/install.sh | sh
+     Windows (PowerShell): irm https://openspec.dev/cli/install.ps1 | iex
    If I'd rather use a package manager, or the installer fails, go to step 2.
 
 2. PACKAGE MANAGER (only if step 1 did not install it). Run `node --version`:

@@ -1,6 +1,6 @@
 # Installs the standalone `openspec.exe` (no Node.js needed) on Windows.
 #
-#   irm https://openspec.dev/install.ps1 | iex
+#   irm https://openspec.dev/cli/install.ps1 | iex
 #
 # $env:OPENSPEC_VERSION      release to install (default: the newest complete one), e.g. v1.15.0
 # $env:OPENSPEC_INSTALL_DIR  where to put it (default: %LOCALAPPDATA%\Programs\openspec)

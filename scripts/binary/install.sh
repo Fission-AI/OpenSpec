@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs the standalone `openspec` binary (no Node.js needed) on Linux or macOS.
 #
-#   curl -fsSL https://openspec.dev/install.sh | sh
+#   curl -fsSL https://openspec.dev/cli/install.sh | sh
 #
 # OPENSPEC_VERSION      release to install (default: the newest complete one), e.g. v1.15.0
 # OPENSPEC_INSTALL_DIR  where to put it (default: ~/.local/bin)

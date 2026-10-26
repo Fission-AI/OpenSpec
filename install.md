@@ -27,12 +27,12 @@ Install the standalone OpenSpec binary (on Alpine Linux, `apk add libstdc++ libg
 
 ```bash
 # macOS / Linux
-curl -fsSL https://openspec.dev/install.sh | sh
+curl -fsSL https://openspec.dev/cli/install.sh | sh
 ```
 
 ```powershell
 # Windows (PowerShell)
-irm https://openspec.dev/install.ps1 | iex
+irm https://openspec.dev/cli/install.ps1 | iex
 ```
 
 If the user would rather use a package manager, or the installer fails, continue with step 2.

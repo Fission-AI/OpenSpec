@@ -8,13 +8,13 @@
 On macOS or Linux:
 
 ```bash
-curl -fsSL https://openspec.dev/install.sh | sh
+curl -fsSL https://openspec.dev/cli/install.sh | sh
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
-irm https://openspec.dev/install.ps1 | iex
+irm https://openspec.dev/cli/install.ps1 | iex
 ```
 
 Then [check it worked](#check-it-worked). Need a specific version or folder? See [install options](#install-options).
