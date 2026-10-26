@@ -43,6 +43,8 @@ node scripts/skill-eval/judge.mjs scripts/skill-eval/results before after --scen
 
 `--install plugin` runs each request through the Claude Code plugin `openspec setup` installs (prompts become `/openspec-beta:<workflow>`); `--install single` installs the same `openspec-beta` router and `openspec-beta-<workflow>` skills into the project (prompts become `/openspec-beta-<workflow>`), the way agents reading `~/.agents/skills` get them.
 
+`--install npx` installs the checkout's committed `skills/` mirror with the real `npx skills add <checkout> -a claude-code`, the way `npx` users get it (regenerate the mirror first).
+
 `--init-cli <checkout>` sets each project up with another checkout's CLI and then runs this one's `openspec update`, so every scenario also proves the upgrade path. `--delivery both` installs commands beside skills, the default for existing users.
 
 `--model` picks the agent model, `--only a,b` runs some scenarios, and `--grader` sets the checkout whose CLI grades results (default: this one). Each run writes `<scenario>-<rep>.json` (checks, tokens, cost, turns, time) and the full `stream.jsonl` transcript.

@@ -14,4 +14,4 @@ metadata:
 1. Read `../openspec-beta/SKILL.md`: what OpenSpec is and the principles every OpenSpec skill follows.
 2. Follow `../openspec-beta/references/archive.md` step by step.
 
-If `../openspec-beta/` is missing, ask the user to install it with `openspec setup`.
+If `../openspec-beta/` or that file is missing, the OpenSpec skills are incomplete or out of date: ask the user to reinstall them (`openspec setup`, or `npx skills add Fission-AI/OpenSpec`).

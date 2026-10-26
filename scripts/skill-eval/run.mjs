@@ -85,6 +85,15 @@ async function buildPlugin(dir) {
 const { generateOpenSpecSkillSet, workflowSkillName, SKILL_NAMESPACE, WORKFLOW_ORDER } =
   values.install === 'project' ? {} : await import(path.join(cliRoot, 'dist/core/shared/openspec-skill.js'));
 
+// `--install npx`: the real `npx skills add` of this checkout's committed
+// skills/ mirror, into the project for Claude Code, exactly as a user gets it.
+function npxSkills(root) {
+  const result = run('npx', ['-y', 'skills', 'add', cliRoot, '-a', 'claude-code', '-y'], { cwd: root });
+  if (result.code !== 0 || !fs.existsSync(path.join(root, '.claude', 'skills', SKILL_NAMESPACE, 'SKILL.md'))) {
+    throw new Error(`npx skills add failed:\n${result.out.slice(-1500)}`);
+  }
+}
+
 function writeSingleSkill(root) {
   const skills = generateOpenSpecSkillSet({
     workflows: WORKFLOWS,
@@ -151,6 +160,8 @@ function makeProject(scenario, work) {
     fs.mkdirSync(scratch);
     if (values.install === 'single') {
       writeSingleSkill(root);
+    } else if (values.install === 'npx') {
+      npxSkills(root);
     } else if (values.install !== 'plugin') {
       run('openspec', ['init', '--tools', 'claude'], { cwd: scratch, env: initEnv });
       if (initCliRoot !== cliRoot) upgrade(scratch, env);
@@ -163,6 +174,7 @@ function makeProject(scenario, work) {
     if (init.code !== 0) throw new Error(`openspec init failed:\n${init.out}`);
     if (initCliRoot !== cliRoot) upgrade(root, env);
     if (values.install === 'single') writeSingleSkill(root);
+    if (values.install === 'npx') npxSkills(root);
   }
   scenario.setup?.(root);
   // The starting commit is the baseline every "what changed" check diffs

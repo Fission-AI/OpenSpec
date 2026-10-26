@@ -19,6 +19,9 @@ every agent on your machine at once:
 npm i -g @fission-ai/openspec@beta && openspec setup
 ```
 
+To update, run the same `npx skills add` again. The skills drive the `openspec`
+CLI; without it, they ask you to install it.
+
 To go back:
 
 - Installed with `openspec setup`: run `openspec setup --revert`. It removes these

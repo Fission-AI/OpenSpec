@@ -39,6 +39,7 @@ Planning skills (explore, propose, new, continue, ff, update) end the response: 
 ## Finding the project
 
 - **Project:** before the first write, run `openspec list --json`. Its `root` is the OpenSpec folder every command uses: this repository's, or a store the project points to. Commands find it on their own.
+- **No CLI:** if `openspec` is not found, these skills were installed without the OpenSpec CLI. Ask the user to install it (`npm i -g @fission-ai/openspec`), and stop.
 - **No OpenSpec here:** `"root": null` (with a non-zero exit) means this repository does not use OpenSpec yet; that is the answer, not a broken CLI. Create nothing: no `openspec init`, no hand-made `openspec/` files. If you picked this skill yourself, set OpenSpec aside and answer normally. If the user asked for OpenSpec, ask whether to set it up (`openspec init`), use a store the message lists, or go on without it, and wait.
 - **Another store:** if the work belongs in a different store, find it with `openspec store list --json`. Use it when the match is obvious; otherwise name the likeliest one and confirm before writing. Add `--store <id>` to every `new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `context`, `schemas`, `view`, and `doctor` command. Hints the CLI prints already include it.
 - **Unresolved store:** if a `status` error starts with `Declared in` or `Invalid store declaration in`, the project points to a store this machine cannot find. Show that error's `message` and `fix`, and stop.

@@ -16,4 +16,4 @@ metadata:
 
 This skill plans only: finish the plan and stop, even if the request also asks to build it.
 
-If `../openspec-beta/` is missing, ask the user to install it with `openspec setup`.
+If `../openspec-beta/` or that file is missing, the OpenSpec skills are incomplete or out of date: ask the user to reinstall them (`openspec setup`, or `npx skills add Fission-AI/OpenSpec`).
