@@ -173,8 +173,9 @@ describe('the openspec skill', () => {
       const frontmatter = parseYaml(skill.files[0].content.split('---')[1]);
       expect(frontmatter.name, skill.dirName).toBe(skill.dirName);
       expect(frontmatter.description, skill.dirName).toMatch(/OpenSpec/);
-      // Only the router is user-invoked; the model reaches workflows through their own skills.
-      expect(frontmatter['disable-model-invocation'] === true, skill.dirName).toBe(skill.dirName === NS);
+      // Every skill can load on its own: the router whenever work touches
+      // openspec/, each workflow skill for its own task.
+      expect(frontmatter['disable-model-invocation'], skill.dirName).toBeUndefined();
     }
   });
 });

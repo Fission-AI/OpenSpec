@@ -280,15 +280,16 @@ export function generateOpenSpecSkill(options: OpenSpecSkillOptions): GeneratedS
     files.push({ relativePath, content });
   }
 
-  // The router is user-invoked, like pstack's poteto-mode and Matt Pocock's
-  // ask-matt: the model reaches a workflow through its own skill, so the skill
-  // it runs is that workflow (which keeps planning from sliding into building).
+  // The router loads on its own whenever work touches openspec/, like
+  // impeccable's single skill, so a plain request ("tidy this spec") still gets
+  // OpenSpec's guidance (2026-10-26 A/B: 5/5 runs vs 0/5 when user-invoked).
+  // Each skill still names its own task, and planning skills keep their own
+  // plan-only line (Haiku stayed plan-only 29/30, vs 30/30 user-invoked).
   const description =
-    "Write and maintain a project's OpenSpec specs: explore an idea, propose a change with specs and tasks, apply it, verify it, and archive it. Use when the user mentions OpenSpec, specs, a change proposal, or /openspec, in a project that uses OpenSpec.";
+    "How to work in a project's openspec/ folder: its specs, planned changes, and the skills that explore, propose, apply, and archive them. Use when reading, writing, or tidying anything in openspec/, or when the user mentions OpenSpec and no more specific OpenSpec skill fits.";
   const skill = `---
 name: ${OPENSPEC_SKILL_NAME}
 description: ${JSON.stringify(description)}
-disable-model-invocation: true
 allowed-tools: ${OPENSPEC_CLI_ALLOWED_TOOLS}
 license: MIT
 compatibility: Requires openspec CLI.

@@ -1,7 +1,6 @@
 ---
 name: openspec-beta
-description: "Write and maintain a project's OpenSpec specs: explore an idea, propose a change with specs and tasks, apply it, verify it, and archive it. Use when the user mentions OpenSpec, specs, a change proposal, or /openspec, in a project that uses OpenSpec."
-disable-model-invocation: true
+description: "How to work in a project's openspec/ folder: its specs, planned changes, and the skills that explore, propose, apply, and archive them. Use when reading, writing, or tidying anything in openspec/, or when the user mentions OpenSpec and no more specific OpenSpec skill fits."
 allowed-tools: Bash(openspec:*)
 license: MIT
 compatibility: Requires openspec CLI.
