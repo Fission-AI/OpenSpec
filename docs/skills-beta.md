@@ -13,6 +13,8 @@ openspec setup
 
 Once it is published: `npm i -g @fission-ai/openspec@beta && openspec setup`.
 
+If you installed OpenSpec as a standalone binary, the npm install sits beside it and both report the same version. Run `which -a openspec` (`Get-Command -All openspec` in PowerShell) and make sure the npm one comes first, or call it by its full path.
+
 Run `openspec setup --dry-run` first to see what it would install and move. Start a new agent session afterwards.
 
 ## What you get
