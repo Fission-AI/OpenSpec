@@ -14,7 +14,7 @@ Windows (PowerShell):
 irm https://openspec.dev/cli/install.ps1 | iex
 ```
 
-Then [verify the installation](#verify-installation). Need a specific version or folder? See [install options](#install-options).
+Then [verify the installation](#verify-installation).
 
 ## Install with your AI assistant
 
@@ -192,18 +192,29 @@ openspec --version
 
 ## Install options
 
-- **Folder**: set `OPENSPEC_INSTALL_DIR`. The default is `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`).
-- **Version**: set `OPENSPEC_VERSION`, for example `OPENSPEC_VERSION=v1.15.0`.
-- **Alpine Linux**: run `apk add libstdc++ libgcc` first.
+To pick a version or folder, add a setting before `sh`:
 
-To download by hand, get the archive for your machine from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest), unpack it, and put `openspec` on your PATH. On macOS, also run `xattr -d com.apple.quarantine openspec`.
+```bash
+curl -fsSL https://openspec.dev/cli/install.sh | OPENSPEC_VERSION=v1.15.0 sh
+```
 
-| Platform | File |
+- `OPENSPEC_VERSION=v1.15.0` installs that version.
+- `OPENSPEC_INSTALL_DIR=~/bin` installs to that folder (default: `~/.local/bin`).
+
+On Windows, set it first, for example `$env:OPENSPEC_VERSION = 'v1.15.0'`, then run the install command.
+
+On Alpine Linux, run `apk add libstdc++ libgcc` first.
+
+### Download by hand
+
+Download your file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest), unzip it, and move `openspec` to a folder on your PATH. On macOS, then run `xattr -d com.apple.quarantine openspec`.
+
+| Computer | File |
 |---|---|
-| macOS (Apple Silicon / Intel) | `openspec-darwin-arm64.tar.gz` / `openspec-darwin-x64.tar.gz` |
-| Linux (arm64 / x64) | `openspec-linux-arm64.tar.gz` / `openspec-linux-x64.tar.gz` |
-| Alpine (arm64 / x64) | `openspec-linux-arm64-musl.tar.gz` / `openspec-linux-x64-musl.tar.gz` |
-| Windows (arm64 / x64) | `openspec-windows-arm64.zip` / `openspec-windows-x64.zip` |
+| Mac with Apple chip / Intel | `openspec-darwin-arm64.tar.gz` / `openspec-darwin-x64.tar.gz` |
+| Linux arm64 / x64 | `openspec-linux-arm64.tar.gz` / `openspec-linux-x64.tar.gz` |
+| Alpine arm64 / x64 | `openspec-linux-arm64-musl.tar.gz` / `openspec-linux-x64-musl.tar.gz` |
+| Windows arm64 / x64 | `openspec-windows-arm64.zip` / `openspec-windows-x64.zip` |
 
 ## Switch from npm to the standalone install
 
