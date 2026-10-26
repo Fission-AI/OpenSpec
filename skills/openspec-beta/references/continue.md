@@ -4,12 +4,7 @@ Continue working on a change: create its next artifact, one per invocation.
 
 1. **Pick the change.** Use the name given, the one from the conversation, or the only active change. Otherwise run `openspec list --json` to get available changes sorted by most recently modified, and ask the user to select one.
 
-   When prompting, present the top 3-4 most recently modified changes as options, showing:
-   - Change name
-   - Status (e.g., "0/5 tasks", "complete", "no tasks")
-   - How recently it was modified (from `lastModified` field)
-
-   Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to continue. Say "Using change: <name>" and how to pick another (`/openspec-beta-continue <other>`).
+   When asking, offer the 3-4 most recently modified changes, each with its name, status (e.g., "0/5 tasks"), and when it changed (`lastModified`), and mark the newest "(Recommended)". Say "Using change: <name>" and how to pick another (`/openspec-beta-continue <other>`).
 
 2. **Check status.**
    ```bash

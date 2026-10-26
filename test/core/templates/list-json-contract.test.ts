@@ -24,8 +24,7 @@ describe('workflow list --json field usage', () => {
     for (const body of bodies) {
       const picker = body.slice(body.indexOf('1. **'), body.indexOf('2. **'));
       expect(picker).toContain('openspec list --json');
-      expect(picker).toContain('- Change name');
-      expect(picker).toContain('- Status');
+      expect(picker).toContain('each with its name, status');
       expect(picker).toContain('`lastModified`');
       expect(picker).not.toMatch(/schema/i);
       expect(picker).not.toContain('openspec status');

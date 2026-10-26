@@ -96,7 +96,9 @@ describe('verify checks each requirement by its delta operation', () => {
     expect(renamed, label).toContain('Its body and scenarios are the evidence for the behavior the TO requirement keeps.');
     expect(renamed, label).toContain('Search codebase for that behavior and assess if it is still implemented.');
     expect(renamed, label).toContain('Add CRITICAL issue: "Renamed requirement not found: <TO name>"');
-    expect(body, label).toContain('- Renamed requirements whose behavior is no longer implemented');
+    // A rename whose behavior is gone is CRITICAL, like a missing requirement.
+    const critical = body.split('\n').find((line) => line.includes('| **CRITICAL** |')) ?? '';
+    expect(critical, label).toContain('renamed requirements whose behavior is no longer implemented');
     expect(renamed, label).toContain('If the TO name also appears under MODIFIED, its behavior is checked there');
   });
 

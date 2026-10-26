@@ -384,7 +384,7 @@ describe('update-change templates', () => {
         '`openspec instructions "<artifact-id>" --change "<name>" --json` for how to create them'
       );
       expect(body, label).toContain(
-        'Anything deferred because it does not exist yet'
+        'anything left because it does not exist yet'
       );
       expect(body, label).toContain('creating them is a separate step, outside this workflow');
     }

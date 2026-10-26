@@ -119,10 +119,7 @@ ${BEFORE_YOU_START}
    - Otherwise, \`contextFiles\` is keyed by artifact id, and artifact ids come from the active schema, so do not assume an id such as \`specs\`. The spec artifacts are those whose \`artifactPaths.<id>.outputPath\` is under \`specs/\`; read their files from \`contextFiles.<id>\`. If those spec files are absent or empty, mark **Spec Coverage**, **Requirement Implementation Mapping**, and **Scenario Coverage** as not verified; do not treat any of them as clean.
    - If delta specs exist in those spec files:
      - Extract all requirements (marked with "### Requirement:", or listed as \`FROM:\`/\`TO:\` pairs under \`## RENAMED Requirements\`) and note the delta section each one sits under: \`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\`, or \`## RENAMED Requirements\`. The section decides what the check looks for.
-     - For each ADDED or MODIFIED requirement (for MODIFIED, check the text in the delta, not the old wording):
-       - Search codebase for keywords related to the requirement
-       - Assess if implementation likely exists
-     - If ADDED or MODIFIED requirements appear unimplemented:
+     - For each ADDED or MODIFIED requirement, search the code for it (for MODIFIED, the delta's text, not the old wording). If it appears unimplemented:
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
      - For each REMOVED or RENAMED requirement, follow \`references/removed-and-renamed.md\`. Never report a REMOVED requirement as "Requirement not found", and never count an unchecked removal or rename as passing.
@@ -133,20 +130,11 @@ ${BEFORE_YOU_START}
 
    **Requirement Implementation Mapping**:
    - For each ADDED or MODIFIED requirement from delta specs (REMOVED entries, and RENAMED entries without a MODIFIED block, were settled under Spec Coverage):
-     - Search codebase for implementation evidence
-     - If found, note file paths and line ranges
-     - Assess if implementation matches requirement intent
-     - If divergence detected:
-       - Add WARNING: "Implementation may diverge from spec: <details>"
-       - Recommendation: "Review <file>:<lines> against requirement X"
+     - Find the code that implements it (note file paths and line ranges) and check it matches the requirement's intent. If it diverges, add WARNING: "Implementation may diverge from spec: <details>", recommending "Review <file>:<lines> against requirement X".
 
    **Scenario Coverage**:
    - For each scenario under an ADDED or MODIFIED requirement in delta specs (marked with "#### Scenario:"):
-     - Check if conditions are handled in code
-     - Check if tests exist covering the scenario
-     - If scenario appears uncovered:
-       - Add WARNING: "Scenario not covered: <scenario name>"
-       - Recommendation: "Add test or implementation for scenario: <description>"
+     - Check the code handles it and a test covers it. If not, add WARNING: "Scenario not covered: <scenario name>", recommending "Add test or implementation for scenario: <description>".
    - Skip scenarios under a REMOVED requirement; that behavior is meant to be gone.
 
 7. **Verify Coherence**
@@ -154,20 +142,12 @@ ${BEFORE_YOU_START}
    **Design Adherence**:
    - If the schema defines no design artifact (no artifact with id \`design\`, and none whose \`artifactPaths.<id>.outputPath\` is or ends in \`design.md\`), report **Design Adherence** as not applicable.
    - If the design artifact's \`contextFiles.<id>\` file exists:
-     - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
-     - Verify implementation follows those decisions
-     - If contradiction detected:
-       - Add WARNING: "Design decision not followed: <decision>"
-       - Recommendation: "Update implementation or revise design.md to match reality"
+     - Check the code follows its key decisions (sections like "Decision:", "Approach:", "Architecture:"). If one is contradicted, add WARNING: "Design decision not followed: <decision>", recommending "Update implementation or revise design.md to match reality".
    - Otherwise, if the design artifact's \`contextFiles.<id>\` file is absent or empty: mark **Design Adherence** as not verified. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
 
    **Code Pattern Consistency**:
    - If implementation changes cannot be identified, mark **Code Pattern Consistency** as not verified and explain the missing evidence.
-   - Otherwise, review new code for consistency with project patterns
-   - Check file naming, directory structure, coding style
-   - If significant deviations found:
-     - Add SUGGESTION: "Code pattern deviation: <details>"
-     - Recommendation: "Consider following project pattern: <example>"
+   - Otherwise, check the new code follows the project's file naming, structure, and style. For a significant deviation, add SUGGESTION: "Code pattern deviation: <details>", recommending "Consider following project pattern: <example>".
 
 8. **Generate Verification Report**
 
@@ -185,24 +165,13 @@ ${BEFORE_YOU_START}
 
    In each Status cell, report the results of checks that ran and \`Not verified (<reason>)\` for every skipped check. If all checks in a dimension were skipped, start the cell with \`Not verified\`. Never score a skipped check as passing. Treat every not verified or partially verified check as skipped in the final assessment. Count only ADDED and MODIFIED requirements in N, and report REMOVED and RENAMED requirements separately (for example, "1 removal confirmed, 1 rename verified", or "1 removal not verified (baseline unavailable)"). For a change that only removes or renames requirements, the Correctness cell reads \`Not applicable (no ADDED or MODIFIED requirements)\`.
 
-   **Issues by Priority**:
+   **Issues by Priority**, each with a specific recommendation:
 
-   1. **CRITICAL** (Must fix before archive):
-      - Incomplete tasks
-      - Missing requirement implementations
-      - Removed requirements still implemented
-      - Renamed requirements whose behavior is no longer implemented
-      - Each with specific, actionable recommendation
-
-   2. **WARNING** (Should fix):
-      - Spec/design divergences
-      - Missing scenario coverage
-      - Each with specific recommendation
-
-   3. **SUGGESTION** (Nice to fix):
-      - Pattern inconsistencies
-      - Minor improvements
-      - Each with specific recommendation
+   | Priority | Means | For |
+   |---|---|---|
+   | **CRITICAL** | must fix before archive | incomplete tasks; missing requirement implementations; removed requirements still implemented; renamed requirements whose behavior is no longer implemented |
+   | **WARNING** | should fix | spec or design divergences; missing scenario coverage |
+   | **SUGGESTION** | nice to fix | pattern inconsistencies; minor improvements |
 
    **Final Assessment**:
    - If CRITICAL issues: "X critical issue(s) found. Fix before archiving." If any check was skipped, also name every skipped check and its reason.

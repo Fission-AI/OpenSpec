@@ -30,16 +30,16 @@ const CONTINUE_NEXT_STEP = optionalWorkflow(
   'run `openspec status --change "<name>" --json` for the next artifact and point the user to `openspec instructions "<artifact-id>" --change "<name>" --json` for how to create it'
 );
 
-const CONTINUE_DEFERRED = optionalWorkflow(
-  'continue',
-  'Anything deferred to `/opsx:continue` (artifacts with no files yet and status `ready` or `blocked`, never `skipped` artifacts)',
-  'Anything deferred because it does not exist yet (artifacts with no files and status `ready` or `blocked`, never `skipped` artifacts)'
-);
-
 const CONTINUE_FRONTIER = optionalWorkflow(
   'continue',
   "that is `/opsx:continue`'s job",
   'creating them is a separate step, outside this workflow'
+);
+
+const CONTINUE_DEFERRED_INLINE = optionalWorkflow(
+  'continue',
+  'anything left for `/opsx:continue` (artifacts with no files yet and status `ready` or `blocked`, never `skipped` ones)',
+  'anything left because it does not exist yet (artifacts with no files and status `ready` or `blocked`, never `skipped` ones)'
 );
 
 /**
@@ -86,12 +86,7 @@ ${CONTINUE_SCOPE_NOTE}
 
    Use the name if one is given. Otherwise infer it from the conversation, or auto-select it if only one active change exists. If it is still ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one.
 
-   When prompting, present the top 3-4 most recently modified changes as options, showing:
-   - Change name
-   - Status (e.g., "0/5 tasks", "complete", "no tasks")
-   - How recently it was modified (from \`lastModified\` field)
-
-   Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to update.
+   When asking, offer the 3-4 most recently modified changes, each with its name, status (e.g., "0/5 tasks"), and when it changed (\`lastModified\`), and mark the newest "(Recommended)".
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:update <other>\`).
 
@@ -136,13 +131,7 @@ ${CONTINUE_SCOPE_NOTE}
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
    - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 
-**Output**
-
-After each invocation, show:
-- Which artifacts were revised (and which proposed revisions were rejected)
-- Any file created under a glob artifact that was already partially populated
-- ${CONTINUE_DEFERRED}
-- Where the change stands and the recommended next command
+**Output**: which artifacts were revised (and which revisions were rejected), any file created under a partly populated glob artifact, ${CONTINUE_DEFERRED_INLINE}, and where the change stands with the recommended next command.
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
