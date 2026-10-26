@@ -35,7 +35,7 @@ Opening pull requests is limited to maintainers, so wait for an invitation on th
 
 ## Development setup
 
-You need Node 20.19+ and pnpm.
+You need Node 22.12+ and pnpm.
 
 ```bash
 pnpm install

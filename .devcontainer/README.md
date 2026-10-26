@@ -4,7 +4,7 @@ This directory contains the VS Code dev container configuration for OpenSpec dev
 
 ## What's Included
 
-- **Node.js 22 LTS** - TypeScript/JavaScript runtime (OpenSpec itself supports Node 20.19.0 and newer)
+- **Node.js 22 LTS** - TypeScript/JavaScript runtime (OpenSpec itself supports Node 22.12.0 and newer)
 - **pnpm** - Fast, disk space efficient package manager
 - **Git + GitHub CLI** - Version control tools
 - **VS Code Extensions**:

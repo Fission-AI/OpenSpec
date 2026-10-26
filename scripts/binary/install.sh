@@ -108,7 +108,7 @@ main() {
     fi
   }
 
-  npm_hint="or install with npm (Node.js 20.19+): npm install -g @fission-ai/openspec"
+  npm_hint="or install with npm (Node.js 22.12+): npm install -g @fission-ai/openspec"
   if [ -n "${OPENSPEC_DOWNLOAD_URL:-}" ]; then
     base=${OPENSPEC_DOWNLOAD_URL%/}
   elif [ "$version" != latest ]; then

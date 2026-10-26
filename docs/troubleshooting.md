@@ -17,15 +17,17 @@ If it installed but still isn't found, your global npm bin directory probably is
 
 If you used the [AI-assisted install](installation.md#install-with-your-ai-assistant), this is the expected hand-off point: that prompt tells your assistant to show you the `PATH` change rather than edit your shell startup files itself.
 
-### "Requires Node.js 20.19.0 or higher"
+### "Requires Node.js 22.12.0 or higher"
 
-OpenSpec runs on Node 20.19.0+. Check your version and upgrade if needed:
+OpenSpec runs on Node 22.12.0+ (Node 20 reached end-of-life in April 2026 and is no longer supported). Check your version and upgrade if needed:
 
 ```bash
 node --version
 ```
 
-If you use bun to install OpenSpec, note that OpenSpec still *runs* on Node, so you need Node 20.19.0+ available on your `PATH` regardless. See [Installation](installation.md).
+If you use bun to install OpenSpec, note that OpenSpec still *runs* on Node, so you need Node 22.12.0+ available on your `PATH` regardless. See [Installation](installation.md).
+
+If you can't upgrade Node, install the [standalone binary](installation.md) or use Homebrew instead; neither needs Node on your machine.
 
 ### `openspec init` didn't configure my AI tool
 
