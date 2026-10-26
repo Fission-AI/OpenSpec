@@ -55,6 +55,13 @@ describe('scenarioStepCoverage reads only real steps', () => {
     expect(scenarioStepCoverage(raw)).toEqual({ hasTrigger: true, hasOutcome: true });
   });
 
+  it('accepts underscore bold: __WHEN__ and __When__ are steps', () => {
+    const upper = scenario('Upper', '- __WHEN__ it is handled', '- __THEN__ the behavior occurs').join('\n');
+    const title = scenario('Title', '- __Given__ a request', '- __When:__ it is handled', '- __Then__ it occurs').join('\n');
+    expect(scenarioStepCoverage(upper)).toEqual({ hasTrigger: true, hasOutcome: true });
+    expect(scenarioStepCoverage(title)).toEqual({ hasTrigger: true, hasOutcome: true });
+  });
+
   it('accepts a colon inside the bold: **Given:** is a step', () => {
     const raw = scenario('Labeled', '- **Given:** a request', '- **When:** it is handled', '- **Then:** the behavior occurs').join('\n');
     expect(scenarioStepCoverage(raw)).toEqual({ hasTrigger: true, hasOutcome: true });

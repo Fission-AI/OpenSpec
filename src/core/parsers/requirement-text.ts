@@ -116,11 +116,12 @@ export function countScenarios(bodyLines: string[]): number {
  * uppercase (`WHEN`). Bold carries the step-ness, so its case can be liberal;
  * a bare word must be uppercase to count — lowercase `when`/`then` are
  * ordinary English prose, and the missing-SHALL/MUST check is uppercase-only
- * for the same reason.
+ * for the same reason. Bold is `**` or `__`; the bare pattern cannot catch
+ * `__WHEN__`, because `_` is a word character and `\b` never fires beside it.
  */
-const BOLD_TRIGGER_STEP = /\*\*(?:WHEN|GIVEN):?\*\*/i;
+const BOLD_TRIGGER_STEP = /(?:\*\*|__)(?:WHEN|GIVEN):?(?:\*\*|__)/i;
 const BARE_TRIGGER_STEP = /\b(?:WHEN|GIVEN)\b/;
-const BOLD_OUTCOME_STEP = /\*\*THEN:?\*\*/i;
+const BOLD_OUTCOME_STEP = /(?:\*\*|__)THEN:?(?:\*\*|__)/i;
 const BARE_OUTCOME_STEP = /\bTHEN\b/;
 
 /** The two halves of a scenario, as carried by its non-fenced body lines. */
