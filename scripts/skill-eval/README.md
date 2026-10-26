@@ -16,6 +16,8 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `archive-unfinished` | archive a change with open tasks | not archived, warns about the tasks |
 | `continue-specs` | continue a change that has only a proposal | writes the specs and nothing else, change validates |
 | `update-ripple` | revise a finished plan for a need that touches a second capability | change validates, tasks cover it, no code touched |
+| `natural-spec-edit` | tidy a spec's wording, no skill named | requirement reworded with its promise and scenario kept, everything validates, no code touched |
+| `multi-intent` | archive a finished change, then plan a new one, no skill named | archived, one new change planned, everything validates |
 | `explore` | a design question | answers, writes nothing |
 | `explore-draft` | shape a feature before planning | writes nothing; records whether it leaves a draft (scope, capabilities, requirements, open questions) |
 | `no-project` | propose in a repo without OpenSpec | creates no `openspec/`, writes nothing |

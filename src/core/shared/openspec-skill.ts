@@ -94,10 +94,10 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
   [' and how to pick another (`/opsx:sync <other>`)', ' and how to pick another'],
   // Name each guide at the step where its decision is made: agents follow a
   // pointer in the step they are on, and rarely one in SKILL.md alone.
-  ['The packet covers exactly that scope; do not widen it.', 'The packet covers exactly that scope; do not widen it. If the request holds more than one outcome, read `references/changes.md` first.'],
-  ['ask the user before creating the change.', 'ask the user before creating the change (`references/decisions.md` lists what to raise).'],
+  ['and keep the plan to it.', 'and keep the plan to it. If the request holds more than one outcome, read `references/changes.md` first.'],
+  ['or what counts as done.', 'or what counts as done (`references/decisions.md` lists what to raise).'],
   ['If no capability is related, say so in one line and continue.', 'If no capability is related, say so in one line and continue. Before naming a new capability, read `references/capabilities.md`.'],
-  ['add a MODIFIED delta for that requirement too.', 'add a MODIFIED delta for that requirement too; read `references/deltas.md` before writing one.'],
+  ['it needs a MODIFIED delta too.', 'it needs a MODIFIED delta too; read `references/deltas.md` before writing one.'],
   ['Draft the requested edit in the conversation, not in files.', 'Draft the requested edit in the conversation, not in files. If it changes a spec, read `references/deltas.md` first; if it widens the change, `references/changes.md`.'],
 ];
 
@@ -172,8 +172,9 @@ function lift(body: string, workflowId: string): string {
  */
 const FINDING_THE_PROJECT = `- **Project:** before the first write, run \`openspec list --json\`. Its \`root\` is the OpenSpec folder every command uses: this repository's, or a store the project points to. Commands find it on their own.
 - **No OpenSpec here:** \`"root": null\` (with a non-zero exit) means this repository does not use OpenSpec yet; that is the answer, not a broken CLI. Create nothing: no \`openspec init\`, no hand-made \`openspec/\` files. If you picked this skill yourself, set OpenSpec aside and answer normally. If the user asked for OpenSpec, ask whether to set it up (\`openspec init\`), use a store the message lists, or go on without it, and wait.
-- **Another store:** if the work belongs in a different store, find it with \`openspec store list --json\` and add \`--store <id>\` to every \`new change\`, \`status\`, \`instructions\`, \`list\`, \`show\`, \`validate\`, \`archive\`, \`context\`, \`schemas\`, \`view\`, and \`doctor\` command. Hints the CLI prints already include it.
-- **Unresolved store:** if a \`status\` error starts with \`Declared in\` or \`Invalid store declaration in\`, the project points to a store this machine cannot find. Show that error's \`message\` and \`fix\`, and stop.`;
+- **Another store:** if the work belongs in a different store, find it with \`openspec store list --json\`. Use it when the match is obvious; otherwise name the likeliest one and confirm before writing. Add \`--store <id>\` to every \`new change\`, \`status\`, \`instructions\`, \`list\`, \`show\`, \`validate\`, \`archive\`, \`context\`, \`schemas\`, \`view\`, and \`doctor\` command. Hints the CLI prints already include it.
+- **Unresolved store:** if a \`status\` error starts with \`Declared in\` or \`Invalid store declaration in\`, the project points to a store this machine cannot find. Show that error's \`message\` and \`fix\`, and stop.
+- **Say where:** when you write files, name the folder they went to, such as the change's \`changeRoot\`.`;
 
 const WHICH_CHANGE = `Use the name the user gave or the one from the conversation. If neither is clear, ask, listing the active changes.`;
 
@@ -199,7 +200,7 @@ You keep this project's specs. Everything in \`openspec/\` is yours to look afte
 
 ## Pick the skill
 
-Read the file that matches the request, then follow its steps. If the request could be more than one, ask which, naming these.
+Read the file that matches the request, then follow its steps. If the request asks for several things, do them in order, one skill at a time. If it could mean different things, ask which, naming these.
 
 Planning skills (${planning.join(', ')}) end the response: they never edit project code, even when the request also asks to build it. Finish the plan, then stop and let the user start apply.
 
@@ -224,7 +225,7 @@ ${CONTEXT_FROM_CLI}
 - **Specs describe behavior, not code:** what a user or caller can observe, one behavior per requirement, in short sentences with concrete examples (a real date, an exact message).
 - **Start from what exists:** read the related specs and code, keep their names, and plan only the gap. See ${guide('changes')} and ${guide('capabilities')}.
 - **Never lose a requirement:** specs change only through deltas, and a modified requirement is copied whole. See ${guide('deltas')}.
-- **Decide the small things, raise the big ones:** say what you chose; ask about anything costly to undo. See ${guide('decisions')}.
+- **Decide the small things, raise the big ones:** say what you chose and what you assumed, plainly; ask about anything costly to undo. See ${guide('decisions')}.
 - **Ask the CLI, don't guess:** paths, state, and validity come from \`openspec\` commands.
 `;
 }

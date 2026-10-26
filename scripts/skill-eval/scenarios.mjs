@@ -139,6 +139,11 @@ function specQuality(ctx, name) {
   };
 }
 
+/** Whether the agent's reply names the folder it wrote the change to. */
+function saysWhere(ctx, name) {
+  return new RegExp(`openspec/changes/${name}`).test(ctx.result ?? '');
+}
+
 /** Whether a finished change reached the main specs: synced or archived. */
 function closure(ctx, name, requirement) {
   const archived = fs.existsSync(path.join(ctx.root, 'openspec/changes/archive')) &&
@@ -195,7 +200,11 @@ export const SCENARIOS = [
       if (!name) return {};
       // #1968: does the plan end by bringing the main specs up to date?
       const groups = (ctx.read(`openspec/changes/${name}/tasks.md`) ?? '').split(/^## /m);
-      return { ...specQuality(ctx, name), tasksEndWithSpecSync: /\b(sync|merge|update)\b[^\n]*\bspecs?\b/i.test(groups.at(-1) ?? '') };
+      return {
+        ...specQuality(ctx, name),
+        tasksEndWithSpecSync: /\b(sync|merge|update)\b[^\n]*\bspecs?\b/i.test(groups.at(-1) ?? ''),
+        saysWhere: saysWhere(ctx, name),
+      };
     },
     prompt:
       '/openspec-propose Todos need an optional due date, and callers need a way to list the todos that are overdue.' + AUTONOMOUS,
@@ -421,6 +430,70 @@ export const SCENARIOS = [
     },
   },
   {
+    // A plain request to tidy a spec, with no skill named: does the agent find
+    // OpenSpec's way of changing a spec on its own?
+    id: 'natural-spec-edit',
+    setup: (root) => {
+      const spec = path.join(root, 'openspec/specs/todo-list/spec.md');
+      fs.writeFileSync(
+        spec,
+        fs.readFileSync(spec, 'utf8').replace(
+          'The list SHALL return copies of every todo in the order they were added.',
+          'The list SHALL, whenever any caller requests the items it holds, provide to that caller duplicated instances (that is, copies rather than the originals) of each and every todo item that is currently held, and these SHALL be arranged in the very same sequence in which they were originally inserted into the list by callers.'
+        )
+      );
+    },
+    prompt:
+      'We keep OpenSpec specs in this repo. The "Reading todos" requirement in the todo-list spec is hard to read. Rewrite it in plain words without changing what it promises.' +
+      AUTONOMOUS,
+    metrics: (ctx) => {
+      const main = ctx.read('openspec/specs/todo-list/spec.md') ?? '';
+      return {
+        usedSkill: ctx.skillsUsed.length > 0,
+        viaChange: newChangeNames(ctx).length > 0,
+        editedMainSpec: ctx.changedFiles().includes('openspec/specs/todo-list/spec.md'),
+        mainSpecShorter: !/duplicated instances/.test(main),
+      };
+    },
+    checks: (ctx) => {
+      const validate = ctx.openspec(['validate', '--all', '--strict']);
+      const main = ctx.read('openspec/specs/todo-list/spec.md') ?? '';
+      const changes = newChangeNames(ctx).map((name) => ctx.read(`openspec/changes/${name}/specs/todo-list/spec.md`) ?? '').join('\n');
+      const reworded = [main, changes].some((text) => /### Requirement: Reading todos/.test(text) && !/duplicated instances/.test(text.split('### Requirement: Reading todos')[1] ?? 'duplicated instances'));
+      return [
+        { name: 'the requirement is reworded (in the spec or a change)', pass: reworded },
+        { name: 'its scenario is kept', pass: /Callers cannot mutate the list/.test(main) },
+        { name: 'everything validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        onlyOpenspecChanged(ctx),
+      ];
+    },
+  },
+  {
+    // Two requests in one message, no skill named: the agent picks each skill in turn.
+    id: 'multi-intent',
+    setup: (root) => {
+      seedChange(root, 'add-clear-completed');
+      applyClearCompleted(root);
+    },
+    prompt:
+      'We plan changes with OpenSpec in this repo. The add-clear-completed change is finished: archive it. Then plan a new change, without building it: todos need an optional due date.' +
+      AUTONOMOUS,
+    metrics: (ctx) => ({ skillsUsed: ctx.skillsUsed.join(' '), saysWhere: newChangeNames(ctx).some((name) => saysWhere(ctx, name)) }),
+    checks: (ctx) => {
+      const archiveDir = path.join(ctx.root, 'openspec/changes/archive');
+      const archived = fs.existsSync(archiveDir) && fs.readdirSync(archiveDir).some((name) => name.endsWith('add-clear-completed'));
+      const fresh = newChangeNames(ctx).filter((name) => name !== 'add-clear-completed');
+      const validate = ctx.openspec(['validate', '--all', '--strict']);
+      return [
+        { name: 'finished change archived', pass: archived && !ctx.exists('openspec/changes/add-clear-completed') },
+        { name: 'main spec gains its requirement', pass: /### Requirement: Clearing completed todos/.test(ctx.read('openspec/specs/todo-list/spec.md') ?? '') },
+        { name: 'exactly one new change planned', pass: fresh.length === 1, detail: fresh.join(', ') },
+        { name: 'everything validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        onlyOpenspecChanged(ctx),
+      ];
+    },
+  },
+  {
     // A request that asks for implementation must still stop after planning.
     id: 'propose-then-stop',
     prompt:
@@ -483,7 +556,7 @@ export const SCENARIOS = [
       AUTONOMOUS,
     metrics: (ctx) => {
       const name = newChangeNames(ctx)[0];
-      return name ? specQuality(ctx, name) : {};
+      return name ? { ...specQuality(ctx, name), saysWhere: saysWhere(ctx, name) } : {};
     },
     checks: (ctx) => [
       { name: 'an OpenSpec skill was used', pass: ctx.skillsUsed.length > 0, detail: ctx.skillsUsed.join(', ') },

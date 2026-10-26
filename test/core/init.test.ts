@@ -1436,20 +1436,12 @@ describe('InitCommand', () => {
       for (const proposeFile of proposeFiles) {
         expect(await fileExists(proposeFile), proposeFile).toBe(true);
         const content = await fs.readFile(proposeFile, 'utf-8');
-        expect(content, proposeFile).toContain('**Planning boundary**');
-        expect(content, proposeFile).toContain(
-          'selected or triggered this workflow authorizes planning only'
-        );
-        expect(content, proposeFile).toContain('ambiguity that would materially affect scope');
-        expect(content, proposeFile).toContain(
-          'ask the user before creating the change'
-        );
-        expect(content, proposeFile).toContain(
-          'Any implementation or apply instruction in that request does not carry forward'
-        );
-        expect(content, proposeFile).toContain(
-          'wait for a new user request to start the apply workflow'
-        );
+        expect(content, proposeFile).toContain('**Planning only.**');
+        expect(content, proposeFile).toContain('even when the request also asks to build or fix something');
+        expect(content, proposeFile).toContain('do not edit project code or start implementing');
+        expect(content, proposeFile).toContain('Ask before creating the change');
+        expect(content, proposeFile).toContain('implementation starts from a new request');
+        expect(content, proposeFile).toContain('This response ends here, even if the request asked to build it');
       }
     });
 

@@ -95,14 +95,14 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getNewChangeSkillTemplate: '634ae033ce3c50a745f1c3e48a85b0e64dd28807d6f021bdfdd0cfc78ee6ce06',
   getContinueChangeSkillTemplate: 'e45389e66c8557903561d4b60c4997866d3fba7041900147e85e703eec9d25cf',
   getApplyChangeSkillTemplate: '56b38fde9ee0c52fe976d27e36d14410a779883a3cabc18e52861a7d49e82039',
-  getFfChangeSkillTemplate: '1524502f079ba8da99d0cabd3b229bf044697dba075a266320b8b59ed7b2ffef',
+  getFfChangeSkillTemplate: 'dd488b8ea18e394598c043f7d26a5ac0b2aa59242e3308bdd9505090c92de74f',
   getSyncSpecsSkillTemplate: '2970a364209768272faf057648180aa33e9d666667a46b11a30ed1373907e98b',
   getOnboardSkillTemplate: 'a181c8e598bb7e1745bbce74966fccaaee515737c483eb8cdc09941fc6f155aa',
   getOpsxExploreCommandTemplate: '18899668d360074b542c82cf7293f730f5bc3d95c1fc38daaa577e505921f3b1',
   getOpsxNewCommandTemplate: 'f001441adcc5165c6320717070cd585b8cc0cb6830b092c20c1de73016c25e5e',
   getOpsxContinueCommandTemplate: '398a6114de205980b0c2662d106f09d61c7ecc7b16d7ef294cf503472c8e3557',
   getOpsxApplyCommandTemplate: '9361f5db76b9b82d55c3b87852cf9041abef9cb3ecd1490a9a5425020ab89f00',
-  getOpsxFfCommandTemplate: '5dfb300e3cdc423a19dcd861764cfba45e180efc49795f7f79628d9a4b378c3f',
+  getOpsxFfCommandTemplate: 'f4e2ab50937b051e48dfa4030002ff3b5418f822d3847cb18cac77f78dd16dcd',
   getArchiveChangeSkillTemplate: 'c7a0188fcbbd2168ffca59201cb83e06703d187edf2dfccd3250e33b0488d897',
   getBulkArchiveChangeSkillTemplate: '9212736d5ad91a140b5e5b42663c6e023f54ab70bbb84d2b2e10c171367761a7',
   getOpsxSyncCommandTemplate: 'd19d9219b7b8aeb0a9816e4eec5fb4723a6d52442baa632b1fbf16260a0e53ff',
@@ -111,8 +111,8 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getOpsxOnboardCommandTemplate: 'ee8dcdac3fa85e770c6696add4d3092973f848667e1e9dfe196dd2d4fdc75d63',
   getOpsxBulkArchiveCommandTemplate: 'd29a282c1cc20740aa1873466394f68dd158481e23c267311ece1d16129aacca',
   getOpsxVerifyCommandTemplate: '884840588fc701752813e15f6bb67707d8c43cf60265186f3cc6e67e3d24db32',
-  getOpsxProposeSkillTemplate: 'c2dcf07ff663a1b454bc8f21e6acd4c7c23ed2c3f1f8f1f77deca8debd167d61',
-  getOpsxProposeCommandTemplate: '7e0dc482b6cc81969612673337f7ede2f02bf0f499bb9da959799975e2382e64',
+  getOpsxProposeSkillTemplate: '619b502cac73b2f6be6ac04b1d82334ae4b3cd71868f1d7a8fdb2d6d87751476',
+  getOpsxProposeCommandTemplate: '396831ef3f64c6bd5d60328ad14e18b74674baf9434a515d7f8264f957bb16ff',
   getFeedbackSkillTemplate: 'dabeb5e825b9349abc8156c3e7b8608f27987912a6d9bf47ef29addde6138133',
   getUpdateChangeSkillTemplate: '2759507648e5680d1c8c00500fa3c4278ec6297ca95c2231db01f279ab8317f3',
   getOpsxUpdateCommandTemplate: '8c223b1ad43ef98db4052d8448b429e391383102465a443caa22dbfa8f714e2f',
@@ -123,13 +123,13 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-new-change': '6658ffe49c64d5bbec8df9d5b344ec1c9f2c625ef71f18a69d0e40038312179d',
   'openspec-continue-change': 'e10deb72db7f813c2f0747c689bdce64b216d7ca39e35dda1407c856701de998',
   'openspec-apply-change': '0ca5bdc34a535405d2f01a5302100e85ac08091f668219cb149020cc5e4aa0b6',
-  'openspec-ff-change': 'a89534709fe31e164e074fef26c5b1a856fd3fbe6801b7180036e1a066cd6c36',
+  'openspec-ff-change': '03f714f6ef3e93bb5f8ce8236c79003e28a6e28e6c4fb62205898b559b66f044',
   'openspec-sync-specs': '6268416015167ee07b905bb638d10ab894a4a5b88c08d08d263d8f5bee8cb123',
   'openspec-archive-change': '5fd35faeafcd669472eaa38c421228f6c869ae08317ac8661182ebf9b0a988cf',
   'openspec-bulk-archive-change': 'cc2e7b2b74ce53b39ed94c5e4b2539e66862fff223660c8d45f844934061a520',
   'openspec-verify-change': '73128dc3320a2394f563d54768d7248caaca8a9d9a7801f0135892c7ad9fa497',
   'openspec-onboard': '6d9d9c2838d0d0f976c6ad067bcf13150ed07f686b89844cf64fc820ccc8f420',
-  'openspec-propose': 'ea37758be4800bddbb2b513ceac3fe29e776eac87a158ef2182932b5c9122759',
+  'openspec-propose': '900882884db95195371d43503458672c0ea16857c080dcbf27e763f166210637',
   'openspec-update-change': '3b371d4559ed9ad42a0c5c5449eb0d6e7e75dc1819ed9c355558dedebe869caf',
 };
 
@@ -178,12 +178,8 @@ describe('skill templates split parity', () => {
     ];
 
     for (const [variant, content] of variants) {
-      expect(content, variant).toContain(
-        '**If an artifact requires user input** (critically unclear context)'
-      );
-      expect(content, variant).not.toContain(
-        '**If an artifact requires user input** (unclear context)'
-      );
+      expect(content, variant).toContain('If one needs input from the user (critically unclear context)');
+      expect(content, variant).not.toContain('If one needs input from the user (unclear context)');
     }
   });
 

@@ -16,6 +16,8 @@ const { values, positionals } = parseArgs({
     model: { type: 'string', default: 'claude-opus-5-5' },
     // The project a repo scenario ran in, for its judge context.
     fixture: { type: 'string' },
+    // Judge only the delta specs, for how easily a person reads them.
+    specs: { type: 'boolean', default: false },
   },
 });
 const [dir, labelA, labelB] = positionals;
@@ -38,7 +40,7 @@ function plan(label, rep) {
     for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
       const full = path.join(folder, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith('.md')) files.push(full);
+      else if (entry.name.endsWith('.md') && (!values.specs || /[\\/]specs[\\/]/.test(path.relative(root, full)))) files.push(full);
     }
   };
   walk(root);
@@ -56,6 +58,13 @@ const RUBRIC = `Judge which plan better serves the request. Consider, in order:
 5. Consistency: do proposal, specs, design, and tasks agree with each other?
 Reply with JSON only: {"winner": "1" | "2" | "tie", "reason": "<one sentence>"}`;
 
+const SPECS_RUBRIC = `Both are the spec changes written for this request. A person on the team has to read them, review them, and later rely on them as the description of what the system does. Judge which is easier for that person to read and trust. Consider, in order:
+1. Plain language: short sentences, everyday words, no jargon or code internals.
+2. One idea each: one behavior per requirement, scenarios a reader can picture.
+3. Concrete: real example values rather than placeholders.
+4. Complete: still says everything the request needs, and nothing it did not ask for.
+Reply with JSON only: {"winner": "1" | "2" | "tie", "reason": "<one sentence>"}`;
+
 const verdicts = [];
 for (let rep = 1; rep <= 20; rep++) {
   const a = plan(labelA, rep);
@@ -63,7 +72,7 @@ for (let rep = 1; rep <= 20; rep++) {
   if (!a || !b) continue;
   const aFirst = Math.random() < 0.5;
   const [one, two] = aFirst ? [a, b] : [b, a];
-  const prompt = `A developer asked an assistant to plan this change:\n\n> ${request}\n\n${context}\n\nTwo plans were written independently.\n\n# Plan 1\n\n${one}\n\n# Plan 2\n\n${two}\n\n${RUBRIC}`;
+  const prompt = `A developer asked an assistant to plan this change:\n\n> ${request}\n\n${context}\n\nTwo plans were written independently.\n\n# Plan 1\n\n${one}\n\n# Plan 2\n\n${two}\n\n${values.specs ? SPECS_RUBRIC : RUBRIC}`;
   const out = spawnSync(
     'claude',
     ['-p', prompt, '--model', values.model, '--output-format', 'json', '--setting-sources', 'project,local',
@@ -92,4 +101,4 @@ for (let rep = 1; rep <= 20; rep++) {
 
 const count = (who) => verdicts.filter((v) => v.winner === who).length;
 console.log(`\n${labelA} ${count(labelA)} · ${labelB} ${count(labelB)} · tie ${count('tie')} · error ${count('error')} (of ${verdicts.length})`);
-fs.writeFileSync(path.join(dir, `judge-${values.scenario}-${labelA}-vs-${labelB}.json`), JSON.stringify(verdicts, null, 2));
+fs.writeFileSync(path.join(dir, `judge-${values.specs ? 'specs-' : ''}${values.scenario}-${labelA}-vs-${labelB}.json`), JSON.stringify(verdicts, null, 2));

@@ -18,7 +18,7 @@ You keep this project's specs. Everything in `openspec/` is yours to look after:
 
 ## Pick the skill
 
-Read the file that matches the request, then follow its steps. If the request could be more than one, ask which, naming these.
+Read the file that matches the request, then follow its steps. If the request asks for several things, do them in order, one skill at a time. If it could mean different things, ask which, naming these.
 
 Planning skills (explore, propose, new, continue, ff, update) end the response: they never edit project code, even when the request also asks to build it. Finish the plan, then stop and let the user start apply.
 
@@ -41,8 +41,9 @@ Planning skills (explore, propose, new, continue, ff, update) end the response: 
 
 - **Project:** before the first write, run `openspec list --json`. Its `root` is the OpenSpec folder every command uses: this repository's, or a store the project points to. Commands find it on their own.
 - **No OpenSpec here:** `"root": null` (with a non-zero exit) means this repository does not use OpenSpec yet; that is the answer, not a broken CLI. Create nothing: no `openspec init`, no hand-made `openspec/` files. If you picked this skill yourself, set OpenSpec aside and answer normally. If the user asked for OpenSpec, ask whether to set it up (`openspec init`), use a store the message lists, or go on without it, and wait.
-- **Another store:** if the work belongs in a different store, find it with `openspec store list --json` and add `--store <id>` to every `new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `context`, `schemas`, `view`, and `doctor` command. Hints the CLI prints already include it.
+- **Another store:** if the work belongs in a different store, find it with `openspec store list --json`. Use it when the match is obvious; otherwise name the likeliest one and confirm before writing. Add `--store <id>` to every `new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `context`, `schemas`, `view`, and `doctor` command. Hints the CLI prints already include it.
 - **Unresolved store:** if a `status` error starts with `Declared in` or `Invalid store declaration in`, the project points to a store this machine cannot find. Show that error's `message` and `fix`, and stop.
+- **Say where:** when you write files, name the folder they went to, such as the change's `changeRoot`.
 
 ## Which change
 
@@ -57,5 +58,5 @@ Commands can return `context` (facts about this project) and `operationGuidance`
 - **Specs describe behavior, not code:** what a user or caller can observe, one behavior per requirement, in short sentences with concrete examples (a real date, an exact message).
 - **Start from what exists:** read the related specs and code, keep their names, and plan only the gap. See `references/changes.md` and `references/capabilities.md`.
 - **Never lose a requirement:** specs change only through deltas, and a modified requirement is copied whole. See `references/deltas.md`.
-- **Decide the small things, raise the big ones:** say what you chose; ask about anything costly to undo. See `references/decisions.md`.
+- **Decide the small things, raise the big ones:** say what you chose and what you assumed, plainly; ask about anything costly to undo. See `references/decisions.md`.
 - **Ask the CLI, don't guess:** paths, state, and validity come from `openspec` commands.
