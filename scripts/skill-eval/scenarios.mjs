@@ -430,6 +430,83 @@ export const SCENARIOS = [
     },
   },
   {
+    // The request contradicts an existing requirement (completing an unknown id
+    // throws today). Reading the spec shows it; a good plan changes that
+    // requirement by its exact name instead of adding a second, conflicting one.
+    id: 'propose-conflict',
+    prompt: '/openspec-propose Completing a todo id that does not exist should quietly do nothing instead of failing.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      const proposal = ctx.read(`openspec/changes/${name}/proposal.md`) ?? '';
+      return {
+        ...specQuality(ctx, name),
+        namesTodayBehavior: /throw|error|fail/i.test(proposal),
+        marksBreaking: /BREAKING/.test(proposal),
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const delta = deltaSpecs(ctx, names[0]).map((spec) => spec.text).join('\n');
+      const added = delta.split(/^## /m).find((section) => section.startsWith('ADDED')) ?? '';
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      results.push(
+        { name: 'modifies "Completing a todo" by its exact name', pass: /## MODIFIED Requirements[\s\S]*### Requirement: Completing a todo\s*$/m.test(delta) },
+        { name: 'adds no second requirement for unknown ids', pass: !/unknown|does not exist|missing/i.test(added) },
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        onlyOpenspecChanged(ctx)
+      );
+      return results;
+    },
+  },
+  {
+    // Half specified already: "Reading todos" promises copies; what adding and
+    // completing return is not covered. A good plan extends what exists and
+    // never adds a requirement that repeats the "Reading todos" promise.
+    id: 'propose-duplicate',
+    prompt: '/openspec-propose Callers should not be able to change the stored todos through the items they get back.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const deltas = newChangeNames(ctx).flatMap((name) => deltaSpecs(ctx, name)).map((spec) => spec.text).join('\n');
+      return { createdChange: newChangeNames(ctx).length > 0, extendsExisting: /## MODIFIED Requirements/.test(deltas) };
+    },
+    checks: (ctx) => {
+      const added = newChangeNames(ctx)
+        .flatMap((name) => deltaSpecs(ctx, name))
+        .map((spec) => spec.text.split(/^## /m).find((section) => section.startsWith('ADDED')) ?? '')
+        .join('\n');
+      // A new scenario about items read from the list restates "Reading todos".
+      const repeats = added.split(/^#### Scenario:/m).slice(1).some((scenario) => /\bread\b|\breading\b|items\(\)/i.test(scenario.split('\n')[0]));
+      const validate = ctx.openspec(['validate', '--all', '--strict']);
+      return [
+        { name: 'repeats no existing requirement', pass: !repeats, detail: added.slice(0, 300) },
+        { name: 'everything validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        onlyOpenspecChanged(ctx),
+      ];
+    },
+  },
+  {
+    // A proposal written through new + continue, the path without propose's
+    // own read-the-specs step.
+    id: 'continue-proposal',
+    setup: (root) => {
+      const change = path.join(root, 'openspec/changes/add-due-dates');
+      fs.mkdirSync(change, { recursive: true });
+      fs.writeFileSync(path.join(change, '.openspec.yaml'), 'schema: spec-driven\ncreated: 2026-10-27\n');
+    },
+    prompt: '/openspec-continue-change add-due-dates. The change: todos get an optional due date, and callers can list the overdue ones.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const proposal = ctx.read('openspec/changes/add-due-dates/proposal.md') ?? '';
+      return { namesExistingCapability: /todo-list/.test(proposal) };
+    },
+    checks: (ctx) => [
+      { name: 'proposal written', pass: ctx.exists('openspec/changes/add-due-dates/proposal.md') },
+      { name: 'only the proposal written', pass: !ctx.exists('openspec/changes/add-due-dates/specs') && !ctx.exists('openspec/changes/add-due-dates/tasks.md') },
+      onlyOpenspecChanged(ctx),
+    ],
+  },
+  {
     // A plain request to tidy a spec, with no skill named: does the agent find
     // OpenSpec's way of changing a spec on its own?
     id: 'natural-spec-edit',

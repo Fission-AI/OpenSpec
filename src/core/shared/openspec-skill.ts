@@ -97,7 +97,7 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
   ['and keep the plan to it.', 'and keep the plan to it. If the request holds more than one outcome, read `references/changes.md` first.'],
   ['or what counts as done.', 'or what counts as done (`references/decisions.md` lists what to raise).'],
   ['If no capability is related, say so in one line and continue.', 'If no capability is related, say so in one line and continue. Before naming a new capability, read `references/capabilities.md`.'],
-  ['it needs a MODIFIED delta too.', 'it needs a MODIFIED delta too; read `references/deltas.md` before writing one.'],
+  ['it needs a MODIFIED delta too.', 'it needs a MODIFIED delta too; read `references/deltas.md` before writing one. Never add a requirement that repeats a promise the spec already makes; extend that requirement instead.'],
   ['Draft the requested edit in the conversation, not in files.', 'Draft the requested edit in the conversation, not in files. If it changes a spec, read `references/deltas.md` first; if it widens the change, `references/changes.md`.'],
 ];
 

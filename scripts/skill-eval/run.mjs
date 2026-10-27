@@ -231,11 +231,17 @@ function summarizeStream(stream) {
   // Did the agent open the project's existing specs (not just list the
   // folder)? A file read, a search inside them, or the CLI's spec views count.
   let readSpecs = false;
+  // The spec-reading audit's measure: specs read before the first file of a
+  // change is written. Null when the run writes no change file.
+  let readSpecsBeforeDraft = null;
   for (const event of lines) {
     if (event.type !== 'assistant') continue;
     for (const part of event.message?.content ?? []) {
       if (part.type !== 'tool_use') continue;
       const input = part.input ?? {};
+      if (readSpecsBeforeDraft === null && ['Write', 'Edit', 'MultiEdit'].includes(part.name) && /openspec\/changes\/(?!archive\/)[^/]+\//.test(input.file_path ?? '')) {
+        readSpecsBeforeDraft = readSpecs;
+      }
       if (part.name === 'Read') reads.push(input.file_path);
       if (part.name === 'Skill') reads.push(`skill:${input.skill ?? input.command}`);
       const target = `${input.file_path ?? ''} ${input.path ?? ''} ${input.command ?? ''}`;
@@ -258,6 +264,7 @@ function summarizeStream(stream) {
     outputTokens: usage.output_tokens ?? 0,
     skillFilesRead: reads.filter((file) => file && /(^skill:|skills\/)/.test(file)).map((file) => file.replace(/^.*skills\//, '')),
     readSpecs,
+    readSpecsBeforeDraft,
   };
 }
 
@@ -297,7 +304,11 @@ async function runOne(scenario, rep) {
       checks,
       ...summary,
       // Observations that are not pass/fail, reported as rates by compare.mjs.
-      metrics: { readSpecs: summary.readSpecs, ...metrics },
+      metrics: {
+        readSpecs: summary.readSpecs,
+        ...(summary.readSpecsBeforeDraft === null ? {} : { readSpecsBeforeDraft: summary.readSpecsBeforeDraft }),
+        ...metrics,
+      },
       wallMs: Date.now() - started,
     };
     fs.writeFileSync(`${base}.json`, JSON.stringify(record, null, 2));
