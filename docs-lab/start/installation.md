@@ -5,7 +5,7 @@
 
 ## Install
 
-On macOS or Linux:
+On macOS or Linux, in your terminal:
 
 ```bash
 curl -fsSL https://openspec.dev/cli/install.sh | sh
@@ -17,7 +17,7 @@ On Windows, in PowerShell:
 irm https://openspec.dev/cli/install.ps1 | iex
 ```
 
-Then [check it worked](#check-it-worked).
+If the installer says its folder isn't on your PATH, add it with the line it prints. Then [check it worked](#check-it-worked).
 
 ## Install with your AI assistant
 
@@ -131,35 +131,51 @@ Next, [set up your project](setup.md). If your assistant already ran init, that 
 
 ## Install options
 
-To pick a version or folder, add a setting before `sh`:
+To pick a version or a folder, add a setting before `sh`:
 
 ```bash
 curl -fsSL https://openspec.dev/cli/install.sh | OPENSPEC_VERSION=v1.15.0 sh
 ```
 
-- `OPENSPEC_VERSION=v1.15.0` installs that version.
-- `OPENSPEC_INSTALL_DIR=~/bin` installs to that folder (default: `~/.local/bin`).
+- **`OPENSPEC_VERSION`**: the release to install, such as `v1.15.0`. The default is the newest release.
+- **`OPENSPEC_INSTALL_DIR`**: the folder to install to. The default is `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`).
 
-On Windows, set it first, for example `$env:OPENSPEC_VERSION = 'v1.15.0'`, then run the install command.
+On Windows, set it in PowerShell before the install command:
 
-On Alpine Linux, run `apk add libstdc++ libgcc` first.
+```powershell
+$env:OPENSPEC_VERSION = 'v1.15.0'
+irm https://openspec.dev/cli/install.ps1 | iex
+```
+
+On Alpine Linux, run `apk add libstdc++ libgcc` before installing.
 
 ### Download by hand
 
-Download your file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest), unzip it, and move `openspec` to a folder on your PATH. On macOS, then run `xattr -d com.apple.quarantine openspec`.
+1. **Download** your file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest). The table below lists them.
+2. **Unpack** it. In your terminal: `tar -xzf openspec-darwin-arm64.tar.gz`. On Windows, right-click the `.zip` and choose Extract All.
+3. **Move** `openspec` (Windows: `openspec.exe`) into a folder on your PATH, such as `~/.local/bin`.
+4. **On macOS**, run `xattr -d com.apple.quarantine openspec`. macOS blocks files downloaded in a browser until you do.
 
 | Computer | File |
 |---|---|
-| Mac with Apple chip / Intel | `openspec-darwin-arm64.tar.gz` / `openspec-darwin-x64.tar.gz` |
-| Linux arm64 / x64 | `openspec-linux-arm64.tar.gz` / `openspec-linux-x64.tar.gz` |
-| Alpine arm64 / x64 | `openspec-linux-arm64-musl.tar.gz` / `openspec-linux-x64-musl.tar.gz` |
-| Windows arm64 / x64 | `openspec-windows-arm64.zip` / `openspec-windows-x64.zip` |
+| Mac, Apple silicon | `openspec-darwin-arm64.tar.gz` |
+| Mac, Intel | `openspec-darwin-x64.tar.gz` |
+| Linux, arm64 | `openspec-linux-arm64.tar.gz` |
+| Linux, x64 | `openspec-linux-x64.tar.gz` |
+| Alpine, arm64 | `openspec-linux-arm64-musl.tar.gz` |
+| Alpine, x64 | `openspec-linux-x64-musl.tar.gz` |
+| Windows, arm64 | `openspec-windows-arm64.zip` |
+| Windows, x64 | `openspec-windows-x64.zip` |
 
-To check a file is really ours, use the [GitHub CLI](https://cli.github.com):
+### Verify a download
+
+To check that a file was built by the OpenSpec release workflow, run this with the [GitHub CLI](https://cli.github.com):
 
 ```bash
 gh attestation verify openspec-darwin-arm64.tar.gz --repo Fission-AI/OpenSpec
 ```
+
+It fails if the file wasn't built there. The install command already checks each download against the release's `SHA256SUMS`, so this step is optional.
 
 ## Switch from npm to the standalone install
 
