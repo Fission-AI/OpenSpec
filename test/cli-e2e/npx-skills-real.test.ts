@@ -42,7 +42,8 @@ describe.skipIf(!enabled)('npx skills add with the real skills CLI', () => {
   beforeAll(() => {
     root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-npx-skills-')));
     // Codex on Windows finds the home folder through the OS profile, not
-    // USERPROFILE; on a throwaway CI runner, use the real home there.
+    // USERPROFILE; on a throwaway CI runner, use the real home there. The
+    // setup tests use that home too, so CI runs these files one at a time.
     const realHome = process.env.CI === 'true' && process.platform === 'win32';
     const home = realHome ? os.homedir() : path.join(root, 'home dir');
     fs.mkdirSync(path.join(home, '.claude'), { recursive: true });

@@ -168,7 +168,7 @@ jobs:
           OPENSPEC_REAL_CLAUDE: '1'
           OPENSPEC_REQUIRE_AGENTS: 'claude,codex,gemini'
           DISABLE_AUTOUPDATER: '1'
-        run: pnpm exec vitest run test/cli-e2e/setup-real-claude.test.ts test/cli-e2e/setup-revert-journey.test.ts test/cli-e2e/npx-skills-real.test.ts
+        run: pnpm exec vitest run --no-file-parallelism test/cli-e2e/setup-real-claude.test.ts test/cli-e2e/setup-revert-journey.test.ts test/cli-e2e/npx-skills-real.test.ts
 
   test_pr_required:
     name: Test
