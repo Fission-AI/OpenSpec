@@ -114,6 +114,26 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
     "both reject one that drops a scenario the main spec still has. If today's requirement says something the block does not, and this change did not set out to remove it, keep it: the main spec changed after the delta was written.",
   ],
   ['Draft the requested edit in the conversation, not in files.', 'Draft the requested edit in the conversation, not in files. If it changes a spec, read `references/deltas.md` first; if it widens the change, `references/changes.md`.'],
+  // Verify from what the code does, not only from what it says, and by
+  // someone without the builder's assumptions.
+  [
+    'recommending "Add test or implementation for scenario: <description>".',
+    'recommending "Add test or implementation for scenario: <description>".\n     - Where you can run it without changing project files or data, such as the test that covers it or a read-only command, do, and report what you saw. A scenario you ran and saw fail means its requirement is not implemented (CRITICAL).',
+  ],
+  [
+    'without demanding certainty.',
+    'without demanding certainty. Say which scenarios you ran and which you inferred from the code. If this session also wrote the code, say so: a session that did not build it reads the specs without the builder\'s assumptions.',
+  ],
+  // A failed check goes back to apply as work, not just a report.
+  [
+    '   - Include the suggestion count when nonzero in every final assessment.',
+    '   - Include the suggestion count when nonzero in every final assessment.\n   - If there are CRITICAL issues, offer to add each one as an unchecked task in the change\'s tasks file, so apply picks them up. Write nothing unless the user agrees.',
+  ],
+  // Archiving moves the change folder, so links to its old path break.
+  [
+    'the requirement `totals`, and any warning the user accepted.',
+    'the requirement `totals`, and any warning the user accepted. Then search the project outside `openspec/` for `changes/<name>`: a code comment, test, or doc that cites it now points nowhere. List them and offer to point each at the main spec requirement it relies on, or at the archived `path`.',
+  ],
 ];
 
 /** Explore's capture path, folded into propose when propose is installed. */

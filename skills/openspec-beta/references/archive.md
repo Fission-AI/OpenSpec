@@ -33,7 +33,7 @@ Archive a completed change: merge its delta specs into the main specs, validate 
    ```
    Add `--skip-specs` only when the user chose not to update specs. Never pass `--no-validate`. If the response still has no `archive` object, show each `status` message and `fix` and stop: the CLI refused, so the change and main specs are as they were.
 
-6. **Summarize** from the `archive` object: `archivedAs` and `path`, whether `specsUpdated`, the requirement `totals`, and any warning the user accepted.
+6. **Summarize** from the `archive` object: `archivedAs` and `path`, whether `specsUpdated`, the requirement `totals`, and any warning the user accepted. Then search the project outside `openspec/` for `changes/<name>`: a code comment, test, or doc that cites it now points nowhere. List them and offer to point each at the main spec requirement it relies on, or at the archived `path`.
 
 **Guardrails**
 - Let `openspec archive` merge, validate, and move the change. Do not edit main specs or move `changeRoot` by hand

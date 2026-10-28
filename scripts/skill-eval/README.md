@@ -10,9 +10,10 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `propose-then-stop` | propose, "then implement it" | change validates, still no code touched |
 | `apply` | apply `add-priority` | all tasks checked (active or archived), `node --test` passes |
 | `apply-task-driven` | apply a change whose last task syncs the specs, the default `tasks.md` shape (#1968) | tests pass, main specs validate |
-| `verify` | verify a change whose tasks lie | reports the missing check, writes nothing |
+| `verify` | verify a change whose tasks lie | reports the missing check, writes nothing; records whether it offers the issues back as tasks |
 | `sync` | sync `add-clear-completed` | main spec gains the requirement, specs validate, change stays active |
 | `archive` | archive a finished change | archived, main spec updated, everything validates |
+| `archive-cited` | archive a finished change that a code comment cites by path | archived, everything validates, tests pass; records whether the stale citation is flagged |
 | `archive-unfinished` | archive a change with open tasks | not archived, warns about the tasks |
 | `continue-specs` | continue a change that has only a proposal | writes the specs and nothing else, change validates |
 | `update-ripple` | revise a finished plan for a need that touches a second capability | change validates, tasks cover it, no code touched |
@@ -21,6 +22,7 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `continue-proposal` | write a proposal through new + continue | proposal only, no code touched |
 | `propose-overlap` | a request touching a requirement another open change already modifies | one new change, the other untouched, validates; records whether the plan names the overlap |
 | `archive-stale` | archive a change whose MODIFIED block predates a newer main-spec sentence | the newer sentence survives, or the agent stops and says why |
+| `propose-earlier-decision` | a request that reverses a decision an archived change recorded | one change, validates, no code touched; records whether the plan names the earlier decision |
 | `propose-french` | propose, asked in French | everything `propose` checks; records whether the plan is written in French |
 | `natural-spec-edit` | tidy a spec's wording, no skill named | requirement reworded with its promise and scenario kept, everything validates, no code touched |
 | `multi-intent` | archive a finished change, then plan a new one, no skill named | archived, one new change planned, everything validates |

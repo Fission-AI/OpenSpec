@@ -156,6 +156,39 @@ function closure(ctx, name, requirement) {
 }
 
 /** A second capability, todo-export, whose "every field" promise a new todo field ripples into. */
+/** An archived change whose design decided todos are never written to disk. */
+function seedEarlierDecision(root) {
+  const dir = path.join(root, 'openspec/changes/archive/2026-09-01-keep-todos-in-memory');
+  fs.mkdirSync(path.join(dir, 'specs/todo-list'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'proposal.md'), `## Why
+
+Callers asked whether the list saves anything. It should not; persistence belongs to the caller.
+
+## What Changes
+
+- The todo-list spec says the list lives in memory only.
+
+## Capabilities
+
+### Modified Capabilities
+- \`todo-list\`: states that todos live in memory only.
+`);
+  fs.writeFileSync(path.join(dir, 'design.md'), `## Decisions
+
+### Todos live in memory only; the library never touches the file system
+
+The library is used in browsers and in tests, where file access is unavailable or unwanted. Callers that need persistence serialize \`items()\` themselves.
+
+Rejected: an optional \`save(path)\`, because it pulls Node's \`fs\` into every bundle.
+`);
+  fs.writeFileSync(path.join(dir, 'tasks.md'), '## 1. Spec\n\n- [x] 1.1 State in the spec that todos live in memory only\n');
+  fs.writeFileSync(path.join(dir, 'specs/todo-list/spec.md'), `## MODIFIED Requirements
+
+### Requirement: Reading todos
+The list SHALL return copies of every todo in the order they were added.
+`);
+}
+
 function seedExportSpec(root) {
   fs.mkdirSync(path.join(root, 'openspec/specs/todo-export'), { recursive: true });
   fs.writeFileSync(
@@ -325,6 +358,8 @@ export const SCENARIOS = [
       );
     },
     prompt: '/openspec-verify-change add-priority',
+    // Whether the report hands its critical issues back to apply as tasks.
+    metrics: (ctx) => ({ offersTasks: /\b(add|turn|record)\b[^.\n]{0,80}\btasks?\b/i.test(ctx.result) }),
     checks: (ctx) => [
       {
         name: 'reports the missing rejection of unknown priorities',
@@ -372,6 +407,58 @@ export const SCENARIOS = [
         { name: 'everything validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
         { name: 'no source files changed', pass: ctx.changedFiles().every((file) => file.startsWith('openspec/')) },
       ];
+    },
+  },
+  {
+    // A code comment cites the change's folder, which archiving moves.
+    id: 'archive-cited',
+    setup: (root) => {
+      seedChange(root, 'add-clear-completed');
+      applyClearCompleted(root);
+      const src = path.join(root, 'src/todo.js');
+      fs.writeFileSync(src, `// Clearing rules: openspec/changes/add-clear-completed/proposal.md\n${fs.readFileSync(src, 'utf8')}`);
+    },
+    prompt: '/openspec-archive-change add-clear-completed. It is finished, so sync the specs and archive it.' + AUTONOMOUS,
+    metrics: (ctx) => ({
+      flagsStaleCitation:
+        /todo\.js/.test(ctx.result) || !/openspec\/changes\/add-clear-completed\//.test(ctx.read('src/todo.js') ?? ''),
+    }),
+    checks: (ctx) => {
+      const archiveDir = path.join(ctx.root, 'openspec/changes/archive');
+      const archived = fs.existsSync(archiveDir)
+        ? fs.readdirSync(archiveDir).filter((name) => name.endsWith('add-clear-completed'))
+        : [];
+      const validate = ctx.openspec(['validate', '--all', '--strict']);
+      const tests = ctx.run('node', ['--test']);
+      return [
+        { name: 'change moved to the archive', pass: archived.length === 1 && !ctx.exists('openspec/changes/add-clear-completed') },
+        { name: 'everything validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        { name: 'project tests pass', pass: tests.code === 0, detail: tests.out.slice(-300) },
+      ];
+    },
+  },
+  {
+    // An archived change decided todos stay in memory; the request reverses it.
+    id: 'propose-earlier-decision',
+    setup: seedEarlierDecision,
+    prompt: '/openspec-propose Save todos to a JSON file so they survive a restart.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      const plan = ['proposal.md', 'design.md'].map((file) => ctx.read(`openspec/changes/${name}/${file}`) ?? '').join('\n');
+      return {
+        ...specQuality(ctx, name),
+        namesEarlierDecision: /in[- ]memory|keep-todos-in-memory|earlier decision|previous(ly)? decid|revers|overrid|supersed/i.test(plan),
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) });
+      results.push(onlyOpenspecChanged(ctx));
+      return results;
     },
   },
   {

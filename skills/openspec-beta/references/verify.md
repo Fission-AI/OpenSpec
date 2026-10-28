@@ -53,6 +53,7 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    **Scenario Coverage**:
    - For each scenario under an ADDED or MODIFIED requirement in delta specs (marked with "#### Scenario:"):
      - Check the code handles it and a test covers it. If not, add WARNING: "Scenario not covered: <scenario name>", recommending "Add test or implementation for scenario: <description>".
+     - Where you can run it without changing project files or data, such as the test that covers it or a read-only command, do, and report what you saw. A scenario you ran and saw fail means its requirement is not implemented (CRITICAL).
    - Skip scenarios under a REMOVED requirement; that behavior is meant to be gone.
 
 7. **Verify Coherence**
@@ -98,5 +99,6 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
    - If no issues and no checks were skipped: "All checks passed. Ready for archive."
    - If any check was skipped and there are no CRITICAL issues: do not claim readiness. Say "No critical issues found in the checks that ran. <check(s)> not verified: <reason>." Include the warning count when nonzero.
    - Include the suggestion count when nonzero in every final assessment.
+   - If there are CRITICAL issues, offer to add each one as an unchecked task in the change's tasks file, so apply picks them up. Write nothing unless the user agrees.
 
-**How to judge**: rely on checkboxes and requirement lists for completeness, and on keyword search and reasonable inference for correctness, without demanding certainty. When unsure, choose the lower severity. Every issue gets a specific recommendation with a `file.ts:123` reference where one applies; never a vague "consider reviewing".
+**How to judge**: rely on checkboxes and requirement lists for completeness, and on keyword search and reasonable inference for correctness, without demanding certainty. Say which scenarios you ran and which you inferred from the code. If this session also wrote the code, say so: a session that did not build it reads the specs without the builder's assumptions. When unsure, choose the lower severity. Every issue gets a specific recommendation with a `file.ts:123` reference where one applies; never a vague "consider reviewing".
