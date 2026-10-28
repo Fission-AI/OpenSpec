@@ -13,7 +13,7 @@ Merge a change's delta specs into the main specs, without archiving the change. 
 4. **Merge each delta.** For each selected path, read the delta and its main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (`<capability-path>` is the spec directory relative to `specs/`; keep the delta's full path). If the main spec does not exist yet, or removing requirements would leave it with none, follow `references/merge-rules.md`. Otherwise apply each operation in place:
 
    - **ADDED**: add the requirement. If it already exists, update it to match (an implicit MODIFIED).
-   - **MODIFIED**: replace the requirement with the delta's version. A MODIFIED block carries the whole requirement - body plus every scenario that survives the change. `openspec validate` and `openspec archive` both reject one that drops a scenario the main spec still has.
+   - **MODIFIED**: replace the requirement with the delta's version. A MODIFIED block carries the whole requirement - body plus every scenario that survives the change. `openspec validate` and `openspec archive` both reject one that drops a scenario the main spec still has. If today's requirement says something the block does not, and this change did not set out to remove it, keep it: the main spec changed after the delta was written.
    - **REMOVED**: delete the whole requirement block.
    - **RENAMED**: find the FROM requirement and rename it to TO.
    - **`## Purpose` in the delta**: leave the main spec's Purpose alone (this is what `openspec archive` does).

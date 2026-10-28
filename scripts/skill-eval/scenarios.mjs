@@ -192,6 +192,36 @@ return JSON.stringify(this.#items.map((item) => ({ id: item.id, title: item.titl
   );
 }
 
+/**
+ * An active change that MODIFIES "Completing a todo" so completing toggles.
+ * Written against the spec as it was; `staleBase` makes the main spec gain a
+ * sentence afterwards, the #2129 case.
+ */
+function seedReopenChange(root, { staleBase = false } = {}) {
+  const change = path.join(root, 'openspec/changes/allow-reopen');
+  fs.mkdirSync(path.join(change, 'specs/todo-list'), { recursive: true });
+  fs.writeFileSync(path.join(change, '.openspec.yaml'), 'schema: spec-driven\ncreated: 2026-10-01\n');
+  fs.writeFileSync(
+    path.join(change, 'proposal.md'),
+    "## Why\n\nCallers need to undo a completion when they tick the wrong todo.\n\n## What Changes\n\n- Completing a done todo again reopens it.\n\n## Capabilities\n\n### New Capabilities\n\n### Modified Capabilities\n- `todo-list`: completing a todo toggles it.\n\n## Impact\n\n- `src/todo.js`\n"
+  );
+  fs.writeFileSync(
+    path.join(change, 'specs/todo-list/spec.md'),
+    "## MODIFIED Requirements\n\n### Requirement: Completing a todo\nThe list SHALL toggle an existing todo between done and not done by id.\n\n#### Scenario: Known id\n- **WHEN** a caller completes a todo by its id\n- **THEN** that todo's `done` flips\n\n#### Scenario: Unknown id\n- **WHEN** a caller completes an id that does not exist\n- **THEN** the list throws an error naming the id\n"
+  );
+  fs.writeFileSync(path.join(change, 'tasks.md'), '## 1. Toggle\n\n- [x] 1.1 Make complete() toggle `done`; verify with a test\n');
+  if (staleBase) {
+    const main = path.join(root, 'openspec/specs/todo-list/spec.md');
+    fs.writeFileSync(
+      main,
+      fs.readFileSync(main, 'utf8').replace(
+        'The list SHALL mark an existing todo as done by id.',
+        'The list SHALL mark an existing todo as done by id and record when it was completed in `completedAt`.'
+      )
+    );
+  }
+}
+
 export const SCENARIOS = [
   {
     id: 'propose',
@@ -505,6 +535,61 @@ export const SCENARIOS = [
       { name: 'only the proposal written', pass: !ctx.exists('openspec/changes/add-due-dates/specs') && !ctx.exists('openspec/changes/add-due-dates/tasks.md') },
       onlyOpenspecChanged(ctx),
     ],
+  },
+  {
+    // Another open change already modifies the requirement this request touches
+    // (#1669). A good plan names that change and how the two fit together.
+    id: 'propose-overlap',
+    setup: (root) => seedReopenChange(root),
+    prompt: '/openspec-propose Completing a todo id that does not exist should quietly do nothing instead of failing.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx).find((n) => n !== 'allow-reopen');
+      const proposal = name ? ctx.read(`openspec/changes/${name}/proposal.md`) ?? '' : '';
+      return { namesOverlap: /allow-reopen/.test(proposal) || /allow-reopen/.test(ctx.result ?? '') };
+    },
+    checks: (ctx) => {
+      const fresh = newChangeNames(ctx).filter((n) => n !== 'allow-reopen');
+      const results = [{ name: 'exactly one new change created', pass: fresh.length === 1, detail: fresh.join(', ') }];
+      if (fresh.length !== 1) return results;
+      const validate = ctx.openspec(['validate', fresh[0], '--strict']);
+      results.push(
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        { name: 'the other change is untouched', pass: !ctx.changedFiles().some((f) => f.startsWith('openspec/changes/allow-reopen/')) },
+        onlyOpenspecChanged(ctx)
+      );
+      return results;
+    },
+  },
+  {
+    // The main spec gained a sentence after the change's MODIFIED block was
+    // written (#2129). Archiving as-is would silently drop it.
+    id: 'archive-stale',
+    setup: (root) => seedReopenChange(root, { staleBase: true }),
+    prompt: '/openspec-archive-change allow-reopen. It is finished, so sync the specs and archive it.' + AUTONOMOUS,
+    metrics: (ctx) => ({ mentionsDrift: /completedAt/.test(ctx.result ?? '') }),
+    checks: (ctx) => {
+      const main = ctx.read('openspec/specs/todo-list/spec.md') ?? '';
+      const archiveDir = path.join(ctx.root, 'openspec/changes/archive');
+      const archived = fs.existsSync(archiveDir) && fs.readdirSync(archiveDir).some((name) => name.endsWith('allow-reopen'));
+      return [
+        // Either keep the newer sentence while merging, or stop and say why.
+        { name: 'the newer main-spec wording survives', pass: /completedAt/.test(main) || (!archived && /completedAt/.test(ctx.result ?? '')) },
+        { name: 'no source files changed', pass: ctx.changedFiles().every((file) => file.startsWith('openspec/')) },
+      ];
+    },
+  },
+  {
+    // A request in French (#299): the plan is written in French, while the
+    // format OpenSpec parses stays as it is, so it still validates.
+    id: 'propose-french',
+    prompt: "/openspec-propose Les tâches ont besoin d'une date d'échéance facultative, et il faut pouvoir lister celles qui sont en retard. Fais au mieux sans me poser de questions.",
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      const proposal = name ? ctx.read(`openspec/changes/${name}/proposal.md`) ?? '' : '';
+      const french = (proposal.match(/\b(les|des|une|est|pour|dans|qui|avec)\b/gi) ?? []).length;
+      return { writtenInFrench: french >= 15 };
+    },
+    checks: (ctx) => SCENARIOS.find((scenario) => scenario.id === 'propose').checks(ctx),
   },
   {
     // A plain request to tidy a spec, with no skill named: does the agent find

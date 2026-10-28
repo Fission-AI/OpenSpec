@@ -8,6 +8,8 @@ Archive a completed change: merge its delta specs into the main specs, validate 
 
 3. **Check unfinished artifacts.** Run `openspec status --change "<name>" --json` and note any artifact that is neither `done` nor `skipped`. The preview in step 4 archives at once when nothing else needs confirmation, so if any artifact is unfinished, list them and ask whether to continue first. On "Cancel", stop.
 
+   **Check each MODIFIED block against today's spec.** For each requirement under `## MODIFIED Requirements`, read the same requirement in today's main spec (`openspec show "<spec-id>" --type spec`). If the main spec says something the block does not, and this change did not set out to remove it, the spec changed after the block was written and archiving would drop it: add that wording to the block, keeping this change's edits, run `openspec validate "<name>"`, and tell the user what you carried over.
+
 4. **Preview.**
    ```bash
    openspec archive "<name>" --json

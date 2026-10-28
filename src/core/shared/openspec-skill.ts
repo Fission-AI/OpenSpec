@@ -103,6 +103,16 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
     'list each artifact written and any you skipped with the reason, then say:',
     'list each artifact written and any you skipped with the reason, then what you assumed and any decision the user should confirm, then say:',
   ],
+  // A MODIFIED block replaces the whole requirement, so wording the main spec
+  // gained after the block was written is lost on merge (#2129).
+  [
+    'On "Cancel", stop.',
+    'On "Cancel", stop.\n\n   **Check each MODIFIED block against today\'s spec.** For each requirement under `## MODIFIED Requirements`, read the same requirement in today\'s main spec (`openspec show "<spec-id>" --type spec`). If the main spec says something the block does not, and this change did not set out to remove it, the spec changed after the block was written and archiving would drop it: add that wording to the block, keeping this change\'s edits, run `openspec validate "<name>"`, and tell the user what you carried over.',
+  ],
+  [
+    'both reject one that drops a scenario the main spec still has.',
+    "both reject one that drops a scenario the main spec still has. If today's requirement says something the block does not, and this change did not set out to remove it, keep it: the main spec changed after the delta was written.",
+  ],
   ['Draft the requested edit in the conversation, not in files.', 'Draft the requested edit in the conversation, not in files. If it changes a spec, read `references/deltas.md` first; if it widens the change, `references/changes.md`.'],
 ];
 
@@ -233,6 +243,7 @@ ${CONTEXT_FROM_CLI}
 - **Never lose a requirement:** specs change only through deltas, and a modified requirement is copied whole. See ${guide('deltas')}.
 - **Decide the small things, raise the big ones:** say what you chose and what you assumed, plainly; ask about anything costly to undo. See ${guide('decisions')}.
 - **Ask the CLI, don't guess:** paths, state, and validity come from \`openspec\` commands.
+- **The user's language:** write prose in it; keep OpenSpec's headings and SHALL, WHEN, THEN as they are.
 `;
 }
 

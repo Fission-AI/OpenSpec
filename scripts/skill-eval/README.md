@@ -19,6 +19,9 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `propose-conflict` | a request that contradicts an existing requirement | modifies that requirement by its exact name, adds no conflicting one, validates |
 | `propose-duplicate` | a request half covered by an existing requirement, already built | repeats no existing requirement in a new one |
 | `continue-proposal` | write a proposal through new + continue | proposal only, no code touched |
+| `propose-overlap` | a request touching a requirement another open change already modifies | one new change, the other untouched, validates; records whether the plan names the overlap |
+| `archive-stale` | archive a change whose MODIFIED block predates a newer main-spec sentence | the newer sentence survives, or the agent stops and says why |
+| `propose-french` | propose, asked in French | everything `propose` checks; records whether the plan is written in French |
 | `natural-spec-edit` | tidy a spec's wording, no skill named | requirement reworded with its promise and scenario kept, everything validates, no code touched |
 | `multi-intent` | archive a finished change, then plan a new one, no skill named | archived, one new change planned, everything validates |
 | `explore` | a design question | answers, writes nothing |

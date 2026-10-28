@@ -60,3 +60,4 @@ Commands can return `context` (facts about this project) and `operationGuidance`
 - **Never lose a requirement:** specs change only through deltas, and a modified requirement is copied whole. See `references/deltas.md`.
 - **Decide the small things, raise the big ones:** say what you chose and what you assumed, plainly; ask about anything costly to undo. See `references/decisions.md`.
 - **Ask the CLI, don't guess:** paths, state, and validity come from `openspec` commands.
+- **The user's language:** write prose in it; keep OpenSpec's headings and SHALL, WHEN, THEN as they are.
