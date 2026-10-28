@@ -154,6 +154,14 @@ describe('validate warns about a scenario that asserts nothing', () => {
     });
   }
 
+  it('reads a CRLF delta the same way: one warning, and none for a scenario with steps', async () => {
+    const crlf = (text: string) => text.replace(/\n/g, '\r\n');
+    const bad = await validateDelta(crlf(deltaSpec('ADDED', ONLY_AND.join('\n'))));
+    expect(stepWarnings(bad)).toHaveLength(1);
+    const good = await validateDelta(crlf(deltaSpec('ADDED', WITH_STEPS.join('\n'))));
+    expect(stepWarnings(good)).toEqual([]);
+  });
+
   it('reports only the half that is missing', async () => {
     const report = await validateDelta(deltaSpec('ADDED', NO_OUTCOME.join('\n')));
     const warnings = stepWarnings(report);
@@ -193,7 +201,7 @@ describe('validate warns about a scenario that asserts nothing', () => {
 
 describe('the main-spec path reports the same finding', () => {
   /** Render a billing spec whose single requirement carries these scenarios. */
-  async function validateSpecContent(scenarios: string[]) {
+  async function validateSpecContent(scenarios: string[], strict = false, eol = '\n') {
     const content = [
       '# billing Specification',
       '',
@@ -207,8 +215,8 @@ describe('the main-spec path reports the same finding', () => {
       '',
       ...scenarios,
       '',
-    ].join('\n');
-    return new Validator().validateSpecContent('billing', content);
+    ].join(eol);
+    return new Validator(strict).validateSpecContent('billing', content);
   }
 
   it('warns, naming the requirement and the scenario, without failing the report', async () => {
@@ -219,6 +227,17 @@ describe('the main-spec path reports the same finding', () => {
     expect(warnings[0].message).toContain('Requirement "Credit Notes"');
     expect(warnings[0].message).toContain('"Invoice voided"');
     expect(warnings[0].path).toBe('requirements[0].scenarios');
+  });
+
+  it('fails --strict for a step-less scenario on the spec path', async () => {
+    const report = await validateSpecContent(ONLY_AND, true);
+    expect(report.valid).toBe(false);
+    expect(stepWarnings(report)).toHaveLength(1);
+  });
+
+  it('reads a CRLF spec the same way: one warning for the step-less scenario, none for the good one', async () => {
+    expect(stepWarnings(await validateSpecContent(ONLY_AND, false, '\r\n'))).toHaveLength(1);
+    expect(stepWarnings(await validateSpecContent(WITH_STEPS, false, '\r\n'))).toEqual([]);
   });
 
   it('control: a scenario with steps draws no warning on the spec path either', async () => {
