@@ -110,7 +110,7 @@ The system SHALL NOT validate artifact IDs in rules during config load time. Val
 
 ### Requirement: Gracefully handle config errors without halting
 
-The system SHALL continue operation with default values when config loading or parsing fails.
+The system SHALL continue operation with default values when config loading or parsing fails, except in `openspec validate`, which SHALL report the failure and exit with status 1 before checking any item.
 
 #### Scenario: Config parse failure during command execution
 - **WHEN** config file has syntax errors and user runs `openspec new change`
@@ -119,4 +119,14 @@ The system SHALL continue operation with default values when config loading or p
 #### Scenario: Warning is visible to user
 - **WHEN** config loading fails
 - **THEN** system outputs warning message to stderr with details about the failure
+
+#### Scenario: Validate fails on a config that is not valid YAML
+- **WHEN** config file has syntax errors and user runs `openspec validate`
+- **THEN** the command reports `Could not parse` with the config path, validates no items, and exits with status 1
+- **AND** with `--json` the failure is a single `status` entry with code `unparseable_config`
+
+#### Scenario: Validate fails on a config that cannot be read
+- **WHEN** the config path exists but cannot be read as a file (for example it is a directory) and user runs `openspec validate`
+- **THEN** the command reports `Could not read` with the config path, validates no items, and exits with status 1
+- **AND** with `--json` the failure is a single `status` entry with code `unreadable_config`
 

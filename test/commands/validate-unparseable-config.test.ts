@@ -80,6 +80,25 @@ describe('validate with an unparseable config.yaml', () => {
     expect(output.status[0].message).toContain(path.join('openspec', 'config.yaml'));
   });
 
+  it('reports a config path that cannot be read as a read failure, not bad YAML', async () => {
+    await fs.rm(configPath);
+    await fs.mkdir(configPath);
+
+    const result = await runCLI(['validate', '--all'], { cwd: testDir });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('Error: Could not read');
+    expect(result.stderr).toContain(path.join('openspec', 'config.yaml'));
+    expect(result.stderr).not.toContain('Could not parse');
+    expect(result.stderr).not.toContain('YAML syntax');
+
+    const json = await runCLI(['validate', '--all', '--json'], { cwd: testDir });
+    expect(json.exitCode).toBe(1);
+    const output = JSON.parse(json.stdout);
+    expect(output.status).toHaveLength(1);
+    expect(output.status[0]).toMatchObject({ severity: 'error', code: 'unreadable_config' });
+  });
+
   it('still passes once the YAML is fixed', async () => {
     await fs.writeFile(configPath, 'schema: spec-driven\n');
 

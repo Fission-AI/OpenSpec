@@ -818,7 +818,7 @@ Next steps:
 **Exit codes**
 
 - `0`: every validated item passed, including an empty bulk scope.
-- `1`: an item failed, the report request is invalid, `openspec/config.yaml` is not valid YAML, or the run failed (for example an unknown name or no OpenSpec root). A config that is not valid YAML stops the run before any item is checked; with `--json` it is reported as a single `status` entry with the code `unparseable_config`.
+- `1`: an item failed, the report request is invalid, `openspec/config.yaml` cannot be read or is not valid YAML, or the run failed (for example an unknown name or no OpenSpec root). A config that cannot be read or parsed stops the run before any item is checked; with `--json` it is reported as a single `status` entry with the code `unreadable_config` or `unparseable_config`.
 
 ### --report full|findings
 

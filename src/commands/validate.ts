@@ -118,14 +118,20 @@ export class ValidateCommand {
       return;
     }
 
-    // Every other command ignores an unparseable config with a warning, so
-    // validate is where CI has to catch it (#1892).
+    // Every other command ignores an unreadable or unparseable config with a
+    // warning, so validate is where CI has to catch it (#1892).
     const configError = readConfigParseError(root.path);
     if (configError) {
-      const message = `Could not parse ${configError.filePath} (${configError.message}).`;
-      const fix = `Fix the YAML syntax in ${configError.filePath}.`;
+      const unreadable = configError.kind === 'read';
+      const message = unreadable
+        ? `Could not read ${configError.filePath} (${configError.message}).`
+        : `Could not parse ${configError.filePath} (${configError.message}).`;
+      const fix = unreadable
+        ? `Make ${configError.filePath} a readable file, or remove it.`
+        : `Fix the YAML syntax in ${configError.filePath}.`;
+      const code = unreadable ? 'unreadable_config' : 'unparseable_config';
       if (options.json) {
-        console.log(JSON.stringify({ status: [{ severity: 'error', code: 'unparseable_config', message, fix }] }, null, 2));
+        console.log(JSON.stringify({ status: [{ severity: 'error', code, message, fix }] }, null, 2));
       } else {
         console.error(`Error: ${message}`);
         console.error(`Fix: ${fix}`);
