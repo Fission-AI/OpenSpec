@@ -234,6 +234,9 @@ function summarizeStream(stream) {
   // The spec-reading audit's measure: specs read before the first file of a
   // change is written. Null when the run writes no change file.
   let readSpecsBeforeDraft = null;
+  // Did the agent run the project's tests, or validate its plan?
+  let ranTests = false;
+  let ranValidate = false;
   for (const event of lines) {
     if (event.type !== 'assistant') continue;
     for (const part of event.message?.content ?? []) {
@@ -242,6 +245,8 @@ function summarizeStream(stream) {
       if (readSpecsBeforeDraft === null && ['Write', 'Edit', 'MultiEdit'].includes(part.name) && /openspec\/changes\/(?!archive\/)[^/]+\//.test(input.file_path ?? '')) {
         readSpecsBeforeDraft = readSpecs;
       }
+      if (part.name === 'Bash' && /node --test|npm (run )?test|pnpm (run )?test|vitest/.test(input.command ?? '')) ranTests = true;
+      if (part.name === 'Bash' && /openspec validate/.test(input.command ?? '')) ranValidate = true;
       if (part.name === 'Read') reads.push(input.file_path);
       if (part.name === 'Skill') reads.push(`skill:${input.skill ?? input.command}`);
       const target = `${input.file_path ?? ''} ${input.path ?? ''} ${input.command ?? ''}`;
@@ -265,6 +270,8 @@ function summarizeStream(stream) {
     skillFilesRead: reads.filter((file) => file && /(^skill:|skills\/)/.test(file)).map((file) => file.replace(/^.*skills\//, '')),
     readSpecs,
     readSpecsBeforeDraft,
+    ranTests,
+    ranValidate,
   };
 }
 
@@ -306,6 +313,9 @@ async function runOne(scenario, rep) {
       // Observations that are not pass/fail, reported as rates by compare.mjs.
       metrics: {
         readSpecs: summary.readSpecs,
+        ranTests: summary.ranTests,
+        ranValidate: summary.ranValidate,
+        namesAssumptions: /\bassum/i.test(summary.result ?? ''),
         ...(summary.readSpecsBeforeDraft === null ? {} : { readSpecsBeforeDraft: summary.readSpecsBeforeDraft }),
         ...metrics,
       },

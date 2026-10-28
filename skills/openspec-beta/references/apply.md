@@ -20,7 +20,7 @@ Implement the tasks of an OpenSpec change, one checkbox at a time.
 
 3. **Read every file in `contextFiles`.** Use contextFiles from CLI output, don't assume specific file names. Show the schema, "N/M tasks complete", and what remains.
 
-4. **Work through the tasks.** For each pending task: say which one, make the smallest change that fully does it, then mark it `- [ ]` → `- [x]` at its `sourcePath` and `line` (confirm that line still matches the task first; if not, rerun the apply instructions). Rerun the apply instructions to confirm progress moved.
+4. **Work through the tasks.** For each pending task: say which one, make the smallest change that fully does it, run the check the task names (or the project's tests), then mark it `- [ ]` → `- [x]` at its `sourcePath` and `line` (confirm that line still matches the task first; if not, rerun the apply instructions). Rerun the apply instructions to confirm progress moved. A failing check means the task is not done: fix it, or pause and say what fails. A task only a person can do, such as creating an account or paying, goes to the user; never tick it.
 
    **Pause and ask when:**
    - a task is unclear;
