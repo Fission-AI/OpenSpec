@@ -27,7 +27,7 @@ node --version
 
 If you use bun to install OpenSpec, note that OpenSpec still *runs* on Node, so you need Node 22.12.0+ available on your `PATH` regardless. See [Installation](installation.md).
 
-If you can't upgrade Node, install the [standalone binary](installation.md) or use Homebrew instead; neither needs Node on your machine.
+If you can't upgrade Node, install the [standalone binary](installation.md), which runs without Node. Homebrew is another option: it still runs OpenSpec on Node, but installs and manages a current Node.js for you as a dependency.
 
 ### `openspec init` didn't configure my AI tool
 
