@@ -98,24 +98,10 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
   ['or what counts as done.', 'or what counts as done (`references/decisions.md` lists what to raise).'],
   ['If no capability is related, say so in one line and continue.', 'If no capability is related, say so in one line and continue. Before naming a new capability, read `references/capabilities.md`.'],
   ['it needs a MODIFIED delta too.', 'it needs a MODIFIED delta too; read `references/deltas.md` before writing one.'],
-  // Check the plan as a whole before handing it over (#783, #1519), and say
-  // where it guessed (#1908).
-  [
-    '**Show the plan, then stop**\n\n   Run `openspec status --change "<name>"`.',
-    '**Check the plan, show it, then stop**\n\n   Read the artifacts together once: every requirement has a task, no task builds what no requirement or decision asks for, and the proposal lists the capabilities the spec files cover. Fix what does not line up, then run `openspec validate "<name>"` and fix any error.\n\n   Run `openspec status --change "<name>"`.',
-  ],
+  // Say where the plan guessed, so a reviewer checks those first (#1908).
   [
     'list each artifact written and any you skipped with the reason, then say:',
     'list each artifact written and any you skipped with the reason, then what you assumed and any decision the user should confirm, then say:',
-  ],
-  // A ticked box means the task's check passed (#1983, #1362).
-  [
-    'make the smallest change that fully does it, then mark it',
-    "make the smallest change that fully does it, run the check the task names (or the project's tests), then mark it",
-  ],
-  [
-    'Rerun the apply instructions to confirm progress moved.',
-    'Rerun the apply instructions to confirm progress moved. A failing check means the task is not done: fix it, or pause and say what fails. A task only a person can do, such as creating an account or paying, goes to the user; never tick it.',
   ],
   ['Draft the requested edit in the conversation, not in files.', 'Draft the requested edit in the conversation, not in files. If it changes a spec, read `references/deltas.md` first; if it widens the change, `references/changes.md`.'],
 ];

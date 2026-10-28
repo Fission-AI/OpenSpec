@@ -44,8 +44,6 @@ With the default spec-driven schema the artifacts are proposal.md (why and what)
    Stop when every artifact in the set is finished. If one needs input from the user (unclear context), ask, then continue.
 
 
-7. **Check the plan, show it, then stop**
-
-   Read the artifacts together once: every requirement has a task, no task builds what no requirement or decision asks for, and the proposal lists the capabilities the spec files cover. Fix what does not line up, then run `openspec validate "<name>"` and fix any error.
+7. **Show the plan, then stop**
 
    Run `openspec status --change "<name>"`. Name the change and its folder (`changeRoot`), list each artifact written and any you skipped with the reason, then what you assumed and any decision the user should confirm, then say: "The plan is ready for review. When you are ready, run `/openspec-beta-apply` or ask me to apply this change." This response ends here, even if the request asked to build it.
