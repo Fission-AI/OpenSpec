@@ -21,6 +21,7 @@ import {
   describeUnappliedContent,
   findDuplicateIds,
   findRequirementKeyById,
+  scenarioNames,
   type RequirementBlock,
 } from '../parsers/requirement-blocks.js';
 import {
@@ -380,6 +381,16 @@ export class Validator {
               message: `Duplicate ID in ${section}: "${id}". Give each requirement its own ID.`,
             });
           }
+          // A repeated scenario ID turns ID pairing off for that requirement.
+          for (const block of blocks) {
+            for (const id of findDuplicateIds(scenarioNames(block.raw))) {
+              issues.push({
+                level: 'WARNING',
+                path: entryPath,
+                message: `${section} "${block.name}" repeats scenario ID "${id}". Give each scenario its own ID.`,
+              });
+            }
+          }
         }
 
         // Run archive's scenario-loss check here too, so the change fails at
@@ -394,6 +405,7 @@ export class Validator {
             ...(await this.findScenarioLossIssues(
               plan.modified,
               plan.renamed,
+              plan.removed,
               mainSpecFile,
               entryPath,
               options.mainSpecsDir
@@ -718,6 +730,7 @@ export class Validator {
   private async findScenarioLossIssues(
     modified: RequirementBlock[],
     renamed: Array<{ from: string; to: string }>,
+    removed: string[],
     mainSpecFile: string,
     entryPath: string,
     mainSpecRoot: string
@@ -780,15 +793,18 @@ export class Validator {
     // would land on is not the one it names — so any scenario named here would
     // send the author after the wrong requirement.
     const renamedAway = new Set(renamed.map(({ from }) => normalizeRequirementName(from)));
+    const idLookup = new Map(currentBlocks);
+    for (const name of removed) idLookup.delete(normalizeRequirementName(name));
 
     const issues: ValidationIssue[] = [];
     for (const block of modified) {
       const key = normalizeRequirementName(block.name);
       if (renamedAway.has(key)) continue;
-      // The same ID lookup archive uses, so a renamed requirement is compared
-      // against the block archive will replace (#2167).
-      const idKey = findRequirementKeyById(currentBlocks, block);
-      const current = currentBlockFor(key) ?? (idKey === undefined ? undefined : currentBlocks.get(idKey));
+      // The same ID lookup archive uses, after the REMOVED it applies first, so
+      // a renamed requirement is compared against the block archive will
+      // replace (#2167).
+      const idKey = findRequirementKeyById(idLookup, block);
+      const current = currentBlockFor(key) ?? (idKey === undefined ? undefined : idLookup.get(idKey));
       if (!current) continue;
       const diff = diffScenarioNames(current, block);
       if (diff.missing.length === 0) continue;

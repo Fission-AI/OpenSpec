@@ -153,10 +153,10 @@ The template the agent receives as the output format ([templates/spec.md](https:
 
 ## ADDED Requirements
 
-### Requirement: <!-- ID and name, e.g. AUTH-3 Users sign in -->
+### Requirement: <!-- ID and name, e.g. [AUTH-3] Users sign in -->
 <!-- requirement text -->
 
-#### Scenario: <!-- ID and name, e.g. AUTH-3.1 Correct password -->
+#### Scenario: <!-- ID and name, e.g. [AUTH-3.1] Correct password -->
 - **WHEN** <!-- condition -->
 - **THEN** <!-- expected outcome -->
 ```
@@ -219,7 +219,7 @@ Format requirements:
 - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
 - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
 - Every requirement MUST have at least one scenario.
-- Start each new requirement and scenario heading with a stable ID, so links and archive survive a reworded name: `### Requirement: AUTH-3 Users sign in`, `#### Scenario: AUTH-3.1 Correct password`. Use the next unused number in that spec, keep an existing ID when you reword or move a heading, and never reuse a removed one. A heading that has no ID yet may gain one under MODIFIED. Cite the ID, not the name, in tasks, tests and code.
+- Start each new requirement and scenario heading with a stable ID in square brackets, so links and archive survive a reworded name: `### Requirement: [AUTH-3] Users sign in`, `#### Scenario: [AUTH-3.1] Correct password`. Use the next unused number in that spec, keep an existing ID when you reword or move a heading, and never reuse a removed one. A heading that has no ID yet may gain one under MODIFIED. Cite the ID, not the name, in tasks, tests and code.
 - Keep each requirement's description (the text between `### Requirement:` and its first scenario) to 500 characters or fewer. `openspec validate` flags longer descriptions in ADDED requirements and in the main spec. This is a warning: normal validation still passes, but `openspec validate --strict` fails on it. When writing a new requirement, state one behavior per requirement: move examples and edge cases into scenarios, and split a requirement that covers several behaviors into separate `### Requirement:` blocks, each with its own scenarios. Under MODIFIED, keep the existing requirement block whole; never split, trim or rewrite existing text just to meet the length. Split an existing long requirement only when the user asks for it, in a change made for that purpose: under MODIFIED, keep its header and every scenario and cut its description down to one behavior without changing its meaning, then add each behavior you removed as its own ADDED requirement with its own scenarios.
 
 New capabilities only: the delta spec's first section is `## Purpose` -
@@ -386,7 +386,7 @@ Guidelines:
 - Each tracked task MUST be a checkbox: `- [ ] X.Y Task description`
 - Tasks should be small enough to complete in one session
 - Order tasks by dependency (what must be done first?)
-- When a task implements a design decision or a requirement, cite its ID: `[D2](./design.md#d2)`, `AUTH-3`
+- When a task implements a design decision or a requirement, cite its ID: `[D2](./design.md#d2)`, `[AUTH-3]`
 - Track implementation and verification work that can be completed before
   archive. If the requested workflow includes archive or work that requires
   this change to be archived, preserve those steps as plain bullets in an

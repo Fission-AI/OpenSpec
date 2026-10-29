@@ -15,29 +15,34 @@ Teams that need stable links already put IDs in headings: sonqh's `spec-driven-i
 - A coverage report or `@spec` link syntax (follow-up 1).
 - Declaring a deliberate scenario removal (#1843, #1697 Q2).
 - Detecting overlap between open changes (#1669, #1387).
+- Matching REMOVED by ID. REMOVED keeps matching by name, as today.
 - Hidden metadata, a database, or two-way traceability. Markdown IDs come first; revisit once they're in use.
 
 ## Decisions
 
 ### D1
 
-The agent writes the ID as the first word of the heading, and the CLI only reads it, because it's visible, today's parser already keeps it, and teams already do it. Hidden CLI-assigned IDs scored no better (264 of 265 runs kept every ID either way), so they aren't worth a new command.
+The agent writes the ID in square brackets as the first word of the heading (`[AUTH-3]`), and the CLI only reads it, because it's visible, today's parser already keeps it, and teams already do it. Hidden CLI-assigned IDs scored no better (264 of 265 runs kept every ID either way), so they aren't worth a new command.
 
 ### D2
 
-Match on the ID first, then on the name, so a requirement or scenario renamed under the same ID is the same block, and a different ID never counts as a match just because the name is shared. With no IDs on either side, today's code runs unchanged.
+The brackets are required. A review found that bare tokens misfire on ordinary names: `SHA-256 checksum verified` read as an ID silently let a scenario drop, and `HTTP-2 push` rewrote `HTTP-2 support`. Brackets make an ID unmistakable, so specs without them behave exactly as before.
 
 ### D3
 
-Refuse duplicate IDs instead of guessing, because agents number sequentially and parallel changes can pick the same number. A main spec that already has a duplicate falls back to names with a warning, so no existing project starts failing.
+Match on the ID first, then on the name, so a requirement or scenario renamed under the same ID is the same block, and a different ID never counts as a match just because the name is shared. An ID match may not land on a requirement another MODIFIED block in the delta already changed, or on a RENAMED target. Validate looks IDs up after the REMOVED that archive applies first, so the two agree.
 
 ### D4
 
-A decision is a `### D1` heading plus the choice and reason in one or two sentences: the bare heading keeps the `#d1` anchor stable (#2056), and dropping the Context, Rationale and Alternatives fields answers #2113's concern about padded, invented alternatives. Decision IDs are local to one change, so the CLI doesn't check them.
+Refuse duplicate IDs instead of guessing, because agents number sequentially and parallel changes can pick the same number. A main spec that already has a duplicate falls back to names with a warning, so no existing project starts failing.
 
 ### D5
 
-Tasks, tests and code cite the ID (`// AUTH-3.1`, `[D1](./design.md#d1)`), not the heading, so a later report can find links by pattern without anyone rewriting them.
+A decision is a `### D1` heading plus the choice and reason in one or two sentences: the bare heading keeps the `#d1` anchor stable (#2056), and dropping the Context, Rationale and Alternatives fields answers #2113's concern about padded, invented alternatives. Decision IDs are local to one change, so the CLI doesn't check them.
+
+### D6
+
+Tasks, tests and code cite the ID (`// [AUTH-3.1]`, `[D1](./design.md#d1)`), not the heading, so a later report can find links by pattern without anyone rewriting them.
 
 ## Evidence
 
@@ -49,12 +54,12 @@ From the [#1979 comment](https://github.com/Fission-AI/OpenSpec/pull/1979#issuec
 | Do agents keep IDs through edits? | 264 of 265 runs kept every ID through rename, reorder, split and remove. No ID was ever moved to the wrong scenario |
 | Is ID matching safe? | A 118-line prototype left all 1,719 past archives byte-identical, and rename deltas went from 0 of 20 to 20 of 20 passing validate |
 
-The prototype read IDs from a comment line under the heading. The implementation reran the archive check with heading IDs, adding sonqh's spec-ctx, which already writes them, as a fifth repo: see the PR description for the results.
+The implementation reran the archive check on five repos, including sonqh's spec-ctx; `evidence/compare-archives.mjs` reproduces it, and the PR description has the results.
 
 ## Risks / Trade-offs
 
-- **A heading that starts with an uppercase number token, like `COVID-19 handling`, reads as an ID.** It still matches correctly while it's unique. Validate's duplicate warning catches the rare clash.
-- **Sequential IDs collide in parallel work.** This is accepted (D3): the second change to archive is refused with a clear message, rather than linking to the wrong requirement.
+- **Bare IDs already in use (`NAV-5`, `REQ-UA-004`) are not read as IDs.** Those projects keep today's behavior until a MODIFIED block adds brackets. This is the price of D2.
+- **Sequential IDs collide in parallel work.** This is accepted (D4): the second change to archive is refused with a clear message, rather than linking to the wrong requirement.
 - **An ID can't tell a deliberate drop from an accident,** so removing a scenario still needs #1843.
 
 ## Follow-ups
@@ -65,4 +70,4 @@ The prototype read IDs from a comment line under the heading. The implementation
 
 ## Open Questions
 
-- Should the templates suggest a capability prefix (`AUTH-3`), or leave the scheme to each project?
+- Should the templates suggest a capability prefix (`[AUTH-3]`), or leave the scheme to each project?

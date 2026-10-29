@@ -543,6 +543,11 @@ export async function buildUpdatedSpec(
 
   // MODIFIED
   let modifiedApplied = 0;
+  // Requirements MODIFIED has already written, and RENAMED's new headers: an ID
+  // lookup may not land on either, or one block would silently replace another
+  // block's work, or undo a rename the same delta asked for.
+  const modifiedKeys = new Set<string>();
+  const renamedToKeys = new Set(plan.renamed.map(({ to }) => normalizeRequirementName(to)));
   for (const mod of plan.modified) {
     const key = normalizeRequirementName(mod.name);
     // A heading that changed but kept its ID is the same requirement (#2167).
@@ -550,6 +555,27 @@ export async function buildUpdatedSpec(
     const currentBlock = targetKey === undefined ? undefined : nameToBlock.get(targetKey);
     if (!currentBlock || targetKey === undefined) {
       throw new Error(`${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - not found`);
+    }
+    if (targetKey !== key) {
+      const target = nameToBlock.get(targetKey)!.name;
+      if (modifiedKeys.has(targetKey)) {
+        throw new Error(
+          `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - another MODIFIED block in this delta already changes "${target}"`
+        );
+      }
+      if (renamedToKeys.has(targetKey)) {
+        throw new Error(
+          `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - RENAMED in this delta names it "${target}"; use that header`
+        );
+      }
+      const nearMiss = [...nameToBlock.keys()].find(
+        (k) => k !== targetKey && foldRequirementName(k) === foldRequirementName(key)
+      );
+      if (nearMiss !== undefined) {
+        throw new Error(
+          `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - "### Requirement: ${nameToBlock.get(nearMiss)!.name}" already exists and differs only in case or spacing; choose a distinct name`
+        );
+      }
     }
     // Replace block with provided raw (ensure header line matches key)
     const modHeaderMatch = mod.raw.split('\n')[0].match(/^###\s*Requirement:\s*(.+)\s*$/i);
@@ -580,6 +606,7 @@ export async function buildUpdatedSpec(
       }
     }
     nameToBlock.set(key, mod);
+    modifiedKeys.add(key);
   }
 
   // ADDED

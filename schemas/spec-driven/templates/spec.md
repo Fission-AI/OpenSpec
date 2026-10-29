@@ -5,9 +5,9 @@
 
 ## ADDED Requirements
 
-### Requirement: <!-- ID and name, e.g. AUTH-3 Users sign in -->
+### Requirement: <!-- ID and name, e.g. [AUTH-3] Users sign in -->
 <!-- requirement text -->
 
-#### Scenario: <!-- ID and name, e.g. AUTH-3.1 Correct password -->
+#### Scenario: <!-- ID and name, e.g. [AUTH-3.1] Correct password -->
 - **WHEN** <!-- condition -->
 - **THEN** <!-- expected outcome -->

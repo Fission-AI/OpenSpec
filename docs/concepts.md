@@ -135,14 +135,14 @@ The system MUST expire sessions after 30 minutes of inactivity.
 
 ### Stable IDs
 
-A requirement or scenario can start with an ID, so links to it survive a reworded heading:
+A requirement or scenario can start with an ID in square brackets, so links to it survive a reworded heading:
 
 ```markdown
-### Requirement: AUTH-3 Users sign in
-#### Scenario: AUTH-3.1 Correct password
+### Requirement: [AUTH-3] Users sign in
+#### Scenario: [AUTH-3.1] Correct password
 ```
 
-An ID is an uppercase word with a hyphen that ends in a number (`AUTH-3`, `REQ-UA-004`), or any such word in brackets (`[cap-012]`). Validate and archive match a MODIFIED block on its ID before its name, so renaming a requirement or scenario that keeps its ID just works, while dropping one is still refused. Two requirements in one spec can't share an ID. Specs without IDs work exactly as before.
+An ID is a word with a hyphen that ends in a number (`[AUTH-3]`, `[REQ-UA-004]`, `[cap-012]`). The brackets are required, so a heading like `SHA-256 checksum` or `HTTP-2 support` stays an ordinary name. Your agent writes the ID; OpenSpec only reads it. Validate and archive match a MODIFIED block on its ID before its name, so renaming a requirement or scenario that keeps its ID just works, while dropping one is still refused. Two requirements in one spec can't share an ID. Specs without IDs work exactly as before.
 
 Design decisions use `### D1`, `### D2`, ... headings, so tasks can link `[D1](./design.md#d1)` and the link survives a retitle.
 

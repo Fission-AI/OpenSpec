@@ -23,20 +23,19 @@ export function normalizeRequirementName(name: string): string {
 }
 
 /**
- * A stable ID written as the first word of a requirement or scenario name
- * (#2167): a bare uppercase token with a hyphen that ends in a number
- * (`AUTH-3`, `AUTH-3.1`, `REQ-UA-004`), or such a token in either case inside
- * square brackets (`[cap-012]`). Any other first word is part of the name, so
- * `Step-2 rollout` has no ID. The ID stays part of the name as well: matching
- * by name is unchanged, and the ID only adds a match that survives a rename.
+ * A stable ID written in square brackets at the start of a requirement or
+ * scenario name (#2167): a word with a hyphen that ends in a number, such as
+ * `[AUTH-3]`, `[AUTH-3.1]` or `[cap-012]`. The brackets are required: a bare
+ * `SHA-256 checksum` or `HTTP-2 support` is an ordinary name, so specs without
+ * IDs keep matching exactly as before. The ID stays part of the name as well:
+ * matching by name is unchanged, and the ID only adds a match that survives a
+ * rename.
  */
-const HEADING_ID =
-  /^(?:\[([A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*-\d+(?:\.\d+)*)\]|([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+(?:\.\d+)*))(?=\s|$)/;
+const HEADING_ID = /^\[([A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*-\d+(?:\.\d+)*)\](?=\s|$)/;
 
 /** The ID at the start of a requirement or scenario name, if it has one. */
 export function headingId(name: string): string | undefined {
-  const match = name.match(HEADING_ID);
-  return match ? (match[1] ?? match[2]) : undefined;
+  return name.match(HEADING_ID)?.[1];
 }
 
 /** The name with its leading ID removed; the name itself when it has none. */
@@ -826,6 +825,11 @@ export function scenarioNameFromHeaderText(headerText: string): string {
     .replace(/[ \t]+#+[ \t]*$/, '')
     .replace(/^Scenario:\s*/i, '')
     .trim();
+}
+
+/** The scenario names of a requirement block, as the loss check reads them. */
+export function scenarioNames(requirementRaw: string): string[] {
+  return parseScenarioBlocks(requirementRaw).map((scenario) => scenario.name);
 }
 
 function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
