@@ -652,7 +652,10 @@ describe('resolveOpenSpecRoot', () => {
     });
   });
 
-  describe('git remote store match', () => {
+  // A repo-name match is only a suggestion (#2076): a basename is not enough
+  // authority to redirect writes, since company-a/api and company-b/api both
+  // match a store called `api`.
+  describe('git remote store suggestion', () => {
     /** Create a temporary git repo with an origin remote, isolated from any caller git env. */
     function initGitRepoWithRemote(relativePath: string, originUrl: string | null): string {
       const repoRoot = mkdir(relativePath);
@@ -689,21 +692,63 @@ describe('resolveOpenSpecRoot', () => {
       expect(fs.realpathSync.native(root.path)).toBe(fs.realpathSync.native(storeRoot));
     }
 
-    it('resolves a store whose id matches the repo name from origin', async () => {
-      const storeRoot = await registerStore('my-project');
+    /** The no-root error, which is where a matching store is suggested. */
+    async function noRootError(startPath: string): Promise<RootSelectionError> {
+      return expectRootSelectionError(
+        resolveOpenSpecRoot({ startPath, globalDataDir }),
+        'no_root_with_registered_stores'
+      );
+    }
+
+    /** Assert the error suggests `id` through both --store and the config pointer. */
+    function expectSuggests(error: RootSelectionError, id: string): void {
+      expect(error.message).toContain(`matches the registered store "${id}"`);
+      expect(error.message).toContain(`--store ${id}`);
+      expect(error.message).toContain(`"store: ${id}" to openspec/config.yaml`);
+      expect(error.diagnostic.fix).toContain(`--store ${id}`);
+    }
+
+    it('suggests, and does not select, a store whose id matches the repo name from origin', async () => {
+      await registerStore('my-project');
       const repo = initGitRepoWithRemote(
         'code/my-project',
         'https://github.com/team/my-project.git'
       );
 
+      expectSuggests(await noRootError(repo), 'my-project');
+    });
+
+    it('never overrides defaultStore, for either of two orgs sharing a repo name', async () => {
+      const intendedRoot = await registerStore('intended-store');
+      await registerStore('api');
+      setDefaultStore('intended-store');
+      const repoA = initGitRepoWithRemote('code/a/api', 'https://github.com/company-a/api.git');
+      const repoB = initGitRepoWithRemote('code/b/api', 'https://github.com/company-b/api.git');
+
+      for (const startPath of [repoA, repoB]) {
+        const root = await resolveOpenSpecRoot({ startPath, globalDataDir });
+        expect(root.source).toBe('global_default');
+        expectStoreRoot(root, intendedRoot, 'intended-store');
+      }
+    });
+
+    it('selects the suggested store once the config pointer it names is added', async () => {
+      const storeRoot = await registerStore('my-project');
+      const repo = initGitRepoWithRemote(
+        'code/my-project',
+        'https://github.com/team/my-project.git'
+      );
+      fs.mkdirSync(path.join(repo, 'openspec'), { recursive: true });
+      fs.writeFileSync(path.join(repo, 'openspec', 'config.yaml'), 'store: my-project\n');
+
       const root = await resolveOpenSpecRoot({ startPath: repo, globalDataDir });
 
-      expect(root.source).toBe('git_remote');
+      expect(root.source).toBe('declared');
       expectStoreRoot(root, storeRoot, 'my-project');
     });
 
-    it('resolves from a file entry path, not just a directory', async () => {
-      const storeRoot = await registerStore('my-project');
+    it('suggests from a file entry path, not just a directory', async () => {
+      await registerStore('my-project');
       const repo = initGitRepoWithRemote(
         'code/my-project',
         'git@github.com:team/my-project.git'
@@ -712,59 +757,30 @@ describe('resolveOpenSpecRoot', () => {
       fs.mkdirSync(path.dirname(nestedFile), { recursive: true });
       fs.writeFileSync(nestedFile, 'x');
 
-      const root = await resolveOpenSpecRoot({ startPath: nestedFile, globalDataDir });
-
-      expect(root.source).toBe('git_remote');
-      expectStoreRoot(root, storeRoot, 'my-project');
-    });
-
-    it('resolves through a symlink alias to the same store as the canonical path', async () => {
-      const storeRoot = await registerStore('my-project');
-      const repo = initGitRepoWithRemote(
-        'code/my-project',
-        'https://github.com/team/my-project.git'
-      );
-
-      // A symlink that aliases the repo from a different location. On Windows
-      // a directory junction is used (no symbolic-link privilege required);
-      // elsewhere a directory symlink. The resolver must canonicalize the alias
-      // before probing the git remote, so it selects the same store the
-      // canonical path would.
-      const aliasParent = mkdir('aliases');
-      const alias = path.join(aliasParent, 'my-project-link');
-      const aliasType = process.platform === 'win32' ? 'junction' : 'dir';
-      fs.symlinkSync(repo, alias, aliasType);
-
-      const root = await resolveOpenSpecRoot({ startPath: alias, globalDataDir });
-
-      expect(root.source).toBe('git_remote');
-      expectStoreRoot(root, storeRoot, 'my-project');
+      expectSuggests(await noRootError(nestedFile), 'my-project');
     });
 
     it('normalizes a non-kebab repo name to the kebab store id', async () => {
-      const storeRoot = await registerStore('my-project');
+      await registerStore('my-project');
       const repo = initGitRepoWithRemote(
         'code/MyProject',
         'https://github.com/team/MyProject.git'
       );
 
-      const root = await resolveOpenSpecRoot({ startPath: repo, globalDataDir });
-
-      expect(root.source).toBe('git_remote');
-      expectStoreRoot(root, storeRoot, 'my-project');
+      expectSuggests(await noRootError(repo), 'my-project');
     });
 
-    it('falls through when no store matches the repo name', async () => {
+    it('keeps the plain registered-stores error when no store matches the repo name', async () => {
       await registerStore('other-project');
       const repo = initGitRepoWithRemote(
         'code/my-project',
         'https://github.com/team/my-project.git'
       );
 
-      await expectRootSelectionError(
-        resolveOpenSpecRoot({ startPath: repo, globalDataDir }),
-        'no_root_with_registered_stores'
-      );
+      const error = await noRootError(repo);
+
+      expect(error.message).toContain('Registered stores: other-project');
+      expect(error.message).not.toContain('matches the registered store');
     });
 
     it('falls through quietly for a repo with no origin and for a non-repo directory', async () => {
@@ -776,10 +792,8 @@ describe('resolveOpenSpecRoot', () => {
 
       try {
         for (const startPath of [noOrigin, notARepo]) {
-          await expectRootSelectionError(
-            resolveOpenSpecRoot({ startPath, globalDataDir }),
-            'no_root_with_registered_stores'
-          );
+          const error = await noRootError(startPath);
+          expect(error.message).not.toContain('matches the registered store');
         }
         expect(stderrWrite).not.toHaveBeenCalled();
         expect(emitWarning).not.toHaveBeenCalled();
@@ -790,7 +804,8 @@ describe('resolveOpenSpecRoot', () => {
     });
 
     it('reads the origin of the start path even when GIT_DIR names another repo', async () => {
-      const storeRoot = await registerStore('my-project');
+      await registerStore('my-project');
+      await registerStore('other-project');
       const repo = initGitRepoWithRemote(
         'code/my-project',
         'https://github.com/team/my-project.git'
@@ -802,12 +817,9 @@ describe('resolveOpenSpecRoot', () => {
 
       // Git sets GIT_DIR for hooks, so a CLI run from another repo's hook
       // inherits it. It must not redirect the probe away from startPath.
-      const root = await withEnv('GIT_DIR', path.join(other, '.git'), () =>
-        resolveOpenSpecRoot({ startPath: repo, globalDataDir })
-      );
+      const error = await withEnv('GIT_DIR', path.join(other, '.git'), () => noRootError(repo));
 
-      expect(root.source).toBe('git_remote');
-      expectStoreRoot(root, storeRoot, 'my-project');
+      expectSuggests(error, 'my-project');
     });
 
     // The fake git is a POSIX shell shim; execFile cannot run a .cmd on Windows.
@@ -826,6 +838,28 @@ describe('resolveOpenSpecRoot', () => {
         );
 
         expect(root.source).toBe('implicit');
+        expect(fs.existsSync(fakeGit.logPath)).toBe(false);
+      }
+    );
+
+    it.skipIf(process.platform === 'win32')(
+      'does not spawn git when defaultStore already selects a root',
+      async () => {
+        await registerStore('intended-store');
+        await registerStore('my-project');
+        setDefaultStore('intended-store');
+        const repo = initGitRepoWithRemote(
+          'code/my-project',
+          'https://github.com/team/my-project.git'
+        );
+        const fakeGit = createFakeTool(tempDir, 'git');
+        const fakePath = withPrependedPathEnv(process.env, fakeGit.binDir).PATH ?? '';
+
+        const root = await withEnv('PATH', fakePath, () =>
+          resolveOpenSpecRoot({ startPath: repo, globalDataDir })
+        );
+
+        expect(root.source).toBe('global_default');
         expect(fs.existsSync(fakeGit.logPath)).toBe(false);
       }
     );

@@ -46,7 +46,6 @@ export type OpenSpecRootSource =
   | 'store'
   | 'declared'
   | 'global_default'
-  | 'git_remote'
   | 'nearest'
   | 'implicit';
 
@@ -393,29 +392,17 @@ async function resolveDefaultStoreRoot(
 }
 
 /**
- * Git-remote store match: when the current repo has no local `openspec/`
- * directory, derive a candidate store id from the repo's origin URL and
- * resolve a registered store with that id. Best-effort — no match (no remote,
- * no parseable name, or no registered store with that id) is `null`, never an
- * error, so the fallback chain simply continues.
+ * Git-remote store suggestion (#2076): the registered store whose id matches
+ * this repo's origin name, or null. Only ever named in the no-root error, never
+ * selected: a basename is not enough authority to redirect writes, because
+ * `company-a/api` and `company-b/api` both match a store called `api`.
  */
-async function resolveGitRemoteStore(
+async function suggestStoreFromGitRemote(
   startPath: string,
-  globalDataDir?: string
-): Promise<ResolvedOpenSpecRoot | null> {
-  // Read the registry first: with no stores registered nothing can match, so
-  // skip spawning git. Completion and agents run the CLI often.
-  let registry;
-  try {
-    registry = await readStoreRegistryState(globalDataDir ? { globalDataDir } : {});
-  } catch (error) {
-    fromStoreError(error);
-  }
-  const entries = registry ? listStoreRegistryEntries(registry) : [];
-  if (entries.length === 0) return null;
-
+  registeredIds: string[]
+): Promise<string | null> {
   // `git -C <path>` needs a directory; a file entry path would make the probe
-  // fail and silently skip a matching store. canonicalDirectory resolves that.
+  // fail. canonicalDirectory resolves that.
   const url = await gitOriginUrl(canonicalDirectory(startPath));
   if (!url) return null;
 
@@ -425,15 +412,14 @@ async function resolveGitRemoteStore(
   const candidateId = toKebabCase(repoName);
   if (!candidateId || !isKebabId(candidateId)) return null;
 
-  if (!entries.some((entry) => entry.id === candidateId)) return null;
-
-  return resolveStoreRoot(candidateId, globalDataDir, 'git_remote');
+  return registeredIds.includes(candidateId) ? candidateId : null;
 }
 
 /**
  * Resolve the OpenSpec root for a command, in precedence order: `--store <id>`,
- * the nearest local `openspec/` directory, a git-remote store match, the global
- * `defaultStore`, then the registered-store hint or an implicit root.
+ * the nearest local `openspec/` directory, the global `defaultStore`, then the
+ * registered-store hint (which names a store matching the repo's origin, if
+ * any) or an implicit root.
  */
 export async function resolveOpenSpecRoot(
   options: ResolveOpenSpecRootOptions = {}
@@ -459,14 +445,6 @@ export async function resolveOpenSpecRoot(
     return resolveNearestOrDeclaredRoot(nearestRoot, options.globalDataDir);
   }
 
-  // Git-remote match: a repo without a local openspec/ directory may keep its
-  // specs in a store whose id matches the repo name from origin. Best-effort;
-  // a miss falls through to the machine-level default below.
-  const gitRemoteRoot = await resolveGitRemoteStore(startPath, options.globalDataDir);
-  if (gitRemoteRoot) {
-    return gitRemoteRoot;
-  }
-
   // Machine-level fallback: a global defaultStore is consulted only after
   // --store, the nearest local root, and project-level pointers have all
   // failed to resolve — it changes the failure path, never the precedence.
@@ -488,6 +466,19 @@ export async function resolveOpenSpecRoot(
     : [];
 
   if (registeredIds.length > 0) {
+    // Only spawn git on this failure path: a repo whose origin name matches a
+    // registered store gets that store suggested, never selected.
+    const suggested = await suggestStoreFromGitRemote(startPath, registeredIds);
+    if (suggested) {
+      throw new RootSelectionError(
+        `No OpenSpec root found in the current directory or its ancestors. This repo's origin name matches the registered store "${suggested}". To use it, rerun with --store ${suggested}, or add "store: ${suggested}" to openspec/config.yaml so every command here uses it.`,
+        'no_root_with_registered_stores',
+        {
+          target: 'openspec.root',
+          fix: `Rerun with --store ${suggested}, or add "store: ${suggested}" to openspec/config.yaml.`,
+        }
+      );
+    }
     throw new RootSelectionError(
       `No OpenSpec root found in the current directory or its ancestors. Registered stores: ${registeredIds.join(', ')}. Pass --store <id> to use one, or run openspec init to create a local root.`,
       'no_root_with_registered_stores',
