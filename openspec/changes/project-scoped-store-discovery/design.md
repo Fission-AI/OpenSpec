@@ -85,7 +85,7 @@ The same `process.cwd()` anchor governs reference assembly, whether the store is
 **Decision:** When a user runs a command, OpenSpec resolves the store in this order:
 
 1. `--store <id>` — search for the ID in `.openspec-store/registry.yaml` (walk up per D4), then fall back to the global registry
-2. Nearest `openspec/` root with a `store:` pointer in config.yaml — same: walk up per D4, then global registry. A `store:` pointer whose target folder is missing produces the same `store_root_missing` error as `--store <id>`
+2. Nearest `openspec/` root with a `store:` pointer in config.yaml — same: walk up per D4, then global registry. A `store:` pointer whose target folder is missing produces `store_root_missing` when resolved through a project-scoped registry; the global registry keeps its existing `store_identity_mismatch` behavior.
 3. No `--store`, no local `openspec/` — take the first store entry from the nearest `.openspec-store/registry.yaml` in document order; if that entry's folder does not exist or is not a healthy store, the system reports an error
 4. No project-level stores — use the global `defaultStore`
 5. Nothing at all — current directory (classic behavior)
