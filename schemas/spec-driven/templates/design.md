@@ -16,7 +16,7 @@
 
 ### D1
 
-<!-- The choice and why, in one or two sentences. Keep this ID if the decision is reworded or reordered. -->
+<!-- At most two sentences: the choice, and why. Edge cases and error messages go in the specs. Keep this ID if the decision is reworded or reordered. -->
 
 ## Risks / Trade-offs
 

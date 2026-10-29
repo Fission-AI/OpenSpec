@@ -301,7 +301,7 @@ The template the agent receives as the output format ([templates/design.md](http
 
 ### D1
 
-<!-- The choice and why, in one or two sentences. Keep this ID if the decision is reworded or reordered. -->
+<!-- At most two sentences: the choice, and why. Edge cases and error messages go in the specs. Keep this ID if the decision is reworded or reordered. -->
 
 ## Risks / Trade-offs
 
@@ -324,7 +324,7 @@ When to include design.md (create only if any apply):
 Sections:
 - **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., "See proposal.md - Why").
 - **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.
-- **Decisions**: One `### D1`, `### D2`, ... heading per key technical choice, followed by the choice and why in one or two sentences. Keep a decision's ID when you reword or reorder it, and never reuse a removed one. Mention an alternative only if the user or the code raised it.
+- **Decisions**: One `### D1`, `### D2`, ... heading per key technical choice, followed by at most two sentences: the choice, and why. Leave out edge cases, error messages and test notes; they belong in the specs and tasks. Keep a decision's ID when you reword or reorder it, and never reuse a removed one. Mention an alternative only if the user or the code raised it.
 - **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation, linking the decision it comes from (`[D2](#d2)`) when there is one
 - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
 - **Open Questions**: Unknowns that can safely be answered later without
