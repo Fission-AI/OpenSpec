@@ -197,18 +197,6 @@ describe('openspec update --dry-run', () => {
     });
   });
 
-  // #2091: Amazon Q reads only prompts, so they stay under skills-only
-  // delivery; the plan must match what a real update keeps and removes.
-  it('plans Amazon Q prompts as kept under skills-only delivery', async () => {
-    await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
-    await writeGlobalConfig({ profile: 'core', delivery: 'skills' });
-
-    const changes = await expectPlanMatchesRealUpdate();
-
-    expect(changes.filter((change) => change.tool === 'amazon-q' && change.action === 'delete')).toEqual([]);
-    expect(await fs.readdir(path.join(testDir, '.amazonq', 'prompts'))).not.toEqual([]);
-  });
-
   it('lists skills that live outside the project, under the user home', async () => {
     // A home of its own, outside the project, so the plan has to name the file
     // the way the user would recognize it.
@@ -231,6 +219,18 @@ describe('openspec update --dry-run', () => {
     } finally {
       await fs.rm(homeDir, { recursive: true, force: true });
     }
+  });
+
+  // #2091: Amazon Q reads only prompts, so they stay under skills-only
+  // delivery; the plan must match what a real update keeps and removes.
+  it('plans Amazon Q prompts as kept under skills-only delivery', async () => {
+    await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
+    await writeGlobalConfig({ profile: 'core', delivery: 'skills' });
+
+    const changes = await expectPlanMatchesRealUpdate();
+
+    expect(changes.filter((change) => change.tool === 'amazon-q' && change.action === 'delete')).toEqual([]);
+    expect(await fs.readdir(path.join(testDir, '.amazonq', 'prompts'))).not.toEqual([]);
   });
 
   it('plans the Copilot cloud file a real update refreshes', async () => {
