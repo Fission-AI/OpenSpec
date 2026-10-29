@@ -11,6 +11,10 @@ describe('repoNameFromGitUrl', () => {
     ['git@gitlab.example.com:group/subgroup/repo', 'repo'],
     ['https://host/user/MyRepo', 'MyRepo'],
     ['https://github.com/user/repo', 'repo'],
+    ['https://github.com/user/repo/', 'repo'],
+    ['https://github.com/user/repo.git/', 'repo'],
+    ['git@github.com:user/Repo.GIT', 'Repo'],
+    ['  https://github.com/user/repo.git\n', 'repo'],
   ])('extracts the repo name from %s', (url, expected) => {
     expect(repoNameFromGitUrl(url)).toBe(expected);
   });

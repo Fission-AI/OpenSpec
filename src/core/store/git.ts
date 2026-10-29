@@ -39,7 +39,7 @@ export const GIT_WRITE_EXEC_OPTIONS = {
 function execFileAsync(
   file: string,
   args: string[],
-  options: { cwd?: string } = {}
+  options: { cwd?: string; env?: NodeJS.ProcessEnv } = {}
 ): Promise<{ stdout: string; stderr: string }> {
   return rawExecFileAsync(file, args, { ...GIT_EXEC_OPTIONS, ...options });
 }
@@ -190,9 +190,13 @@ export function isProbeResourceFailure(error: unknown): boolean {
   );
 }
 
-async function gitProbe(storeRoot: string, args: string[]): Promise<string | null> {
+async function gitProbe(
+  storeRoot: string,
+  args: string[],
+  options: { env?: NodeJS.ProcessEnv } = {}
+): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync('git', ['-C', storeRoot, ...args]);
+    const { stdout } = await execFileAsync('git', ['-C', storeRoot, ...args], options);
     return stdout;
   } catch (error) {
     // "git is absent" and "this is not a repository" are expected answers and
@@ -233,11 +237,40 @@ export async function gitHasRemote(storeRoot: string): Promise<boolean | null> {
 }
 
 /**
+ * Env vars that point git at a repository other than the one `-C` names.
+ * Git sets some of them for hooks, so a CLI run from a hook inherits them.
+ */
+export const GIT_REPO_LOCATION_ENV_VARS = [
+  'GIT_DIR',
+  'GIT_WORK_TREE',
+  'GIT_INDEX_FILE',
+  'GIT_OBJECT_DIRECTORY',
+  'GIT_ALTERNATE_OBJECT_DIRECTORIES',
+  'GIT_COMMON_DIR',
+] as const;
+
+/** A copy of `env` without {@link GIT_REPO_LOCATION_ENV_VARS}. */
+export function envWithoutGitRepoLocation(
+  env: NodeJS.ProcessEnv = process.env
+): NodeJS.ProcessEnv {
+  const clean = { ...env };
+  for (const key of GIT_REPO_LOCATION_ENV_VARS) {
+    delete clean[key];
+  }
+  return clean;
+}
+
+/**
  * The configured origin URL, read from local Git config only — never a
- * network touch. Null when there is no repository or no origin.
+ * network touch. Null when there is no repository or no origin. Inherited
+ * repository-location vars are dropped so the answer is always about
+ * `storeRoot`: root selection runs this from wherever the CLI started,
+ * including inside another repository's git hook.
  */
 export async function gitOriginUrl(storeRoot: string): Promise<string | null> {
-  const stdout = await gitProbe(storeRoot, ['remote', 'get-url', 'origin']);
+  const stdout = await gitProbe(storeRoot, ['remote', 'get-url', 'origin'], {
+    env: envWithoutGitRepoLocation(),
+  });
   const url = stdout?.trim();
   return url ? url : null;
 }

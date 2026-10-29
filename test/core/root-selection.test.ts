@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   resolveOpenSpecRoot,
@@ -14,6 +14,9 @@ import {
   writeStoreRegistryState,
 } from '../../src/core/store/foundation.js';
 import { saveGlobalConfig } from '../../src/core/global-config.js';
+import { envWithoutGitRepoLocation } from '../../src/core/store/git.js';
+import { createFakeTool } from '../helpers/fake-tool.js';
+import { withPrependedPathEnv } from '../helpers/path-env.js';
 
 describe('resolveOpenSpecRoot', () => {
   let tempDir: string;
@@ -651,17 +654,31 @@ describe('resolveOpenSpecRoot', () => {
 
   describe('git remote store match', () => {
     /** Create a temporary git repo with an origin remote, isolated from any caller git env. */
-    function initGitRepoWithRemote(relativePath: string, originUrl: string): string {
+    function initGitRepoWithRemote(relativePath: string, originUrl: string | null): string {
       const repoRoot = mkdir(relativePath);
       // A caller-set GIT_DIR / GIT_WORK_TREE would make `git init` and
       // `git remote` act on the wrong repository. Strip git location vars.
-      const cleanEnv = { ...process.env };
-      for (const key of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY', 'GIT_COMMON_DIR']) {
-        delete cleanEnv[key];
-      }
+      const cleanEnv = envWithoutGitRepoLocation();
       execFileSync('git', ['init', '-q'], { cwd: repoRoot, env: cleanEnv });
-      execFileSync('git', ['remote', 'add', 'origin', originUrl], { cwd: repoRoot, env: cleanEnv });
+      if (originUrl !== null) {
+        execFileSync('git', ['remote', 'add', 'origin', originUrl], { cwd: repoRoot, env: cleanEnv });
+      }
       return repoRoot;
+    }
+
+    /** Run `fn` with `process.env[key]` set to `value`, restoring it afterwards. */
+    async function withEnv<T>(key: string, value: string, fn: () => Promise<T>): Promise<T> {
+      const saved = process.env[key];
+      process.env[key] = value;
+      try {
+        return await fn();
+      } finally {
+        if (saved === undefined) {
+          delete process.env[key];
+        } else {
+          process.env[key] = saved;
+        }
+      }
     }
 
     // resolveStoreRoot canonicalizes; compare identities through realpath so a
@@ -749,6 +766,69 @@ describe('resolveOpenSpecRoot', () => {
         'no_root_with_registered_stores'
       );
     });
+
+    it('falls through quietly for a repo with no origin and for a non-repo directory', async () => {
+      await registerStore('my-project');
+      const noOrigin = initGitRepoWithRemote('code/my-project', null);
+      const notARepo = mkdir('plain/my-project');
+      const stderrWrite = vi.spyOn(process.stderr, 'write');
+      const emitWarning = vi.spyOn(process, 'emitWarning');
+
+      try {
+        for (const startPath of [noOrigin, notARepo]) {
+          await expectRootSelectionError(
+            resolveOpenSpecRoot({ startPath, globalDataDir }),
+            'no_root_with_registered_stores'
+          );
+        }
+        expect(stderrWrite).not.toHaveBeenCalled();
+        expect(emitWarning).not.toHaveBeenCalled();
+      } finally {
+        stderrWrite.mockRestore();
+        emitWarning.mockRestore();
+      }
+    });
+
+    it('reads the origin of the start path even when GIT_DIR names another repo', async () => {
+      const storeRoot = await registerStore('my-project');
+      const repo = initGitRepoWithRemote(
+        'code/my-project',
+        'https://github.com/team/my-project.git'
+      );
+      const other = initGitRepoWithRemote(
+        'code/other-project',
+        'https://github.com/team/other-project.git'
+      );
+
+      // Git sets GIT_DIR for hooks, so a CLI run from another repo's hook
+      // inherits it. It must not redirect the probe away from startPath.
+      const root = await withEnv('GIT_DIR', path.join(other, '.git'), () =>
+        resolveOpenSpecRoot({ startPath: repo, globalDataDir })
+      );
+
+      expect(root.source).toBe('git_remote');
+      expectStoreRoot(root, storeRoot, 'my-project');
+    });
+
+    // The fake git is a POSIX shell shim; execFile cannot run a .cmd on Windows.
+    it.skipIf(process.platform === 'win32')(
+      'does not spawn git when no stores are registered',
+      async () => {
+        const repo = initGitRepoWithRemote(
+          'code/my-project',
+          'https://github.com/team/my-project.git'
+        );
+        const fakeGit = createFakeTool(tempDir, 'git');
+        const fakePath = withPrependedPathEnv(process.env, fakeGit.binDir).PATH ?? '';
+
+        const root = await withEnv('PATH', fakePath, () =>
+          resolveOpenSpecRoot({ startPath: repo, globalDataDir })
+        );
+
+        expect(root.source).toBe('implicit');
+        expect(fs.existsSync(fakeGit.logPath)).toBe(false);
+      }
+    );
   });
 
 });

@@ -403,6 +403,17 @@ async function resolveGitRemoteStore(
   startPath: string,
   globalDataDir?: string
 ): Promise<ResolvedOpenSpecRoot | null> {
+  // Read the registry first: with no stores registered nothing can match, so
+  // skip spawning git. Completion and agents run the CLI often.
+  let registry;
+  try {
+    registry = await readStoreRegistryState(globalDataDir ? { globalDataDir } : {});
+  } catch (error) {
+    fromStoreError(error);
+  }
+  const entries = registry ? listStoreRegistryEntries(registry) : [];
+  if (entries.length === 0) return null;
+
   // `git -C <path>` needs a directory; a file entry path would make the probe
   // fail and silently skip a matching store. canonicalDirectory resolves that.
   const url = await gitOriginUrl(canonicalDirectory(startPath));
@@ -414,13 +425,6 @@ async function resolveGitRemoteStore(
   const candidateId = toKebabCase(repoName);
   if (!candidateId || !isKebabId(candidateId)) return null;
 
-  let registry;
-  try {
-    registry = await readStoreRegistryState(globalDataDir ? { globalDataDir } : {});
-  } catch (error) {
-    fromStoreError(error);
-  }
-  const entries = registry ? listStoreRegistryEntries(registry) : [];
   if (!entries.some((entry) => entry.id === candidateId)) return null;
 
   return resolveStoreRoot(candidateId, globalDataDir, 'git_remote');
