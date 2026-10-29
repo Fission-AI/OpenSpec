@@ -1,5 +1,85 @@
 # @fission-ai/openspec
 
+## 1.15.0
+
+### Minor Changes
+
+- [#2137](https://github.com/Fission-AI/OpenSpec/pull/2137) [`31c6d1c`](https://github.com/Fission-AI/OpenSpec/commit/31c6d1c43468754332d1ab16de6dff1e1e92419c) Thanks [@clay-good](https://github.com/clay-good)! - OpenSpec now installs as a single file with no Node.js needed: `curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh` on macOS and Linux, or `irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex` on Windows. Every release now includes binaries for macOS, Linux (glibc and musl) and Windows on x64 and arm64, with `SHA256SUMS`. npm and the other package managers keep working as before.
+
+- [#2109](https://github.com/Fission-AI/OpenSpec/pull/2109) [`c230424`](https://github.com/Fission-AI/OpenSpec/commit/c2304240c5b671d86eb6756743ab921fe20270e1) Thanks [@clay-good](https://github.com/clay-good)! - Add `openspec update --dry-run` (with `--json`) to report the files an update would add, change or delete without writing anything.
+
+### Patch Changes
+
+- [#2044](https://github.com/Fission-AI/OpenSpec/pull/2044) [`f988c52`](https://github.com/Fission-AI/OpenSpec/commit/f988c526edfe9748ced5d18512976974ac10e089) Thanks [@clay-good](https://github.com/clay-good)! - `openspec feedback` now files issues that match the bug form: the body uses the form's headings and spells out the missing repro steps, and the manual-submission link opens the bug form itself with the message, version, and environment prefilled.
+
+- [#2116](https://github.com/Fission-AI/OpenSpec/pull/2116) [`15b3b50`](https://github.com/Fission-AI/OpenSpec/commit/15b3b50f15dc7210b2ae6189b5d76f74fd528b0f) Thanks [@surlymochan](https://github.com/surlymochan)! - Commands run with `--json` start a little faster. `status`, `instructions`, `new change`, `templates`, `validate` and `schema` no longer load the `ora` spinner package when they are run with `--json`, which never shows a spinner. `openspec status --json` now loads 163 modules instead of 186. Output is unchanged.
+
+- [#2120](https://github.com/Fission-AI/OpenSpec/pull/2120) [`832e2cf`](https://github.com/Fission-AI/OpenSpec/commit/832e2cf836b8c8cdefa2f5e500145bd55323ea06) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
+  
+  - `openspec new change` no longer announces `with schema 'spec-driven'` in its progress line when `openspec/config.yaml` selects a different schema; the progress line now names the same schema the change is created with.
+
+- [#2114](https://github.com/Fission-AI/OpenSpec/pull/2114) [`6b15619`](https://github.com/Fission-AI/OpenSpec/commit/6b15619931472f4b6bf9c91cafd4c76bd72d72b5) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
+  
+  - `/opsx:verify` now matches a REMOVED requirement's baseline by its exact name. After a sync, a similarly named ADDED requirement that replaced it is no longer read as the removed one, so the removal is not reported as still implemented.
+
+## 1.14.3
+
+### Patch Changes
+
+- [#2101](https://github.com/Fission-AI/OpenSpec/pull/2101) [`87a69a2`](https://github.com/Fission-AI/OpenSpec/commit/87a69a2bf8eb3315a8c042d001520eb7766ab580) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **Symlinked spec files no longer refused** — `list --specs`, `show`, `validate` and `archive` no longer error out when `openspec/specs/<capability>/spec.md` is a symlink inside the project. Symlinked layouts are not officially supported. A link that resolves outside the project is still refused.
+
+- [#2103](https://github.com/Fission-AI/OpenSpec/pull/2103) [`e33245d`](https://github.com/Fission-AI/OpenSpec/commit/e33245d22ba6f994596a1747baf17130fe04515d) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
+  
+  - Installing OpenSpec no longer pulls in the unpatched `braces` package, so a consumer audit does not report GHSA-vfj7-8cjw-p6xm through this package. A `generates` brace pattern that nests deeply, or expands to more than 1024 paths, is now rejected with a clear message instead of crashing `openspec status` with a stack overflow or an out-of-memory error.
+
+- [#2104](https://github.com/Fission-AI/OpenSpec/pull/2104) [`276d015`](https://github.com/Fission-AI/OpenSpec/commit/276d015090965791d8be3d02daf6bfd71de884c3) Thanks [@CRYPTONIKAV](https://github.com/CRYPTONIKAV)! - Keep glob artifact paths inside the change directory in the propose, ff-change and continue-change workflows
+
+- [#2108](https://github.com/Fission-AI/OpenSpec/pull/2108) [`5251f2e`](https://github.com/Fission-AI/OpenSpec/commit/5251f2ef5e9e83eac68dd6950091928c4324b127) Thanks [@clay-good](https://github.com/clay-good)! - Stop `openspec validate --all` hanging on a zero-width TTY. Some hosts hand the
+  process a terminal that reports `columns === 0` — a pty inherited from a
+  pre-commit runner such as lefthook, or `script -qec`. ora computes how many
+  lines to erase as `ceil(width / columns)`, so zero columns makes that count
+  `Infinity` and the clear loop never ends: the command burned a core and wrote
+  hundreds of megabytes of cursor escapes without finishing. The spinner is now
+  skipped when nothing can be drawn, and validate falls back to its plain output.
+  `OPEN_SPEC_INTERACTIVE=0` and `CI` now disable the spinner too, the same way
+  `--no-interactive` already did.
+
+- [#2110](https://github.com/Fission-AI/OpenSpec/pull/2110) [`c9a8ade`](https://github.com/Fission-AI/OpenSpec/commit/c9a8adef5021e9793ed9e104f65834fce0fb16cb) Thanks [@clay-good](https://github.com/clay-good)! - Preview the built docs site with a first-party static server instead of `serve`.
+  `pnpm start` in `website/` now runs `scripts/preview.mjs`, a dependency-free
+  server that resolves routes in a Next static export (it does not apply
+  `out/_redirects`). This
+  drops the `serve` dev dependency whose transitive tree kept publishing
+  advisories (brace-expansion x3, fast-uri, compression) that had to be pinned by
+  hand even though none of that code ever reached the published site.
+
+## 1.14.2
+
+### Patch Changes
+
+- [#2052](https://github.com/Fission-AI/OpenSpec/pull/2052) [`90c95c2`](https://github.com/Fission-AI/OpenSpec/commit/90c95c2a235e0d4088006a879c19cd1febff2a9e) Thanks [@drakeo338](https://github.com/drakeo338)! - ### Bug Fixes
+  
+  - **Archive no longer refuses a symlinked `openspec/`, `openspec/changes` or `openspec/specs`** — `openspec archive` no longer errors out when one of these is a project-owned symlink to another directory. Symlinked layouts are not officially supported. An `archive/` directory that resolves outside the changes directory is still refused.
+
+- [#2061](https://github.com/Fission-AI/OpenSpec/pull/2061) [`7acf282`](https://github.com/Fission-AI/OpenSpec/commit/7acf282050c0b2a27bd18f30c48fbcc0986bfc45) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **Guard against deeply nested brace patterns** — An artifact `generates` or `apply.tracks` pattern that nests braces or parentheses more than 16 levels deep is now rejected with a clear error before glob matching, so a schema cannot overflow the stack through the unpatched `braces` advisory GHSA-vfj7-8cjw-p6xm.
+
+- [#2086](https://github.com/Fission-AI/OpenSpec/pull/2086) [`9cb5ba8`](https://github.com/Fission-AI/OpenSpec/commit/9cb5ba8cec4bc47227dcac4974a74b4adf1819f6) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **Explore no longer offers to write default-schema files under a custom schema** — The explore workflow's "where to capture" table and example offers now say they describe the default spec-driven schema. With another schema, the agent captures each insight in an artifact that schema defines, names it in the offer, and never creates a file such as `design.md` that the schema does not have.
+
+- [#2064](https://github.com/Fission-AI/OpenSpec/pull/2064) [`76d49a1`](https://github.com/Fission-AI/OpenSpec/commit/76d49a1d8176ad2bdb3696e29c4ffe222402f2da) Thanks [@ryandemelo](https://github.com/ryandemelo)! - Shell Tab completion is faster. `openspec __complete`, which the completion scripts run on every Tab press, now loads 48 modules instead of 344 when completing changes or specs, and no longer records usage, so a press never waits on the telemetry request and can't use up the first-run telemetry notice where nobody sees it. Completion output is unchanged.
+
+- [#2083](https://github.com/Fission-AI/OpenSpec/pull/2083) [`3fea2a9`](https://github.com/Fission-AI/OpenSpec/commit/3fea2a96b2e04e01097f4617573734c47a57589b) Thanks [@clay-good](https://github.com/clay-good)! - The update workflow now states the glob new-file exception at both places that state the scope rule (step 2 and the guardrails), not only where the rule is restated. It said to edit only the concrete files in `existingOutputPaths`, while the file step 4 creates to fill a gap under a partly written glob artifact is by definition not in that list, so an agent applying the blanket rule refused the operation the flow exists to perform.
+
+- [#2083](https://github.com/Fission-AI/OpenSpec/pull/2083) [`3fea2a9`](https://github.com/Fission-AI/OpenSpec/commit/3fea2a96b2e04e01097f4617573734c47a57589b) Thanks [@clay-good](https://github.com/clay-good)! - The verify workflow now reads a REMOVED requirement's baseline from the main spec before searching the codebase for it. A REMOVED delta block carries only the requirement name plus its Reason and Migration notes, so the search started from the heading alone - and because finding nothing is the passing result for a removal, an implementation written in different vocabulary read as a clean removal. When the baseline cannot be recovered from the main spec or that file's history - including a baseline that only restates its own title - Spec Coverage is now reported as not verified for that entry and the search is skipped, instead of passing.
+
+- [#2054](https://github.com/Fission-AI/OpenSpec/pull/2054) [`1bce87f`](https://github.com/Fission-AI/OpenSpec/commit/1bce87f858c2591b2cb58108597ae6f0a9bb5d7c) Thanks [@runsonmypc](https://github.com/runsonmypc)! - `openspec validate` and `openspec archive` now warn when a delta spec holds text archive does not carry into the main spec: a `## ` section other than Purpose and the four delta sections, text above the first `## ` header, or prose before the first requirement in ADDED or MODIFIED. That text was dropped without notice before. Like other validation warnings, these fail `openspec validate --strict`. What archive carries is unchanged.
+
+- [#2063](https://github.com/Fission-AI/OpenSpec/pull/2063) [`e0a2f00`](https://github.com/Fission-AI/OpenSpec/commit/e0a2f00f95731af7cf22a30c2c4a8b7ff910b509) Thanks [@gkinter](https://github.com/gkinter)! - Keys in a change's `.openspec.yaml` that start with a lowercase `x-` (for example `x-goal: G-12` or `x-jiraKey`) are now treated as your own extension metadata: OpenSpec no longer reports them as unknown, so `openspec validate --strict` passes on a change that carries them. Any other unrecognized key, including `X-Tracker` or a bare `x-`, is still reported.
+
 ## 1.14.1
 
 ### Patch Changes

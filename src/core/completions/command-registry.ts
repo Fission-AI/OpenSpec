@@ -53,7 +53,22 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'force',
         description: 'Force update even when tools are up to date',
       },
+      {
+        name: 'dry-run',
+        description: 'Report what the update would change without writing anything',
+      },
+      {
+        name: 'json',
+        description: 'With --dry-run, print the planned changes as JSON',
+      },
     ],
+  },
+  {
+    name: 'install',
+    description: 'Install the standalone openspec, which runs without Node.js (latest release unless [version] is given)',
+    acceptsPositional: true,
+    positionals: [{ name: 'version', optional: true }],
+    flags: [],
   },
   {
     name: 'version',

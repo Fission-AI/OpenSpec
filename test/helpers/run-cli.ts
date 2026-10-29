@@ -10,6 +10,9 @@ const __dirname = path.dirname(__filename);
 const projectRoot = path.resolve(__dirname, '..', '..');
 const cliEntry = path.join(projectRoot, 'dist', 'cli', 'index.js');
 const DEFAULT_CLI_TIMEOUT_MS = 30_000;
+// Set to a standalone binary (scripts/binary/build.mjs) to run every CLI test
+// against it instead of `node dist/cli/index.js`.
+export const testBinary = process.env.OPENSPEC_TEST_BINARY ? path.resolve(process.env.OPENSPEC_TEST_BINARY) : undefined;
 
 let buildPromise: Promise<void> | undefined;
 const activeCliChildren = new Set<ChildProcess>();
@@ -135,10 +138,14 @@ export async function ensureCliBuilt() {
 }
 
 export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): Promise<RunCLIResult> {
-  await ensureCliBuilt();
+  if (!testBinary) await ensureCliBuilt();
 
   const finalArgs = Array.isArray(args) ? args : [args];
-  const invocation = [cliEntry, ...finalArgs].join(' ');
+  const [command, commandArgs] = testBinary
+    ? [testBinary, finalArgs]
+    : [process.execPath, [cliEntry, ...finalArgs]];
+  // What actually runs, so a failure names the binary when testing one.
+  const invocation = [command, ...commandArgs].join(' ');
   const explicitConfigHome = options.env?.XDG_CONFIG_HOME;
   const isolatedConfigHome =
     explicitConfigHome !== undefined
@@ -147,7 +154,7 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
 
   return new Promise<RunCLIResult>((resolve, reject) => {
     const timeoutMs = options.timeoutMs ?? DEFAULT_CLI_TIMEOUT_MS;
-    const child = spawn(process.execPath, [cliEntry, ...finalArgs], {
+    const child = spawn(command, commandArgs, {
       cwd: options.cwd ?? projectRoot,
       env: mergeEnv(
         process.env,
@@ -207,7 +214,7 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
         reject(
           new Error(
             [
-              `CLI command timed out after ${timeoutMs}ms: node ${invocation}`,
+              `CLI command timed out after ${timeoutMs}ms: ${invocation}`,
               stderr ? `stderr tail:\n${formatOutputTail(stderr)}` : '',
               stdout ? `stdout tail:\n${formatOutputTail(stdout)}` : '',
             ]
@@ -223,7 +230,7 @@ export async function runCLI(args: string[] = [], options: RunCLIOptions = {}): 
         stdout,
         stderr,
         timedOut,
-        command: `node ${invocation}`,
+        command: invocation,
       });
     });
 

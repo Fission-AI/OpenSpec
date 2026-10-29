@@ -678,7 +678,7 @@ describe('artifact loop guards (propose and ff)', () => {
   it('tells the agent how to resolve a glob output path', () => {
     for (const [label, body] of loopBodies) {
       expect(body, label).toContain(
-        'is a glob, follow `instruction` to choose the concrete file path'
+        'is a glob, follow `instruction` to choose a concrete path'
       );
     }
   });

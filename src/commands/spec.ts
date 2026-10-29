@@ -7,7 +7,7 @@ import type { RootOutput } from '../core/root-selection.js';
 import { isInteractive } from '../utils/interactive.js';
 import { getSpecIds } from '../utils/item-discovery.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
-import { FileSystemUtils } from '../utils/file-system.js';
+import { assertDiscoveredSpecFile } from '../utils/spec-path-containment.js';
 
 const SPECS_DIR = 'openspec/specs';
 
@@ -21,14 +21,7 @@ function assertSpecPath(specsDir: string, specPath: string): void {
     throw new Error(`Path is outside the allowed directory: ${specPath}`);
   }
 
-  try {
-    // Preserve confined spec.md links, including links to a sibling capability.
-    FileSystemUtils.assertPathWithin(specsDir, specPath);
-  } catch {
-    // A capability directory may intentionally be a monorepo symlink. Treat it
-    // as the trust root while still rejecting a link outside that capability.
-    FileSystemUtils.assertPathWithin(path.dirname(specPath), specPath);
-  }
+  assertDiscoveredSpecFile(specsDir, specPath);
 }
 
 export interface ShowOptions {

@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -50,13 +50,17 @@ afterAll(() => {
   }
 });
 
-function loadedModules(args: string[]): {
+function loadedModules(args: string[], withProject = false): {
   own: string[];
   packages: Set<string>;
   status: number | null;
 } {
   const workDir = mkdtempSync(path.join(os.tmpdir(), 'openspec-startup-'));
   workDirs.push(workDir);
+  if (withProject) {
+    mkdirSync(path.join(workDir, 'openspec', 'changes'), { recursive: true });
+    mkdirSync(path.join(workDir, 'openspec', 'specs'), { recursive: true });
+  }
   const logFile = path.join(workDir, 'modules.log');
   const result = spawnSync(process.execPath, ['--import', hookUrl, binPath, ...args], {
     cwd: workDir,
@@ -118,6 +122,103 @@ describe('CLI startup loads only what the command needs', () => {
     }
   );
 
+  // Shell completion scripts run `__complete` on every Tab press. It needs no
+  // package beyond commander, and never telemetry: tracking would hold each
+  // press open for the request.
+  it.each(['changes', 'specs'])(
+    '`openspec __complete %s` loads only commander and no telemetry',
+    async (type) => {
+      await ensureCliBuilt();
+      const { own, packages, status } = loadedModules(['__complete', type]);
+
+      expect(status).toBe(0);
+      expect([...packages]).toEqual(['commander']);
+      expect(implementationsLoaded(own)).toEqual(['completion']);
+      expect(own).not.toContain('telemetry/index.js');
+    }
+  );
+
+  it('`openspec __complete schemas` loads the schema reader but not tinyglobby or ora', async () => {
+    await ensureCliBuilt();
+    const { own, packages, status } = loadedModules(['__complete', 'schemas']);
+
+    expect(status).toBe(0);
+    expect([...packages]).not.toContain('fast-glob');
+    expect([...packages]).not.toContain('tinyglobby');
+    expect([...packages]).not.toContain('brace-expansion');
+    expect([...packages]).not.toContain('ora');
+    expect(own).not.toContain('telemetry/index.js');
+    // The name promises a schema reader, so pin it: the resolver directly, not
+    // the artifact-graph barrel, which re-exports it but also pulls outputs.js
+    // and with it tinyglobby.
+    expect(own).toContain('core/artifact-graph/resolver.js');
+    expect(own).not.toContain('core/artifact-graph/index.js');
+  });
+
+  // Negative control for the two cases above. `isTabCompletionRun` matches the
+  // command path exactly, unlike the adjacent `isCompletionRun`, which
+  // prefix-matches `completion:*`. Widening one into the other would silently
+  // stop tracking every user-facing command in that group, and every assertion
+  // above would still pass.
+  it.each([['list --json'], ['completion generate zsh']])(
+    '`openspec %s` still reaches the telemetry hooks',
+    async (invocation) => {
+      await ensureCliBuilt();
+      const { own } = loadedModules(invocation.split(' '));
+
+      expect(own).toContain('telemetry/index.js');
+      expect(own).toContain('core/completion-tip.js');
+    }
+  );
+
+  // The module-count assertions above pin that telemetry is not LOADED. They do
+  // not pin the user-visible consequence, which is the reason the skip exists:
+  // the first-run disclosure goes to stderr, every generated completion script
+  // sends `__complete` stderr to /dev/null, and `maybeShowTelemetryNotice` marks
+  // `noticeSeen` before `trackCommand` re-reads it. So before this change a
+  // user's first-ever interaction being a Tab press burned the disclosure where
+  // nobody could read it and began collecting on that same press.
+  //
+  // Telemetry is deliberately left ENABLED here: the point is that an enabled
+  // run still records nothing. HOME must be isolated as well as XDG_CONFIG_HOME,
+  // or `migrateLegacyTelemetryConfig` imports the developer's real config from
+  // ~/.config/openspec/config.json and the test passes vacuously.
+  it('`openspec __complete` leaves the first-run telemetry notice unconsumed', async () => {
+    await ensureCliBuilt();
+    const home = mkdtempSync(path.join(os.tmpdir(), 'openspec-notice-'));
+    workDirs.push(home);
+    const configHome = path.join(home, 'config');
+
+    // These have to be DELETED, not blanked. Both opt-outs read as "set to
+    // anything that is not an explicit on-value", so `OPENSPEC_TELEMETRY: ''`
+    // and `DO_NOT_TRACK: ''` would switch telemetry OFF and the assertions
+    // below would hold on any build, passing vacuously.
+    const env = {
+      ...process.env,
+      HOME: home,
+      USERPROFILE: home,
+      XDG_CONFIG_HOME: configHome,
+      XDG_DATA_HOME: path.join(home, 'data'),
+    };
+    delete env.OPENSPEC_TELEMETRY;
+    delete env.DO_NOT_TRACK;
+    delete env.CI;
+
+    const result = spawnSync(process.execPath, [binPath, '__complete', 'changes'], {
+      cwd: home,
+      env,
+      encoding: 'utf-8',
+      timeout: 30_000,
+      windowsHide: true,
+    });
+
+    expect(result.status).toBe(0);
+    // No disclosure written to a stream the completion scripts discard.
+    expect(result.stderr).toBe('');
+    // And no config file, so neither noticeSeen nor an anonymousId was minted.
+    expect(existsSync(path.join(configHome, 'openspec', 'config.json'))).toBe(false);
+  });
+
   it.each([
     ['config list --json', 'config'],
     ['config path', 'config'],
@@ -130,5 +231,19 @@ describe('CLI startup loads only what the command needs', () => {
     const { own } = loadedModules(invocation.split(' '));
 
     expect(implementationsLoaded(own)).toEqual([command]);
+  });
+
+  it.each([
+    ['status --json', 'status'],
+    ['validate --all --json', 'validate'],
+    ['templates --json', 'templates'],
+    ['new change probe --json', 'new'],
+  ])('`openspec %s` does not load ora', async (invocation, command) => {
+    await ensureCliBuilt();
+    const { own, packages, status } = loadedModules(invocation.split(' '), true);
+
+    expect(status).toBe(0);
+    expect(implementationsLoaded(own)).toEqual([command]);
+    expect([...packages]).not.toContain('ora');
   });
 });

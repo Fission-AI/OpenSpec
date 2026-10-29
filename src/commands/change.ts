@@ -15,6 +15,7 @@ import {
 } from '../utils/nested-change.js';
 import { getTaskProgressForChange } from '../utils/task-progress.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { assertDiscoveredSpecFile } from '../utils/spec-path-containment.js';
 import { discoverSpecFiles } from '../utils/spec-discovery.js';
 import {
   foldRequirementName,
@@ -217,7 +218,7 @@ export class ChangeCommand {
       const mainSpecPath = path.join(mainSpecsDir, ...capability.split('/'), 'spec.md');
       let mainContent: string | null = null;
       try {
-        FileSystemUtils.assertPathWithin(mainSpecsDir, mainSpecPath);
+        assertDiscoveredSpecFile(mainSpecsDir, mainSpecPath);
         mainContent = await fs.readFile(mainSpecPath, 'utf-8');
       } catch (error) {
         if ((error as NodeJS.ErrnoException)?.code !== 'ENOENT') throw error;

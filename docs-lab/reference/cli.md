@@ -51,6 +51,7 @@ Your agent runs most of these during the workflow.
 | Command | What it does |
 |---|---|
 | [`openspec version`](#openspec-version) | Report the installed version and optionally check for an update. |
+| [`openspec install`](#openspec-install) | Install the standalone `openspec`, which runs without Node.js. |
 | [`openspec feedback`](#openspec-feedback) | Submit feedback about OpenSpec. |
 | [`openspec completion`](#openspec-completion) | Install or generate shell completions. |
 
@@ -141,8 +142,9 @@ Restart your IDE for the new commands to take effect.
 Updates OpenSpec's installed instruction files.
 
 ```bash
-openspec update           # refresh tools whose files are older than the CLI
-openspec update --force   # rewrite files even when they're current
+openspec update             # refresh tools whose files are older than the CLI
+openspec update --force     # rewrite files even when they're current
+openspec update --dry-run   # list what an update would change, and change nothing
 ```
 
 update finds the tools init configured and compares their generated files against the CLI's version. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
@@ -158,6 +160,50 @@ update finds the tools init configured and compares their generated files agains
 | Flag | Effect |
 |---|---|
 | `--force` | Rewrite every configured tool's files even when they're up to date. |
+| `--dry-run` | Report every file the update would add, change, or delete, and write nothing. No CLI upgrade check, no prompts. Combine with `--force` to preview a forced update. |
+| `--json` | With `--dry-run`, print the plan as JSON. Without `--dry-run` it exits 1. |
+
+**Previewing an update**
+
+`--dry-run` plans the update a non-interactive run would make: the same code path, with every write and delete recorded instead of performed. Every file the real update would touch is listed, including:
+
+- moving OpenSpec files out of a tool's former directory (`.kimi/` to `.kimi-code/`, `.windsurf/` to `.devin/`, `.codex/` and `.agent/` to `.agents/`);
+- saving the global config when an install from before profiles gets one;
+- syncing the GitHub Copilot cloud agent files;
+- with `--force`, setting up tools found only in legacy artifacts and cleaning those artifacts up, including retired global Codex prompts.
+
+```bash
+openspec update --dry-run
+```
+
+```
+2 file(s) would change:
+  update  .claude/skills/openspec-propose/SKILL.md  (claude)
+  add     ~/.config/openspec/config.json  (openspec)
+```
+
+`--dry-run --json` prints the same plan as one JSON document:
+
+```json
+{
+  "changes": [
+    { "path": ".claude/skills/openspec-propose/SKILL.md", "action": "update", "tool": "claude" },
+    { "path": "~/.config/openspec/config.json", "action": "add", "tool": "openspec" }
+  ],
+  "notes": [],
+  "failures": []
+}
+```
+
+| Field | What it holds |
+|---|---|
+| `changes[].path` | Project-relative path. A file outside the project, such as a global skill or the global config, is shown from your home directory as `~/...`, or as an absolute path when it is outside home too. |
+| `changes[].action` | `add`, `update`, or `delete`. A file whose new bytes match the old ones is not listed. |
+| `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to OpenSpec itself rather than one tool, the global config and legacy-artifact cleanup, are `openspec`. |
+| `notes[]` | `{ code, message }` for a step a terminal user would be asked about. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. Empty for an ordinary refresh. |
+| `failures[]` | `{ tool, error }` for each tool the real update would fail on, including a write it cannot make: a directory where a file belongs, a file where a directory belongs, or a file or folder without write permission. For that tool, `changes` stops where the real update stops; the other tools are still planned. Failures the disk only reports while writing, such as running out of space, cannot be foreseen. |
+
+A failure before planning, such as no OpenSpec directory, still prints exactly one JSON document: the empty plan plus a `status` array with `severity`, `code` (`update_error`), and `message`. The exit code is 1.
 
 **Output**
 
@@ -2221,7 +2267,7 @@ For a global npm install:
 OpenSpec 1.13.2 (npm, global)
 ```
 
-The install scope is `global`, `project`, `temporary` for an ephemeral runner such as npx, or `source` for a checkout. OpenSpec omits details it cannot identify instead of guessing.
+The install scope is `global`, `project`, `temporary` for an ephemeral runner such as npx, `source` for a checkout, or `standalone` for the [standalone install](../start/installation.md#install). OpenSpec omits details it cannot identify instead of guessing.
 
 `--json` keeps unknown details as explicit `null` values:
 
@@ -2272,12 +2318,43 @@ Update status values:
 | `disabled` | An existing privacy or update-check setting blocked registry access. `latest` is `null`. |
 | `offline` | The registry was unavailable or returned an unusable response. `latest` is `null`. |
 
+For the standalone install, the update command is `openspec install`.
+
 `DO_NOT_TRACK`, telemetry opt-outs, `OPENSPEC_NO_UPDATE_CHECK`, CI detection, and rejected non-HTTPS registry overrides disable the check. Disabled and offline checks still exit 0 because update availability is advisory. This command never upgrades OpenSpec; `canSelfUpgrade` only reports whether the existing `openspec update` path could safely upgrade this copy.
 
 **Exit codes**
 
 - `0`: the local report printed, including disabled or offline update checks.
 - `1`: command syntax was invalid, such as the unsupported `--upgrade` option.
+
+## openspec install
+
+Installs the standalone `openspec`, a single file that runs without Node.js. Run it from an npm or Homebrew install to switch, or from the standalone install to upgrade it in place.
+
+```bash
+openspec install          # newest release
+openspec install 1.15.0   # a specific release
+```
+
+It runs the [install script](../start/installation.md#install), which picks the newest release whose files are all attached and the file for your machine, and checks it against that release's `SHA256SUMS`:
+
+- **From a package manager**: installs to `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`) and prints the command that removes the old copy, such as `npm uninstall -g @fission-ai/openspec`. It never removes that copy itself.
+- **From the standalone install**: replaces the running file where it is, under its own name.
+
+Afterwards it says which copy `openspec` now runs, since a package-manager copy earlier on your PATH keeps running until you remove it.
+
+**Arguments**
+
+| Argument | What it is |
+|---|---|
+| `version` | Release to install, like `1.15.0`. Optional; defaults to the latest. |
+
+`OPENSPEC_INSTALL_DIR` and `OPENSPEC_INSTALL_NAME` choose another folder or file name.
+
+**Exit codes**
+
+- `0`: installed.
+- `1`: the version isn't a release version, or the download or install failed. Your current copy is left as it was.
 
 ## openspec feedback
 
@@ -2288,7 +2365,7 @@ openspec feedback "Validate output is hard to scan"
 openspec feedback "Archive fails on Windows" --body "Steps: init, propose, archive. Error: EPERM."
 ```
 
-The CLI files your message as a GitHub issue on the `Fission-AI/OpenSpec` repo through your `gh` CLI. The title becomes `Feedback: <message>`. The body holds your `--body` text plus a footer with CLI version, platform, and timestamp. The issue gets the `feedback` label. If the repo doesn't define that label, the CLI retries without it and says so.
+The CLI files your message as a GitHub issue on the `Fission-AI/OpenSpec` repo through your `gh` CLI. The title becomes `Feedback: <message>`. The body uses the bug form's headings: your message under `What happened`, your `--body` text under `Details`, and a `Minimal steps to reproduce` section asking you to add the steps, since the CLI can't fill those in. A footer adds CLI version, platform, and timestamp. The issue gets the `feedback` label. If the repo doesn't define that label, the CLI retries without it and says so.
 
 **Arguments**
 
@@ -2311,7 +2388,7 @@ On success:
 Issue URL: https://github.com/Fission-AI/OpenSpec/issues/1234
 ```
 
-Without `gh` installed, or with `gh` not logged in, nothing is submitted. The CLI prints your formatted feedback between `--- FORMATTED FEEDBACK ---` markers, then a prefilled new-issue URL to open in the browser. The not-logged-in path adds `To auto-submit in the future: gh auth login`.
+Without `gh` installed, or with `gh` not logged in, nothing is submitted. The CLI prints your formatted feedback between `--- FORMATTED FEEDBACK ---` markers, then a link that opens the bug report form with the title, what happened (your message and `--body` text), CLI version, and environment (platform and Node version) filled in. You complete the rest of the form in the browser. The not-logged-in path adds `To auto-submit in the future: gh auth login`.
 
 **Exit codes**
 

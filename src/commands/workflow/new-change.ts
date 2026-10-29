@@ -8,7 +8,7 @@
  */
 
 import chalk from 'chalk';
-import ora from 'ora';
+import type { Ora } from 'ora';
 import path from 'path';
 import { createChange, validateChangeName } from '../../utils/change-utils.js';
 import { formatChangeLocation } from '../../core/planning-home.js';
@@ -22,6 +22,7 @@ import {
   type RootOutput,
   isStoreSelectedRoot,
 } from '../../core/root-selection.js';
+import { readProjectConfig } from '../../core/project-config.js';
 import { printJson, statusFromError, validateSchemaExists } from './shared.js';
 
 // -----------------------------------------------------------------------------
@@ -114,7 +115,11 @@ function printImplicitRootNotice(root: ResolvedOpenSpecRoot): void {
 }
 
 export async function newChangeCommand(name: string | undefined, options: NewChangeOptions): Promise<void> {
-  const spinner = options.json ? undefined : ora();
+  let spinner: Ora | undefined;
+  if (!options.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora();
+  }
 
   try {
     if (!name) {
@@ -143,13 +148,18 @@ export async function newChangeCommand(name: string | undefined, options: NewCha
       validateSchemaExists(options.schema, projectRoot);
     }
 
-    const resolvedSchema = options.schema ?? root.defaultSchema;
+    // Resolve the schema once (--schema, then config, then the root default)
+    // and hand it to createChange, so the progress line names the schema the
+    // change gets and config warnings print only once. An empty --schema is
+    // absent, matching createChange's `if (options.schema)`.
+    const resolvedSchema =
+      options.schema || (readProjectConfig(projectRoot)?.schema ?? root.defaultSchema);
     if (spinner) {
       spinner.start(`Creating change '${name}' with schema '${resolvedSchema}'...`);
     }
 
     const result = await createChange(projectRoot, name, {
-      schema: options.schema,
+      schema: resolvedSchema,
       defaultSchema: root.defaultSchema,
       changesDir: root.changesDir,
       metadata: {

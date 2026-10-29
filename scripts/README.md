@@ -70,3 +70,26 @@ test file mid-suite.
 ## pack-version-check.mjs
 
 Validates package version consistency before publishing.
+
+## binary/
+
+Builds the standalone `openspec` executables (no Node.js needed), the default
+way users install OpenSpec. `.github/workflows/binaries.yml` cross-compiles
+every asset on Linux, tests each on its own OS and CPU, and attaches them,
+`SHA256SUMS`, `install.sh` and `install.ps1` to each published release.
+
+| File | What it is |
+|---|---|
+| `build.mjs` | Builds assets into `dist-bin/` (run `pnpm build` first) |
+| `entry.mjs` | The binary's entry point: embedded schemas, upgrade advice |
+| `install.sh` / `install.ps1` | The installers users run (macOS/Linux, Windows) |
+| `smoke.sh` | Quick check of one binary |
+| `e2e.sh` | Runs every CLI test against one binary instead of Node |
+
+```bash
+pnpm build
+bun scripts/binary/build.mjs                    # this machine
+bun scripts/binary/build.mjs --all              # every release asset
+bash scripts/binary/smoke.sh dist-bin/openspec-<asset>
+bash scripts/binary/e2e.sh dist-bin/openspec-<asset>
+```
