@@ -93,6 +93,14 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 - **AND** stop without archiving if the sync fails or any capability does not verify
 - **AND** archive only after verification passes, or when the user explicitly chose to archive without syncing or to archive already-synced specs
 
+#### Scenario: Delta sections outside a capability spec.md
+
+- **WHEN** the change's delta spec paths include a file that is not `specs/<capability-path>/spec.md`, such as `specs/user-auth/notes.md`
+- **AND** that file contains an `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements` section
+- **THEN** stop without syncing or archiving
+- **AND** name the file and tell the user to move its requirements into the capability's `spec.md`
+- **AND** treat a file without those sections as a note, left out of the comparison and the sync
+
 #### Scenario: Applicable ADDED delta whose main spec does not exist yet
 
 - **WHEN** agent compares a delta spec against its main spec at `openspec/specs/<capability-path>/spec.md`

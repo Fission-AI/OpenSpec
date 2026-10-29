@@ -54,6 +54,15 @@ ${PROJECT_ROOT_GUARD}
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
 
+   Only an entry ending in \`/specs/<capability-path>/spec.md\` is a delta spec;
+   \`openspec validate\` and \`openspec archive\` read no other file. Check every
+   entry before syncing. If any other entry (for example
+   \`specs/user-auth/notes.md\` or \`specs/user-auth.md\`) contains a
+   \`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\` or \`## RENAMED Requirements\`
+   section, stop before writing any main spec: name the file and tell the user
+   to move its requirements into the capability's \`spec.md\`. An entry without
+   those sections is a note, not a delta; leave it out of the sync.
+
    Sync every path in \`existingOutputPaths\` unless the caller narrowed the set.
    A caller narrows it by naming an explicit list of complete entries from
    \`existingOutputPaths\` — copy those absolute values verbatim. Archive does
@@ -277,6 +286,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
 - Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
+- Sync only \`<capability-path>/spec.md\` entries; stop before any write if another entry carries delta sections
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
 - Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
@@ -335,6 +345,15 @@ ${PROJECT_ROOT_GUARD}
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
 
+   Only an entry ending in \`/specs/<capability-path>/spec.md\` is a delta spec;
+   \`openspec validate\` and \`openspec archive\` read no other file. Check every
+   entry before syncing. If any other entry (for example
+   \`specs/user-auth/notes.md\` or \`specs/user-auth.md\`) contains a
+   \`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\` or \`## RENAMED Requirements\`
+   section, stop before writing any main spec: name the file and tell the user
+   to move its requirements into the capability's \`spec.md\`. An entry without
+   those sections is a note, not a delta; leave it out of the sync.
+
    Sync every path in \`existingOutputPaths\` unless the caller narrowed the set.
    A caller narrows it by naming an explicit list of complete entries from
    \`existingOutputPaths\` — copy those absolute values verbatim. Archive does
@@ -558,6 +577,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
 - Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
+- Sync only \`<capability-path>/spec.md\` entries; stop before any write if another entry carries delta sections
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
 - Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response

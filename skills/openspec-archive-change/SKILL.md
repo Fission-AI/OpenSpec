@@ -114,6 +114,16 @@ In both branches, never create the root as a side effect: do not run `openspec i
    `existingOutputPaths` is empty, proceed without a sync prompt and do not infer
    delta specs from other artifacts.
 
+   Only an entry ending in `/specs/<capability-path>/spec.md` is a delta spec;
+   `openspec validate` and `openspec archive` read no other file. If any other
+   entry (for example `specs/user-auth/notes.md` or `specs/user-auth.md`)
+   contains a `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements`
+   section, stop without syncing or archiving: name the file and tell the user
+   to move its requirements into the capability's `spec.md`, then archive
+   again once `openspec validate "<name>"` passes.
+   Entries without those sections are notes; leave them out of the comparison
+   and the sync.
+
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (use the store-aware `planningHome.root` from step 2, not a hardcoded repo path)
    - A missing main spec is **not automatically** "already synced". For a new capability, the main spec is an *output* of the sync, not an input:

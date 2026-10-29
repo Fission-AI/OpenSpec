@@ -115,6 +115,12 @@ ${PROJECT_ROOT_GUARD}
         lookup for that change; do not infer deltas from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
         batches where some schemas have no \`specs\` artifact.
+      - Only an entry ending in \`/specs/<capability-path>/spec.md\` is a delta spec;
+        \`openspec validate\` and \`openspec archive\` read no other file. If any other
+        entry contains a \`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\` or \`## RENAMED Requirements\`
+        section, mark the change \`Blocked\` with \`Delta outside a capability spec.md: <path>\`
+        and tell the user to move its requirements into the capability's \`spec.md\`.
+        Entries without those sections are notes, left out of the sync.
 
    d. **Archive target** - Compute each change's target name once and record it as that change's \`<target-name>\`
       - Use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`)
@@ -196,7 +202,7 @@ ${PROJECT_ROOT_GUARD}
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change that is not \`Blocked\`
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with \`Archive directory already exists\`. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with their \`Blocked\` reason. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every
@@ -483,6 +489,12 @@ ${PROJECT_ROOT_GUARD}
         lookup for that change; do not infer deltas from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
         batches where some schemas have no \`specs\` artifact.
+      - Only an entry ending in \`/specs/<capability-path>/spec.md\` is a delta spec;
+        \`openspec validate\` and \`openspec archive\` read no other file. If any other
+        entry contains a \`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\` or \`## RENAMED Requirements\`
+        section, mark the change \`Blocked\` with \`Delta outside a capability spec.md: <path>\`
+        and tell the user to move its requirements into the capability's \`spec.md\`.
+        Entries without those sections are notes, left out of the sync.
 
    d. **Archive target** - Compute each change's target name once and record it as that change's \`<target-name>\`
       - Use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`)
@@ -564,7 +576,7 @@ ${PROJECT_ROOT_GUARD}
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change that is not \`Blocked\`
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with \`Archive directory already exists\`. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with their \`Blocked\` reason. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every
