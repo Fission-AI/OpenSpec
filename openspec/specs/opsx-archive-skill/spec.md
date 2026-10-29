@@ -211,9 +211,8 @@ The `/opsx:archive` skill SHALL request current archive operation inputs after r
 #### Scenario: Archive instruction lookup fails
 
 - **WHEN** `openspec instructions archive --change "<name>" --json` exits non-zero or does not return valid archive-instruction JSON
-- **THEN** the skill reports the instruction lookup error
-- **AND** stops before inspecting or writing specs or moving the change
-- **AND** does not treat the failed lookup as absent context or operation guidance
+- **THEN** the skill treats the lookup as optional and continues the archive with no context and no operation guidance
+- **AND** does not report an error or stop, so an older CLI that lacks the command still archives normally
 
 #### Scenario: Archive context or guidance conflicts with the workflow
 

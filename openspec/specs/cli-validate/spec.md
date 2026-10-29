@@ -339,7 +339,7 @@ When a requirement places the normative keyword (SHALL or MUST) only in its `###
 
 - **GIVEN** a main spec requirement whose header contains SHALL or MUST but whose body line omits it
 - **WHEN** running `openspec validate` over that spec
-- **THEN** the error message SHALL contain the actionable sentence: "must contain SHALL or MUST in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the \"### Requirement: ...\" header."
+- **THEN** the issue message SHALL contain the actionable sentence: "must contain SHALL or MUST in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the \"### Requirement: ...\" header."
 - **AND** SHALL NOT be the generic "Requirement must contain SHALL or MUST keyword" message
 
 #### Scenario: Actionable-sentence parity with change deltas
@@ -355,29 +355,32 @@ When a requirement places the normative keyword (SHALL or MUST) only in its `###
 - **THEN** validate SHALL emit exactly one issue for the missing body keyword
 - **AND** SHALL NOT emit both the generic message and the targeted message for the same requirement
 
-#### Scenario: Requirement missing the keyword entirely still errors
+#### Scenario: Requirement missing the keyword entirely is reported
 
-- **GIVEN** a main spec requirement that contains no SHALL or MUST in either the header or the body
+- **GIVEN** a main spec requirement that contains no SHALL or MUST in either the header or a non-empty body
 - **WHEN** running `openspec validate` over that spec
-- **THEN** validate SHALL report that the requirement must contain SHALL or MUST, as it does today
+- **THEN** validate SHALL report that the requirement must contain SHALL or MUST as a WARNING, which does not fail plain `validate`
+- **AND** `openspec validate --strict` SHALL fail on it
+- **AND** a requirement with no body text at all SHALL remain an ERROR
 
 #### Scenario: Keyword present in the body is not flagged
 
 - **GIVEN** a main spec requirement whose body line contains SHALL or MUST (whether or not the header also does)
 - **WHEN** running `openspec validate` over that spec
-- **THEN** validate SHALL NOT raise a missing-keyword error for that requirement
+- **THEN** validate SHALL NOT raise a missing-keyword issue for that requirement
 
 #### Scenario: Lowercase keyword does not satisfy the body requirement
 
 - **GIVEN** a main spec requirement whose only "shall"/"must" is lowercase
 - **WHEN** running `openspec validate` over that spec
-- **THEN** validate SHALL report a missing-keyword error, matching the change-delta behavior for the same lowercase mistake
+- **THEN** validate SHALL report a missing-keyword WARNING, matching the change-delta behavior for the same lowercase mistake
+- **AND** `openspec validate --strict` SHALL fail on it
 
 #### Scenario: Header keyword with no body line emits the hint
 
 - **GIVEN** a main spec requirement whose header contains SHALL or MUST and that has no body line before its first scenario
 - **WHEN** running `openspec validate` over that spec
-- **THEN** validate SHALL emit the body-keyword hint (the keyword is only in the header)
+- **THEN** validate SHALL emit the body-keyword hint as an ERROR, because the requirement has no body text (the keyword is only in the header)
 - **AND** this case, which is reported valid today, becomes a deliberate, additive validation improvement
 
 #### Scenario: Renamed requirements are not subject to the body-keyword hint
