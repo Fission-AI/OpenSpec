@@ -142,6 +142,15 @@ describe('openspec update --dry-run', () => {
     return plan;
   }
 
+  // #2089: the deprecation notice is progress output, so a dry run, which
+  // prints only its plan, keeps it out.
+  it('prints no command deprecation notice while planning', async () => {
+    const log = vi.mocked(console.log);
+    log.mockClear();
+    await new UpdateCommand({ dryRun: true }).plan(testDir);
+    expect(log.mock.calls.flat().join('\n')).not.toContain('Command files are deprecated');
+  });
+
   it('plans nothing for a fresh install', async () => {
     const changes = await expectPlanMatchesRealUpdate();
     expect(changes).toEqual([]);

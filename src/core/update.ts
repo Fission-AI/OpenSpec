@@ -879,10 +879,10 @@ export class UpdateCommand {
     const [headline, ...detail] = formatCommandDeprecationNotice(toolIds, delivery);
     if (!headline) return;
 
-    console.log();
-    console.log(chalk.yellow(headline));
+    this.log();
+    this.log(chalk.yellow(headline));
     for (const line of detail) {
-      console.log(chalk.dim(line));
+      this.log(chalk.dim(line));
     }
   }
 
