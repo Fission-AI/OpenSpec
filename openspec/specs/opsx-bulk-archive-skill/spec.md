@@ -24,9 +24,8 @@ The `/opsx:bulk-archive` skill SHALL request current archive operation inputs on
 #### Scenario: Batch archive instruction lookup fails
 
 - **WHEN** `openspec instructions archive --change "<selected-change>" --json` exits non-zero or does not return valid archive-instruction JSON
-- **THEN** the skill reports the instruction lookup error
-- **AND** stops the batch before inspecting or writing specs or moving any change
-- **AND** does not treat the failed lookup as absent context or operation guidance
+- **THEN** the skill treats the lookup as optional and continues the batch with no context and no operation guidance
+- **AND** does not report an error or stop the batch, so an older CLI that lacks the command still archives normally
 
 #### Scenario: Context or guidance conflicts with batch behavior
 

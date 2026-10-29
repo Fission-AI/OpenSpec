@@ -14,7 +14,8 @@ The `statusCommand` function SHALL check for available changes via `getAvailable
 
 #### Scenario: No changes exist, JSON mode
 - **WHEN** user runs `openspec status --json` without `--change` and no change directories exist
-- **THEN** the CLI outputs `{"changes":[],"message":"No active changes."}` as valid JSON to stdout and exits with code 0
+- **THEN** the CLI outputs valid JSON to stdout with `changes: []`, `message: "No active changes."`, and a `root` object carrying `path`, `source`, and `store_id` when the resolved root is a store
+- **AND** exits with code 0
 
 ### Requirement: Existing status validation behavior is preserved
 Other error paths in `validateChangeExists` that apply to the status command SHALL continue to throw errors as before. Commands other than `status` that use `validateChangeExists` SHALL NOT be affected.

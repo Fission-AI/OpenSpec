@@ -42,6 +42,7 @@ The update command SHALL refresh OpenSpec-managed files in a predictable manner 
 - **AND** create or refresh the root-level `AGENTS.md` stub using the managed marker block, even if the file was previously absent
 - **AND** update only the OpenSpec-managed sections inside existing AI tool files, leaving user-authored content untouched
 - **AND** avoid creating new native-tool configuration files (slash commands, CLAUDE.md, etc.) unless they already exist
+- **AND** as the one exception, write every active-profile workflow file (`openspec-<id>` skills and `opsx-<id>` commands) for each configured tool, creating any that are missing, because update regenerates the active profile rather than patching existing files
 
 ### Requirement: Core Files Always Updated
 The update command SHALL always update the core OpenSpec files and display an ASCII-safe success message.
@@ -153,6 +154,7 @@ The update command SHALL refresh existing slash command files for configured too
 #### Scenario: Missing slash command file
 - **WHEN** a tool lacks a slash command file
 - **THEN** do not create a new file during update
+- **AND** this applies to command files outside the active profile; active-profile workflow files of a configured tool are the exception described under Tool-Agnostic Updates
 
 ### Requirement: Archive Command Argument Support
 The archive slash command template SHALL support optional change ID arguments for tools that support `$ARGUMENTS` placeholder.
@@ -185,3 +187,4 @@ The `openspec update` command SHALL refresh Oh My Pi skill files and command fil
 #### Scenario: Updating Oh My Pi command files
 - **WHEN** `openspec update` runs and Oh My Pi is a configured tool
 - **THEN** command files are written to `.omp/commands/opsx-<id>.md` for each workflow in the active profile, creating them if they do not yet exist and overwriting them if they do
+- **AND** this creation is the active-profile exception to the existing-file-only rules above, which applies to every configured tool with a command adapter, not to Oh My Pi alone

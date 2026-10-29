@@ -186,7 +186,7 @@ The command SHALL generate Agent Skills for selected AI tools.
 #### Scenario: Generating skills for a tool
 
 - **WHEN** a tool is selected during initialization
-- **THEN** create 9 skill directories under `.<tool>/skills/`:
+- **THEN** create 9 skill directories under the tool's configured skills directory, `<skillsDir>/skills/` (for example `.claude/skills/` for Claude Code, or the shared `.agents/skills/` for Amp):
   - `openspec-explore/SKILL.md`
   - `openspec-new-change/SKILL.md`
   - `openspec-continue-change/SKILL.md`
