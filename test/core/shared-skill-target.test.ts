@@ -116,4 +116,27 @@ describe('resolveSharedSkillWriters', () => {
       await fs.rm(projectPath, { recursive: true, force: true });
     }
   });
+
+  it('reads ownership through the view it is given, not the disk', () => {
+    // update --dry-run passes the tree as planned: a marker written earlier in
+    // the run exists only there, and must still decide the owner.
+    const projectPath = path.join(os.tmpdir(), 'openspec-shared-writer-view-missing');
+    const marker = path.join(projectPath, '.agents', 'skills', '.openspec-target');
+    const view = {
+      exists: (filePath: string) => filePath === marker,
+      read: (filePath: string) => {
+        if (filePath === marker) return 'agents\n';
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      },
+    };
+
+    // On disk there is nothing, so Codex is the fresh owner...
+    expect(resolveSharedSkillWriters(projectPath, tools('codex', 'agents'))).toEqual(
+      new Set(['codex'])
+    );
+    // ...but the planned marker names `agents`.
+    expect(resolveSharedSkillWriters(projectPath, tools('codex', 'agents'), view)).toEqual(
+      new Set(['agents'])
+    );
+  });
 });

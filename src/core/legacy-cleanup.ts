@@ -434,7 +434,8 @@ function legacyCommandDirForFile(file: string): { toolId: string; dir: string } 
 async function settleLegacyCommandDir(
   projectPath: string,
   dirPath: string,
-  result: CleanupResult
+  result: CleanupResult,
+  ops: LegacyCleanupOps = DIRECT_CLEANUP_OPS
 ): Promise<boolean> {
   const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
   const remaining = await readLegacyCommandDir(fullPath, []);
@@ -442,7 +443,7 @@ async function settleLegacyCommandDir(
     return false;
   }
   if (remaining.others.length === 0) {
-    await fs.rmdir(fullPath);
+    await ops.removeEmptyDirectory(fullPath);
     result.deletedDirs.push(dirPath);
     return true;
   }
@@ -665,9 +666,27 @@ export interface CleanupResult {
  * @param detection - Detection result from detectLegacyArtifacts
  * @returns Cleanup result with summary of actions taken
  */
+/**
+ * Every change cleanup makes on disk. `update --dry-run` passes a recorder, so
+ * the plan comes from this same code rather than a description of it.
+ */
+export interface LegacyCleanupOps {
+  writeFile(filePath: string, content: string): Promise<void>;
+  removeFile(filePath: string): Promise<void>;
+  /** Removes a directory already known to be empty. */
+  removeEmptyDirectory(dirPath: string): Promise<void>;
+}
+
+const DIRECT_CLEANUP_OPS: LegacyCleanupOps = {
+  writeFile: (filePath, content) => FileSystemUtils.writeFile(filePath, content),
+  removeFile: (filePath) => fs.unlink(filePath),
+  removeEmptyDirectory: (dirPath) => fs.rmdir(dirPath),
+};
+
 export async function cleanupLegacyArtifacts(
   projectPath: string,
-  detection: LegacyDetectionResult
+  detection: LegacyDetectionResult,
+  ops: LegacyCleanupOps = DIRECT_CLEANUP_OPS
 ): Promise<CleanupResult> {
   const result: CleanupResult = {
     deletedFiles: [],
@@ -687,7 +706,7 @@ export async function cleanupLegacyArtifacts(
       const content = await FileSystemUtils.readFile(filePath);
       const newContent = removeMarkerBlock(content);
       // Always write the file, even if empty - never delete user config files
-      await FileSystemUtils.writeFile(filePath, newContent);
+      await ops.writeFile(filePath, newContent);
       result.modifiedFiles.push(fileName);
     } catch (error: any) {
       result.errors.push(`Failed to modify ${fileName}: ${error.message}`);
@@ -713,10 +732,10 @@ export async function cleanupLegacyArtifacts(
         if (!(await isGeneratedLegacyCommand(filePath))) {
           continue;
         }
-        await fs.unlink(filePath);
+        await ops.removeFile(filePath);
         deleted.push(name);
       }
-      if (!(await settleLegacyCommandDir(projectPath, dirPath, result))) {
+      if (!(await settleLegacyCommandDir(projectPath, dirPath, result, ops))) {
         result.deletedFiles.push(...deleted.map((name) => `${dirPath}/${name}`));
       }
     } catch (error: any) {
@@ -738,7 +757,7 @@ export async function cleanupLegacyArtifacts(
           continue;
         }
       }
-      await fs.unlink(fullPath);
+      await ops.removeFile(fullPath);
       result.deletedFiles.push(filePath);
     } catch (error: any) {
       result.errors.push(`Failed to delete ${filePath}: ${error.message}`);
@@ -749,7 +768,7 @@ export async function cleanupLegacyArtifacts(
   // file by file above; record what was left in it.
   for (const dirPath of partlyCleanedDirs) {
     try {
-      await settleLegacyCommandDir(projectPath, dirPath, result);
+      await settleLegacyCommandDir(projectPath, dirPath, result, ops);
     } catch (error: any) {
       result.errors.push(`Failed to delete directory ${dirPath}: ${error.message}`);
     }
@@ -766,7 +785,7 @@ export async function cleanupLegacyArtifacts(
     }
 
     try {
-      await fs.unlink(filePath);
+      await ops.removeFile(filePath);
       result.deletedFiles.push(filePath);
       const promptMatch = globalPromptMatchesByPath.get(filePath);
       if (promptMatch?.replacementLabel) {
@@ -782,7 +801,7 @@ export async function cleanupLegacyArtifacts(
     const agentsPath = FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md');
     if (await FileSystemUtils.fileExists(agentsPath)) {
       try {
-        await fs.unlink(agentsPath);
+        await ops.removeFile(agentsPath);
         result.deletedFiles.push('openspec/AGENTS.md');
       } catch (error: any) {
         result.errors.push(`Failed to delete openspec/AGENTS.md: ${error.message}`);

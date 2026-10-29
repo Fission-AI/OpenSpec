@@ -1,6 +1,6 @@
 {
   "name": "@fission-ai/openspec",
-  "version": "1.14.3",
+  "version": "1.15.0",
   "description": "AI-native system for spec-driven development",
   "keywords": [
     "openspec",
@@ -64,12 +64,13 @@
     "@changesets/cli": "^3.0.1",
     "@types/node": "^20.19.43",
     "@types/picomatch": "^4.0.3",
-    "@vitest/ui": "^4.1.11",
+    "@vitest/ui": "^4.1.12",
     "eslint": "^10.5.0",
     "smol-toml": "^1.7.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
-    "vitest": "^4.1.11"
+    "vite": "^7.3.7",
+    "vitest": "^4.1.12"
   },
   "dependencies": {
     "@inquirer/core": "^12.0.0",

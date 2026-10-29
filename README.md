@@ -117,19 +117,21 @@ Solo, OpenSpec keeps you and your AI honest on a single repo. On a team, the har
 
 ## Quick Start
 
-**Requires Node.js 20.19.0 or higher.** Homebrew installs it as a dependency.
+Install OpenSpec. It is a single file and needs no Node.js (on Alpine Linux, first run `apk add libstdc++ libgcc`).
 
-Install OpenSpec globally:
-
-```bash
-npm install -g @fission-ai/openspec@latest
-```
-
-Or install the official [Homebrew formula](https://formulae.brew.sh/formula/openspec) on macOS or Linux:
+macOS and Linux:
 
 ```bash
-brew install openspec
+curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
 ```
+
+Windows (PowerShell):
+
+```powershell
+irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
+```
+
+Prefer a package manager? `npm install -g @fission-ai/openspec@latest` (needs Node.js 20.19.0 or higher) or the official [Homebrew formula](https://formulae.brew.sh/formula/openspec), `brew install openspec`.
 
 Then navigate to your project directory and initialize:
 
@@ -152,7 +154,7 @@ Both are in the default profile. If you want the expanded workflow (`/opsx:new`,
 > [!NOTE]
 > Not sure if your tool is supported? [View the full list](https://openspec.dev/docs/supported-tools) – we support 30+ tools and growing.
 >
-> Also works with Homebrew, pnpm, yarn, bun, and Nix. [See installation options](https://openspec.dev/docs/installation).
+> Also works with npm, Homebrew, pnpm, yarn, bun, and Nix. [See installation options](https://openspec.dev/docs/installation).
 
 ## Docs
 
@@ -192,7 +194,9 @@ AI coding assistants are powerful but unpredictable when requirements live only 
 
 ## Updating OpenSpec
 
-**Upgrade the package**
+**Upgrade the CLI**
+
+With the standalone install, run `openspec install`. If you installed with npm:
 
 ```bash
 npm install -g @fission-ai/openspec@latest
@@ -220,7 +224,7 @@ openspec update
 
 ## Contributing
 
-Open a discussion (for core design changes) or an issue before you open a PR, and link the issue or discussion from the PR. New features, significant refactors, and architectural changes need an OpenSpec change proposal first.
+Every change starts as an issue. We discuss it there, and if we agree to pursue it, a maintainer implements the change or invites you to build it with us.
 
 → **[CONTRIBUTING.md](CONTRIBUTING.md)**: the full process, from first issue to merged PR
 
