@@ -46,4 +46,4 @@ With the default spec-driven schema the artifacts are proposal.md (why and what)
 
 7. **Show the plan, then stop**
 
-   Run `openspec status --change "<name>"`. Name the change and its folder (`changeRoot`), list each artifact written and any you skipped with the reason, then what you assumed and any decision the user should confirm, then say: "The plan is ready for review. When you are ready, run `/openspec-beta-apply` or ask me to apply this change." This response ends here, even if the request asked to build it.
+   Run `openspec status --change "<name>"`. Name the change and its folder (`changeRoot`), say in a line or two what the change will do, note any artifact you skipped and why, then list what you assumed and any decision the user should confirm, then say: "The plan is ready for review. When you are ready, run `/openspec-beta-apply` or ask me to apply this change." This response ends here, even if the request asked to build it.

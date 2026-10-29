@@ -101,7 +101,7 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
   // Say where the plan guessed, so a reviewer checks those first (#1908).
   [
     'list each artifact written and any you skipped with the reason, then say:',
-    'list each artifact written and any you skipped with the reason, then what you assumed and any decision the user should confirm, then say:',
+    'say in a line or two what the change will do, note any artifact you skipped and why, then list what you assumed and any decision the user should confirm, then say:',
   ],
   // A MODIFIED block replaces the whole requirement, so wording the main spec
   // gained after the block was written is lost on merge (#2129).
@@ -275,6 +275,7 @@ ${CONTEXT_FROM_CLI}
 - **Ask the CLI, don't guess:** paths, state, and validity come from \`openspec\` commands.
 - **Stable IDs:** start each new requirement and scenario heading with a bracketed ID (\`[AUTH-3]\`, \`[AUTH-3.1]\`) and each design decision with a \`### D1\` heading plus one or two sentences. Keep IDs when rewording and cite them, not names. See \`references/deltas.md\` and \`references/decisions.md\`.
 - **The user's language:** write prose in it; keep OpenSpec's headings and SHALL, WHEN, THEN as they are.
+- **Reply at a glance:** lead with the outcome and where it is, flag what needs the user, and end with the next step. Leave out checks that found nothing, file-by-file recaps, and internal IDs.
 `;
 }
 

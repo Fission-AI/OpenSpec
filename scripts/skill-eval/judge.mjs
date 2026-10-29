@@ -18,6 +18,9 @@ const { values, positionals } = parseArgs({
     fixture: { type: 'string' },
     // Judge only the delta specs, for how easily a person reads them.
     specs: { type: 'boolean', default: false },
+    // Judge only proposal.md, or only the agent's final reply, for glanceability.
+    proposal: { type: 'boolean', default: false },
+    reply: { type: 'boolean', default: false },
   },
 });
 const [dir, labelA, labelB] = positionals;
@@ -33,6 +36,10 @@ const context = scenario.judgeContext
   : `This is a small JavaScript library. Its current source:\n\n\`\`\`js\n${fs.readFileSync(new URL('./fixture/src/todo.js', import.meta.url), 'utf8')}\n\`\`\``;
 
 function plan(label, rep) {
+  if (values.reply) {
+    const record = path.join(dir, label, `${values.scenario}-${rep}.json`);
+    return fs.existsSync(record) ? JSON.parse(fs.readFileSync(record, 'utf8')).result || null : null;
+  }
   const root = path.join(dir, label, `${values.scenario}-${rep}.changes`);
   if (!fs.existsSync(root)) return null;
   const files = [];
@@ -40,7 +47,11 @@ function plan(label, rep) {
     for (const entry of fs.readdirSync(folder, { withFileTypes: true })) {
       const full = path.join(folder, entry.name);
       if (entry.isDirectory()) walk(full);
-      else if (entry.name.endsWith('.md') && (!values.specs || /[\\/]specs[\\/]/.test(path.relative(root, full)))) files.push(full);
+      else if (
+        entry.name.endsWith('.md') &&
+        (!values.specs || /[\\/]specs[\\/]/.test(path.relative(root, full))) &&
+        (!values.proposal || entry.name === 'proposal.md')
+      ) files.push(full);
     }
   };
   walk(root);
@@ -65,6 +76,20 @@ const SPECS_RUBRIC = `Both are the spec changes written for this request. A pers
 4. Complete: still says everything the request needs, and nothing it did not ask for.
 Reply with JSON only: {"winner": "1" | "2" | "tie", "reason": "<one sentence>"}`;
 
+const GLANCE_RUBRIC = `Both are the proposal written for this request. A busy reviewer has two minutes to decide whether to approve it. Judge which lets them understand and decide faster. Consider, in order:
+1. The point first: what changes and why is clear in the first few lines.
+2. Plain and short: everyday words, short sentences, no filler or repetition.
+3. Scannable: headings and bullets a reader can skim; scope in and out is obvious.
+4. Complete: nothing the reviewer needs is missing.
+Reply with JSON only: {"winner": "1" | "2" | "tie", "reason": "<one sentence>"}`;
+
+const REPLY_RUBRIC = `Both are an assistant's final message to the developer after doing this request. Judge which message the developer can read at a glance and act on. Consider, in order:
+1. Leads with the outcome: what was done, and where.
+2. Short and plain: no filler, no repeating what the files already say.
+3. Flags what needs the developer: decisions, assumptions, problems.
+4. Ends with a clear next step.
+Reply with JSON only: {"winner": "1" | "2" | "tie", "reason": "<one sentence>"}`;
+
 const verdicts = [];
 for (let rep = 1; rep <= 20; rep++) {
   const a = plan(labelA, rep);
@@ -72,7 +97,7 @@ for (let rep = 1; rep <= 20; rep++) {
   if (!a || !b) continue;
   const aFirst = Math.random() < 0.5;
   const [one, two] = aFirst ? [a, b] : [b, a];
-  const prompt = `A developer asked an assistant to plan this change:\n\n> ${request}\n\n${context}\n\nTwo plans were written independently.\n\n# Plan 1\n\n${one}\n\n# Plan 2\n\n${two}\n\n${values.specs ? SPECS_RUBRIC : RUBRIC}`;
+  const prompt = `A developer asked an assistant to plan this change:\n\n> ${request}\n\n${context}\n\nTwo plans were written independently.\n\n# Plan 1\n\n${one}\n\n# Plan 2\n\n${two}\n\n${values.reply ? REPLY_RUBRIC : values.proposal ? GLANCE_RUBRIC : values.specs ? SPECS_RUBRIC : RUBRIC}`;
   const out = spawnSync(
     'claude',
     ['-p', prompt, '--model', values.model, '--output-format', 'json', '--setting-sources', 'project,local',
@@ -101,4 +126,4 @@ for (let rep = 1; rep <= 20; rep++) {
 
 const count = (who) => verdicts.filter((v) => v.winner === who).length;
 console.log(`\n${labelA} ${count(labelA)} · ${labelB} ${count(labelB)} · tie ${count('tie')} · error ${count('error')} (of ${verdicts.length})`);
-fs.writeFileSync(path.join(dir, `judge-${values.specs ? 'specs-' : ''}${values.scenario}-${labelA}-vs-${labelB}.json`), JSON.stringify(verdicts, null, 2));
+fs.writeFileSync(path.join(dir, `judge-${values.reply ? 'reply-' : values.proposal ? 'proposal-' : values.specs ? 'specs-' : ''}${values.scenario}-${labelA}-vs-${labelB}.json`), JSON.stringify(verdicts, null, 2));

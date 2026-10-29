@@ -114,7 +114,7 @@ describe('the openspec skill', () => {
   it('stays within its size budgets', () => {
     const files = render(ALL_WORKFLOWS);
     const size = (file: { content: string }) => Buffer.byteLength(file.content);
-    expect(size(files[0]), 'SKILL.md').toBeLessThanOrEqual(6_300);
+    expect(size(files[0]), 'SKILL.md').toBeLessThanOrEqual(6_500);
     const workflows = new Set(ALL_WORKFLOWS.map((id) => `references/${id}.md`));
     for (const file of files.filter((entry) => workflows.has(entry.relativePath))) {
       expect(size(file), file.relativePath).toBeLessThanOrEqual(12_000);
