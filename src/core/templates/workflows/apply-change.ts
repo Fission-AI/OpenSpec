@@ -17,7 +17,7 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
 const BLOCKED_STATE_HANDOFF = optionalWorkflow(
   'continue',
   'suggest using `/opsx:continue` to create them.',
-  'suggest completing the missing artifacts. Run `openspec status --change "<name>" --json`, then select a `ready` artifact (not `skipped` or `blocked`) that unblocks apply: one listed in `missingArtifacts`, or a transitive prerequisite of one (follow each artifact\'s `requires` in the status JSON). Never pick a `ready` artifact outside that set; it advances unrelated work and leaves apply blocked. If no `ready` artifact is in that set, create nothing: report `missingArtifacts` and the status of each of their prerequisites, and ask the user how to proceed. Otherwise use `openspec instructions "<artifact-id>" --change "<name>" --json` for its rules and template. Keep the selected `--store <id>` on both commands.'
+  'suggest completing the missing artifacts. Run `openspec status --change "<name>" --json`, then select a `ready` artifact (not `skipped` or `blocked`) that unblocks apply: one listed in `missingPrerequisites` from the apply instructions JSON, which names every artifact apply still waits on, directly or through `requires`, in build order (use `missingArtifacts` when it is absent). Take the first `ready` one in that order. Never pick a `ready` artifact outside that set; it advances unrelated work and leaves apply blocked. If no `ready` artifact is in that set, create nothing: report `missingArtifacts` and the status of each of their prerequisites, and ask the user how to proceed. Otherwise use `openspec instructions "<artifact-id>" --change "<name>" --json` for its rules and template. Keep the selected `--store <id>` on both commands.'
 );
 
 /** The archive handoff shown once every task is done. */
@@ -79,6 +79,7 @@ ${PROJECT_ROOT_GUARD}
    - Optional \`context\`: current required project instruction input from the selected root
    - Optional \`operationGuidance\`: current advisory guidance for apply
    - \`missingArtifacts\` (when present): required artifact ids with no output
+   - \`missingPrerequisites\` (when present): every artifact still to build before apply, including \`missingArtifacts\` and what they depend on, in build order
 
    **Handle states:**
    - If \`state: "blocked"\`: show the message and pause implementation.

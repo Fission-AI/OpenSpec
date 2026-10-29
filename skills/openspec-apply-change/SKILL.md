@@ -60,6 +60,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - Optional `context`: current required project instruction input from the selected root
    - Optional `operationGuidance`: current advisory guidance for apply
    - `missingArtifacts` (when present): required artifact ids with no output
+   - `missingPrerequisites` (when present): every artifact still to build before apply, including `missingArtifacts` and what they depend on, in build order
 
    **Handle states:**
    - If `state: "blocked"`: show the message and pause implementation.

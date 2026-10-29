@@ -373,7 +373,7 @@ describe('apply skill template generates valid per-target invocations', () => {
     expect(blocked).toContain('openspec status --change "<name>" --json');
     expect(blocked).toContain('select a `ready` artifact (not `skipped` or `blocked`) that unblocks apply');
     // #2165: only an artifact apply is waiting on, directly or through `requires`.
-    expect(blocked).toContain('one listed in `missingArtifacts`, or a transitive prerequisite of one');
+    expect(blocked).toContain('one listed in `missingPrerequisites` from the apply instructions JSON');
     expect(blocked).toContain('Never pick a `ready` artifact outside that set');
     // With no `ready` artifact in that set, stop and ask rather than stall or wander.
     expect(blocked).toContain('If no `ready` artifact is in that set, create nothing');

@@ -591,7 +591,7 @@ describe('InitCommand', () => {
         expect(content).toContain('openspec status --change "<name>" --json');
         expect(content).toContain('select a `ready` artifact (not `skipped` or `blocked`) that unblocks apply');
         // #2165: only an artifact apply is waiting on, directly or through `requires`.
-        expect(content).toContain('one listed in `missingArtifacts`, or a transitive prerequisite of one');
+        expect(content).toContain('one listed in `missingPrerequisites` from the apply instructions JSON');
         expect(content).toContain('Never pick a `ready` artifact outside that set');
         // With no `ready` artifact in that set, stop and ask rather than stall or wander.
         expect(content).toContain('If no `ready` artifact is in that set, create nothing');
