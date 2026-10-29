@@ -38,8 +38,8 @@
 ## 5. References: project-scoped store resolution
 
 - [ ] 5.1 Update `assembleReferenceIndex` in `src/core/references.ts` to resolve referenced store IDs through a per-ID walk of project-scoped registries (ordered result of `walkProjectStoreRegistries`), checking each registry in order for each ID, falling back to the global registry only after a project miss, with project entries staying resolvable even when the global registry is unreadable — verify with a unit test that references resolve from the ordered walk
-- [ ] 5.2 Update `src/commands/shared-gather.ts` to pass the project-scoped registry directory (discovered via `findProjectRegistryDir`) to `assembleReferenceIndex`, whose per-ID walk then resolves the references — verify with a unit test that shared gathering uses the per-ID walk
-- [ ] 5.3 Update `src/commands/workflow/instructions.ts` to pass the project-scoped registry directory (discovered via `findProjectRegistryDir`) to `assembleReferenceIndex`, whose per-ID walk then resolves the references — verify with a unit test that workflow instruction generation uses the per-ID walk
+- [ ] 5.2 Update `src/commands/shared-gather.ts` to pass the invoking project's registry directory (discovered via `findProjectRegistryDir` from the command start path, not the resolved store root) to `assembleReferenceIndex`, whose per-ID walk then resolves the references — verify with a unit test that shared gathering resolves references from the working directory even when the selected store is outside it
+- [ ] 5.3 Update `src/commands/workflow/instructions.ts` to pass the invoking project's registry directory (discovered via `findProjectRegistryDir` from the command start path, not the resolved store root) to `assembleReferenceIndex`, whose per-ID walk then resolves the references — verify with a unit test that workflow instruction generation resolves references from the working directory even when the selected store is outside it
 
 ## 6. Tests: integration and edge cases
 
