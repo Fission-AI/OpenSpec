@@ -209,11 +209,11 @@ Here's the spec:
 
 ## ADDED Requirements
 
-### Requirement: <Name>
+### Requirement: <ID> <Name>
 
 <Description of what the system should do>
 
-#### Scenario: <Scenario name>
+#### Scenario: <ID> <Scenario name>
 
 - **WHEN** <trigger condition>
 - **THEN** <expected outcome>
@@ -221,7 +221,7 @@ Here's the spec:
 
 ---
 
-This format—WHEN/THEN/AND—makes requirements testable. You can literally read them as test cases.
+This format—WHEN/THEN/AND—makes requirements testable. You can literally read them as test cases. The ID at the start of each heading (like AUTH-3 and AUTH-3.1) keeps links to it working if the name is reworded later.
 \`\`\`
 
 Save to the concrete file path chosen from \`resolvedOutputPath\`.
@@ -262,9 +262,9 @@ Here's the design:
 
 ## Decisions
 
-### Decision 1: [Key decision]
+### D1
 
-[Explanation of approach and rationale]
+[The choice and why, in one or two sentences]
 
 ---
 

@@ -63,6 +63,7 @@ Decide the small things yourself and say what you chose. Raise a decision when a
 - Give two or three options in a line each, with your recommendation and its trade-off. Put related questions in one message.
 - When you must go on without an answer, pick the option that keeps today's behavior, and mark it as an assumption where a reviewer will see it.
 - Record the answer where it belongs: the choice and its reason in the design (or the proposal when there is no design), the behavior it leads to in the specs.
+- In the design, each decision is a \`### D1\`, \`### D2\`, ... heading with the choice and its reason in one or two sentences. Keep a decision's ID when you reword or reorder it, never reuse a removed one, and list an alternative only if someone raised it. Tasks and risks cite it as \`[D1](./design.md#d1)\`.
 `;
 
 const DELTAS = `# How specs change
@@ -78,13 +79,17 @@ The main specs (\`openspec/specs/\`) say what the system does today. A change ne
 
 The deltas merge into the main specs in the change's last task (with the default schema, "Update the specs"), or at archive, where \`openspec archive\` merges and validates them for you. To merge them yourself, follow \`references/sync.md\`.
 
+## Stable IDs
+
+You write a stable ID as the first word of each new requirement and scenario heading: \`### Requirement: AUTH-3 Users sign in\`, \`#### Scenario: AUTH-3.1 Correct password\`. The CLI only reads it. Use the next unused number in that spec, keep an ID when you reword or move a heading, and never reuse a removed one. A heading with an ID can be reworded in a MODIFIED block with no RENAMED entry: the merge matches on the ID. Cite IDs, not names, in tasks, tests and code.
+
 ## How requirements get lost
 
 - **A partial MODIFIED.** The merge replaces the whole requirement with the delta's block, so whatever the block leaves out is deleted. Copy the existing requirement whole from the main spec, then edit it. For a separate new behavior, use ADDED.
 - **A rename written as REMOVED plus ADDED.** Scenarios get dropped on the way, and readers lose the link between the old name and the new. Use RENAMED, plus MODIFIED if the behavior changes too.
 - **A repeated requirement.** A new requirement that restates a promise the spec already makes ("paid invoices are emailed" beside an existing "Sending a receipt") leaves two places to keep in step. Extend the existing requirement with MODIFIED instead, and add a new one only for behavior nothing covers yet.
 - **A near-duplicate capability.** \`user-authentication\` next to \`user-auth\` splits one behavior across two specs. Reuse the exact existing path.
-- **Editing a main spec while a change is open.** The merge finds requirements by name, so a renamed or reworded main spec no longer matches the delta. Edit the delta instead; edit a main spec directly only to fix its Purpose.
+- **Editing a main spec while a change is open.** The merge finds requirements by ID, then by name, so a renamed or reworded main spec no longer matches the delta. Edit the delta instead; edit a main spec directly only to fix its Purpose.
 - **Emptying a spec.** A spec cannot be left without requirements. Retiring a capability takes \`retire_capabilities: true\` in the change's \`.openspec.yaml\`.
 
 After writing deltas, run \`openspec validate "<change>"\`. It catches a MODIFIED block that drops a scenario the main spec still has.

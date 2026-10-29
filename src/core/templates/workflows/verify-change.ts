@@ -142,7 +142,7 @@ ${BEFORE_YOU_START}
    **Design Adherence**:
    - If the schema defines no design artifact (no artifact with id \`design\`, and none whose \`artifactPaths.<id>.outputPath\` is or ends in \`design.md\`), report **Design Adherence** as not applicable.
    - If the design artifact's \`contextFiles.<id>\` file exists:
-     - Check the code follows its key decisions (sections like "Decision:", "Approach:", "Architecture:"). If one is contradicted, add WARNING: "Design decision not followed: <decision>", recommending "Update implementation or revise design.md to match reality".
+     - Check the code follows its key decisions (\`### D1\`-style headings, or sections like "Decision:", "Approach:", "Architecture:"), naming each by its ID when it has one. If one is contradicted, add WARNING: "Design decision not followed: <decision>", recommending "Update implementation or revise design.md to match reality".
    - Otherwise, if the design artifact's \`contextFiles.<id>\` file is absent or empty: mark **Design Adherence** as not verified. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
 
    **Code Pattern Consistency**:
