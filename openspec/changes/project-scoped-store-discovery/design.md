@@ -25,9 +25,11 @@ The existing `findQualifyingRootSync` in `root-selection.ts` walks up the direct
 
 **Decision:** `.openspec-store/registry.yaml` in the project root.
 
-**Rationale:** The `.openspec-store/` directory is already established by store identity metadata (`store.yaml`). Placing the project-scoped registry there keeps store infrastructure in one place. The name `registry.yaml` mirrors the global registry file name.
+**Rationale:** The `.openspec-store/` directory is already established by store identity metadata (`store.yaml`). Placing the project-scoped registry there keeps store infrastructure in one place. The name `registry.yaml` mirrors the global registry file name. The two files have distinct roles: `store.yaml` marks *this directory is a store*, while `registry.yaml` maps *store IDs live here*.
 
 **Alternative considered:** `.openspec/registry.yaml` — rejected because `.openspec/` is the planning directory (specs, changes, config), not store infrastructure.
+
+**Alternative considered:** Storing the ID→path map inline in `openspec/config.yaml` (for example `references: { platform-specs: { path: ../platform-specs } }`) — rejected because `config.yaml` is the declaration layer (which stores this project uses, by ID), while the registry is the resolution layer (where a store ID lives on disk). `--store <id>` has no `config.yaml` to read and still needs a registry; and the meta-repo pattern needs a single top-level registry mapping stores for every submodule, which per-project `config.yaml` entries cannot express.
 
 ### D2: Registry file format
 
