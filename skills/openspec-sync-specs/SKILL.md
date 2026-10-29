@@ -54,9 +54,12 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
 3. **Find delta specs**
 
-   Use `artifactPaths.specs.existingOutputPaths` from the status JSON as the
-   only source of delta spec paths. If the `specs` entry is missing or
-   `existingOutputPaths` is empty, report that there are no delta specs to sync,
+   The delta-spec artifacts are every `artifactPaths.<id>` entry in the status
+   JSON whose `outputPath` is under `specs/`. Artifact ids come from the active
+   schema, so do not assume the id `specs`. Their combined
+   `existingOutputPaths` (called `existingOutputPaths` below) are the only
+   source of delta spec paths. If no entry's `outputPath` is under `specs/`, or
+   all of their `existingOutputPaths` are empty, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
 
@@ -86,9 +89,11 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    Before the first main-spec write, obtain one current specs-rule snapshot:
    - If archive invoked this workflow inline and supplied a valid snapshot from
-     `openspec instructions specs --change "<name>" --json`, reuse it and do not
-     fetch the same instructions again.
-   - Otherwise run that command once now with the same selected-root flags.
+     `openspec instructions <spec-artifact-id> --change "<name>" --json`, reuse
+     it and do not fetch the same instructions again.
+   - Otherwise run that command once now for each delta-spec artifact id from
+     step 3, with the same selected-root flags. Apply each artifact's rules to
+     the main specs merged from its own deltas.
    - If the direct lookup exits non-zero or returns invalid artifact-instruction
      JSON, report the error and stop before writing any main spec. Do not treat the
      failure as an absent rule set.
@@ -282,7 +287,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
-- Use only `artifactPaths.specs.existingOutputPaths`; never infer delta specs from unrelated artifacts
+- Use only the `existingOutputPaths` of artifacts whose `outputPath` is under `specs/`, whatever their id; never infer delta specs from unrelated artifacts
 - Honor a caller-supplied subset of `existingOutputPaths`; never widen it back to the full list
 - Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response

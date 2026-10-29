@@ -109,10 +109,13 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
 4. **Assess delta spec sync state**
 
-   Use `artifactPaths.specs.existingOutputPaths` from status JSON as the only
-   delta-spec source. If the `specs` entry is missing or
-   `existingOutputPaths` is empty, proceed without a sync prompt and do not infer
-   delta specs from other artifacts.
+   The delta-spec artifacts are every `artifactPaths.<id>` entry in status JSON
+   whose `outputPath` is under `specs/`. Artifact ids come from the active
+   schema, so do not assume the id `specs`. Their combined
+   `existingOutputPaths` are the only delta-spec source; keep each reported path
+   as-is when resolving its capability path. If no entry's `outputPath` is under
+   `specs/`, or all of their `existingOutputPaths` are empty, proceed without a
+   sync prompt and do not infer delta specs from other artifacts.
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (use the store-aware `planningHome.root` from step 2, not a hardcoded repo path)
@@ -136,8 +139,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - Anything else — ask again rather than archiving
 
    Before a selected sync writes any main spec, run
-   `openspec instructions specs --change "<name>" --json` once with the same
-   selected-root flags. Require a zero exit status and valid artifact-instruction
+   `openspec instructions <spec-artifact-id> --change "<name>" --json` once for
+   each delta-spec artifact id from step 4, with the same selected-root flags. Require a zero exit status and valid artifact-instruction
    JSON. If the lookup fails or returns invalid JSON, report the error and stop
    before writing any main spec or moving the change. A valid response with omitted
    `rules` is the no-rules case. Apply returned `rules` only to the content and
@@ -157,7 +160,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - Verify that no delta-style section headers (`## ADDED Requirements`, `## MODIFIED Requirements`, `## REMOVED Requirements`, `## RENAMED Requirements`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
    - Requirement blocks the sync wrote or changed use `### Requirement:` headings, and their scenarios use `#### Scenario:` headings, under the spec's `## Requirements` section. Leave content the delta does not mention exactly as it is.
 
-   Then re-run the comparison from the top of this step, including the explicitly retired, missing-spec case, against every capability that has a delta spec in `artifactPaths.specs.existingOutputPaths` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
+   Then re-run the comparison from the top of this step, including the explicitly retired, missing-spec case, against every capability that has a delta spec in the delta-spec artifacts' `existingOutputPaths` from step 4 — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
    - ADDED requirements present
    - MODIFIED requirements carrying the scenario and description changes named in the delta, with their other scenarios intact
    - REMOVED requirements gone — and where this sync retired a capability (removed its last requirement, leaving `## Requirements` empty), its main spec deleted rather than left empty.

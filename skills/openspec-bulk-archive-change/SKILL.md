@@ -93,12 +93,13 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - The CLI counts only `x`/`X` checkbox markers as complete; other markers remain incomplete
       - If `totalTasks` is zero, note as "No tasks"
 
-   c. **Delta specs** - Check `artifactPaths.specs.existingOutputPaths` from status JSON
+   c. **Delta specs** - The delta-spec artifacts are every `artifactPaths.<id>` entry in status JSON whose `outputPath` is under `specs/`. Artifact ids come from the active schema, so do not assume the id `specs`. Check their combined `existingOutputPaths`
       - List which capability specs exist
       - For each, extract requirement names (lines matching `### Requirement: <name>`)
-      - Treat this list as the only delta-spec source. If the `specs` entry is
-        missing or the list is empty, perform no spec sync or specs-instruction
-        lookup for that change; do not infer deltas from unrelated artifacts.
+      - Treat this list as the only delta-spec source. If no entry's
+        `outputPath` is under `specs/` or the list is empty, perform no spec
+        sync or specs-instruction lookup for that change; do not infer deltas
+        from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
         batches where some schemas have no `specs` artifact.
 
@@ -187,9 +188,10 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    Before step 8 writes the first main spec or moves any change, fetch every
    required specs-rule snapshot for the confirmed batch. For each change that will
-   sync concrete `artifactPaths.specs.existingOutputPaths`, run
-   `openspec instructions specs --change "<name>" --json` exactly once with the
-   same selected-root flags. Obtain all snapshots before the first write or move.
+   sync concrete delta-spec `existingOutputPaths` (step 3c), run
+   `openspec instructions <spec-artifact-id> --change "<name>" --json` exactly
+   once for each of that change's delta-spec artifact ids, with the same
+   selected-root flags. Obtain all snapshots before the first write or move.
    If any lookup exits non-zero or returns invalid artifact-instruction JSON,
    identify the affected change, report the error, and stop the whole batch before
    any main-spec write or change move. Do not treat lookup failure as omitted
@@ -368,7 +370,7 @@ No active changes found. Create a new change to get started.
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
 - A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance
 - A failed specs instruction lookup stops the whole batch atomically
-- Changes without concrete `artifactPaths.specs.existingOutputPaths` continue without spec sync
+- Changes without concrete delta-spec `existingOutputPaths` (any artifact whose `outputPath` is under `specs/`) continue without spec sync
 - Apply relevant runtime context across the batch and report conflicts
 - Operation guidance remains advisory; consider every entry and explain rejected advice
 - Keep runtime inputs, conflict analysis, CLI-derived values, and artifact rules separate
