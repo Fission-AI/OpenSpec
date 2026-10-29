@@ -14,7 +14,9 @@
 
 ## Decisions
 
-<!-- Key design decisions with rationale and alternatives considered -->
+### D1
+
+<!-- The choice and why, in one or two sentences. Keep this ID if the decision is reworded or reordered. -->
 
 ## Risks / Trade-offs
 

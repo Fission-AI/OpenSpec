@@ -20,7 +20,7 @@ The system SHALL read the first word of a requirement or scenario heading as its
 - **THEN** the requirement has no ID
 
 ### Requirement: Rename keeps the ID
-When a MODIFIED block's heading ID matches exactly one requirement in the main spec, validate and archive SHALL treat the block as that requirement, and archive SHALL write it in the same position under the block's heading. The scenario-loss check SHALL pair scenarios by ID before name.
+When a MODIFIED block's heading is not in the main spec but its ID matches exactly one requirement there, or no requirement has that ID and exactly one requirement without an ID has the same name minus the ID, validate and archive SHALL treat the block as that requirement, and archive SHALL write it in the same position under the block's heading. The scenario-loss check SHALL pair scenarios by ID before name.
 
 #### Scenario: Requirement renamed
 - **WHEN** the main spec has `AUTH-3 Users sign in` and a MODIFIED block is headed `AUTH-3 Users log in`
@@ -34,16 +34,24 @@ When a MODIFIED block's heading ID matches exactly one requirement in the main s
 - **WHEN** a MODIFIED block omits scenario `AUTH-3.2` that the main spec has
 - **THEN** validate and archive refuse the block and name `AUTH-3.2`
 
+#### Scenario: Existing requirement gains an ID
+- **WHEN** the main spec has `Users sign in` with scenario `Correct password`, and a MODIFIED block is headed `AUTH-3 Users sign in` with scenario `AUTH-3.1 Correct password`
+- **THEN** validate passes and archive writes the requirement under its new heading
+
 #### Scenario: Different ID with the same name
 - **WHEN** the main spec has scenario `AUTH-3.1 Correct password` and the MODIFIED block has `AUTH-3.4 Correct password` instead
 - **THEN** the check reports `AUTH-3.1` as missing
 
 ### Requirement: Duplicate IDs are refused
-Validate and archive SHALL refuse an ADDED requirement whose ID already exists in the capability, and two MODIFIED blocks that share an ID. When the main spec already contains a duplicate ID, the system SHALL match that capability by name and SHALL report a warning.
+Archive SHALL refuse a delta that would leave two requirements in a capability with the same ID, and validate SHALL report that archive would refuse it. Validate SHALL report two ADDED or two MODIFIED blocks in one delta that share an ID as an error. When the main spec already contains a duplicate ID, the system SHALL match that capability by name and SHALL report a warning.
 
 #### Scenario: Parallel changes pick the same ID
 - **WHEN** one change has archived `AUTH-4` and a second change adds its own `AUTH-4`
-- **THEN** validate and archive refuse the second change and name the ID
+- **THEN** archive refuses the second change and names both requirements, and validate reports that archive would refuse it
+
+#### Scenario: One delta reuses an ID
+- **WHEN** a delta adds two requirements that both start with `AUTH-7`
+- **THEN** validate reports a duplicate ID error
 
 #### Scenario: Existing duplicate in a main spec
 - **WHEN** a main spec already has two requirements with ID `AUTH-4`

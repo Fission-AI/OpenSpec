@@ -49,7 +49,7 @@ From the [#1979 comment](https://github.com/Fission-AI/OpenSpec/pull/1979#issuec
 | Do agents keep IDs through edits? | 264 of 265 runs kept every ID through rename, reorder, split and remove. No ID was ever moved to the wrong scenario |
 | Is ID matching safe? | A 118-line prototype left all 1,719 past archives byte-identical, and rename deltas went from 0 of 20 to 20 of 20 passing validate |
 
-The prototype read IDs from a comment line under the heading. Implementation reruns the same checks with heading IDs.
+The prototype read IDs from a comment line under the heading. The implementation reran the archive check with heading IDs, adding sonqh's spec-ctx, which already writes them, as a fifth repo: see the PR description for the results.
 
 ## Risks / Trade-offs
 

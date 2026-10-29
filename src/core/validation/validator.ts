@@ -19,6 +19,8 @@ import {
   diffScenarioNames,
   describeScenarioBalance,
   describeUnappliedContent,
+  findDuplicateIds,
+  findRequirementKeyById,
   type RequirementBlock,
 } from '../parsers/requirement-blocks.js';
 import {
@@ -366,6 +368,17 @@ export class Validator {
           const scenarioCount = this.countScenarios(block.raw);
           if (scenarioCount < 1) {
             issues.push({ level: 'ERROR', path: entryPath, message: `MODIFIED "${block.name}" must include at least one scenario${this.emptyScenarioHint(block.raw)}` });
+          }
+        }
+
+        // Archive refuses two blocks that claim one ID (#2167); say so here.
+        for (const [section, blocks] of [['ADDED', plan.added], ['MODIFIED', plan.modified]] as const) {
+          for (const id of findDuplicateIds(blocks.map((block) => block.name))) {
+            issues.push({
+              level: 'ERROR',
+              path: entryPath,
+              message: `Duplicate ID in ${section}: "${id}". Give each requirement its own ID.`,
+            });
           }
         }
 
@@ -772,7 +785,10 @@ export class Validator {
     for (const block of modified) {
       const key = normalizeRequirementName(block.name);
       if (renamedAway.has(key)) continue;
-      const current = currentBlockFor(key);
+      // The same ID lookup archive uses, so a renamed requirement is compared
+      // against the block archive will replace (#2167).
+      const idKey = findRequirementKeyById(currentBlocks, block);
+      const current = currentBlockFor(key) ?? (idKey === undefined ? undefined : currentBlocks.get(idKey));
       if (!current) continue;
       const diff = diffScenarioNames(current, block);
       if (diff.missing.length === 0) continue;
@@ -818,7 +834,18 @@ export class Validator {
         message: structuralIssue.message,
       });
     }
-    
+
+    // A warning, not an error: a spec that already holds a duplicate keeps
+    // working, matched by name as before, until someone renumbers it (#2167).
+    const requirementNames = extractRequirementsSection(content).bodyBlocks.map((block) => block.name);
+    for (const id of findDuplicateIds(requirementNames)) {
+      issues.push({
+        level: 'WARNING',
+        path: 'file',
+        message: `ID "${id}" is used by more than one requirement, so archive matches this spec by name only. Give each requirement its own ID.`,
+      });
+    }
+
     // The placeholder is longer than MIN_PURPOSE_LENGTH, so the brevity check
     // below cannot reach it; it is reported on its own terms instead. Checked
     // first because a hand-written "TBD" is both a placeholder and too brief,

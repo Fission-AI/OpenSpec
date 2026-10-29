@@ -133,6 +133,19 @@ The system MUST expire sessions after 30 minutes of inactivity.
 - **SHOULD** — recommended, but exceptions exist
 - **MAY** — optional
 
+### Stable IDs
+
+A requirement or scenario can start with an ID, so links to it survive a reworded heading:
+
+```markdown
+### Requirement: AUTH-3 Users sign in
+#### Scenario: AUTH-3.1 Correct password
+```
+
+An ID is an uppercase word with a hyphen that ends in a number (`AUTH-3`, `REQ-UA-004`), or any such word in brackets (`[cap-012]`). Validate and archive match a MODIFIED block on its ID before its name, so renaming a requirement or scenario that keeps its ID just works, while dropping one is still refused. Two requirements in one spec can't share an ID. Specs without IDs work exactly as before.
+
+Design decisions use `### D1`, `### D2`, ... headings, so tasks can link `[D1](./design.md#d1)` and the link survives a retitle.
+
 ### What a Spec Is (and Is Not)
 
 A spec is a **behavior contract**, not an implementation plan.
