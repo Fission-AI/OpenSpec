@@ -823,17 +823,27 @@ export const SCENARIOS = [
       '/openspec-propose Todos need an optional due date, and callers need a way to list the todos that are overdue.' + AUTONOMOUS,
     metrics: (ctx) => {
       const design = ctx.read(`openspec/changes/${newChangeNames(ctx)[0]}/design.md`) ?? '';
-      return { designWritten: design.length > 0, alternativesSection: /alternatives/i.test(design) };
+      const decisions = (design.split(/^## /m).find((section) => section.startsWith('Decisions')) ?? '').split(/^### D\d+.*$/m).slice(1);
+      // Sentence ends outside code spans, so `a.b` in a span is not a sentence.
+      const sentences = (body) => (body.replace(/`[^`]*`/g, 'x').match(/[.!?](\s|$)/g) ?? []).length;
+      return {
+        designWritten: design.length > 0,
+        alternativesSection: /alternatives/i.test(design),
+        decisionsWithinTwoSentences: decisions.length > 0 && decisions.every((body) => sentences(body) <= 2),
+      };
     },
     checks: (ctx) => {
       const name = newChangeNames(ctx)[0];
       const results = [{ name: 'exactly one change created', pass: newChangeNames(ctx).length === 1 }];
       if (!name) return results;
+      // Only headings the plan introduces: an existing heading kept word for
+      // word under MODIFIED may stay without an ID.
+      const existing = new Set(ctx.read('openspec/specs/todo-list/spec.md')?.match(/^#{3,4} .*$/gm) ?? []);
       const headings = deltaSpecs(ctx, name).flatMap(({ text }) =>
         (text.split(/^## (?:REMOVED|RENAMED) Requirements/m)[0].match(/^#{3,4} (?:Requirement|Scenario): .*$/gm) ?? [])
-      );
+      ).filter((heading) => !existing.has(heading));
       const missing = headings.filter((heading) => !STABLE_ID.test(heading.replace(/^#{3,4} (?:Requirement|Scenario): /, '')));
-      results.push({ name: 'every requirement and scenario heading starts with an ID', pass: headings.length > 0 && missing.length === 0, detail: missing.join(' | ') });
+      results.push({ name: 'every new requirement and scenario heading starts with an ID', pass: headings.length > 0 && missing.length === 0, detail: missing.join(' | ') });
       const design = ctx.read(`openspec/changes/${name}/design.md`);
       if (design) {
         const decisions = design.split(/^## /m).find((section) => section.startsWith('Decisions')) ?? '';
