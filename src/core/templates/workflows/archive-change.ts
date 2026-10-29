@@ -128,7 +128,8 @@ ${PROJECT_ROOT_GUARD}
    \`existingOutputPaths\` is empty, proceed without a sync prompt and do not infer
    delta specs from other artifacts.
 
-   Only an entry ending in \`/specs/<capability-path>/spec.md\` is a delta spec;
+   Only an entry ending in \`/specs/<capability-path>/spec.md\` is a delta spec
+   (on Windows the entries use \`\\\` separators; treat \`\\\` and \`/\` alike);
    \`openspec validate\` and \`openspec archive\` read no other file. If any other
    entry (for example \`specs/user-auth/notes.md\` or \`specs/user-auth.md\`)
    contains a \`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\` or \`## RENAMED Requirements\`
@@ -350,7 +351,8 @@ ${PROJECT_ROOT_GUARD}
    \`existingOutputPaths\` is empty, proceed without a sync prompt and do not infer
    delta specs from other artifacts.
 
-   Only an entry ending in \`/specs/<capability-path>/spec.md\` is a delta spec;
+   Only an entry ending in \`/specs/<capability-path>/spec.md\` is a delta spec
+   (on Windows the entries use \`\\\` separators; treat \`\\\` and \`/\` alike);
    \`openspec validate\` and \`openspec archive\` read no other file. If any other
    entry (for example \`specs/user-auth/notes.md\` or \`specs/user-auth.md\`)
    contains a \`## ADDED\`, \`## MODIFIED\`, \`## REMOVED\` or \`## RENAMED Requirements\`

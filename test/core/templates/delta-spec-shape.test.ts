@@ -68,6 +68,9 @@ describe('delta spec shape in archive and sync workflows (#2173)', () => {
         const step = between(body, workflow.step[0], workflow.step[1], label);
 
         expect(step, label).toContain(SHAPE_RULE);
+        // existingOutputPaths come from path.normalize, so Windows entries end
+        // in specs\<capability-path>\spec.md and must still count as deltas.
+        expect(step, label).toContain('treat `\\` and `/` alike');
         expect(step, label).toContain(DELTA_SECTIONS);
         expect(step, label).toContain(workflow.stop);
         // A file with no delta section is a note, not something to block on.
@@ -80,8 +83,13 @@ describe('delta spec shape in archive and sync workflows (#2173)', () => {
     for (const [surface, body] of workflows[0].bodies) {
       const step = between(body, '3. **Find delta specs**', '4. **', surface);
       const rule = step.indexOf(SHAPE_RULE);
+      // Later steps sync "every path in existingOutputPaths", so the note
+      // exclusion must narrow that list, not just one sentence of step 3.
+      const narrowed = step.indexOf('`existingOutputPaths` means the list without those notes');
+      const syncEvery = step.indexOf('Sync every path in `existingOutputPaths`');
       expect(rule, surface).toBeGreaterThanOrEqual(0);
-      expect(rule, surface).toBeLessThan(step.indexOf('Sync every path in `existingOutputPaths`'));
+      expect(narrowed, surface).toBeGreaterThan(rule);
+      expect(narrowed, surface).toBeLessThan(syncEvery);
     }
   });
 });

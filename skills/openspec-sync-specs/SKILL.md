@@ -60,14 +60,16 @@ In both branches, never create the root as a side effect: do not run `openspec i
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
 
-   Only an entry ending in `/specs/<capability-path>/spec.md` is a delta spec;
+   Only an entry ending in `/specs/<capability-path>/spec.md` is a delta spec
+   (on Windows the entries use `\` separators; treat `\` and `/` alike);
    `openspec validate` and `openspec archive` read no other file. Check every
    entry before syncing. If any other entry (for example
    `specs/user-auth/notes.md` or `specs/user-auth.md`) contains a
    `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements`
    section, stop before writing any main spec: name the file and tell the user
    to move its requirements into the capability's `spec.md`. An entry without
-   those sections is a note, not a delta; leave it out of the sync.
+   those sections is a note, not a delta; leave it out of the sync. From here
+   on, `existingOutputPaths` means the list without those notes.
 
    Sync every path in `existingOutputPaths` unless the caller narrowed the set.
    A caller narrows it by naming an explicit list of complete entries from
