@@ -2237,6 +2237,46 @@ metadata:
 
       expect(logs.some((entry) => entry.includes('up to date'))).toBe(true);
     });
+
+    /** Runs update twice; returns what the second run printed. */
+    async function secondUpdateLogs(): Promise<string[]> {
+      await new UpdateCommand().execute(testDir);
+      const consoleSpy = vi.spyOn(console, 'log');
+      await new UpdateCommand().execute(testDir);
+      const logs = consoleSpy.mock.calls.flat().map(String);
+      consoleSpy.mockRestore();
+      return logs;
+    }
+
+    it('settles when Codex owns .agents and CoStrict keeps an edited skill in .cospec', async () => {
+      // CoStrict cannot rewrite a copy in a root Codex owns, and migration
+      // keeps the edited legacy skill, so update must not retry every run.
+      await new InitCommand({ tools: 'codex,costrict', force: true }).execute(testDir);
+      await fs.writeFile(path.join(agentsSkills(), '.openspec-target'), 'codex\n');
+      const edited = path.join(cospec(), 'skills', 'openspec-propose', 'SKILL.md');
+      await fs.mkdir(path.dirname(edited), { recursive: true });
+      await fs.writeFile(edited, 'My customized propose skill.\n');
+
+      const logs = await secondUpdateLogs();
+
+      expect(logs.some((entry) => entry.includes('Updated'))).toBe(false);
+      expect(logs.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(await fs.readFile(edited, 'utf-8')).toBe('My customized propose skill.\n');
+    });
+
+    it('settles under commands delivery, which writes no skills to move .cospec ones to', async () => {
+      await new InitCommand({ tools: 'costrict', force: true }).execute(testDir);
+      await moveSkillsToLegacyRoot();
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+
+      const logs = await secondUpdateLogs();
+
+      expect(logs.some((entry) => entry.includes('Updated'))).toBe(false);
+      expect(logs.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(
+        await FileSystemUtils.fileExists(path.join(cospec(), 'skills', 'openspec-propose', 'SKILL.md'))
+      ).toBe(true);
+    });
   });
 
   describe('skill content validation', () => {

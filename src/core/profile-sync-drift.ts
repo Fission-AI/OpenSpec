@@ -86,7 +86,10 @@ export function hasToolProfileOrDeliveryDrift(
   const sharedTarget = tool.skillsDir
     ? readSharedSkillTarget(projectPath, tool.skillsDir, view)
     : undefined;
-  for (const root of tool.legacySkillsDirs ?? []) {
+  // Without skill generation there is no current copy to move a legacy skill
+  // to, so migration keeps it and an update can never settle it.
+  const legacySkillRoots = shouldGenerateSkills ? tool.legacySkillsDirs ?? [] : [];
+  for (const root of legacySkillRoots) {
     for (const workflow of knownDesiredWorkflows) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const legacySkill = path.join(projectPath, root, 'skills', dirName, 'SKILL.md');

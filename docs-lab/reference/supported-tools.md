@@ -123,7 +123,8 @@ Skills stay in `.cline/skills/`.
 - **Legacy folder**: earlier OpenSpec versions wrote skills to `.cospec/skills/`, which
   CoStrict never loaded. `openspec update` moves them to `.agents/skills/`. When another
   tool already owns `.agents/skills/`, its copy is kept and the `.cospec/skills/` copy is
-  left for you to review and delete.
+  left for you to review and delete. Under `commands` delivery, `openspec update` leaves
+  `.cospec/skills/` in place.
 
 ### DeepSeek Harness
 

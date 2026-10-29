@@ -220,15 +220,16 @@ describe('legacy skills under a shared root another tool owns', () => {
   }
 
   it.each([
-    ['antigravity', '.agent'],
-    ['costrict', '.cospec'],
+    ['antigravity', '.agent', 'codex'],
+    ['costrict', '.cospec', 'codex'],
+    ['codex', '.codex', 'costrict'],
   ])(
     'does not ask %s to sync on every run for a divergent legacy copy it cannot change',
-    (toolId, legacyRoot) => {
-      // Codex owns .agents, so updating this tool never rewrites the current
-      // copy, and migration keeps a divergent legacy one by design. Reporting
-      // drift here made every `openspec update` sync this tool again.
-      fs.writeFileSync(path.join(projectDir, '.agents', 'skills', '.openspec-target'), 'codex\n');
+    (toolId, legacyRoot, owner) => {
+      // Another tool owns .agents, so updating this tool never rewrites the
+      // current copy, and migration keeps a divergent legacy one by design.
+      // Reporting drift here made every `openspec update` sync this tool again.
+      fs.writeFileSync(path.join(projectDir, '.agents', 'skills', '.openspec-target'), `${owner}\n`);
       writeLegacySkill(legacyRoot, 'My customized propose skill.\n');
 
       expect(hasToolProfileOrDeliveryDrift(projectDir, toolId, CORE_WORKFLOWS, 'skills')).toBe(false);
