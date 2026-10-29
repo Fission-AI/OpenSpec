@@ -295,10 +295,6 @@ async function resolveMergedStoreRoot(
 
   if (globalEntry) {
     const storeRoot = getStoreRootForBackend(globalEntry.backend);
-    const kind = await pathKind(storeRoot);
-    if (kind === 'missing') {
-      throw new RootSelectionError(`Store '${id}' folder is missing: ${storeRoot}`, 'store_root_missing');
-    }
     const inspection = await inspectRegisteredStore(id, storeRoot);
     return resolveFromInspection(id, storeRoot, inspection, source);
   }
