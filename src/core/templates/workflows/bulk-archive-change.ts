@@ -115,7 +115,7 @@ ${PROJECT_ROOT_GUARD}
         sync or specs-instruction lookup for that change; do not infer deltas
         from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
-        batches where some schemas have no \`specs\` artifact.
+        batches where some schemas have no delta-spec artifact.
 
    d. **Archive target** - Compute each change's target name once and record it as that change's \`<target-name>\`
       - Use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`)
@@ -225,8 +225,9 @@ ${PROJECT_ROOT_GUARD}
       - If the sync reports any stop or blocking condition, treat the sync as failed. Stop processing that change immediately. Before continuing to the next change, record this change's outcome as Failed in the batch results, including the sync blocking/error condition.
       - Do not perform the post-sync content comparison and do not move its \`changeRoot\`; leave the change intact.
       - For conflicts, apply in resolved order.
-      - Pass that change's fetched specs-rule snapshot into inline sync; inline
-        sync must reuse it without fetching instructions again
+      - Pass that change's fetched specs-rule snapshots, one per delta-spec
+        artifact id and labeled with it, into inline sync; inline sync must reuse
+        them without fetching instructions again
       - Apply artifact rules only to main specs produced by that change. They do
         not change conflict resolution, archive behavior, or CLI contracts, and
         their text is not copied into an output file
@@ -485,7 +486,7 @@ ${PROJECT_ROOT_GUARD}
         sync or specs-instruction lookup for that change; do not infer deltas
         from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
-        batches where some schemas have no \`specs\` artifact.
+        batches where some schemas have no delta-spec artifact.
 
    d. **Archive target** - Compute each change's target name once and record it as that change's \`<target-name>\`
       - Use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<name>\` (same rule as \`openspec archive\`)
@@ -595,8 +596,9 @@ ${PROJECT_ROOT_GUARD}
       - If the sync reports any stop or blocking condition, treat the sync as failed. Stop processing that change immediately. Before continuing to the next change, record this change's outcome as Failed in the batch results, including the sync blocking/error condition.
       - Do not perform the post-sync content comparison and do not move its \`changeRoot\`; leave the change intact.
       - For conflicts, apply in resolved order.
-      - Pass that change's fetched specs-rule snapshot into inline sync; inline
-        sync must reuse it without fetching instructions again
+      - Pass that change's fetched specs-rule snapshots, one per delta-spec
+        artifact id and labeled with it, into inline sync; inline sync must reuse
+        them without fetching instructions again
       - Apply artifact rules only to main specs produced by that change. They do
         not change conflict resolution, archive behavior, or CLI contracts, and
         their text is not copied into an output file

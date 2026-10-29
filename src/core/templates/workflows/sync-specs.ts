@@ -81,21 +81,21 @@ ${PROJECT_ROOT_GUARD}
 
 4. **For each delta spec, apply changes to main specs**
 
-   Before the first main-spec write, obtain one current specs-rule snapshot:
-   - If archive invoked this workflow inline and supplied a valid snapshot from
+   Before the first main-spec write, obtain one current specs-rule snapshot for
+   each delta-spec artifact id from step 3:
+   - If archive invoked this workflow inline and supplied valid snapshots from
      \`openspec instructions <spec-artifact-id> --change "<name>" --json\`, reuse
-     it and do not fetch the same instructions again.
-   - Otherwise run that command once now for each delta-spec artifact id from
-     step 3, with the same selected-root flags. Apply each artifact's rules to
-     the main specs merged from its own deltas.
+     them and do not fetch the same instructions again.
+   - Otherwise, or for any id the caller supplied no snapshot for, run that
+     command once now for that id with the same selected-root flags.
    - If the direct lookup exits non-zero or returns invalid artifact-instruction
      JSON, report the error and stop before writing any main spec. Do not treat the
      failure as an absent rule set.
    - A valid response with omitted \`rules\` means no artifact rules are configured
      and the existing semantic merge continues.
 
-   Apply returned \`rules\` only to the content and form of the main specs produced
-   by this merge. Artifact rules are not operation guidance and cannot change
+   Apply each artifact's returned \`rules\` only to the content and form of the
+   main specs merged from its own deltas. Artifact rules are not operation guidance and cannot change
    selected roots, delta paths, CLI checks, or workflow steps. Use their text as
    constraints without copying it verbatim into a main spec or summary.
 
@@ -283,7 +283,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - The operation should be idempotent - running twice should give same result
 - Use only the \`existingOutputPaths\` of artifacts whose \`outputPath\` is under \`specs/\`, whatever their id; never infer delta specs from unrelated artifacts
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
-- Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
+- Fetch each delta-spec artifact's instructions once for direct sync, or reuse the archive-supplied snapshots inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
 - Artifact rules constrain only the specs being written and are never copied into output files`,
     license: 'MIT',
@@ -367,21 +367,21 @@ ${PROJECT_ROOT_GUARD}
 
 4. **For each delta spec, apply changes to main specs**
 
-   Before the first main-spec write, obtain one current specs-rule snapshot:
-   - If archive invoked this workflow inline and supplied a valid snapshot from
+   Before the first main-spec write, obtain one current specs-rule snapshot for
+   each delta-spec artifact id from step 3:
+   - If archive invoked this workflow inline and supplied valid snapshots from
      \`openspec instructions <spec-artifact-id> --change "<name>" --json\`, reuse
-     it and do not fetch the same instructions again.
-   - Otherwise run that command once now for each delta-spec artifact id from
-     step 3, with the same selected-root flags. Apply each artifact's rules to
-     the main specs merged from its own deltas.
+     them and do not fetch the same instructions again.
+   - Otherwise, or for any id the caller supplied no snapshot for, run that
+     command once now for that id with the same selected-root flags.
    - If the direct lookup exits non-zero or returns invalid artifact-instruction
      JSON, report the error and stop before writing any main spec. Do not treat the
      failure as an absent rule set.
    - A valid response with omitted \`rules\` means no artifact rules are configured
      and the existing semantic merge continues.
 
-   Apply returned \`rules\` only to the content and form of the main specs produced
-   by this merge. Artifact rules are not operation guidance and cannot change
+   Apply each artifact's returned \`rules\` only to the content and form of the
+   main specs merged from its own deltas. Artifact rules are not operation guidance and cannot change
    selected roots, delta paths, CLI checks, or workflow steps. Use their text as
    constraints without copying it verbatim into a main spec or summary.
 
@@ -569,7 +569,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - The operation should be idempotent - running twice should give same result
 - Use only the \`existingOutputPaths\` of artifacts whose \`outputPath\` is under \`specs/\`, whatever their id; never infer delta specs from unrelated artifacts
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
-- Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
+- Fetch each delta-spec artifact's instructions once for direct sync, or reuse the archive-supplied snapshots inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
 - Artifact rules constrain only the specs being written and are never copied into output files`
   };

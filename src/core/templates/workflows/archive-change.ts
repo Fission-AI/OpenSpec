@@ -161,7 +161,7 @@ ${PROJECT_ROOT_GUARD}
    form of main specs produced by this merge; do not use them as archive guidance,
    change CLI behavior, or copy the rule text into any output file.
 
-   Then ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge)', 'perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)')} for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching \`specs\` instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+   Then ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge)', 'perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)')} for change '<name>', passing the delta spec analysis and the specs-rule snapshots fetched above, each labeled with its artifact id, and wait for it to finish. The inline sync must reuse those snapshots without fetching artifact instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
 
    If the sync reports any stop or blocking condition, treat the sync as failed.
    Stop the archive immediately. Do not perform the post-sync content comparison and do not move its \`changeRoot\`.
@@ -376,7 +376,7 @@ ${PROJECT_ROOT_GUARD}
    form of main specs produced by this merge; do not use them as archive guidance,
    change CLI behavior, or copy the rule text into any output file.
 
-   Then ${SYNC_INLINE_HANDOFF} for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching \`specs\` instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+   Then ${SYNC_INLINE_HANDOFF} for change '<name>', passing the delta spec analysis and the specs-rule snapshots fetched above, each labeled with its artifact id, and wait for it to finish. The inline sync must reuse those snapshots without fetching artifact instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
 
    If the sync reports any stop or blocking condition, treat the sync as failed.
    Stop the archive immediately. Do not perform the post-sync content comparison and do not move its \`changeRoot\`.
