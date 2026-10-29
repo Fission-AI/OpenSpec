@@ -2187,6 +2187,22 @@ metadata:
       ).toBe(true);
       expect(await FileSystemUtils.fileExists(path.join(prompts(), 'opsx-propose.md'))).toBe(true);
     });
+
+    it('gives an older skills-only Amazon Q install its prompts', async () => {
+      // An earlier release under `delivery: skills` left Amazon Q with skills
+      // and no prompts. Those skills are the only sign the tool was set up, so
+      // update must still find it and write the prompts it can load.
+      await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
+      await fs.rm(prompts(), { recursive: true, force: true });
+      const leftover = path.join(skills(), 'openspec-propose', 'SKILL.md');
+      await fs.mkdir(path.dirname(leftover), { recursive: true });
+      await fs.writeFile(leftover, '---\nname: openspec-propose\nmetadata:\n  generatedBy: "0.1.0"\n---\nold\n');
+
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      await new UpdateCommand().execute(testDir);
+
+      expect(await FileSystemUtils.fileExists(path.join(prompts(), 'opsx-propose.md'))).toBe(true);
+    });
   });
 
   describe('tool detection', () => {

@@ -141,6 +141,26 @@ export function getToolSkillStatus(
 }
 
 /**
+ * Whether a commands-only tool still has skill files from an earlier release.
+ * They are inert and never versioned, but they show the tool was set up: an
+ * install made under `delivery: skills` has nothing else, and update must
+ * still find it to write the commands the tool can load.
+ */
+function hasLeftoverSkillsForCommandsOnlyTool(
+  projectRoot: string,
+  toolId: string,
+  view: FileView = DISK_VIEW
+): boolean {
+  if (!isCommandsOnlyTool(toolId)) return false;
+  const tool = AI_TOOLS.find((t) => t.value === toolId);
+  if (!tool || !toolSupportsSkills(tool)) return false;
+  const skillsDir = resolveToolSkillsDir(projectRoot, tool);
+  return SKILL_NAMES.some((skillName) =>
+    view.exists(path.join(skillsDir, skillName, 'SKILL.md'))
+  );
+}
+
+/**
  * Checks whether a tool has at least one generated OpenSpec command file.
  */
 export function toolHasAnyConfiguredCommand(
@@ -255,9 +275,15 @@ export function getToolStates(projectRoot: string): Map<string, ToolSkillStatus>
     const markerConfigured =
       Boolean(tool.skillsDir) &&
       readSharedSkillTarget(projectRoot, tool.skillsDir!) === tool.value;
+    // A commands-only tool has no skills to count, so its commands (or the
+    // inert skills an older release left) are what show it is set up.
+    const commandsOnlyConfigured =
+      isCommandsOnlyTool(tool.value) &&
+      (toolHasAnyConfiguredCommand(projectRoot, tool.value) ||
+        hasLeftoverSkillsForCommandsOnlyTool(projectRoot, tool.value));
     states.set(
       tool.value,
-      markerConfigured
+      markerConfigured || commandsOnlyConfigured
         ? { ...skillStatus, configured: true }
         : skillStatus
     );
@@ -381,7 +407,9 @@ export function getToolVersionStatus(
   const markerConfigured =
     Boolean(tool.skillsDir) &&
     readSharedSkillTarget(projectRoot, tool.skillsDir!, view) === toolId;
-  const configured = skillConfigured || commandConfigured || markerConfigured;
+  const leftoverSkillsConfigured = hasLeftoverSkillsForCommandsOnlyTool(projectRoot, toolId, view);
+  const configured =
+    skillConfigured || commandConfigured || markerConfigured || leftoverSkillsConfigured;
 
   // 2. Commands-only installs have no skill file to read a version from, so fall
   //    back to comparing the generated command content. Deliberately skipped when
@@ -451,6 +479,7 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
       return (
         getToolSkillStatus(projectRoot, t.value, view).configured ||
         toolHasAnyConfiguredCommand(projectRoot, t.value, view) ||
+        hasLeftoverSkillsForCommandsOnlyTool(projectRoot, t.value, view) ||
         (
           resolveCommandSurfaceCapability(t.value) === 'adapter-backed' &&
           hasLegacySkills(projectRoot, t, view)
@@ -471,6 +500,7 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
       (tool) =>
         tool.globalSkillsDir ||
         toolHasAnyConfiguredCommand(projectRoot, tool.value, view) ||
+        hasLeftoverSkillsForCommandsOnlyTool(projectRoot, tool.value, view) ||
         (
           resolveCommandSurfaceCapability(tool.value) === 'adapter-backed' &&
           hasLegacySkills(projectRoot, tool, view)

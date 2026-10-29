@@ -229,6 +229,25 @@ describe('tool-detection', () => {
       });
       expect(states.get('codex')?.configured).toBe(false);
     });
+
+    // Amazon Q has no skills to detect, so init's picker must count its prompts
+    // or its leftover skills, or it stops pre-selecting a set-up Amazon Q.
+    it('should count a commands-only tool as configured from its prompts or leftover skills', async () => {
+      await fs.mkdir(path.join(testDir, '.claude', 'skills', 'openspec-explore'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md'), 'content');
+      expect(getToolStates(testDir).get('amazon-q')?.configured).toBe(false);
+
+      const leftover = path.join(testDir, '.amazonq', 'skills', 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(leftover), { recursive: true });
+      await fs.writeFile(leftover, 'content');
+      expect(getToolStates(testDir).get('amazon-q')?.configured).toBe(true);
+      expect(getConfiguredTools(testDir)).toContain('amazon-q');
+
+      await fs.rm(path.join(testDir, '.amazonq', 'skills'), { recursive: true });
+      await fs.mkdir(path.join(testDir, '.amazonq', 'prompts'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.amazonq', 'prompts', 'opsx-explore.md'), 'content');
+      expect(getToolStates(testDir).get('amazon-q')?.configured).toBe(true);
+    });
   });
 
   describe('extractGeneratedByVersion', () => {
