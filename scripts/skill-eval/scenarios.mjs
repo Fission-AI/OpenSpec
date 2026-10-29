@@ -16,7 +16,7 @@ export const UNFINISHED_TASKS =
   /incomplete|unfinished|unchecked|not (yet )?(complete|completed|done|implemented)|0\s*(\/|of)\s*3|3 (open|remaining|pending)/i;
 
 // A stable ID at the start of a heading, as the CLI reads it (#2167).
-const STABLE_ID = /^(?:\[[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*-\d+(?:\.\d+)*\]|[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+(?:\.\d+)*)(?=\s|$)/;
+const STABLE_ID = /^\[[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*-\d+(?:\.\d+)*\](?=\s|$)/;
 
 const SEEDS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'seeds');
 
@@ -855,9 +855,9 @@ export const SCENARIOS = [
       let n = 0;
       let s = 0;
       const text = fs.readFileSync(spec, 'utf8').replace(/^(#{3,4}) (Requirement|Scenario): /gm, (_, hashes, kind) => {
-        if (kind === 'Requirement') { n += 1; s = 0; return `${hashes} ${kind}: TODO-${n} `; }
+        if (kind === 'Requirement') { n += 1; s = 0; return `${hashes} ${kind}: [TODO-${n}] `; }
         s += 1;
-        return `${hashes} ${kind}: TODO-${n}.${s} `;
+        return `${hashes} ${kind}: [TODO-${n}.${s}] `;
       });
       fs.writeFileSync(spec, text);
     },
@@ -869,14 +869,14 @@ export const SCENARIOS = [
       const results = [{ name: 'exactly one change created', pass: newChangeNames(ctx).length === 1 }];
       if (!name) return results;
       const delta = deltaSpecs(ctx, name).map(({ text }) => text).join('\n');
-      results.push({ name: 'the renamed requirement keeps TODO-3', pass: /^### Requirement: TODO-3 Listing todos/m.test(delta) });
-      results.push({ name: 'the renamed scenario keeps its ID', pass: /^#### Scenario: TODO-3\.1 Returned todos are copies/m.test(delta) });
+      results.push({ name: 'the renamed requirement keeps [TODO-3]', pass: /^### Requirement: \[TODO-3\] Listing todos/m.test(delta) });
+      results.push({ name: 'the renamed scenario keeps its ID', pass: /^#### Scenario: \[TODO-3\.1\] Returned todos are copies/m.test(delta) });
       const validate = ctx.openspec(['validate', name, '--strict']);
       results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) });
       const archive = ctx.openspec(['archive', name, '-y']);
       const main = ctx.read('openspec/specs/todo-list/spec.md') ?? '';
-      const order = [...main.matchAll(/^### Requirement: (TODO-\d+)/gm)].map((m) => m[1]).join(',');
-      results.push({ name: 'archive renames it in place', pass: archive.code === 0 && /^### Requirement: TODO-3 Listing todos/m.test(main) && order === 'TODO-1,TODO-2,TODO-3', detail: `${order} ${archive.out.slice(-200)}` });
+      const order = [...main.matchAll(/^### Requirement: \[(TODO-\d+)\]/gm)].map((m) => m[1]).join(',');
+      results.push({ name: 'archive renames it in place', pass: archive.code === 0 && /^### Requirement: \[TODO-3\] Listing todos/m.test(main) && order === 'TODO-1,TODO-2,TODO-3', detail: `${order} ${archive.out.slice(-200)}` });
       return results;
     },
   },

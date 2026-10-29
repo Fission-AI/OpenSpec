@@ -13,7 +13,7 @@ The deltas merge into the main specs in the change's last task (with the default
 
 ## Stable IDs
 
-You write a stable ID as the first word of each new requirement and scenario heading: `### Requirement: AUTH-3 Users sign in`, `#### Scenario: AUTH-3.1 Correct password`. The CLI only reads it. Use the next unused number in that spec, keep an ID when you reword or move a heading, and never reuse a removed one. A heading with an ID can be reworded in a MODIFIED block with no RENAMED entry: the merge matches on the ID. Cite IDs, not names, in tasks, tests and code.
+You write a stable ID in square brackets as the first word of each new requirement and scenario heading: `### Requirement: [AUTH-3] Users sign in`, `#### Scenario: [AUTH-3.1] Correct password`. The brackets are what make it an ID; the CLI only reads it. Use the next unused number in that spec, keep an ID when you reword or move a heading, and never reuse a removed one. A heading with an ID can be reworded in a MODIFIED block with no RENAMED entry: the merge matches on the ID. Cite IDs, not names, in tasks, tests and code.
 
 ## How requirements get lost
 

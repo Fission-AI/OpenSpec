@@ -115,7 +115,7 @@ ${BEFORE_YOU_START}
 4. **Merge each delta.** For each selected path, read the delta and its main spec at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (\`<capability-path>\` is the spec directory relative to \`specs/\`; keep the delta's full path). If the main spec does not exist yet, or removing requirements would leave it with none, follow \`references/merge-rules.md\`. Otherwise apply each operation in place:
 
    - **ADDED**: add the requirement. If it already exists, update it to match (an implicit MODIFIED).
-   - **MODIFIED**: replace the requirement with the delta's version, in place. When its heading starts with an ID (\`AUTH-3\`), find the requirement with that ID even if the name was reworded; otherwise find it by name. A MODIFIED block carries the whole requirement - body plus every scenario that survives the change. \`openspec validate\` and \`openspec archive\` both reject one that drops a scenario the main spec still has.
+   - **MODIFIED**: replace the requirement with the delta's version, in place. When its heading starts with an ID in brackets (\`[AUTH-3]\`), find the requirement with that ID even if the name was reworded; otherwise find it by name. A MODIFIED block carries the whole requirement - body plus every scenario that survives the change. \`openspec validate\` and \`openspec archive\` both reject one that drops a scenario the main spec still has.
    - **REMOVED**: delete the whole requirement block.
    - **RENAMED**: find the FROM requirement and rename it to TO.
    - **\`## Purpose\` in the delta**: leave the main spec's Purpose alone (this is what \`openspec archive\` does).
