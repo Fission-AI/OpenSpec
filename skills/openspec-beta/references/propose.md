@@ -12,7 +12,7 @@ With the default spec-driven schema the artifacts are proposal.md (why and what)
 
    If the conversation has an explore draft, build from it and do not re-ask what it settled. With no clear request, ask what the user wants to build or fix, and do not go on until you know. Name the change for its outcome in kebab-case ("add user authentication" → `add-user-auth`).
 
-   State the scope in two or three lines (in, out, any data that changes, what must keep working unchanged, and the capabilities it touches), and keep the plan to it. If the request holds more than one outcome, read `references/changes.md` first. Ask before creating the change about anything that would change the scope, observable behavior, compatibility, or what counts as done (`references/decisions.md` lists what to raise). For smaller details, assume, and write the assumption into the plan.
+   State the scope in two or three lines (in, out, and the capabilities it touches), and keep the plan to it. If the request holds more than one outcome, read `references/changes.md` first. Ask before creating the change about anything that would change the scope, observable behavior, compatibility, or what counts as done (`references/decisions.md` lists what to raise). For smaller details, assume, and write the assumption into the plan.
 
 2. **Load the project**
 

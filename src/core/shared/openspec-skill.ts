@@ -113,11 +113,6 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
     'both reject one that drops a scenario the main spec still has.',
     "both reject one that drops a scenario the main spec still has. If today's requirement says something the block does not, and this change did not set out to remove it, keep it: the main spec changed after the delta was written.",
   ],
-  // Name what changes and what must not (a fuller scope predicts merged plans).
-  [
-    'State the scope in two or three lines (in, out, and the capabilities it touches)',
-    'State the scope in two or three lines (in, out, any data that changes, what must keep working unchanged, and the capabilities it touches)',
-  ],
   // Link tasks to the requirements they implement, by name.
   [
     'Track the set in a todo list.',
