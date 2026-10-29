@@ -29,6 +29,8 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `explore` | a design question | answers, writes nothing |
 | `explore-draft` | shape a feature before planning | writes nothing; records whether it leaves a draft (scope, capabilities, requirements, open questions) |
 | `no-project` | propose in a repo without OpenSpec | creates no `openspec/`, writes nothing |
+| `propose-ids` | propose due dates | every new requirement and scenario heading starts with an ID, design decisions are `### D<n>` headings, validates; records whether design.md has an Alternatives section |
+| `rename-by-id` | rename a requirement and a scenario in a spec that has IDs | the delta keeps both IDs, validates, and archive renames the requirement in place (needs #1979's CLI) |
 | `propose-natural` | propose in plain words, no slash command | an OpenSpec skill was used, plus everything `propose` checks |
 
 Scenarios also record observations that are not pass/fail, reported as rates: whether the agent read the existing specs (from the transcript), spec quality for `propose` (existing capability reused, a failure scenario per requirement, one obligation per requirement, no internals in requirement text), and for the apply scenarios whether the main specs ended current and the change archived.

@@ -15,6 +15,9 @@ const AUTONOMOUS = ' Use your best judgment instead of asking me questions.';
 export const UNFINISHED_TASKS =
   /incomplete|unfinished|unchecked|not (yet )?(complete|completed|done|implemented)|0\s*(\/|of)\s*3|3 (open|remaining|pending)/i;
 
+// A stable ID at the start of a heading, as the CLI reads it (#2167).
+const STABLE_ID = /^(?:\[[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*-\d+(?:\.\d+)*\]|[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-\d+(?:\.\d+)*)(?=\s|$)/;
+
 const SEEDS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'seeds');
 
 function seedChange(root, name) {
@@ -811,6 +814,71 @@ export const SCENARIOS = [
       { name: 'an OpenSpec skill was used', pass: ctx.skillsUsed.length > 0, detail: ctx.skillsUsed.join(', ') },
       ...SCENARIOS.find((scenario) => scenario.id === 'propose').checks(ctx),
     ],
+  },
+  {
+    // Stable IDs (#2167): a plan writes an ID first in every new requirement
+    // and scenario heading, and each design decision as a short `### D1`.
+    id: 'propose-ids',
+    prompt:
+      '/openspec-propose Todos need an optional due date, and callers need a way to list the todos that are overdue.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const design = ctx.read(`openspec/changes/${newChangeNames(ctx)[0]}/design.md`) ?? '';
+      return { designWritten: design.length > 0, alternativesSection: /alternatives/i.test(design) };
+    },
+    checks: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      const results = [{ name: 'exactly one change created', pass: newChangeNames(ctx).length === 1 }];
+      if (!name) return results;
+      const headings = deltaSpecs(ctx, name).flatMap(({ text }) =>
+        (text.split(/^## (?:REMOVED|RENAMED) Requirements/m)[0].match(/^#{3,4} (?:Requirement|Scenario): .*$/gm) ?? [])
+      );
+      const missing = headings.filter((heading) => !STABLE_ID.test(heading.replace(/^#{3,4} (?:Requirement|Scenario): /, '')));
+      results.push({ name: 'every requirement and scenario heading starts with an ID', pass: headings.length > 0 && missing.length === 0, detail: missing.join(' | ') });
+      const design = ctx.read(`openspec/changes/${name}/design.md`);
+      if (design) {
+        const decisions = design.split(/^## /m).find((section) => section.startsWith('Decisions')) ?? '';
+        const headed = decisions.match(/^### .*$/gm) ?? [];
+        results.push({ name: 'design decisions use ### D<n> headings', pass: headed.length > 0 && headed.every((h) => /^### D\d+\b/.test(h)), detail: headed.join(' | ') });
+      }
+      const validate = ctx.openspec(['validate', name, '--strict']);
+      results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) });
+      results.push(onlyOpenspecChanged(ctx));
+      return results;
+    },
+  },
+  {
+    // A reworded requirement keeps its ID, so archive matches it in place
+    // (#1697). Archive's ID matching is #1979: run with a CLI that has it.
+    id: 'rename-by-id',
+    setup: (root) => {
+      const spec = path.join(root, 'openspec/specs/todo-list/spec.md');
+      let n = 0;
+      let s = 0;
+      const text = fs.readFileSync(spec, 'utf8').replace(/^(#{3,4}) (Requirement|Scenario): /gm, (_, hashes, kind) => {
+        if (kind === 'Requirement') { n += 1; s = 0; return `${hashes} ${kind}: TODO-${n} `; }
+        s += 1;
+        return `${hashes} ${kind}: TODO-${n}.${s} `;
+      });
+      fs.writeFileSync(spec, text);
+    },
+    prompt:
+      '/openspec-propose Rename the "Reading todos" requirement to "Listing todos", and its "Callers cannot mutate the list" scenario to "Returned todos are copies". The behavior stays the same.' +
+      AUTONOMOUS,
+    checks: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      const results = [{ name: 'exactly one change created', pass: newChangeNames(ctx).length === 1 }];
+      if (!name) return results;
+      const delta = deltaSpecs(ctx, name).map(({ text }) => text).join('\n');
+      results.push({ name: 'the renamed requirement keeps TODO-3', pass: /^### Requirement: TODO-3 Listing todos/m.test(delta) });
+      results.push({ name: 'the renamed scenario keeps its ID', pass: /^#### Scenario: TODO-3\.1 Returned todos are copies/m.test(delta) });
+      const validate = ctx.openspec(['validate', name, '--strict']);
+      results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) });
+      const archive = ctx.openspec(['archive', name, '-y']);
+      const main = ctx.read('openspec/specs/todo-list/spec.md') ?? '';
+      const order = [...main.matchAll(/^### Requirement: (TODO-\d+)/gm)].map((m) => m[1]).join(',');
+      results.push({ name: 'archive renames it in place', pass: archive.code === 0 && /^### Requirement: TODO-3 Listing todos/m.test(main) && order === 'TODO-1,TODO-2,TODO-3', detail: `${order} ${archive.out.slice(-200)}` });
+      return results;
+    },
   },
   // A real, larger project: OpenSpec's own repository, with 36 specs and many
   // changes in flight. Run with `--fixture <checkout>`.
