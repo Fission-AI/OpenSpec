@@ -114,7 +114,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
    `existingOutputPaths` is empty, proceed without a sync prompt and do not infer
    delta specs from other artifacts.
 
-   Only an entry ending in `/specs/<capability-path>/spec.md` is a delta spec
+   Only an entry whose path relative to `changeRoot` (from the status JSON)
+   is `specs/<capability-path>/spec.md` is a delta spec
    (on Windows the entries use `\` separators; treat `\` and `/` alike);
    `openspec validate` and `openspec archive` read no other file. If any other
    entry (for example `specs/user-auth/notes.md` or `specs/user-auth.md`)

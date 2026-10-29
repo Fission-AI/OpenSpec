@@ -101,7 +101,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
         lookup for that change; do not infer deltas from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
         batches where some schemas have no `specs` artifact.
-      - Only an entry ending in `/specs/<capability-path>/spec.md` is a delta spec
+      - Only an entry whose path relative to `changeRoot` (from the status JSON)
+        is `specs/<capability-path>/spec.md` is a delta spec
         (on Windows the entries use `\` separators; treat `\` and `/` alike);
         `openspec validate` and `openspec archive` read no other file. If any other
         entry contains a `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements`

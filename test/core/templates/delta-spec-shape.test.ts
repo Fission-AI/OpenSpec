@@ -16,7 +16,10 @@ import {
 // workflows merged every listed file into the main specs. Each workflow must
 // apply the CLI's rule before it writes a main spec or moves the change.
 
-const SHAPE_RULE = 'Only an entry ending in `/specs/<capability-path>/spec.md` is a delta spec';
+// Anchored to changeRoot: a custom schema can generate extras/specs/**/*.md,
+// which a plain suffix match would accept but the CLI never reads.
+const SHAPE_RULE = 'Only an entry whose path relative to `changeRoot` (from the status JSON)';
+const ANCHORED_SHAPE = 'is `specs/<capability-path>/spec.md` is a delta spec';
 const DELTA_SECTIONS =
   '`## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements`';
 
@@ -68,6 +71,7 @@ describe('delta spec shape in archive and sync workflows (#2173)', () => {
         const step = between(body, workflow.step[0], workflow.step[1], label);
 
         expect(step, label).toContain(SHAPE_RULE);
+        expect(step, label).toContain(ANCHORED_SHAPE);
         // existingOutputPaths come from path.normalize, so Windows entries end
         // in specs\<capability-path>\spec.md and must still count as deltas.
         expect(step, label).toContain('treat `\\` and `/` alike');
