@@ -397,6 +397,8 @@ describe('config-schema', () => {
       // but never settable — it is runtime state, like telemetry.noticeSeen.
       expect(GlobalConfigSchema.safeParse({ completionTipSeen: true }).success).toBe(true);
       expect(validateConfigKeyPath('completionTipSeen').valid).toBe(false);
+      expect(GlobalConfigSchema.safeParse({ standaloneTipSeen: true }).success).toBe(true);
+      expect(validateConfigKeyPath('standaloneTipSeen').valid).toBe(false);
     });
 
     it('rejects bare telemetry and unknown leaves', () => {

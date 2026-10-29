@@ -5,7 +5,7 @@
  * Includes both artifact instructions and apply instructions.
  */
 
-import ora from 'ora';
+import type { Ora } from 'ora';
 import path from 'path';
 import * as fs from 'fs';
 import {
@@ -121,7 +121,11 @@ export async function instructionsCommand(
     return;
   }
 
-  const spinner = options.json ? undefined : ora('Generating instructions...').start();
+  let spinner: Ora | undefined;
+  if (!options.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora('Generating instructions...').start();
+  }
 
   try {
     const planningHome = toPlanningHome(root);
@@ -726,7 +730,11 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     return;
   }
 
-  const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
+  let spinner: Ora | undefined;
+  if (!options.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora('Generating apply instructions...').start();
+  }
 
   try {
     const planningHome = toPlanningHome(root);
@@ -862,7 +870,11 @@ export async function archiveInstructionsCommand(
     return;
   }
 
-  const spinner = options.json ? undefined : ora('Loading archive inputs...').start();
+  let spinner: Ora | undefined;
+  if (!options.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora('Loading archive inputs...').start();
+  }
 
   try {
     const changeName = await validateChangeExists(

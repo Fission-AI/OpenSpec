@@ -13,6 +13,7 @@ import {
 } from './command-surface.js';
 import { readSharedSkillTarget } from './shared-skill-target.js';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { DISK_VIEW, type FileView } from './file-view.js';
 import { isLegacyCodexSkillEquivalentToCurrent } from './shared/skill-content-equivalence.js';
 import {
   hasGlobalSkillTarget,
@@ -50,8 +51,11 @@ function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
 /**
  * Returns tools that are configured via either skills or commands.
  */
-export function getConfiguredToolsForProfileSync(projectPath: string): string[] {
-  return getConfiguredTools(projectPath);
+export function getConfiguredToolsForProfileSync(
+  projectPath: string,
+  view: FileView = DISK_VIEW
+): string[] {
+  return getConfiguredTools(projectPath, view);
 }
 
 /**
@@ -66,7 +70,8 @@ export function hasToolProfileOrDeliveryDrift(
   projectPath: string,
   toolId: string,
   desiredWorkflows: readonly string[],
-  delivery: Delivery
+  delivery: Delivery,
+  view: FileView = DISK_VIEW
 ): boolean {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
   if (!tool || !toolSupportsSkills(tool)) return false;
@@ -79,16 +84,16 @@ export function hasToolProfileOrDeliveryDrift(
   const shouldGenerateCommands = shouldGenerateCommandsForTool(toolId, delivery);
 
   const sharedTarget = tool.skillsDir
-    ? readSharedSkillTarget(projectPath, tool.skillsDir)
+    ? readSharedSkillTarget(projectPath, tool.skillsDir, view)
     : undefined;
   for (const root of tool.legacySkillsDirs ?? []) {
     for (const workflow of knownDesiredWorkflows) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const legacySkill = path.join(projectPath, root, 'skills', dirName, 'SKILL.md');
-      if (!fs.existsSync(legacySkill)) continue;
+      if (!view.exists(legacySkill)) continue;
 
       const currentSkill = path.join(skillsDir, dirName, 'SKILL.md');
-      if (!fs.existsSync(currentSkill) || sharedTarget !== toolId) {
+      if (!view.exists(currentSkill) || sharedTarget !== toolId) {
         return true;
       }
       try {
@@ -103,10 +108,7 @@ export function hasToolProfileOrDeliveryDrift(
         // or supported invocation syntax changed. Materially divergent copies
         // stay in place without forcing an update on every run.
         if (
-          isLegacyCodexSkillEquivalentToCurrent(
-            fs.readFileSync(legacySkill, 'utf-8'),
-            fs.readFileSync(currentSkill, 'utf-8')
-          )
+          isLegacyCodexSkillEquivalentToCurrent(view.read(legacySkill), view.read(currentSkill))
         ) {
           return true;
         }
@@ -120,7 +122,7 @@ export function hasToolProfileOrDeliveryDrift(
     for (const workflow of knownDesiredWorkflows) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
-      if (!fs.existsSync(skillFile)) {
+      if (!view.exists(skillFile)) {
         return true;
       }
     }
@@ -130,7 +132,7 @@ export function hasToolProfileOrDeliveryDrift(
       if (desiredWorkflowSet.has(workflow)) continue;
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const skillDir = path.join(skillsDir, dirName);
-      if (fs.existsSync(skillDir)) {
+      if (view.exists(skillDir)) {
         return true;
       }
     }
@@ -138,7 +140,7 @@ export function hasToolProfileOrDeliveryDrift(
     for (const workflow of ALL_WORKFLOWS) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const skillDir = path.join(skillsDir, dirName);
-      if (fs.existsSync(skillDir)) {
+      if (view.exists(skillDir)) {
         return true;
       }
     }
@@ -148,7 +150,7 @@ export function hasToolProfileOrDeliveryDrift(
     for (const workflow of knownDesiredWorkflows) {
       const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-      if (!fs.existsSync(fullPath)) {
+      if (!view.exists(fullPath)) {
         return true;
       }
     }
@@ -158,7 +160,7 @@ export function hasToolProfileOrDeliveryDrift(
       if (desiredWorkflowSet.has(workflow)) continue;
       const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-      if (fs.existsSync(fullPath)) {
+      if (view.exists(fullPath)) {
         return true;
       }
     }
@@ -166,7 +168,7 @@ export function hasToolProfileOrDeliveryDrift(
     for (const workflow of ALL_WORKFLOWS) {
       const cmdPath = adapter.getFilePath(workflow);
       const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-      if (fs.existsSync(fullPath)) {
+      if (view.exists(fullPath)) {
         return true;
       }
     }
@@ -182,11 +184,14 @@ export function getToolsNeedingProfileSync(
   projectPath: string,
   desiredWorkflows: readonly string[],
   delivery: Delivery,
-  configuredTools?: readonly string[]
+  configuredTools?: readonly string[],
+  view: FileView = DISK_VIEW
 ): string[] {
-  const tools = configuredTools ? [...new Set(configuredTools)] : getConfiguredToolsForProfileSync(projectPath);
+  const tools = configuredTools
+    ? [...new Set(configuredTools)]
+    : getConfiguredToolsForProfileSync(projectPath, view);
   return tools.filter((toolId) =>
-    hasToolProfileOrDeliveryDrift(projectPath, toolId, desiredWorkflows, delivery)
+    hasToolProfileOrDeliveryDrift(projectPath, toolId, desiredWorkflows, delivery, view)
   );
 }
 

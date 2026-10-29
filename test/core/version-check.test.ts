@@ -1242,3 +1242,73 @@ describe('displayCliUpdateNote', () => {
     expect(isEphemeralRunnerInstall(null)).toBe(false);
   });
 });
+
+describe('standalone binary', () => {
+  // A path with a space and a quote, to prove the printed command survives a shell.
+  const executable = path.join(os.tmpdir(), "it's bin", process.platform === 'win32' ? 'openspec.exe' : 'openspec');
+
+  async function loadMarked() {
+    // A fresh module copy, so the mark cannot leak into other tests.
+    vi.resetModules();
+    const versionCheck = await import('../../src/core/version-check.js');
+    versionCheck.markStandaloneBinary(executable);
+    return versionCheck;
+  }
+
+  it('reports itself as standalone, located where the binary is', async () => {
+    const { getCliInstallInfo, getInstallDir, buildVersionReportLines } = await loadMarked();
+    // Not a package install: no package-manager logic may act on a directory.
+    expect(getInstallDir()).toBeNull();
+    const install = getCliInstallInfo(null);
+
+    expect(install).toEqual({ location: path.dirname(executable), packageManager: null, scope: 'standalone' });
+    expect(buildVersionReportLines('1.0.0', install)[0]).toBe('OpenSpec 1.0.0 (standalone)');
+  });
+
+  it('upgrades with `openspec install`, never through a package manager', async () => {
+    // `openspec` on PATH is this binary, in a fresh private folder.
+    const binDir = fs.mkdtempSync(path.join(os.tmpdir(), "it's bin-"));
+    const onPath = path.join(binDir, path.basename(executable));
+    fs.writeFileSync(onPath, '', { mode: 0o755 });
+    vi.resetModules();
+    const { markStandaloneBinary, getCliInstallInfo, getCliUpdateCommand, buildCliUpdateLines, canSelfUpgrade } =
+      await import('../../src/core/version-check.js');
+    markStandaloneBinary(onPath);
+    const originalPath = process.env.PATH;
+    process.env.PATH = `${binDir}${path.delimiter}${originalPath ?? ''}`;
+    try {
+      const command = getCliUpdateCommand(getCliInstallInfo(null));
+      const lines = buildCliUpdateLines('9.9.9', null, PROJECT_ROOT).join('\n');
+
+      expect(command).toBe('openspec install');
+      expect(lines).toContain('  openspec install');
+      expect(lines).toContain('Then run "openspec update" again');
+      expect(lines).not.toMatch(/npm|pnpm|yarn|volta|bun add/);
+      expect(canSelfUpgrade(null, PROJECT_ROOT)).toBe(false);
+    } finally {
+      process.env.PATH = originalPath;
+      fs.rmSync(binDir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('standalone binary that `openspec` on PATH does not find', () => {
+  it('names its own path, so the upgrade reaches the file the user runs', async () => {
+    const name = process.platform === 'win32' ? `openspec-windows-${process.arch}.exe` : `openspec-${process.platform}-${process.arch}`;
+    const executable = path.join(os.tmpdir(), "it's bin", name);
+    vi.resetModules();
+    const { markStandaloneBinary, getCliInstallInfo, getCliUpdateCommand } = await import('../../src/core/version-check.js');
+    markStandaloneBinary(executable);
+    const command = getCliUpdateCommand(getCliInstallInfo(null))!;
+
+    if (process.platform === 'win32') {
+      expect(command).toBe(`& '${executable.replace(/'/g, "''")}' install`);
+    } else {
+      expect(command).toMatch(/^'.*' install$/);
+      // The quoted path reads back exactly once a shell parses it.
+      const quoted = command.replace(/ install$/, '');
+      const { execFileSync } = await import('child_process');
+      expect(execFileSync('sh', ['-c', `printf %s ${quoted}`], { encoding: 'utf8' })).toBe(executable);
+    }
+  });
+});

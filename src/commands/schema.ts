@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash } from 'node:crypto';
-import ora from 'ora';
+import type { Ora } from 'ora';
 import { stringify as stringifyYaml, parseDocument, isMap } from 'yaml';
 import {
   getSchemaDir,
@@ -752,7 +752,11 @@ export async function schemaValidateCommand(name?: string, options?: { json?: bo
 }
 
 export async function schemaForkCommand(source: string, name?: string, options?: { json?: boolean; force?: boolean }): Promise<void> {
-  const spinner = options?.json ? null : ora();
+  let spinner: Ora | null = null;
+  if (!options?.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora();
+  }
 
   try {
     const projectRoot = process.cwd();
@@ -1005,7 +1009,11 @@ export async function schemaInitCommand(
     force?: boolean;
   }
 ): Promise<void> {
-  const spinner = options?.json ? null : ora();
+  let spinner: Ora | null = null;
+  if (!options?.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora();
+  }
 
   try {
     const projectRoot = process.cwd();

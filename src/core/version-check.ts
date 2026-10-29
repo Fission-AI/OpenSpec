@@ -3,11 +3,13 @@ import http from 'http';
 import https from 'https';
 import path from 'path';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { isCiEnvironment } from '../utils/ci.js';
 import { isTelemetryOptedOutByEnv } from '../telemetry/opt-out.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { getGlobalConfig, isGlobalConfigUnreadable } from './global-config.js';
+import { findCopiesOnPath, samePath } from '../utils/executable-path.js';
 
 const require = createRequire(import.meta.url);
 const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package.json');
@@ -25,6 +27,36 @@ const MAX_REDIRECTS = 3;
  * one could smuggle ANSI cursor controls and repaint the lines around it.
  */
 const SAFE_VERSION = /^\d{1,10}\.\d{1,10}\.\d{1,10}(?:-[0-9A-Za-z.-]{1,64})?(?:\+[0-9A-Za-z.-]{1,64})?$/;
+
+let standaloneBinaryPath: string | null = null;
+
+/**
+ * Called by the standalone binary's entry point. That copy has no package
+ * manager behind it, so a package-manager command is the wrong upgrade advice.
+ */
+export function markStandaloneBinary(executablePath: string): void {
+  standaloneBinaryPath = executablePath;
+}
+
+/** The standalone binary's own path, or null when running from a package. */
+export function getStandaloneBinaryPath(): string | null {
+  return standaloneBinaryPath;
+}
+
+/**
+ * `openspec install` reinstalls the standalone binary where it already is,
+ * under its own name, so the new copy cannot end up shadowed by the old one.
+ * Spelled with the full path when `openspec` on PATH is some other copy.
+ * Null when this is not the binary.
+ */
+function standaloneUpgradeCommand(): string | null {
+  if (!standaloneBinaryPath) return null;
+  const first = findCopiesOnPath()[0];
+  if (first && samePath(first, standaloneBinaryPath)) return 'openspec install';
+  return process.platform === 'win32'
+    ? `& '${standaloneBinaryPath.replace(/'/g, "''")}' install`
+    : `'${standaloneBinaryPath.replace(/'/g, `'\\''`)}' install`;
+}
 
 /**
  * The check is opt-out and must never get in the way: no network in CI or
@@ -322,11 +354,13 @@ export async function getAvailableCliUpdate(): Promise<string | null> {
  * which copy is actually answering.
  */
 export function getInstallDir(): string | null {
-  try {
-    return path.dirname(require.resolve('../../package.json'));
-  } catch {
-    return null;
-  }
+  // The binary is not a package install, so no package-manager logic applies.
+  if (standaloneBinaryPath) return null;
+  // Resolved at runtime from this module's own (symlink-resolved) location.
+  // require.resolve would be resolved by the binary's bundler at build time,
+  // baking the build machine's path into it.
+  const packageJson = fileURLToPath(new URL('../../package.json', import.meta.url));
+  return fs.existsSync(packageJson) ? path.dirname(packageJson) : null;
 }
 
 /**
@@ -490,7 +524,7 @@ export function isSourceCheckout(installDir: string | null): boolean {
 }
 
 export type PackageManager = 'npm' | 'pnpm' | 'bun' | 'yarn' | 'volta';
-export type InstallScope = 'global' | 'project' | 'temporary' | 'source';
+export type InstallScope = 'global' | 'project' | 'temporary' | 'source' | 'standalone';
 
 export interface CliInstallInfo {
   location: string | null;
@@ -550,6 +584,9 @@ export function getCliInstallInfo(
   installDir: string | null = getInstallDir(),
   projectPath: string = '.'
 ): CliInstallInfo {
+  if (standaloneBinaryPath) {
+    return { location: path.dirname(standaloneBinaryPath), packageManager: null, scope: 'standalone' };
+  }
   if (!installDir) {
     return { location: null, packageManager: null, scope: null };
   }
@@ -581,6 +618,7 @@ export function getCliInstallInfo(
 
 /** Returns a safe update command only for an install with known global ownership. */
 export function getCliUpdateCommand(install: CliInstallInfo): string | null {
+  if (install.scope === 'standalone') return standaloneUpgradeCommand();
   if (install.scope !== 'global' || install.packageManager === null) return null;
   return GLOBAL_UPGRADE_COMMANDS[install.packageManager];
 }
@@ -642,6 +680,13 @@ export function buildUpgradeCommandLines(
   projectPath: string
 ): string[] {
   const lines: string[] = [];
+
+  const standalone = standaloneUpgradeCommand();
+  if (standalone) {
+    lines.push(`  ${standalone}`);
+    lines.push('  Then run "openspec update" again to pick up new workflows.');
+    return lines;
+  }
 
   if (isEphemeralRunnerInstall(installDir)) {
     // That command *is* the update, so there is nothing to run afterwards.
