@@ -81,20 +81,20 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getContinueChangeSkillTemplate: '2da5a24eb949f0717ffdb23c28c021ab6f73dc4beeb92ab709b8dbdac9db7355',
   getApplyChangeSkillTemplate: 'c4f02c29137e19b34bf1dc59146941b8c920214aa2cf3ce80ae7f1b982e976fc',
   getFfChangeSkillTemplate: '0eb8ddc6da710bc9ed6cd142a2eec1bec883f730125d76dc38e532bd5395bdf2',
-  getSyncSpecsSkillTemplate: '99a673f73359226ba3202833a95db912140fa14f78adf1b10ec8e6fe5a717b06',
+  getSyncSpecsSkillTemplate: '2b56a96e5f59e97cb2bc22739e46ee9f4f55f68bdcef88ed4fa0cf3c44292167',
   getOnboardSkillTemplate: '84258a06c0ca88de708a23dd74e9a17efe11eff63a071b3864c781dcd5a0a4b7',
   getOpsxExploreCommandTemplate: 'c0af210bc070b7ac5168523b381cb9e213e4e102205bfc26bdae15677d954ae1',
   getOpsxNewCommandTemplate: '6d504fef1e0d4ced7c423f4cc9d9d2cee11b1a6224edf685e06a3f0757e0ebff',
   getOpsxContinueCommandTemplate: '9e36b758c2760fcab4dcef4677ee678eb29eac00f31de8cbc99f812a440afaaf',
   getOpsxApplyCommandTemplate: '9b733946aa7216b45d084bb5affd7071086db6f91282c3666731a17543825ff1',
   getOpsxFfCommandTemplate: '625d6a4a52adeaa16dbceff378f1d7cb07556e79b19d9af63feca5125aa4da13',
-  getArchiveChangeSkillTemplate: '6d2f58cab9b1f9b59216c64e6d3596f8647ceb529b39e5b1ea84fdea3d5f64af',
-  getBulkArchiveChangeSkillTemplate: 'e41dfd42c0555c94a34cf9eff041761b31796cdc8bdbff348a84fc8e7ace4c5f',
-  getOpsxSyncCommandTemplate: '070cbbfb1db3c2c6f501e3c774cd594e58490b5fa2dc07e8e6f3d890d4ff4b80',
+  getArchiveChangeSkillTemplate: '651f2c39108ba6aa6c3873f5dc35f14d21677e91cbfbdeaad4e7aa6cd15aa916',
+  getBulkArchiveChangeSkillTemplate: '8c5a0190a2ae81aa26d2587e5cfd8c718b048c9cf2e4bb16c902cd936f7ec913',
+  getOpsxSyncCommandTemplate: 'e3f2f1cad332e5238e526a4ebde104eff9599b3f2935591699d02cb3ca030182',
   getVerifyChangeSkillTemplate: '9c45ab6d958a9fc432fa59b8d447ca8722a2275da566e91c0e545f531a921ed3',
-  getOpsxArchiveCommandTemplate: '1587c6242e875ce3436c5510d15b2f672ce482e6bcbc581fe3704012374e5e74',
+  getOpsxArchiveCommandTemplate: '2e9bd6256bf9c942e6e532726dc8745aea37cef8ceec72f5e4a59ffc75d0a365',
   getOpsxOnboardCommandTemplate: '0cf66e164c0e14c916c6d1ebb5d80ded07d7fb8e55d4eb34eba43e8ca9c28558',
-  getOpsxBulkArchiveCommandTemplate: '3d9d99833c5490623bb92ab25df891cb2dfc9a662a2c2f57f8c7be134dfe0735',
+  getOpsxBulkArchiveCommandTemplate: '4aa9efc551c12af09e287057550474d51ac91242fa93feeb05784b645d957a61',
   getOpsxVerifyCommandTemplate: 'ddc3fe6d529c82703ac131fb4383e4ae1f8df152d11afd75ae74ca17b12f1b24',
   getOpsxProposeSkillTemplate: 'd5e0e2d675cedaffbd771892f15edd8f7f55b464ee42362b1572aa59c4c1d492',
   getOpsxProposeCommandTemplate: 'f30af4ce5b7677bd664da71dd6d616a93278335e8828a7c3442fab59c339a11b',
@@ -109,9 +109,9 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-continue-change': 'd8859091316ad43a58cd015091454a95bf49378ec9d9117b24ab9b2396dc8303',
   'openspec-apply-change': '991a1d4687f1c8c7147d8c3b68cf14e9c515c6c53bb026356dac3b80e909b827',
   'openspec-ff-change': '224ff2ed2315eb23876fc4b83d796b60cf3cd05d853f2612e5b056ee7a6e93d2',
-  'openspec-sync-specs': '7ce72aa4ec69dee4d64785380dac817a085bb5848ff817cecaa2dc80dbb021a0',
-  'openspec-archive-change': '12211f765ed296d2d3432aeed23d3a3b5f41bbca2e8c23981b1f264ca5652db7',
-  'openspec-bulk-archive-change': '9027f0bbaca80e61f3bc645f923a3ffb8f16e9ef18290adae011b1d53a6f2212',
+  'openspec-sync-specs': '1a6a68270049d794e13cea03dc4af6c078f09352b4ff43f76b1f895d78ee5e70',
+  'openspec-archive-change': '423b8b5960b900c703182877971fd67a31e93fe6b1791811cdd5aa337ae345e3',
+  'openspec-bulk-archive-change': '3036c019dda742e6a89a491b63dc1efe69c4f6e8815f5d15a2f9f6559acc6857',
   'openspec-verify-change': '082453eb0a8079a4c1c72c243373bf6489ebac56f9adaa8b58588047823ded0d',
   'openspec-onboard': '6993eff867d97d485e080078f9dfb80e968e242f3b17a924eeb077715fd548fa',
   'openspec-propose': '2bbfc169f483cbacc481bf5160aece61d5237e1bca80955f48f7e2a4814e6143',
@@ -1254,6 +1254,26 @@ describe('skill templates split parity', () => {
       expect(content, variant).toContain(
         'If the `instruction` field directs you to use a specific skill or command to create the artifact, invoke it instead of writing the artifact directly - but only once you have chosen and checked the output path, and only if it can write there'
       );
+    }
+  });
+
+  // `openspec instructions apply|archive` are operation commands, so a
+  // delta-spec artifact with either id has no artifact-rule lookup. Workflows
+  // that look rules up by id must stop rather than take operation
+  // instructions as spec rules.
+  it('stops instead of reading operation instructions as rules for an apply or archive artifact id', () => {
+    const variants: Array<[string, string]> = [
+      ['archive skill', getArchiveChangeSkillTemplate().instructions],
+      ['archive command', getOpsxArchiveCommandTemplate().content],
+      ['bulk skill', getBulkArchiveChangeSkillTemplate().instructions],
+      ['bulk command', getOpsxBulkArchiveCommandTemplate().content],
+      ['sync skill', getSyncSpecsSkillTemplate().instructions],
+      ['sync command', getOpsxSyncCommandTemplate().content],
+    ];
+    for (const [variant, text] of variants) {
+      const flat = text.replace(/\s+/g, ' ');
+      expect(flat, variant).toContain('The ids `apply` and `archive` cannot be looked up this way');
+      expect(flat, variant).toContain('report that the schema must rename that artifact');
     }
   });
 

@@ -91,6 +91,11 @@ ${PROJECT_ROOT_GUARD}
    - If the direct lookup exits non-zero or returns invalid artifact-instruction
      JSON, report the error and stop before writing any main spec. Do not treat the
      failure as an absent rule set.
+   - The ids \`apply\` and \`archive\` cannot be looked up this way: the CLI answers
+     \`openspec instructions apply\` and \`openspec instructions archive\` with
+     operation instructions, not artifact rules. If a delta-spec artifact has one
+     of those ids, never use operation instructions as its rules; report that the
+     schema must rename that artifact, and stop before writing any main spec.
    - A valid response with omitted \`rules\` means no artifact rules are configured
      and the existing semantic merge continues.
 
@@ -377,6 +382,11 @@ ${PROJECT_ROOT_GUARD}
    - If the direct lookup exits non-zero or returns invalid artifact-instruction
      JSON, report the error and stop before writing any main spec. Do not treat the
      failure as an absent rule set.
+   - The ids \`apply\` and \`archive\` cannot be looked up this way: the CLI answers
+     \`openspec instructions apply\` and \`openspec instructions archive\` with
+     operation instructions, not artifact rules. If a delta-spec artifact has one
+     of those ids, never use operation instructions as its rules; report that the
+     schema must rename that artifact, and stop before writing any main spec.
    - A valid response with omitted \`rules\` means no artifact rules are configured
      and the existing semantic merge continues.
 

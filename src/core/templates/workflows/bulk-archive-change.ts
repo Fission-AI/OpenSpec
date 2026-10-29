@@ -210,6 +210,12 @@ ${PROJECT_ROOT_GUARD}
    identify the affected change, report the error, and stop the whole batch before
    any main-spec write or change move. Do not treat lookup failure as omitted
    rules. A valid response without \`rules\` is the no-rules case.
+   The ids \`apply\` and \`archive\` cannot be looked up this way: the CLI answers
+   \`openspec instructions apply\` and \`openspec instructions archive\` with
+   operation instructions, not artifact rules. If a delta-spec artifact has one
+   of those ids, do not run the lookup and never use operation instructions as
+   rules; report that the schema must rename that artifact, and stop the whole
+   batch before any main-spec write or change move.
 
 8. **Execute archive for each confirmed change**
 
@@ -581,6 +587,12 @@ ${PROJECT_ROOT_GUARD}
    identify the affected change, report the error, and stop the whole batch before
    any main-spec write or change move. Do not treat lookup failure as omitted
    rules. A valid response without \`rules\` is the no-rules case.
+   The ids \`apply\` and \`archive\` cannot be looked up this way: the CLI answers
+   \`openspec instructions apply\` and \`openspec instructions archive\` with
+   operation instructions, not artifact rules. If a delta-spec artifact has one
+   of those ids, do not run the lookup and never use operation instructions as
+   rules; report that the schema must rename that artifact, and stop the whole
+   batch before any main-spec write or change move.
 
 8. **Execute archive for each confirmed change**
 

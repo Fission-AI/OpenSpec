@@ -141,7 +141,13 @@ In both branches, never create the root as a side effect: do not run `openspec i
    Before a selected sync writes any main spec, run
    `openspec instructions <spec-artifact-id> --change "<name>" --json` once for
    each delta-spec artifact id from step 4, with the same selected-root flags. Require a zero exit status and valid artifact-instruction
-   JSON. If the lookup fails or returns invalid JSON, report the error and stop
+   JSON.
+   The ids `apply` and `archive` cannot be looked up this way: the CLI answers
+   `openspec instructions apply` and `openspec instructions archive` with
+   operation instructions, not artifact rules. If a delta-spec artifact has one
+   of those ids, do not run the lookup and never use operation instructions as
+   rules; report that the schema must rename that artifact, and stop before
+   writing any main spec or moving the change. If the lookup fails or returns invalid JSON, report the error and stop
    before writing any main spec or moving the change. A valid response with omitted
    `rules` is the no-rules case. Apply returned `rules` only to the content and
    form of main specs produced by this merge; do not use them as archive guidance,
