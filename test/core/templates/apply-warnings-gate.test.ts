@@ -46,3 +46,13 @@ describe('apply instructions recheck warnings during the task loop (#2166)', () 
     expect(newWarning).toBeGreaterThan(loop);
   });
 });
+
+describe('apply completion keeps unresolved warnings visible (#2166)', () => {
+  it('lists warnings the user continued past again in the completion status', () => {
+    const instructions = getApplyInstructions();
+    const status = instructions.indexOf('7. **On completion or pause, show status**');
+    const relist = instructions.indexOf('If the last apply instructions still returned `warnings`');
+    expect(status).toBeGreaterThan(-1);
+    expect(relist).toBeGreaterThan(status);
+  });
+});

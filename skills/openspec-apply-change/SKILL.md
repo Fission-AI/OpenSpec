@@ -127,7 +127,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    Display:
    - Tasks completed this session
    - Overall progress: "N/M tasks complete"
-   - If all done: report that tracked tasks are complete and suggest review or verification as appropriate before archiving
+   - If all done: report that tracked tasks are complete and suggest review or verification as appropriate before archiving. If the last apply instructions still returned `warnings` (for example, ones the user chose to continue past), list them again, since `openspec validate` and archive can still fail on them
    - If paused: explain why and wait for guidance
 
 **Output During Implementation**
