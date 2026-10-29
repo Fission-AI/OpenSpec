@@ -66,7 +66,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - If `state: "blocked"`: show the message and pause implementation.
      - If `missingArtifacts` is non-empty: suggest using `/openspec-continue-change` to create them.
      - Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file from existing planning artifacts. Do not assume another artifact is ready or start implementation while blocked.
-   - If `warnings` is non-empty: show every warning and pause before implementing or reporting completion, even when `state` is `"ready"` or `"all_done"`. Suggest the repair each warning names, and proceed only if the user chooses to continue anyway.
+   - If `warnings` is non-empty: show every warning and pause before implementing or reporting completion, even when `state` is `"ready"` or `"all_done"`. Suggest the repair each warning names, and proceed only if the user chooses to continue anyway. After any repair, rerun the apply instructions and use the refreshed output.
    - If `state: "all_done"`: report that all tracked tasks are complete and suggest review or verification as appropriate before archiving
    - Otherwise: proceed to implementation
 

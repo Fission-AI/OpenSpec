@@ -24,6 +24,12 @@ describe('apply instructions gate on CLI warnings (#2166)', () => {
     expect(instructions).toMatch(/even when `state` is `"ready"` or `"all_done"`/);
   });
 
+  it('reruns the apply instructions after a repair instead of using stale output', () => {
+    expect(instructions).toContain(
+      'After any repair, rerun the apply instructions and use the refreshed output.'
+    );
+  });
+
   it('checks warnings before reporting all_done, so completion never hides them', () => {
     const gate = instructions.indexOf('If `warnings` is non-empty');
     const allDone = instructions.indexOf('If `state: "all_done"`');
