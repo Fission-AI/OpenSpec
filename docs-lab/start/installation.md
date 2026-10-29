@@ -164,10 +164,10 @@ Each release has one file per computer:
 | Windows, arm64 | `openspec-windows-arm64.zip` |
 | Windows, x64 | `openspec-windows-x64.zip` |
 
-1. **Download** your file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest).
+1. **Download** your file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest). Files are attached a few minutes after a release is published. If yours isn't listed yet, wait and reload, or take it from the previous release.
 2. **Unpack** it. In your terminal: `tar -xzf openspec-darwin-arm64.tar.gz`. On Windows, right-click the `.zip` and choose Extract All.
-3. **Move** `openspec` (Windows: `openspec.exe`) into a folder on your PATH, such as `~/.local/bin`.
-4. **On macOS**, run `xattr -d com.apple.quarantine openspec`. macOS blocks files downloaded in a browser until you do.
+3. **On macOS**, run `xattr -d com.apple.quarantine openspec` in the folder you unpacked to. macOS blocks files downloaded in a browser until you do.
+4. **Move** `openspec` into a folder on your PATH, such as `~/.local/bin`. On Windows, move `openspec.exe` into a folder on your user PATH, such as `%LOCALAPPDATA%\Programs\openspec`.
 
 ### Verify a download
 
