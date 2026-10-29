@@ -121,7 +121,7 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
   // Link tasks to the requirements they implement, by name.
   [
     'Track the set in a todo list.',
-    'Track the set in a todo list. In tasks.md, name the requirement each task implements, and name each test task after the scenario it checks.',
+    'Track the set in a todo list. In tasks.md, cite the requirement each task implements and the scenario each test task checks, by ID when it has one, by name otherwise.',
   ],
   // Keep the plan true to what was built: decisions made while building go back into it.
   [

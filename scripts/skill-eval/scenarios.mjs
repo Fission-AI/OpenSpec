@@ -155,10 +155,13 @@ function saysWhere(ctx, name) {
 function planTrace(ctx, name) {
   const proposal = ctx.read(`openspec/changes/${name}/proposal.md`) ?? '';
   const tasks = (ctx.read(`openspec/changes/${name}/tasks.md`) ?? '').toLowerCase();
-  const names = deltaSpecs(ctx, name).flatMap((spec) => [...spec.text.matchAll(/^### Requirement: (.+)$/gm)].map((m) => m[1].trim().toLowerCase()));
+  // A requirement counts as cited by its bracketed ID when it has one, by name otherwise.
+  const refs = deltaSpecs(ctx, name).flatMap((spec) =>
+    [...spec.text.matchAll(/^### Requirement: (?:\[([^\]]+)\] )?(.+)$/gm)].map((m) => (m[1] ?? m[2]).trim().toLowerCase())
+  );
   return {
     namesUnchanged: /unchanged|stays? the same|keeps? working|must not change|won't change|will not change|no change to|not change/i.test(proposal),
-    tasksNameRequirements: names.length > 0 && names.every((n) => tasks.includes(n)),
+    tasksNameRequirements: refs.length > 0 && refs.every((ref) => tasks.includes(ref)),
   };
 }
 
