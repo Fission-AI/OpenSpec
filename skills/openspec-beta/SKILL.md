@@ -60,4 +60,5 @@ Commands can return `context` (facts about this project) and `operationGuidance`
 - **Never lose a requirement:** specs change only through deltas, and a modified requirement is copied whole. See `references/deltas.md`.
 - **Decide the small things, raise the big ones:** say what you chose and what you assumed, plainly; ask about anything costly to undo. See `references/decisions.md`.
 - **Ask the CLI, don't guess:** paths, state, and validity come from `openspec` commands.
+- **Stable IDs:** start each new requirement and scenario heading with a bracketed ID (`[AUTH-3]`, `[AUTH-3.1]`) and each design decision with a `### D1` heading plus one or two sentences. Keep IDs when rewording and cite them, not names. See `references/deltas.md` and `references/decisions.md`.
 - **The user's language:** write prose in it; keep OpenSpec's headings and SHALL, WHEN, THEN as they are.

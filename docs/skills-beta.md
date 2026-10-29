@@ -34,7 +34,7 @@ You say what you want. The agent picks the skill that fits, or you name one. Eac
 
 ```text
 openspec-beta/
-├── SKILL.md            what OpenSpec is, the agent's job, which skill to run, how to find the project, five principles
+├── SKILL.md            what OpenSpec is, the agent's job, which skill to run, how to find the project, six principles
 └── references/
     ├── propose.md, apply.md, archive.md, …   one skill's steps each
     └── changes.md, capabilities.md, decisions.md, deltas.md   short guides

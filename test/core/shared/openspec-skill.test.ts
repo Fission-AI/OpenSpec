@@ -109,11 +109,12 @@ describe('the openspec skill', () => {
 
   // Budgets keep the skill from growing back. Raise one only on purpose, with
   // an eval run showing the extra text pays for itself. Raised for the role,
-  // principles, and guides (2026-10-23 A/B).
+  // principles, and guides (2026-10-23 A/B), and for the stable-ID principle
+  // (2026-10-29: propose-ids 10/10 with it, 6/10 without).
   it('stays within its size budgets', () => {
     const files = render(ALL_WORKFLOWS);
     const size = (file: { content: string }) => Buffer.byteLength(file.content);
-    expect(size(files[0]), 'SKILL.md').toBeLessThanOrEqual(6_000);
+    expect(size(files[0]), 'SKILL.md').toBeLessThanOrEqual(6_300);
     const workflows = new Set(ALL_WORKFLOWS.map((id) => `references/${id}.md`));
     for (const file of files.filter((entry) => workflows.has(entry.relativePath))) {
       expect(size(file), file.relativePath).toBeLessThanOrEqual(12_000);
