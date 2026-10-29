@@ -160,7 +160,7 @@ export function toolHasAnyConfiguredCommand(
  * CRLF line endings, which a Windows clone with `core.autocrlf` reintroduces on
  * every checkout of committed command files.
  */
-function normalizeCommandContent(content: string): string {
+export function normalizeCommandContent(content: string): string {
   return content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
 }
 

@@ -61,6 +61,7 @@ import {
   type ToolSkillStatus,
   formatIdeRestart,
 } from './shared/index.js';
+import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
@@ -958,6 +959,7 @@ export class InitCommand {
     commandsSkipped: string[];
     skillsInvocableCommandSkips: string[];
     removedCommandCount: number;
+    leftCommandFiles: { kept: string[]; unchecked: string[] };
     removedSkillCount: number;
   }> {
     const createdTools: typeof tools = [];
@@ -966,6 +968,7 @@ export class InitCommand {
     const commandsSkipped: string[] = [];
     const skillsInvocableCommandSkips: string[] = [];
     let removedCommandCount = 0;
+    const leftCommandFiles = { kept: [] as string[], unchecked: [] as string[] };
     let removedSkillCount = 0;
 
     // Read global config for profile and delivery settings (use --profile override if set)
@@ -1039,7 +1042,10 @@ export class InitCommand {
           }
         }
         if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
-          removedCommandCount += await this.removeCommandFiles(projectPath, tool.value);
+          const reconciled = await reconcileCommandFiles(projectPath, tool.value, workflows);
+          removedCommandCount += reconciled.removed.length;
+          leftCommandFiles.kept.push(...reconciled.kept);
+          leftCommandFiles.unchecked.push(...reconciled.unchecked);
         }
         if (tool.value === 'github-copilot' && writeCopilotCloud) {
           await writeCopilotCloudFiles(projectPath);
@@ -1079,6 +1085,7 @@ export class InitCommand {
       commandsSkipped,
       skillsInvocableCommandSkips,
       removedCommandCount,
+      leftCommandFiles,
       removedSkillCount,
     };
   }
@@ -1189,6 +1196,7 @@ export class InitCommand {
       commandsSkipped: string[];
       skillsInvocableCommandSkips: string[];
       removedCommandCount: number;
+      leftCommandFiles: { kept: string[]; unchecked: string[] };
       removedSkillCount: number;
     },
     configStatus: 'created' | 'exists' | 'skipped',
@@ -1300,6 +1308,12 @@ export class InitCommand {
     }
     if (results.removedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));
+    }
+    for (const [headline, ...detail] of formatKeptCommandFiles(results.leftCommandFiles)) {
+      console.log(chalk.yellow(headline));
+      for (const line of detail) {
+        console.log(chalk.dim(line));
+      }
     }
     if (results.removedSkillCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
@@ -1514,25 +1528,4 @@ export class InitCommand {
     return removed;
   }
 
-  private async removeCommandFiles(projectPath: string, toolId: string): Promise<number> {
-    let removed = 0;
-    const adapter = CommandAdapterRegistry.get(toolId);
-    if (!adapter) return 0;
-
-    for (const workflow of ALL_WORKFLOWS) {
-      const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
-
-      try {
-        if (fs.existsSync(fullPath)) {
-          await fs.promises.unlink(fullPath);
-          removed++;
-        }
-      } catch {
-        // Ignore errors
-      }
-    }
-
-    return removed;
-  }
 }

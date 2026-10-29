@@ -18,6 +18,7 @@ export {
   getToolVersionStatus,
   getConfiguredTools,
   getAllToolVersionStatus,
+  normalizeCommandContent,
 } from './tool-detection.js';
 
 export {
