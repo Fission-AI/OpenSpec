@@ -54,7 +54,7 @@ The update command SHALL always update the core OpenSpec files and display an AS
 
 ### Requirement: Slash Command Updates
 
-The update command SHALL refresh existing slash command files for configured adapter-backed tools without creating new ones, keep legacy command cleanup safe, treat Codex custom prompts as legacy artifacts that are cleaned up rather than refreshed, and ensure the OpenCode archive command accepts change ID arguments.
+The update command SHALL refresh existing slash command files for configured adapter-backed tools without creating new ones outside the active profile, keep legacy command cleanup safe, treat Codex custom prompts as legacy artifacts that are cleaned up rather than refreshed, and ensure the OpenCode archive command accepts change ID arguments.
 
 #### Scenario: Updating slash commands for Antigravity
 - **WHEN** `.agent/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
@@ -128,10 +128,10 @@ The update command SHALL refresh existing slash command files for configured ada
 - **AND** refresh `.devin/skills/openspec-*/SKILL.md` with `/openspec-*` skill references, the one invocation both Devin agents accept
 
 #### Scenario: Updating slash commands for Kilo Code
-- **WHEN** `.kilo/command/` contains OpenSpec-managed `opsx-*.md` command files for the configured profile
-- **THEN** refresh each file using shared templates wrapped in OpenSpec markers
+- **WHEN** Kilo Code is configured and the delivery setting includes commands
+- **THEN** write `.kilo/command/opsx-<id>.md` for each workflow in the active profile, from shared templates wrapped in OpenSpec markers, creating any that are missing and overwriting the rest
 - **AND** ensure templates include instructions for the relevant workflow stage
-- **AND** skip creating missing files (the update command only refreshes what already exists)
+- **AND** this is the active-profile exception described under Tool-Agnostic Updates
 
 #### Scenario: Updating slash commands for Codex
 - **GIVEN** the global Codex prompt directory contains OpenSpec-managed Codex prompt files
