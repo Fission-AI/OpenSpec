@@ -164,12 +164,13 @@ OpenSpec SHALL provide a vendor-neutral `agents` tool target rooted at the share
 - **THEN** `agents` SHALL NOT be reported as available
 
 ### Requirement: Codex skills path is the supported Codex integration path
-The system SHALL identify `.codex/skills/` as the supported Codex OpenSpec workflow path.
+The system SHALL identify `.agents/skills/` as the supported Codex OpenSpec workflow path, with `.codex/skills/` kept only as a legacy location.
 
 #### Scenario: Codex skills path defined
 - **WHEN** looking up the `codex` tool
-- **THEN** the system SHALL provide `.codex` as the Codex skills base directory
-- **AND** generated Codex skills SHALL be written under `<projectRoot>/.codex/skills/`
+- **THEN** the system SHALL provide `.agents` as the Codex skills base directory, the shared root Codex reads
+- **AND** generated Codex skills SHALL be written under `<projectRoot>/.agents/skills/`
+- **AND** the system SHALL list `.codex` as a legacy skills root, used for detection and migrated to `.agents/skills/` after the replacement skills are written, leaving user-authored files in place
 
 #### Scenario: Codex command path is not advertised as supported
 - **WHEN** displaying AI tool path documentation or command-generation metadata

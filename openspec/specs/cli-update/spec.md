@@ -59,7 +59,7 @@ The update command SHALL refresh existing slash command files for configured ada
 #### Scenario: Updating slash commands for Antigravity
 - **WHEN** `.agent/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
 - **THEN** refresh the OpenSpec-managed portion of each file so the workflow copy matches other tools while preserving the existing single-field `description` frontmatter
-- **AND** skip creating any missing workflow files during update, mirroring the behavior for Devin Desktop and other IDEs
+- **AND** skip creating any missing legacy workflow files during update, mirroring the behavior for other IDEs' legacy command files
 
 #### Scenario: Updating slash commands for Claude Code
 - **WHEN** `.claude/commands/openspec/` contains `proposal.md`, `apply.md`, and `archive.md`
@@ -115,13 +115,14 @@ The update command SHALL refresh existing slash command files for configured ada
 
 #### Scenario: Updating slash commands for Windsurf
 - **WHEN** the legacy Windsurf location `.windsurf/workflows/`, now Devin's, contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates wrapped in OpenSpec markers
-- **AND** ensure templates include instructions for the relevant workflow stage
-- **AND** skip creating missing files (the update command only refreshes what already exists)
+- **THEN** do not refresh those files in place, since they are legacy workflow files handled by legacy cleanup
+- **AND** treat other OpenSpec-managed content under `.windsurf/` as belonging to Devin Desktop, moving it to `.devin/` under the consent rules in the ai-tool-paths requirement "Migrating OpenSpec content out of a renamed tool's former directory" and refreshing it there
+- **AND** do not create missing legacy `openspec-*` workflow files
 
 #### Scenario: Updating workflows for Devin Desktop
-- **WHEN** Devin Desktop is a configured tool (its `.devin/` directory exists)
-- **THEN** write `.devin/workflows/opsx-<id>.md` for each workflow in the active profile, from shared templates
+- **WHEN** Devin Desktop is a configured tool (OpenSpec skills or workflow files exist under `.devin/`)
+- **THEN** write `.devin/workflows/opsx-<id>.md` for each workflow in the active profile, from shared templates, creating any that are missing and overwriting the rest
+- **AND** this creation is the active-profile exception to the existing-file-only rules above (see Tool-Agnostic Updates), not a Devin-only behavior
 - **AND** emit frontmatter with `name`, `description`, `category`, and `tags`
 - **AND** transform command references to hyphen form (for example `/opsx-propose`), the name Devin registers for a workflow file
 - **AND** refresh `.devin/skills/openspec-*/SKILL.md` with `/openspec-*` skill references, the one invocation both Devin agents accept
@@ -216,7 +217,7 @@ The `openspec update` command SHALL refresh Oh My Pi skill files and command fil
 #### Scenario: Updating Codex with default delivery
 - **WHEN** a project has Codex OpenSpec skills configured
 - **AND** the active delivery mode is `both`
-- **THEN** `openspec update` SHALL refresh the selected Codex skill files under `.codex/skills/`
+- **THEN** `openspec update` SHALL refresh the selected Codex skill files under `.agents/skills/`
 - **AND** it SHALL NOT create or refresh Codex prompt files under `$CODEX_HOME/prompts` or the default Codex prompt directory
 
 #### Scenario: Updating Codex with commands delivery

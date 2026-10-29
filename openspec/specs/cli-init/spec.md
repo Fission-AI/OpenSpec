@@ -364,19 +364,19 @@ The `openspec init` command SHALL support Oh My Pi as a configurable tool, gener
 #### Scenario: Initializing Codex with default delivery
 - **WHEN** a user runs `openspec init` and selects Codex
 - **AND** the active delivery mode is `both`
-- **THEN** the command SHALL create the selected OpenSpec skill files under `.codex/skills/`
+- **THEN** the command SHALL create the selected OpenSpec skill files under `.agents/skills/`
 - **AND** it SHALL NOT create Codex prompt files under `$CODEX_HOME/prompts` or the default Codex prompt directory
 
 #### Scenario: Initializing Codex with skills delivery
 - **WHEN** a user runs `openspec init` and selects Codex
 - **AND** the active delivery mode is `skills`
-- **THEN** the command SHALL create the selected OpenSpec skill files under `.codex/skills/`
+- **THEN** the command SHALL create the selected OpenSpec skill files under `.agents/skills/`
 - **AND** it SHALL NOT create Codex prompt files
 
 #### Scenario: Initializing Codex with commands delivery
 - **WHEN** a user runs `openspec init` and selects Codex
 - **AND** the active delivery mode is `commands`
-- **THEN** the command SHALL still create the selected OpenSpec skill files under `.codex/skills/`
+- **THEN** the command SHALL still create the selected OpenSpec skill files under `.agents/skills/`
 - **AND** it SHALL skip Codex command-file generation because Codex is `skills-invocable`
 
 ### Requirement: Codex initialization cleanup removes managed legacy prompts
