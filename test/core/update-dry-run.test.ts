@@ -467,7 +467,7 @@ describe('openspec update --dry-run', () => {
 
     expect(changes.some((change) => change.path.startsWith('.cospec/skills/') && change.action === 'delete')).toBe(true);
     expect(changes.some((change) => change.path.startsWith('.agents/skills/') && change.action !== 'delete')).toBe(true);
-    expect(changes.filter((change) => change.path.startsWith('.cospec/openspec/commands/') && change.action === 'delete')).toEqual([]);
+    expect(changes.filter((change) => change.path.startsWith('.cospec/openspec/commands/'))).toEqual([]);
   });
 
   it('plans the move out of a renamed tool directory, and what the moved tool then gets', async () => {

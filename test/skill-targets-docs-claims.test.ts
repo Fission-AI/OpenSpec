@@ -11,8 +11,11 @@ const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..
 const SUPPORTED = fs
   .readFileSync(path.join(REPO_ROOT, 'docs-lab', 'reference', 'supported-tools.md'), 'utf-8')
   .replace(/\r\n/g, '\n');
-const section = (heading: string) =>
-  SUPPORTED.split(`### ${heading}\n`)[1].split('\n### ')[0];
+const section = (heading: string) => {
+  const part = SUPPORTED.split(`### ${heading}\n`)[1];
+  if (part === undefined) throw new Error(`supported-tools.md has no "### ${heading}" section`);
+  return part.split('\n### ')[0];
+};
 const tool = (id: string) => AI_TOOLS.find((candidate) => candidate.value === id)!;
 
 // Where each tool loads skills from is checked against its upstream source;
