@@ -30,3 +30,12 @@ describe('apply instructions gate on CLI warnings (#2166)', () => {
     expect(getOpsxApplyCommandTemplate().content).toContain(needle);
   });
 });
+
+describe('apply instructions recheck warnings during the task loop (#2166)', () => {
+  it('pauses on a new warning from the rerun apply instructions', () => {
+    const instructions = getApplyInstructions();
+    const loop = instructions.indexOf('6. **Implement tasks');
+    const newWarning = instructions.indexOf('return a warning not already shown');
+    expect(newWarning).toBeGreaterThan(loop);
+  });
+});

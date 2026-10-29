@@ -138,6 +138,7 @@ ${PROJECT_ROOT_GUARD}
    - Implementation reveals a design issue → suggest updating artifacts
    - A task needs work beyond what the spec and tasks describe, or you are tempted to drop, narrow, defer, or accept exceptions to specified behavior to make it fit → surface the added scope and ask; do not absorb it silently
    - Error or blocker encountered → report and wait for guidance
+   - The rerun apply instructions return a warning not already shown → show it, suggest the repair it names, and ask before continuing
    - User interrupts
 
 7. **On completion or pause, show status**
