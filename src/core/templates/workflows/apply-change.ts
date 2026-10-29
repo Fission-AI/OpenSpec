@@ -17,7 +17,7 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
 const BLOCKED_STATE_HANDOFF = optionalWorkflow(
   'continue',
   'suggest using `/opsx:continue` to create them.',
-  'suggest completing the missing artifacts. Run `openspec status --change "<name>" --json`, select the next `ready` artifact (not `skipped` or `blocked`), and use `openspec instructions "<artifact-id>" --change "<name>" --json` for its rules and template. Keep the selected `--store <id>` on both commands.'
+  'suggest completing the missing artifacts. Run `openspec status --change "<name>" --json`, then select a `ready` artifact (not `skipped` or `blocked`) that unblocks apply: one listed in `missingArtifacts`, or a transitive prerequisite of one (follow each artifact\'s `requires` in the status JSON). Never pick a `ready` artifact outside that set; it advances unrelated work and leaves apply blocked. Then use `openspec instructions "<artifact-id>" --change "<name>" --json` for its rules and template. Keep the selected `--store <id>` on both commands.'
 );
 
 /** The archive handoff shown once every task is done. */

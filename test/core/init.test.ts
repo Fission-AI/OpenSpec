@@ -589,7 +589,11 @@ describe('InitCommand', () => {
         // must be the CLI recovery in full, not a workflow this install lacks.
         expect(content).not.toContain('/opsx:continue');
         expect(content).toContain('openspec status --change "<name>" --json');
-        expect(content).toContain('next `ready` artifact (not `skipped` or `blocked`)');
+        expect(content).toContain('select a `ready` artifact (not `skipped` or `blocked`) that unblocks apply');
+        // #2165: only an artifact apply is waiting on, directly or through `requires`.
+        expect(content).toContain('one listed in `missingArtifacts`, or a transitive prerequisite of one');
+        expect(content).toContain('Never pick a `ready` artifact outside that set');
+        expect(content).not.toContain('next `ready` artifact');
         expect(content).toContain(
           'openspec instructions "<artifact-id>" --change "<name>" --json'
         );
