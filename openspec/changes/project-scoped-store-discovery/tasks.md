@@ -44,7 +44,7 @@
 
 ## 6. Tests: integration and edge cases
 
-- [x] 6.1 Add integration test in `test/core/root-selection-project-scoped.test.ts` for the full precedence chain: `--store` with walk-up resolution (project-scoped → global) → defaultStore → hint — verify all precedence scenarios pass
+- [x] 6.1 Add integration test in `test/core/root-selection-project-scoped.test.ts` for `--store` walk-up resolution (project-scoped → global), the `defaultStore` fallback, and the registered-stores hint — verify these precedence scenarios pass
 - [x] 6.2 Add test for malformed project-scoped registry (invalid YAML, missing `version`, unsupported version, missing `stores`) — verify the system reports a warning naming the malformed registry file and resolves store IDs from the global registry
 - [x] 6.3 Add test for multiple clones of the same repository on the same machine — verify each clone resolves store IDs independently without conflict
 - [x] 6.4 Add e2e test in `test/cli-e2e/` for the full lifecycle: create project-scoped registry, run `openspec status --store <id>`, verify resolution — verify the e2e test passes
