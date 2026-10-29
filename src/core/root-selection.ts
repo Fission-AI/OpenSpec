@@ -446,7 +446,16 @@ async function resolveNearestOrDeclaredRoot(
   }
 
   try {
-    return await resolveMergedStoreRoot(pointer.value, nearestRoot, globalDataDir, 'declared');
+    const root = await resolveMergedStoreRoot(
+      pointer.value,
+      nearestRoot,
+      globalDataDir,
+      'declared'
+    );
+    return {
+      ...root,
+      projectRegistryDir: findProjectRegistryDir(nearestRoot) ?? undefined,
+    };
   } catch (error) {
     if (error instanceof RootSelectionError) {
       // Rewrap with the declaration origin. The unknown-store fix is

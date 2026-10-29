@@ -490,4 +490,27 @@ describe('resolveOpenSpecRoot with project-scoped registry', () => {
       resolveOpenSpecRoot({ startPath: projectDir })
     ).rejects.toMatchObject({ diagnostic: { code: 'store_root_missing' } });
   });
+
+  it('a store: pointer to an outside store preserves the declaring project registry', async () => {
+    // A config.yaml `store:` pointer that resolves to a store outside the
+    // project must still remember the declaring project's registry directory,
+    // so reference assembly walks from the project rather than the store.
+    const projectDir = path.join(tmpDir, 'workspace');
+    fs.mkdirSync(projectDir, { recursive: true });
+    const storeDir = path.join(tmpDir, 'outside-store');
+    createStoreRoot(storeDir, 'outside-store');
+
+    writeProjectRegistry(projectDir, { 'outside-store': { path: '../outside-store' } });
+
+    const openspecDir = path.join(projectDir, 'openspec');
+    fs.mkdirSync(openspecDir, { recursive: true });
+    fs.writeFileSync(path.join(openspecDir, 'config.yaml'), 'store: outside-store\n');
+
+    const root = await resolveOpenSpecRoot({ startPath: projectDir });
+
+    // The resolved root is the external store...
+    expect(root.path).toBe(realPath(storeDir));
+    // ...but the declaring project's registry is preserved.
+    expect(root.projectRegistryDir).toBe(realPath(projectDir));
+  });
 });
