@@ -275,7 +275,7 @@ ${CONTEXT_FROM_CLI}
 - **Ask the CLI, don't guess:** paths, state, and validity come from \`openspec\` commands.
 - **Stable IDs:** start each new requirement and scenario heading with a bracketed ID (\`[AUTH-3]\`, \`[AUTH-3.1]\`) and each design decision with a \`### D1\` heading plus one or two sentences. Keep IDs when rewording and cite them, not names. See \`references/deltas.md\` and \`references/decisions.md\`.
 - **The user's language:** write prose in it; keep OpenSpec's headings and SHALL, WHEN, THEN as they are.
-- **Reply at a glance:** lead with the outcome and where it is, flag what needs the user, and end with the next step. Leave out checks that found nothing, file-by-file recaps, and internal IDs.
+- **Reply at a glance:** in your message to the user (not the files), lead with the outcome and where it is, flag what needs them, and end with the next step. Skip checks that found nothing, file-by-file recaps, and internal IDs.
 `;
 }
 
