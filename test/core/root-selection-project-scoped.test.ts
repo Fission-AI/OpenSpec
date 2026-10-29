@@ -101,6 +101,26 @@ describe('resolveOpenSpecRoot with project-scoped registry', () => {
     expect(root.path).toBe(realPath(storeDir));
   });
 
+  it('preserves the invoking project registry when --store resolves outside the project', async () => {
+    const projectDir = path.join(tmpDir, 'project');
+    fs.mkdirSync(projectDir, { recursive: true });
+    const storeDir = path.join(tmpDir, 'store');
+    createStoreRoot(storeDir, 'external-store');
+
+    writeProjectRegistry(projectDir, { 'external-store': { path: '../store' } });
+
+    const root = await resolveOpenSpecRoot({
+      store: 'external-store',
+      startPath: projectDir,
+    });
+
+    // The resolved root is the external store...
+    expect(root.path).toBe(realPath(storeDir));
+    // ...but the invoking project's registry is preserved so reference
+    // assembly walks from the working directory, not from the store.
+    expect(root.projectRegistryDir).toBe(realPath(projectDir));
+  });
+
   it('falls back to global registry when store ID not in project-scoped', async () => {
     const storeDir = path.join(tmpDir, 'project-store');
     createStoreRoot(storeDir, 'project-store');

@@ -91,6 +91,7 @@ export interface ResolvedOpenSpecRoot {
   defaultSchema: 'spec-driven';
   source: OpenSpecRootSource;
   storeId?: string;
+  projectRegistryDir?: string;
 }
 
 export interface RootSelectionDiagnostic {
@@ -518,7 +519,15 @@ export async function resolveOpenSpecRoot(
 
   if (options.store !== undefined) {
     const storeStartPath = options.startPath ?? process.cwd();
-    return resolveMergedStoreRoot(options.store, storeStartPath, options.globalDataDir);
+    const root = await resolveMergedStoreRoot(
+      options.store,
+      storeStartPath,
+      options.globalDataDir
+    );
+    return {
+      ...root,
+      projectRegistryDir: findProjectRegistryDir(storeStartPath) ?? undefined,
+    };
   }
 
   const startPath = options.startPath ?? process.cwd();

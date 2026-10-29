@@ -39,7 +39,7 @@ export async function gatherRelationshipData(
     resolvedRoot: root,
     includeSpecs: false,
     registryEntries: registrySnapshot.entries,
-    projectRoot: findProjectRegistryDir(root.path) ?? undefined,
+    projectRoot: root.projectRegistryDir ?? findProjectRegistryDir(root.path) ?? undefined,
   });
 
   const rootInspection = await inspectOpenSpecRoot(root.path);
