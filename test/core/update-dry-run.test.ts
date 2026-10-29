@@ -197,6 +197,22 @@ describe('openspec update --dry-run', () => {
     });
   });
 
+  // #2092: CoStrict's skills move from .cospec/skills to .agents/skills while
+  // its commands stay under .cospec; the plan must match that move exactly.
+  it('plans the move of CoStrict skills out of .cospec, leaving its commands', async () => {
+    await new InitCommand({ tools: 'costrict', force: true }).execute(testDir);
+    const legacy = path.join(testDir, '.cospec', 'skills');
+    await fs.mkdir(path.dirname(legacy), { recursive: true });
+    await fs.cp(path.join(testDir, '.agents', 'skills'), legacy, { recursive: true });
+    await fs.rm(path.join(testDir, '.agents'), { recursive: true, force: true });
+
+    const changes = await expectPlanMatchesRealUpdate();
+
+    expect(changes.some((change) => change.path.startsWith('.cospec/skills/') && change.action === 'delete')).toBe(true);
+    expect(changes.some((change) => change.path.startsWith('.agents/skills/') && change.action !== 'delete')).toBe(true);
+    expect(changes.filter((change) => change.path.startsWith('.cospec/openspec/commands/') && change.action === 'delete')).toEqual([]);
+  });
+
   it('lists skills that live outside the project, under the user home', async () => {
     // A home of its own, outside the project, so the plan has to name the file
     // the way the user would recognize it.
