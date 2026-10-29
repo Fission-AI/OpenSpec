@@ -24,6 +24,8 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `archive-stale` | archive a change whose MODIFIED block predates a newer main-spec sentence | the newer sentence survives, or the agent stops and says why |
 | `propose-earlier-decision` | a request that reverses a decision an archived change recorded | one change, validates, no code touched; records whether the plan names the earlier decision |
 | `propose-french` | propose, asked in French | everything `propose` checks; records whether the plan is written in French |
+| `apply-reconcile` | apply a change whose design contradicts its spec | tasks done, tests pass, priorities follow the spec; records whether the design was brought in line |
+| `propose-bugfix` | plan a fix where the code drifted from a spec that is already right | one change, validates, no code touched; records plan size, skipped design, no new requirement |
 | `natural-spec-edit` | tidy a spec's wording, no skill named | requirement reworded with its promise and scenario kept, everything validates, no code touched |
 | `multi-intent` | archive a finished change, then plan a new one, no skill named | archived, one new change planned, everything validates |
 | `explore` | a design question | answers, writes nothing |

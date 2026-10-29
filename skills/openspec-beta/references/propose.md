@@ -12,7 +12,7 @@ With the default spec-driven schema the artifacts are proposal.md (why and what)
 
    If the conversation has an explore draft, build from it and do not re-ask what it settled. With no clear request, ask what the user wants to build or fix, and do not go on until you know. Name the change for its outcome in kebab-case ("add user authentication" → `add-user-auth`).
 
-   State the scope in two or three lines (in, out, and the capabilities it touches), and keep the plan to it. If the request holds more than one outcome, read `references/changes.md` first. Ask before creating the change about anything that would change the scope, observable behavior, compatibility, or what counts as done (`references/decisions.md` lists what to raise). For smaller details, assume, and write the assumption into the plan.
+   State the scope in two or three lines (in, out, any data that changes, what must keep working unchanged, and the capabilities it touches), and keep the plan to it. If the request holds more than one outcome, read `references/changes.md` first. Ask before creating the change about anything that would change the scope, observable behavior, compatibility, or what counts as done (`references/decisions.md` lists what to raise). For smaller details, assume, and write the assumption into the plan.
 
 2. **Load the project**
 
@@ -34,7 +34,7 @@ With the default spec-driven schema the artifacts are proposal.md (why and what)
 
 6. **Write them, in dependency order**
 
-   Track the set in a todo list. For each `ready` artifact:
+   Track the set in a todo list. In tasks.md, name the requirement each task implements, and name each test task after the scenario it checks. For each `ready` artifact:
    - Run `openspec instructions <artifact-id> --change "<name>" --json`, and re-read its finished dependencies from disk.
    - **Look at the project first**, read-only and in proportion to the change: its `context` and `rules`, then the code, tests, and docs it touches (the code may live outside the OpenSpec root). Reuse what you find for later artifacts. If the code already does part of the request, say so and plan only the gap, which can be a spec update alone. If the target is unclear, ask. With no code yet, or none you can read, say so. Keep what you saw apart from what you assume, and raise conflicts with the specs rather than settling them quietly. Do this now, not as a task for later.
    - Write it as `references/writing-an-artifact.md` describes, show "Created <artifact-id>", and re-run status: one artifact can unblock others.

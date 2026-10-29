@@ -20,7 +20,7 @@ Implement the tasks of an OpenSpec change, one checkbox at a time.
 
 3. **Read every file in `contextFiles`.** Use contextFiles from CLI output, don't assume specific file names. Show the schema, "N/M tasks complete", and what remains.
 
-4. **Work through the tasks.** For each pending task: say which one, make the smallest change that fully does it, then mark it `- [ ]` → `- [x]` at its `sourcePath` and `line` (confirm that line still matches the task first; if not, rerun the apply instructions). Rerun the apply instructions to confirm progress moved.
+4. **Work through the tasks.** For each pending task: say which one, make the smallest change that fully does it, then mark it `- [ ]` → `- [x]` at its `sourcePath` and `line` (confirm that line still matches the task first; if not, rerun the apply instructions). Rerun the apply instructions to confirm progress moved. If building needed a decision the plan did not make, or a departure from it, update the design (and the specs, if behavior changed) to match, and say what you changed.
 
    **Pause and ask when:**
    - a task is unclear;

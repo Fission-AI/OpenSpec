@@ -113,6 +113,21 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
     'both reject one that drops a scenario the main spec still has.',
     "both reject one that drops a scenario the main spec still has. If today's requirement says something the block does not, and this change did not set out to remove it, keep it: the main spec changed after the delta was written.",
   ],
+  // Name what changes and what must not (a fuller scope predicts merged plans).
+  [
+    'State the scope in two or three lines (in, out, and the capabilities it touches)',
+    'State the scope in two or three lines (in, out, any data that changes, what must keep working unchanged, and the capabilities it touches)',
+  ],
+  // Link tasks to the requirements they implement, by name.
+  [
+    'Track the set in a todo list.',
+    'Track the set in a todo list. In tasks.md, name the requirement each task implements, and name each test task after the scenario it checks.',
+  ],
+  // Keep the plan true to what was built: decisions made while building go back into it.
+  [
+    'Rerun the apply instructions to confirm progress moved.',
+    'Rerun the apply instructions to confirm progress moved. If building needed a decision the plan did not make, or a departure from it, update the design (and the specs, if behavior changed) to match, and say what you changed.',
+  ],
   ['Draft the requested edit in the conversation, not in files.', 'Draft the requested edit in the conversation, not in files. If it changes a spec, read `references/deltas.md` first; if it widens the change, `references/changes.md`.'],
   // Verify from what the code does, not only from what it says, and by
   // someone without the builder's assumptions.

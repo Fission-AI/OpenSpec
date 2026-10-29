@@ -26,7 +26,7 @@ Fast-forward through artifact creation - generate everything needed to start imp
 
 5. **Write them, in dependency order**
 
-   Track the set in a todo list. For each `ready` artifact:
+   Track the set in a todo list. In tasks.md, name the requirement each task implements, and name each test task after the scenario it checks. For each `ready` artifact:
    - Run `openspec instructions <artifact-id> --change "<name>" --json`, and re-read its finished dependencies from disk.
    - **Look at the project first**, read-only and in proportion to the change: its `context` and `rules`, then the code, tests, and docs it touches (the code may live outside the OpenSpec root). Reuse what you find for later artifacts. If the code already does part of the request, say so and plan only the gap, which can be a spec update alone. If the target is unclear, ask. With no code yet, or none you can read, say so. Keep what you saw apart from what you assume, and raise conflicts with the specs rather than settling them quietly. Do this now, not as a task for later.
    - Write it as `references/writing-an-artifact.md` describes, show "✓ Created <artifact-id>", and re-run status: one artifact can unblock others.

@@ -61,7 +61,7 @@ function repoPropose({ id, prompt, capability }) {
       `The project's current spec for \`${capability}\`:\n\n${fs.readFileSync(path.join(root, 'openspec', 'specs', capability, 'spec.md'), 'utf8')}`,
     metrics: (ctx) => {
       const name = touchedChangeNames(ctx)[0];
-      return name ? specQuality(ctx, name) : {};
+      return name ? { ...specQuality(ctx, name), ...planTrace(ctx, name) } : {};
     },
     checks: (ctx) => {
       const names = touchedChangeNames(ctx);
@@ -145,6 +145,27 @@ function specQuality(ctx, name) {
 /** Whether the agent's reply names the folder it wrote the change to. */
 function saysWhere(ctx, name) {
   return new RegExp(`openspec/changes/${name}`).test(ctx.result ?? '');
+}
+
+/**
+ * Traceability and scope observations for a plan: does the proposal say what
+ * stays unchanged, and does tasks.md name every requirement the deltas add or
+ * change?
+ */
+function planTrace(ctx, name) {
+  const proposal = ctx.read(`openspec/changes/${name}/proposal.md`) ?? '';
+  const tasks = (ctx.read(`openspec/changes/${name}/tasks.md`) ?? '').toLowerCase();
+  const names = deltaSpecs(ctx, name).flatMap((spec) => [...spec.text.matchAll(/^### Requirement: (.+)$/gm)].map((m) => m[1].trim().toLowerCase()));
+  return {
+    namesUnchanged: /unchanged|stays? the same|keeps? working|must not change|won't change|will not change|no change to|not change/i.test(proposal),
+    tasksNameRequirements: names.length > 0 && names.every((n) => tasks.includes(n)),
+  };
+}
+
+/** Whether the project's tests are named after the given scenarios. */
+function testsNameScenarios(ctx, scenarios) {
+  const tests = (ctx.read('test/todo.test.js') ?? '').toLowerCase();
+  return scenarios.every((scenario) => tests.includes(scenario.toLowerCase()));
 }
 
 /** Whether a finished change reached the main specs: synced or archived. */
@@ -270,6 +291,7 @@ export const SCENARIOS = [
         ...specQuality(ctx, name),
         tasksEndWithSpecSync: /\b(sync|merge|update)\b[^\n]*\bspecs?\b/i.test(groups.at(-1) ?? ''),
         saysWhere: saysWhere(ctx, name),
+        ...planTrace(ctx, name),
       };
     },
     prompt:
@@ -303,7 +325,10 @@ export const SCENARIOS = [
   {
     id: 'apply',
     setup: (root) => seedChange(root, 'add-priority'),
-    metrics: (ctx) => closure(ctx, 'add-priority', 'Todo priority'),
+    metrics: (ctx) => ({
+      ...closure(ctx, 'add-priority', 'Todo priority'),
+      testsNameScenarios: testsNameScenarios(ctx, ['Default priority', 'Explicit priority', 'Unknown priority']),
+    }),
     prompt: '/openspec-apply-change add-priority.' + AUTONOMOUS,
     checks: (ctx) => {
       const { open, done } = tasksDone(ctx, 'add-priority');
@@ -489,6 +514,7 @@ export const SCENARIOS = [
       return {
         updatesExportSpec: deltaSpecs(ctx, name).some((spec) => spec.file.startsWith('todo-export')),
         ...specQuality(ctx, name),
+        ...planTrace(ctx, name),
         usesExistingCapability: deltaSpecs(ctx, name).every((spec) => /^todo-(list|export)/.test(spec.file)),
       };
     },
@@ -682,6 +708,65 @@ export const SCENARIOS = [
     checks: (ctx) => SCENARIOS.find((scenario) => scenario.id === 'propose').checks(ctx),
   },
   {
+    // The plan's design contradicts its spec (numbers vs low/normal/high), so
+    // building forces a decision. A good apply follows the spec and brings the
+    // design back in line, saying so.
+    id: 'apply-reconcile',
+    setup: (root) => {
+      seedChange(root, 'add-priority');
+      const design = path.join(root, 'openspec/changes/add-priority/design.md');
+      fs.writeFileSync(
+        design,
+        fs.readFileSync(design, 'utf8').replace(
+          '- Keep the allowed values in one frozen array, `PRIORITIES`, exported from `src/todo.js`.',
+          '- Keep the allowed values in one frozen array, `PRIORITIES`, exported from `src/todo.js`.\n- Store the priority as a number (1 low, 2 normal, 3 high) so todos sort by priority directly.'
+        )
+      );
+    },
+    prompt: '/openspec-apply-change add-priority.' + AUTONOMOUS,
+    metrics: (ctx) => ({
+      designReconciled: !/Store the priority as a number/.test(ctx.read('openspec/changes/add-priority/design.md') ?? ''),
+      mentionsDecision: /design/i.test(ctx.result ?? ''),
+      testsNameScenarios: testsNameScenarios(ctx, ['Default priority', 'Explicit priority', 'Unknown priority']),
+    }),
+    checks: (ctx) => {
+      const { open } = tasksDone(ctx, 'add-priority');
+      const tests = ctx.run('node', ['--test']);
+      return [
+        { name: 'every task checked off', pass: open === 0, detail: `open=${open}` },
+        { name: 'project tests pass', pass: tests.code === 0, detail: tests.out.slice(-300) },
+        { name: 'priorities follow the spec', pass: /'normal'/.test(ctx.read('src/todo.js') ?? '') },
+      ];
+    },
+  },
+  {
+    // A bug where the code drifted from a spec that is already right. A good
+    // plan stays small: no new or changed requirement, no design unless needed.
+    id: 'propose-bugfix',
+    setup: (root) => {
+      const src = path.join(root, 'src/todo.js');
+      fs.writeFileSync(src, fs.readFileSync(src, 'utf8').replace(/throw new Error\(`no todo with id \$\{id\}`\);/, 'return undefined;'));
+    },
+    prompt: '/openspec-propose Bug: completing a todo id that does not exist no longer throws, though our spec says it should. Plan the fix.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      const dir = path.join(ctx.root, 'openspec/changes', name);
+      const words = fs.readdirSync(dir, { recursive: true })
+        .filter((f) => String(f).endsWith('.md'))
+        .reduce((n, f) => n + fs.readFileSync(path.join(dir, String(f)), 'utf8').split(/\s+/).length, 0);
+      return { smallPlan: words <= 450, skipsDesign: !ctx.exists(`openspec/changes/${name}/design.md`), noNewRequirement: !deltaSpecs(ctx, name).some((spec) => /## ADDED Requirements/.test(spec.text)) };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) }, onlyOpenspecChanged(ctx));
+      return results;
+    },
+  },
+  {
     // A plain request to tidy a spec, with no skill named: does the agent find
     // OpenSpec's way of changing a spec on its own?
     id: 'natural-spec-edit',
@@ -808,7 +893,7 @@ export const SCENARIOS = [
       AUTONOMOUS,
     metrics: (ctx) => {
       const name = newChangeNames(ctx)[0];
-      return name ? { ...specQuality(ctx, name), saysWhere: saysWhere(ctx, name) } : {};
+      return name ? { ...specQuality(ctx, name), saysWhere: saysWhere(ctx, name), ...planTrace(ctx, name) } : {};
     },
     checks: (ctx) => [
       { name: 'an OpenSpec skill was used', pass: ctx.skillsUsed.length > 0, detail: ctx.skillsUsed.join(', ') },
