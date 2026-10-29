@@ -3,7 +3,7 @@
 // byte (or the refusal message). Each build is a checkout with `node build.js` run.
 // Usage: node compare-archives.mjs <git-dir> <base-checkout> <patched-checkout>
 // Result for #1979: OpenSpec 168, ai-dial-chat 1,318, OpenLore 350, sku 13 and
-// spec-ctx 173 deltas, all identical.
+// spec-ctx 173 deltas (every one using bare IDs like `REQ-UA-004`), all identical.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -37,6 +37,7 @@ for (const item of items) {
   const delta = show(item.commit, item.delta);
   if (delta === undefined) { skipped++; continue; }
   const main = show(`${item.commit}^`, `${item.root}specs/${item.id}/spec.md`);
+  // Deltas whose headings carry an ID (bracketed), or a bare token like `REQ-UA-004` that stays a name.
   if (/^#{3,4}\s*(Requirement|Scenario):\s*(\[[A-Za-z][\w-]*\d\]|[A-Z][A-Z0-9]*(-[A-Z0-9]+)*-\d+)/m.test((main ?? '') + delta)) withIds++;
   const out = {};
   for (const [name, m] of Object.entries(builds)) {
