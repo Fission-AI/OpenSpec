@@ -74,6 +74,13 @@ The system SHALL discover and resolve store IDs by walking up from the current w
 - **AND** the global registry file is unreadable
 - **THEN** the system still resolves the referenced store from the project-scoped registry
 
+#### Scenario: References resolve from the working directory when the selected store is outside it
+- **WHEN** a command runs with `--store <id>` that resolves to a store folder outside the working directory
+- **AND** the resolved store declares `references:` naming a store ID
+- **AND** that store ID is found in a project-scoped registry along the working directory's ancestor chain
+- **THEN** the system resolves the referenced store from the working directory's project-scoped registry
+- **AND** does not resolve it from the selected store's own ancestor chain or from a same-ID global binding
+
 #### Scenario: Project-scoped registry discovered from subdirectory
 - **WHEN** `.openspec-store/registry.yaml` exists at the project root
 - **AND** the user runs a command from a subdirectory of the project

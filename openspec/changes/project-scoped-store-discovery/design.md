@@ -58,6 +58,8 @@ stores:
 
 **Decision:** Walk up from `process.cwd()`, checking for `.openspec-store/registry.yaml` at each level. When a file is found, read it and search for the requested store ID. If the ID is found — use it, stop. If the ID is not found — continue walking up to the next level. If no registry file contains the ID after reaching the filesystem root — fall back to the global registry.
 
+The same `process.cwd()` anchor governs reference assembly: `assembleReferenceIndex` walks project-scoped registries from the command's working directory (the invoking start path), not from the resolved store root. A store resolved to a folder outside the working directory therefore still resolves its `references:` against the invoking project's registry.
+
 **Three approaches considered:**
 
 **Variant A — Nearest file, stop.** Walk up, find the first `.openspec-store/registry.yaml`, stop. If the store ID is not in that file — fall back to the global registry. Does not check ancestor registries.
