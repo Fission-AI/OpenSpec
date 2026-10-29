@@ -21,7 +21,7 @@ Teams that need stable links already put IDs in headings: sonqh's `spec-driven-i
 
 ### D1
 
-The ID is the first word of the heading, written by the agent, because it's visible, today's parser already keeps it, and teams already do it. Hidden CLI-assigned IDs scored no better (264 of 265 runs kept every ID either way), so they aren't worth a new command.
+The agent writes the ID as the first word of the heading, and the CLI only reads it, because it's visible, today's parser already keeps it, and teams already do it. Hidden CLI-assigned IDs scored no better (264 of 265 runs kept every ID either way), so they aren't worth a new command.
 
 ### D2
 

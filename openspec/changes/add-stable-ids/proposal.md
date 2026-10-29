@@ -6,7 +6,8 @@ Teams already work around this by putting an ID at the start of the heading (#19
 
 ## What Changes
 
-- **Requirements and scenarios can carry a visible ID** as the first word of the heading: `### Requirement: AUTH-3 Users sign in` and `#### Scenario: AUTH-3.1 Correct password`. The agent writes it. There's no hidden metadata and no new command.
+- **The agent writes the ID into the heading itself,** as its first word: `### Requirement: AUTH-3 Users sign in` and `#### Scenario: AUTH-3.1 Correct password`. There's no hidden metadata and no new command.
+- **The CLI only reads IDs.** It never assigns, rewrites or removes one. Its whole role is to match on the ID and refuse duplicates (below), and to serve the instructions and templates that tell the agent how to write them.
 - **Validate and archive match on the ID before the name.** A rename that keeps its ID archives, and the scenario-loss guard still refuses a dropped ID.
 - **Duplicate IDs are refused,** so two parallel changes that pick the same number are caught instead of overwriting each other.
 - **Decisions get short, stable IDs** in `design.md`: a `### D1` heading, then the choice and the reason in a sentence or two. Tasks and risks link `[D1](./design.md#d1)`.
@@ -28,4 +29,4 @@ _None._
 - **Spec authors:** IDs are optional. A project that never writes one sees no change.
 - **Projects that already prefix headings with IDs** (like `NAV-5` or `REQ-UA-004`): renames start working with no migration.
 - **Code:** the requirement and scenario parsers, `specs-apply.ts`, the validator, the `spec-driven` schema and its `spec.md` and `design.md` templates, and docs. No new dependency, command, or flag.
-- **Skills:** #2134's decisions guide picks up the matching `### D1` line.
+- **Skills:** every skill gets the new instructions and templates through `openspec instructions`. #2134 adds the same conventions to the `openspec-beta` guides that don't go through it: the agent-run spec sync, verify, and the decisions guide.
