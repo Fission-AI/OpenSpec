@@ -409,6 +409,7 @@ function findQualifyingRootSync(startPath: string): string | null {
 
 async function resolveNearestOrDeclaredRoot(
   nearestRoot: string,
+  startPath: string,
   globalDataDir?: string
 ): Promise<ResolvedOpenSpecRoot> {
   const { hasPlanningShape, pointer } = classifyOpenSpecDir(nearestRoot);
@@ -419,7 +420,10 @@ async function resolveNearestOrDeclaredRoot(
         `Warning: ${pointer.filePath} declares store '${pointer.value}', but this directory is a real OpenSpec root; the declaration is ignored.`
       );
     }
-    return makeRoot(nearestRoot, 'nearest');
+    return {
+      ...makeRoot(nearestRoot, 'nearest'),
+      projectRegistryDir: findProjectRegistryDir(startPath) ?? undefined,
+    };
   }
 
   if (pointer.malformed) {
@@ -438,19 +442,22 @@ async function resolveNearestOrDeclaredRoot(
   }
 
   if (pointer.value === undefined) {
-    return makeRoot(nearestRoot, 'nearest');
+    return {
+      ...makeRoot(nearestRoot, 'nearest'),
+      projectRegistryDir: findProjectRegistryDir(startPath) ?? undefined,
+    };
   }
 
   try {
     const root = await resolveMergedStoreRoot(
       pointer.value,
-      nearestRoot,
+      startPath,
       globalDataDir,
       'declared'
     );
     return {
       ...root,
-      projectRegistryDir: findProjectRegistryDir(nearestRoot) ?? undefined,
+      projectRegistryDir: findProjectRegistryDir(startPath) ?? undefined,
     };
   } catch (error) {
     if (error instanceof RootSelectionError) {
@@ -538,7 +545,7 @@ export async function resolveOpenSpecRoot(
   const startPath = options.startPath ?? process.cwd();
   const nearestRoot = findQualifyingRootSync(startPath);
   if (nearestRoot) {
-    return resolveNearestOrDeclaredRoot(nearestRoot, options.globalDataDir);
+    return resolveNearestOrDeclaredRoot(nearestRoot, startPath, options.globalDataDir);
   }
 
   // Project-scoped registry discovery: if a project-scoped registry exists

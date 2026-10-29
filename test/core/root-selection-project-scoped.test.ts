@@ -6,7 +6,7 @@ import * as os from 'node:os';
 import { resolveOpenSpecRoot } from '../../src/core/root-selection.js';
 
 function realPath(p: string): string {
-  return fs.realpathSync(p);
+  return fs.realpathSync.native(p);
 }
 
 function makeTempDir(): string {

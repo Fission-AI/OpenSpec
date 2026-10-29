@@ -105,7 +105,9 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
           references: declared,
           resolvedRoot: root,
           registryEntries,
-          projectRoot: root.projectRegistryDir ?? findProjectRegistryDir(root.path) ?? undefined,
+          projectRoot:
+            root.projectRegistryDir ??
+            (root.source === 'nearest' ? (findProjectRegistryDir(root.path) ?? undefined) : undefined),
         })
       : [];
 
