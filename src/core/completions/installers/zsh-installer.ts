@@ -11,12 +11,17 @@ import { shellSingleQuote } from './shell-quote.js';
  * ZDOTDIR is never loaded (#2138).
  */
 function zshrcDir(homeDir: string): string {
-  return process.env.ZDOTDIR || homeDir;
+  const zdotdir = process.env.ZDOTDIR;
+  // zsh does not expand `~` in ZDOTDIR, and path.join would resolve a relative
+  // or `~/...` value against the current directory, writing a stray .zshrc
+  // into the user's project. Only an absolute ZDOTDIR moves the file.
+  return zdotdir && path.isAbsolute(zdotdir) ? zdotdir : homeDir;
 }
 
 /** The .zshrc zsh will read, as shown to the user: `~/.zshrc` unless ZDOTDIR moves it. */
-export function zshrcDisplayPath(): string {
-  return process.env.ZDOTDIR ? path.join(process.env.ZDOTDIR, '.zshrc') : '~/.zshrc';
+export function zshrcDisplayPath(homeDir: string = os.homedir()): string {
+  const zshrcPath = path.join(zshrcDir(homeDir), '.zshrc');
+  return zshrcPath === path.join(homeDir, '.zshrc') ? '~/.zshrc' : zshrcPath;
 }
 
 /**
@@ -397,7 +402,7 @@ export class ZshInstaller {
       return [
         'Completion script installed to ~/.zsh/completions/',
         '',
-        `To enable completions, add the following to your ${zshrcDisplayPath()} file:`,
+        `To enable completions, add the following to your ${zshrcDisplayPath(this.homeDir)} file:`,
         '',
         `  # Add completions directory to fpath`,
         `  fpath=(${shellSingleQuote(completionsDir)} $fpath)`,

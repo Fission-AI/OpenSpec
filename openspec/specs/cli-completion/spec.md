@@ -183,7 +183,7 @@ The completion command SHALL automatically install completion scripts into shell
 - **WHEN** user executes `openspec completion install zsh` and Oh My Zsh is not detected
 - **THEN** create completions directory at `~/.zsh/completions/` if it doesn't exist
 - **AND** write completion script to `~/.zsh/completions/_openspec`
-- **AND** add `fpath=(~/.zsh/completions $fpath)` to `${ZDOTDIR:-$HOME}/.zshrc` (the file zsh reads) if not already present
+- **AND** add `fpath=(~/.zsh/completions $fpath)` to `${ZDOTDIR:-$HOME}/.zshrc` (the file zsh reads; a relative or `~`-prefixed `$ZDOTDIR` is ignored) if not already present
 - **AND** add `autoload -Uz compinit && compinit` to that same file if not already present
 - **AND** never create or edit `~/.zshrc` when `$ZDOTDIR` points elsewhere
 - **AND** display success message with instruction to run `exec zsh` or restart terminal

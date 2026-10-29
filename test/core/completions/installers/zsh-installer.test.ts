@@ -864,6 +864,50 @@ describe('ZshInstaller', () => {
 
       expect(await fs.readFile(path.join(testHomeDir, '.zshrc'), 'utf-8')).toContain('# OPENSPEC:START');
     });
+
+    // zsh never expands `~` in ZDOTDIR, and a relative value would resolve
+    // against the current directory: writing there drops a .zshrc into the
+    // user's project, so only an absolute ZDOTDIR moves the file.
+    it.each(['openspec-zdotdir-relative-test', '~/openspec-zdotdir-tilde-test'])(
+      'ignores a non-absolute ZDOTDIR (%s) and uses ~/.zshrc',
+      async (value) => {
+        process.env.ZDOTDIR = value;
+
+        const result = await installer.install('#compdef openspec\n');
+
+        expect(result.zshrcConfigured).toBe(true);
+        expect(await fs.readFile(path.join(testHomeDir, '.zshrc'), 'utf-8')).toContain('# OPENSPEC:START');
+        await expect(fs.access(path.resolve(value.split('/')[0]))).rejects.toThrow();
+      }
+    );
+
+    it('treats a trailing slash on ZDOTDIR as the same directory', async () => {
+      process.env.ZDOTDIR = `${zdotdir}${path.sep}`;
+
+      await installer.install('#compdef openspec\n');
+      const result = await installer.uninstall();
+
+      expect(result.message).toContain(`Removed OpenSpec configuration from ${path.join(zdotdir, '.zshrc')}`);
+      expect(await fs.readFile(path.join(zdotdir, '.zshrc'), 'utf-8')).toBe('# my zshrc\n');
+    });
+
+    it('shows ~/.zshrc and cleans it once when ZDOTDIR is the home directory', async () => {
+      process.env.ZDOTDIR = `${testHomeDir}${path.sep}`;
+
+      await installer.install('#compdef openspec\n');
+      const result = await installer.uninstall();
+
+      expect(result.message.match(/Removed OpenSpec configuration from/g)).toHaveLength(1);
+      expect(result.message).toContain('Removed OpenSpec configuration from ~/.zshrc');
+
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+      try {
+        const manual = await installer.install('#compdef openspec\n');
+        expect(manual.instructions!.join('\n')).toContain('add the following to your ~/.zshrc file');
+      } finally {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      }
+    });
   });
 
   describe('uninstall with .zshrc cleanup', () => {
