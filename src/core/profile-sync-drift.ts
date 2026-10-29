@@ -169,7 +169,7 @@ export function hasToolProfileOrDeliveryDrift(
     // Only generated output is drift. Files cleanup keeps (edits, older
     // versions, unreadable entries) stay on disk by design; counting them would
     // re-sync on every update.
-    if (classifyCommandFiles(projectPath, toolId, knownDesiredWorkflows).generated.length > 0) {
+    if (classifyCommandFiles(projectPath, toolId, knownDesiredWorkflows, view).generated.length > 0) {
       return true;
     }
   }

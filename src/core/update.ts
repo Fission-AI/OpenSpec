@@ -500,11 +500,10 @@ export class UpdateCommand {
 
         // Delete command files if delivery is skills-only
         if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
-          const reconciled = await reconcileCommandFiles(
-            resolvedProjectPath,
-            toolId,
-            toolWorkflows
-          );
+          const reconciled = await reconcileCommandFiles(resolvedProjectPath, toolId, toolWorkflows, {
+            view: this.view,
+            remove: (fullPath) => this.ops.removeFile(fullPath, toolId),
+          });
           removedCommandCount += reconciled.removed.length;
           leftCommandFiles.kept.push(...reconciled.kept);
           leftCommandFiles.unchecked.push(...reconciled.unchecked);
@@ -556,9 +555,9 @@ export class UpdateCommand {
       this.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
     }
     for (const [headline, ...detail] of formatKeptCommandFiles(leftCommandFiles)) {
-      console.log(chalk.yellow(headline));
+      this.log(chalk.yellow(headline));
       for (const line of detail) {
-        console.log(chalk.dim(line));
+        this.log(chalk.dim(line));
       }
     }
     if (removedSkillCount > 0) {
