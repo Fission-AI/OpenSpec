@@ -59,8 +59,10 @@ describe('validate: deltas archive would refuse (#1112)', () => {
 
   beforeEach(async () => {
     testDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-preflight-'));
-    changesDir = path.join(testDir, 'openspec', 'changes');
-    mainSpecsDir = path.join(testDir, 'openspec', 'specs');
+    // The project sits one level down, so a link written to testDir leaves it:
+    // a spec link that stays inside the project is allowed, one that leaves is not.
+    changesDir = path.join(testDir, 'repo', 'openspec', 'changes');
+    mainSpecsDir = path.join(testDir, 'repo', 'openspec', 'specs');
     await fs.mkdir(changesDir, { recursive: true });
     await fs.mkdir(mainSpecsDir, { recursive: true });
   });

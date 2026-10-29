@@ -5,12 +5,8 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { runCLI } from '../helpers/run-cli.js';
 
-async function runSchemaCommand(
-  args: string[],
-  schemaModule?: typeof import('../../src/commands/schema.js')
-): Promise<void> {
-  const { registerSchemaCommand } =
-    schemaModule ?? (await import('../../src/commands/schema.js'));
+async function runSchemaCommand(args: string[]): Promise<void> {
+  const { registerSchemaCommand } = await import('../../src/cli/commands/schema.js');
   const program = new Command();
   registerSchemaCommand(program);
   await program.parseAsync(['node', 'openspec', 'schema', ...args]);
@@ -442,10 +438,7 @@ artifacts:
       return { schemaDir, before: snapshotTree(schemaDir) };
     }
 
-    async function runDefaultInit(
-      force: boolean,
-      schemaModule?: typeof import('../../src/commands/schema.js')
-    ): Promise<void> {
+    async function runDefaultInit(force: boolean): Promise<void> {
       await runSchemaCommand(
         [
           'init',
@@ -455,8 +448,7 @@ artifacts:
           'proposal,specs,tasks',
           '--default',
           '--json',
-        ],
-        schemaModule
+        ]
       );
     }
 
@@ -485,6 +477,78 @@ artifacts:
           'utf-8'
         )
       ).toContain('schema: my-workflow');
+    });
+
+    it('names the configured schema while creating the next change (#2117)', async () => {
+      const initialized = await runCLI(
+        [
+          'schema',
+          'init',
+          'my-workflow',
+          '--artifacts',
+          'proposal,specs,tasks',
+          '--default',
+          '--json',
+        ],
+        { cwd: tempDir }
+      );
+      expect(initialized.exitCode).toBe(0);
+
+      const created = await runCLI(['new', 'change', 'progress-schema'], { cwd: tempDir });
+      expect(created.exitCode).toBe(0);
+      expect(created.stderr).toContain("Creating change 'progress-schema' with schema 'my-workflow'");
+      expect(created.stderr).not.toContain("with schema 'spec-driven'");
+      // The announced schema is the one that gets persisted and reported.
+      expect(created.stdout).toContain('Schema: my-workflow');
+      expect(
+        fs.readFileSync(
+          path.join(tempDir, 'openspec', 'changes', 'progress-schema', '.openspec.yaml'),
+          'utf-8'
+        )
+      ).toContain('schema: my-workflow');
+    });
+
+    it('treats an empty --schema as absent in the progress line', async () => {
+      const initialized = await runCLI(
+        [
+          'schema',
+          'init',
+          'my-workflow',
+          '--artifacts',
+          'proposal,specs,tasks',
+          '--default',
+          '--json',
+        ],
+        { cwd: tempDir }
+      );
+      expect(initialized.exitCode).toBe(0);
+
+      // createChange ignores a falsy --schema, so the announced schema is
+      // the configured one, not the empty string.
+      const created = await runCLI(['new', 'change', 'empty-schema', '--schema', ''], {
+        cwd: tempDir,
+      });
+      expect(created.exitCode).toBe(0);
+      expect(created.stderr).toContain("Creating change 'empty-schema' with schema 'my-workflow'");
+      expect(created.stderr).not.toContain("with schema ''");
+      expect(created.stdout).toContain('Schema: my-workflow');
+      expect(
+        fs.readFileSync(
+          path.join(tempDir, 'openspec', 'changes', 'empty-schema', '.openspec.yaml'),
+          'utf-8'
+        )
+      ).toContain('schema: my-workflow');
+    });
+
+    it('reads the project config once while creating a change', async () => {
+      const openspecDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(path.join(openspecDir, 'specs'), { recursive: true });
+      fs.mkdirSync(path.join(openspecDir, 'changes'), { recursive: true });
+      fs.writeFileSync(path.join(openspecDir, 'config.yaml'), 'schema: spec-driven\ncontext: 5\n');
+
+      const created = await runCLI(['new', 'change', 'one-warning'], { cwd: tempDir });
+      expect(created.exitCode).toBe(0);
+      expect(created.stderr.match(/Invalid 'context' field/g)).toHaveLength(1);
     });
 
     it('scaffolds every template with a top-level heading', async () => {
@@ -630,8 +694,7 @@ artifacts:
       const configPath = path.join(tempDir, 'openspec', 'config.yaml');
       const configBytes = Buffer.from('schema: existing\ncontext: keep me\n');
       fs.writeFileSync(configPath, configBytes);
-      const schemaModule = await import('../../src/commands/schema.js');
-      const { schemaInitFileOperations } = schemaModule;
+      const { schemaInitFileOperations } = await import('../../src/commands/schema.js');
       const renameSync = schemaInitFileOperations.renameSync;
       const renameCalls: Array<[string, string]> = [];
       schemaInitFileOperations.renameSync = (source, destination) => {
@@ -643,7 +706,7 @@ artifacts:
       };
 
       try {
-        await runDefaultInit(true, schemaModule);
+        await runDefaultInit(true);
       } finally {
         schemaInitFileOperations.renameSync = renameSync;
       }

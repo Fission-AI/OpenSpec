@@ -434,7 +434,8 @@ function legacyCommandDirForFile(file: string): { toolId: string; dir: string } 
 async function settleLegacyCommandDir(
   projectPath: string,
   dirPath: string,
-  result: CleanupResult
+  result: CleanupResult,
+  ops: LegacyCleanupOps = DIRECT_CLEANUP_OPS
 ): Promise<boolean> {
   const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
   const remaining = await readLegacyCommandDir(fullPath, []);
@@ -442,7 +443,7 @@ async function settleLegacyCommandDir(
     return false;
   }
   if (remaining.others.length === 0) {
-    await fs.rmdir(fullPath);
+    await ops.removeEmptyDirectory(fullPath);
     result.deletedDirs.push(dirPath);
     return true;
   }
@@ -665,9 +666,27 @@ export interface CleanupResult {
  * @param detection - Detection result from detectLegacyArtifacts
  * @returns Cleanup result with summary of actions taken
  */
+/**
+ * Every change cleanup makes on disk. `update --dry-run` passes a recorder, so
+ * the plan comes from this same code rather than a description of it.
+ */
+export interface LegacyCleanupOps {
+  writeFile(filePath: string, content: string): Promise<void>;
+  removeFile(filePath: string): Promise<void>;
+  /** Removes a directory already known to be empty. */
+  removeEmptyDirectory(dirPath: string): Promise<void>;
+}
+
+const DIRECT_CLEANUP_OPS: LegacyCleanupOps = {
+  writeFile: (filePath, content) => FileSystemUtils.writeFile(filePath, content),
+  removeFile: (filePath) => fs.unlink(filePath),
+  removeEmptyDirectory: (dirPath) => fs.rmdir(dirPath),
+};
+
 export async function cleanupLegacyArtifacts(
   projectPath: string,
-  detection: LegacyDetectionResult
+  detection: LegacyDetectionResult,
+  ops: LegacyCleanupOps = DIRECT_CLEANUP_OPS
 ): Promise<CleanupResult> {
   const result: CleanupResult = {
     deletedFiles: [],
@@ -687,7 +706,7 @@ export async function cleanupLegacyArtifacts(
       const content = await FileSystemUtils.readFile(filePath);
       const newContent = removeMarkerBlock(content);
       // Always write the file, even if empty - never delete user config files
-      await FileSystemUtils.writeFile(filePath, newContent);
+      await ops.writeFile(filePath, newContent);
       result.modifiedFiles.push(fileName);
     } catch (error: any) {
       result.errors.push(`Failed to modify ${fileName}: ${error.message}`);
@@ -713,10 +732,10 @@ export async function cleanupLegacyArtifacts(
         if (!(await isGeneratedLegacyCommand(filePath))) {
           continue;
         }
-        await fs.unlink(filePath);
+        await ops.removeFile(filePath);
         deleted.push(name);
       }
-      if (!(await settleLegacyCommandDir(projectPath, dirPath, result))) {
+      if (!(await settleLegacyCommandDir(projectPath, dirPath, result, ops))) {
         result.deletedFiles.push(...deleted.map((name) => `${dirPath}/${name}`));
       }
     } catch (error: any) {
@@ -738,7 +757,7 @@ export async function cleanupLegacyArtifacts(
           continue;
         }
       }
-      await fs.unlink(fullPath);
+      await ops.removeFile(fullPath);
       result.deletedFiles.push(filePath);
     } catch (error: any) {
       result.errors.push(`Failed to delete ${filePath}: ${error.message}`);
@@ -749,7 +768,7 @@ export async function cleanupLegacyArtifacts(
   // file by file above; record what was left in it.
   for (const dirPath of partlyCleanedDirs) {
     try {
-      await settleLegacyCommandDir(projectPath, dirPath, result);
+      await settleLegacyCommandDir(projectPath, dirPath, result, ops);
     } catch (error: any) {
       result.errors.push(`Failed to delete directory ${dirPath}: ${error.message}`);
     }
@@ -766,7 +785,7 @@ export async function cleanupLegacyArtifacts(
     }
 
     try {
-      await fs.unlink(filePath);
+      await ops.removeFile(filePath);
       result.deletedFiles.push(filePath);
       const promptMatch = globalPromptMatchesByPath.get(filePath);
       if (promptMatch?.replacementLabel) {
@@ -782,7 +801,7 @@ export async function cleanupLegacyArtifacts(
     const agentsPath = FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md');
     if (await FileSystemUtils.fileExists(agentsPath)) {
       try {
-        await fs.unlink(agentsPath);
+        await ops.removeFile(agentsPath);
         result.deletedFiles.push('openspec/AGENTS.md');
       } catch (error: any) {
         result.errors.push(`Failed to delete openspec/AGENTS.md: ${error.message}`);
@@ -944,10 +963,10 @@ export function formatDetectionSummary(detection: LegacyDetectionResult): string
   lines.push('as before.');
   lines.push('');
 
-  // Section 1: Files to remove (no user content to preserve)
+  // Section 1: Files to remove entirely
   if (removals.length > 0) {
     lines.push(chalk.bold('Files to remove'));
-    lines.push(chalk.dim('No user content to preserve:'));
+    lines.push(chalk.dim('These files will be deleted entirely. Back up any custom content before proceeding:'));
     for (const { path } of removals) {
       lines.push(`  • ${path}`);
     }
@@ -1185,11 +1204,15 @@ export function formatProjectMdMigrationHint(): string {
   lines.push('  • openspec/project.md');
   lines.push(chalk.dim('    We won\'t delete this file. It may contain useful project context.'));
   lines.push('');
-  lines.push(chalk.dim('    The new openspec/config.yaml has a "context:" section for planning'));
-  lines.push(chalk.dim('    context. This is included in every OpenSpec request and works more'));
-  lines.push(chalk.dim('    reliably than the old project.md approach.'));
+  lines.push(chalk.dim('    Ask your AI assistant:'));
   lines.push('');
-  lines.push(chalk.dim('    Review project.md, move any useful content to config.yaml\'s context'));
-  lines.push(chalk.dim('    section, then delete the file when ready.'));
+  lines.push(chalk.dim('    Review openspec/project.md and migrate its useful content to'));
+  lines.push(chalk.dim('    openspec/config.yaml. Keep context concise: include only project-wide'));
+  lines.push(chalk.dim('    facts needed during artifact creation, apply, and archive. Move'));
+  lines.push(chalk.dim('    artifact-specific guidance into rules for the matching artifacts.'));
+  lines.push(chalk.dim('    Move guidance for apply or archive into the matching operations entry.'));
+  lines.push(chalk.dim('    Leave out generic, outdated, or verbose material. Do not delete project.md.'));
+  lines.push('');
+  lines.push(chalk.dim('    Review config.yaml, then delete project.md when ready.'));
   return lines.join('\n');
 }

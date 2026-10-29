@@ -14,19 +14,32 @@ DONE WHEN:
 
 TODO:
 
-- [ ] Check the Node.js runtime
-- [ ] Install the CLI globally, with the user's confirmation
+- [ ] Install the standalone CLI, with the user's confirmation (npm only as a fallback)
 - [ ] Verify `openspec` is on PATH
 - [ ] Confirm which folder to set up, then run `openspec init --tools <ids>` there
 - [ ] Report what init actually created and how to invoke it
 
-## 1. Runtime
+## 1. Install
 
-Run `node --version`. OpenSpec needs Node.js 20.19.0 or higher. If Node is missing or older, say so and stop, but leave the user with their next move: point them at https://nodejs.org, or if they use a version manager like nvm, name the command that would switch to a newer version. Don't install Node, switch versions, or reconfigure the user's version manager yourself.
+Run `openspec --version` first. If it already prints a version, the CLI is installed: say so, run `openspec version --check` (it prints the update command for how OpenSpec was installed when it can tell; otherwise update it the way it was installed, e.g. `brew upgrade openspec`), offer to run that command, and skip ahead to step 3. If it was installed with npm or another package manager, mention once that `openspec install` switches to the standalone install, which runs without Node.js. Only offer it: the user may have chosen npm on purpose, so don't repeat it or switch unless they ask. Never switch an install to a different method on your own; that leaves two copies competing on PATH.
 
-## 2. Install
+Install the standalone OpenSpec binary. It is a single file and needs no Node.js (on Alpine Linux, `apk add libstdc++ libgcc` first). Show the command for the user's OS and run it only once they confirm, then skip to step 3:
 
-Run `openspec --version` first. If it already prints a version, the CLI is installed: say so, offer to update it with the install command below, and if the user declines skip ahead to step 4.
+```bash
+# macOS / Linux
+curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
+```
+
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
+```
+
+If the user would rather use a package manager, or the installer fails, continue with step 2.
+
+## 2. Package manager (only if step 1 did not install it)
+
+Run `node --version`. Installing with a package manager needs Node.js 20.19.0 or higher. If Node is missing or older, don't install Node, switch versions, or reconfigure the user's version manager yourself; stop and leave them with their next move: https://nodejs.org, or, if they use a version manager like nvm, the command that would switch to a newer version.
 
 Use whichever package manager is already on PATH, preferring npm:
 
@@ -45,7 +58,7 @@ Stop and ask again if the install needs sudo or admin rights, fails with a permi
 
 ## 3. PATH
 
-Run `openspec --version`. If the command isn't found, it may only be missing from this shell: say where the package manager installed it and how to add that directory to PATH for the user's shell and OS, then stop until they confirm. If it prints an older version than the one the install just reported, an earlier copy is shadowing it on PATH; report both versions instead of continuing. If the user uses a version manager, say so rather than editing PATH around it: with nvm or fnm the CLI is tied to the Node version that was active at install time, and with asdf or volta a shim may need regenerating.
+Run `openspec --version`. If the command isn't found, it may only be missing from this shell: say where it was installed (the standalone installer prints the folder, `~/.local/bin` by default; a package manager has its own global bin folder) and how to add that folder to PATH for the user's shell and OS, then stop until they confirm. On Windows the standalone installer adds its folder to the user PATH itself; a new terminal picks it up. If it prints an older version than the one the install just reported, an earlier copy is shadowing it on PATH; report both versions instead of continuing. If the user uses a version manager, say so rather than editing PATH around it: with nvm or fnm the CLI is tied to the Node version that was active at install time, and with asdf or volta a shim may need regenerating.
 
 ## 4. Initialize
 

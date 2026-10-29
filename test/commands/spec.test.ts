@@ -90,6 +90,30 @@ The system SHALL process credit card payments securely`;
       }
     });
 
+    it('names each requirement and scenario in show --json', () => {
+      const originalCwd = process.cwd();
+      try {
+        process.chdir(testDir);
+        const json = JSON.parse(execFileSync('node', [openspecBin, 'show', 'auth', '--type', 'spec', '--json'], {
+          encoding: 'utf-8'
+        }));
+        expect(json.requirements.map((r: any) => r.name)).toEqual(['User Authentication', 'Password Reset']);
+        expect(json.requirements[0].scenarios[0].name).toBe('Successful login');
+
+        const one = JSON.parse(execFileSync('node', [openspecBin, 'show', 'auth', '--type', 'spec', '--json', '-r', '2'], {
+          encoding: 'utf-8'
+        }));
+        expect(one.requirements[0].name).toBe('Password Reset');
+
+        const bare = JSON.parse(execFileSync('node', [openspecBin, 'show', 'auth', '--type', 'spec', '--json', '--no-scenarios'], {
+          encoding: 'utf-8'
+        }));
+        expect(bare.requirements[1].name).toBe('Password Reset');
+      } finally {
+        process.chdir(originalCwd);
+      }
+    });
+
     it('should filter to show only requirements with --requirements flag (JSON only)', () => {
       const originalCwd = process.cwd();
       try {

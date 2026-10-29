@@ -82,7 +82,7 @@ function findMarkerIndex(
 export class FileSystemUtils {
   /**
    * Converts a path to use forward slashes (POSIX style).
-   * Essential for cross-platform compatibility with glob libraries like fast-glob.
+   * Essential for cross-platform compatibility with glob libraries like tinyglobby.
    */
   static toPosixPath(p: string): string {
     return p.replace(/\\/g, '/');
@@ -123,6 +123,33 @@ export class FileSystemUtils {
     if (!this.isPathWithin(canonicalDirectory, canonicalTarget)) {
       throw new Error(`Path is outside the allowed directory: ${targetPath}`);
     }
+  }
+
+  /**
+   * Like assertPathWithin, but a targetPath that is itself a symlink may
+   * resolve outside allowedDirectory, so a project can keep a managed
+   * directory (for example openspec/changes) in another repository. Its parent
+   * must still be confined and the link must resolve to an existing path.
+   */
+  static assertPathWithinAllowingLinkedLeaf(allowedDirectory: string, targetPath: string): void {
+    const resolvedTarget = path.resolve(targetPath);
+    let isLink = false;
+    try {
+      isLink = nodeFs.lstatSync(resolvedTarget).isSymbolicLink();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw error;
+      }
+    }
+
+    if (!isLink) {
+      this.assertPathWithin(allowedDirectory, resolvedTarget);
+      return;
+    }
+
+    this.assertPathWithin(allowedDirectory, path.dirname(resolvedTarget));
+    // Throws for a dangling link, which cannot be proven to be a directory.
+    nodeFs.realpathSync.native(resolvedTarget);
   }
 
   static resolveProjectArtifactPath(projectPath: string, artifactPath: string): string {

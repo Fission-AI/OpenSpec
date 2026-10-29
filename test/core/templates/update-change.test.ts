@@ -55,7 +55,7 @@ const SANCTIONED_OUTSIDE_STEP_FIVE = [
   STEP_FOUR_DRAFT_RULE,
   'that is the starting edit.',
   'Do NOT write to `resolvedOutputPath`',
-  '- Edit only the concrete files in `existingOutputPaths`; never write to a glob `resolvedOutputPath`.',
+  '- Edit only the concrete files in `existingOutputPaths`, plus any confirmed concrete path allowed under a partly populated glob artifact (step 4); never write to a glob `resolvedOutputPath`.',
   'Confirm every edit with the user before writing.',
   '`/opsx:apply`',
   '(tasks checked off / already applied)',
@@ -289,6 +289,49 @@ describe('update-change templates', () => {
       expect(writeGuard, label).toContain('still in scope, not skipped, and partially populated');
       expect(writeGuard, label).toContain('repeat the concrete-path checks above');
       expect(body, label).toContain('stop and reconcile with the user rather than replacing existing content or choosing a different path');
+    }
+  });
+
+  // #2068: the first guardrail read "Edit only the concrete files in
+  // existingOutputPaths", and a file step 4 creates is by definition not in
+  // that list. The exception sat two bullets below, so an agent applying the
+  // blanket rule refused the very operation the glob-gap flow exists to
+  // perform. Every place that states the scope rule has to carry the
+  // exception - a slice of the Guardrails section alone would miss step 2,
+  // which states the same rule two steps before the exception appears.
+  it('carries the glob new-file exception wherever the scope rule is stated (#2068)', () => {
+    for (const [label, body] of bodies) {
+      const scopeLines = body
+        .split('\n')
+        .filter((line) =>
+          /- Edit only the concrete files in `existingOutputPaths`|The files to edit are `artifactPaths/.test(line)
+        );
+      // Both sites: step 2's prose and the Guardrails bullet.
+      expect(scopeLines.length, `${label}: expected both scope-rule sites`).toBe(2);
+
+      for (const line of scopeLines) {
+        expect(line, `${label}: unqualified scope rule: ${line}`).toContain(
+          'any confirmed concrete path allowed under a partly populated glob artifact (step 4)'
+        );
+      }
+
+      // A reword must not be able to restore the unqualified prohibition.
+      expect(body, label).not.toMatch(/existingOutputPaths`;\s*never write to a glob/);
+      expect(body, label).not.toMatch(/existingOutputPaths` - the concrete files that exist on disk[^.]*\.\s*Do NOT write/);
+
+      // The prohibition itself and the frontier rule must survive the fix.
+      const guardrails = body.slice(body.indexOf('**Guardrails**'));
+      expect(guardrails, label).toContain('never write to a glob `resolvedOutputPath`');
+      expect(guardrails, label).toContain(
+        'The only new-file scope is a confirmed concrete path under a glob artifact whose `existingOutputPaths` is non-empty.'
+      );
+
+      // "(step 4)" is a cross-reference; pin that step 4 is still the step
+      // that owns the confirmation and the path checks, so renumbering or
+      // moving the flow cannot leave a dangling pointer.
+      const stepFour = section(body, '4. **Read and reconcile**', '5. **Confirm and apply', `${label} step 4`);
+      expect(stepFour, label).toContain('whose `existingOutputPaths` is non-empty');
+      expect(stepFour, label).toContain('create it only after the user confirms');
     }
   });
 

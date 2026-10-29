@@ -946,7 +946,8 @@ ${OPENSPEC_MARKERS.end}`);
       expect(summary).toContain('Files to update');
       expect(summary).toContain('• CLAUDE.md');
       // Should NOT be in removals
-      expect(summary).not.toContain('No user content to preserve');
+      expect(summary).not.toContain('Files to remove');
+      expect(summary).not.toContain('Back up any custom content');
     });
 
     it('should format files to be updated', () => {
@@ -985,6 +986,7 @@ ${OPENSPEC_MARKERS.end}`);
       const summary = formatDetectionSummary(detection);
       expect(summary).toContain('Files to remove');
       expect(summary).toContain('• .claude/commands/openspec/');
+      expect(summary).toContain('These files will be deleted entirely. Back up any custom content before proceeding:');
     });
 
     it('should format slash command files', () => {
@@ -1003,9 +1005,10 @@ ${OPENSPEC_MARKERS.end}`);
       const summary = formatDetectionSummary(detection);
       expect(summary).toContain('Files to remove');
       expect(summary).toContain('• .cursor/commands/openspec-proposal.md');
+      expect(summary).toContain('These files will be deleted entirely. Back up any custom content before proceeding:');
     });
 
-    it('should format openspec/AGENTS.md', () => {
+    it('should warn that openspec/AGENTS.md will be deleted entirely without claiming it has no user content', () => {
       const detection = {
         configFiles: [],
         configFilesToUpdate: [],
@@ -1021,6 +1024,8 @@ ${OPENSPEC_MARKERS.end}`);
       const summary = formatDetectionSummary(detection);
       expect(summary).toContain('Files to remove');
       expect(summary).toContain('• openspec/AGENTS.md');
+      expect(summary).toContain('These files will be deleted entirely. Back up any custom content before proceeding:');
+      expect(summary).not.toContain('No user content to preserve');
     });
 
     it('should include attention section for project.md', () => {
@@ -1041,7 +1046,8 @@ ${OPENSPEC_MARKERS.end}`);
       expect(summary).toContain('• openspec/project.md');
       expect(summary).toContain('won\'t delete this file');
       expect(summary).toContain('config.yaml');
-      expect(summary).toContain('"context:"');
+      expect(summary).toContain('Ask your AI assistant');
+      expect(summary).toContain('rules for the matching artifacts');
     });
 
     it('should include attention section with other legacy artifacts', () => {
@@ -1143,19 +1149,26 @@ ${OPENSPEC_MARKERS.end}`);
       expect(hint).toContain('openspec/project.md');
       expect(hint).toContain('won\'t delete this file');
       expect(hint).toContain('config.yaml');
-      expect(hint).toContain('"context:"');
+      expect(hint).toContain('Ask your AI assistant');
     });
 
-    it('should include actionable instructions', () => {
+    it('should include a pasteable AI-assisted migration request', () => {
       const hint = formatProjectMdMigrationHint();
-      expect(hint).toContain('move any useful content');
-      expect(hint).toContain('delete the file when ready');
+      expect(hint).toContain('Review openspec/project.md');
+      expect(hint).toContain('migrate its useful content to');
+      expect(hint).toContain('Do not delete project.md');
+      expect(hint).toContain('Review config.yaml, then delete project.md when ready');
     });
 
-    it('should explain the new context section benefits', () => {
+    it('should guide the agent to distill and route the content', () => {
       const hint = formatProjectMdMigrationHint();
-      expect(hint).toContain('included in every OpenSpec request');
-      expect(hint).toContain('reliably');
+      expect(hint).toContain('Keep context concise');
+      expect(hint).toContain('only project-wide');
+      expect(hint).toContain('artifact creation, apply, and archive');
+      expect(hint).toContain('rules for the matching artifacts');
+      expect(hint).toContain('matching operations entry');
+      expect(hint).toContain('Leave out generic');
+      expect(hint).toContain('outdated, or verbose material');
     });
   });
 

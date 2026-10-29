@@ -1,9 +1,9 @@
 import { afterAll, describe, it, expect } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, realpathSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 import { execFileSync } from 'node:child_process';
-import { runCLI, cliProjectRoot } from '../helpers/run-cli.js';
+import { runCLI, cliProjectRoot, testBinary } from '../helpers/run-cli.js';
 import { isolatedGitEnv } from '../helpers/store-git.js';
 import { AI_TOOLS } from '../../src/core/config.js';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
@@ -70,7 +70,8 @@ describe('openspec CLI e2e basics', () => {
     const specs = await runCLI(['list', '--specs'], { cwd: cloneDir, env });
     expect(specs.exitCode).toBe(0);
     expect(specs.stdout).toContain('No specs found.');
-  });
+    // Seven subprocesses (3 CLI, 4 git): ~2.6s on the Windows runner, past 10s under load.
+  }, 60_000);
 
   it('shows help output', async () => {
     const result = await runCLI(['--help']);
@@ -102,6 +103,78 @@ describe('openspec CLI e2e basics', () => {
     expect(result.stdout.trim()).toBe(pkg.version);
   });
 
+  describe('version command', () => {
+    // From this checkout the CLI is a source install; the binary knows it is one.
+    const scope = testBinary ? 'standalone' : 'source';
+    const installRoot = testBinary ? path.dirname(testBinary) : cliProjectRoot;
+
+    it('reports local version and source install details outside an OpenSpec project', async () => {
+      const cwd = await fs.mkdtemp(path.join(tmpdir(), 'openspec-version-empty-'));
+      tempRoots.push(cwd);
+      const pkgRaw = await fs.readFile(path.join(cliProjectRoot, 'package.json'), 'utf-8');
+      const pkg = JSON.parse(pkgRaw);
+
+      const result = await runCLI(['version'], { cwd });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toBe(`OpenSpec ${pkg.version} (${scope})\n`);
+      expect(result.stderr).toBe('');
+    });
+
+    it('prints one schema-versioned JSON document without checking the network', async () => {
+      const result = await runCLI(['version', '--json']);
+
+      expectJsonOnlyOutput(result);
+      expect(result.stdout).not.toMatch(/\u001b\[/);
+      const output = JSON.parse(result.stdout);
+      expect(output).toEqual({
+        schemaVersion: 1,
+        version: expect.any(String),
+        install: {
+          location: expect.any(String),
+          packageManager: null,
+          scope,
+        },
+      });
+      expect(await fs.realpath(output.install.location)).toBe(await fs.realpath(installRoot));
+    });
+
+    it('reports a disabled update check as data and exits successfully', async () => {
+      const result = await runCLI(['version', '--check', '--json'], {
+        env: { OPENSPEC_NO_UPDATE_CHECK: '1' },
+      });
+
+      expectJsonOnlyOutput(result);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        schemaVersion: 1,
+        update: {
+          status: 'disabled',
+          latest: null,
+          command: null,
+          canSelfUpgrade: false,
+        },
+      });
+    });
+
+    it('renders the disabled check for people', async () => {
+      const result = await runCLI(['version', '--check'], {
+        env: { OPENSPEC_NO_UPDATE_CHECK: '1' },
+      });
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toMatch(new RegExp(`^OpenSpec \\S+ \\(${scope}\\)\\nUpdate check disabled\\.\\n$`));
+      expect(result.stderr).toBe('');
+    });
+
+    it('rejects upgrades without invoking a package manager', async () => {
+      const result = await runCLI(['version', '--upgrade']);
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toBe('');
+      expect(result.stderr).toContain("error: unknown option '--upgrade'");
+    });
+  });
+
   it('validates the tmp-init fixture with --all --json', async () => {
     const projectDir = await prepareFixture('tmp-init');
     const result = await runCLI(['validate', '--all', '--json'], { cwd: projectDir });
@@ -117,6 +190,90 @@ describe('openspec CLI e2e basics', () => {
     const projectDir = await prepareFixture('tmp-init');
     const result = await runCLI(['list', '--json'], { cwd: projectDir });
     expectJsonOnlyOutput(result);
+  });
+
+  it.each([
+    { flags: ['--archived'], active: false },
+    { flags: ['--all'], active: true },
+    { flags: ['--archived', '--all'], active: true },
+  ])('lists archive entries as JSON with $flags', async ({ flags, active }) => {
+    const projectDir = await prepareFixture('tmp-init');
+    const archiveName = '2026-08-27-shipped';
+    const archiveDir = path.join(projectDir, 'openspec', 'changes', 'archive', archiveName);
+    await fs.mkdir(archiveDir, { recursive: true });
+    await fs.writeFile(path.join(archiveDir, 'tasks.md'), '- [x] Done\n- [ ] Deferred\n');
+
+    const result = await runCLI(['list', ...flags, '--sort', 'name', '--json'], { cwd: projectDir });
+
+    expectJsonOnlyOutput(result);
+    const output = JSON.parse(result.stdout);
+    expect(output.changes).toContainEqual(expect.objectContaining({
+      name: archiveName,
+      archived: true,
+      completedTasks: 1,
+      totalTasks: 2,
+      status: 'in-progress',
+    }));
+    expect(output.changes.some((change: { archived: boolean }) => !change.archived)).toBe(active);
+    expect(output.changes.map((change: { name: string }) => change.name)).toEqual(
+      output.changes.map((change: { name: string }) => change.name).sort((a: string, b: string) => a.localeCompare(b))
+    );
+    expect(realpathSync.native(output.root.path)).toBe(realpathSync.native(projectDir));
+  });
+
+  it.skipIf(process.platform === 'win32')('lists a change after archive leaves its relative notes link dangling', async () => {
+    const projectDir = await prepareFixture('tmp-init');
+    const changeName = '2026-08-28-linked-notes';
+    const changesDir = path.join(projectDir, 'openspec', 'changes');
+    const changeDir = path.join(changesDir, changeName);
+    await fs.mkdir(changeDir);
+    await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Done\n');
+    await fs.writeFile(path.join(changesDir, 'reference.md'), 'Shared notes\n');
+    await fs.symlink(path.join('..', 'reference.md'), path.join(changeDir, 'notes.md'));
+
+    const before = await runCLI(['list', '--json'], { cwd: projectDir });
+    expectJsonOnlyOutput(before);
+    const archived = await runCLI(['archive', changeName, '--skip-specs', '--yes'], { cwd: projectDir });
+    expect(archived.exitCode, archived.stderr).toBe(0);
+    const archivedNotes = path.join(changesDir, 'archive', changeName, 'notes.md');
+    expect((await fs.lstat(archivedNotes)).isSymbolicLink()).toBe(true);
+    await expect(fs.stat(archivedNotes)).rejects.toMatchObject({ code: 'ENOENT' });
+
+    const result = await runCLI(['list', '--archived', '--json'], { cwd: projectDir });
+
+    expectJsonOnlyOutput(result);
+    expect(JSON.parse(result.stdout).changes).toContainEqual(expect.objectContaining({
+      name: changeName, archived: true, completedTasks: 1, totalTasks: 1
+    }));
+  });
+
+  it.each(['--archived', '--all'])('rejects --specs with %s as a JSON error', async (flag) => {
+    const projectDir = await prepareFixture('tmp-init');
+    const result = await runCLI(['list', '--specs', flag, '--json'], { cwd: projectDir });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toBe('');
+    const output = JSON.parse(result.stdout);
+    expect(output.specs).toEqual([]);
+    expect(output.status).toEqual([expect.objectContaining({
+      severity: 'error',
+      code: 'list_error',
+      message: '--archived and --all can only be used when listing changes.',
+    })]);
+  });
+
+  it.each(['archive', ''])('reports malformed changes/%s as an error instead of an empty JSON list', async (entry) => {
+    const projectDir = await prepareFixture('tmp-init');
+    const malformedPath = path.join(projectDir, 'openspec', 'changes', entry);
+    await fs.rm(malformedPath, { recursive: true, force: true });
+    await fs.writeFile(malformedPath, 'not a directory\n');
+
+    const result = await runCLI(['list', '--archived', '--json'], { cwd: projectDir });
+
+    expect(result.exitCode).toBe(1);
+    const output = JSON.parse(result.stdout);
+    expect(output.changes).toEqual([]);
+    expect(output.status).toEqual([expect.objectContaining({ severity: 'error', code: 'list_error' })]);
   });
 
   describe('legacy change list compatibility', () => {

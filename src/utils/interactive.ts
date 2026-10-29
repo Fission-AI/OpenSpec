@@ -176,3 +176,22 @@ function readYesNo(
   });
 }
 
+/**
+ * Whether a spinner can safely render to `stream`.
+ *
+ * ora decides how many lines to erase with `ceil(width / stream.columns)`, so a
+ * TTY that reports zero columns makes that count `Infinity` and `clear()` never
+ * ends: the spinner emits cursor-up/clear-line escapes as fast as it can and the
+ * command never finishes (#2106). Zero-width TTYs are real — a pty inherited
+ * from a pre-commit runner such as lefthook, or `script -qec` — and nothing can
+ * be drawn in zero columns anyway, so refuse the spinner and let the caller fall
+ * back to its plain output.
+ */
+export function canRenderSpinner(
+  stream: { isTTY?: boolean; columns?: number } = process.stderr
+): boolean {
+  // A non-TTY stream never enters the clear loop: ora disables itself and
+  // prints one plain line instead.
+  if (!stream.isTTY) return true;
+  return (stream.columns ?? 0) > 0;
+}

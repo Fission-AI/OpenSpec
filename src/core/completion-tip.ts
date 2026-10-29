@@ -22,7 +22,6 @@ import { getGlobalConfigPath } from './global-config.js';
 import { writeFileAtomically } from './file-state.js';
 import { isCiEnvironment } from '../utils/ci.js';
 import { detectShell } from '../utils/shell-detection.js';
-import { CompletionFactory } from './completions/factory.js';
 
 export const COMPLETION_TIP_MESSAGE =
   "Tip: Run 'openspec completion install' for shell completions";
@@ -67,6 +66,9 @@ async function decideTip(): Promise<'show' | 'retire'> {
     if (!shell) {
       return 'retire';
     }
+    // Loaded only here: every shell's generator and installer, needed only on
+    // the rare run that still owes the tip.
+    const { CompletionFactory } = await import('./completions/factory.js');
     return (await CompletionFactory.createInstaller(shell).isInstalled())
       ? 'retire'
       : 'show';
@@ -87,7 +89,7 @@ async function decideTip(): Promise<'show' | 'retire'> {
  * Returns null when the file exists but cannot be read or parsed — a config we
  * cannot understand is left strictly alone rather than overwritten.
  */
-function readRawConfig(): Record<string, unknown> | null {
+export function readRawConfig(): Record<string, unknown> | null {
   const configPath = getGlobalConfigPath();
   if (!fs.existsSync(configPath)) {
     return {};
@@ -109,7 +111,7 @@ function readRawConfig(): Record<string, unknown> | null {
  * write down to this one key, and the rename keeps a reader from ever seeing a
  * half-written config.
  */
-async function markTipSeen(): Promise<void> {
+export async function markConfigFlag(key: string): Promise<void> {
   const configPath = getGlobalConfigPath();
   const current = readRawConfig() ?? {};
 
@@ -118,7 +120,7 @@ async function markTipSeen(): Promise<void> {
   // is both guessable and world-readable once renamed over the config.
   await writeFileAtomically(
     configPath,
-    JSON.stringify({ ...current, completionTipSeen: true }, null, 2) + '\n'
+    JSON.stringify({ ...current, [key]: true }, null, 2) + '\n'
   );
 }
 
@@ -147,7 +149,7 @@ export async function maybeShowCompletionTip(
 
     // Record before printing: if the flag cannot be persisted, staying quiet
     // beats reprinting the tip on every future run.
-    await markTipSeen();
+    await markConfigFlag('completionTipSeen');
     if (decision === 'show') {
       console.error(`\n${COMPLETION_TIP_MESSAGE}`);
     }

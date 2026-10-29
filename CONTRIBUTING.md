@@ -2,26 +2,38 @@
 
 Thanks for helping improve OpenSpec.
 
-## 1. Open a discussion or an issue first
+Every contribution starts with a GitHub issue. We discuss the problem there, and if we agree to pursue it, a maintainer implements the change or invites you to build it with us. Pull requests come from maintainers and invited contributors. [An Update to OpenSpec's Contribution Policy](https://openspec.dev/blog/openspec-contribution-policy/) explains why.
 
-Every change starts here, including small ones.
+## 1. Open an issue
 
-- [Start a discussion](https://github.com/Fission-AI/OpenSpec/discussions) if it affects OpenSpec's core design.
-- [Open an issue](https://github.com/Fission-AI/OpenSpec/issues) for bugs and everything else.
+[Pick a form](https://github.com/Fission-AI/OpenSpec/issues/new/choose): bug, feature, or docs.
 
-This is so we can agree on the approach before you spend time building. PRs without a linked issue or a prior discussion may be closed.
+- **Bug:** what you were trying to do, what happened, what you expected, and the shortest steps that reproduce it from a fresh project. Error messages, logs, and a minimal example help most. We can't fix what we can't reproduce.
+- **Agent behavior:** say which agent and model you used, and attach a session trace if you have one. Which files the agent read, which tools it called, and whether the behavior repeats across sessions is usually what narrows it down.
+- **Feature:** describe the problem, who else it affects, what you tried instead, and whether the added complexity is worth maintaining. You don't need a solution; sometimes the behavior you hit is a deliberate trade-off, and that is what we want to talk about.
 
-## 2. Decide whether it needs a change proposal
+From a project you're working in, `openspec feedback "what happened"` files a bug for you with your version and platform filled in, or hands you a prefilled form link.
 
-A bug fix, a typo, or a small improvement goes straight to a PR.
+If an agent drafts the issue, read it through and make it yours. We don't expect you to have all the answers, but we do want the issue to show that you have considered the problem.
 
-A new feature, a significant refactor, or anything that changes OpenSpec's architecture needs an OpenSpec change proposal first, so we can align on intent and goals before implementation begins. Open it as a PR containing only `openspec/changes/<name>/` and wait for it to be approved before you write the code.
+## 2. We discuss it on the issue
 
-When writing a proposal, keep the OpenSpec philosophy in mind: we serve a wide variety of users across different coding agents, models, and use cases. Changes should work well for everyone.
+We work out the problem, the possible approaches, and whether it fits OpenSpec's priorities. OpenSpec runs across many agents, models, and workflows, so a change that helps one workflow can break another.
 
-If you are not sure which side of the line your change falls on, ask in the discussion or issue from step 1.
+If we agree to pursue it, a maintainer adds the `approved` label and then either implements it or invites you to build it with us. Say on the issue if you would like to write the fix. We can't promise to take on every suggestion.
 
-## 3. Make your change
+Opening pull requests is limited to maintainers, so wait for an invitation on the issue before you start one.
+
+## 3. Open the PR (invited contributors and maintainers)
+
+**Bug or docs:** one PR with the fix. Write `Closes #123` in the description. It shouldn't change `openspec/`, since specs are for features.
+
+**Feature:** two PRs, once we've agreed on the change in the issue.
+
+1. **Proposal:** only `openspec/changes/<name>/`. Write `Part of #123`, so the issue stays open.
+2. **Implementation:** after the proposal merges, the code plus updates to that change, such as checking off its `tasks.md`. Write `Closes #123`.
+
+## Development setup
 
 You need Node 20.19+ and pnpm.
 
@@ -37,11 +49,19 @@ Those four commands are what CI runs, so a green local run means a green CI run.
 
 Run `pnpm changeset` if your change affects users, and commit the file it generates.
 
-## 4. Open the PR
+### Keep the CLI's startup fast
+
+Editors, agents and OpenSpec Desktop run the CLI many times, and each call pays for every module it loads before the command runs. Before this rule, `openspec --version` loaded 485 modules: about 0.5 s per call on a Windows machine. So a command loads only the command definitions and its own code:
+
+- **Definitions** (name, options, help text) go in `src/cli/index.ts` or `src/cli/commands/<name>.ts`. Import nothing heavy there: no zod, yaml, tinyglobby, ora, and no other command's code.
+- **The command's code** goes in `src/commands/<name>.ts` or `src/core/`, loaded inside the action with `await import()`.
+
+`test/cli-e2e/startup-modules.test.ts` checks which modules each command loads, and fails if a definition starts pulling in an implementation. When you add a command, add it to that test's list.
+
+## PR checklist
 
 - Branch off `main` in your fork.
 - Title it as a conventional commit: `type(scope): subject`, for example `fix(archive): keep authored Purpose`.
-- Link what you opened in step 1: `Closes #123` for an issue, or a link to the discussion when there is no issue.
 - If a coding agent wrote the code, say which agent and model, and confirm you tested it. AI-generated code is welcome when it has been verified.
 
 Maintainers are listed in [MAINTAINERS.md](MAINTAINERS.md).

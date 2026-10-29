@@ -292,11 +292,11 @@ describe('an unparseable global config', () => {
   });
 
   describe('openspec config', () => {
-    let registerConfigCommand: typeof import('../../src/commands/config.js').registerConfigCommand;
+    let registerConfigCommand: typeof import('../../src/cli/commands/config.js').registerConfigCommand;
 
     // Imported once: the command module pulls in most of the CLI.
     beforeAll(async () => {
-      ({ registerConfigCommand } = await import('../../src/commands/config.js'));
+      ({ registerConfigCommand } = await import('../../src/cli/commands/config.js'));
     }, 60_000);
 
     async function runConfig(args: string[]): Promise<void> {

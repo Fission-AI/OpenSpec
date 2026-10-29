@@ -53,6 +53,32 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'force',
         description: 'Force update even when tools are up to date',
       },
+      {
+        name: 'dry-run',
+        description: 'Report what the update would change without writing anything',
+      },
+      {
+        name: 'json',
+        description: 'With --dry-run, print the planned changes as JSON',
+      },
+    ],
+  },
+  {
+    name: 'install',
+    description: 'Install the standalone openspec, which runs without Node.js (latest release unless [version] is given)',
+    acceptsPositional: true,
+    positionals: [{ name: 'version', optional: true }],
+    flags: [],
+  },
+  {
+    name: 'version',
+    description: 'Report the installed OpenSpec version and update availability',
+    flags: [
+      COMMON_FLAGS.json,
+      {
+        name: 'check',
+        description: 'Check the registry for a newer version',
+      },
     ],
   },
   {
@@ -66,6 +92,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       {
         name: 'changes',
         description: 'List changes explicitly (default)',
+      },
+      {
+        name: 'archived',
+        description: 'Show only archived changes',
+      },
+      {
+        name: 'all',
+        description: 'Show both active and archived changes',
       },
       {
         name: 'sort',

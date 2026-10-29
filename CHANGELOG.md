@@ -1,5 +1,192 @@
 # @fission-ai/openspec
 
+## 1.15.0
+
+### Minor Changes
+
+- [#2137](https://github.com/Fission-AI/OpenSpec/pull/2137) [`31c6d1c`](https://github.com/Fission-AI/OpenSpec/commit/31c6d1c43468754332d1ab16de6dff1e1e92419c) Thanks [@clay-good](https://github.com/clay-good)! - OpenSpec now installs as a single file with no Node.js needed: `curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh` on macOS and Linux, or `irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex` on Windows. Every release now includes binaries for macOS, Linux (glibc and musl) and Windows on x64 and arm64, with `SHA256SUMS`. npm and the other package managers keep working as before.
+
+- [#2109](https://github.com/Fission-AI/OpenSpec/pull/2109) [`c230424`](https://github.com/Fission-AI/OpenSpec/commit/c2304240c5b671d86eb6756743ab921fe20270e1) Thanks [@clay-good](https://github.com/clay-good)! - Add `openspec update --dry-run` (with `--json`) to report the files an update would add, change or delete without writing anything.
+
+### Patch Changes
+
+- [#2044](https://github.com/Fission-AI/OpenSpec/pull/2044) [`f988c52`](https://github.com/Fission-AI/OpenSpec/commit/f988c526edfe9748ced5d18512976974ac10e089) Thanks [@clay-good](https://github.com/clay-good)! - `openspec feedback` now files issues that match the bug form: the body uses the form's headings and spells out the missing repro steps, and the manual-submission link opens the bug form itself with the message, version, and environment prefilled.
+
+- [#2116](https://github.com/Fission-AI/OpenSpec/pull/2116) [`15b3b50`](https://github.com/Fission-AI/OpenSpec/commit/15b3b50f15dc7210b2ae6189b5d76f74fd528b0f) Thanks [@surlymochan](https://github.com/surlymochan)! - Commands run with `--json` start a little faster. `status`, `instructions`, `new change`, `templates`, `validate` and `schema` no longer load the `ora` spinner package when they are run with `--json`, which never shows a spinner. `openspec status --json` now loads 163 modules instead of 186. Output is unchanged.
+
+- [#2120](https://github.com/Fission-AI/OpenSpec/pull/2120) [`832e2cf`](https://github.com/Fission-AI/OpenSpec/commit/832e2cf836b8c8cdefa2f5e500145bd55323ea06) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
+  
+  - `openspec new change` no longer announces `with schema 'spec-driven'` in its progress line when `openspec/config.yaml` selects a different schema; the progress line now names the same schema the change is created with.
+
+- [#2114](https://github.com/Fission-AI/OpenSpec/pull/2114) [`6b15619`](https://github.com/Fission-AI/OpenSpec/commit/6b15619931472f4b6bf9c91cafd4c76bd72d72b5) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
+  
+  - `/opsx:verify` now matches a REMOVED requirement's baseline by its exact name. After a sync, a similarly named ADDED requirement that replaced it is no longer read as the removed one, so the removal is not reported as still implemented.
+
+## 1.14.3
+
+### Patch Changes
+
+- [#2101](https://github.com/Fission-AI/OpenSpec/pull/2101) [`87a69a2`](https://github.com/Fission-AI/OpenSpec/commit/87a69a2bf8eb3315a8c042d001520eb7766ab580) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **Symlinked spec files no longer refused** — `list --specs`, `show`, `validate` and `archive` no longer error out when `openspec/specs/<capability>/spec.md` is a symlink inside the project. Symlinked layouts are not officially supported. A link that resolves outside the project is still refused.
+
+- [#2103](https://github.com/Fission-AI/OpenSpec/pull/2103) [`e33245d`](https://github.com/Fission-AI/OpenSpec/commit/e33245d22ba6f994596a1747baf17130fe04515d) Thanks [@surlymochan](https://github.com/surlymochan)! - ### Bug Fixes
+  
+  - Installing OpenSpec no longer pulls in the unpatched `braces` package, so a consumer audit does not report GHSA-vfj7-8cjw-p6xm through this package. A `generates` brace pattern that nests deeply, or expands to more than 1024 paths, is now rejected with a clear message instead of crashing `openspec status` with a stack overflow or an out-of-memory error.
+
+- [#2104](https://github.com/Fission-AI/OpenSpec/pull/2104) [`276d015`](https://github.com/Fission-AI/OpenSpec/commit/276d015090965791d8be3d02daf6bfd71de884c3) Thanks [@CRYPTONIKAV](https://github.com/CRYPTONIKAV)! - Keep glob artifact paths inside the change directory in the propose, ff-change and continue-change workflows
+
+- [#2108](https://github.com/Fission-AI/OpenSpec/pull/2108) [`5251f2e`](https://github.com/Fission-AI/OpenSpec/commit/5251f2ef5e9e83eac68dd6950091928c4324b127) Thanks [@clay-good](https://github.com/clay-good)! - Stop `openspec validate --all` hanging on a zero-width TTY. Some hosts hand the
+  process a terminal that reports `columns === 0` — a pty inherited from a
+  pre-commit runner such as lefthook, or `script -qec`. ora computes how many
+  lines to erase as `ceil(width / columns)`, so zero columns makes that count
+  `Infinity` and the clear loop never ends: the command burned a core and wrote
+  hundreds of megabytes of cursor escapes without finishing. The spinner is now
+  skipped when nothing can be drawn, and validate falls back to its plain output.
+  `OPEN_SPEC_INTERACTIVE=0` and `CI` now disable the spinner too, the same way
+  `--no-interactive` already did.
+
+- [#2110](https://github.com/Fission-AI/OpenSpec/pull/2110) [`c9a8ade`](https://github.com/Fission-AI/OpenSpec/commit/c9a8adef5021e9793ed9e104f65834fce0fb16cb) Thanks [@clay-good](https://github.com/clay-good)! - Preview the built docs site with a first-party static server instead of `serve`.
+  `pnpm start` in `website/` now runs `scripts/preview.mjs`, a dependency-free
+  server that resolves routes in a Next static export (it does not apply
+  `out/_redirects`). This
+  drops the `serve` dev dependency whose transitive tree kept publishing
+  advisories (brace-expansion x3, fast-uri, compression) that had to be pinned by
+  hand even though none of that code ever reached the published site.
+
+## 1.14.2
+
+### Patch Changes
+
+- [#2052](https://github.com/Fission-AI/OpenSpec/pull/2052) [`90c95c2`](https://github.com/Fission-AI/OpenSpec/commit/90c95c2a235e0d4088006a879c19cd1febff2a9e) Thanks [@drakeo338](https://github.com/drakeo338)! - ### Bug Fixes
+  
+  - **Archive no longer refuses a symlinked `openspec/`, `openspec/changes` or `openspec/specs`** — `openspec archive` no longer errors out when one of these is a project-owned symlink to another directory. Symlinked layouts are not officially supported. An `archive/` directory that resolves outside the changes directory is still refused.
+
+- [#2061](https://github.com/Fission-AI/OpenSpec/pull/2061) [`7acf282`](https://github.com/Fission-AI/OpenSpec/commit/7acf282050c0b2a27bd18f30c48fbcc0986bfc45) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **Guard against deeply nested brace patterns** — An artifact `generates` or `apply.tracks` pattern that nests braces or parentheses more than 16 levels deep is now rejected with a clear error before glob matching, so a schema cannot overflow the stack through the unpatched `braces` advisory GHSA-vfj7-8cjw-p6xm.
+
+- [#2086](https://github.com/Fission-AI/OpenSpec/pull/2086) [`9cb5ba8`](https://github.com/Fission-AI/OpenSpec/commit/9cb5ba8cec4bc47227dcac4974a74b4adf1819f6) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **Explore no longer offers to write default-schema files under a custom schema** — The explore workflow's "where to capture" table and example offers now say they describe the default spec-driven schema. With another schema, the agent captures each insight in an artifact that schema defines, names it in the offer, and never creates a file such as `design.md` that the schema does not have.
+
+- [#2064](https://github.com/Fission-AI/OpenSpec/pull/2064) [`76d49a1`](https://github.com/Fission-AI/OpenSpec/commit/76d49a1d8176ad2bdb3696e29c4ffe222402f2da) Thanks [@ryandemelo](https://github.com/ryandemelo)! - Shell Tab completion is faster. `openspec __complete`, which the completion scripts run on every Tab press, now loads 48 modules instead of 344 when completing changes or specs, and no longer records usage, so a press never waits on the telemetry request and can't use up the first-run telemetry notice where nobody sees it. Completion output is unchanged.
+
+- [#2083](https://github.com/Fission-AI/OpenSpec/pull/2083) [`3fea2a9`](https://github.com/Fission-AI/OpenSpec/commit/3fea2a96b2e04e01097f4617573734c47a57589b) Thanks [@clay-good](https://github.com/clay-good)! - The update workflow now states the glob new-file exception at both places that state the scope rule (step 2 and the guardrails), not only where the rule is restated. It said to edit only the concrete files in `existingOutputPaths`, while the file step 4 creates to fill a gap under a partly written glob artifact is by definition not in that list, so an agent applying the blanket rule refused the operation the flow exists to perform.
+
+- [#2083](https://github.com/Fission-AI/OpenSpec/pull/2083) [`3fea2a9`](https://github.com/Fission-AI/OpenSpec/commit/3fea2a96b2e04e01097f4617573734c47a57589b) Thanks [@clay-good](https://github.com/clay-good)! - The verify workflow now reads a REMOVED requirement's baseline from the main spec before searching the codebase for it. A REMOVED delta block carries only the requirement name plus its Reason and Migration notes, so the search started from the heading alone - and because finding nothing is the passing result for a removal, an implementation written in different vocabulary read as a clean removal. When the baseline cannot be recovered from the main spec or that file's history - including a baseline that only restates its own title - Spec Coverage is now reported as not verified for that entry and the search is skipped, instead of passing.
+
+- [#2054](https://github.com/Fission-AI/OpenSpec/pull/2054) [`1bce87f`](https://github.com/Fission-AI/OpenSpec/commit/1bce87f858c2591b2cb58108597ae6f0a9bb5d7c) Thanks [@runsonmypc](https://github.com/runsonmypc)! - `openspec validate` and `openspec archive` now warn when a delta spec holds text archive does not carry into the main spec: a `## ` section other than Purpose and the four delta sections, text above the first `## ` header, or prose before the first requirement in ADDED or MODIFIED. That text was dropped without notice before. Like other validation warnings, these fail `openspec validate --strict`. What archive carries is unchanged.
+
+- [#2063](https://github.com/Fission-AI/OpenSpec/pull/2063) [`e0a2f00`](https://github.com/Fission-AI/OpenSpec/commit/e0a2f00f95731af7cf22a30c2c4a8b7ff910b509) Thanks [@gkinter](https://github.com/gkinter)! - Keys in a change's `.openspec.yaml` that start with a lowercase `x-` (for example `x-goal: G-12` or `x-jiraKey`) are now treated as your own extension metadata: OpenSpec no longer reports them as unknown, so `openspec validate --strict` passes on a change that carries them. Any other unrecognized key, including `X-Tracker` or a bare `x-`, is still reported.
+
+## 1.14.1
+
+### Patch Changes
+
+- [#2047](https://github.com/Fission-AI/OpenSpec/pull/2047) [`7358306`](https://github.com/Fission-AI/OpenSpec/commit/73583067dd6d5e774a2567741e37b2ccc3334395) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **Apply no longer calls a change ready to archive too early** — When every tracked task is checked, `openspec instructions apply` now says the tracked tasks are complete and asks you to review or verify the change before archiving. The task guidance keeps steps that can only happen after archive in an optional `## Workflow follow-up` section of plain bullets, so they no longer block task completion.
+  - **Accurate archive cleanup errors** — When a change is archived but cleaning up a capability retirement fails, the error now says the change was archived and cleanup did not complete, instead of claiming every backup was kept. `--json` reports the new code `archive_retirement_cleanup_failed` instead of the generic `archive_error`.
+
+- [#2025](https://github.com/Fission-AI/OpenSpec/pull/2025) [`bfa670e`](https://github.com/Fission-AI/OpenSpec/commit/bfa670eda91c6cd998d42248ceab2b565db932ff) Thanks [@TabishB](https://github.com/TabishB)! - The CLI starts faster: each command now loads its implementation only when it runs. `openspec --version` and `--help` load 24 modules instead of 485, and commands such as `config list`, `store list` and `doctor` load only what they use, which matters most where Node loads modules slowly, such as Windows. Output, help text, shell completions, exit codes and telemetry are unchanged.
+
+- [#2020](https://github.com/Fission-AI/OpenSpec/pull/2020) [`760584b`](https://github.com/Fission-AI/OpenSpec/commit/760584ba9a6e2aa5906edf082ecd465a53cf6618) Thanks [@clay-good](https://github.com/clay-good)! - A requirement description over 500 characters is now a warning instead of an informational hint, so `openspec validate --strict` fails on it and CI can enforce the limit. The check also covers ADDED requirements in a change, so `openspec validate <change> --strict` catches a new overlong requirement before archive. Normal validation and archive are unchanged: they still pass when this is the only finding. The specs instruction now explains how to split an existing long requirement without losing its scenarios.
+
+- [#2037](https://github.com/Fission-AI/OpenSpec/pull/2037) [`852a073`](https://github.com/Fission-AI/OpenSpec/commit/852a0738832645f0549aa035f836ae09bea71ee2) Thanks [@vyhuholl](https://github.com/vyhuholl)! - The specs instruction now tells the agent to write each capability's spec file as soon as it has drafted it, announcing each one first, instead of planning all of them before writing any. A change with many capabilities no longer sits silent until every file is planned, and an interrupted run keeps the files it already wrote. Because `specs` reads `done` once any spec file exists, `/opsx:continue` now checks for capabilities in the proposal that still have no spec file and writes those before moving on.
+
+- [#2028](https://github.com/Fission-AI/OpenSpec/pull/2028) [`43d23cc`](https://github.com/Fission-AI/OpenSpec/commit/43d23ccb96495d1a2ac910ae74b44020f4f5c188) Thanks [@drakeo338](https://github.com/drakeo338)! - The verify workflow now finds a change's spec and design artifacts by their output path (`specs/` and `design.md`) instead of the hardcoded artifact ids `specs` and `design`, so it works with custom schemas whose artifacts use other ids.
+
+- [#2031](https://github.com/Fission-AI/OpenSpec/pull/2031) [`2500d6d`](https://github.com/Fission-AI/OpenSpec/commit/2500d6da971336167548b53731a35b2127df35ac) Thanks [@TabishB](https://github.com/TabishB)! - `openspec view` no longer lists or counts archived changes. In projects with many archived changes, the list pushed active work off the screen. The dashboard shows current work again, and `openspec list --archived` still shows archived changes on request.
+
+## 1.14.0
+
+### Minor Changes
+
+- [#883](https://github.com/Fission-AI/OpenSpec/pull/883) [`c879d13`](https://github.com/Fission-AI/OpenSpec/commit/c879d13d5f5d045c532a08523316d2d74f2db99a) Thanks [@Code-Studio-Team](https://github.com/Code-Studio-Team)! - Add Code Studio as an `init` and `update` target, with project skills and `.prompt.md` commands under `.codestudio/`.
+
+- [#1672](https://github.com/Fission-AI/OpenSpec/pull/1672) [`297092c`](https://github.com/Fission-AI/OpenSpec/commit/297092cb25d9831a408d2ce9bfd55daec1431b74) Thanks [@DarkskyX15](https://github.com/DarkskyX15)! - - **DeepSeek Harness** — `openspec init --tools dsh` (command-line id `dsh`) installs the OpenSpec workflow skills into `.dsh/skills/` for DeepSeek Harness. It is skills-only (no command adapter or command files): dsh discovers the generated `SKILL.md` files as its highest-priority project root and surfaces them through its skill catalog, `skill` tool, and `/openspec-*` user invocations.
+
+- [#1961](https://github.com/Fission-AI/OpenSpec/pull/1961) [`3c3e6e3`](https://github.com/Fission-AI/OpenSpec/commit/3c3e6e3d423625ffe554ff050c09bb530f17dc5e) Thanks [@fresh-fx59](https://github.com/fresh-fx59)! - Add GigaCode as a supported `--tools` target, with skills in `.gigacode/skills/openspec-*/SKILL.md` and Markdown commands in `.gigacode/commands/opsx-<id>.md`.
+
+- [#1211](https://github.com/Fission-AI/OpenSpec/pull/1211) [`3de7c72`](https://github.com/Fission-AI/OpenSpec/commit/3de7c72c267c40ff89809d2ae08b7bf6ac6faf8c) Thanks [@hu-qi](https://github.com/hu-qi)! - Add AtomCode support through `openspec init --tools atomcode`, with project skills in `.atomcode/skills/` and `/opsx-<id>` commands in `.atomcode/commands/`. Generated commands declare `args: optional` and receive `$ARGUMENTS` when the workflow reads invocation input, and `args: none` when it does not, so AtomCode runs them straight from the slash menu. Follows the selected workflow profile and delivery mode.
+
+- [#1082](https://github.com/Fission-AI/OpenSpec/pull/1082) [`a7f08b8`](https://github.com/Fission-AI/OpenSpec/commit/a7f08b8a462db5eeddae4e0b03f427987e3806a2) Thanks [@Storm-Chaser](https://github.com/Storm-Chaser)! - ### New Features
+  
+  - **GSD support**: Install OpenSpec workflows as project skills with `openspec init --tools gsd`.
+
+- [#420](https://github.com/Fission-AI/OpenSpec/pull/420) [`070de01`](https://github.com/Fission-AI/OpenSpec/commit/070de01dfac4ea343747fbd37b9bb9e77acdf7d0) Thanks [@jeanduplessis](https://github.com/jeanduplessis)! - ### New Features
+  
+  - **Amp support**: select `amp` during init to install OpenSpec workflows as project skills under `.agents/skills/`.
+
+- [#2001](https://github.com/Fission-AI/OpenSpec/pull/2001) [`56528ea`](https://github.com/Fission-AI/OpenSpec/commit/56528ea454a926159d05eb7c9ec1b687d7544b56) Thanks [@clay-good](https://github.com/clay-good)! - ### New Features
+  
+  - **Version reports** — Run `openspec version` to inspect the installed version and install type, or add `--check` and `--json` for structured update information that tools can consume.
+
+- [#1352](https://github.com/Fission-AI/OpenSpec/pull/1352) [`d1642cb`](https://github.com/Fission-AI/OpenSpec/commit/d1642cb58cb4ce2cda0a140cf2322aded53f4e46) Thanks [@redknox](https://github.com/redknox)! - Add EasyCode support to init and update, with project-local skills and TOML commands invoked as `/opsx:<id>`.
+
+- [#399](https://github.com/Fission-AI/OpenSpec/pull/399) [`ded99e2`](https://github.com/Fission-AI/OpenSpec/commit/ded99e27de71c32647ae7fc2f51112219420b5d5) Thanks [@ZEDce](https://github.com/ZEDce)! - Add `openspec list --archived` and `--all` to browse archived changes, including JSON output and sorting. Show archived changes separately in the `openspec view` dashboard.
+
+- [#848](https://github.com/Fission-AI/OpenSpec/pull/848) [`5a360c2`](https://github.com/Fission-AI/OpenSpec/commit/5a360c2088ad3094a092c34993eab97b43c25124) Thanks [@Columpio](https://github.com/Columpio)! - ### New Features
+  
+  - **Veai support**: select `veai` during init to install OpenSpec workflows as project skills under `.veai/skills/`.
+
+- [#1439](https://github.com/Fission-AI/OpenSpec/pull/1439) [`f197804`](https://github.com/Fission-AI/OpenSpec/commit/f197804a38057eee2272952b74d89884a9d3b7a4) Thanks [@jmuchovej](https://github.com/jmuchovej)! - Expose OpenSpec as a reusable Nix overlay through `overlays.default`.
+
+- [#1349](https://github.com/Fission-AI/OpenSpec/pull/1349) [`e232080`](https://github.com/Fission-AI/OpenSpec/commit/e232080d0943bd535388bdc2304b3301f1496226) Thanks [@0x6d6e647a](https://github.com/0x6d6e647a)! - Add Grok Build as a skills-only tool. Run `openspec init --tools grok` to install skills in `.grok/skills`, then invoke them with `/openspec-propose` and other skill names. Existing Grok installations are refreshed by `openspec update`.
+
+- [#1738](https://github.com/Fission-AI/OpenSpec/pull/1738) [`781c7f9`](https://github.com/Fission-AI/OpenSpec/commit/781c7f9447b4eeb6fdc69fa745ff46f6168f3edf) Thanks [@clay-good](https://github.com/clay-good)! - Add Warp support through project-local skills. Select `warp` during init to install OpenSpec workflows in `.warp/skills`, invoke them with `/openspec-*`, and refresh them with `openspec update`. Skills remain available in every delivery mode.
+
+- [#807](https://github.com/Fission-AI/OpenSpec/pull/807) [`c21d897`](https://github.com/Fission-AI/OpenSpec/commit/c21d897261b5daf0c61c49ccd0862288d4664db4) Thanks [@Million-mo](https://github.com/Million-mo)! - ### New Features
+  
+  - **Dashboard workflow status**: `openspec view` now shows each active change's schema and which artifacts are done, ready, blocked, or skipped. Task progress remains visible if a workflow cannot be loaded. Thanks to @Million-mo for the original contribution in [#807](https://github.com/Fission-AI/OpenSpec/issues/807).
+
+### Patch Changes
+
+- [#1977](https://github.com/Fission-AI/OpenSpec/pull/1977) [`7728194`](https://github.com/Fission-AI/OpenSpec/commit/772819417a2aa8a90cd50743139f402261628d21) Thanks [@clay-good](https://github.com/clay-good)! - The `openspec-archive-change` skill no longer tells the agent to run the `openspec-sync-specs` skill when that skill is not installed. It merges the delta specs into the main specs itself instead, as the `/opsx:archive` command already did ([#1975](https://github.com/Fission-AI/OpenSpec/issues/1975)).
+
+- [#1722](https://github.com/Fission-AI/OpenSpec/pull/1722) [`817cdb6`](https://github.com/Fission-AI/OpenSpec/commit/817cdb64be744d4ee65d1a9922b23edc0c4699b8) Thanks [@caseyg](https://github.com/caseyg)! - ### Bug Fixes
+  
+  - IBM Bob now appears by its full product name in the tool picker and success messages. Existing `bob` selections, configuration, skills, and slash-command paths continue to work unchanged.
+
+- [#1999](https://github.com/Fission-AI/OpenSpec/pull/1999) [`bda8556`](https://github.com/Fission-AI/OpenSpec/commit/bda85565ef974d07c1c202c0ac4b2613241dd184) Thanks [@clay-good](https://github.com/clay-good)! - Guide users through an AI-assisted migration from legacy `project.md` to `config.yaml`.
+
+- [#1997](https://github.com/Fission-AI/OpenSpec/pull/1997) [`e70dcc7`](https://github.com/Fission-AI/OpenSpec/commit/e70dcc7c82a3b100145795d32ea9930dca7b4073) Thanks [@clay-good](https://github.com/clay-good)! - Guide proposal authors toward durable, behavior-based capability names.
+
+- [#2018](https://github.com/Fission-AI/OpenSpec/pull/2018) [`81c2f9f`](https://github.com/Fission-AI/OpenSpec/commit/81c2f9fce30d103bd22377042af1d428453b0bbc) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - **Apply edits the right task** — `openspec instructions apply --json` now gives each task its `sourcePath` and `line`. The apply workflow checks the checkbox at that location before marking the task done and rechecks progress afterward, so agents update the exact task, even when tasks span several files.
+  - **Archive stops on a failed spec sync** — When the spec sync inside `/opsx:archive` reports a blocking condition, such as a capability retirement it could not complete, the archive now stops and leaves the change in place instead of archiving it with the main specs unchanged. The same applies to bulk archive.
+  - **Aligned `openspec view` progress bars** — Active change names up to 48 characters now line up their progress bars instead of pushing each bar out of line.
+
+- [#1969](https://github.com/Fission-AI/OpenSpec/pull/1969) [`9557b43`](https://github.com/Fission-AI/OpenSpec/commit/9557b43aaff05af8bd9862c4755f7ac7b7f43cf1) Thanks [@flcrom](https://github.com/flcrom)! - ### Bug Fixes
+  
+  - Let store-only repositories run `openspec init` at the repo root to install integrations without changing the external-store config or creating local planning directories.
+
+- [#2004](https://github.com/Fission-AI/OpenSpec/pull/2004) [`d4e1c77`](https://github.com/Fission-AI/OpenSpec/commit/d4e1c77ebae0bd96a7c649fa35edef997989450a) Thanks [@clay-good](https://github.com/clay-good)! - Warn that files listed for legacy cleanup are deleted entirely and ask users to back up custom content first. The `openspec/AGENTS.md` check detects the file by existence alone.
+
+- [#1995](https://github.com/Fission-AI/OpenSpec/pull/1995) [`baad449`](https://github.com/Fission-AI/OpenSpec/commit/baad4494b48f1497ec2f73a457210c5567176942) Thanks [@clay-good](https://github.com/clay-good)! - Guide agents to keep project documentation and codebase facts out of `config.yaml` context.
+
+- [#1978](https://github.com/Fission-AI/OpenSpec/pull/1978) [`1872982`](https://github.com/Fission-AI/OpenSpec/commit/187298289dc5a7a63df87425151981586cbe5d7e) Thanks [@clay-good](https://github.com/clay-good)! - The specs instruction now tells agents the 500-character requirement length that `openspec validate` flags as an informational hint, and how to stay under it when writing new requirements without splitting existing ones. The validator's too-long message now explains how to split a requirement too.
+
+- [#1972](https://github.com/Fission-AI/OpenSpec/pull/1972) [`d28fb49`](https://github.com/Fission-AI/OpenSpec/commit/d28fb49c1ca901fe19fa443a56ede37ff8b8c61a) Thanks [@ryandemelo](https://github.com/ryandemelo)! - `show --json` now includes each requirement's and scenario's `name`, matching the header names archive uses, so JSON readers can cite a requirement without parsing the markdown again ([#1971](https://github.com/Fission-AI/OpenSpec/issues/1971)).
+
+- [#2014](https://github.com/Fission-AI/OpenSpec/pull/2014) [`cf2859a`](https://github.com/Fission-AI/OpenSpec/commit/cf2859a52089dd6dd37f9b3388db90c2ca3f06e7) Thanks [@clay-good](https://github.com/clay-good)! - Fix `status --json` for store-backed changes: `actionContext.allowedEditRoots` now lists the project on the current path that declares the store alongside the store, so apply no longer stops on a store-only edit scope. When no project on the current path declares the store, the constraint tells the agent to ask which repository to edit instead of naming the store.
+
+- [#1984](https://github.com/Fission-AI/OpenSpec/pull/1984) [`42671df`](https://github.com/Fission-AI/OpenSpec/commit/42671df890fab730058fee108a2090e7c1e491b9) Thanks [@Yi-111-a](https://github.com/Yi-111-a)! - Name the offending index when a `rules:` list is not an array of strings
+  
+  A rule item containing an unquoted `": "` is valid-looking YAML but parses as a
+  mapping, so the artifact's whole rule set is dropped with only a stderr warning
+  naming the artifact. The warning now also names the index and the shape YAML
+  produced there, plus the quoting fix, so the bad item can be found without
+  bisecting the list by hand.
+
+- [#1925](https://github.com/Fission-AI/OpenSpec/pull/1925) [`88692b3`](https://github.com/Fission-AI/OpenSpec/commit/88692b3bb42262d30172819936847ed10f42a98f) Thanks [@kevin9327](https://github.com/kevin9327)! - ### Bug Fixes
+  
+  - **Change metadata** — Warn when `.openspec.yaml` contains unrecognized keys such as `skip_design`. Those keys were stripped with no signal, so `status` still demanded the design artifact and `validate --strict` exited 0. `status`, `validate`, and `archive` now name the ignored keys; `validate --strict` fails.
+
+- [#2016](https://github.com/Fission-AI/OpenSpec/pull/2016) [`cd4f9e4`](https://github.com/Fission-AI/OpenSpec/commit/cd4f9e4a5f99e7b48f2c452ef0fa3769db4dde4a) Thanks [@huiq777](https://github.com/huiq777)! - Make `openspec completion uninstall zsh` hand `.zshrc` back exactly as `completion install zsh` found it. Uninstall stripped every blank line at the top of the file, so a `.zshrc` that started with blank lines lost them after an install/uninstall round trip, even when the OpenSpec block had been moved further down. Uninstall now drops only the separator line install added, and only when the block sits at the top of the file, matching the bash installer.
+
 ## 1.13.2
 
 ### Patch Changes

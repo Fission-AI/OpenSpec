@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { claudeAdapter } from '../src/core/command-generation/adapters/claude.js';
 import { AI_TOOLS } from '../src/core/config.js';
+import { formatProjectMdMigrationHint } from '../src/core/legacy-cleanup.js';
 import { CORE_WORKFLOWS } from '../src/core/profiles.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -20,6 +21,29 @@ const CORE_SECTION = PROFILES.split('## The core set')[1].split(
 )[0];
 
 describe('setup documentation', () => {
+  it('matches the AI-assisted project.md migration guidance', () => {
+    const hint = formatProjectMdMigrationHint();
+    const claims = [
+      'Review openspec/project.md and migrate its useful content to',
+      'Keep context concise',
+      'only project-wide',
+      'artifact creation, apply, and archive',
+      'rules for the matching artifacts',
+      'matching operations entry',
+      'Leave out generic',
+      'outdated, or verbose material',
+      'Do not delete project.md',
+    ];
+
+    expect(SETUP).toContain('Init does not copy legacy `openspec/project.md`');
+    for (const claim of claims) {
+      expect(hint).toContain(claim);
+      expect(SETUP).toContain(claim);
+    }
+    expect(hint).toContain('Review config.yaml, then delete project.md when ready.');
+    expect(SETUP).toContain('Review `config.yaml`, then delete `project.md` when ready.');
+  });
+
   it('keeps the Claude Code paths and recovery commands aligned with OpenSpec', () => {
     const claude = AI_TOOLS.find((tool) => tool.value === 'claude');
     const claudeCommandPath = claudeAdapter.getFilePath('<id>').split(path.sep).join('/');

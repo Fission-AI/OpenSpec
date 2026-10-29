@@ -4,7 +4,7 @@
  * Displays artifact completion status for a change.
  */
 
-import ora from 'ora';
+import type { Ora } from 'ora';
 import chalk from 'chalk';
 import { getChangeDir } from '../../core/planning-home.js';
 import {
@@ -13,6 +13,7 @@ import {
   toRootOutput,
   withStoreFlag,
   isStoreSelectedRoot,
+  findDeclaringProjectRoot,
 } from '../../core/root-selection.js';
 import {
   loadChangeContext,
@@ -79,7 +80,11 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     return;
   }
 
-  const spinner = options.json ? undefined : ora('Loading change status...').start();
+  let spinner: Ora | undefined;
+  if (!options.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora('Loading change status...').start();
+  }
 
   try {
     const planningHome = toPlanningHome(root);
@@ -91,6 +96,14 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
     // `Next:` line, so a store-selected root can never carry `--store` in one
     // and drop it from the other.
     const storeOptions = isStoreSelectedRoot(root) ? { storeId: root.storeId } : {};
+    // A store holds planning artifacts only; the project declaring it is
+    // where implementation edits go (#2013).
+    const implementationRoot = isStoreSelectedRoot(root)
+      ? findDeclaringProjectRoot(root.storeId)
+      : null;
+    const statusOptions = implementationRoot
+      ? { ...storeOptions, implementationRoot }
+      : storeOptions;
 
     // Single definition of "load one change's status" so the batch and
     // single-change payloads can never drift apart.
@@ -100,7 +113,7 @@ export async function statusCommand(options: StatusOptions): Promise<void> {
           changeDir: getChangeDir(planningHome, changeName),
           planningHome,
         }),
-        storeOptions
+        statusOptions
       );
 
     // Handle no-changes case gracefully — status is informational,
@@ -242,6 +255,11 @@ export function printStatusText(status: ChangeStatus, options: PrintStatusTextOp
 
   console.log(`Change: ${status.changeName}`);
   console.log(`Schema: ${status.schemaName}`);
+  if (status.warnings) {
+    for (const warning of status.warnings) {
+      console.log(chalk.yellow(`Warning: ${warning}`));
+    }
+  }
   if (status.changeRoot) {
     console.log(`Change root: ${status.changeRoot}`);
   }

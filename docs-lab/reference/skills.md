@@ -90,7 +90,7 @@ Implement a change proposal's tasks, working through the list until done or bloc
 | Contract | Description |
 |---|---|
 | **Arguments** | A change proposal name (`add-auth`), optional. If the target is ambiguous it lists the active change proposals and asks you to pick. |
-| **Creates** | Code: the minimal changes each task calls for, in your project files. In the change proposal it touches only the tasks file, checking off each finished task (`- [ ]` to `- [x]`). |
+| **Creates** | Code: the minimal changes each task calls for, in your project files. In the change proposal it checks off each finished task (`- [ ]` to `- [x]`) in the tracked file identified by `sourcePath` and one-based `line`. A schema may track tasks across multiple files. |
 | **Response** | Progress per task, then an overall count (N/M tasks complete). All done: suggests `openspec-archive-change`. Blocked by missing artifacts: points to `openspec-continue-change`, or to `openspec status` and `openspec instructions` when that skill is not installed (the core profile leaves it out). Unclear tasks or errors: pauses and asks. |
 
 ## openspec-update-change
@@ -121,7 +121,7 @@ Move a finished change proposal to the archive.
 | Contract | Description |
 |---|---|
 | **Arguments** | A change proposal name, optional. |
-| **Creates** | Moves the change proposal folder to `openspec/changes/archive/YYYY-MM-DD-<name>/` (no date added if the name already starts with one). With your approval it first syncs outstanding delta specs via `openspec-sync-specs`. Never code. |
+| **Creates** | Moves the change proposal folder to `openspec/changes/archive/YYYY-MM-DD-<name>/` (no date added if the name already starts with one). With your approval it first syncs outstanding delta specs. When `openspec-sync-specs` is installed, it runs that workflow. Otherwise, it merges the delta specs into the main specs itself. Never code. |
 | **Response** | Warns and asks before archiving with incomplete artifacts or tasks, and asks whether to sync when delta specs exist. Ends with a summary: name, schema, archive location, spec sync status, and any warnings. |
 
 ## openspec-new-change

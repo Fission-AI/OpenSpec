@@ -158,6 +158,19 @@ Step through what archiving does:
 
 Git is a separate concern. Commit the change folder with the code, and nothing else about your workflow changes.
 
+### Keep or prune archived changes
+
+`openspec/changes/archive/` keeps the proposal, design, tasks, and delta for each finished change. In the archive flow above, the delta has already updated `openspec/specs/`.
+
+- **Keep the whole change folder** when you want a self-contained record in the current checkout.
+- **Remove an archived change's `specs/` folder** when Git is your spec history. Commit the archive first, then delete `openspec/changes/archive/<change>/specs/`. The proposal, design, and tasks remain in the checkout. `openspec validate --archived` still works because it checks task completion, not applied deltas.
+- **Remove the whole change folder** only when you no longer need its proposal, design, or task history in the checkout. The current specs do not change, but `openspec validate --archived` and searches of the checkout no longer include that change.
+
+> [!WARNING]
+> Keep the archive commit in your repository history if you want Git to retain the deleted files. Squashing the archive and cleanup commits together removes that intermediate snapshot.
+
+OpenSpec does not prune archived changes automatically or provide a retention setting.
+
 ## Going further
 
 - [Delta specs](../reference/schemas/spec-driven/index.md#delta-specs-specmd): how to write the behavior changes in a delta spec.

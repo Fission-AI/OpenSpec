@@ -11,7 +11,7 @@ Each OpenSpec project keeps its config file at `openspec/config.yaml`, in the pr
 | Key | Type | Required | Effect |
 | --- | --- | --- | --- |
 | `schema` | string | Yes | The workflow schema this project's changes follow |
-| `context` | string | No | Injected into every artifact's instructions |
+| `context` | string | No | Injected into every artifact, apply, and archive |
 | `rules` | map: artifact ID → list of strings | No | Extra rules added to one artifact's built-in guidance |
 | `operations` | map: operation → guidance list | No | Advisory guidance for apply and archive work |
 | `store` | string | No | Fallback OpenSpec root when this openspec/ is config-only |
@@ -27,7 +27,7 @@ The workflow schema every change in this project follows. Valid values are `spec
 
 ### context
 
-Free text injected into every artifact's instructions. The limit is 50KB, and a larger value is ignored with a warning.
+Free text injected into every artifact's instructions and supplied to apply and archive. The limit is 50KB, and a larger value is ignored with a warning.
 
 ### rules
 
@@ -77,14 +77,13 @@ A filled-in config.yaml:
 schema: spec-driven
 
 context: |
-  Tech stack: TypeScript, React, Node.js
-  We use conventional commits
-  Domain: e-commerce platform
+  Designs and tasks must cover Windows, macOS, and Linux
+  Write all artifacts in Spanish
 
 rules:
   proposal:
     - Keep proposals under 500 words
-    - Always include a "Non-goals" section
+    - Always state what is out of scope
   tasks:
     - Break tasks into chunks of max 2 hours
 

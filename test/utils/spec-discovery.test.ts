@@ -149,6 +149,44 @@ describe('discoverSpecFiles', () => {
     });
   });
 
+  it.skipIf(process.platform === 'win32')(
+    'discovers a spec.md linked to a file elsewhere in the project (#2100)',
+    async () => {
+      await withTempDir(async (dir) => {
+        // The project keeps its specs beside the product documentation and
+        // links openspec/specs/<capability>/spec.md to them.
+        const specsRoot = path.join(dir, 'repo', 'openspec', 'specs');
+        const docsSpec = path.join(dir, 'repo', 'docs', 'auth', 'specs', 'login.md');
+        await fs.mkdir(path.join(specsRoot, 'login'), { recursive: true });
+        await fs.mkdir(path.dirname(docsSpec), { recursive: true });
+        await fs.writeFile(docsSpec, '# login\n', 'utf8');
+        const link = path.join(specsRoot, 'login', 'spec.md');
+        await fs.symlink(path.relative(path.dirname(link), docsSpec), link, 'file');
+
+        const found = await discoverSpecFiles(specsRoot);
+        expect(found.map((s) => s.id)).toEqual(['login']);
+        expect(found[0].specFile).toBe(link);
+      });
+    }
+  );
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a spec.md symlink that leaves the project (#2100)',
+    async () => {
+      await withTempDir(async (dir) => {
+        const specsRoot = path.join(dir, 'repo', 'openspec', 'specs');
+        const outside = path.join(dir, 'outside.md');
+        await fs.mkdir(path.join(specsRoot, 'login'), { recursive: true });
+        await fs.writeFile(outside, '# Outside\n', 'utf8');
+        await fs.symlink(outside, path.join(specsRoot, 'login', 'spec.md'), 'file');
+
+        await expect(discoverSpecFiles(specsRoot)).rejects.toThrow(
+          'Path is outside the allowed directory'
+        );
+      });
+    }
+  );
+
   it.skipIf(process.platform === 'win32')('skips a dangling spec.md symlink', async () => {
     await withTempDir(async (dir) => {
       await writeSpec(dir, 'real');

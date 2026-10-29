@@ -3,10 +3,13 @@ import http from 'http';
 import https from 'https';
 import path from 'path';
 import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
 import chalk from 'chalk';
 import { isCiEnvironment } from '../utils/ci.js';
 import { isTelemetryOptedOutByEnv } from '../telemetry/opt-out.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 import { getGlobalConfig, isGlobalConfigUnreadable } from './global-config.js';
+import { findCopiesOnPath, samePath } from '../utils/executable-path.js';
 
 const require = createRequire(import.meta.url);
 const { name: PACKAGE_NAME, version: OPENSPEC_VERSION } = require('../../package.json');
@@ -24,6 +27,36 @@ const MAX_REDIRECTS = 3;
  * one could smuggle ANSI cursor controls and repaint the lines around it.
  */
 const SAFE_VERSION = /^\d{1,10}\.\d{1,10}\.\d{1,10}(?:-[0-9A-Za-z.-]{1,64})?(?:\+[0-9A-Za-z.-]{1,64})?$/;
+
+let standaloneBinaryPath: string | null = null;
+
+/**
+ * Called by the standalone binary's entry point. That copy has no package
+ * manager behind it, so a package-manager command is the wrong upgrade advice.
+ */
+export function markStandaloneBinary(executablePath: string): void {
+  standaloneBinaryPath = executablePath;
+}
+
+/** The standalone binary's own path, or null when running from a package. */
+export function getStandaloneBinaryPath(): string | null {
+  return standaloneBinaryPath;
+}
+
+/**
+ * `openspec install` reinstalls the standalone binary where it already is,
+ * under its own name, so the new copy cannot end up shadowed by the old one.
+ * Spelled with the full path when `openspec` on PATH is some other copy.
+ * Null when this is not the binary.
+ */
+function standaloneUpgradeCommand(): string | null {
+  if (!standaloneBinaryPath) return null;
+  const first = findCopiesOnPath()[0];
+  if (first && samePath(first, standaloneBinaryPath)) return 'openspec install';
+  return process.platform === 'win32'
+    ? `& '${standaloneBinaryPath.replace(/'/g, "''")}' install`
+    : `'${standaloneBinaryPath.replace(/'/g, `'\\''`)}' install`;
+}
 
 /**
  * The check is opt-out and must never get in the way: no network in CI or
@@ -277,20 +310,41 @@ function fetchLatestVersion(): Promise<string | null> {
   });
 }
 
+export type CliUpdateStatus = 'available' | 'current' | 'disabled' | 'offline';
+
+export interface CliUpdateCheck {
+  status: CliUpdateStatus;
+  latest: string | null;
+}
+
 /**
- * Returns the published version when the installed CLI is behind it, otherwise
- * null. Never throws and never blocks for longer than the request timeout.
+ * Checks the registry while preserving enough detail for callers to explain
+ * why no newer version was reported. Never throws.
  */
-export async function getAvailableCliUpdate(): Promise<string | null> {
-  if (!isCheckEnabled()) return null;
+export async function checkForCliUpdate(): Promise<CliUpdateCheck> {
+  if (!isCheckEnabled() || registryUrl() === null) {
+    return { status: 'disabled', latest: null };
+  }
 
   try {
     const latest = await fetchLatestVersion();
-    if (!latest) return null;
-    return compareVersions(latest, OPENSPEC_VERSION) > 0 ? latest : null;
+    if (!latest) return { status: 'offline', latest: null };
+    return {
+      status: compareVersions(latest, OPENSPEC_VERSION) > 0 ? 'available' : 'current',
+      latest,
+    };
   } catch {
-    return null;
+    return { status: 'offline', latest: null };
   }
+}
+
+/**
+ * Returns the published version when the installed CLI is behind it, otherwise
+ * null. Kept as the compatibility surface used by `openspec update`.
+ */
+export async function getAvailableCliUpdate(): Promise<string | null> {
+  const result = await checkForCliUpdate();
+  return result.status === 'available' ? result.latest : null;
 }
 
 /**
@@ -300,11 +354,13 @@ export async function getAvailableCliUpdate(): Promise<string | null> {
  * which copy is actually answering.
  */
 export function getInstallDir(): string | null {
-  try {
-    return path.dirname(require.resolve('../../package.json'));
-  } catch {
-    return null;
-  }
+  // The binary is not a package install, so no package-manager logic applies.
+  if (standaloneBinaryPath) return null;
+  // Resolved at runtime from this module's own (symlink-resolved) location.
+  // require.resolve would be resolved by the binary's bundler at build time,
+  // baking the build machine's path into it.
+  const packageJson = fileURLToPath(new URL('../../package.json', import.meta.url));
+  return fs.existsSync(packageJson) ? path.dirname(packageJson) : null;
 }
 
 /**
@@ -326,8 +382,8 @@ export function isProjectLocalInstall(
     process.platform === 'win32' ? value.toLowerCase() : value;
 
   try {
-    let dir = path.resolve(projectPath);
-    const target = normalize(installDir);
+    let dir = FileSystemUtils.canonicalizeExistingPath(projectPath);
+    const target = normalize(FileSystemUtils.canonicalizeExistingPath(installDir));
 
     for (;;) {
       if (target.startsWith(normalize(path.join(dir, 'node_modules') + path.sep))) {
@@ -468,29 +524,33 @@ export function isSourceCheckout(installDir: string | null): boolean {
 }
 
 export type PackageManager = 'npm' | 'pnpm' | 'bun' | 'yarn' | 'volta';
+export type InstallScope = 'global' | 'project' | 'temporary' | 'source' | 'standalone';
+
+export interface CliInstallInfo {
+  location: string | null;
+  packageManager: PackageManager | null;
+  scope: InstallScope | null;
+}
+
+function detectKnownPackageManager(installDir: string | null): PackageManager | null {
+  const segments = (installDir ?? '').split(/[\\/]/).map((segment) => segment.toLowerCase());
+  const has = (...names: string[]) => names.some((name) => segments.includes(name));
+
+  if (has('.volta') || (has('volta') && has('tools') && has('image'))) return 'volta';
+  if (has('.bun', '_bunx', 'bun-cache')) return 'bun';
+  if (has('_npx')) return 'npm';
+  if (has('.pnpm', '.pnpm-global', 'pnpm-cache')) return 'pnpm';
+  if (has('pnpm') && has('global', 'dlx', 'store')) return 'pnpm';
+  if (has('.yarn') || (has('yarn') && has('global'))) return 'yarn';
+  return null;
+}
 
 /**
  * The package manager that owns this copy, so the printed command is one the
  * user's setup will actually honor.
  */
 export function detectPackageManager(installDir: string | null): PackageManager {
-  // Lowercased because the Windows directories are capitalized and undotted:
-  // %LOCALAPPDATA%\\Volta, \\Yarn\\Data, \\pnpm-cache.
-  const segments = (installDir ?? '').split(/[\\/]/).map((segment) => segment.toLowerCase());
-  const has = (...names: string[]) => names.some((name) => segments.includes(name));
-
-  // The undotted spelling exists for Windows (%LOCALAPPDATA%\Volta), whose
-  // layout nests tools\image; require both segments so a user or project
-  // directory merely named "volta" (even one with its own "tools" dir) does
-  // not steal the install.
-  if (has('.volta') || (has('volta') && has('tools') && has('image'))) return 'volta';
-  if (has('.bun')) return 'bun';
-  // These two need a corroborating segment: a directory merely named "pnpm" or
-  // "yarn" (a user's home, a project) is not a global install of one.
-  if (has('.pnpm-global', 'pnpm-cache')) return 'pnpm';
-  if (has('pnpm') && has('global', 'dlx', 'store')) return 'pnpm';
-  if (has('.yarn') || (has('yarn') && has('global'))) return 'yarn';
-  return 'npm';
+  return detectKnownPackageManager(installDir) ?? 'npm';
 }
 
 const GLOBAL_UPGRADE_COMMANDS: Record<PackageManager, string> = {
@@ -500,6 +560,92 @@ const GLOBAL_UPGRADE_COMMANDS: Record<PackageManager, string> = {
   yarn: `yarn global add ${PACKAGE_NAME}@latest`,
   volta: `volta install ${PACKAGE_NAME}@latest`,
 };
+
+function detectGlobalPackageManager(installDir: string | null): PackageManager | null {
+  if (isNpmGlobalInstall(installDir)) return 'npm';
+  if (!installDir) return null;
+
+  const segments = installDir.split(/[\\/]/).map((segment) => segment.toLowerCase());
+  const has = (...names: string[]) => names.some((name) => segments.includes(name));
+  const hasSequence = (...names: string[]) =>
+    segments.some((_, index) => names.every((name, offset) => segments[index + offset] === name));
+
+  if (hasSequence('.volta', 'tools', 'image') || hasSequence('volta', 'tools', 'image')) {
+    return 'volta';
+  }
+  if (has('.pnpm-global') || hasSequence('pnpm', 'global')) return 'pnpm';
+  if (hasSequence('yarn', 'global') || hasSequence('yarn', 'data', 'global')) return 'yarn';
+  if (hasSequence('.bun', 'install', 'global')) return 'bun';
+  return null;
+}
+
+/** Describes the running copy without guessing when its owner is ambiguous. */
+export function getCliInstallInfo(
+  installDir: string | null = getInstallDir(),
+  projectPath: string = '.'
+): CliInstallInfo {
+  if (standaloneBinaryPath) {
+    return { location: path.dirname(standaloneBinaryPath), packageManager: null, scope: 'standalone' };
+  }
+  if (!installDir) {
+    return { location: null, packageManager: null, scope: null };
+  }
+  if (isSourceCheckout(installDir)) {
+    return { location: installDir, packageManager: null, scope: 'source' };
+  }
+  if (isEphemeralRunnerInstall(installDir)) {
+    return {
+      location: installDir,
+      packageManager: detectKnownPackageManager(installDir),
+      scope: 'temporary',
+    };
+  }
+  if (isProjectLocalInstall(installDir, projectPath)) {
+    return {
+      location: installDir,
+      packageManager: detectKnownPackageManager(installDir),
+      scope: 'project',
+    };
+  }
+
+  const packageManager = detectGlobalPackageManager(installDir);
+  return {
+    location: installDir,
+    packageManager,
+    scope: packageManager ? 'global' : null,
+  };
+}
+
+/** Returns a safe update command only for an install with known global ownership. */
+export function getCliUpdateCommand(install: CliInstallInfo): string | null {
+  if (install.scope === 'standalone') return standaloneUpgradeCommand();
+  if (install.scope !== 'global' || install.packageManager === null) return null;
+  return GLOBAL_UPGRADE_COMMANDS[install.packageManager];
+}
+
+/** Builds the concise human-readable form of the version report. */
+export function buildVersionReportLines(
+  version: string,
+  install: CliInstallInfo,
+  update?: CliUpdateCheck,
+  command: string | null = null
+): string[] {
+  const details = [install.packageManager, install.scope].filter(Boolean).join(', ');
+  const lines = [`OpenSpec ${version}${details ? ` (${details})` : ''}`];
+  if (!update) return lines;
+
+  if (update.status === 'available') {
+    lines.push(`Update available: ${update.latest}`);
+    if (command) lines.push(`  ${command}`);
+  } else if (update.status === 'current') {
+    lines.push('OpenSpec is up to date.');
+  } else if (update.status === 'disabled') {
+    lines.push('Update check disabled.');
+  } else {
+    lines.push('Could not check for updates.');
+  }
+  return lines;
+}
 
 /**
  * Builds the hint, with the upgrade command chosen for how this copy of the CLI
@@ -534,6 +680,13 @@ export function buildUpgradeCommandLines(
   projectPath: string
 ): string[] {
   const lines: string[] = [];
+
+  const standalone = standaloneUpgradeCommand();
+  if (standalone) {
+    lines.push(`  ${standalone}`);
+    lines.push('  Then run "openspec update" again to pick up new workflows.');
+    return lines;
+  }
 
   if (isEphemeralRunnerInstall(installDir)) {
     // That command *is* the update, so there is nothing to run afterwards.

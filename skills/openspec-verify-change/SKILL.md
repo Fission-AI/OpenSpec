@@ -90,9 +90,9 @@ In both branches, never create the root as a side effect: do not run `openspec i
      - Recommendation: "Complete task: <description>" or "Mark as done if already implemented"
 
    **Spec Coverage**:
-   - If status marks the spec artifact skipped by `skip_specs: true`, or the schema defines no spec artifact, report the spec-dependent checks as not applicable.
-   - Otherwise, `contextFiles` is keyed by artifact id, and artifact ids come from the active schema. If `contextFiles.specs` is absent or empty, mark **Spec Coverage**, **Requirement Implementation Mapping**, and **Scenario Coverage** as not verified; do not treat any of them as clean.
-   - If delta specs exist in `contextFiles.specs`:
+   - If status marks the spec artifact skipped by `skip_specs: true`, or the schema defines no spec artifact (no artifact whose `artifactPaths.<id>.outputPath` is under `specs/`), report the spec-dependent checks as not applicable.
+   - Otherwise, `contextFiles` is keyed by artifact id, and artifact ids come from the active schema, so do not assume an id such as `specs`. The spec artifacts are those whose `artifactPaths.<id>.outputPath` is under `specs/`; read their files from `contextFiles.<id>`. If those spec files are absent or empty, mark **Spec Coverage**, **Requirement Implementation Mapping**, and **Scenario Coverage** as not verified; do not treat any of them as clean.
+   - If delta specs exist in those spec files:
      - Extract all requirements (marked with "### Requirement:", or listed as `FROM:`/`TO:` pairs under `## RENAMED Requirements`) and note the delta section each one sits under: `## ADDED`, `## MODIFIED`, `## REMOVED`, or `## RENAMED Requirements`. The section decides what the check looks for.
      - For each ADDED or MODIFIED requirement (for MODIFIED, check the text in the delta, not the old wording):
        - Search codebase for keywords related to the requirement
@@ -101,8 +101,11 @@ In both branches, never create the root as a side effect: do not run `openspec i
        - Add CRITICAL issue: "Requirement not found: <requirement name>"
        - Recommendation: "Implement requirement X: <description>"
      - For each REMOVED requirement, the change asks for the behavior to be gone, so invert the check:
-       - Search codebase for the removed behavior. Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves. Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.
-       - Finding no implementation is the expected result. Never report a REMOVED requirement as "Requirement not found" or recommend implementing it.
+       - A REMOVED block carries only the requirement name and any `**Reason**`/`**Migration**` notes, so the delta does not describe the behavior itself. Before searching, read the baseline requirement in the main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md`, using the same capability path as the delta spec. Match it by exact normalized name, the rule OpenSpec uses when it applies REMOVED blocks: the heading text after `Requirement:`, trimmed, with a closing `#` run dropped only when a space or tab precedes it (so `C#` keeps its `#`), compared case-sensitively. A similarly worded heading is not a match; a rename belongs under RENAMED. Its body and scenarios are the evidence for the behavior that must be gone; never search from the requirement name alone.
+       - If that file holds no requirement with that exact normalized name - for example because an earlier sync already applied the removal, or a similarly named ADDED requirement replaced it - recover the baseline from the same file's history, in the planning repository rather than the current directory: `git -C "<planningHome.root>" log -p -- openspec/specs/<capability-path>/spec.md`, or `git -C "<planningHome.root>" show <commit>^:./openspec/specs/<capability-path>/spec.md` once you have identified the commit that applied the removal. Empty output means the pathspec matched nothing, not that there is no baseline: `git log` reports an unmatched path as success, so re-check the path before drawing any conclusion from silence.
+       - A baseline that adds nothing to its own title - no body beyond a restatement of the name, no scenarios - is unusable evidence, the same as a missing one. If no usable baseline is available in either place, mark **Spec Coverage** as not verified for that entry with the reason and stop there: do not search, and never count an unsearched removal as passing.
+       - Search codebase for that behavior. Matches in `openspec/` artifacts or docs, or in code that serves only the Migration note or an ADDED requirement, are not evidence by themselves. Report any code path that still delivers the removed behavior, including one shared with an ADDED requirement.
+       - Finding no implementation is the expected result, but only once the baseline behavior was the thing you searched for. Never report a REMOVED requirement as "Requirement not found" or recommend implementing it.
        - If the behavior is still present:
          - Add CRITICAL issue: "Removed requirement still implemented: <requirement name>"
          - Recommendation: "Remove the remaining implementation at <file>:<lines>, following the requirement's Migration note if it has one"
@@ -118,7 +121,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
 6. **Verify Correctness**
 
-   If the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements (the change only removes or renames requirements), report **Requirement Implementation Mapping** and **Scenario Coverage** as **Not applicable**. The REMOVED and RENAMED checks under Spec Coverage are the evidence for such a change (each RENAMED entry is checked there against its baseline behavior), so do not mark these two checks as not verified. A delta spec with no parseable requirements at all is unusable evidence, not a removal-only change: mark these checks as not verified.
+   If the delta specs are readable and contain at least one REMOVED or RENAMED requirement but no ADDED or MODIFIED requirements (the change only removes or renames requirements), report **Requirement Implementation Mapping** and **Scenario Coverage** as **Not applicable**. The REMOVED and RENAMED checks under Spec Coverage are the evidence for such a change (each REMOVED and RENAMED entry with a usable baseline is checked there against its baseline behavior, and an entry already marked not verified there stays not verified), so do not mark these two checks as not verified. A delta spec with no parseable requirements at all is unusable evidence, not a removal-only change: mark these checks as not verified.
 
    **Requirement Implementation Mapping**:
    - For each ADDED or MODIFIED requirement from delta specs (REMOVED entries, and RENAMED entries without a MODIFIED block, were settled under Spec Coverage):
@@ -141,14 +144,14 @@ In both branches, never create the root as a side effect: do not run `openspec i
 7. **Verify Coherence**
 
    **Design Adherence**:
-   - If the schema defines no design artifact, report **Design Adherence** as not applicable.
-   - If `contextFiles.design` exists:
+   - If the schema defines no design artifact (no artifact with id `design`, and none whose `artifactPaths.<id>.outputPath` is or ends in `design.md`), report **Design Adherence** as not applicable.
+   - If the design artifact's `contextFiles.<id>` file exists:
      - Extract key decisions (look for sections like "Decision:", "Approach:", "Architecture:")
      - Verify implementation follows those decisions
      - If contradiction detected:
        - Add WARNING: "Design decision not followed: <decision>"
        - Recommendation: "Update implementation or revise design.md to match reality"
-   - Otherwise, if `contextFiles.design` is absent or empty: mark **Design Adherence** as not verified. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
+   - Otherwise, if the design artifact's `contextFiles.<id>` file is absent or empty: mark **Design Adherence** as not verified. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
 
    **Code Pattern Consistency**:
    - If implementation changes cannot be identified, mark **Code Pattern Consistency** as not verified and explain the missing evidence.
@@ -172,7 +175,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    | Coherence    | Followed/Issues  |
    ```
 
-   In each Status cell, report the results of checks that ran and `Not verified (<reason>)` for every skipped check. If all checks in a dimension were skipped, start the cell with `Not verified`. Never score a skipped check as passing. Treat every not verified or partially verified check as skipped in the final assessment. Count only ADDED and MODIFIED requirements in N, and report REMOVED and RENAMED requirements separately (for example, "1 removal confirmed, 1 rename verified"). For a change that only removes or renames requirements, the Correctness cell reads `Not applicable (no ADDED or MODIFIED requirements)`.
+   In each Status cell, report the results of checks that ran and `Not verified (<reason>)` for every skipped check. If all checks in a dimension were skipped, start the cell with `Not verified`. Never score a skipped check as passing. Treat every not verified or partially verified check as skipped in the final assessment. Count only ADDED and MODIFIED requirements in N, and report REMOVED and RENAMED requirements separately (for example, "1 removal confirmed, 1 rename verified", or "1 removal not verified (baseline unavailable)"). For a change that only removes or renames requirements, the Correctness cell reads `Not applicable (no ADDED or MODIFIED requirements)`.
 
    **Issues by Priority**:
 

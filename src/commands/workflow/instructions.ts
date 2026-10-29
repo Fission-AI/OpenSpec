@@ -5,7 +5,7 @@
  * Includes both artifact instructions and apply instructions.
  */
 
-import ora from 'ora';
+import type { Ora } from 'ora';
 import path from 'path';
 import * as fs from 'fs';
 import {
@@ -121,7 +121,11 @@ export async function instructionsCommand(
     return;
   }
 
-  const spinner = options.json ? undefined : ora('Generating instructions...').start();
+  let spinner: Ora | undefined;
+  if (!options.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora('Generating instructions...').start();
+  }
 
   try {
     const planningHome = toPlanningHome(root);
@@ -210,6 +214,15 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
       ` schema="${escapeEnvelopeAttribute(schemaName)}">`
   );
   console.log();
+
+  if (instructions.warnings) {
+    for (const warning of instructions.warnings) {
+      console.log('<warning>');
+      console.log(escapeEnvelopeTags(warning));
+      console.log('</warning>');
+      console.log();
+    }
+  }
 
   // Artifacts skipped via skip_specs get no creation directive: emitting the
   // task/template anyway would prompt an agent to write spec files that
@@ -342,6 +355,23 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
 // Apply Instructions Command
 // -----------------------------------------------------------------------------
 
+interface LocatedTask extends ParsedTask {
+  sourcePath: string;
+  line: number;
+}
+
+/** Adds one-based source locations to parsed tasks without changing task parsing. */
+function parseLocatedTasks(content: string, sourcePath: string): LocatedTask[] {
+  const tasks: LocatedTask[] = [];
+
+  for (const [index, line] of content.split('\n').entries()) {
+    const [task] = parseTaskLines(line);
+    if (task) tasks.push({ ...task, sourcePath, line: index + 1 });
+  }
+
+  return tasks;
+}
+
 /**
  * Turns parsed task lines into the listed task items.
  *
@@ -353,7 +383,7 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
  * what puts apply in its "nothing to work on" state, so a file of nothing but
  * text-less checkboxes asks to be rewritten instead of being called done.
  */
-function toTaskItems(parsed: ParsedTask[]): TaskItem[] {
+function toTaskItems(parsed: LocatedTask[]): TaskItem[] {
   const tasks: TaskItem[] = [];
 
   for (const task of parsed) {
@@ -362,6 +392,8 @@ function toTaskItems(parsed: ParsedTask[]): TaskItem[] {
       id: `${tasks.length + 1}`,
       description: task.description,
       done: task.done,
+      sourcePath: task.sourcePath,
+      line: task.line,
     });
   }
 
@@ -571,7 +603,7 @@ export async function generateApplyInstructions(
   // Parse every concrete file matched by apply.tracks. A tracking path may be
   // a glob owned by an artifact with any ID, so treating it as one literal
   // path loses task evidence for valid custom schemas.
-  let parsedTasks: ParsedTask[] = [];
+  let parsedTasks: LocatedTask[] = [];
   const unavailableTrackingFiles: Array<{ path: string; reason: string }> = [];
   let tracksFileExists = false;
   if (tracksFile) {
@@ -580,7 +612,7 @@ export async function generateApplyInstructions(
     for (const tracksPath of tracksPaths) {
       try {
         const tasksContent = await fs.promises.readFile(tracksPath, 'utf-8');
-        parsedTasks.push(...parseTaskLines(tasksContent));
+        parsedTasks.push(...parseLocatedTasks(tasksContent, tracksPath));
       } catch (error) {
         const code = (error as NodeJS.ErrnoException)?.code;
         const message = error instanceof Error ? error.message : String(error);
@@ -644,7 +676,7 @@ export async function generateApplyInstructions(
     total > 0
   ) {
     state = 'all_done';
-    instruction = 'All tasks are complete! This change is ready to be archived.\nConsider running tests and reviewing the changes before archiving.';
+    instruction = 'All tracked tasks are complete.\nReview or verify the change as appropriate before archiving.';
   } else if (!tracksFile) {
     // No tracking file configured in schema - ready to apply
     state = 'ready';
@@ -661,13 +693,16 @@ export async function generateApplyInstructions(
     instruction += `\nTask completion is not verified because tracking evidence was unavailable:\n${unavailableDetails}`;
   }
 
-  const warnings = await collectApplyWarnings({
-    state,
-    schema,
-    changeDir,
-    changeName,
-    skippedArtifacts: context.skippedArtifacts,
-  });
+  const warnings = [
+    ...(context.warnings ?? []),
+    ...(await collectApplyWarnings({
+      state,
+      schema,
+      changeDir,
+      changeName,
+      skippedArtifacts: context.skippedArtifacts,
+    })),
+  ];
 
   return {
     changeName,
@@ -695,7 +730,11 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     return;
   }
 
-  const spinner = options.json ? undefined : ora('Generating apply instructions...').start();
+  let spinner: Ora | undefined;
+  if (!options.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora('Generating apply instructions...').start();
+  }
 
   try {
     const planningHome = toPlanningHome(root);
@@ -831,7 +870,11 @@ export async function archiveInstructionsCommand(
     return;
   }
 
-  const spinner = options.json ? undefined : ora('Loading archive inputs...').start();
+  let spinner: Ora | undefined;
+  if (!options.json) {
+    const { default: ora } = await import('ora');
+    spinner = ora('Loading archive inputs...').start();
+  }
 
   try {
     const changeName = await validateChangeExists(

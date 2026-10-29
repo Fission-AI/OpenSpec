@@ -38,6 +38,8 @@ export interface GlobalConfig {
   telemetry?: TelemetryConfig;
   /** Whether the first-run shell-completions tip has been shown. */
   completionTipSeen?: boolean;
+  /** Whether the one-time note about the standalone install has been shown. */
+  standaloneTipSeen?: boolean;
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {
@@ -254,5 +256,10 @@ export function saveGlobalConfig(config: GlobalConfig, options: SaveGlobalConfig
     fs.mkdirSync(configDir, { recursive: true });
   }
 
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
+  fs.writeFileSync(configPath, serializeGlobalConfig(config), 'utf-8');
+}
+
+/** The bytes `saveGlobalConfig` writes, for a caller that only plans the write. */
+export function serializeGlobalConfig(config: GlobalConfig): string {
+  return JSON.stringify(config, null, 2) + '\n';
 }

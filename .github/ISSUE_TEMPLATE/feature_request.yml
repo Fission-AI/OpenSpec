@@ -1,0 +1,55 @@
+name: Feature request
+description: Something OpenSpec should do that it does not do yet.
+labels: ['enhancement', 'needs-triage']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We're looking for more than a proposed solution here: we want to understand the
+        problem, who else it affects, and whether OpenSpec should take it on. Sometimes a
+        limitation is a deliberate design choice, and that's worth discussing first.
+
+        You don't need all the answers. If an agent drafted this, please read it through
+        first — an agent usually argues from your workflow alone.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem, in one or two sentences
+      description: What you were trying to do, and where OpenSpec got in the way. Describe the problem, not the solution.
+      placeholder: There is no way to tell which change a spec came from after it is archived.
+    validations:
+      required: true
+
+  - type: textarea
+    id: who
+    attributes:
+      label: Who this affects
+      description: Just you, everyone on a particular agent, everyone using a particular workflow, or everyone. OpenSpec serves many agents and models, so this shapes whether a change fits.
+      placeholder: Anyone archiving more than a handful of changes.
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: Alternatives you considered
+      description: Existing commands, flags, or workarounds you reached for, and why each one fell short.
+    validations:
+      required: false
+
+  - type: textarea
+    id: tradeoff
+    attributes:
+      label: Why it's worth the added complexity
+      description: Optional. Every option and flag is something we maintain across many agents, models, and workflows. Tell us what makes this one carry its weight, and what it might cost people who don't need it.
+    validations:
+      required: false
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you have in mind
+      description: Optional, and genuinely optional. If we agree the problem is worth solving, we design the fix from there — a solution here doesn't move the issue along faster.
+    validations:
+      required: false

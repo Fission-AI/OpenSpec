@@ -9,6 +9,10 @@ export {
   resolveSchemaForChange,
   validateSchemaName,
   ChangeMetadataError,
+  listUnknownChangeMetadataKeys,
+  readUnknownChangeMetadataKeys,
+  formatUnknownChangeMetadataKeysMessage,
+  CHANGE_METADATA_KNOWN_KEYS,
 } from './change-metadata.js';
 
 // File system utilities

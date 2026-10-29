@@ -103,7 +103,11 @@ The agent SHALL verify that implementation matches the specifications.
 
 #### Scenario: Removed requirement
 - **WHEN** a requirement sits under `## REMOVED Requirements` in a delta spec
-- **THEN** the agent treats the absence of its implementation as the expected result
+- **THEN** the agent reads the baseline requirement (its body and scenarios in the main spec, matched by normalized name) before searching, rather than searching from the requirement name alone
+- **AND** recovers the baseline from the main spec file's history when that file no longer holds the requirement, for example because an earlier sync already applied the removal
+- **AND** treats a baseline that adds nothing to its own title as unusable, the same as a missing one
+- **AND** marks spec coverage as not verified for the entry, without searching, when no usable baseline can be found or read
+- **AND** treats the absence of an implementation of that baseline behavior as the expected result
 - **AND** does not report it as missing or suggest implementing it
 - **AND** reports it as CRITICAL only if the removed behavior is still present in the codebase
 - **AND** skips scenario coverage for it

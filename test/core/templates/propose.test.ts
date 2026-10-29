@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, expect, it } from 'vitest';
@@ -20,6 +21,7 @@ import { getCommandContents } from '../../../src/core/shared/skill-generation.js
 import { MAX_CONTEXT_SIZE } from '../../../src/core/project-config.js';
 import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
+import { parseTaskLines } from '../../../src/utils/task-progress.js';
 
 // Templates carry optional-workflow conditionals; a body only means anything
 // once resolved against a workflow set. Unless a test says otherwise, these are
@@ -80,7 +82,64 @@ describe('propose preamble', () => {
   });
 });
 
+describe('default proposal guidance', () => {
+  it('frames new capabilities as durable behavior boundaries (#1965)', () => {
+    const proposal = defaultSchema.artifacts.find(artifact => artifact.id === 'proposal');
+    expect(proposal).toBeDefined();
+    expect(proposal!.instruction).toContain(
+      'Name each capability for a durable system behavior'
+    );
+    expect(proposal!.instruction).toContain(
+      'not the work in this change'
+    );
+    expect(proposal!.instruction).toContain('own related requirements as the system evolves');
+    expect(proposal!.instruction).toContain('avoid broad catch-all capabilities');
+
+    const template = fs.readFileSync(
+      path.join(repoRoot, 'schemas', 'spec-driven', 'templates', 'proposal.md'),
+      'utf-8'
+    );
+    expect(template).toMatch(
+      /Name each capability for a cohesive system\s+behavior that can own related requirements as the system evolves/
+    );
+    expect(template).toMatch(/Do not name\s+implementation tasks or proposal sections/);
+    expect(template).toContain('Avoid broad catch-all names');
+
+    const reference = fs.readFileSync(
+      path.join(repoRoot, 'docs-lab', 'reference', 'schemas', 'spec-driven', 'index.md'),
+      'utf-8'
+    );
+    expect(reference).toMatch(
+      /Name each capability for a cohesive system\s+behavior that can own related requirements as the system evolves/
+    );
+    expect(reference).toMatch(/Do not name\s+implementation tasks or proposal sections/);
+    expect(reference).toContain('Avoid broad catch-all names');
+  });
+});
+
 describe('default task guidance', () => {
+  it('keeps tracked tasks within the pre-archive workflow (#1790)', () => {
+    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
+    expect(tasks).toBeDefined();
+    expect(tasks!.instruction).toMatch(
+      /Track implementation and verification work that can be completed before\s+archive/
+    );
+    expect(tasks!.instruction).toMatch(
+      /preserve those steps as plain bullets in an\s+optional `## Workflow follow-up` section at the end of tasks.md/
+    );
+
+    const examples = [...tasks!.instruction.matchAll(/```\s*([\s\S]*?)```/g)];
+    expect(examples).toHaveLength(2);
+    const implementation = examples[0][1];
+    const followUp = examples[1][1];
+    expect(followUp).toContain('## Workflow follow-up');
+    expect(followUp).toContain('- Verify the archived result.');
+    expect(parseTaskLines(followUp)).toEqual([]);
+    expect(parseTaskLines(`${implementation}\n${followUp}`)).toEqual(
+      parseTaskLines(implementation)
+    );
+  });
+
   it('requires a concrete verification method in each task (#345)', () => {
     const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
     expect(tasks).toBeDefined();
@@ -619,7 +678,7 @@ describe('artifact loop guards (propose and ff)', () => {
   it('tells the agent how to resolve a glob output path', () => {
     for (const [label, body] of loopBodies) {
       expect(body, label).toContain(
-        'is a glob, follow `instruction` to choose the concrete file path'
+        'is a glob, follow `instruction` to choose a concrete path'
       );
     }
   });

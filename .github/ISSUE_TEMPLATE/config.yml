@@ -1,0 +1,17 @@
+# Issues are the only way a change to OpenSpec starts, so the forms are the only
+# way in: they carry the standards the contribution policy asks for
+# (https://openspec.dev/blog/openspec-contribution-policy/). Anything the three
+# forms don't fit goes to the contact links below.
+#
+# Nothing emits a blank-issue URL any more: `openspec feedback` links to the bug
+# form with its fields prefilled, and the docs link the docs form. This setting
+# governs the web chooser only, so `openspec feedback` keeps filing through the
+# API either way.
+blank_issues_enabled: false
+contact_links:
+  - name: Question or help with your setup
+    url: https://github.com/Fission-AI/OpenSpec/discussions/categories/q-a
+    about: Not sure whether it is a bug? Ask here and we will help you narrow it down.
+  - name: Discord
+    url: https://discord.gg/YctCnvvshC
+    about: Chat with the community and the maintainers.

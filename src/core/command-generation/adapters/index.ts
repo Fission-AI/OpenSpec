@@ -6,20 +6,24 @@
 
 export { amazonQAdapter } from './amazon-q.js';
 export { antigravityAdapter } from './antigravity.js';
+export { atomcodeAdapter } from './atomcode.js';
 export { auggieAdapter } from './auggie.js';
 export { bobAdapter } from './bob.js';
 export { claudeAdapter } from './claude.js';
 export { clineAdapter } from './cline.js';
 export { commandCodeAdapter } from './command-code.js';
 export { codebuddyAdapter } from './codebuddy.js';
+export { codeStudioAdapter } from './codestudio.js';
 export { continueAdapter } from './continue.js';
 export { costrictAdapter } from './costrict.js';
 export { crushAdapter } from './crush.js';
 export { cursorAdapter } from './cursor.js';
 export { devinAdapter } from './devin.js';
+export { easycodeAdapter } from './easycode.js';
 export { factoryAdapter } from './factory.js';
 export { geminiAdapter } from './gemini.js';
 export { githubCopilotAdapter } from './github-copilot.js';
+export { gigacodeAdapter } from './gigacode.js';
 export { iflowAdapter } from './iflow.js';
 export { junieAdapter } from './junie.js';
 export { kilocodeAdapter } from './kilocode.js';

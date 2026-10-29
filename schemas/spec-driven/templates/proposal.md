@@ -11,9 +11,12 @@
 ## Capabilities
 
 ### New Capabilities
-<!-- Capabilities being introduced. Use kebab-case for path segments you introduce
-     (e.g., user-auth or identity/user-auth) that follow the project's existing
-     spec organization. Each creates specs/<capability-path>/spec.md. -->
+<!-- Capabilities being introduced. Name each capability for a cohesive system
+     behavior that can own related requirements as the system evolves. Do not name
+     implementation tasks or proposal sections. Avoid broad catch-all names. Use
+     kebab-case for path segments you introduce (e.g., user-auth or identity/user-auth)
+     that follow the project's existing spec organization. Each creates
+     specs/<capability-path>/spec.md. -->
 - `<capability-path>`: <brief description of what this capability covers>
 
 ### Modified Capabilities

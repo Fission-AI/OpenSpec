@@ -760,7 +760,18 @@ describe('openspec workset (7.1)', () => {
       fs.writeFileSync(path.join(binDir, 'claude.exe'), 'not a real image\n');
       const fakeCode = createFakeTool(tempDir, 'code');
       const launchEnv = envWithFakeTools(env, [fakeCode]);
-      launchEnv.PATH = `${binDir}${path.delimiter}${launchEnv.PATH}`;
+      // On ENOENT the PATH search moves on to the next entry, so a real
+      // claude later on PATH (a developer's install) would launch instead
+      // of failing. Keep only the directories without one.
+      const pathWithoutClaude = (launchEnv.PATH ?? '')
+        .split(path.delimiter)
+        .filter(
+          (dir) =>
+            !['claude', 'claude.exe', 'claude.cmd'].some((name) =>
+              fs.existsSync(path.join(dir, name))
+            )
+        );
+      launchEnv.PATH = [binDir, ...pathWithoutClaude].join(path.delimiter);
 
       const result = await runCLI(['workset', 'open', 'platform'], {
         cwd: tempDir,
@@ -897,7 +908,7 @@ describe('interactive compose cancellation (in-process)', () => {
   async function runCreate(promptsModule: Record<string, unknown>): Promise<void> {
     vi.doMock('@inquirer/prompts', () => promptsModule);
     const { registerWorksetCommand } = await import(
-      '../../src/commands/workset.js'
+      '../../src/cli/commands/workset.js'
     );
     const { Command } = await import('commander');
     const program = new Command();
@@ -1043,7 +1054,7 @@ describe('interactive compose cancellation (in-process)', () => {
       confirm: vi.fn(async () => false),
     }));
     const { registerWorksetCommand } = await import(
-      '../../src/commands/workset.js'
+      '../../src/cli/commands/workset.js'
     );
     const { Command } = await import('commander');
 

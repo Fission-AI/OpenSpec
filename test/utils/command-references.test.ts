@@ -219,6 +219,8 @@ describe('getSkillReferenceTransformer', () => {
   it('uses the default /<name> form for tools without a custom prefix', () => {
     expect(getSkillReferenceTransformer('vibe')).toBe(transformToSkillReferences);
     expect(getSkillReferenceTransformer('hermes')('/opsx:apply')).toBe('/openspec-apply-change');
+    // dsh supports the user-facing /<name> gesture, so it keeps the default.
+    expect(getSkillReferenceTransformer('dsh')('/opsx:apply')).toBe('/openspec-apply-change');
   });
 
   it('uses /skill:<name> for Kimi Code, per its documented invocation syntax', () => {
@@ -236,7 +238,7 @@ describe('getSkillReferenceTransformer', () => {
     expect(transformer('/opsx:unknown-command')).toBe('/opsx:unknown-command');
   });
 
-  it.each(['rovodev', 'codeassistant'])('uses natural-language skill references for %s', (toolId) => {
+  it.each(['gsd', 'rovodev', 'codeassistant'])('uses natural-language skill references for %s', (toolId) => {
     const transformer = getSkillReferenceTransformer(toolId);
     expect(transformer('/opsx:propose')).toBe('the openspec-propose skill');
     expect(transformer('Run `/opsx:apply` then /opsx:archive')).toBe(

@@ -12,6 +12,7 @@ const itWithSymlinks = it.skipIf(process.platform === 'win32');
 
 describe('spec apply path boundaries', () => {
   let tempDir: string;
+  let projectDir: string;
   let changeDir: string;
   let changeSpecsDir: string;
   let mainSpecsDir: string;
@@ -19,9 +20,12 @@ describe('spec apply path boundaries', () => {
 
   beforeEach(async () => {
     tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-spec-apply-security-'));
-    changeDir = path.join(tempDir, 'openspec', 'changes', 'test-change');
+    // A spec file may link to another file in the same project, so the escape
+    // these cases guard against is one that leaves the project entirely.
+    projectDir = path.join(tempDir, 'repo');
+    changeDir = path.join(projectDir, 'openspec', 'changes', 'test-change');
     changeSpecsDir = path.join(changeDir, 'specs');
-    mainSpecsDir = path.join(tempDir, 'openspec', 'specs');
+    mainSpecsDir = path.join(projectDir, 'openspec', 'specs');
     outsideDir = path.join(tempDir, 'outside');
     await fs.mkdir(changeSpecsDir, { recursive: true });
     await fs.mkdir(mainSpecsDir, { recursive: true });
@@ -52,7 +56,7 @@ describe('spec apply path boundaries', () => {
     return deltaPath;
   }
 
-  itWithSymlinks('rejects a delta spec symlink that leaves the change specs root', async () => {
+  itWithSymlinks('rejects a delta spec symlink that leaves the project', async () => {
     const outsideSpec = path.join(outsideDir, 'spec.md');
     await fs.writeFile(outsideSpec, 'outside sentinel');
     const linkedSpec = path.join(changeSpecsDir, 'widgets', 'spec.md');
