@@ -21,7 +21,14 @@ describe('apply instructions gate on CLI warnings (#2166)', () => {
     const proceed = instructions.indexOf('Otherwise: proceed to implementation');
     expect(gate).toBeGreaterThan(-1);
     expect(gate).toBeLessThan(proceed);
-    expect(instructions).toMatch(/pause before implementing, even when `state` is `"ready"`/);
+    expect(instructions).toMatch(/even when `state` is `"ready"` or `"all_done"`/);
+  });
+
+  it('checks warnings before reporting all_done, so completion never hides them', () => {
+    const gate = instructions.indexOf('If `warnings` is non-empty');
+    const allDone = instructions.indexOf('If `state: "all_done"`');
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(allDone);
   });
 
   it('carries the same gate on both the skill and command surfaces', () => {
