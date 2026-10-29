@@ -14,6 +14,7 @@ import type { GeneratedCommand } from '../command-generation/types.js';
 import { ALL_WORKFLOWS } from '../profiles.js';
 import { getCommandContents } from './skill-generation.js';
 import { normalizeCommandContent } from './tool-detection.js';
+import { DISK_VIEW, type FileView } from '../file-view.js';
 
 export interface CommandReconcileResult {
   /** Project-relative paths of generated command files that were deleted. */
@@ -58,7 +59,8 @@ interface CommandFileClassification {
 export function classifyCommandFiles(
   projectPath: string,
   toolId: string,
-  workflows: readonly string[]
+  workflows: readonly string[],
+  view: FileView = DISK_VIEW
 ): CommandFileClassification {
   const generated: CommandFileEntry[] = [];
   const kept: string[] = [];
@@ -80,7 +82,7 @@ export function classifyCommandFiles(
       unchecked.push(cmdPath);
       continue;
     }
-    if (fs.existsSync(fullPath)) {
+    if (view.exists(fullPath)) {
       present.push({ workflow, cmdPath, fullPath });
     }
   }
@@ -108,7 +110,7 @@ export function classifyCommandFiles(
 
   for (const { cmdPath, fullPath } of present) {
     try {
-      const onDisk = normalizeCommandContent(fs.readFileSync(fullPath, 'utf-8'));
+      const onDisk = normalizeCommandContent(view.read(fullPath));
       if ((generatedByPath.get(cmdPath) ?? []).includes(onDisk)) {
         generated.push({ cmdPath, fullPath });
       } else {
@@ -124,6 +126,21 @@ export function classifyCommandFiles(
 }
 
 /**
+ * How reconciliation reads and deletes. `openspec update --dry-run` passes its
+ * planned tree and a recorder, so the plan lists the same deletions a real
+ * update makes and writes nothing.
+ */
+export interface CommandReconcileIo {
+  view: FileView;
+  remove(fullPath: string): Promise<void>;
+}
+
+const DISK_IO: CommandReconcileIo = {
+  view: DISK_VIEW,
+  remove: (fullPath) => fs.promises.unlink(fullPath),
+};
+
+/**
  * Deletes a tool's generated command files, keeping back any the user owns.
  * A file that does not match generated output is left on disk and reported,
  * so moving to skills-only delivery can never silently discard a hand-edited
@@ -132,14 +149,15 @@ export function classifyCommandFiles(
 export async function reconcileCommandFiles(
   projectPath: string,
   toolId: string,
-  workflows: readonly string[]
+  workflows: readonly string[],
+  io: CommandReconcileIo = DISK_IO
 ): Promise<CommandReconcileResult> {
-  const { generated, kept, unchecked } = classifyCommandFiles(projectPath, toolId, workflows);
+  const { generated, kept, unchecked } = classifyCommandFiles(projectPath, toolId, workflows, io.view);
   const removed: string[] = [];
 
   for (const { cmdPath, fullPath } of generated) {
     try {
-      await fs.promises.unlink(fullPath);
+      await io.remove(fullPath);
       removed.push(cmdPath);
     } catch {
       // A matched file that cannot be deleted is still on disk. Report it

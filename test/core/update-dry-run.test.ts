@@ -197,6 +197,20 @@ describe('openspec update --dry-run', () => {
     });
   });
 
+  // #2087: a command file the user edited is kept, so the plan must not list
+  // it as a deletion, and must still list the generated ones it removes.
+  it('plans to keep an edited command file when delivery becomes skills-only', async () => {
+    const edited = path.join(testDir, '.claude', 'commands', 'opsx', 'apply.md');
+    await fs.writeFile(edited, `${await fs.readFile(edited, 'utf-8')}\nMy own note.\n`);
+    await writeGlobalConfig({ profile: 'core', delivery: 'skills' });
+
+    const changes = await expectPlanMatchesRealUpdate();
+
+    expect(changes).toContainEqual({ path: '.claude/commands/opsx/propose.md', action: 'delete', tool: 'claude' });
+    expect(changes.map((change) => change.path)).not.toContain('.claude/commands/opsx/apply.md');
+    expect(await fs.readFile(edited, 'utf-8')).toContain('My own note.');
+  });
+
   it('lists skills that live outside the project, under the user home', async () => {
     // A home of its own, outside the project, so the plan has to name the file
     // the way the user would recognize it.
