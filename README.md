@@ -117,13 +117,13 @@ Solo, OpenSpec keeps you and your AI honest on a single repo. On a team, the har
 
 ## Quick Start
 
-Install OpenSpec on macOS or Linux:
+Install OpenSpec. On macOS or Linux, in your terminal:
 
 ```bash
 curl -fsSL https://openspec.dev/cli/install.sh | sh
 ```
 
-Windows (PowerShell):
+On Windows, in PowerShell:
 
 ```powershell
 irm https://openspec.dev/cli/install.ps1 | iex
