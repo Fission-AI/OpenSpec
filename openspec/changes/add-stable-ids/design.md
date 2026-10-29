@@ -30,7 +30,7 @@ The brackets are required. A review found that bare tokens misfire on ordinary n
 
 ### D3
 
-Match on the ID first, then on the name, so a requirement or scenario renamed under the same ID is the same block, and a different ID never counts as a match just because the name is shared. An ID match may not land on a requirement another MODIFIED block in the delta already changed, or on a RENAMED target. Validate looks IDs up after the REMOVED that archive applies first, so the two agree.
+Match on the ID first, then on the name, so a requirement or scenario renamed under the same ID is the same block, and a different ID never counts as a match just because the name is shared. A heading may gain an ID (`Users sign in` or `NAV-5 Users sign in` becoming `[NAV-5] Users sign in`) but not lose one: a scenario that drops its ID counts as dropped, and a requirement that drops it is not found. An ID match may not land on a requirement another MODIFIED block in the delta already changed, or on a RENAMED target. Validate looks IDs up after the REMOVED that archive applies first, so the two agree.
 
 ### D4
 
@@ -38,7 +38,7 @@ Refuse duplicate IDs instead of guessing, because agents number sequentially and
 
 ### D5
 
-A decision is a `### D1` heading plus the choice and reason in one or two sentences: the bare heading keeps the `#d1` anchor stable (#2056), and dropping the Context, Rationale and Alternatives fields answers #2113's concern about padded, invented alternatives. Decision IDs are local to one change, so the CLI doesn't check them.
+A decision is a `### D1` heading plus the choice and reason in one or two sentences: the bare heading keeps the `#d1` anchor stable (#2056), and dropping the Context, Rationale and Alternatives fields answers #2113's concern about padded, invented alternatives. Decision IDs are local to one change, so the CLI doesn't check them; reporting a task link to a missing decision is a follow-up (#2056 step 2).
 
 ### D6
 
@@ -66,7 +66,8 @@ The implementation reran the archive check on five repos, including sonqh's spec
 
 1. **Coverage report.** `openspec coverage` lists which IDs tests cite. Earlier review findings belong to it: scan untracked files too (`git ls-files -z --cached --others --exclude-standard`), skip the specs themselves, and ignore Elixir's `@spec`.
 2. **`/opsx:verify` reads cited IDs** instead of guessing coverage.
-3. **A lasting home for implementation context**, the `specs/<capability>/design.md` the conventions spec promises (#1967 direction 3).
+3. **Dangling decision links.** Validate reports a `[D3](./design.md#d3)` whose decision no longer exists (#2056 step 2).
+4. **A lasting home for implementation context**, the `specs/<capability>/design.md` the conventions spec promises (#1967 direction 3).
 
 ## Open Questions
 

@@ -129,6 +129,17 @@ describe('buildUpdatedSpec (stable IDs)', () => {
       );
       expect(headings((await run()).rebuilt)).toEqual(['### Requirement: [AUTH-3] Users sign in']);
     });
+
+    it('lets headings that already start with a bare ID add brackets', async () => {
+      const legacy = spec(requirement('NAV-5 Users sign in', ['NAV-5.1 Correct password']));
+      const { run } = await build(
+        legacy,
+        modified(requirement('[NAV-5] Users sign in', ['[NAV-5.1] Correct password']))
+      );
+      const { rebuilt } = await run();
+      expect(headings(rebuilt)).toEqual(['### Requirement: [NAV-5] Users sign in']);
+      expect(rebuilt).toContain('#### Scenario: [NAV-5.1] Correct password');
+    });
   });
 
   describe('refusals', () => {
@@ -151,6 +162,14 @@ describe('buildUpdatedSpec (stable IDs)', () => {
         modified(requirement('Users log in', ['[AUTH-3.1] Correct password', '[AUTH-3.2] Wrong password']))
       );
       await expect(run()).rejects.toThrow(/"### Requirement: Users log in" - not found/);
+    });
+
+    it('refuses a MODIFIED block that drops a scenario ID', async () => {
+      const { run } = await build(
+        MAIN,
+        modified(requirement('[AUTH-3] Users sign in', ['Correct password', '[AUTH-3.2] Wrong password']))
+      );
+      await expect(run()).rejects.toThrow(/"\[AUTH-3\.1\] Correct password"/);
     });
 
     it('does not treat gaining an ID and a new name at once as a rename', async () => {

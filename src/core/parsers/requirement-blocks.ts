@@ -43,6 +43,18 @@ function nameWithoutId(name: string): string {
   return name.replace(HEADING_ID, '').trim();
 }
 
+/**
+ * Whether a name with no ID is the one an ID is being added to: the same name
+ * minus the ID (`Users sign in` -> `[AUTH-3] Users sign in`), or the same ID
+ * already written bare in front (`NAV-5 Users sign in` -> `[NAV-5] Users sign
+ * in`), so projects that prefix headings without brackets can add them.
+ */
+function gainsId(currentName: string, id: string, bare: string): boolean {
+  if (headingId(currentName) !== undefined) return false;
+  const name = normalizeRequirementName(currentName);
+  return name === bare || name === `${id} ${bare}`;
+}
+
 /** Every ID that more than one of the given names carries, in first-seen order. */
 export function findDuplicateIds(names: readonly string[]): string[] {
   const seen = new Set<string>();
@@ -60,7 +72,7 @@ export function findDuplicateIds(names: readonly string[]): string[] {
  * The key of the current requirement a MODIFIED block targets by ID, for a
  * block whose exact name is not in the spec: the one requirement with the same
  * ID (a rename), or, when no requirement has that ID yet, the one without an ID
- * whose name matches the block's name minus its ID (an ID being added).
+ * that the block adds its ID to (gainsId).
  *
  * Undefined when the block has no ID, nothing matches, or the spec's IDs are
  * not unique - callers then keep today's name lookup, so a spec that already
@@ -77,9 +89,7 @@ export function findRequirementKeyById(
   const sameId = entries.find(([, block]) => headingId(block.name) === id);
   if (sameId) return sameId[0];
   const bare = nameWithoutId(incoming.name);
-  const adopted = entries.filter(
-    ([, block]) => headingId(block.name) === undefined && normalizeRequirementName(block.name) === bare
-  );
+  const adopted = entries.filter(([, block]) => gainsId(block.name, id, bare));
   return adopted.length === 1 ? adopted[0][0] : undefined;
 }
 
@@ -721,8 +731,7 @@ function usesScenarioIds(currentNames: readonly string[], incomingNames: readonl
  * Pair scenarios by ID first, so a renamed scenario that kept its ID is not a
  * loss (#1697). What is left pairs by name, but never across two different
  * IDs: a scenario that shares a name with a dropped one does not cover it.
- * When only one side has an ID, the names are compared without it, so adding
- * an ID to an existing scenario is not a loss either.
+ * Adding an ID to a scenario is not a loss; dropping one is.
  */
 function pairScenariosById(
   currentNames: readonly string[],
@@ -744,11 +753,13 @@ function pairScenariosById(
     const id = headingId(name);
     return id === undefined || !take((candidate) => candidate.id === id);
   });
-  const missing = unpairedById.filter((name) => {
-    const id = headingId(name);
-    const bare = nameWithoutId(name);
-    return !take((candidate) => !(id !== undefined && candidate.id !== undefined) && candidate.bare === bare);
-  });
+  const missing = unpairedById.filter(
+    (name) =>
+      headingId(name) !== undefined ||
+      !take((candidate) =>
+        candidate.id === undefined ? candidate.bare === nameWithoutId(name) : gainsId(name, candidate.id, candidate.bare)
+      )
+  );
   return { missing, added: incoming.filter((candidate) => !candidate.used).map((candidate) => candidate.name) };
 }
 

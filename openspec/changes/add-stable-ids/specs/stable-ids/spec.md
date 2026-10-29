@@ -5,7 +5,7 @@ Lets requirements, scenarios and decisions keep a stable ID through renames, so 
 ## ADDED Requirements
 
 ### Requirement: IDs in spec headings
-The system SHALL read a requirement or scenario heading's ID from a square-bracketed word at the start of its name that contains a hyphen and ends in a number, such as `[AUTH-3]`, `[AUTH-3.1]` or `[cap-012]`. Without brackets, the first word SHALL remain part of the name.
+The system SHALL read a requirement or scenario heading's ID from a square-bracketed word at the start of its name that starts with a letter, contains a hyphen and ends in a number, such as `[AUTH-3]`, `[AUTH-3.1]` or `[cap-012]`. Without brackets, the first word SHALL remain part of the name.
 
 #### Scenario: Requirement with an ID
 - **WHEN** a spec contains `### Requirement: [AUTH-3] Users sign in`
@@ -20,7 +20,7 @@ The system SHALL read a requirement or scenario heading's ID from a square-brack
 - **THEN** neither has an ID, and both match by name exactly as before
 
 ### Requirement: Rename keeps the ID
-When a MODIFIED block's heading is not in the main spec but its ID matches exactly one requirement there, or no requirement has that ID and exactly one requirement without an ID has the same name minus the ID, validate and archive SHALL treat the block as that requirement, and archive SHALL write it in the same position under the block's heading. The scenario-loss check SHALL pair scenarios by ID before name.
+When a MODIFIED block's heading is not in the main spec but its ID matches exactly one requirement there, or no requirement has that ID and exactly one requirement without an ID has the same name minus the ID (or the same name with the ID written in front without brackets), validate and archive SHALL treat the block as that requirement, and archive SHALL write it in the same position under the block's heading. The scenario-loss check SHALL pair scenarios by ID before name.
 
 #### Scenario: Requirement renamed
 - **WHEN** the main spec has `[AUTH-3] Users sign in` and a MODIFIED block is headed `[AUTH-3] Users log in`
@@ -37,6 +37,14 @@ When a MODIFIED block's heading is not in the main spec but its ID matches exact
 #### Scenario: Existing requirement gains an ID
 - **WHEN** the main spec has `Users sign in` with scenario `Correct password`, and a MODIFIED block is headed `[AUTH-3] Users sign in` with scenario `[AUTH-3.1] Correct password`
 - **THEN** validate passes and archive writes the requirement under its new heading
+
+#### Scenario: Scenario loses its ID
+- **WHEN** the main spec has scenario `[AUTH-3.1] Correct password` and the MODIFIED block has `Correct password` instead
+- **THEN** the check reports `[AUTH-3.1] Correct password` as missing
+
+#### Scenario: Bare ID gains brackets
+- **WHEN** the main spec has `NAV-5 Users sign in` and a MODIFIED block is headed `[NAV-5] Users sign in`
+- **THEN** validate passes and archive writes the requirement under `[NAV-5] Users sign in`
 
 #### Scenario: Different ID with the same name
 - **WHEN** the main spec has scenario `[AUTH-3.1] Correct password` and the MODIFIED block has `[AUTH-3.4] Correct password` instead
