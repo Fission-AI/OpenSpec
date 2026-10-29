@@ -561,7 +561,11 @@ export async function resolveOpenSpecRoot(
           throw new RootSelectionError(`Store '${entry.id}' folder is missing: ${entry.storeRoot}`, 'store_root_missing');
         }
         const inspection = await inspectRegisteredStore(entry.id, entry.storeRoot);
-        return resolveFromInspection(entry.id, entry.storeRoot, inspection, 'project_store');
+        const root = resolveFromInspection(entry.id, entry.storeRoot, inspection, 'project_store');
+        return {
+          ...root,
+          projectRegistryDir: discoveryProjectRoot,
+        };
       }
     }
   }

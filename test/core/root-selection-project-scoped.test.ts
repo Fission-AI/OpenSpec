@@ -513,4 +513,23 @@ describe('resolveOpenSpecRoot with project-scoped registry', () => {
     // ...but the declaring project's registry is preserved.
     expect(root.projectRegistryDir).toBe(realPath(projectDir));
   });
+
+  it('default-root discovery preserves the invoking project registry when the first entry is outside', async () => {
+    // No --store and no local openspec/ root: the first registry entry is
+    // selected as the default root. When that entry points outside the project,
+    // the invoking project's registry must still be preserved so reference
+    // assembly walks from the project rather than the store.
+    const projectDir = path.join(tmpDir, 'workspace');
+    fs.mkdirSync(projectDir, { recursive: true });
+    const storeDir = path.join(tmpDir, 'outside-store');
+    createStoreRoot(storeDir, 'outside-store');
+
+    writeProjectRegistry(projectDir, { 'outside-store': { path: '../outside-store' } });
+
+    const root = await resolveOpenSpecRoot({ startPath: projectDir });
+
+    expect(root.source).toBe('project_store');
+    expect(root.path).toBe(realPath(storeDir));
+    expect(root.projectRegistryDir).toBe(realPath(projectDir));
+  });
 });
