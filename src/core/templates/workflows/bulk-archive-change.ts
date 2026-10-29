@@ -377,6 +377,7 @@ No active changes found. Create a new change to get started.
 - If sync is requested, ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven)', 'perform the delta-to-main-spec merge inline (agent-driven)')} for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
+- Write, create, or delete a main spec only where it and every parent resolve inside the real \`<planningHome.root>/openspec/specs/\` root; never follow a symlink out of it, and stop that capability's sync instead
 - Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`
 - Fetch archive inputs once per selected root before spec inspection or moves
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
@@ -745,6 +746,7 @@ No active changes found. Create a new change to get started.
 - If sync is requested, ${SYNC_GUARDRAIL} for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
+- Write, create, or delete a main spec only where it and every parent resolve inside the real \`<planningHome.root>/openspec/specs/\` root; never follow a symlink out of it, and stop that capability's sync instead
 - Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`
 - Fetch archive inputs once per selected root before spec inspection or moves
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move

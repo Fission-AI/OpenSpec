@@ -100,6 +100,17 @@ ${PROJECT_ROOT_GUARD}
 
    b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (may not exist yet)
 
+      **Check containment first, before any read, create, or update.** Resolve the
+      real specs root (\`<planningHome.root>/openspec/specs/\` with symlinks
+      followed, e.g. \`realpath\`). Then resolve the destination the same way:
+      \`spec.md\` itself when it exists, and every existing parent directory up to
+      the specs root, so a new capability is checked through its nearest existing
+      parent. If any of them resolves outside the real specs root (for example a
+      symlinked capability directory or \`spec.md\` that points elsewhere), do not
+      read, create, or modify it. Stop the sync for that capability and report the
+      path and where it resolves. Never create a missing directory under a parent
+      that resolves outside the root.
+
       **If it does not exist yet** (a new capability), match what \`openspec archive\` does:
       only ADDED requirements may be applied - step d creates the spec from them.
       MODIFIED and RENAMED have no requirement to act on, so stop the sync for that
@@ -133,8 +144,8 @@ ${PROJECT_ROOT_GUARD}
            title, Purpose, Requirements header, or a canonical requirement's
            statement, scenarios, or fenced examples;
         5. the change's \`.openspec.yaml\` declares \`retire_capabilities: true\`;
-        6. the \`spec.md\` resolves inside the real specs root (do not follow a
-           capability-directory symlink to delete an external file).
+        6. the \`spec.md\` still passes the step b containment check (do not follow
+           a capability-directory symlink to delete an external file).
         If removing the selected requirements would leave no requirement blocks and
         any retirement condition is not satisfied, do not modify the main spec. Stop
         the sync for that capability, report the blocking condition, and tell the user
@@ -276,6 +287,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
+- Write, create, or delete a main spec only where it and every parent resolve inside the real \`<planningHome.root>/openspec/specs/\` root; never follow a symlink out of it
 - Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
 - Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
@@ -381,6 +393,17 @@ ${PROJECT_ROOT_GUARD}
 
    b. **Read the main spec** at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` (may not exist yet)
 
+      **Check containment first, before any read, create, or update.** Resolve the
+      real specs root (\`<planningHome.root>/openspec/specs/\` with symlinks
+      followed, e.g. \`realpath\`). Then resolve the destination the same way:
+      \`spec.md\` itself when it exists, and every existing parent directory up to
+      the specs root, so a new capability is checked through its nearest existing
+      parent. If any of them resolves outside the real specs root (for example a
+      symlinked capability directory or \`spec.md\` that points elsewhere), do not
+      read, create, or modify it. Stop the sync for that capability and report the
+      path and where it resolves. Never create a missing directory under a parent
+      that resolves outside the root.
+
       **If it does not exist yet** (a new capability), match what \`openspec archive\` does:
       only ADDED requirements may be applied - step d creates the spec from them.
       MODIFIED and RENAMED have no requirement to act on, so stop the sync for that
@@ -414,8 +437,8 @@ ${PROJECT_ROOT_GUARD}
            title, Purpose, Requirements header, or a canonical requirement's
            statement, scenarios, or fenced examples;
         5. the change's \`.openspec.yaml\` declares \`retire_capabilities: true\`;
-        6. the \`spec.md\` resolves inside the real specs root (do not follow a
-           capability-directory symlink to delete an external file).
+        6. the \`spec.md\` still passes the step b containment check (do not follow
+           a capability-directory symlink to delete an external file).
         If removing the selected requirements would leave no requirement blocks and
         any retirement condition is not satisfied, do not modify the main spec. Stop
         the sync for that capability, report the blocking condition, and tell the user
@@ -557,6 +580,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
+- Write, create, or delete a main spec only where it and every parent resolve inside the real \`<planningHome.root>/openspec/specs/\` root; never follow a symlink out of it
 - Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
 - Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline

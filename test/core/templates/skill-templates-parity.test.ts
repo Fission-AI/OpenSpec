@@ -81,20 +81,20 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getContinueChangeSkillTemplate: '2da5a24eb949f0717ffdb23c28c021ab6f73dc4beeb92ab709b8dbdac9db7355',
   getApplyChangeSkillTemplate: 'c4f02c29137e19b34bf1dc59146941b8c920214aa2cf3ce80ae7f1b982e976fc',
   getFfChangeSkillTemplate: '0eb8ddc6da710bc9ed6cd142a2eec1bec883f730125d76dc38e532bd5395bdf2',
-  getSyncSpecsSkillTemplate: 'bc80fe9b07eaa289e5eb8a3ce65eb7df722a16d864e37283c678220712e4f230',
+  getSyncSpecsSkillTemplate: '43897b62ee5119f5e736b20e73db9d0c5e69a10856ed4b24025581a04925069a',
   getOnboardSkillTemplate: '84258a06c0ca88de708a23dd74e9a17efe11eff63a071b3864c781dcd5a0a4b7',
   getOpsxExploreCommandTemplate: 'c0af210bc070b7ac5168523b381cb9e213e4e102205bfc26bdae15677d954ae1',
   getOpsxNewCommandTemplate: '6d504fef1e0d4ced7c423f4cc9d9d2cee11b1a6224edf685e06a3f0757e0ebff',
   getOpsxContinueCommandTemplate: '9e36b758c2760fcab4dcef4677ee678eb29eac00f31de8cbc99f812a440afaaf',
   getOpsxApplyCommandTemplate: '9b733946aa7216b45d084bb5affd7071086db6f91282c3666731a17543825ff1',
   getOpsxFfCommandTemplate: '625d6a4a52adeaa16dbceff378f1d7cb07556e79b19d9af63feca5125aa4da13',
-  getArchiveChangeSkillTemplate: '04a029782fc4137971fad6f54cfda3685d7e0b835b06565f9a509b4878093099',
-  getBulkArchiveChangeSkillTemplate: '44dbd3c7a347e5f8339b2141393f2ac36017527cce251483fe70f2059c1e286e',
-  getOpsxSyncCommandTemplate: '60550b7bb9829421656d6324a9e4c951bc912f48f88882d1a07ce7f78397a5e7',
+  getArchiveChangeSkillTemplate: '650129207699deb483c92023353227145a4d80b66e53f896813ce462edcf6ce3',
+  getBulkArchiveChangeSkillTemplate: '2a4055a0c0d22b3b342c88684203bf4ba0935b9b31737a8fed0c5d7f58c21566',
+  getOpsxSyncCommandTemplate: '1c5feab0427074e4cabd5c09cf31fd58975d306ed9d3311c4d2863f7a8955cdc',
   getVerifyChangeSkillTemplate: '9c45ab6d958a9fc432fa59b8d447ca8722a2275da566e91c0e545f531a921ed3',
-  getOpsxArchiveCommandTemplate: '5d153490bf1ca24207f49856826720f793c8884a6ec15059104107b0e34ee345',
+  getOpsxArchiveCommandTemplate: '7b7eafe424125e9ea969f32127ddc78e588d3de857962709d96a2f93205ff0bb',
   getOpsxOnboardCommandTemplate: '0cf66e164c0e14c916c6d1ebb5d80ded07d7fb8e55d4eb34eba43e8ca9c28558',
-  getOpsxBulkArchiveCommandTemplate: 'cb1d55d6ce53686bfe94be5e081c7a4d06a8e4d10b63019132df5bb3db7144cb',
+  getOpsxBulkArchiveCommandTemplate: 'e8c47f2b536edcc55bcd8337ffa83b78667d960a1db3f266f1899b1373562ebd',
   getOpsxVerifyCommandTemplate: 'ddc3fe6d529c82703ac131fb4383e4ae1f8df152d11afd75ae74ca17b12f1b24',
   getOpsxProposeSkillTemplate: 'd5e0e2d675cedaffbd771892f15edd8f7f55b464ee42362b1572aa59c4c1d492',
   getOpsxProposeCommandTemplate: 'f30af4ce5b7677bd664da71dd6d616a93278335e8828a7c3442fab59c339a11b',
@@ -109,9 +109,9 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-continue-change': 'd8859091316ad43a58cd015091454a95bf49378ec9d9117b24ab9b2396dc8303',
   'openspec-apply-change': '991a1d4687f1c8c7147d8c3b68cf14e9c515c6c53bb026356dac3b80e909b827',
   'openspec-ff-change': '224ff2ed2315eb23876fc4b83d796b60cf3cd05d853f2612e5b056ee7a6e93d2',
-  'openspec-sync-specs': '3909936a236a21a9a6d5bf495f90b396b3b68fc9220d7b2c1894668653beb2e4',
-  'openspec-archive-change': '5f0d131a885dcdcd9ba2172ea9a42bc6748125e24b8c4eecb7c86f1a4aea83af',
-  'openspec-bulk-archive-change': 'd2a258055ab2f0d8086c4348d37212ebc95a5adef2d5f524db959fb93490d5c8',
+  'openspec-sync-specs': '3aa6e599e6c0159e25988776e871bb2222d967726d52f04e6950c3816f7edc34',
+  'openspec-archive-change': '71ebb63ab2ba87dd570593617689b44fe8ad544fee4803642f074d197d7fb0e1',
+  'openspec-bulk-archive-change': '338adcbf8f96806641737633550f83a22b02b78d4c76a617d4a278cf7ac6fb3e',
   'openspec-verify-change': '082453eb0a8079a4c1c72c243373bf6489ebac56f9adaa8b58588047823ded0d',
   'openspec-onboard': '6993eff867d97d485e080078f9dfb80e968e242f3b17a924eeb077715fd548fa',
   'openspec-propose': '2bbfc169f483cbacc481bf5160aece61d5237e1bca80955f48f7e2a4814e6143',
@@ -1229,6 +1229,45 @@ describe('skill templates split parity', () => {
     }
   });
 
+  // #2164: containment used to be required only for the retirement delete,
+  // so a symlinked capability directory or spec.md let a create or update
+  // write outside openspec/specs/. Every write path must check it first.
+  it('requires every main-spec write to resolve inside the real specs root', () => {
+    const variants: Array<[string, string]> = [
+      ['sync skill', getSyncSpecsSkillTemplate().instructions],
+      ['sync command', getOpsxSyncCommandTemplate().content],
+    ];
+    for (const [variant, text] of variants) {
+      expect(text, variant).toContain('**Check containment first, before any read, create, or update.**');
+      expect(text, variant).toContain('every existing parent directory up to\n      the specs root');
+      expect(text, variant).toContain('do not\n      read, create, or modify it');
+      expect(text, variant).toContain(
+        'Never create a missing directory under a parent\n      that resolves outside the root'
+      );
+      // The containment step comes before any branch that creates or edits.
+      expect(text.indexOf('Check containment first'), variant).toBeLessThan(
+        text.indexOf('**If it does not exist yet**')
+      );
+      expect(text.indexOf('Check containment first'), variant).toBeLessThan(
+        text.indexOf('**ADDED Requirements:**')
+      );
+    }
+
+    const inlineMergeVariants: Array<[string, string]> = [
+      ['archive skill', getArchiveChangeSkillTemplate().instructions],
+      ['archive command', getOpsxArchiveCommandTemplate().content],
+      ['bulk skill', getBulkArchiveChangeSkillTemplate().instructions],
+      ['bulk command', getOpsxBulkArchiveCommandTemplate().content],
+      ['sync skill', getSyncSpecsSkillTemplate().instructions],
+      ['sync command', getOpsxSyncCommandTemplate().content],
+    ];
+    for (const [variant, text] of inlineMergeVariants) {
+      expect(text, variant).toContain(
+        'Write, create, or delete a main spec only where it and every parent resolve inside the real `<planningHome.root>/openspec/specs/` root; never follow a symlink out of it'
+      );
+    }
+  });
+
   // A golden hash proves the generated file matches its source, never that the
   // source is right - so a careless `regen:parity-hashes` over a dropped
   // paragraph passes CI silently. The sync skill is the one place an agent
@@ -1246,7 +1285,7 @@ describe('skill templates split parity', () => {
     for (const [variant, text] of variants) {
       expect(text, variant).toContain('retire_capabilities: true');
       expect(text, variant).toContain('every other nonblank line in the whole file is accounted for');
-      expect(text, variant).toContain('resolves inside the real specs root');
+      expect(text, variant).toContain('still passes the step b containment check');
       expect(text, variant).toContain('checkout-scoped recovery guidance');
       expect(text, variant).toContain('do not modify the main spec');
       expect(text, variant).toMatch(/Stop\s+the sync for that capability/);

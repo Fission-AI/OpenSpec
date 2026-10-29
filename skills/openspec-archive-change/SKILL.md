@@ -211,6 +211,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, run the `openspec-sync-specs` workflow inline (agent-driven)
+- Write, create, or delete a main spec only where it and every parent resolve inside the real `<planningHome.root>/openspec/specs/` root; never follow a symlink out of it, and stop that capability's sync instead
 - Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving `changeRoot`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - Apply relevant runtime context and report conflicts; operation guidance remains advisory
