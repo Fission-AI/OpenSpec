@@ -16,6 +16,7 @@ describe('ZshInstaller .zshrc round trip', () => {
   let completionsDir: string;
   let installer: ZshInstaller;
   let savedZsh: string | undefined;
+  let savedZdotdir: string | undefined;
 
   beforeEach(async () => {
     homeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-zshrc-round-trip-'));
@@ -25,11 +26,16 @@ describe('ZshInstaller .zshrc round trip', () => {
     // Standard zsh only: Oh My Zsh does not use the .zshrc block.
     savedZsh = process.env.ZSH;
     delete process.env.ZSH;
+    // A set $ZDOTDIR would point the installer at the developer's real .zshrc.
+    savedZdotdir = process.env.ZDOTDIR;
+    delete process.env.ZDOTDIR;
   });
 
   afterEach(async () => {
     if (savedZsh === undefined) delete process.env.ZSH;
     else process.env.ZSH = savedZsh;
+    if (savedZdotdir === undefined) delete process.env.ZDOTDIR;
+    else process.env.ZDOTDIR = savedZdotdir;
     await fs.rm(homeDir, { recursive: true, force: true });
   });
 

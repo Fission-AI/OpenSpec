@@ -6,6 +6,20 @@ import { InstallationResult } from '../factory.js';
 import { shellSingleQuote } from './shell-quote.js';
 
 /**
+ * zsh reads its startup files from $ZDOTDIR when it is set, and from $HOME
+ * only otherwise, so a block written to ~/.zshrc under an XDG-style
+ * ZDOTDIR is never loaded (#2138).
+ */
+function zshrcDir(homeDir: string): string {
+  return process.env.ZDOTDIR || homeDir;
+}
+
+/** The .zshrc zsh will read, as shown to the user: `~/.zshrc` unless ZDOTDIR moves it. */
+export function zshrcDisplayPath(): string {
+  return process.env.ZDOTDIR ? path.join(process.env.ZDOTDIR, '.zshrc') : '~/.zshrc';
+}
+
+/**
  * Installer for Zsh completion scripts.
  * Supports both Oh My Zsh and standard Zsh configurations.
  */
@@ -108,7 +122,15 @@ export class ZshInstaller {
    * @returns Path to .zshrc
    */
   private getZshrcPath(): string {
-    return path.join(this.homeDir, '.zshrc');
+    return path.join(zshrcDir(this.homeDir), '.zshrc');
+  }
+
+  /**
+   * Every .zshrc that may hold an OpenSpec block: the one zsh reads, plus
+   * ~/.zshrc, where installs before #2138 wrote it even under ZDOTDIR.
+   */
+  private getZshrcCandidates(): string[] {
+    return [...new Set([this.getZshrcPath(), path.join(this.homeDir, '.zshrc')])];
   }
 
   /**
@@ -170,9 +192,8 @@ export class ZshInstaller {
    *
    * @returns true if .zshrc exists and has markers
    */
-  private async hasZshrcConfig(): Promise<boolean> {
+  private async hasZshrcConfig(zshrcPath: string = this.getZshrcPath()): Promise<boolean> {
     try {
-      const zshrcPath = this.getZshrcPath();
       const content = await fs.readFile(zshrcPath, 'utf-8');
       return content.includes(this.ZSHRC_MARKERS.start) && content.includes(this.ZSHRC_MARKERS.end);
     } catch {
@@ -184,12 +205,11 @@ export class ZshInstaller {
    * Remove .zshrc configuration
    * Used during uninstallation
    *
+   * @param zshrcPath - The .zshrc to clean; defaults to the one zsh reads
    * @returns true if removed successfully, false otherwise
    */
-  async removeZshrcConfig(): Promise<boolean> {
+  async removeZshrcConfig(zshrcPath: string = this.getZshrcPath()): Promise<boolean> {
     try {
-      const zshrcPath = this.getZshrcPath();
-
       // Check if file exists
       try {
         await fs.access(zshrcPath);
@@ -372,12 +392,12 @@ export class ZshInstaller {
       ];
     } else {
       const completionsDir = path.dirname(installedPath);
-      const zshrcPath = path.join(this.homeDir, '.zshrc');
+      const zshrcPath = this.getZshrcPath();
 
       return [
         'Completion script installed to ~/.zsh/completions/',
         '',
-        'To enable completions, add the following to your ~/.zshrc file:',
+        `To enable completions, add the following to your ${zshrcDisplayPath()} file:`,
         '',
         `  # Add completions directory to fpath`,
         `  fpath=(${shellSingleQuote(completionsDir)} $fpath)`,
@@ -414,11 +434,15 @@ export class ZshInstaller {
 
       // Try to remove .zshrc configuration (only for standard Zsh)
       let zshrcWasPresent = false;
-      let zshrcCleaned = false;
+      const cleanedZshrcs: string[] = [];
       if (!isOhMyZsh) {
-        zshrcWasPresent = await this.hasZshrcConfig();
-        if (zshrcWasPresent) {
-          zshrcCleaned = await this.removeZshrcConfig();
+        for (const zshrcPath of this.getZshrcCandidates()) {
+          if (await this.hasZshrcConfig(zshrcPath)) {
+            zshrcWasPresent = true;
+            if (await this.removeZshrcConfig(zshrcPath)) {
+              cleanedZshrcs.push(zshrcPath);
+            }
+          }
         }
       }
 
@@ -433,8 +457,9 @@ export class ZshInstaller {
       if (scriptRemoved) {
         messages.push(`Completion script removed from ${targetPath}`);
       }
-      if (zshrcCleaned && !isOhMyZsh) {
-        messages.push('Removed OpenSpec configuration from ~/.zshrc');
+      for (const zshrcPath of cleanedZshrcs) {
+        const label = zshrcPath === path.join(this.homeDir, '.zshrc') ? '~/.zshrc' : zshrcPath;
+        messages.push(`Removed OpenSpec configuration from ${label}`);
       }
 
       return {

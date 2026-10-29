@@ -183,8 +183,9 @@ The completion command SHALL automatically install completion scripts into shell
 - **WHEN** user executes `openspec completion install zsh` and Oh My Zsh is not detected
 - **THEN** create completions directory at `~/.zsh/completions/` if it doesn't exist
 - **AND** write completion script to `~/.zsh/completions/_openspec`
-- **AND** add `fpath=(~/.zsh/completions $fpath)` to `~/.zshrc` if not already present
-- **AND** add `autoload -Uz compinit && compinit` to `~/.zshrc` if not already present
+- **AND** add `fpath=(~/.zsh/completions $fpath)` to `${ZDOTDIR:-$HOME}/.zshrc` (the file zsh reads) if not already present
+- **AND** add `autoload -Uz compinit && compinit` to that same file if not already present
+- **AND** never create or edit `~/.zshrc` when `$ZDOTDIR` points elsewhere
 - **AND** display success message with instruction to run `exec zsh` or restart terminal
 
 #### Scenario: Installing for Bash with bash-completion
@@ -238,7 +239,7 @@ The completion command SHALL remove installed completion scripts and configurati
 - **AND** if user declines, cancel uninstall and display "Uninstall cancelled."
 - **AND** if user confirms, remove `~/.oh-my-zsh/custom/completions/_openspec` if Oh My Zsh is detected
 - **AND** remove `~/.zsh/completions/_openspec` if standard Zsh setup is detected
-- **AND** remove fpath modifications from `~/.zshrc` using marker-based removal
+- **AND** remove fpath modifications from `${ZDOTDIR:-$HOME}/.zshrc` using marker-based removal, and from `~/.zshrc` too when an earlier install left a block there
 - **AND** display success message
 
 #### Scenario: Uninstalling Bash completion
