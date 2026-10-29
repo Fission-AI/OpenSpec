@@ -219,7 +219,8 @@ export class CompletionCommand {
 
       // Get shell-specific config file path
       const configPaths: Record<string, string> = {
-        zsh: zshrcDisplayPath(),
+        // Uninstall also clears a block an older install left in ~/.zshrc.
+        zsh: zshrcDisplayPath() === '~/.zshrc' ? '~/.zshrc' : `${zshrcDisplayPath()} (and ~/.zshrc if an older install wrote there)`,
         bash: '~/.bashrc',
         fish: 'Fish configuration',  // Fish doesn't modify profile, just removes script file
         powershell: '$PROFILE',

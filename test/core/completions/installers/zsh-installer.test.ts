@@ -857,6 +857,51 @@ describe('ZshInstaller', () => {
       expect(await fs.readFile(path.join(zdotdir, '.zshrc'), 'utf-8')).toBe('# my zshrc\n');
     });
 
+    it('re-running install configures $ZDOTDIR/.zshrc even when the script is already current', async () => {
+      // An install made before #2138: the script is in place, but the block
+      // went to ~/.zshrc, which zsh never reads under ZDOTDIR.
+      delete process.env.ZDOTDIR;
+      await installer.install('#compdef openspec\n');
+      process.env.ZDOTDIR = zdotdir;
+
+      const result = await installer.install('#compdef openspec\n');
+
+      expect(result.message).toContain('up to date');
+      expect(result.zshrcConfigured).toBe(true);
+      expect(await fs.readFile(path.join(zdotdir, '.zshrc'), 'utf-8')).toContain('# OPENSPEC:START');
+    });
+
+    it('shows manual instructions for an up-to-date script when it cannot configure .zshrc', async () => {
+      await installer.install('#compdef openspec\n');
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+      try {
+        const result = await installer.install('#compdef openspec\n');
+
+        expect(result.zshrcConfigured).toBe(false);
+        expect(result.instructions!.join('\n')).toContain(
+          `add the following to your ${path.join(zdotdir, '.zshrc')} file`
+        );
+      } finally {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      }
+    });
+
+    it('uninstall fails and names the file when a block cannot be removed', async () => {
+      if (process.platform === 'win32') return; // chmod does not make a file read-only for the owner on Windows
+      await installer.install('#compdef openspec\n');
+      const zshrc = path.join(zdotdir, '.zshrc');
+      await fs.chmod(zshrc, 0o444);
+      try {
+        const result = await installer.uninstall();
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain(`Could not remove the OpenSpec block from ${zshrc}`);
+        expect(await fs.readFile(zshrc, 'utf-8')).toContain('# OPENSPEC:START');
+      } finally {
+        await fs.chmod(zshrc, 0o644);
+      }
+    });
+
     it('falls back to ~/.zshrc when ZDOTDIR is empty', async () => {
       process.env.ZDOTDIR = '';
 
