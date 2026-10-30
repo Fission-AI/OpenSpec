@@ -107,7 +107,7 @@ ${PROJECT_ROOT_GUARD}
       - The CLI counts only \`x\`/\`X\` checkbox markers as complete; other markers remain incomplete
       - If \`totalTasks\` is zero, note as "No tasks"
 
-   c. **Delta specs** - The delta-spec artifacts are every \`artifactPaths.<id>\` entry in status JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active schema, so do not assume the id \`specs\`. Check their combined \`existingOutputPaths\`
+   c. **Delta specs** - The delta-spec artifacts are every \`artifactPaths.<id>\` entry in status JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active schema, so do not assume the id \`specs\`. Check the entries of their \`existingOutputPaths\` under the change's \`specs/\` folder, leaving out any other path an artifact reports
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
       - Treat this list as the only delta-spec source. If there is no such
@@ -484,7 +484,7 @@ ${PROJECT_ROOT_GUARD}
       - The CLI counts only \`x\`/\`X\` checkbox markers as complete; other markers remain incomplete
       - If \`totalTasks\` is zero, note as "No tasks"
 
-   c. **Delta specs** - The delta-spec artifacts are every \`artifactPaths.<id>\` entry in status JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active schema, so do not assume the id \`specs\`. Check their combined \`existingOutputPaths\`
+   c. **Delta specs** - The delta-spec artifacts are every \`artifactPaths.<id>\` entry in status JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active schema, so do not assume the id \`specs\`. Check the entries of their \`existingOutputPaths\` under the change's \`specs/\` folder, leaving out any other path an artifact reports
       - List which capability specs exist
       - For each, extract requirement names (lines matching \`### Requirement: <name>\`)
       - Treat this list as the only delta-spec source. If there is no such
