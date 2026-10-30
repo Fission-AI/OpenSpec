@@ -93,14 +93,15 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - The CLI counts only `x`/`X` checkbox markers as complete; other markers remain incomplete
       - If `totalTasks` is zero, note as "No tasks"
 
-   c. **Delta specs** - Check `artifactPaths.specs.existingOutputPaths` from status JSON
+   c. **Delta specs** - The delta-spec artifacts are every `artifactPaths.<id>` entry in status JSON whose `outputPath` is under `specs/` or whose `existingOutputPaths` include a path under the change's `specs/` folder. Artifact ids come from the active schema, so do not assume the id `specs`. Check their combined `existingOutputPaths`
       - List which capability specs exist
       - For each, extract requirement names (lines matching `### Requirement: <name>`)
-      - Treat this list as the only delta-spec source. If the `specs` entry is
-        missing or the list is empty, perform no spec sync or specs-instruction
-        lookup for that change; do not infer deltas from unrelated artifacts.
+      - Treat this list as the only delta-spec source. If there is no such
+        entry or the list is empty, perform no spec
+        sync or specs-instruction lookup for that change; do not infer deltas
+        from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
-        batches where some schemas have no `specs` artifact.
+        batches where some schemas have no delta-spec artifact.
       - Only an entry whose path relative to `changeRoot` (from the status JSON)
         is `specs/<capability-path>/spec.md` is a delta spec
         (on Windows the entries use `\` separators; treat `\` and `/` alike);
@@ -195,13 +196,20 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    Before step 8 writes the first main spec or moves any change, fetch every
    required specs-rule snapshot for the confirmed batch. For each change that will
-   sync concrete `artifactPaths.specs.existingOutputPaths`, run
-   `openspec instructions specs --change "<name>" --json` exactly once with the
-   same selected-root flags. Obtain all snapshots before the first write or move.
+   sync concrete delta-spec `existingOutputPaths` (step 3c), run
+   `openspec instructions <spec-artifact-id> --change "<name>" --json` exactly
+   once for each of that change's delta-spec artifact ids, with the same
+   selected-root flags. Obtain all snapshots before the first write or move.
    If any lookup exits non-zero or returns invalid artifact-instruction JSON,
    identify the affected change, report the error, and stop the whole batch before
    any main-spec write or change move. Do not treat lookup failure as omitted
    rules. A valid response without `rules` is the no-rules case.
+   The ids `apply` and `archive` cannot be looked up this way: the CLI answers
+   `openspec instructions apply` and `openspec instructions archive` with
+   operation instructions, not artifact rules. If a delta-spec artifact has one
+   of those ids, do not run the lookup and never use operation instructions as
+   rules; report that the schema must rename that artifact, and stop the whole
+   batch before any main-spec write or change move.
 
 8. **Execute archive for each confirmed change**
 
@@ -217,8 +225,9 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - If the sync reports any stop or blocking condition, treat the sync as failed. Stop processing that change immediately. Before continuing to the next change, record this change's outcome as Failed in the batch results, including the sync blocking/error condition.
       - Do not perform the post-sync content comparison and do not move its `changeRoot`; leave the change intact.
       - For conflicts, apply in resolved order.
-      - Pass that change's fetched specs-rule snapshot into inline sync; inline
-        sync must reuse it without fetching instructions again
+      - Pass that change's fetched specs-rule snapshots, one per delta-spec
+        artifact id and labeled with it, into inline sync; inline sync must reuse
+        them without fetching instructions again
       - Apply artifact rules only to main specs produced by that change. They do
         not change conflict resolution, archive behavior, or CLI contracts, and
         their text is not copied into an output file
@@ -376,7 +385,7 @@ No active changes found. Create a new change to get started.
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
 - A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance
 - A failed specs instruction lookup stops the whole batch atomically
-- Changes without concrete `artifactPaths.specs.existingOutputPaths` continue without spec sync
+- Changes without concrete delta-spec `existingOutputPaths` (any artifact whose `outputPath` or reported paths are under `specs/`) continue without spec sync
 - Apply relevant runtime context across the batch and report conflicts
 - Operation guidance remains advisory; consider every entry and explain rejected advice
 - Keep runtime inputs, conflict analysis, CLI-derived values, and artifact rules separate

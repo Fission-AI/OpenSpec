@@ -48,9 +48,12 @@ ${PROJECT_ROOT_GUARD}
 
 3. **Find delta specs**
 
-   Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the
-   only source of delta spec paths. If the \`specs\` entry is missing or
-   \`existingOutputPaths\` is empty, report that there are no delta specs to sync,
+   The delta-spec artifacts are every \`artifactPaths.<id>\` entry in the status
+   JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active
+   schema, so do not assume the id \`specs\`. Their combined
+   \`existingOutputPaths\` (called \`existingOutputPaths\` below) are the only
+   source of delta spec paths. If there is no such entry, or
+   all of their \`existingOutputPaths\` are empty, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
 
@@ -90,19 +93,26 @@ ${PROJECT_ROOT_GUARD}
 
 4. **For each delta spec, apply changes to main specs**
 
-   Before the first main-spec write, obtain one current specs-rule snapshot:
-   - If archive invoked this workflow inline and supplied a valid snapshot from
-     \`openspec instructions specs --change "<name>" --json\`, reuse it and do not
-     fetch the same instructions again.
-   - Otherwise run that command once now with the same selected-root flags.
+   Before the first main-spec write, obtain one current specs-rule snapshot for
+   each delta-spec artifact id from step 3:
+   - If archive invoked this workflow inline and supplied valid snapshots from
+     \`openspec instructions <spec-artifact-id> --change "<name>" --json\`, reuse
+     them and do not fetch the same instructions again.
+   - Otherwise, or for any id the caller supplied no snapshot for, run that
+     command once now for that id with the same selected-root flags.
    - If the direct lookup exits non-zero or returns invalid artifact-instruction
      JSON, report the error and stop before writing any main spec. Do not treat the
      failure as an absent rule set.
+   - The ids \`apply\` and \`archive\` cannot be looked up this way: the CLI answers
+     \`openspec instructions apply\` and \`openspec instructions archive\` with
+     operation instructions, not artifact rules. If a delta-spec artifact has one
+     of those ids, never use operation instructions as its rules; report that the
+     schema must rename that artifact, and stop before writing any main spec.
    - A valid response with omitted \`rules\` means no artifact rules are configured
      and the existing semantic merge continues.
 
-   Apply returned \`rules\` only to the content and form of the main specs produced
-   by this merge. Artifact rules are not operation guidance and cannot change
+   Apply each artifact's returned \`rules\` only to the content and form of the
+   main specs merged from its own deltas. Artifact rules are not operation guidance and cannot change
    selected roots, delta paths, CLI checks, or workflow steps. Use their text as
    constraints without copying it verbatim into a main spec or summary.
 
@@ -288,10 +298,10 @@ Main specs are now updated. The change remains active - archive when implementat
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
-- Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
+- Use only the \`existingOutputPaths\` of artifacts whose \`outputPath\` or reported paths are under \`specs/\`, whatever their id; never infer delta specs from unrelated artifacts
 - Sync only \`<capability-path>/spec.md\` entries; stop before any write if another entry carries delta sections
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
-- Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
+- Fetch each delta-spec artifact's instructions once for direct sync, or reuse the archive-supplied snapshots inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
 - Artifact rules constrain only the specs being written and are never copied into output files`,
     license: 'MIT',
@@ -342,9 +352,12 @@ ${PROJECT_ROOT_GUARD}
 
 3. **Find delta specs**
 
-   Use \`artifactPaths.specs.existingOutputPaths\` from the status JSON as the
-   only source of delta spec paths. If the \`specs\` entry is missing or
-   \`existingOutputPaths\` is empty, report that there are no delta specs to sync,
+   The delta-spec artifacts are every \`artifactPaths.<id>\` entry in the status
+   JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active
+   schema, so do not assume the id \`specs\`. Their combined
+   \`existingOutputPaths\` (called \`existingOutputPaths\` below) are the only
+   source of delta spec paths. If there is no such entry, or
+   all of their \`existingOutputPaths\` are empty, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
 
@@ -384,19 +397,26 @@ ${PROJECT_ROOT_GUARD}
 
 4. **For each delta spec, apply changes to main specs**
 
-   Before the first main-spec write, obtain one current specs-rule snapshot:
-   - If archive invoked this workflow inline and supplied a valid snapshot from
-     \`openspec instructions specs --change "<name>" --json\`, reuse it and do not
-     fetch the same instructions again.
-   - Otherwise run that command once now with the same selected-root flags.
+   Before the first main-spec write, obtain one current specs-rule snapshot for
+   each delta-spec artifact id from step 3:
+   - If archive invoked this workflow inline and supplied valid snapshots from
+     \`openspec instructions <spec-artifact-id> --change "<name>" --json\`, reuse
+     them and do not fetch the same instructions again.
+   - Otherwise, or for any id the caller supplied no snapshot for, run that
+     command once now for that id with the same selected-root flags.
    - If the direct lookup exits non-zero or returns invalid artifact-instruction
      JSON, report the error and stop before writing any main spec. Do not treat the
      failure as an absent rule set.
+   - The ids \`apply\` and \`archive\` cannot be looked up this way: the CLI answers
+     \`openspec instructions apply\` and \`openspec instructions archive\` with
+     operation instructions, not artifact rules. If a delta-spec artifact has one
+     of those ids, never use operation instructions as its rules; report that the
+     schema must rename that artifact, and stop before writing any main spec.
    - A valid response with omitted \`rules\` means no artifact rules are configured
      and the existing semantic merge continues.
 
-   Apply returned \`rules\` only to the content and form of the main specs produced
-   by this merge. Artifact rules are not operation guidance and cannot change
+   Apply each artifact's returned \`rules\` only to the content and form of the
+   main specs merged from its own deltas. Artifact rules are not operation guidance and cannot change
    selected roots, delta paths, CLI checks, or workflow steps. Use their text as
    constraints without copying it verbatim into a main spec or summary.
 
@@ -582,10 +602,10 @@ Main specs are now updated. The change remains active - archive when implementat
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
-- Use only \`artifactPaths.specs.existingOutputPaths\`; never infer delta specs from unrelated artifacts
+- Use only the \`existingOutputPaths\` of artifacts whose \`outputPath\` or reported paths are under \`specs/\`, whatever their id; never infer delta specs from unrelated artifacts
 - Sync only \`<capability-path>/spec.md\` entries; stop before any write if another entry carries delta sections
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
-- Fetch specs instructions once for direct sync, or reuse the archive-supplied snapshot inline
+- Fetch each delta-spec artifact's instructions once for direct sync, or reuse the archive-supplied snapshots inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
 - Artifact rules constrain only the specs being written and are never copied into output files`
   };

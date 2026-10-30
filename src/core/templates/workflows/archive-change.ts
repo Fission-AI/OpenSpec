@@ -123,10 +123,12 @@ ${PROJECT_ROOT_GUARD}
 
 4. **Assess delta spec sync state**
 
-   Use \`artifactPaths.specs.existingOutputPaths\` from status JSON as the only
-   delta-spec source. If the \`specs\` entry is missing or
-   \`existingOutputPaths\` is empty, proceed without a sync prompt and do not infer
-   delta specs from other artifacts.
+   The delta-spec artifacts are every \`artifactPaths.<id>\` entry in status JSON
+   whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active
+   schema, so do not assume the id \`specs\`. Their combined
+   \`existingOutputPaths\` are the only delta-spec source; keep each reported path
+   as-is when resolving its capability path. If there is no such entry, or all of their \`existingOutputPaths\` are empty, proceed without a
+   sync prompt and do not infer delta specs from other artifacts.
 
    Only an entry whose path relative to \`changeRoot\` (from the status JSON)
    is \`specs/<capability-path>/spec.md\` is a delta spec
@@ -162,15 +164,21 @@ ${PROJECT_ROOT_GUARD}
    - Anything else — ask again rather than archiving
 
    Before a selected sync writes any main spec, run
-   \`openspec instructions specs --change "<name>" --json\` once with the same
-   selected-root flags. Require a zero exit status and valid artifact-instruction
-   JSON. If the lookup fails or returns invalid JSON, report the error and stop
+   \`openspec instructions <spec-artifact-id> --change "<name>" --json\` once for
+   each delta-spec artifact id from step 4, with the same selected-root flags. Require a zero exit status and valid artifact-instruction
+   JSON.
+   The ids \`apply\` and \`archive\` cannot be looked up this way: the CLI answers
+   \`openspec instructions apply\` and \`openspec instructions archive\` with
+   operation instructions, not artifact rules. If a delta-spec artifact has one
+   of those ids, do not run the lookup and never use operation instructions as
+   rules; report that the schema must rename that artifact, and stop before
+   writing any main spec or moving the change. If the lookup fails or returns invalid JSON, report the error and stop
    before writing any main spec or moving the change. A valid response with omitted
    \`rules\` is the no-rules case. Apply returned \`rules\` only to the content and
    form of main specs produced by this merge; do not use them as archive guidance,
    change CLI behavior, or copy the rule text into any output file.
 
-   Then ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge)', 'perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)')} for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching \`specs\` instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+   Then ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge)', 'perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)')} for change '<name>', passing the delta spec analysis and the specs-rule snapshots fetched above, each labeled with its artifact id, and wait for it to finish. The inline sync must reuse those snapshots without fetching artifact instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
 
    If the sync reports any stop or blocking condition, treat the sync as failed.
    Stop the archive immediately. Do not perform the post-sync content comparison and do not move its \`changeRoot\`.
@@ -183,7 +191,7 @@ ${PROJECT_ROOT_GUARD}
    - Verify that no delta-style section headers (\`## ADDED Requirements\`, \`## MODIFIED Requirements\`, \`## REMOVED Requirements\`, \`## RENAMED Requirements\`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
    - Requirement blocks the sync wrote or changed use \`### Requirement:\` headings, and their scenarios use \`#### Scenario:\` headings, under the spec's \`## Requirements\` section. Leave content the delta does not mention exactly as it is.
 
-   Then re-run the comparison from the top of this step, including the explicitly retired, missing-spec case, against every capability that has a delta spec in \`artifactPaths.specs.existingOutputPaths\` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
+   Then re-run the comparison from the top of this step, including the explicitly retired, missing-spec case, against every capability that has a delta spec in the delta-spec artifacts' \`existingOutputPaths\` from step 4 — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
    - ADDED requirements present
    - MODIFIED requirements carrying the scenario and description changes named in the delta, with their other scenarios intact
    - REMOVED requirements gone — and where this sync retired a capability (removed its last requirement, leaving \`## Requirements\` empty), its main spec deleted rather than left empty.
@@ -347,10 +355,12 @@ ${PROJECT_ROOT_GUARD}
 
 4. **Assess delta spec sync state**
 
-   Use \`artifactPaths.specs.existingOutputPaths\` from status JSON as the only
-   delta-spec source. If the \`specs\` entry is missing or
-   \`existingOutputPaths\` is empty, proceed without a sync prompt and do not infer
-   delta specs from other artifacts.
+   The delta-spec artifacts are every \`artifactPaths.<id>\` entry in status JSON
+   whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active
+   schema, so do not assume the id \`specs\`. Their combined
+   \`existingOutputPaths\` are the only delta-spec source; keep each reported path
+   as-is when resolving its capability path. If there is no such entry, or all of their \`existingOutputPaths\` are empty, proceed without a
+   sync prompt and do not infer delta specs from other artifacts.
 
    Only an entry whose path relative to \`changeRoot\` (from the status JSON)
    is \`specs/<capability-path>/spec.md\` is a delta spec
@@ -386,15 +396,21 @@ ${PROJECT_ROOT_GUARD}
    - Anything else — ask again rather than archiving
 
    Before a selected sync writes any main spec, run
-   \`openspec instructions specs --change "<name>" --json\` once with the same
-   selected-root flags. Require a zero exit status and valid artifact-instruction
-   JSON. If the lookup fails or returns invalid JSON, report the error and stop
+   \`openspec instructions <spec-artifact-id> --change "<name>" --json\` once for
+   each delta-spec artifact id from step 4, with the same selected-root flags. Require a zero exit status and valid artifact-instruction
+   JSON.
+   The ids \`apply\` and \`archive\` cannot be looked up this way: the CLI answers
+   \`openspec instructions apply\` and \`openspec instructions archive\` with
+   operation instructions, not artifact rules. If a delta-spec artifact has one
+   of those ids, do not run the lookup and never use operation instructions as
+   rules; report that the schema must rename that artifact, and stop before
+   writing any main spec or moving the change. If the lookup fails or returns invalid JSON, report the error and stop
    before writing any main spec or moving the change. A valid response with omitted
    \`rules\` is the no-rules case. Apply returned \`rules\` only to the content and
    form of main specs produced by this merge; do not use them as archive guidance,
    change CLI behavior, or copy the rule text into any output file.
 
-   Then ${SYNC_INLINE_HANDOFF} for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching \`specs\` instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+   Then ${SYNC_INLINE_HANDOFF} for change '<name>', passing the delta spec analysis and the specs-rule snapshots fetched above, each labeled with its artifact id, and wait for it to finish. The inline sync must reuse those snapshots without fetching artifact instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
 
    If the sync reports any stop or blocking condition, treat the sync as failed.
    Stop the archive immediately. Do not perform the post-sync content comparison and do not move its \`changeRoot\`.
@@ -407,7 +423,7 @@ ${PROJECT_ROOT_GUARD}
    - Verify that no delta-style section headers (\`## ADDED Requirements\`, \`## MODIFIED Requirements\`, \`## REMOVED Requirements\`, \`## RENAMED Requirements\`) remain in the main spec, adhering strictly to the sync workflow formatting rules.
    - Requirement blocks the sync wrote or changed use \`### Requirement:\` headings, and their scenarios use \`#### Scenario:\` headings, under the spec's \`## Requirements\` section. Leave content the delta does not mention exactly as it is.
 
-   Then re-run the comparison from the top of this step, including the explicitly retired, missing-spec case, against every capability that has a delta spec in \`artifactPaths.specs.existingOutputPaths\` — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
+   Then re-run the comparison from the top of this step, including the explicitly retired, missing-spec case, against every capability that has a delta spec in the delta-spec artifacts' \`existingOutputPaths\` from step 4 — not only the ones the sync reports it touched. A successful sync leaves nothing left to apply, so each capability must now read as already synced:
    - ADDED requirements present
    - MODIFIED requirements carrying the scenario and description changes named in the delta, with their other scenarios intact
    - REMOVED requirements gone — and where this sync retired a capability (removed its last requirement, leaving \`## Requirements\` empty), its main spec deleted rather than left empty.
