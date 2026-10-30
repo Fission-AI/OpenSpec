@@ -66,7 +66,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - If `state: "blocked"`: show the message and pause implementation.
      - If `missingArtifacts` is non-empty: suggest using `/openspec-continue-change` to create them.
      - Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file from existing planning artifacts. Do not assume another artifact is ready or start implementation while blocked.
-   - If `warnings` is non-empty: show every warning and pause before implementing or reporting completion, even when `state` is `"ready"` or `"all_done"`. Suggest the repair each warning names, and proceed only if the user chooses to continue anyway. After any repair, rerun the apply instructions and use the refreshed output.
+   - If `warnings` is non-empty: show every warning and pause before implementing or reporting completion, even when `state` is `"ready"` or `"all_done"`. Suggest the repair each warning names, and proceed only if the user chooses to continue anyway. That choice covers a warning only while it keeps appearing; if it goes away after a repair and later comes back, ask again. After any repair, rerun the apply instructions and use the refreshed output.
    - If `state: "all_done"`: report that all tracked tasks are complete and suggest review or verification as appropriate before archiving
    - Otherwise: proceed to implementation
 
@@ -119,7 +119,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - Implementation reveals a design issue → suggest updating artifacts
    - A task needs work beyond what the spec and tasks describe, or you are tempted to drop, narrow, defer, or accept exceptions to specified behavior to make it fit → surface the added scope and ask; do not absorb it silently
    - Error or blocker encountered → report and wait for guidance
-   - The rerun apply instructions return a warning not already shown → show it, suggest the repair it names, and ask before continuing
+   - The rerun apply instructions return a warning the user has not chosen to continue past since it last appeared, including one that went away after a repair and came back → show it, suggest the repair it names, and ask before continuing
    - User interrupts
 
 7. **On completion or pause, show status**
