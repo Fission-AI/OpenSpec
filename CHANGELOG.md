@@ -1,5 +1,33 @@
 # @fission-ai/openspec
 
+## 1.16.0
+
+### Minor Changes
+
+- [#2159](https://github.com/Fission-AI/OpenSpec/pull/2159) [`33c6f93`](https://github.com/Fission-AI/OpenSpec/commit/33c6f93e3deeb6f26f0526f0f8577e30241db40f) Thanks [@clay-good](https://github.com/clay-good)! - **Breaking:** the npm package now needs Node.js 22.12.0 or newer. Node 20 reached end-of-life on April 30, 2026. Only npm installs on Node 20 are affected: the standalone binary, the default install since v1.15.0, doesn't use Node, and nothing else about the CLI changes. If you can't upgrade, install the standalone binary (`curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh`, or `irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex` on Windows). Homebrew (`brew install openspec`) still runs on Node, but installs and manages a current Node.js for you as a dependency.
+
+- [#2079](https://github.com/Fission-AI/OpenSpec/pull/2079) [`dc37609`](https://github.com/Fission-AI/OpenSpec/commit/dc37609827c8c3aba49e49347745f47aaa65cb1b) Thanks [@artemasmith](https://github.com/artemasmith)! - `openspec validate` now warns when a `Scenario:` has no WHEN/GIVEN step or no THEN step, in change deltas and main specs. It is a warning, so plain `validate` and `archive` are unchanged; `--strict` fails on it.
+
+- [#2077](https://github.com/Fission-AI/OpenSpec/pull/2077) [`18a75a5`](https://github.com/Fission-AI/OpenSpec/commit/18a75a5d17c0711586dee1af171033dd632a4f78) Thanks [@micromagicman](https://github.com/micromagicman)! - ### Features
+  
+  - When a command finds no OpenSpec root and you have registered stores, the error now names the store whose id matches your repo's name in its `origin` remote, with the `--store` flag and the `store:` line that select it. OpenSpec only suggests it and never picks a store by name, because repos in different organizations can share a name.
+
+### Patch Changes
+
+- [#2131](https://github.com/Fission-AI/OpenSpec/pull/2131) [`a6cd3bc`](https://github.com/Fission-AI/OpenSpec/commit/a6cd3bc926c6151b89d3e0fbdf3676f8fc416ecb) Thanks [@kevin9327](https://github.com/kevin9327)! - Stop treating a line that starts with triple-backtick inline code (```` ```npm test``` ````) as a code fence opener, which hid every requirement after it.
+
+- [#2160](https://github.com/Fission-AI/OpenSpec/pull/2160) [`d68fc51`](https://github.com/Fission-AI/OpenSpec/commit/d68fc51262a95957e4280756b10c61843ecb900b) Thanks [@clay-good](https://github.com/clay-good)! - Install from openspec.dev: `curl -fsSL https://openspec.dev/cli/install.sh | sh` (Windows: `irm https://openspec.dev/cli/install.ps1 | iex`). Release files are now `.tar.gz` archives (`.zip` on Windows).
+
+- [#2133](https://github.com/Fission-AI/OpenSpec/pull/2133) [`cb1adee`](https://github.com/Fission-AI/OpenSpec/commit/cb1adee51a472f872999afdafb68e0cc348b7935) Thanks [@kevin9327](https://github.com/kevin9327)! - `validate` now reports duplicate or misplaced main-spec requirements written as `###Requirement:` (no space), matching how archive reads them.
+
+- [#2127](https://github.com/Fission-AI/OpenSpec/pull/2127) [`ae7ad75`](https://github.com/Fission-AI/OpenSpec/commit/ae7ad75025b5b84f605e9616692ec97f9fb09f28) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - `openspec validate` now exits 1 when `openspec/config.yaml` cannot be read or is not valid YAML, instead of passing while every rule in it is ignored. Other commands still warn and carry on.
+
+- [#2172](https://github.com/Fission-AI/OpenSpec/pull/2172) [`05cc75f`](https://github.com/Fission-AI/OpenSpec/commit/05cc75f265d9233814f83364e390e54d5c2c8a3d) Thanks [@clay-good](https://github.com/clay-good)! - ### Bug Fixes
+  
+  - `openspec completion install zsh` now writes its setup to `$ZDOTDIR/.zshrc` when `ZDOTDIR` is set to an absolute path, which is the file zsh actually reads. A relative or `~`-prefixed `ZDOTDIR` is ignored rather than written relative to the current directory. Before, it created a `~/.zshrc` that zsh never loaded, so completion silently didn't work in XDG-style setups such as Home Manager with `xdg.enable`. `completion uninstall zsh` cleans the same file, and also removes a block an earlier install left in `~/.zshrc`. If you were affected, run `openspec completion install zsh` again: it now adds the block to the right file even when the completion script is already current.
+
 ## 1.15.0
 
 ### Minor Changes
