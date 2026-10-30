@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { promises as fs } from 'fs';
+import { promises as fs, constants as fsConstants } from 'fs';
 import path from 'path';
 import os from 'os';
 import { ZshInstaller } from '../../../../src/core/completions/installers/zsh-installer.js';
@@ -892,6 +892,11 @@ describe('ZshInstaller', () => {
       const zshrc = path.join(zdotdir, '.zshrc');
       await fs.chmod(zshrc, 0o444);
       try {
+        // Root (and similar privileged CI users) can still write a 0o444 file,
+        // so there is no failure to observe there.
+        const stillWritable = await fs.access(zshrc, fsConstants.W_OK).then(() => true, () => false);
+        if (stillWritable) return;
+
         const result = await installer.uninstall();
 
         expect(result.success).toBe(false);
