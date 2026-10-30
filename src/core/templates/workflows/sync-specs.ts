@@ -49,10 +49,10 @@ ${PROJECT_ROOT_GUARD}
 3. **Find delta specs**
 
    The delta-spec artifacts are every \`artifactPaths.<id>\` entry in the status
-   JSON whose \`outputPath\` is under \`specs/\`. Artifact ids come from the active
+   JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active
    schema, so do not assume the id \`specs\`. Their combined
    \`existingOutputPaths\` (called \`existingOutputPaths\` below) are the only
-   source of delta spec paths. If no entry's \`outputPath\` is under \`specs/\`, or
+   source of delta spec paths. If there is no such entry, or
    all of their \`existingOutputPaths\` are empty, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
@@ -286,7 +286,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
-- Use only the \`existingOutputPaths\` of artifacts whose \`outputPath\` is under \`specs/\`, whatever their id; never infer delta specs from unrelated artifacts
+- Use only the \`existingOutputPaths\` of artifacts whose \`outputPath\` or reported paths are under \`specs/\`, whatever their id; never infer delta specs from unrelated artifacts
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
 - Fetch each delta-spec artifact's instructions once for direct sync, or reuse the archive-supplied snapshots inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response
@@ -340,10 +340,10 @@ ${PROJECT_ROOT_GUARD}
 3. **Find delta specs**
 
    The delta-spec artifacts are every \`artifactPaths.<id>\` entry in the status
-   JSON whose \`outputPath\` is under \`specs/\`. Artifact ids come from the active
+   JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active
    schema, so do not assume the id \`specs\`. Their combined
    \`existingOutputPaths\` (called \`existingOutputPaths\` below) are the only
-   source of delta spec paths. If no entry's \`outputPath\` is under \`specs/\`, or
+   source of delta spec paths. If there is no such entry, or
    all of their \`existingOutputPaths\` are empty, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
@@ -577,7 +577,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - If something is unclear, ask for clarification
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
-- Use only the \`existingOutputPaths\` of artifacts whose \`outputPath\` is under \`specs/\`, whatever their id; never infer delta specs from unrelated artifacts
+- Use only the \`existingOutputPaths\` of artifacts whose \`outputPath\` or reported paths are under \`specs/\`, whatever their id; never infer delta specs from unrelated artifacts
 - Honor a caller-supplied subset of \`existingOutputPaths\`; never widen it back to the full list
 - Fetch each delta-spec artifact's instructions once for direct sync, or reuse the archive-supplied snapshots inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response

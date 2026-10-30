@@ -93,11 +93,11 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - The CLI counts only `x`/`X` checkbox markers as complete; other markers remain incomplete
       - If `totalTasks` is zero, note as "No tasks"
 
-   c. **Delta specs** - The delta-spec artifacts are every `artifactPaths.<id>` entry in status JSON whose `outputPath` is under `specs/`. Artifact ids come from the active schema, so do not assume the id `specs`. Check their combined `existingOutputPaths`
+   c. **Delta specs** - The delta-spec artifacts are every `artifactPaths.<id>` entry in status JSON whose `outputPath` is under `specs/` or whose `existingOutputPaths` include a path under the change's `specs/` folder. Artifact ids come from the active schema, so do not assume the id `specs`. Check their combined `existingOutputPaths`
       - List which capability specs exist
       - For each, extract requirement names (lines matching `### Requirement: <name>`)
-      - Treat this list as the only delta-spec source. If no entry's
-        `outputPath` is under `specs/` or the list is empty, perform no spec
+      - Treat this list as the only delta-spec source. If there is no such
+        entry or the list is empty, perform no spec
         sync or specs-instruction lookup for that change; do not infer deltas
         from unrelated artifacts.
       - Evaluate this independently for every change, including mixed-schema
@@ -377,7 +377,7 @@ No active changes found. Create a new change to get started.
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
 - A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance
 - A failed specs instruction lookup stops the whole batch atomically
-- Changes without concrete delta-spec `existingOutputPaths` (any artifact whose `outputPath` is under `specs/`) continue without spec sync
+- Changes without concrete delta-spec `existingOutputPaths` (any artifact whose `outputPath` or reported paths are under `specs/`) continue without spec sync
 - Apply relevant runtime context across the batch and report conflicts
 - Operation guidance remains advisory; consider every entry and explain rejected advice
 - Keep runtime inputs, conflict analysis, CLI-derived values, and artifact rules separate

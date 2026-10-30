@@ -110,11 +110,10 @@ In both branches, never create the root as a side effect: do not run `openspec i
 4. **Assess delta spec sync state**
 
    The delta-spec artifacts are every `artifactPaths.<id>` entry in status JSON
-   whose `outputPath` is under `specs/`. Artifact ids come from the active
+   whose `outputPath` is under `specs/` or whose `existingOutputPaths` include a path under the change's `specs/` folder. Artifact ids come from the active
    schema, so do not assume the id `specs`. Their combined
    `existingOutputPaths` are the only delta-spec source; keep each reported path
-   as-is when resolving its capability path. If no entry's `outputPath` is under
-   `specs/`, or all of their `existingOutputPaths` are empty, proceed without a
+   as-is when resolving its capability path. If there is no such entry, or all of their `existingOutputPaths` are empty, proceed without a
    sync prompt and do not infer delta specs from other artifacts.
 
    **If delta specs exist:**
