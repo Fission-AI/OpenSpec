@@ -54,12 +54,12 @@ The update command SHALL always update the core OpenSpec files and display an AS
 
 ### Requirement: Slash Command Updates
 
-The update command SHALL refresh existing slash command files for configured tools without creating new ones, and ensure the OpenCode archive command accepts change ID arguments.
+The update command SHALL refresh existing slash command files for configured adapter-backed tools without creating new ones outside the active profile, keep legacy command cleanup safe, treat Codex custom prompts as legacy artifacts that are cleaned up rather than refreshed, and ensure the OpenCode archive command accepts change ID arguments.
 
 #### Scenario: Updating slash commands for Antigravity
 - **WHEN** `.agent/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
 - **THEN** refresh the OpenSpec-managed portion of each file so the workflow copy matches other tools while preserving the existing single-field `description` frontmatter
-- **AND** skip creating any missing workflow files during update, mirroring the behavior for Windsurf and other IDEs
+- **AND** skip creating any missing legacy workflow files during update, mirroring the behavior for other IDEs' legacy command files
 
 #### Scenario: Updating slash commands for Claude Code
 - **WHEN** `.claude/commands/openspec/` contains `proposal.md`, `apply.md`, and `archive.md`
@@ -114,23 +114,31 @@ The update command SHALL refresh existing slash command files for configured too
 - **AND** `openspec update` SHALL NOT refresh files that remain only under `.opencode/command/`
 
 #### Scenario: Updating slash commands for Windsurf
-- **WHEN** `.windsurf/workflows/` contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
-- **THEN** refresh each file using shared templates wrapped in OpenSpec markers
-- **AND** ensure templates include instructions for the relevant workflow stage
-- **AND** skip creating missing files (the update command only refreshes what already exists)
+- **WHEN** the legacy Windsurf location `.windsurf/workflows/`, now Devin's, contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **THEN** do not refresh those files in place, since they are legacy workflow files handled by legacy cleanup
+- **AND** treat other OpenSpec-managed content under `.windsurf/` as belonging to Devin Desktop, moving it to `.devin/` under the consent rules in the ai-tool-paths requirement "Migrating OpenSpec content out of a renamed tool's former directory" and refreshing it there
+- **AND** do not create missing legacy `openspec-*` workflow files
+
+#### Scenario: Updating workflows for Devin Desktop
+- **WHEN** Devin Desktop is a configured tool (OpenSpec skills or workflow files exist under `.devin/`)
+- **THEN** write `.devin/workflows/opsx-<id>.md` for each workflow in the active profile, from shared templates, creating any that are missing and overwriting the rest
+- **AND** this creation is the active-profile exception to the existing-file-only rules above (see Tool-Agnostic Updates), not a Devin-only behavior
+- **AND** emit frontmatter with `name`, `description`, `category`, and `tags`
+- **AND** transform command references to hyphen form (for example `/opsx-propose`), the name Devin registers for a workflow file
+- **AND** refresh `.devin/skills/openspec-*/SKILL.md` with `/openspec-*` skill references, the one invocation both Devin agents accept
 
 #### Scenario: Updating slash commands for Kilo Code
-- **WHEN** `.kilo/command/` contains OpenSpec-managed `opsx-*.md` command files for the configured profile
-- **THEN** refresh each file using shared templates wrapped in OpenSpec markers
+- **WHEN** Kilo Code is configured and the delivery setting includes commands
+- **THEN** write `.kilo/command/opsx-<id>.md` for each workflow in the active profile, from shared templates wrapped in OpenSpec markers, creating any that are missing and overwriting the rest
 - **AND** ensure templates include instructions for the relevant workflow stage
-- **AND** skip creating missing files (the update command only refreshes what already exists)
+- **AND** this is the active-profile exception described under Tool-Agnostic Updates
 
 #### Scenario: Updating slash commands for Codex
-- **GIVEN** the global Codex prompt directory contains `openspec-proposal.md`, `openspec-apply.md`, and `openspec-archive.md`
+- **GIVEN** the global Codex prompt directory contains OpenSpec-managed Codex prompt files
 - **WHEN** a user runs `openspec update`
-- **THEN** refresh each file using the shared slash-command templates (including placeholder guidance)
-- **AND** preserve any unmanaged content outside the OpenSpec marker block
-- **AND** skip creation when a Codex prompt file is missing
+- **THEN** the command SHALL NOT refresh Codex prompt files
+- **AND** it SHALL treat those files as legacy cleanup candidates
+- **AND** it SHALL preserve unmanaged files by deleting only exact allowlisted OpenSpec-owned filenames under the resolved global Codex prompt directory after replacement skills exist
 
 #### Scenario: Updating slash commands for GitHub Copilot
 - **WHEN** `.github/prompts/` contains `openspec-proposal.prompt.md`, `openspec-apply.prompt.md`, and `openspec-archive.prompt.md`
@@ -188,3 +196,70 @@ The `openspec update` command SHALL refresh Oh My Pi skill files and command fil
 - **WHEN** `openspec update` runs and Oh My Pi is a configured tool
 - **THEN** command files are written to `.omp/commands/opsx-<id>.md` for each workflow in the active profile, creating them if they do not yet exist and overwriting them if they do
 - **AND** this creation is the active-profile exception to the existing-file-only rules above, which applies to every configured tool with a command adapter, not to Oh My Pi alone
+
+### Requirement: Codex update uses the skills-invocable command surface
+`openspec update` SHALL treat Codex as a skills-invocable tool, not as an adapter-backed command-file tool.
+
+#### Scenario: Codex command surface resolution
+- **WHEN** `openspec update` detects Codex as a configured tool
+- **THEN** the command SHALL resolve Codex command surface capability as `skills-invocable`
+- **AND** it SHALL apply delivery behavior through the shared command-surface capability model when that model is available
+- **AND** it SHALL NOT use a Codex-specific delivery predicate that duplicates command-surface capability rules
+
+### Requirement: Codex update uses skills only
+`openspec update` SHALL refresh Codex through generated OpenSpec skills without generating or refreshing Codex custom prompt files.
+
+#### Scenario: Legacy Codex prompt migration infers workflows from the legacy filenames
+- **WHEN** `openspec update` upgrades an unconfigured Codex tool from detected exact allowlisted global legacy Codex prompt files
+- **THEN** it SHALL infer the replacement workflow IDs from the detected prompt filenames where possible
+- **AND** it SHALL use that inferred workflow subset for the replacement Codex skills instead of expanding to the current profile's full workflow set
+
+#### Scenario: Updating Codex with default delivery
+- **WHEN** a project has Codex OpenSpec skills configured
+- **AND** the active delivery mode is `both`
+- **THEN** `openspec update` SHALL refresh the selected Codex skill files under `.agents/skills/`
+- **AND** it SHALL NOT create or refresh Codex prompt files under `$CODEX_HOME/prompts` or the default Codex prompt directory
+
+#### Scenario: Updating Codex with commands delivery
+- **WHEN** a project has Codex configured
+- **AND** the active delivery mode is `commands`
+- **THEN** `openspec update` SHALL keep Codex usable by refreshing selected Codex skills
+- **AND** it SHALL skip Codex command-file generation because Codex is skills-invocable
+- **AND** it SHALL NOT remove Codex skills solely because the global delivery mode is `commands`
+
+#### Scenario: Updating Codex with skills delivery
+- **WHEN** a project has Codex configured
+- **AND** the active delivery mode is `skills`
+- **THEN** `openspec update` SHALL refresh selected Codex skills
+- **AND** it SHALL treat OpenSpec-managed Codex prompt files as legacy cleanup candidates
+- **AND** it SHALL NOT delete global Codex prompt files through ordinary delivery reconciliation without accepted or forced cleanup
+
+### Requirement: Codex update cleanup removes managed legacy prompts
+`openspec update` SHALL clean up previously managed Codex prompt files from the resolved global Codex prompt directory only after replacement Codex skills exist.
+
+#### Scenario: Forced update cleanup removes Codex prompts
+- **WHEN** a user runs `openspec update --force`
+- **AND** the resolved Codex prompt directory contains exact allowlisted managed global Codex prompt files
+- **AND** replacement Codex skills exist for the workflows represented by those prompt filenames
+- **THEN** the command SHALL remove those managed Codex prompt files
+- **AND** it SHALL leave non-OpenSpec Codex prompt files unchanged
+
+#### Scenario: Configured Codex cleanup completes after skills refresh
+- **WHEN** an approved or forced update detects an allowlisted global Codex prompt whose configured project is missing the replacement skill
+- **AND** the configured-tool update installs that replacement skill, including under `delivery=commands`
+- **THEN** the command SHALL perform deferred global prompt cleanup after the configured-tool update loop
+- **AND** it SHALL remove the replaced prompt in the same update run
+
+#### Scenario: Interactive update cleanup includes Codex prompts
+- **WHEN** a user runs `openspec update` interactively
+- **THEN** the preview SHALL list immediate repo-local removals separately from deferred global prompts cleanup
+- **AND** the deferred section SHALL list the concrete global prompt paths before the user confirms cleanup
+- **AND** managed Codex prompt files are detected
+- **THEN** the cleanup prompt SHALL include those files in the cleanup plan
+- **AND** accepting cleanup SHALL remove only the prompt files whose replacement Codex skills exist
+
+#### Scenario: Non-interactive update without force does not delete prompts
+- **WHEN** a user runs `openspec update` without interaction and without `--force`
+- **AND** managed Codex prompt files are detected
+- **THEN** the command SHALL warn that legacy cleanup requires `--force` or an interactive run
+- **AND** it SHALL NOT delete Codex prompt files
