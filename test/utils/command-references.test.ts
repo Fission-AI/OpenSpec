@@ -348,7 +348,7 @@ describe('apply skill template generates valid per-target invocations', () => {
   it('authors invocation references as transformable /opsx:* tokens', () => {
     expect(skill).toContain('/opsx:apply add-auth');
     expect(skill).toContain('suggest using `/opsx:continue`');
-    expect(skill).toContain('archive this change with `/opsx:archive`');
+    expect(skill).toContain('run the `/opsx:archive` workflow for it');
     // No bare, non-transformable skill-name prose remains.
     expect(skill).not.toContain('suggest using openspec-continue-change');
   });
@@ -375,7 +375,7 @@ describe('apply skill template generates valid per-target invocations', () => {
     expect(blocked).toContain('openspec instructions "<artifact-id>" --change "<name>" --json');
     expect(blocked).toContain('Keep the selected `--store <id>` on both commands');
     expect(blocked).toContain(
-      'Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file'
+      'Otherwise follow the CLI instruction to repair the tracking file'
     );
     expect(blocked).toContain(
       'Do not assume another artifact is ready or start implementation while blocked'

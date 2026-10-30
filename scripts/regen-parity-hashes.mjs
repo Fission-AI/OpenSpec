@@ -77,13 +77,18 @@ if (srcMtime > distMtime) {
 }
 
 const templates = await import(distUrl('core/templates/skill-templates.js'));
-const { getSkillTemplates, generateSkillContent } = await import(
+const { getSkillTemplates, generateSkillFiles } = await import(
   distUrl('core/shared/skill-generation.js')
 );
 
 const TEST_FILE = join(repoRoot, 'test/core/templates/skill-templates-parity.test.ts');
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+
+// A skill is SKILL.md plus its references; hash them together, each file
+// prefixed by its path, so moving text between files moves the hash.
+const serializeSkillFiles = (files) =>
+  files.map((file) => `--- ${file.relativePath}\n${file.content}`).join('\n');
 
 // The generated-content hashes are keyed by skill directory. Read that mapping
 // from the same production helper the skills.sh generator uses, so a new
@@ -92,7 +97,7 @@ const PARITY_BASELINE = 'PARITY-BASELINE';
 const contentByDir = new Map(
   getSkillTemplates().map(({ dirName, template }) => [
     dirName,
-    sha256(generateSkillContent(template, PARITY_BASELINE)),
+    sha256(serializeSkillFiles(generateSkillFiles(template, PARITY_BASELINE))),
   ])
 );
 

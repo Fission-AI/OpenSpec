@@ -14,12 +14,14 @@ import {
 import { AI_TOOLS } from '../../../src/core/config.js';
 import {
   generateSkillContent,
+  generateSkillFiles,
   getCommandContents,
   getCommandTemplates,
   getSkillTemplates,
 } from '../../../src/core/shared/skill-generation.js';
 import { generateCommands } from '../../../src/core/command-generation/generator.js';
 import { getProfileWorkflows } from '../../../src/core/profiles.js';
+import { skillSource } from '../../helpers/skill-text.js';
 
 // Bodies as generated with every workflow installed. Profile-dependent
 // handoffs are covered separately below.
@@ -29,18 +31,24 @@ const command = getCommandTemplates().find(e => e.id === 'explore')!.template;
 // Both delivery surfaces must carry the same contract; every behavioral
 // assertion below runs against each body.
 const bodies: Array<[string, string]> = [
-  ['skill', skill.instructions],
+  ['skill', skillSource(skill)],
   ['command', command.content],
 ];
 
+const CAPTURE_START = 'If the user asks you to capture the exploration as a new change';
+const CAPTURE_END = 'Capturing artifacts never starts implementing them.';
+
+/**
+ * The capture branch: SKILL.md hands an explicit capture to
+ * `references/capture.md`; this returns that reference's text.
+ */
 function newChangeTransition(body: string, label: string): string {
-  const start = body.indexOf('### When no change exists');
-  const end = body.indexOf('### When a change exists');
-
-  expect(start, label).toBeGreaterThanOrEqual(0);
-  expect(end, label).toBeGreaterThan(start);
-
-  return body.slice(start, end);
+  expect(body, label).toContain('follow `references/capture.md`');
+  const captureStart = body.indexOf(CAPTURE_START);
+  const captureEnd = body.indexOf(CAPTURE_END, captureStart);
+  expect(captureStart, `${label}: capture reference missing`).toBeGreaterThanOrEqual(0);
+  expect(captureEnd, `${label}: capture reference unterminated`).toBeGreaterThan(captureStart);
+  return body.slice(captureStart, captureEnd + CAPTURE_END.length);
 }
 
 function occurrenceCount(body: string, value: string): number {
@@ -69,60 +77,56 @@ function fencedBlockLines(body: string): Array<[number, string]> {
 describe('explore templates', () => {
   it('guides planning without forcing an interview on open-ended exploration (#1017)', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain('When the user is planning a change');
-      expect(body, label).toContain('For open-ended discussion, follow the conversation');
-      expect(body, label).toContain('Stop asking when the user has enough clarity');
-      expect(body, label).toContain('Let them pause, pivot, or defer a decision');
+      expect(body, label).toContain('There are no fixed steps and no required output');
+      expect(body, label).toContain('Stop when the user has enough clarity');
+      expect(body, label).toContain('pause, pivot, or defer a decision; never force a proposal');
       expect(body, label).not.toContain('Relentless Interview Mode');
     }
   });
 
   it('investigates repository facts before asking while acknowledging missing evidence (#1017)', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain('Before asking a factual question, follow the context discovery below');
-      expect(body, label).toContain('relevant OpenSpec artifacts, source, tests, docs, and configuration');
-      expect(body, label).toContain('Do not ask the user to repeat facts you can verify');
-      expect(body, label).toContain('If evidence is missing, conflicting, or inaccessible');
-      expect(body, label).toContain('ask only for the clarification needed to proceed');
+      expect(body, label).toContain('Check the code, tests, docs, and specs before asking');
+      expect(body, label).toContain('Ask only what only the user can answer');
+      expect(body, label).toContain('say when evidence is missing or conflicting');
     }
   });
 
   it('resolves blocking decisions first and revisits dependent assumptions (#1017)', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain('Resolve the next blocking decision before its dependent details');
-      expect(body, label).toContain('Revisit downstream assumptions when an earlier answer changes');
-      expect(body, label).toContain('Skip branches that do not matter to this goal');
+      expect(body, label).toContain('the one that unblocks the next decision');
+      expect(body, label).toContain('Settle outcome and scope before an API or data model');
+      expect(body, label).toContain('revisit earlier assumptions when an answer changes them');
     }
   });
 
   it('asks one focused question and recommends only when evidence supports a choice (#1017)', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain('Ask one focused question at a time');
-      expect(body, label).toContain('Batch questions only if the user asks for a batch');
-      expect(body, label).toContain('explain why it matters and which decision it unlocks');
-      expect(body, label).toContain('When evidence supports a recommendation');
-      expect(body, label).toContain('Do not invent intent, priorities, or external constraints');
+      expect(body, label).toContain('One focused question at a time');
+      expect(body, label).toContain('with a line on why it matters');
+      expect(body, label).toContain('Recommend when the evidence supports it');
+      expect(body, label).toContain("Ask rather than invent the user's priorities");
     }
   });
 
   it('keeps decisions in the conversation without accepting defaults or authorizing writes (#1017)', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain('Track decisions in the conversation');
-      expect(body, label).toContain('Separate confirmed decisions from proposed defaults and unresolved questions');
-      expect(body, label).toContain('Silence is not acceptance');
-      expect(body, label).toContain('Accepting an answer or a batch of recommendations is not permission to write');
-      expect(body, label).toContain('Keep file-write confirmation separate from discovery questions');
+      expect(body, label).toContain('Keep the record in the conversation');
+      expect(body, label).toContain('confirmed decisions, proposed defaults, and open questions, kept apart');
+      expect(body, label).toContain('Silence is not agreement');
+      expect(body, label).toContain('agreeing to a recommendation is not permission to write');
     }
   });
 
   it('delivers the same planning guidance exactly once in both templates (#1017)', () => {
     const sections = bodies.map(([label, body]) => {
-      const heading = '## Planning a Change';
+      const heading = '## How to explore';
       expect(occurrenceCount(body, heading), label).toBe(1);
       const start = body.indexOf(heading);
-      const end = body.indexOf('\n---', start);
+      const last = 'never force a proposal.';
+      const end = body.indexOf(last, start);
       expect(end, label).toBeGreaterThan(start);
-      return body.slice(start, end);
+      return body.slice(start, end + last.length);
     });
 
     expect(sections[0]).toBe(sections[1]);
@@ -130,30 +134,16 @@ describe('explore templates', () => {
 
   // Regression for #696: explore never loaded the project's declared
   // context, so it reasoned without the tech stack, conventions, and
-  // rules every artifact-creating workflow already receives.
-  it('loads project context from the OpenSpec config at startup (#696)', () => {
-    for (const [label, body] of bodies) {
-      expect(body, label).toContain('openspec/config.yaml');
-      expect(body, label).toContain('`context`: project background');
-      expect(body, label).toContain('`rules`: keyed by artifact id');
-    }
-  });
-
-  it('resolves the config through the reported root rather than assuming a repo-local path (#696)', () => {
+  // rules every artifact-creating workflow already receives. The CLI now
+  // returns that context, validated and resolved through the selected root
+  // (store-aware, config.yaml or config.yml), so the skill reads it there
+  // instead of parsing config files itself.
+  it('loads project context from the CLI at startup (#696)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('openspec list --json');
-      expect(body, label).toContain('<root.path>/openspec/config.yaml');
-      expect(body, label).toContain('root.path');
-    }
-  });
-
-  // resolveConfigFilePath() probes config.yaml then config.yml, and
-  // `openspec init` leaves a .yml project on .yml forever - naming only
-  // .yaml would silently skip context for those projects.
-  it('accepts config.yml as well as config.yaml (#696)', () => {
-    for (const [label, body] of bodies) {
-      expect(body, label).toContain('config.yml');
-      expect(body, label).toContain('skip this if neither file exists');
+      expect(body, label).toContain('openspec context --json');
+      expect(body, label).toContain('`project_context` field');
+      expect(body, label).not.toContain('Then read the project\'s own context from the resolved root');
     }
   });
 
@@ -162,7 +152,7 @@ describe('explore templates', () => {
   it('scopes rules to the artifact they are keyed to (#696)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        'the entries for an artifact apply only when you write that artifact'
+        'Artifact `rules` arrive with `openspec instructions` and apply only when you write that artifact'
       );
     }
   });
@@ -171,41 +161,32 @@ describe('explore templates', () => {
   // forbids leaking context/rules into the artifact, not just the chat.
   it('treats project context as constraints that must not leak into output (#696)', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain('constraints for you to follow');
       expect(body, label).toContain(
-        'do NOT copy them into the conversation or into any artifact you create'
+        'Treat context and rules as constraints; never copy them into the conversation or an artifact'
       );
     }
   });
 
   it('requires separate confirmation before any file-writing action (#1715)', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain(
-        'Before the first write-capable action'
-      );
-      expect(body, label).toContain('name the artifacts or files you would change');
+      expect(body, label).toContain('Before the first write-capable action');
+      expect(body, label).toContain('name the files and what you would change');
       expect(body, label).toContain('ask a direct yes/no question');
-      expect(body, label).toContain("wait for the user's confirmation in a separate message");
-      expect(body, label).toContain(
-        'Answering design or clarifying questions is never consent to write'
-      );
-      expect(body, label).toContain('run read-only commands or tools without confirmation');
-      expect(body, label).toContain(
-        'Confirmation covers only the scope you described; ask again before expanding it'
-      );
+      expect(body, label).toContain('wait for the answer in a separate message');
+      expect(body, label).toContain('answering a design or clarifying question is never consent to write');
+      expect(body, label).toContain('run read-only commands without asking');
+      expect(body, label).toContain('The yes covers only what you named');
     }
   });
 
   it('treats workflow configuration and write-capable commands as changes (#1715)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        'creating or editing schemas, templates, or `openspec/config.yaml` is a change'
+        'Never write code or change workflow configuration (schemas, templates, `openspec/config.yaml`)'
       );
+      expect(body, label).toContain('Before the first write-capable action, including `openspec new change`');
       expect(body, label).toContain(
-        'including `openspec new change` or another command that writes files'
-      );
-      expect(body, label).toContain(
-        'Creating or updating OpenSpec change artifacts within the confirmed scope is fine, writing anything else is not'
+        'You may create or update OpenSpec change artifacts (proposals, designs, specs) once confirmed'
       );
     }
   });
@@ -220,25 +201,20 @@ describe('explore templates', () => {
   it('treats an explicit capture request as the write confirmation (#1828)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        'An explicit request from the user to capture the exploration as a new change is itself that confirmation'
+        'When the user themselves asks you to capture the exploration as a new change, that request is the confirmation'
       );
       // Scoped to change artifacts, so the carve-out cannot reach the
       // workflow configuration #1715 reported an agent editing.
-      expect(body, label).toContain(
-        'covering the change and the change artifacts the request names'
-      );
+      expect(body, label).toContain('covering the change and the artifacts it names');
     }
   });
 
   it('keeps the strict rule for a capture the agent proposed itself (#1828)', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain(
-        'That rule governs `openspec new change` whenever you are the one proposing the capture'
-      );
-      // The guardrail points at the capture transition rather than restating
-      // the contract a third time, so the three sites cannot drift apart.
-      expect(body, label).toContain(
-        "the user's own capture request is the exception, handled in the capture transition above"
+      // The carve-out is the user's own request; the agent's offer is not one.
+      expect(body, label).toContain('When the user themselves asks you to capture');
+      expect(newChangeTransition(body, label), label).toContain(
+        'a yes to an offer you made confirms only the scope your offer itself named'
       );
     }
   });
@@ -247,7 +223,7 @@ describe('explore templates', () => {
     for (const [label, body] of bodies) {
       const transition = newChangeTransition(body, label);
       const carveOut = transition.indexOf(
-        'that request is the confirmation required above'
+        'that request is the confirmation explore mode requires'
       );
       const scaffold = transition.indexOf('1. Run `openspec new change "<name>"`');
 
@@ -297,18 +273,10 @@ describe('explore templates', () => {
   // survives only if everything outside the requested scope still stops.
   it('keeps the carve-out scoped to what the request named (#1828, #1715)', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain(
-        'Confirmation covers only the scope you described; ask again before expanding it'
-      );
-      expect(body, label).toContain(
-        'Answering design or clarifying questions is never consent to write'
-      );
-      expect(body, label).toContain(
-        'Accepting an answer or a batch of recommendations is not permission to write'
-      );
-      expect(body, label).toContain(
-        'creating or editing schemas, templates, or `openspec/config.yaml` is a change'
-      );
+      expect(body, label).toContain('The yes covers only what you named');
+      expect(body, label).toContain('answering a design or clarifying question is never consent to write');
+      expect(body, label).toContain('agreeing to a recommendation is not permission to write');
+      expect(body, label).toContain('change workflow configuration (schemas, templates, `openspec/config.yaml`)');
     }
   });
 
@@ -329,19 +297,15 @@ describe('explore templates', () => {
   const CAPTURE_WORDS = /(openspec new change|scaffold|captur|write-capable|first write)/i;
 
   const SANCTIONED_CONSENT = [
-    // The stance paragraph: the rule, then the carve-out.
-    /You MAY create or update OpenSpec change artifacts .* within a confirmed scope/,
-    /Before the first write-capable action, name the artifacts or files you would change/,
-    /An explicit request from the user to capture the exploration as a new change is itself that confirmation/,
+    // The stance: the rule, then the carve-out.
+    /Before the first write-capable action, including `openspec new change`, name the files/,
+    /When the user themselves asks you to capture the exploration as a new change, that request is the confirmation/,
     // The capture branch: the carve-out and both of its fences.
-    /that request is the confirmation required above/,
+    /that request is the confirmation explore mode requires/,
     /This holds only when the request is theirs/,
     /a yes to an offer you made confirms only the scope your offer itself named/,
     /Don't re-ask for what they already asked for/,
     /Do not create an unrequested prerequisite unless the user approves/,
-    // The guardrail: the rule, and a pointer back to the branch.
-    /Before the first write-capable action—including `openspec new change`/,
-    /That rule governs `openspec new change` whenever you are the one proposing the capture/,
   ];
 
   // The `--store` reminder repeats on five steps and says "confirmed" only to
@@ -514,8 +478,7 @@ describe('explore templates', () => {
   it('tells the agent to draw with ASCII and says why (#983)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('**Draw with plain ASCII only**');
-      expect(body, label).toContain('render at different widths');
-      expect(body, label).toContain('Keep every diagram character ASCII');
+      expect(body, label).toContain('render at different widths and break the alignment');
     }
   });
 
@@ -618,10 +581,25 @@ describe('explore handoff to the propose workflow (#869)', () => {
     }
   });
 
+  // Meeting notes 2026-10-21: explore is a drafting board that keeps one living
+  // draft, which propose then turns into the change packet.
+  it('keeps one living draft that hands off to propose', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('## The draft');
+      expect(body, label).toContain('Keep one draft of what the change would be, update it as decisions land');
+      for (const field of ['**Problem**', '**Scope**', '**Capabilities**', '**Requirements**', '**Open questions**']) {
+        expect(body, `${label} ${field}`).toContain(field);
+      }
+      expect(body, label).toContain('The draft lives in the conversation, not in a file');
+      // A real code fence, not an escaped one.
+      expect(body, label).not.toContain('\\`');
+    }
+  });
+
   it('names the propose workflow where discovery ends', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        '**Flow into a proposal**: "Ready to start? Run `/opsx:propose` and this becomes a change."'
+        'For example: "Ready to start? Run `/opsx:propose` and this becomes a change."'
       );
       expect(body, label).not.toContain('I can create a change proposal');
     }
@@ -629,8 +607,9 @@ describe('explore handoff to the propose workflow (#869)', () => {
 
   it('pairs the do-not-implement guardrail with the handoff', () => {
     for (const [label, body] of bodies) {
+      // The handoff sits in the same sentence that refuses to build.
       expect(body, label).toContain(
-        'When the user is ready to build, name the handoff rather than starting: `/opsx:propose` turns the discussion into a change, and the work happens there'
+        'say explore mode does not implement, and point them at `/opsx:propose`, which turns the discussion into a change. The work happens from that change, never from explore mode.'
       );
     }
   });
@@ -778,7 +757,7 @@ describe('explore handoffs follow the installed workflow set (#869)', () => {
   function exploreSkillBody(workflows: string[]): string {
     const entry = getSkillTemplates(workflows).find(e => e.workflowId === 'explore');
     expect(entry).toBeDefined();
-    return entry!.template.instructions;
+    return skillSource(entry!.template);
   }
 
   function exploreCommandBody(workflows: string[]): string {
@@ -790,11 +769,14 @@ describe('explore handoffs follow the installed workflow set (#869)', () => {
   it.each(PROFILES)('%s: generated skills never name a missing workflow', (_name, workflows, missing) => {
     const body = exploreSkillBody(workflows);
     for (const tool of AI_TOOLS) {
-      const content = generateSkillContent(
+      // SKILL.md and every reference the skill ships.
+      const content = generateSkillFiles(
         getSkillTemplates(workflows).find(e => e.workflowId === 'explore')!.template,
         'TEST',
         getSkillReferenceTransformer(tool.value)
-      );
+      )
+        .map(file => file.content)
+        .join('\n');
       for (const id of missing) {
         const skillName = id === 'propose' ? 'openspec-propose' : 'openspec-apply-change';
         expect(content, `${tool.value} ${id}`).not.toContain(skillName);

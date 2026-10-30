@@ -38,8 +38,23 @@ export interface GlobalConfig {
   telemetry?: TelemetryConfig;
   /** Whether the first-run shell-completions tip has been shown. */
   completionTipSeen?: boolean;
+  /** Set by `openspec setup`: skills installed for this machine's agents. */
+  machineSetup?: MachineSetupRecord;
   /** Whether the one-time note about the standalone install has been shown. */
   standaloneTipSeen?: boolean;
+}
+
+export interface MachineSetupRecord {
+  /** OpenSpec version that last wrote the machine install. */
+  version: string;
+  /** The Claude Code plugin is registered. */
+  claudePlugin: boolean;
+  /** The name it is registered under, so a later rename can unregister it. */
+  pluginName?: string;
+  /** Skills are installed in ~/.agents/skills. */
+  sharedSkills: boolean;
+  /** Backups of older OpenSpec skills setup moved, each with a manifest `--revert` reads. */
+  backups?: string[];
 }
 
 const DEFAULT_CONFIG: GlobalConfig = {

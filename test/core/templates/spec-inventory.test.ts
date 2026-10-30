@@ -11,6 +11,7 @@ import {
   getOpsxExploreCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
 import { loadSchema } from '../../../src/core/artifact-graph/schema.js';
+import { BEFORE_YOU_START } from '../../../src/core/templates/workflows/references.js';
 
 // #1689: 1.9.0 removed openspec/AGENTS.md, which carried the spec index, and
 // nothing that replaced it ever named the verb that lists specs. Measured
@@ -67,8 +68,8 @@ describe('spec inventory vocabulary (#1689)', () => {
     // Naming the command is not enough on its own: `openspec list` defaults to
     // changes, so the two enumerations have to be told apart explicitly.
     for (const [label, body] of exploreBodies) {
-      expect(body, label).toContain('openspec list --json');
-      expect(body, label).toContain('`openspec list` on its own never shows it');
+      expect(body, label).toContain('`openspec list --json` shows the changes in flight');
+      expect(body, label).toContain('`openspec list --specs` shows what the project already specifies');
     }
   });
 
@@ -86,9 +87,18 @@ describe('spec inventory vocabulary (#1689)', () => {
   // A bare `openspec list --specs` reads the local inventory, so under a
   // selected store it confirms a capability path against the wrong root.
   // Every site that names the command must carry the store qualifier with it.
-  it('carries the store qualifier everywhere it names the command', () => {
+  // Skills carry one store rule that covers `list` and `show` along with every
+  // other store-aware command, so explore's reads stay on the selected root.
+  it('covers explore\'s inventory and spec reads with the skill-wide store rule', () => {
+    for (const [label, body] of exploreBodies) {
+      expect(body, label).toContain(BEFORE_YOU_START);
+    }
+    expect(BEFORE_YOU_START).toContain('`list`, `show`');
+    expect(BEFORE_YOU_START).toContain('add `--store <id>` to every');
+  });
+
+  it('carries the store qualifier everywhere the schema names the command', () => {
     const sites: Array<[string, string]> = [
-      ...exploreBodies,
       ['proposal instruction', instructionFor('proposal')],
       ['specs instruction', instructionFor('specs')],
     ];
@@ -114,10 +124,10 @@ describe('spec inventory vocabulary (#1689)', () => {
   // same-named local capability - the wrong-object failure #1689 is about.
   // `openspec show` resolves against the same root the listing came from.
   it('reads a listed capability with the store-aware command', () => {
-    const sites: Array<[string, string]> = [
-      ...exploreBodies,
-      ['proposal instruction', instructionFor('proposal')],
-    ];
+    for (const [label, body] of exploreBodies) {
+      expect(body, label).toContain(SPEC_READ);
+    }
+    const sites: Array<[string, string]> = [['proposal instruction', instructionFor('proposal')]];
 
     for (const [label, body] of sites) {
       const start = body.indexOf(SPEC_INVENTORY);
@@ -141,10 +151,12 @@ describe('spec inventory vocabulary (#1689)', () => {
   });
 
   it('reads full relevant specs before deciding coverage or changes', () => {
-    const sites: Array<[string, string]> = [
-      ...exploreBodies,
-      ['proposal instruction', instructionFor('proposal')],
-    ];
+    for (const [label, body] of exploreBodies) {
+      expect(body, label).toContain(
+        'and in full with `openspec show "<spec-id>" --type spec` before deciding what is already covered'
+      );
+    }
+    const sites: Array<[string, string]> = [['proposal instruction', instructionFor('proposal')]];
 
     for (const [label, body] of sites) {
       const normalized = body.replace(/\s+/g, ' ');

@@ -37,6 +37,16 @@ export const GlobalConfigSchema = z
       .optional(),
     // Runtime-managed (like telemetry.noticeSeen); not user-settable via CLI set.
     completionTipSeen: z.boolean().optional(),
+    // Runtime-managed by `openspec setup`.
+    machineSetup: z
+      .object({
+        version: z.string(),
+        claudePlugin: z.boolean(),
+        pluginName: z.string().optional(),
+        sharedSkills: z.boolean(),
+        backups: z.array(z.string()).optional(),
+      })
+      .optional(),
     standaloneTipSeen: z.boolean().optional(),
   })
   .passthrough();

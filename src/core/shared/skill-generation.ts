@@ -31,6 +31,8 @@ import {
   getOpsxProposeCommandTemplate,
   type SkillTemplate,
 } from '../templates/skill-templates.js';
+import * as fs from 'fs';
+import path from 'path';
 import type { CommandContent } from '../command-generation/index.js';
 import {
   assertWorkflowConditionalsResolved,
@@ -38,6 +40,7 @@ import {
 } from '../templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../profiles.js';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 
 /**
  * The workflow set a template body is rendered against.
@@ -103,6 +106,10 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
     template: {
       ...entry.template,
       instructions: resolveOptionalWorkflows(entry.template.instructions, installed),
+      references: entry.template.references?.map((reference) => ({
+        ...reference,
+        content: resolveOptionalWorkflows(reference.content, installed),
+      })),
     },
   }));
 }
@@ -192,4 +199,83 @@ metadata:
 
 ${instructions}
 `;
+}
+
+/** One file of a generated skill, relative to the skill directory. */
+export interface GeneratedSkillFile {
+  relativePath: string;
+  content: string;
+}
+
+const REFERENCE_PATH = /^references\/[a-z0-9][a-z0-9-]*\.md$/;
+
+/**
+ * Generates every file of a skill: SKILL.md plus its `references/` files.
+ *
+ * References get the same per-tool transform as SKILL.md, so a command
+ * reference reads the same way wherever the agent finds it.
+ *
+ * @param template - The skill template
+ * @param generatedByVersion - The OpenSpec version to embed in SKILL.md
+ * @param transformInstructions - Optional callback applied to every file body
+ */
+export function generateSkillFiles(
+  template: SkillTemplate,
+  generatedByVersion: string,
+  transformInstructions?: (instructions: string) => string
+): GeneratedSkillFile[] {
+  const references = (template.references ?? []).map(({ path: relativePath, content }) => {
+    if (!REFERENCE_PATH.test(relativePath)) {
+      throw new Error(
+        `Skill '${template.name}' has an invalid reference path '${relativePath}'. Use references/<name>.md.`
+      );
+    }
+    const body = transformInstructions ? transformInstructions(content) : content;
+    assertWorkflowConditionalsResolved(
+      body,
+      `Skill '${template.name}' reference '${relativePath}' was generated without resolving its optional-workflow blocks`
+    );
+    return { relativePath, content: body.endsWith('\n') ? body : `${body}\n` };
+  });
+
+  return [
+    { relativePath: 'SKILL.md', content: generateSkillContent(template, generatedByVersion, transformInstructions) },
+    ...references,
+  ];
+}
+
+/**
+ * Writes a skill's files into `skillDir`, refusing any path outside `root`.
+ *
+ * The skill directory belongs to OpenSpec (removing a workflow deletes it
+ * whole), so a reference file a newer version no longer ships is removed
+ * rather than left for the agent to find.
+ */
+export async function writeSkillFiles(
+  root: string,
+  skillDir: string,
+  files: readonly GeneratedSkillFile[]
+): Promise<void> {
+  for (const file of files) {
+    const target = path.join(skillDir, file.relativePath);
+    FileSystemUtils.assertPathWithin(root, target);
+    await FileSystemUtils.writeFile(target, file.content);
+  }
+
+  const referencesDir = path.join(skillDir, 'references');
+  let entries: fs.Dirent[];
+  try {
+    entries = await fs.promises.readdir(referencesDir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  const kept = new Set(files.map((file) => file.relativePath));
+  for (const entry of entries) {
+    const relativePath = `references/${entry.name}`;
+    if (entry.isFile() && entry.name.endsWith('.md') && !kept.has(relativePath)) {
+      const stale = path.join(referencesDir, entry.name);
+      FileSystemUtils.assertPathWithin(root, stale);
+      await fs.promises.rm(stale, { force: true });
+    }
+  }
 }

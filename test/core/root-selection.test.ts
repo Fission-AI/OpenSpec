@@ -508,8 +508,8 @@ describe('resolveOpenSpecRoot', () => {
     // init`) in a project that already uses it. A stale global defaultStore in
     // an unrelated repository must carry neither.
     it('starts every declaration failure with a prefix the project check names', async () => {
-      const { PROJECT_ROOT_GUARD } = await import(
-        '../../src/core/templates/workflows/project-root.js'
+      const { BEFORE_YOU_START: PROJECT_ROOT_GUARD } = await import(
+        '../../src/core/templates/workflows/references.js'
       );
       const prefixes = ['Declared in ', 'Invalid store declaration in '];
       for (const prefix of prefixes) {

@@ -99,7 +99,7 @@ Create the proposal document that establishes WHY this change is needed.
 
 Sections:
 - **Why**: 1-2 sentences on the problem or opportunity. What problem does this solve? Why now?
-- **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**.
+- **What Changes**: Bullet list of changes. Be specific about new capabilities, modifications, or removals. Mark breaking changes with **BREAKING**. Prefer the change that keeps existing behavior, data shapes, and tests working; when one must break, mark it **BREAKING** and say why it is needed.
 - **Capabilities**: Identify which specs will be created or modified:
   - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<capability-path>/spec.md`. Name each capability for a durable system behavior (for example, `user-auth`), not the work in this change (for example, `add-login-endpoint`). Choose a cohesive boundary that can own related requirements as the system evolves; avoid broad catch-all capabilities. Use kebab-case for path segments you introduce (e.g., `user-auth` or `identity/user-auth`) and follow the project's existing spec organization.
   - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Use the exact existing path under `openspec/specs/`. Leave empty if no requirement changes.
@@ -157,6 +157,10 @@ The template the agent receives as the output format ([templates/spec.md](https:
 <!-- requirement text -->
 
 #### Scenario: <!-- scenario name -->
+- **WHEN** <!-- condition -->
+- **THEN** <!-- expected outcome -->
+
+#### Scenario: <!-- a failure or edge case, when the behavior can fail -->
 - **WHEN** <!-- condition -->
 - **THEN** <!-- expected outcome -->
 ```
@@ -219,6 +223,9 @@ Format requirements:
 - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
 - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
 - Every requirement MUST have at least one scenario.
+- State one behavior per requirement: a single SHALL or MUST obligation, with no "and also". If a requirement bundles several obligations, split it into separate `### Requirement:` blocks.
+- Cover the main success path, then add a scenario for each way the behavior can fail or surprise a reader (invalid input, a missing item, a refused action, a boundary value). A tester should be able to write one test per scenario, so use concrete example values (a specific date, an exact message) rather than placeholders like "a valid value". Describe how the requested behavior fails; do not add validation, errors, or limits the request did not ask for.
+- Describe what a user or caller observes, not how the code does it: no internal function or class names, file paths, or private APIs in requirement text, unless they are themselves the public contract (for example, a documented CLI flag or API endpoint).
 - Keep each requirement's description (the text between `### Requirement:` and its first scenario) to 500 characters or fewer. `openspec validate` flags longer descriptions in ADDED requirements and in the main spec. This is a warning: normal validation still passes, but `openspec validate --strict` fails on it. When writing a new requirement, state one behavior per requirement: move examples and edge cases into scenarios, and split a requirement that covers several behaviors into separate `### Requirement:` blocks, each with its own scenarios. Under MODIFIED, keep the existing requirement block whole; never split, trim or rewrite existing text just to meet the length. Split an existing long requirement only when the user asks for it, in a change made for that purpose: under MODIFIED, keep its header and every scenario and cut its description down to one behavior without changing its meaning, then add each behavior you removed as its own ADDED requirement with its own scenarios.
 
 New capabilities only: the delta spec's first section is `## Purpose` -
@@ -262,6 +269,10 @@ The system SHALL allow users to export their data in CSV format.
 #### Scenario: Successful export
 - **WHEN** user clicks "Export" button
 - **THEN** system downloads a CSV file with all user data
+
+#### Scenario: Nothing to export
+- **WHEN** user with no data clicks "Export" button
+- **THEN** system explains there is nothing to export and downloads no file
 
 ## REMOVED Requirements
 
@@ -383,6 +394,10 @@ Guidelines:
 - Each tracked task MUST be a checkbox: `- [ ] X.Y Task description`
 - Tasks should be small enough to complete in one session
 - Order tasks by dependency (what must be done first?)
+- End with a tracked `## N. Update the specs` group: one task to sync this
+  change's delta specs into the main specs and verify `openspec validate
+  --specs` passes. It finishes before archive, so the main specs are
+  current as soon as the work is.
 - Track implementation and verification work that can be completed before
   archive. If the requested workflow includes archive or work that requires
   this change to be archived, preserve those steps as plain bullets in an
@@ -415,6 +430,10 @@ Example:
 - [ ] 2.1 Implement data export function and verify the export test passes
 - [ ] 2.2 Add CSV formatting utilities and verify unit tests cover quoting and delimiters
 - [ ] 2.3 Document the export API in docs/export.md and verify the documented command runs as written
+
+## 3. Update the specs
+
+- [ ] 3.1 Sync this change's delta specs into the main specs and verify `openspec validate --specs` passes
 ```
 
 When applicable, append workflow follow-up as plain bullets, for example:

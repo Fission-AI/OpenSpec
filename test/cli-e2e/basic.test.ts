@@ -514,9 +514,13 @@ describe('openspec CLI e2e basics', () => {
         path.join(emptyProjectDir, '.agents', 'skills', '.openspec-target'),
         'utf-8'
       )).toBe('zed\n');
-      const updatedSkill = await fs.readFile(skillPath, 'utf-8');
-      expect(updatedSkill).toContain('/openspec-explore');
-      expect(updatedSkill).not.toContain('$openspec-explore');
+      // Zed reads plain skill references, never Codex's `$` form.
+      const updatedSkill = await fs.readFile(
+        path.join(emptyProjectDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'),
+        'utf-8'
+      );
+      expect(updatedSkill).toContain('/openspec-apply-change');
+      expect(updatedSkill).not.toContain('$openspec-apply-change');
     });
 
     it('initializes with --tools none option', async () => {
