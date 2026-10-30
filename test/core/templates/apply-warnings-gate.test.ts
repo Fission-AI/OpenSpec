@@ -48,8 +48,21 @@ describe('apply instructions recheck warnings during the task loop (#2166)', () 
   it('pauses on a new warning from the rerun apply instructions', () => {
     const instructions = getApplyInstructions();
     const loop = instructions.indexOf('6. **Implement tasks');
-    const newWarning = instructions.indexOf('return a warning not already shown');
+    const newWarning = instructions.indexOf(
+      'return a warning the user has not chosen to continue past since it last appeared'
+    );
     expect(newWarning).toBeGreaterThan(loop);
+  });
+
+  // Consent is per appearance: a warning the user continued past, then
+  // repaired, then saw return is a new problem and needs a new choice.
+  it('asks again when a repaired warning comes back', () => {
+    const instructions = getApplyInstructions();
+    expect(instructions).toContain('including one that went away after a repair and came back');
+    expect(instructions).toContain(
+      'That choice covers a warning only while it keeps appearing; if it goes away after a repair and later comes back, ask again.'
+    );
+    expect(instructions).not.toContain('a warning not already shown');
   });
 });
 
