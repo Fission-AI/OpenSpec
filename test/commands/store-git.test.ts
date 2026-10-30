@@ -37,11 +37,15 @@ async function getPromptMocks(): Promise<{
   };
 }
 
+// These tests spawn many real git processes. Windows process startup is slow
+// enough to push one past the default 10s, so give them more room there.
+const REAL_GIT_TEST_TIMEOUT_MS = process.platform === 'win32' ? 30_000 : 10_000;
+
 /**
  * Git lifecycle behavior of store setup, register, and doctor: the
  * initial commit, identity handling, and the read-only Git diagnostics.
  */
-describe('store git lifecycle', () => {
+describe('store git lifecycle', { timeout: REAL_GIT_TEST_TIMEOUT_MS }, () => {
   let tempDir: string;
   let dataHome: string;
   let configHome: string;
