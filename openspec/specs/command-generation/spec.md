@@ -68,7 +68,7 @@ The system SHALL define a `ToolCommandAdapter` interface for per-tool formatting
 - **WHEN** formatting a command for OpenCode
 - **THEN** the adapter SHALL output YAML frontmatter with `description` field
 - **AND** file path SHALL follow pattern `.opencode/commands/opsx-<id>.md` using `path.join('.opencode', 'commands', ...)` for cross-platform compatibility
-- **AND** the adapter SHALL transform colon-based command references (`/opsx:name`) to hyphen-based (`/opsx-name`) in the body
+- **AND** the generated file body SHALL use hyphen-based command references (`/opsx-name`), rewritten from the colon-based form (`/opsx:name`) by `generateCommand` before the adapter formats it
 
 ### Requirement: Command generator function
 

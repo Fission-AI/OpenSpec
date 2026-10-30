@@ -255,6 +255,7 @@ distinguishes that user from one who took the rebrand.
 - **THEN** the copy under the current root SHALL win, rather than being merged or overwritten
 - **AND** only the file OpenSpec generated SHALL be removed from the former root — for a skill directory that is `SKILL.md` alone, never the directory and whatever else it holds
 - **AND** one rule SHALL govern skills and command files alike: the former copy SHALL be removed only when it is byte-identical to the surviving one
+- **AND** the one exception is a former `SKILL.md` that differs from the surviving one only in what OpenSpec generated: the recorded generator version, line endings or a byte-order mark, or the older Codex command references. It SHALL be removed too, because nothing in it is user-authored
 - **AND** a former copy that differs SHALL be left where it is, since the difference may be a customization
 - **AND** files left behind for that reason SHALL be reported, so the user knows two copies now exist
 
