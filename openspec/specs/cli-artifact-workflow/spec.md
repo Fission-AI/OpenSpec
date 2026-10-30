@@ -2,7 +2,9 @@
 
 ## Purpose
 Define artifact workflow CLI behavior (`status`, `instructions`, `templates`, and setup flows) for scaffolded and active changes.
+
 ## Requirements
+
 ### Requirement: Status Command
 
 The system SHALL display artifact completion status for a change, including scaffolded (empty) changes.
@@ -80,6 +82,31 @@ The workflow SHALL use `openspec status` output to determine what can be created
 - **THEN** `openspec status --change <id>` identifies ready artifacts with `[ ]`
 - **AND** the first `[ ]` entry is the schema's recommended next artifact
 - **AND** no dedicated "next command" is required to continue the workflow
+
+#### Scenario: Status names the command that moves the change forward
+
+- **WHEN** a user runs `openspec status --change <id>` in text mode and a next step resolves
+- **THEN** the output ends with a `Next:` line naming exactly one command to run
+- **AND** that command is `openspec instructions <artifact> --change "<id>" --json` for the first ready artifact while any planning artifact is still ready
+- **AND** it is `openspec instructions apply --change "<id>" --json` once every non-skipped planning artifact exists, printed after the completion line rather than in place of it, because that line alone reads as "you are done" while implementation tasks remain
+- **AND** the named artifact is never one the change skipped, which satisfies its dependents but must not be created
+- **AND** the artifact id comes from the resolved schema, so a project whose schema declares neither of the default artifact names still gets a usable command
+
+#### Scenario: The named command carries the store selection
+
+- **WHEN** the resolved root is a store
+- **THEN** the `Next:` command includes `--store <id>`, so it resolves against the same root the status was read from rather than the pointer repo
+
+#### Scenario: Both surfaces name the same command
+
+- **WHEN** a next step resolves
+- **THEN** the command printed on the `Next:` line and the command inside the JSON `nextSteps` sentence are derived from one resolution, so the two surfaces cannot name different commands
+- **AND** the `Next:` line never appears in `--json` output, which stays parseable
+
+#### Scenario: No next step resolves
+
+- **WHEN** no artifact is ready and planning is not complete, or a change in an `--all` sweep failed to load
+- **THEN** no `Next:` line is printed for it, rather than a guessed or shared command
 
 ### Requirement: Instructions Command
 
@@ -320,3 +347,37 @@ Generated workflow skills SHALL use OpenSpec CLI output as the source of truth f
 - **WHEN** a generated workflow skill is about to create or update an artifact
 - **THEN** it SHALL instruct the agent to run `openspec instructions <artifact> --change <id> --json`
 - **AND** it SHALL write to the resolved artifact path returned by the command
+
+### Requirement: Apply instructions include current operation inputs
+
+The system SHALL include current project context and apply operation guidance as separate optional fields in schema-aware apply instruction output without changing existing apply state behavior.
+
+#### Scenario: Apply JSON contains context and guidance
+
+- **WHEN** a user runs `openspec instructions apply --change <id> --json`
+- **AND** config contains project context and `operations.apply.guidance`
+- **THEN** the JSON contains separate `context` and `operationGuidance` fields
+- **AND** preserves existing apply state, task, progress, context-file, reference, and root fields
+
+#### Scenario: Apply text contains context and guidance
+
+- **WHEN** a user runs `openspec instructions apply --change <id>` with configured context and apply guidance
+- **THEN** text output labels project context as a required instruction input
+- **AND** labels operation guidance as separate advisory input
+- **AND** preserves the built-in apply instruction content
+
+#### Scenario: Apply has artifact rules only
+
+- **WHEN** config contains artifact rules but no apply operation guidance
+- **THEN** apply instruction output does not expose artifact rules as operation guidance
+
+#### Scenario: Apply reads current config
+
+- **WHEN** config changes between two apply instruction calls
+- **THEN** the second output reflects the current context and apply guidance
+
+#### Scenario: Apply operation inputs are absent
+
+- **WHEN** config has no non-empty context or apply guidance
+- **THEN** apply output omits both optional fields
+- **AND** otherwise matches existing apply behavior
