@@ -26,7 +26,21 @@ export function resolveCommandSurfaceCapability(toolId: string): CommandSurfaceC
   return 'none';
 }
 
+/**
+ * Tools that load OpenSpec workflows only as command files, because nothing
+ * they run reads a SKILL.md folder. Amazon Q Developer reads its prompts from
+ * `.amazonq/prompts` but no skills directory, and AWS is retiring it in favor
+ * of Kiro. Such a tool keeps its commands under every delivery setting: skills
+ * alone would leave it with no way to start a workflow.
+ */
+const COMMANDS_ONLY_TOOLS: ReadonlySet<string> = new Set(['amazon-q']);
+
+export function isCommandsOnlyTool(toolId: string): boolean {
+  return COMMANDS_ONLY_TOOLS.has(toolId);
+}
+
 export function shouldGenerateSkillsForTool(toolId: string, delivery: Delivery): boolean {
+  if (isCommandsOnlyTool(toolId)) return false;
   return delivery !== 'commands' || resolveCommandSurfaceCapability(toolId) === 'skills-invocable';
 }
 
@@ -35,9 +49,16 @@ export function shouldRemoveSkillsForTool(toolId: string, delivery: Delivery): b
 }
 
 export function shouldGenerateCommandsForTool(toolId: string, delivery: Delivery): boolean {
-  return delivery !== 'skills' && resolveCommandSurfaceCapability(toolId) === 'adapter-backed';
+  return (
+    resolveCommandSurfaceCapability(toolId) === 'adapter-backed' &&
+    (delivery !== 'skills' || isCommandsOnlyTool(toolId))
+  );
 }
 
 export function shouldReconcileCommandFilesForTool(toolId: string, delivery: Delivery): boolean {
-  return delivery === 'skills' && resolveCommandSurfaceCapability(toolId) === 'adapter-backed';
+  return (
+    delivery === 'skills' &&
+    resolveCommandSurfaceCapability(toolId) === 'adapter-backed' &&
+    !isCommandsOnlyTool(toolId)
+  );
 }
