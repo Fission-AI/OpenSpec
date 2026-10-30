@@ -75,8 +75,9 @@ Validates package version consistency before publishing.
 
 Builds the standalone `openspec` executables (no Node.js needed), the default
 way users install OpenSpec. `.github/workflows/binaries.yml` cross-compiles
-every asset on Linux, tests each on its own OS and CPU, and attaches them,
-`SHA256SUMS`, `install.sh` and `install.ps1` to each published release.
+every asset on Linux, tests each on its own OS and CPU, and attaches them to
+each published release as `.tar.gz` archives (`.zip` on Windows) with
+`SHA256SUMS`. The installers are served from main.
 
 | File | What it is |
 |---|---|

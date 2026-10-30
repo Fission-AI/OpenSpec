@@ -1,6 +1,6 @@
 # Installs the standalone `openspec.exe` (no Node.js needed) on Windows.
 #
-#   irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
+#   irm https://openspec.dev/cli/install.ps1 | iex
 #
 # $env:OPENSPEC_VERSION      release to install (default: the newest complete one), e.g. v1.15.0
 # $env:OPENSPEC_INSTALL_DIR  where to put it (default: %LOCALAPPDATA%\Programs\openspec)
@@ -84,19 +84,36 @@
       $base = "$releases/download/$version"
     }
 
-    Write-Host "Downloading $asset ($version)..."
     try {
-      Invoke-WebRequest -UseBasicParsing -Uri "$base/$asset" -OutFile $exe
       if (-not (Test-Path $sums)) { Invoke-WebRequest -UseBasicParsing -Uri "$base/SHA256SUMS" -OutFile $sums }
     } catch {
       throw "openspec install: could not download from ${base}: $($_.Exception.Message). $npmHint"
     }
 
-    $line = Get-Content $sums | Where-Object { ($_ -split '\s+')[1] -eq $asset } | Select-Object -First 1
-    if (-not $line) { throw "openspec install: $asset is not listed in SHA256SUMS" }
-    $expected = ($line -split '\s+')[0]
-    $actual = (Get-FileHash -Algorithm SHA256 -Path $exe).Hash
-    if ($actual -ne $expected) { throw "openspec install: checksum mismatch for $asset; refusing to install" }
+    # Releases ship a .zip; v1.15.0 and earlier, the bare .exe.
+    $lines = Get-Content $sums
+    $file = $null
+    $expected = $null
+    foreach ($candidate in "$($asset -replace '\.exe$', '.zip')", $asset) {
+      $line = $lines | Where-Object { ($_ -split '\s+')[1] -eq $candidate } | Select-Object -First 1
+      if ($line) { $file = $candidate; $expected = ($line -split '\s+')[0]; break }
+    }
+    if (-not $file) { throw "openspec install: $asset is not listed in SHA256SUMS" }
+
+    Write-Host "Downloading $file ($version)..."
+    $download = Join-Path $tmp $file
+    try {
+      Invoke-WebRequest -UseBasicParsing -Uri "$base/$file" -OutFile $download
+    } catch {
+      throw "openspec install: could not download from ${base}: $($_.Exception.Message). $npmHint"
+    }
+    $actual = (Get-FileHash -Algorithm SHA256 -Path $download).Hash
+    if ($actual -ne $expected) { throw "openspec install: checksum mismatch for $file; refusing to install" }
+    if ($file -ne $asset) {
+      $unpacked = Join-Path $tmp 'unpacked'
+      Expand-Archive -Path $download -DestinationPath $unpacked
+      Move-Item -Path (Join-Path $unpacked 'openspec.exe') -Destination $exe
+    }
 
     $installed = $null
     # A binary that cannot start at all throws instead of setting an exit code.

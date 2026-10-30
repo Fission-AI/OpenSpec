@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import http from 'node:http';
@@ -25,15 +25,28 @@ describe.skipIf(process.platform === 'win32')('standalone installer (install.sh)
   let server: http.Server;
   let base: string;
 
-  /** A release whose files are attached; `complete: false` leaves out SHA256SUMS, as mid-upload. */
-  function release(site: string, tag: string, options: { complete?: boolean; tamper?: boolean } = {}) {
+  /**
+   * A release whose files are attached, as .tar.gz archives (`bare: true`: bare
+   * binaries, as v1.15.0 and earlier). `complete: false` leaves out SHA256SUMS,
+   * as mid-upload.
+   */
+  function release(site: string, tag: string, options: { complete?: boolean; tamper?: boolean; bare?: boolean } = {}) {
     const dir = path.join(root, site, 'releases', 'download', tag);
     fs.mkdirSync(dir, { recursive: true });
     const sums: string[] = [];
     for (const asset of ASSETS) {
       const body = `#!/bin/sh\necho ${tag.replace(/^v/, '')}\n`;
-      fs.writeFileSync(path.join(dir, asset), options.tamper ? `${body}# changed\n` : body);
-      sums.push(`${createHash('sha256').update(body).digest('hex')}  ${asset}`);
+      let file = asset;
+      if (options.bare) {
+        fs.writeFileSync(path.join(dir, file), body);
+      } else {
+        file = `${asset}.tar.gz`;
+        const pack = fs.mkdtempSync(path.join(root, 'pack-'));
+        fs.writeFileSync(path.join(pack, 'openspec'), body);
+        execFileSync('tar', ['-czf', path.join(dir, file), '-C', pack, 'openspec']);
+      }
+      sums.push(`${createHash('sha256').update(fs.readFileSync(path.join(dir, file))).digest('hex')}  ${file}`);
+      if (options.tamper) fs.appendFileSync(path.join(dir, file), '# changed\n');
     }
     if (options.complete !== false) fs.writeFileSync(path.join(dir, 'SHA256SUMS'), sums.join('\n') + '\n');
   }
@@ -109,6 +122,9 @@ describe.skipIf(process.platform === 'win32')('standalone installer (install.sh)
     release('noise', 'v1.3.0-beta.1');
     release('noise', 'v1.2.0');
 
+    feed('bare', ['v1.15.0']);
+    release('bare', 'v1.15.0', { bare: true });
+
     feed('tampered', ['v1.2.0']);
     release('tampered', 'v1.2.0', { tamper: true });
   });
@@ -150,6 +166,12 @@ describe.skipIf(process.platform === 'win32')('standalone installer (install.sh)
     const result = await install('noise');
     expect(result.code, result.out).toBe(0);
     expect(result.installed).toContain('echo 1.2.0');
+  });
+
+  it('installs a release that attached bare binaries instead of archives', async () => {
+    const result = await install('bare');
+    expect(result.code, result.out).toBe(0);
+    expect(result.installed).toContain('echo 1.15.0');
   });
 
   it('refuses a file that does not match SHA256SUMS', async () => {

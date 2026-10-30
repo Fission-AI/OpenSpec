@@ -1,7 +1,7 @@
 #!/bin/sh
 # Installs the standalone `openspec` binary (no Node.js needed) on Linux or macOS.
 #
-#   curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
+#   curl -fsSL https://openspec.dev/cli/install.sh | sh
 #
 # OPENSPEC_VERSION      release to install (default: the newest complete one), e.g. v1.15.0
 # OPENSPEC_INSTALL_DIR  where to put it (default: ~/.local/bin)
@@ -46,7 +46,7 @@ main() {
   case "$(uname -s)" in
     Linux) os=linux ;;
     Darwin) os=darwin ;;
-    *) fail "unsupported OS $(uname -s). On Windows, download openspec-windows-x64.exe from the release page." ;;
+    *) fail "unsupported OS $(uname -s). On Windows, use install.ps1." ;;
   esac
   case "$(uname -m)" in
     x86_64 | amd64) arch=x64 ;;
@@ -138,21 +138,33 @@ main() {
     base="$releases/download/$version"
   fi
 
-  echo "Downloading $asset ($version)..."
-  download "$base/$asset" "$tmp/$asset" || fail "could not download $base/$asset; $npm_hint"
   if [ ! -s "$tmp/SHA256SUMS" ]; then
     download "$base/SHA256SUMS" "$tmp/SHA256SUMS" || fail "could not download $base/SHA256SUMS; $npm_hint"
   fi
 
-  expected=$(awk -v f="$asset" '$2 == f { print $1 }' "$tmp/SHA256SUMS")
-  [ -n "$expected" ] || fail "$asset is not listed in SHA256SUMS"
-  if command -v sha256sum >/dev/null 2>&1; then
-    actual=$(sha256sum "$tmp/$asset" | awk '{ print $1 }')
-  else
-    actual=$(shasum -a 256 "$tmp/$asset" | awk '{ print $1 }')
+  # Releases ship a .tar.gz; v1.15.0 and earlier, the bare binary.
+  file="$asset.tar.gz"
+  expected=$(awk -v f="$file" '$2 == f { print $1 }' "$tmp/SHA256SUMS")
+  if [ -z "$expected" ]; then
+    file=$asset
+    expected=$(awk -v f="$file" '$2 == f { print $1 }' "$tmp/SHA256SUMS")
   fi
-  [ "$actual" = "$expected" ] || fail "checksum mismatch for $asset; refusing to install"
+  [ -n "$expected" ] || fail "$asset is not listed in SHA256SUMS"
 
+  echo "Downloading $file ($version)..."
+  download "$base/$file" "$tmp/$file" || fail "could not download $base/$file; $npm_hint"
+  if command -v sha256sum >/dev/null 2>&1; then
+    actual=$(sha256sum "$tmp/$file" | awk '{ print $1 }')
+  else
+    actual=$(shasum -a 256 "$tmp/$file" | awk '{ print $1 }')
+  fi
+  [ "$actual" = "$expected" ] || fail "checksum mismatch for $file; refusing to install"
+
+  if [ "$file" != "$asset" ]; then
+    mkdir "$tmp/unpacked"
+    tar -xzf "$tmp/$file" -C "$tmp/unpacked" openspec || fail "could not unpack $file"
+    mv "$tmp/unpacked/openspec" "$tmp/$asset"
+  fi
   chmod 755 "$tmp/$asset"
   if ! installed=$("$tmp/$asset" --version); then
     case "$asset" in

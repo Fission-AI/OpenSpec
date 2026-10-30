@@ -65,10 +65,24 @@ jobs:
             echo "::error::package.json version $version does not match tag $REF"
             exit 1
           }
-      - name: Checksums and installer
+      # Users download archives: .tar.gz, or .zip on Windows. The bare
+      # binaries stay in dist-bin for the tests below.
+      - name: Archives, checksums and installer
         run: |
           cd dist-bin
-          sha256sum openspec-* > SHA256SUMS
+          for bin in openspec-*; do
+            name=${bin%.exe}
+            rm -rf pack && mkdir pack && cp ../LICENSE pack/
+            if [ "$bin" != "$name" ]; then
+              cp "$bin" pack/openspec.exe
+              (cd pack && zip -q "../$name.zip" openspec.exe LICENSE)
+            else
+              cp "$bin" pack/openspec && chmod 755 pack/openspec
+              tar -czf "$name.tar.gz" -C pack openspec LICENSE
+            fi
+          done
+          rm -rf pack
+          sha256sum openspec-*.tar.gz openspec-*.zip > SHA256SUMS
           cp ../scripts/binary/install.sh ../scripts/binary/install.ps1 .
           cat SHA256SUMS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -196,7 +210,7 @@ jobs:
             foreach ($tag in 'v1.1.0', 'v1.2.0') {
               $d = Join-Path $site "releases/download/$tag"
               New-Item -ItemType Directory -Force -Path $d | Out-Null
-              Copy-Item "dist-bin/openspec-$env:ASSET.exe" $d
+              Copy-Item "dist-bin/openspec-$env:ASSET.zip" $d
               if ($tag -eq 'v1.1.0') { Copy-Item dist-bin/SHA256SUMS $d }
             }
             Set-Content -Path (Join-Path $site 'releases.atom') -Value ('<feed>' + (('v1.2.0', 'v1.1.0' | ForEach-Object { "<link href=""https://github.com/Fission-AI/OpenSpec/releases/tag/$_""/>" }) -join '') + '</feed>')
@@ -283,13 +297,15 @@ jobs:
           # SHA256SUMS goes last: installers treat a release that has it as
           # complete and keep installing the previous one until then. The
           # installers themselves are served from main, not from releases.
-          gh release upload "$tag" openspec-* --clobber --repo "$GITHUB_REPOSITORY"
+          gh release upload "$tag" openspec-*.tar.gz openspec-*.zip --clobber --repo "$GITHUB_REPOSITORY"
           gh release upload "$tag" SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
-      # Signed proof each binary was built by this workflow from this tag, which
+      # Signed proof each archive was built by this workflow from this tag, which
       # anyone can check with `gh attestation verify`. The binaries are not
       # notarized or code-signed yet, so this is the verifiable trail meanwhile.
       # After the upload, so a first-time problem here never holds binaries back.
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         continue-on-error: true
         with:
-          subject-path: 'dist-bin/openspec-*'
+          subject-path: |
+            dist-bin/openspec-*.tar.gz
+            dist-bin/openspec-*.zip
