@@ -70,7 +70,7 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.65.0",
     "vite": "^8.3.5",
-    "vitest": "^4.1.12"
+    "vitest": "^5.0.3"
   },
   "dependencies": {
     "@inquirer/core": "^12.0.0",
