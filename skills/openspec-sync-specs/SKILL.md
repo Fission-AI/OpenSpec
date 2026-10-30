@@ -64,21 +64,11 @@ In both branches, never create the root as a side effect: do not run `openspec i
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
 
-   Only an entry whose path relative to `changeRoot` (from the status JSON)
-   is `specs/<capability-path>/spec.md` is a delta spec
-   (on Windows the entries use `\` separators; treat `\` and `/` alike);
-   `openspec validate` and `openspec archive` read no other file. Before
-   syncing, check every file under the change's `specs/` folder, not only the
-   reported entries (a narrow glob such as `specs/**/spec.md` never reports a `notes.md`). If any file other than a
-   capability's `spec.md` (for example
-   `specs/user-auth/notes.md` or `specs/user-auth.md`) contains a
-   `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements`
-   section, stop before writing any main spec: name the file and tell the user
-   to move its requirements into the capability's `spec.md`. An entry without
-   those sections is a note, not a delta; leave it out of the sync. From here
-   on, `existingOutputPaths` means the list without those notes, and the
-   delta-spec artifact ids are only those that still have an entry in it: an
-   artifact that reported nothing but notes gets no rules lookup.
+   Only `specs/<capability-path>/spec.md` entries (treat `\` and `/` alike) are delta specs: from here on,
+   `existingOutputPaths` means only those, and only artifacts that still have
+   one get a rules lookup. Run `openspec validate "<name>"` first with the same
+   selected-root flags; if it fails, stop before writing any main spec and show
+   its errors.
 
    Sync every path in `existingOutputPaths` unless the caller narrowed the set.
    A caller narrows it by naming an explicit list of complete entries from
@@ -310,7 +300,7 @@ Main specs are now updated. The change remains active - archive when implementat
 - Show what you're changing as you go
 - The operation should be idempotent - running twice should give same result
 - Use only the `existingOutputPaths` of artifacts whose `outputPath` or reported paths are under `specs/`, whatever their id; never infer delta specs from unrelated artifacts
-- Sync only `<capability-path>/spec.md` entries; stop before any write if another entry carries delta sections
+- Sync only `<capability-path>/spec.md` entries; stop before any write if `openspec validate` fails
 - Honor a caller-supplied subset of `existingOutputPaths`; never widen it back to the full list
 - Fetch each delta-spec artifact's instructions once for direct sync, or reuse the archive-supplied snapshots inline
 - Stop before every main-spec write on a non-zero or invalid JSON specs-instruction response

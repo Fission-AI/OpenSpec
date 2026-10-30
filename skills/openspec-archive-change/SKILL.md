@@ -118,21 +118,10 @@ In both branches, never create the root as a side effect: do not run `openspec i
    of their reported paths is under `specs/`, proceed without a
    sync prompt and do not infer delta specs from other artifacts.
 
-   Only an entry whose path relative to `changeRoot` (from the status JSON)
-   is `specs/<capability-path>/spec.md` is a delta spec
-   (on Windows the entries use `\` separators; treat `\` and `/` alike);
-   `openspec validate` and `openspec archive` read no other file. Check every
-   file under the change's `specs/` folder, not only the reported entries
-   (a narrow glob such as `specs/**/spec.md` never reports a `notes.md`). If any file other than a capability's
-   `spec.md` (for example `specs/user-auth/notes.md` or `specs/user-auth.md`)
-   contains a `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements`
-   section, stop without syncing or archiving: name the file and tell the user
-   to move its requirements into the capability's `spec.md`, then archive
-   again once `openspec validate "<name>"` passes.
-   Entries without those sections are notes; leave them out of the comparison
-   and the sync. The delta-spec artifact ids used below are only those that
-   still have an entry after the notes are removed: an artifact that reported
-   nothing but notes gets no rules lookup.
+   Only `specs/<capability-path>/spec.md` entries (treat `\` and `/` alike) are delta specs, and only
+   artifacts that have one get a rules lookup. Run `openspec validate "<name>"`
+   first with the same selected-root flags; if it fails, stop without syncing or
+   archiving and show its errors.
 
    **If delta specs exist:**
    - Compare each delta spec with its corresponding main spec at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (use the store-aware `planningHome.root` from step 2, not a hardcoded repo path)

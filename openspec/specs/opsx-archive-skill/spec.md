@@ -95,11 +95,9 @@ The skill SHALL prompt to sync delta specs before archiving if specs exist.
 
 #### Scenario: Delta sections outside a capability spec.md
 
-- **WHEN** the change's delta spec paths include a file that is not `specs/<capability-path>/spec.md`, such as `specs/user-auth/notes.md`
-- **AND** that file contains an `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements` section
-- **THEN** stop without syncing or archiving
-- **AND** name the file and tell the user to move its requirements into the capability's `spec.md`
-- **AND** treat a file without those sections as a note, left out of the comparison and the sync
+- **WHEN** a file under the change's `specs/` folder other than `specs/<capability-path>/spec.md` contains an `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements` section
+- **THEN** `openspec validate` fails for the change, and the workflow stops without syncing or archiving and shows its errors
+- **AND** only `specs/<capability-path>/spec.md` files are synced
 
 #### Scenario: Applicable ADDED delta whose main spec does not exist yet
 

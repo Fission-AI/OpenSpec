@@ -26,11 +26,9 @@ The system SHALL provide an `/opsx:sync` skill that syncs delta specs from a cha
 - **AND** announces which change was selected and how to override
 
 #### Scenario: Delta sections outside a capability spec.md
-- **WHEN** the change's delta spec paths include a file that is not `specs/<capability-path>/spec.md`, such as `specs/user-auth/notes.md`
-- **AND** that file contains an `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements` section
-- **THEN** the agent stops before writing any main spec
-- **AND** names the file and tells the user to move its requirements into the capability's `spec.md`
-- **AND** a file without those sections is treated as a note and left out of the sync
+- **WHEN** a file under the change's `specs/` folder other than `specs/<capability-path>/spec.md` contains an `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements` section
+- **THEN** `openspec validate` fails for the change, and the workflow stops before writing any main spec and shows its errors
+- **AND** only `specs/<capability-path>/spec.md` files are synced
 
 ### Requirement: Delta Reconciliation Logic
 The agent SHALL reconcile main specs with delta specs using the delta operation headers.

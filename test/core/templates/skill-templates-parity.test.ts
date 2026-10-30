@@ -81,20 +81,20 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getContinueChangeSkillTemplate: '2da5a24eb949f0717ffdb23c28c021ab6f73dc4beeb92ab709b8dbdac9db7355',
   getApplyChangeSkillTemplate: 'c4f02c29137e19b34bf1dc59146941b8c920214aa2cf3ce80ae7f1b982e976fc',
   getFfChangeSkillTemplate: '0eb8ddc6da710bc9ed6cd142a2eec1bec883f730125d76dc38e532bd5395bdf2',
-  getSyncSpecsSkillTemplate: 'c2ae7c9d546c9aaddcd80d7255d3de8e8c6393675c66254cb8b35ca4c5a34e54',
+  getSyncSpecsSkillTemplate: '1c22de74e428262c4017a7e65f8505f9ec8212aac53e0ff56d1fcfa27dc29559',
   getOnboardSkillTemplate: '84258a06c0ca88de708a23dd74e9a17efe11eff63a071b3864c781dcd5a0a4b7',
   getOpsxExploreCommandTemplate: 'c0af210bc070b7ac5168523b381cb9e213e4e102205bfc26bdae15677d954ae1',
   getOpsxNewCommandTemplate: '6d504fef1e0d4ced7c423f4cc9d9d2cee11b1a6224edf685e06a3f0757e0ebff',
   getOpsxContinueCommandTemplate: '9e36b758c2760fcab4dcef4677ee678eb29eac00f31de8cbc99f812a440afaaf',
   getOpsxApplyCommandTemplate: '9b733946aa7216b45d084bb5affd7071086db6f91282c3666731a17543825ff1',
   getOpsxFfCommandTemplate: '625d6a4a52adeaa16dbceff378f1d7cb07556e79b19d9af63feca5125aa4da13',
-  getArchiveChangeSkillTemplate: '4d29616939db34b26237c73371d9a0b304991cc203d72263a1fd74c77f06fa79',
-  getBulkArchiveChangeSkillTemplate: '9ffbf8a9e816b57d758b2c3b7551fab3266373ce0057b402122c3b4ce131a509',
-  getOpsxSyncCommandTemplate: 'a492749823b18412759b9fac9124b25320b62e68e620b0d9f4f3cefbac302959',
+  getArchiveChangeSkillTemplate: '935e8cc00d726226da1f4f61c006a368a779798d1ed30ac5946224c0b888da07',
+  getBulkArchiveChangeSkillTemplate: '07c3256e40939db6921b69e35ca27ed7785b23f236f0580cde841ac13b41894d',
+  getOpsxSyncCommandTemplate: '2afa087a2406376ce920b2600037739978e38a8d7619d8281f2906d78e1d0038',
   getVerifyChangeSkillTemplate: '9c45ab6d958a9fc432fa59b8d447ca8722a2275da566e91c0e545f531a921ed3',
-  getOpsxArchiveCommandTemplate: 'ef7b3586844935e96d08f733de07be0f0fbc0e3b72776311fa923315550b03ea',
+  getOpsxArchiveCommandTemplate: 'e210f841f77c313b48d7e809a9679d1c7027a814ee4cab3d33a2d02c04f71a87',
   getOpsxOnboardCommandTemplate: '0cf66e164c0e14c916c6d1ebb5d80ded07d7fb8e55d4eb34eba43e8ca9c28558',
-  getOpsxBulkArchiveCommandTemplate: '75e4983c5f030eb041e58c05cbb1e480223fd32380b17e2b3c47075c2da987fa',
+  getOpsxBulkArchiveCommandTemplate: '0f272ef23bc1cb408d821365c402b7c2b7964d69cd26990818f198a45bb32ae2',
   getOpsxVerifyCommandTemplate: 'ddc3fe6d529c82703ac131fb4383e4ae1f8df152d11afd75ae74ca17b12f1b24',
   getOpsxProposeSkillTemplate: 'd5e0e2d675cedaffbd771892f15edd8f7f55b464ee42362b1572aa59c4c1d492',
   getOpsxProposeCommandTemplate: 'f30af4ce5b7677bd664da71dd6d616a93278335e8828a7c3442fab59c339a11b',
@@ -109,9 +109,9 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-continue-change': 'd8859091316ad43a58cd015091454a95bf49378ec9d9117b24ab9b2396dc8303',
   'openspec-apply-change': '991a1d4687f1c8c7147d8c3b68cf14e9c515c6c53bb026356dac3b80e909b827',
   'openspec-ff-change': '224ff2ed2315eb23876fc4b83d796b60cf3cd05d853f2612e5b056ee7a6e93d2',
-  'openspec-sync-specs': 'e64b1c94583b362972357e916b0032281a05807aff047ba2187ea690d558723b',
-  'openspec-archive-change': '8d8c22570db6cf04639e03c2900e801e2cc08dce463daa931a7e425dba54971a',
-  'openspec-bulk-archive-change': '80ec77720514a143af005b15b6dd21fef05dce165de5a74276f47714502c585b',
+  'openspec-sync-specs': '3354332274e24acdff1c7164b0c792515f600bfb094969b9f6d08b78128c0fae',
+  'openspec-archive-change': '8c11b331256d48afd43447a4aba56f25d0ad76b09875d6ca2a297ddc072c2ea8',
+  'openspec-bulk-archive-change': 'a0dae78acde06be7544930bf97e6a30cc72d98d828b0bfcea4465f442e61b843',
   'openspec-verify-change': '082453eb0a8079a4c1c72c243373bf6489ebac56f9adaa8b58588047823ded0d',
   'openspec-onboard': '6993eff867d97d485e080078f9dfb80e968e242f3b17a924eeb077715fd548fa',
   'openspec-propose': '2bbfc169f483cbacc481bf5160aece61d5237e1bca80955f48f7e2a4814e6143',
@@ -1278,7 +1278,7 @@ describe('skill templates split parity', () => {
       // proposal.md, which must not enter the sync list.
       expect(flat, variant).toContain("`existingOutputPaths` under the change's `specs/` folder");
       expect(flat, variant).toMatch(/leav\w* out any other path an artifact reports/);
-      expect(flat, variant).toContain('is `specs/<capability-path>/spec.md` is a delta spec');
+      expect(flat, variant).toContain('Only `specs/<capability-path>/spec.md` entries (treat `\\` and `/` alike) are delta specs');
     }
   });
 
