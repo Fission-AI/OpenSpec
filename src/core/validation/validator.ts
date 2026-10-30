@@ -19,6 +19,9 @@ import {
   diffScenarioNames,
   describeScenarioBalance,
   describeUnappliedContent,
+  findDuplicateIds,
+  findRequirementKeyById,
+  scenarioNames,
   type RequirementBlock,
 } from '../parsers/requirement-blocks.js';
 import {
@@ -369,6 +372,27 @@ export class Validator {
           }
         }
 
+        // Archive refuses two blocks that claim one ID (#2167); say so here.
+        for (const [section, blocks] of [['ADDED', plan.added], ['MODIFIED', plan.modified]] as const) {
+          for (const id of findDuplicateIds(blocks.map((block) => block.name))) {
+            issues.push({
+              level: 'ERROR',
+              path: entryPath,
+              message: `Duplicate ID in ${section}: "${id}". Give each requirement its own ID.`,
+            });
+          }
+          // A repeated scenario ID turns ID pairing off for that requirement.
+          for (const block of blocks) {
+            for (const id of findDuplicateIds(scenarioNames(block.raw))) {
+              issues.push({
+                level: 'WARNING',
+                path: entryPath,
+                message: `${section} "${block.name}" repeats scenario ID "${id}". Give each scenario its own ID.`,
+              });
+            }
+          }
+        }
+
         // Run archive's scenario-loss check here too, so the change fails at
         // authoring time instead of days later at archive time (#1477).
         if (options.mainSpecsDir && plan.modified.length > 0) {
@@ -381,6 +405,7 @@ export class Validator {
             ...(await this.findScenarioLossIssues(
               plan.modified,
               plan.renamed,
+              plan.removed,
               mainSpecFile,
               entryPath,
               options.mainSpecsDir
@@ -705,6 +730,7 @@ export class Validator {
   private async findScenarioLossIssues(
     modified: RequirementBlock[],
     renamed: Array<{ from: string; to: string }>,
+    removed: string[],
     mainSpecFile: string,
     entryPath: string,
     mainSpecRoot: string
@@ -767,12 +793,18 @@ export class Validator {
     // would land on is not the one it names — so any scenario named here would
     // send the author after the wrong requirement.
     const renamedAway = new Set(renamed.map(({ from }) => normalizeRequirementName(from)));
+    const idLookup = new Map(currentBlocks);
+    for (const name of removed) idLookup.delete(normalizeRequirementName(name));
 
     const issues: ValidationIssue[] = [];
     for (const block of modified) {
       const key = normalizeRequirementName(block.name);
       if (renamedAway.has(key)) continue;
-      const current = currentBlockFor(key);
+      // The same ID lookup archive uses, after the REMOVED it applies first, so
+      // a renamed requirement is compared against the block archive will
+      // replace (#2167).
+      const idKey = findRequirementKeyById(idLookup, block);
+      const current = currentBlockFor(key) ?? (idKey === undefined ? undefined : idLookup.get(idKey));
       if (!current) continue;
       const diff = diffScenarioNames(current, block);
       if (diff.missing.length === 0) continue;
@@ -818,7 +850,18 @@ export class Validator {
         message: structuralIssue.message,
       });
     }
-    
+
+    // A warning, not an error: a spec that already holds a duplicate keeps
+    // working, matched by name as before, until someone renumbers it (#2167).
+    const requirementNames = extractRequirementsSection(content).bodyBlocks.map((block) => block.name);
+    for (const id of findDuplicateIds(requirementNames)) {
+      issues.push({
+        level: 'WARNING',
+        path: 'file',
+        message: `ID "${id}" is used by more than one requirement, so archive matches this spec by name only. Give each requirement its own ID.`,
+      });
+    }
+
     // The placeholder is longer than MIN_PURPOSE_LENGTH, so the brevity check
     // below cannot reach it; it is reported on its own terms instead. Checked
     // first because a hand-written "TBD" is both a placeholder and too brief,

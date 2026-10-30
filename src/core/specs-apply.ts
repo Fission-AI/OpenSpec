@@ -14,7 +14,10 @@ import {
   diffScenarioNames,
   describeScenarioBalance,
   describeUnappliedContent,
+  findDuplicateIds,
+  findRequirementKeyById,
   foldRequirementName,
+  headingId,
   parseDeltaSpec,
   normalizeRequirementName,
   type RequirementBlock,
@@ -279,6 +282,13 @@ export async function buildUpdatedSpec(
     }
     modifiedNames.add(name);
   }
+  // Two blocks claiming one ID would both target the same requirement (#2167).
+  for (const [section, blocks] of [['ADDED', plan.added], ['MODIFIED', plan.modified]] as const) {
+    const [duplicate] = findDuplicateIds(blocks.map((block) => block.name));
+    if (duplicate !== undefined) {
+      throw new Error(`${specName} validation failed - duplicate ID ${duplicate} in ${section}`);
+    }
+  }
   const removedNamesSet = new Set<string>();
   for (const rem of plan.removed) {
     const name = normalizeRequirementName(rem);
@@ -533,11 +543,39 @@ export async function buildUpdatedSpec(
 
   // MODIFIED
   let modifiedApplied = 0;
+  // Requirements MODIFIED has already written, and RENAMED's new headers: an ID
+  // lookup may not land on either, or one block would silently replace another
+  // block's work, or undo a rename the same delta asked for.
+  const modifiedKeys = new Set<string>();
+  const renamedToKeys = new Set(plan.renamed.map(({ to }) => normalizeRequirementName(to)));
   for (const mod of plan.modified) {
     const key = normalizeRequirementName(mod.name);
-    const currentBlock = nameToBlock.get(key);
-    if (!currentBlock) {
+    // A heading that changed but kept its ID is the same requirement (#2167).
+    const targetKey = nameToBlock.has(key) ? key : findRequirementKeyById(nameToBlock, mod);
+    const currentBlock = targetKey === undefined ? undefined : nameToBlock.get(targetKey);
+    if (!currentBlock || targetKey === undefined) {
       throw new Error(`${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - not found`);
+    }
+    if (targetKey !== key) {
+      const target = nameToBlock.get(targetKey)!.name;
+      if (modifiedKeys.has(targetKey)) {
+        throw new Error(
+          `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - another MODIFIED block in this delta already changes "${target}"`
+        );
+      }
+      if (renamedToKeys.has(targetKey)) {
+        throw new Error(
+          `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - RENAMED in this delta names it "${target}"; use that header`
+        );
+      }
+      const nearMiss = [...nameToBlock.keys()].find(
+        (k) => k !== targetKey && foldRequirementName(k) === foldRequirementName(key)
+      );
+      if (nearMiss !== undefined) {
+        throw new Error(
+          `${specName} MODIFIED failed for header "### Requirement: ${mod.name}" - "### Requirement: ${nameToBlock.get(nearMiss)!.name}" already exists and differs only in case or spacing; choose a distinct name`
+        );
+      }
     }
     // Replace block with provided raw (ensure header line matches key)
     const modHeaderMatch = mod.raw.split('\n')[0].match(/^###\s*Requirement:\s*(.+)\s*$/i);
@@ -559,7 +597,16 @@ export async function buildUpdatedSpec(
     if (normalizeBlockRaw(currentBlock.raw) !== normalizeBlockRaw(mod.raw)) {
       modifiedApplied++;
     }
+    if (targetKey !== key) {
+      // Same slot under the new heading, as RENAMED does.
+      nameToBlock.delete(targetKey);
+      const orderIndex = orderedKeys.indexOf(targetKey);
+      if (orderIndex >= 0) {
+        orderedKeys[orderIndex] = key;
+      }
+    }
     nameToBlock.set(key, mod);
+    modifiedKeys.add(key);
   }
 
   // ADDED
@@ -592,6 +639,20 @@ export async function buildUpdatedSpec(
   }
 
   // Duplicates within resulting map are implicitly prevented by key uniqueness.
+  // IDs are not: two parallel changes can pick the same next number. Refuse it
+  // rather than leave an ID that matches two requirements - unless the spec
+  // already held a duplicate, in which case IDs are not used for it at all.
+  if (findDuplicateIds(parts.bodyBlocks.map((block) => block.name)).length === 0) {
+    const resultNames = [...nameToBlock.values()].map((block) => block.name);
+    const [duplicate] = findDuplicateIds(resultNames);
+    if (duplicate !== undefined) {
+      const holders = resultNames.filter((name) => headingId(name) === duplicate);
+      throw new Error(
+        `${specName} validation failed - ID ${duplicate} would be used by more than one requirement: ` +
+          `${holders.map((name) => `"${name}"`).join(', ')}. Give the new requirement an unused ID.`
+      );
+    }
+  }
 
   // Recompose requirements section preserving original ordering where possible
   const keptOrder: RequirementBlock[] = [];

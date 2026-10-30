@@ -23,6 +23,77 @@ export function normalizeRequirementName(name: string): string {
 }
 
 /**
+ * A stable ID written in square brackets at the start of a requirement or
+ * scenario name (#2167): a word with a hyphen that ends in a number, such as
+ * `[AUTH-3]`, `[AUTH-3.1]` or `[cap-012]`. The brackets are required: a bare
+ * `SHA-256 checksum` or `HTTP-2 support` is an ordinary name, so specs without
+ * IDs keep matching exactly as before. The ID stays part of the name as well:
+ * matching by name is unchanged, and the ID only adds a match that survives a
+ * rename.
+ */
+const HEADING_ID = /^\[([A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*-\d+(?:\.\d+)*)\](?=\s|$)/;
+
+/** The ID at the start of a requirement or scenario name, if it has one. */
+export function headingId(name: string): string | undefined {
+  return name.match(HEADING_ID)?.[1];
+}
+
+/** The name with its leading ID removed; the name itself when it has none. */
+function nameWithoutId(name: string): string {
+  return name.replace(HEADING_ID, '').trim();
+}
+
+/**
+ * Whether a name with no ID is the one an ID is being added to: the same name
+ * minus the ID (`Users sign in` -> `[AUTH-3] Users sign in`), or the same ID
+ * already written bare in front (`NAV-5 Users sign in` -> `[NAV-5] Users sign
+ * in`), so projects that prefix headings without brackets can add them.
+ */
+function gainsId(currentName: string, id: string, bare: string): boolean {
+  if (headingId(currentName) !== undefined) return false;
+  const name = normalizeRequirementName(currentName);
+  return name === bare || name === `${id} ${bare}`;
+}
+
+/** Every ID that more than one of the given names carries, in first-seen order. */
+export function findDuplicateIds(names: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const name of names) {
+    const id = headingId(name);
+    if (id === undefined) continue;
+    if (seen.has(id)) duplicates.add(id);
+    seen.add(id);
+  }
+  return [...duplicates];
+}
+
+/**
+ * The key of the current requirement a MODIFIED block targets by ID, for a
+ * block whose exact name is not in the spec: the one requirement with the same
+ * ID (a rename), or, when no requirement has that ID yet, the one without an ID
+ * that the block adds its ID to (gainsId).
+ *
+ * Undefined when the block has no ID, nothing matches, or the spec's IDs are
+ * not unique - callers then keep today's name lookup, so a spec that already
+ * holds a duplicate never matches the wrong requirement.
+ */
+export function findRequirementKeyById(
+  current: ReadonlyMap<string, RequirementBlock>,
+  incoming: RequirementBlock
+): string | undefined {
+  const id = headingId(incoming.name);
+  if (id === undefined) return undefined;
+  const entries = [...current.entries()];
+  if (findDuplicateIds(entries.map(([, block]) => block.name)).length > 0) return undefined;
+  const sameId = entries.find(([, block]) => headingId(block.name) === id);
+  if (sameId) return sameId[0];
+  const bare = nameWithoutId(incoming.name);
+  const adopted = entries.filter(([, block]) => gainsId(block.name, id, bare));
+  return adopted.length === 1 ? adopted[0][0] : undefined;
+}
+
+/**
  * Case- and whitespace-insensitive fold of a requirement name. Requirement
  * matching itself is case-sensitive (normalizeRequirementName); this fold
  * exists only for typo detection - near-miss REMOVED, ADDED and RENAMED
@@ -631,12 +702,65 @@ export function diffScenarioNames(
     return out;
   };
 
+  const paired = usesScenarioIds(currentNames, incomingNames)
+    ? pairScenariosById(currentNames, incomingNames)
+    : { missing: unmatched(currentNames, incomingNames), added: unmatched(incomingNames, currentNames) };
+
   return {
-    missing: unmatched(currentNames, incomingNames),
-    added: unmatched(incomingNames, currentNames),
+    ...paired,
     currentCount: currentNames.length,
     incomingCount: incomingNames.length,
   };
+}
+
+/**
+ * Pair by ID only when some scenario has one and neither side repeats an ID.
+ * Otherwise the name comparison above runs exactly as before, so a block
+ * without IDs, or with an ambiguous one, is judged the way it always was.
+ */
+function usesScenarioIds(currentNames: readonly string[], incomingNames: readonly string[]): boolean {
+  const all = [...currentNames, ...incomingNames];
+  return (
+    all.some((name) => headingId(name) !== undefined) &&
+    findDuplicateIds(currentNames).length === 0 &&
+    findDuplicateIds(incomingNames).length === 0
+  );
+}
+
+/**
+ * Pair scenarios by ID first, so a renamed scenario that kept its ID is not a
+ * loss (#1697). What is left pairs by name, but never across two different
+ * IDs: a scenario that shares a name with a dropped one does not cover it.
+ * Adding an ID to a scenario is not a loss; dropping one is.
+ */
+function pairScenariosById(
+  currentNames: readonly string[],
+  incomingNames: readonly string[]
+): { missing: string[]; added: string[] } {
+  const incoming = incomingNames.map((name) => ({
+    name,
+    id: headingId(name),
+    bare: nameWithoutId(name),
+    used: false,
+  }));
+  const take = (match: (candidate: (typeof incoming)[number]) => boolean): boolean => {
+    const found = incoming.find((candidate) => !candidate.used && match(candidate));
+    if (found) found.used = true;
+    return found !== undefined;
+  };
+
+  const unpairedById = currentNames.filter((name) => {
+    const id = headingId(name);
+    return id === undefined || !take((candidate) => candidate.id === id);
+  });
+  const missing = unpairedById.filter(
+    (name) =>
+      headingId(name) !== undefined ||
+      !take((candidate) =>
+        candidate.id === undefined ? candidate.bare === nameWithoutId(name) : gainsId(name, candidate.id, candidate.bare)
+      )
+  );
+  return { missing, added: incoming.filter((candidate) => !candidate.used).map((candidate) => candidate.name) };
 }
 
 /**
@@ -712,6 +836,11 @@ export function scenarioNameFromHeaderText(headerText: string): string {
     .replace(/[ \t]+#+[ \t]*$/, '')
     .replace(/^Scenario:\s*/i, '')
     .trim();
+}
+
+/** The scenario names of a requirement block, as the loss check reads them. */
+export function scenarioNames(requirementRaw: string): string[] {
+  return parseScenarioBlocks(requirementRaw).map((scenario) => scenario.name);
 }
 
 function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {

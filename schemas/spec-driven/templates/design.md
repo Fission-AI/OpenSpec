@@ -14,7 +14,9 @@
 
 ## Decisions
 
-<!-- Key design decisions with rationale and alternatives considered -->
+### D1
+
+<!-- At most two sentences: the choice, and why. Edge cases and error messages go in the specs. Keep this ID if the decision is reworded or reordered. -->
 
 ## Risks / Trade-offs
 
