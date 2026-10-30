@@ -60,6 +60,13 @@ export const LEGACY_TOOL_ROOTS: Record<string, LegacyToolRoot[]> = {
   // Codex: the replacement is written first, so a divergent legacy file is
   // reported and kept rather than overwritten.
   antigravity: [{ root: '.agent', needsConsent: false, timing: 'after-generation' }],
+  // CoStrict reads project skills from .agents, .claude and .roo, never from
+  // .cospec, which holds CoStrict's own coworkflow files and the OpenSpec
+  // commands it does read (.cospec/openspec/commands). Only skills move:
+  // legacyCommandPath remaps a command only when its path starts with the
+  // current root, and CoStrict's starts with .cospec. Same after-generation
+  // timing as Codex, so a divergent legacy skill is kept and reported.
+  costrict: [{ root: '.cospec', needsConsent: false, timing: 'after-generation' }],
 };
 
 export interface LegacyToolMigration {
