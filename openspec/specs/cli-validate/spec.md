@@ -339,7 +339,9 @@ When a requirement places the normative keyword (SHALL or MUST) only in its `###
 
 - **GIVEN** a main spec requirement whose header contains SHALL or MUST but whose body line omits it
 - **WHEN** running `openspec validate` over that spec
-- **THEN** the issue message SHALL contain the actionable sentence: "must contain SHALL or MUST in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the \"### Requirement: ...\" header."
+- **THEN** the issue message SHALL contain the actionable sentence: "contain SHALL or MUST in the requirement body, not only in the header. Move the SHALL/MUST statement to the line immediately after the \"### Requirement: ...\" header."
+- **AND** when the body line has text, the issue SHALL be a WARNING that reads "should contain SHALL or MUST" and ends with "(RFC 2119 best practice for English specs)"
+- **AND** when there is no body text, the issue SHALL be an ERROR that reads "must contain SHALL or MUST"
 - **AND** SHALL NOT be the generic "Requirement must contain SHALL or MUST keyword" message
 
 #### Scenario: Actionable-sentence parity with change deltas
