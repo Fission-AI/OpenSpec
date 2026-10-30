@@ -50,10 +50,11 @@ ${PROJECT_ROOT_GUARD}
 
    The delta-spec artifacts are every \`artifactPaths.<id>\` entry in the status
    JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active
-   schema, so do not assume the id \`specs\`. Their combined
-   \`existingOutputPaths\` (called \`existingOutputPaths\` below) are the only
-   source of delta spec paths. If there is no such entry, or
-   all of their \`existingOutputPaths\` are empty, report that there are no delta specs to sync,
+   schema, so do not assume the id \`specs\`. Only the entries of their
+   \`existingOutputPaths\` under the change's \`specs/\` folder (called
+   \`existingOutputPaths\` below) are delta spec paths; leave out any other path
+   an artifact reports. If there is no such entry, or none of their reported
+   paths is under \`specs/\`, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
 
@@ -354,10 +355,11 @@ ${PROJECT_ROOT_GUARD}
 
    The delta-spec artifacts are every \`artifactPaths.<id>\` entry in the status
    JSON whose \`outputPath\` is under \`specs/\` or whose \`existingOutputPaths\` include a path under the change's \`specs/\` folder. Artifact ids come from the active
-   schema, so do not assume the id \`specs\`. Their combined
-   \`existingOutputPaths\` (called \`existingOutputPaths\` below) are the only
-   source of delta spec paths. If there is no such entry, or
-   all of their \`existingOutputPaths\` are empty, report that there are no delta specs to sync,
+   schema, so do not assume the id \`specs\`. Only the entries of their
+   \`existingOutputPaths\` under the change's \`specs/\` folder (called
+   \`existingOutputPaths\` below) are delta spec paths; leave out any other path
+   an artifact reports. If there is no such entry, or none of their reported
+   paths is under \`specs/\`, report that there are no delta specs to sync,
    do not infer them from other artifacts, and stop without requesting artifact
    instructions or writing a main spec.
 

@@ -111,9 +111,11 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    The delta-spec artifacts are every `artifactPaths.<id>` entry in status JSON
    whose `outputPath` is under `specs/` or whose `existingOutputPaths` include a path under the change's `specs/` folder. Artifact ids come from the active
-   schema, so do not assume the id `specs`. Their combined
-   `existingOutputPaths` are the only delta-spec source; keep each reported path
-   as-is when resolving its capability path. If there is no such entry, or all of their `existingOutputPaths` are empty, proceed without a
+   schema, so do not assume the id `specs`. Only the entries of their
+   `existingOutputPaths` under the change's `specs/` folder are the delta-spec
+   source; leave out any other path an artifact reports. Keep each kept path
+   as-is when resolving its capability path. If there is no such entry, or none
+   of their reported paths is under `specs/`, proceed without a
    sync prompt and do not infer delta specs from other artifacts.
 
    Only an entry whose path relative to `changeRoot` (from the status JSON)
