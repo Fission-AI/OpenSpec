@@ -67,14 +67,18 @@ In both branches, never create the root as a side effect: do not run `openspec i
    Only an entry whose path relative to `changeRoot` (from the status JSON)
    is `specs/<capability-path>/spec.md` is a delta spec
    (on Windows the entries use `\` separators; treat `\` and `/` alike);
-   `openspec validate` and `openspec archive` read no other file. Check every
-   entry before syncing. If any other entry (for example
+   `openspec validate` and `openspec archive` read no other file. Before
+   syncing, check every file under the change's `specs/` folder, not only the
+   reported entries (a narrow glob such as `specs/**/spec.md` never reports a `notes.md`). If any file other than a
+   capability's `spec.md` (for example
    `specs/user-auth/notes.md` or `specs/user-auth.md`) contains a
    `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements`
    section, stop before writing any main spec: name the file and tell the user
    to move its requirements into the capability's `spec.md`. An entry without
    those sections is a note, not a delta; leave it out of the sync. From here
-   on, `existingOutputPaths` means the list without those notes.
+   on, `existingOutputPaths` means the list without those notes, and the
+   delta-spec artifact ids are only those that still have an entry in it: an
+   artifact that reported nothing but notes gets no rules lookup.
 
    Sync every path in `existingOutputPaths` unless the caller narrowed the set.
    A caller narrows it by naming an explicit list of complete entries from

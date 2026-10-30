@@ -83,6 +83,33 @@ describe('delta spec shape in archive and sync workflows (#2173)', () => {
     });
   }
 
+  for (const workflow of workflows) {
+    // A narrow glob such as `specs/**/spec.md` never reports a notes.md, so a
+    // misplaced delta there is invisible in existingOutputPaths. The CLI walks
+    // the whole folder (findUnreadDeltaFiles); the workflows must too.
+    it(`${workflow.name} scans the whole specs/ folder, not only reported entries`, () => {
+      for (const [surface, body] of workflow.bodies) {
+        const label = `${workflow.name} ${surface}`;
+        const step = between(body, workflow.step[0], workflow.step[1], label).replace(/\s+/g, ' ');
+        expect(step, label).toMatch(
+          /[Cc]heck every file under the change's `specs\/` folder, not only the reported entries/
+        );
+        expect(step, label).toContain('If any file other than a capability\'s `spec.md`');
+      }
+    });
+
+    // After notes are dropped, an artifact with no real delta left must not
+    // drive a rules lookup: a note-only artifact named `apply` would otherwise
+    // trip the reserved-id stop and block another artifact's valid sync.
+    it(`${workflow.name} looks up rules only for artifacts that still have a delta`, () => {
+      for (const [surface, body] of workflow.bodies) {
+        const label = `${workflow.name} ${surface}`;
+        const step = between(body, workflow.step[0], workflow.step[1], label).replace(/\s+/g, ' ');
+        expect(step, label).toContain('an artifact that reported nothing but notes gets no rules lookup');
+      }
+    });
+  }
+
   it('sync checks the shape before it syncs any path', () => {
     for (const [surface, body] of workflows[0].bodies) {
       const step = between(body, '3. **Find delta specs**', '4. **', surface);

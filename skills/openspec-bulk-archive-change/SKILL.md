@@ -105,11 +105,16 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - Only an entry whose path relative to `changeRoot` (from the status JSON)
         is `specs/<capability-path>/spec.md` is a delta spec
         (on Windows the entries use `\` separators; treat `\` and `/` alike);
-        `openspec validate` and `openspec archive` read no other file. If any other
-        entry contains a `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements`
+        `openspec validate` and `openspec archive` read no other file. Check every
+        file under the change's `specs/` folder, not only the reported entries
+        (a narrow glob such as `specs/**/spec.md` never reports a `notes.md`). If any file other than a capability's
+        `spec.md` contains a `## ADDED`, `## MODIFIED`, `## REMOVED` or `## RENAMED Requirements`
         section, mark the change `Blocked` with `Delta outside a capability spec.md: <path>`
         and tell the user to move its requirements into the capability's `spec.md`.
         Entries without those sections are notes, left out of the sync.
+      - That change's delta-spec artifact ids are only those that still have an
+        entry after the notes are removed: an artifact that reported nothing but
+        notes gets no rules lookup.
 
    d. **Archive target** - Compute each change's target name once and record it as that change's `<target-name>`
       - Use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<name>` (same rule as `openspec archive`)
