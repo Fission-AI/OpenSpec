@@ -6,6 +6,25 @@ import { InstallationResult } from '../factory.js';
 import { shellSingleQuote } from './shell-quote.js';
 
 /**
+ * zsh reads its startup files from $ZDOTDIR when it is set, and from $HOME
+ * only otherwise, so a block written to ~/.zshrc under an XDG-style
+ * ZDOTDIR is never loaded (#2138).
+ */
+function zshrcDir(homeDir: string): string {
+  const zdotdir = process.env.ZDOTDIR;
+  // zsh does not expand `~` in ZDOTDIR, and path.join would resolve a relative
+  // or `~/...` value against the current directory, writing a stray .zshrc
+  // into the user's project. Only an absolute ZDOTDIR moves the file.
+  return zdotdir && path.isAbsolute(zdotdir) ? zdotdir : homeDir;
+}
+
+/** The .zshrc zsh will read, as shown to the user: `~/.zshrc` unless ZDOTDIR moves it. */
+export function zshrcDisplayPath(homeDir: string = os.homedir()): string {
+  const zshrcPath = path.join(zshrcDir(homeDir), '.zshrc');
+  return zshrcPath === path.join(homeDir, '.zshrc') ? '~/.zshrc' : zshrcPath;
+}
+
+/**
  * Installer for Zsh completion scripts.
  * Supports both Oh My Zsh and standard Zsh configurations.
  */
@@ -108,7 +127,15 @@ export class ZshInstaller {
    * @returns Path to .zshrc
    */
   private getZshrcPath(): string {
-    return path.join(this.homeDir, '.zshrc');
+    return path.join(zshrcDir(this.homeDir), '.zshrc');
+  }
+
+  /**
+   * Every .zshrc that may hold an OpenSpec block: the one zsh reads, plus
+   * ~/.zshrc, where installs before #2138 wrote it even under ZDOTDIR.
+   */
+  private getZshrcCandidates(): string[] {
+    return [...new Set([this.getZshrcPath(), path.join(this.homeDir, '.zshrc')])];
   }
 
   /**
@@ -170,9 +197,8 @@ export class ZshInstaller {
    *
    * @returns true if .zshrc exists and has markers
    */
-  private async hasZshrcConfig(): Promise<boolean> {
+  private async hasZshrcConfig(zshrcPath: string = this.getZshrcPath()): Promise<boolean> {
     try {
-      const zshrcPath = this.getZshrcPath();
       const content = await fs.readFile(zshrcPath, 'utf-8');
       return content.includes(this.ZSHRC_MARKERS.start) && content.includes(this.ZSHRC_MARKERS.end);
     } catch {
@@ -184,12 +210,11 @@ export class ZshInstaller {
    * Remove .zshrc configuration
    * Used during uninstallation
    *
+   * @param zshrcPath - The .zshrc to clean; defaults to the one zsh reads
    * @returns true if removed successfully, false otherwise
    */
-  async removeZshrcConfig(): Promise<boolean> {
+  async removeZshrcConfig(zshrcPath: string = this.getZshrcPath()): Promise<boolean> {
     try {
-      const zshrcPath = this.getZshrcPath();
-
       // Check if file exists
       try {
         await fs.access(zshrcPath);
@@ -253,16 +278,25 @@ export class ZshInstaller {
       try {
         const existingContent = await fs.readFile(targetPath, 'utf-8');
         if (existingContent === completionScript) {
-          // Already installed and up to date
+          // Already installed and up to date. Still make sure the .zshrc zsh
+          // reads has the block: an install made before #2138 under ZDOTDIR
+          // wrote it to ~/.zshrc, and re-running install is how that's fixed.
+          const zshrcConfigured = isOhMyZsh
+            ? false
+            : await this.configureZshrc(path.dirname(targetPath));
           return {
             success: true,
             installedPath: targetPath,
             isOhMyZsh,
+            zshrcConfigured,
             message: 'Completion script is already installed (up to date)',
-            instructions: [
-              'The completion script is already installed and up to date.',
-              'If completions are not working, try: exec zsh',
-            ],
+            instructions:
+              isOhMyZsh || zshrcConfigured
+                ? [
+                    'The completion script is already installed and up to date.',
+                    'If completions are not working, try: exec zsh',
+                  ]
+                : this.generateInstructions(false, targetPath),
           };
         }
         // File exists but content is different - this is an update
@@ -372,12 +406,12 @@ export class ZshInstaller {
       ];
     } else {
       const completionsDir = path.dirname(installedPath);
-      const zshrcPath = path.join(this.homeDir, '.zshrc');
+      const zshrcPath = this.getZshrcPath();
 
       return [
         'Completion script installed to ~/.zsh/completions/',
         '',
-        'To enable completions, add the following to your ~/.zshrc file:',
+        `To enable completions, add the following to your ${zshrcDisplayPath(this.homeDir)} file:`,
         '',
         `  # Add completions directory to fpath`,
         `  fpath=(${shellSingleQuote(completionsDir)} $fpath)`,
@@ -414,11 +448,18 @@ export class ZshInstaller {
 
       // Try to remove .zshrc configuration (only for standard Zsh)
       let zshrcWasPresent = false;
-      let zshrcCleaned = false;
+      const cleanedZshrcs: string[] = [];
+      const failedZshrcs: string[] = [];
       if (!isOhMyZsh) {
-        zshrcWasPresent = await this.hasZshrcConfig();
-        if (zshrcWasPresent) {
-          zshrcCleaned = await this.removeZshrcConfig();
+        for (const zshrcPath of this.getZshrcCandidates()) {
+          if (await this.hasZshrcConfig(zshrcPath)) {
+            zshrcWasPresent = true;
+            if (await this.removeZshrcConfig(zshrcPath)) {
+              cleanedZshrcs.push(zshrcPath);
+            } else {
+              failedZshrcs.push(zshrcPath);
+            }
+          }
         }
       }
 
@@ -433,12 +474,21 @@ export class ZshInstaller {
       if (scriptRemoved) {
         messages.push(`Completion script removed from ${targetPath}`);
       }
-      if (zshrcCleaned && !isOhMyZsh) {
-        messages.push('Removed OpenSpec configuration from ~/.zshrc');
+      const label = (zshrcPath: string) =>
+        zshrcPath === path.join(this.homeDir, '.zshrc') ? '~/.zshrc' : zshrcPath;
+      for (const zshrcPath of cleanedZshrcs) {
+        messages.push(`Removed OpenSpec configuration from ${label(zshrcPath)}`);
+      }
+      // A block left behind keeps loading the completions, so say so instead
+      // of reporting a clean uninstall.
+      for (const zshrcPath of failedZshrcs) {
+        messages.push(
+          `Could not remove the OpenSpec block from ${label(zshrcPath)}; delete the lines between # OPENSPEC:START and # OPENSPEC:END by hand`
+        );
       }
 
       return {
-        success: true,
+        success: failedZshrcs.length === 0,
         message: messages.join('. '),
       };
     } catch (error) {

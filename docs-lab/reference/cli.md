@@ -2437,12 +2437,14 @@ Writes the script and edits your shell config. Config edits sit between `# OPENS
 
 | Shell | Script location | Config edited |
 |---|---|---|
-| zsh | `~/.zsh/completions/_openspec` | `~/.zshrc` |
+| zsh | `~/.zsh/completions/_openspec` | `$ZDOTDIR/.zshrc` when `ZDOTDIR` is an absolute path, otherwise `~/.zshrc` |
 | bash | `~/.local/share/bash-completion/completions/openspec` | `~/.bashrc` |
 | fish | `~/.config/fish/completions/openspec.fish` | None: fish auto-loads it. |
 | powershell | `OpenSpecCompletion.ps1` beside your profile | `$PROFILE` |
 
 With Oh My Zsh installed, the script lands in `$ZSH_CUSTOM/completions/_openspec` instead (default `~/.oh-my-zsh/custom/completions/_openspec`).
+
+A relative or `~`-prefixed `ZDOTDIR` is ignored, and `~/.zshrc` is edited instead. Running install again when the script is already current still adds the block to the `.zshrc` zsh reads.
 
 **Options**
 
@@ -2461,6 +2463,8 @@ Restart your shell or run: exec zsh
 ### openspec completion uninstall
 
 Removes the script and the marked config block. It asks before touching your config (default: No).
+
+For zsh, it cleans the `.zshrc` that install edits, and also `~/.zshrc` when an older install left a block there under `ZDOTDIR`. If a block can't be removed, uninstall names the file and exits 1.
 
 **Options**
 
