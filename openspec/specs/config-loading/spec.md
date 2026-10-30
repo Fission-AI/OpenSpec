@@ -97,30 +97,6 @@ The system SHALL reject context fields exceeding 50KB and log a warning.
 - **WHEN** config contains context of 51KB
 - **THEN** warning is logged with size and limit, context field is not included in returned config
 
-### Requirement: Defer artifact ID validation to instruction loading
-
-The system SHALL NOT validate artifact IDs in rules during config load time. Validation happens during instruction loading when schema is known.
-
-#### Scenario: Config with rules is loaded
-- **WHEN** config contains `rules: { unknownartifact: [...] }`
-- **THEN** config is loaded successfully without validation errors
-
-#### Scenario: Validation happens at instruction load time
-- **WHEN** instructions are loaded for any artifact and config has unknown artifact IDs in rules
-- **THEN** warnings are emitted about unknown artifact IDs (see rules-injection spec for details)
-
-### Requirement: Gracefully handle config errors without halting
-
-The system SHALL continue operation with default values when config loading or parsing fails.
-
-#### Scenario: Config parse failure during command execution
-- **WHEN** config file has syntax errors and user runs `openspec new change`
-- **THEN** command executes using default schema "spec-driven"
-
-#### Scenario: Warning is visible to user
-- **WHEN** config loading fails
-- **THEN** system outputs warning message to stderr with details about the failure
-
 ### Requirement: Load operation guidance independently
 
 The system SHALL parse the optional `operations` project-config field independently from `schema`, `context`, `rules`, `references`, and `store` so an invalid operation entry does not discard other valid configuration.
@@ -159,3 +135,28 @@ The system SHALL parse the optional `operations` project-config field independen
 - **WHEN** a guidance array contains empty strings and non-empty strings with line breaks or Markdown
 - **THEN** the system removes the empty entries
 - **AND** preserves the non-empty entries in their original order and form
+
+### Requirement: Defer artifact ID validation to instruction loading
+
+The system SHALL NOT validate artifact IDs in rules during config load time. Validation happens during instruction loading when schema is known.
+
+#### Scenario: Config with rules is loaded
+- **WHEN** config contains `rules: { unknownartifact: [...] }`
+- **THEN** config is loaded successfully without validation errors
+
+#### Scenario: Validation happens at instruction load time
+- **WHEN** instructions are loaded for any artifact and config has unknown artifact IDs in rules
+- **THEN** warnings are emitted about unknown artifact IDs (see rules-injection spec for details)
+
+### Requirement: Gracefully handle config errors without halting
+
+The system SHALL continue operation with default values when config loading or parsing fails.
+
+#### Scenario: Config parse failure during command execution
+- **WHEN** config file has syntax errors and user runs `openspec new change`
+- **THEN** command executes using default schema "spec-driven"
+
+#### Scenario: Warning is visible to user
+- **WHEN** config loading fails
+- **THEN** system outputs warning message to stderr with details about the failure
+
