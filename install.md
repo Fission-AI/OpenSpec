@@ -39,7 +39,7 @@ If the user would rather use a package manager, or the installer fails, continue
 
 ## 2. Package manager (only if step 1 did not install it)
 
-Run `node --version`. Installing with a package manager needs Node.js 20.19.0 or higher. If Node is missing or older, don't install Node, switch versions, or reconfigure the user's version manager yourself; stop and leave them with their next move: https://nodejs.org, or, if they use a version manager like nvm, the command that would switch to a newer version.
+Run `node --version`. Installing with a package manager needs Node.js 22.12.0 or higher. If Node is missing or older, don't install Node, switch versions, or reconfigure the user's version manager yourself; stop and leave them with their next move: https://nodejs.org, or, if they use a version manager like nvm, the command that would switch to a newer version.
 
 Use whichever package manager is already on PATH, preferring npm:
 

@@ -42,7 +42,7 @@ jobs:
       # written by a pull request run could poison them.
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '20.19.0'
+          node-version: '22.12.0'
           package-manager-cache: false
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
@@ -237,7 +237,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         if: matrix.alpine == ''
         with:
-          node-version: '20.19.0'
+          node-version: '22.12.0'
           package-manager-cache: false
       - name: CLI test suite and `openspec install` against the binary
         run: |

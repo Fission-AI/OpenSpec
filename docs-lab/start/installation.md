@@ -36,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/install.md
 That fetches [install.md at the repo root](https://github.com/Fission-AI/OpenSpec/blob/main/install.md), a prompt written for any agent that can run shell commands (a few IDE integrations can't). Expect your assistant to:
 
 1. Skip the install if the CLI is already on your machine, and offer to update it the way it was installed. If that was npm or Homebrew, mention once that `openspec install` switches to the standalone install, without pushing it. Otherwise, show you the install command above and wait for your confirmation before running it.
-2. Use npm instead only if you ask for it or the installer fails, and stop if your Node is older than 20.19.0.
+2. Use npm instead only if you ask for it or the installer fails, and stop if your Node is older than 22.12.0.
 3. Verify `openspec` is on your PATH.
 4. Name the folder it thinks you mean, suggest the AI tool you're already talking to, and ask which others you use, then run `openspec init` there (the [project setup](setup.md) step).
 5. Report what init created and the exact spelling to invoke OpenSpec in your tool.
@@ -47,13 +47,13 @@ This install method is new and can have varying results depending on model used.
 
 ## Package managers
 
-These install OpenSpec as a Node.js package, so they need Node.js 20.19.0 or newer (Homebrew and Nix bring their own). In your terminal:
+These install OpenSpec as a Node.js package, so they need Node.js 22.12.0 or newer (Homebrew and Nix bring their own). In your terminal:
 
 ```bash
 node --version
 ```
 
-If that prints `v20.19.0` or higher, install with npm:
+If that prints `v22.12.0` or higher, install with npm:
 
 ```npm
 npm install -g @fission-ai/openspec@latest

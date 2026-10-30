@@ -129,7 +129,7 @@ On Windows, in PowerShell:
 irm https://openspec.dev/cli/install.ps1 | iex
 ```
 
-Prefer a package manager? `npm install -g @fission-ai/openspec@latest` (needs Node.js 20.19.0 or higher) or the official [Homebrew formula](https://formulae.brew.sh/formula/openspec), `brew install openspec`.
+Prefer a package manager? `npm install -g @fission-ai/openspec@latest` (needs Node.js 22.12.0 or higher) or the official [Homebrew formula](https://formulae.brew.sh/formula/openspec), `brew install openspec`.
 
 Then navigate to your project directory and initialize:
 
