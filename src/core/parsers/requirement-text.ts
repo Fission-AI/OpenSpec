@@ -110,6 +110,50 @@ export function countScenarios(bodyLines: string[]): number {
   return readScenarioBodies(bodyLines).filter(hasScenarioBody).length;
 }
 
+/**
+ * A step keyword as it is actually written: bolded in any case, with or
+ * without a colon inside the bold (`**WHEN**`, `**Given:**`), or bare and
+ * uppercase (`WHEN`). Bold carries the step-ness, so its case can be liberal;
+ * a bare word must be uppercase to count — lowercase `when`/`then` are
+ * ordinary English prose, and the missing-SHALL/MUST check is uppercase-only
+ * for the same reason. Bold is `**` or `__`; the bare pattern cannot catch
+ * `__WHEN__`, because `_` is a word character and `\b` never fires beside it.
+ */
+const BOLD_TRIGGER_STEP = /(?:\*\*|__)(?:WHEN|GIVEN):?(?:\*\*|__)/i;
+const BARE_TRIGGER_STEP = /\b(?:WHEN|GIVEN)\b/;
+const BOLD_OUTCOME_STEP = /(?:\*\*|__)THEN:?(?:\*\*|__)/i;
+const BARE_OUTCOME_STEP = /\bTHEN\b/;
+
+/** The two halves of a scenario, as carried by its non-fenced body lines. */
+export interface ScenarioStepCoverage {
+  hasTrigger: boolean;
+  hasOutcome: boolean;
+}
+
+/**
+ * Whether a scenario block (header line included, as `parseScenarioBlocks`
+ * returns it) carries a trigger step (**WHEN** or **GIVEN**) and an outcome
+ * step (**THEN**) outside fenced examples. `AND` only continues a step that is
+ * already there, so neither half can be carried by an `AND` line; a keyword
+ * inside a fenced block is documentation, not a step — the same masking
+ * `extractRequirementBody` applies to requirement text.
+ */
+export function scenarioStepCoverage(scenarioRaw: string): ScenarioStepCoverage {
+  const lines = scenarioRaw.replace(/\r\n?/g, '\n').split('\n');
+  const mask = buildCodeFenceMask(lines);
+  let hasTrigger = false;
+  let hasOutcome = false;
+  // Line 0 is the scenario's own header: a keyword in the title
+  // (`#### Scenario: What happens THEN`) is a name, not a step.
+  for (let i = 1; i < lines.length; i++) {
+    if (mask[i]) continue;
+    const line = lines[i];
+    if (BOLD_TRIGGER_STEP.test(line) || BARE_TRIGGER_STEP.test(line)) hasTrigger = true;
+    if (BOLD_OUTCOME_STEP.test(line) || BARE_OUTCOME_STEP.test(line)) hasOutcome = true;
+  }
+  return { hasTrigger, hasOutcome };
+}
+
 /** Count the `#### ` headers in a requirement block that have no body under them. */
 export function countEmptyScenarios(bodyLines: string[]): number {
   return readScenarioBodies(bodyLines).filter((body) => !hasScenarioBody(body)).length;
