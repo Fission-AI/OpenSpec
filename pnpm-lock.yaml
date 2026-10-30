@@ -68,8 +68,8 @@ importers:
         specifier: ^4.0.3
         version: 4.0.3
       '@vitest/ui':
-        specifier: ^4.1.12
-        version: 4.1.12(vitest@4.1.12)
+        specifier: ^5.0.3
+        version: 5.0.3(vitest@4.1.12)
       eslint:
         specifier: ^10.5.0
         version: 10.13.0
@@ -87,7 +87,7 @@ importers:
         version: 8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.1)
       vitest:
         specifier: ^4.1.12
-        version: 4.1.12(@types/node@20.19.43)(@vitest/ui@4.1.12)(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.1))
+        version: 4.1.12(@types/node@20.19.43)(@vitest/ui@5.0.3)(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.1))
 
 packages:
 
@@ -756,6 +756,9 @@ packages:
   '@vitest/pretty-format@4.1.12':
     resolution: {integrity: sha512-XW9O8+Mxx4VpCtkYdMJLZQQwsVryP9wk7cPKDxtXFfwSak6yRh5+2fep/Y0XF/ElBvJHq8bcYdi6aeuai0opZA==}
 
+  '@vitest/pretty-format@5.0.3':
+    resolution: {integrity: sha512-3hr5eV5z2ff0l2Q1vaKQbB4j3M3tElw8stDokEOTqXJB3Es5VrT8gBRIMY59gGuFp8Y61sWlWFK1aNUH5dHDYw==}
+
   '@vitest/runner@4.1.12':
     resolution: {integrity: sha512-NKlVKCr5QnCe8jijdMnmkpHHU+WTqiLFR6G0pHji9uRjXK9xJl1k1nTw6F3pOOj2PDcsDt2GKQMI7wIsaT491w==}
 
@@ -765,13 +768,16 @@ packages:
   '@vitest/spy@4.1.12':
     resolution: {integrity: sha512-RGq9x4JNGNTZHEJxvN0oSiJjeSCExm0n2gZKKJZHY9cX5AVA6M7VJILBT3ZJ/tJ/0J9uWT7fETV9/btoi//vSg==}
 
-  '@vitest/ui@4.1.12':
-    resolution: {integrity: sha512-eYUTHtsp52Fu6YGUw9T9173bba7YUr9j/Xj9CdhUaOb8AppLKcknHUaiZQeqJ8MiJ8C2VyKiZuUGSKdvPIKQKA==}
+  '@vitest/ui@5.0.3':
+    resolution: {integrity: sha512-9dfvqDBvSbHM6y9YVXxAypkl2z7mrWozK/JFo237qI0cj/3M/kzDKiVZqzi3TE54Ler7Jditud7OMBZCyUvRHA==}
     peerDependencies:
-      vitest: 4.1.12
+      vitest: 5.0.3
 
   '@vitest/utils@4.1.12':
     resolution: {integrity: sha512-Q3awXrwOfEV+qc3WmO5ONyE0yO7Q1gQ9/oyHxGLZ/pl7N3NO/ZztqQwKLuwMkV+CA1JYSIeO3gkHnRDIo4AVaA==}
+
+  '@vitest/utils@5.0.3':
+    resolution: {integrity: sha512-77fDTZv8eu1CzlIfgPU2yrl5MXSUaUAOvgdZEeVm3X3WIxUubIX2SforqS6176lT32HCF6uBVMYVqfHxw7o6eg==}
 
   acorn-jsx@5.3.2:
     resolution: {integrity: sha512-rq9s+JNhf0IChjtDXxllJ7g41oZk5SlXtp0LHwyA5cejwn7vKmKp4pPri6YEePv2PU65sAsegbXtIinmDFDXgQ==}
@@ -1308,6 +1314,10 @@ packages:
 
   tinyrainbow@3.1.1:
     resolution: {integrity: sha512-yau8yJdTt989Mm0Bd/236QnzEiPf2xLLTqUZRUJOo/3CB078LSwzei343DgtJVmfJKJE3TMINY1u42SQsP6mXw==}
+    engines: {node: '>=14.0.0'}
+
+  tinyrainbow@3.2.0:
+    resolution: {integrity: sha512-LgO3D9yZJjApUiuUfl9iFAwrtaX4+lok3wJIqttGoKCHlWUqHqbQpnxCf82L8FjgKsh4iGo78hqJwgL8F6To2A==}
     engines: {node: '>=14.0.0'}
 
   totalist@3.0.1:
@@ -2046,7 +2056,7 @@ snapshots:
       '@vitest/spy': 4.1.12
       '@vitest/utils': 4.1.12
       chai: 6.2.2
-      tinyrainbow: 3.1.1
+      tinyrainbow: 3.2.0
 
   '@vitest/mocker@4.1.12(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.1))':
     dependencies:
@@ -2058,7 +2068,11 @@ snapshots:
 
   '@vitest/pretty-format@4.1.12':
     dependencies:
-      tinyrainbow: 3.1.1
+      tinyrainbow: 3.2.0
+
+  '@vitest/pretty-format@5.0.3':
+    dependencies:
+      tinyrainbow: 3.2.0
 
   '@vitest/runner@4.1.12':
     dependencies:
@@ -2074,22 +2088,27 @@ snapshots:
 
   '@vitest/spy@4.1.12': {}
 
-  '@vitest/ui@4.1.12(vitest@4.1.12)':
+  '@vitest/ui@5.0.3(vitest@4.1.12)':
     dependencies:
-      '@vitest/utils': 4.1.12
+      '@vitest/utils': 5.0.3
       fflate: 0.8.3
       flatted: 3.4.4
       pathe: 2.0.3
       sirv: 3.0.2
-      tinyglobby: 0.2.17
-      tinyrainbow: 3.1.1
-      vitest: 4.1.12(@types/node@20.19.43)(@vitest/ui@4.1.12)(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.1))
+      tinyrainbow: 3.2.0
+      vitest: 4.1.12(@types/node@20.19.43)(@vitest/ui@5.0.3)(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.1))
 
   '@vitest/utils@4.1.12':
     dependencies:
       '@vitest/pretty-format': 4.1.12
       convert-source-map: 2.0.0
-      tinyrainbow: 3.1.1
+      tinyrainbow: 3.2.0
+
+  '@vitest/utils@5.0.3':
+    dependencies:
+      '@vitest/pretty-format': 5.0.3
+      convert-source-map: 2.0.0
+      tinyrainbow: 3.2.0
 
   acorn-jsx@5.3.2(acorn@8.18.0):
     dependencies:
@@ -2584,6 +2603,8 @@ snapshots:
 
   tinyrainbow@3.1.1: {}
 
+  tinyrainbow@3.2.0: {}
+
   totalist@3.0.1: {}
 
   ts-api-utils@2.5.0(typescript@6.0.3):
@@ -2626,7 +2647,7 @@ snapshots:
       fsevents: 2.3.3
       yaml: 2.9.1
 
-  vitest@4.1.12(@types/node@20.19.43)(@vitest/ui@4.1.12)(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.1)):
+  vitest@4.1.12(@types/node@20.19.43)(@vitest/ui@5.0.3)(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.1)):
     dependencies:
       '@vitest/expect': 4.1.12
       '@vitest/mocker': 4.1.12(vite@8.3.5(@types/node@20.19.43)(esbuild@0.28.2)(yaml@2.9.1))
@@ -2650,7 +2671,7 @@ snapshots:
       why-is-node-running: 2.3.0
     optionalDependencies:
       '@types/node': 20.19.43
-      '@vitest/ui': 4.1.12(vitest@4.1.12)
+      '@vitest/ui': 5.0.3(vitest@4.1.12)
     transitivePeerDependencies:
       - msw
 

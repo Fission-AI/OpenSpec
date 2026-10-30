@@ -64,7 +64,7 @@
     "@changesets/cli": "^3.0.1",
     "@types/node": "^20.19.43",
     "@types/picomatch": "^4.0.3",
-    "@vitest/ui": "^4.1.12",
+    "@vitest/ui": "^5.0.3",
     "eslint": "^10.5.0",
     "smol-toml": "^1.7.1",
     "typescript": "^6.0.3",
