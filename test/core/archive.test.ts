@@ -2347,6 +2347,30 @@ New feature description.
       ).rejects.toThrow(`Archive '${date}-${changeName}' already exists.`);
     });
 
+    it('does not nest a change inside a destination created just before the final rename', async () => {
+      const changeName = '2026-09-05-late-move-collision';
+      const archiveName = changeName;
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const destination = path.join(tempDir, 'openspec', 'changes', 'archive', archiveName);
+      await fs.mkdir(changeDir);
+      await fs.writeFile(path.join(changeDir, 'tasks.md'), '- [x] Finished\n');
+
+      const rename = fs.rename.bind(fs);
+      const spy = vi.spyOn(fs, 'rename').mockImplementation(async (source, target) => {
+        if (path.basename(String(source)) === changeName && path.basename(String(target)) === archiveName) {
+          await fs.mkdir(destination);
+          await fs.writeFile(path.join(destination, 'existing.txt'), 'keep me');
+        }
+        return rename(source, target);
+      });
+      onTestFinished(() => spy.mockRestore());
+
+      await expect(archiveCommand.execute(changeName, { yes: true, skipSpecs: true })).rejects.toThrow();
+      await expect(fs.readFile(path.join(changeDir, 'tasks.md'), 'utf8')).resolves.toBe('- [x] Finished\n');
+      await expect(fs.readdir(destination)).resolves.toEqual(['existing.txt']);
+      await expect(fs.readFile(path.join(destination, 'existing.txt'), 'utf8')).resolves.toBe('keep me');
+    });
+
     it.skipIf(process.platform === 'win32')(
       'does not replace a dangling symlink at the archive destination',
       async () => {
@@ -4620,7 +4644,7 @@ The system SHALL do the thing differently.
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), original);
 
       // The spec as written is valid, which is what made the deletion silent.
-      const before = await new Validator().validateSpecContent('audit', original, 'strict');
+      const before = await new Validator(true).validateSpecContent('audit', original);
       expect(before.valid).toBe(true);
 
       await archiveCommand.execute(changeName, { yes: true });
@@ -4758,7 +4782,7 @@ The system SHALL do the thing differently.
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), original);
 
       // Valid as written, which is what made the deletion silent.
-      expect((await new Validator().validateSpecContent('audit', original, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('audit', original)).valid).toBe(
         true
       );
 
@@ -4860,7 +4884,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -4900,7 +4924,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -4936,7 +4960,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -4973,7 +4997,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -5012,7 +5036,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -5077,7 +5101,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 
@@ -5554,7 +5578,7 @@ The system SHALL do the thing differently.
         '',
       ].join('\n');
       await fs.writeFile(path.join(mainSpecDir, 'spec.md'), spec);
-      expect((await new Validator().validateSpecContent('legacy-layer', spec, 'strict')).valid).toBe(
+      expect((await new Validator(true).validateSpecContent('legacy-layer', spec)).valid).toBe(
         true
       );
 

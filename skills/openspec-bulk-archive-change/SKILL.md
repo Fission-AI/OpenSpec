@@ -229,19 +229,26 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    c. **Perform the archive**:
 
-      Target name: use the `<target-name>` recorded for this change in step 3d, unchanged. Never recompute it here: a batch that runs past midnight would check one date in step 3 and move to another.
-
-      **Check if target already exists:**
-      - Check again immediately before the move, even though step 3 already checked: the target can appear mid-batch
-      - If yes: record this change as Failed with `Archive directory already exists`, leave `changeRoot` where it is, report any main specs step 8a already synced for it, and continue with the remaining changes
-      - If no: move `changeRoot` to the archive directory
-
+      After that change's sync verification succeeds (or it has no included
+      deltas to sync), run the CLI with the same selected-root flags:
       ```bash
-      mkdir -p "<planningHome.changesDir>/archive"
-      mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
+      openspec archive "<name>" --skip-specs --yes --json
       ```
+      The CLI handles the archive lock and destination-collision checks.
+      `--yes` carries the batch confirmation already obtained in step 7.
+      `--skip-specs` prevents a second merge, including accidentally applying
+      `excludedDeltas` that this batch deliberately left unsynced.
 
-      **Confirm the move did not nest:** `mv` exits 0 even when the target appeared after the check, moving the change *inside* it. If `<planningHome.changesDir>/archive/<target-name>/<change-directory-name>` now exists (the last path segment of `changeRoot`), move that directory back to `changeRoot` and record this change as Failed with `Archive directory already exists`. Never report it as archived.
+      Require a zero exit status and an `archive` result for this change before
+      recording success. On failure, record the diagnostics and continue with the
+      remaining confirmed changes. Do not fall back to a shell move or bypass
+      validation; an existing archive must remain intact.
+      Report any main specs step 8a already synced for this change: those writes
+      stay in place, and a retry after the fix reads them as already synced.
+
+      The preflight target is advisory: the CLI derives `<target-name>` at invocation time. It keeps the change name when it already starts with a `YYYY-MM-DD-` prefix; otherwise it prepends the current date. Record the returned `archive.path`.
+      Preserve the earlier per-delta sync outcomes; `archive.specsUpdated` is
+      false for this move-only invocation, not evidence that inline sync was skipped.
 
    d. **Track outcome** for each change:
       - Success: archived successfully
@@ -251,15 +258,15 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
 9. **Display summary**
 
-   Show final results:
+   Show final results using each successful change's recorded `archive.path`:
 
    ```markdown
    ## Bulk Archive Complete
 
    Archived 3 changes:
-   - schema-management-cli -> archive/2026-01-19-schema-management-cli/
-   - project-config -> archive/2026-01-19-project-config/
-   - add-oauth -> archive/2026-01-19-add-oauth/
+   - schema-management-cli -> <archive.path returned for schema-management-cli>
+   - project-config -> <archive.path returned for project-config>
+   - add-oauth -> <archive.path returned for add-oauth>
 
    Skipped 1 change:
    - add-verify-skill (user chose not to archive incomplete)
@@ -315,8 +322,8 @@ then add-graphql specs (chronological order, newer takes precedence).
 ## Bulk Archive Complete
 
 Archived N changes:
-- <change-1> -> archive/<target-name-1>/
-- <change-2> -> archive/<target-name-2>/
+- <change-1> -> <archive.path returned for change-1>
+- <change-2> -> <archive.path returned for change-2>
 
 Spec sync summary:
 - N delta specs synced to main specs
@@ -329,7 +336,7 @@ Spec sync summary:
 ## Bulk Archive Complete (partial)
 
 Archived N changes:
-- <change-1> -> archive/<target-name-1>/
+- <change-1> -> <archive.path returned for change-1>
 
 Skipped M changes:
 - <change-2> (user chose not to archive incomplete)
@@ -357,7 +364,7 @@ No active changes found. Create a new change to get started.
 - Never archive after the user cancels the confirmation — a cancelled batch archives nothing
 - Track and report all outcomes (success/skip/fail)
 - Preserve .openspec.yaml when moving to archive
-- Archive directory target uses the current date, computed once in step 3d and reused at the move: YYYY-MM-DD-<name>; a name that already starts with a `YYYY-MM-DD-` prefix is used as-is (never stack a second date)
+- Archive directory target uses the current date, previewed in step 3d and derived by the CLI at the move: YYYY-MM-DD-<name>; a name that already starts with a `YYYY-MM-DD-` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
 - Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
 - If sync is requested, run the `openspec-sync-specs` workflow inline (agent-driven) for each change with included delta specs
