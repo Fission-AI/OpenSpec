@@ -1,5 +1,6 @@
 import type { Ora } from 'ora';
 import path from 'path';
+import { resolveChangeDir } from '../utils/change-directory.js';
 import {
   describeNestedChange,
   findNestedChangesIn,
@@ -349,7 +350,7 @@ export class ValidateCommand {
     }
     const validator = new Validator(opts.strict);
     if (type === 'change') {
-      const changeDir = path.join(root.changesDir, id);
+      const changeDir = resolveChangeDir(root.changesDir, id);
       const start = Date.now();
       const nestedReport = await this.nestedChangeReport(root, id);
       if (nestedReport) {
@@ -483,7 +484,7 @@ export class ValidateCommand {
     for (const id of changeIds) {
       queue.push(async () => {
         const start = Date.now();
-        const changeDir = path.join(root.changesDir, id);
+        const changeDir = resolveChangeDir(root.changesDir, id);
         const nestedReport = await this.nestedChangeReport(root, id);
         if (nestedReport) {
           return {

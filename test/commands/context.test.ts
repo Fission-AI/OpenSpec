@@ -321,10 +321,10 @@ describe('openspec context (4.1)', () => {
         expect(root.store_id).toBe(selectedRoot === storeRoot ? 'team-context' : undefined);
       }
       expect(parseJson(instructions).context).toBe(expectedContext);
-      expect(fs.existsSync(path.join(selectedRoot, 'openspec', 'changes', 'add-auth', '.openspec.yaml'))).toBe(true);
+      expect(fs.existsSync(path.join(selectedRoot, 'openspec', 'changes', 'proposed', 'add-auth', '.openspec.yaml'))).toBe(true);
       expect(fs.existsSync(path.join(cwd, 'openspec'))).toBe(false);
       if (selectedRoot !== project) {
-        expect(fs.existsSync(path.join(project, 'openspec', 'changes', 'add-auth'))).toBe(false);
+        expect(fs.existsSync(path.join(project, 'openspec', 'changes', 'proposed', 'add-auth'))).toBe(false);
       }
     },
     CONTEXT_MATRIX_TIMEOUT_MS

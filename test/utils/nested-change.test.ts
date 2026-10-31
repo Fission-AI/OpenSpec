@@ -28,6 +28,19 @@ describe('nested change detection (#1846)', () => {
   }
 
   describe('reports a namespace folder', () => {
+    it.each(['proposed', 'approved'])('resolves a namespace folder under %s', async (stage) => {
+      await write(path.join(stage, 'mobile', 'refresh-token', 'proposal.md'));
+
+      const finding = await findNestedChangesIn(changesDir, 'mobile');
+      expect(finding).toEqual({
+        name: 'mobile',
+        nested: [`${stage}/mobile/refresh-token`],
+      });
+      expect(describeNestedChange(finding!)).toContain(
+        `openspec/changes/${stage}/mobile/refresh-token/`
+      );
+    });
+
     it.each([
       ['proposal.md'],
       ['tasks.md'],
