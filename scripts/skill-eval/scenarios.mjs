@@ -1198,6 +1198,80 @@ export const SCENARIOS = [
     ],
   },
   {
+    // #2057: explore records a decision into an existing change. The user
+    // reverses the design's options-object decision, and that ripples: the
+    // spec's "Explicit priority" scenario says a caller *adds* a todo with a
+    // priority, which is no longer true. Recording it in design.md alone
+    // leaves the change contradicting itself; update-change's cross-check is
+    // what catches that.
+    id: 'explore-existing-decision',
+    setup: (root) => seedChange(root, 'add-priority'),
+    prompt:
+      "/openspec-explore add-priority. I've changed my mind: priority should not be passed to add(). Callers set it afterwards with setPriority(id, priority). Record that decision in the change." +
+      AUTONOMOUS,
+    metrics: (ctx) => ({
+      designUpdated: /setPriority/.test(ctx.read('openspec/changes/add-priority/design.md') ?? ''),
+      specUpdated: /setPriority/.test(ctx.read('openspec/changes/add-priority/specs/todo-list/spec.md') ?? ''),
+      tasksUpdated: /setPriority/.test(ctx.read('openspec/changes/add-priority/tasks.md') ?? ''),
+    }),
+    checks: (ctx) => {
+      const spec = ctx.read('openspec/changes/add-priority/specs/todo-list/spec.md') ?? '';
+      const validate = ctx.openspec(['validate', 'add-priority', '--strict']);
+      return [
+        { name: 'the decision is recorded', pass: /setPriority/.test(ctx.read('openspec/changes/add-priority/design.md') ?? '') },
+        // The scenario that promised priority on add() must not survive unchanged.
+        { name: 'the spec no longer contradicts it', pass: !/adds a todo with priority/.test(spec) },
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        onlyOpenspecChanged(ctx),
+      ];
+    },
+  },
+  {
+    // #1893: a schema's own apply.instruction should outrank apply's built-in
+    // "pause and ask" defaults, the way an artifact's instruction already does.
+    // Task 1.3 asks for jest tests; the project uses node:test and has no
+    // jest, so the task cannot be done as written while its specs still can.
+    // The schema says what to do then: meet the specs, note the deviation,
+    // continue. No "use your best judgment" suffix here, because it would mask
+    // the very conflict the issue is about.
+    id: 'apply-schema-policy',
+    setup: (root) => {
+      seedSchema(root, 'deviate-and-note', (yaml) =>
+        yaml.replace(
+          /^  instruction: \|\n    Read context files, work through pending tasks, mark complete as you go\.\n    Pause if you hit blockers or need clarification\.$/m,
+          '  instruction: |\n    tasks.md is an indicative plan; the delta specs are the contract. When a task\n    cannot be done as written but its specs can still be met, do the closest thing\n    that meets them, add one line under that task starting "Deviation:" saying what\n    you did instead, mark it done, and carry on. Pause only when a task would break\n    a spec, or on a real blocker.'
+        )
+      );
+      seedChange(root, 'add-priority');
+      useSchema(root, 'add-priority', 'deviate-and-note');
+      const tasks = path.join(root, 'openspec/changes/add-priority/tasks.md');
+      fs.writeFileSync(
+        tasks,
+        fs.readFileSync(tasks, 'utf8').replace(
+          '- [ ] 1.3 Add tests in `test/todo.test.js`',
+          '- [ ] 1.3 Add jest tests (`describe`/`it`) in `test/todo.test.js`'
+        )
+      );
+    },
+    prompt: '/openspec-apply-change add-priority.',
+    metrics: (ctx) => {
+      const tasks = ctx.read('openspec/changes/add-priority/tasks.md') ?? '';
+      return {
+        paused: (tasks.match(/^\s*- \[ \]/gm) ?? []).length > 0,
+        deviationNoted: /Deviation:/.test(tasks),
+      };
+    },
+    checks: (ctx) => {
+      const tasks = ctx.read('openspec/changes/add-priority/tasks.md') ?? '';
+      const tests = ctx.run('node', ['--test']);
+      return [
+        { name: 'every task done, as the schema allows', pass: !/^\s*- \[ \]/m.test(tasks) },
+        { name: 'the deviation is noted, as the schema asks', pass: /Deviation:/.test(tasks) },
+        { name: 'project tests pass', pass: tests.code === 0, detail: tests.out.slice(-300) },
+      ];
+    },
+  },
+  {
     // Tasks but no delta specs and no `skip_specs`, so `openspec validate`
     // rejects the change while apply still reports it ready (#2166). The work
     // is pure tooling, so the judgment call is to declare `skip_specs`, not to

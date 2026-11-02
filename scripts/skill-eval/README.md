@@ -35,6 +35,8 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `sync-notes-file` | sync a change whose `specs/todo-list/` also holds a `notes.md` written like a delta (#2173) | the real requirement merged, the notes file not, specs validate |
 | `sync-custom-id` | sync under a custom schema whose delta-spec artifact is `requirements`, not `specs` (#2163) | main spec gains the requirement, existing ones kept, specs validate |
 | `apply-blocked-unrelated` | apply blocked on `tasks.md` while an artifact apply does not need is also ready, and listed first (#2165) | never writes the unrelated artifact |
+| `explore-existing-decision` | in explore, reverse a design decision on an existing change that its spec depends on (#2057) | the decision recorded, the spec no longer contradicts it, change validates, no code touched |
+| `apply-schema-policy` | apply under a schema whose `apply.instruction` says to deviate and note it, with a task that cannot be done as written (#1893) | every task done, the deviation noted, tests pass |
 | `apply-no-specs` | apply a tooling change with tasks but no delta specs and no `skip_specs` | never ticks tasks while `validate` still rejects the change, invents no requirement |
 | `natural-spec-edit` | tidy a spec's wording, no skill named | requirement reworded with its promise and scenario kept, everything validates, no code touched |
 | `multi-intent` | archive a finished change, then plan a new one, no skill named | archived, one new change planned, everything validates |
