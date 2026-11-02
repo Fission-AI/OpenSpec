@@ -30,6 +30,24 @@ function seedChange(root, name) {
   });
 }
 
+/**
+ * A project-local copy of the spec-driven schema, renamed and then edited,
+ * for the bugs that only show under a custom schema. The whole directory is
+ * copied because artifacts name their templates relative to it.
+ */
+function seedSchema(root, name, edit) {
+  const source = path.join(SEEDS, '..', '..', '..', 'schemas', 'spec-driven');
+  const dir = path.join(root, 'openspec', 'schemas', name);
+  fs.cpSync(source, dir, { recursive: true });
+  const file = path.join(dir, 'schema.yaml');
+  fs.writeFileSync(file, edit(fs.readFileSync(file, 'utf8').replace(/^name: spec-driven$/m, `name: ${name}`)));
+}
+
+/** Point a seeded change at another schema. */
+function useSchema(root, change, schema) {
+  fs.writeFileSync(path.join(root, 'openspec', 'changes', change, '.openspec.yaml'), `schema: ${schema}\ncreated: 2026-11-02\n`);
+}
+
 function onlyOpenspecChanged(ctx) {
   const outside = ctx.changedFiles().filter((file) => !file.startsWith('openspec/'));
   return {
@@ -1099,6 +1117,85 @@ export const SCENARIOS = [
       );
       return results;
     },
+  },
+  {
+    // #2173: a file under specs/ that is not `<capability>/spec.md` is not a
+    // delta spec. `openspec validate` and `openspec archive` never read it, so
+    // a sync that merges it makes the main spec say something archive would
+    // not. The trap is written exactly like a delta, so only the file's shape
+    // tells it apart.
+    id: 'sync-notes-file',
+    setup: (root) => {
+      seedChange(root, 'add-clear-completed');
+      applyClearCompleted(root);
+      fs.writeFileSync(
+        path.join(root, 'openspec/changes/add-clear-completed/specs/todo-list/notes.md'),
+        '## ADDED Requirements\n\n### Requirement: Undoing a clear\nThe list SHALL restore the todos removed by the last clear.\n\n#### Scenario: Undo straight after clearing\n- **WHEN** a caller undoes right after clearing\n- **THEN** the cleared todos are back in their original order\n'
+      );
+    },
+    prompt: '/openspec-sync-specs add-clear-completed.' + AUTONOMOUS,
+    checks: (ctx) => {
+      const main = ctx.read('openspec/specs/todo-list/spec.md') ?? '';
+      const validate = ctx.openspec(['validate', '--specs', '--strict']);
+      return [
+        { name: 'main spec gains the real requirement', pass: /### Requirement: Clearing completed todos/.test(main) },
+        { name: 'the notes file is not merged', pass: !/Undoing a clear/.test(main) },
+        { name: 'main specs validate (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        { name: 'change not archived', pass: ctx.exists('openspec/changes/add-clear-completed/proposal.md') },
+      ];
+    },
+  },
+  {
+    // #2163: a custom schema that calls its delta-spec artifact something
+    // other than `specs`. A skill that reads `artifactPaths.specs` finds
+    // nothing and reports there is nothing to sync.
+    id: 'sync-custom-id',
+    setup: (root) => {
+      seedSchema(root, 'renamed-specs', (yaml) =>
+        yaml.replace(/^  - id: specs$/m, '  - id: requirements').replace(/^      - specs$/m, '      - requirements')
+      );
+      seedChange(root, 'add-clear-completed');
+      useSchema(root, 'add-clear-completed', 'renamed-specs');
+      applyClearCompleted(root);
+    },
+    prompt: '/openspec-sync-specs add-clear-completed.' + AUTONOMOUS,
+    checks: (ctx) => {
+      const main = ctx.read('openspec/specs/todo-list/spec.md') ?? '';
+      const validate = ctx.openspec(['validate', '--specs', '--strict']);
+      return [
+        { name: 'main spec gains the requirement', pass: /### Requirement: Clearing completed todos/.test(main) },
+        { name: 'existing requirements kept', pass: /### Requirement: Adding a todo/.test(main) && /### Requirement: Reading todos/.test(main) },
+        { name: 'main specs validate (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+      ];
+    },
+  },
+  {
+    // #2165: apply is blocked on tasks.md, and a schema artifact apply does
+    // not need (`retro`) is also ready. Writing the retro advances unrelated
+    // work and leaves apply exactly as blocked as before.
+    id: 'apply-blocked-unrelated',
+    setup: (root) => {
+      seedSchema(root, 'with-retro', (yaml) =>
+        // Listed ahead of tasks, so "take the next ready artifact" picks it:
+        // after it, a buggy skill would pick tasks by luck and pass.
+        yaml.replace(
+          /^  - id: specs$/m,
+          '  - id: retro\n    generates: retro.md\n    description: Notes for the team retro once the change ships\n    template: proposal.md\n    instruction: |\n      Write what went well and what to do differently.\n    requires:\n      - proposal\n\n  - id: specs'
+        )
+      );
+      seedChange(root, 'add-priority');
+      useSchema(root, 'add-priority', 'with-retro');
+      fs.rmSync(path.join(root, 'openspec/changes/add-priority/tasks.md'));
+    },
+    prompt: '/openspec-apply-change add-priority.' + AUTONOMOUS,
+    metrics: (ctx) => ({
+      wroteTasks: ctx.exists('openspec/changes/add-priority/tasks.md'),
+      wroteRetro: ctx.exists('openspec/changes/add-priority/retro.md'),
+    }),
+    checks: (ctx) => [
+      // Stopping to ask is fine. Creating the artifact apply does not wait on is not.
+      { name: 'no unrelated artifact written', pass: !ctx.exists('openspec/changes/add-priority/retro.md') },
+    ],
   },
   {
     // Tasks but no delta specs and no `skip_specs`, so `openspec validate`

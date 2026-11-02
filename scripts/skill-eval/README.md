@@ -32,6 +32,9 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `propose-crowded-spec` | add a behavior to a spec whose requirement already carries five SHALLs (#2139) | one change, validates, covers the new behavior, no requirement left more crowded; records whether the edited one was split |
 | `propose-refactor` | plan a pure internal refactor | one change, validates, no code touched, no requirement invented; records whether it declared `skip_specs` |
 | `propose-tidy-up` | plan a "clean-up" that in fact changes a promised behavior | one change, validates, a MODIFIED delta, no `skip_specs`, no code touched |
+| `sync-notes-file` | sync a change whose `specs/todo-list/` also holds a `notes.md` written like a delta (#2173) | the real requirement merged, the notes file not, specs validate |
+| `sync-custom-id` | sync under a custom schema whose delta-spec artifact is `requirements`, not `specs` (#2163) | main spec gains the requirement, existing ones kept, specs validate |
+| `apply-blocked-unrelated` | apply blocked on `tasks.md` while an artifact apply does not need is also ready, and listed first (#2165) | never writes the unrelated artifact |
 | `apply-no-specs` | apply a tooling change with tasks but no delta specs and no `skip_specs` | never ticks tasks while `validate` still rejects the change, invents no requirement |
 | `natural-spec-edit` | tidy a spec's wording, no skill named | requirement reworded with its promise and scenario kept, everything validates, no code touched |
 | `multi-intent` | archive a finished change, then plan a new one, no skill named | archived, one new change planned, everything validates |
