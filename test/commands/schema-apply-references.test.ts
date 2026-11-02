@@ -129,6 +129,14 @@ describe('schema apply references (CLI)', () => {
   it('instructions apply still works on a tracked file no artifact generates', async () => {
     const p = await projectWithApply({ requires: ['proposal'], tracks: 'TODO.md' });
     await fs.writeFile(path.join(p.changeDir, 'TODO.md'), '- [ ] 1.1 do it\n- [x] 1.2 done\n');
+    // Apply blocks a change whose specs make `openspec validate` fail, which
+    // is not what this test is about: give it a delta so `ready` is about the
+    // tracked file alone.
+    await fs.mkdir(path.join(p.changeDir, 'specs', 'billing'), { recursive: true });
+    await fs.writeFile(
+      path.join(p.changeDir, 'specs', 'billing', 'spec.md'),
+      '## ADDED Requirements\n\n### Requirement: Billing\nThe system SHALL bill.\n\n#### Scenario: Works\n- **WHEN** run\n- **THEN** works\n'
+    );
     const applied = await p.cli(['instructions', 'apply', '--change', 'c', '--json']);
     expect(applied.exitCode).toBe(0);
     const json = JSON.parse(applied.stdout);

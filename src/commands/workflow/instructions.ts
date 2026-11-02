@@ -472,15 +472,17 @@ function collectMissingPrerequisites(input: {
 }
 
 /**
- * Warnings apply reports alongside its instruction.
+ * Spec problems that make `openspec validate` fail on the change.
  *
  * Apply gates on the schema's `apply.requires` only, so a change whose tasks
  * file was written ahead of its specs reads as ready even though no delta spec
- * exists - the state `openspec validate` rejects. Blocking here would be a
- * policy change; naming the gap is not, and it is what keeps apply from being
- * the one surface that green-lights a change every other surface flags.
+ * exists - the state `openspec validate` rejects. The caller turns these into
+ * a blocked state when apply would otherwise be ready, so apply is not the one
+ * surface that green-lights a change every other surface fails. On a change
+ * already built out (`all_done`) they stay warnings: implementation is over,
+ * and archive is the surface that decides what happens next.
  *
- * Only reported once apply is past its own gate: for a change that has not
+ * Only collected once apply is past its own gate: for a change that has not
  * reached tasks yet, the missing specs are the next step rather than a warning.
  * Schemas that declare no spec-producing artifact carry `skip_specs` from
  * creation, so this never fires on them.
@@ -693,16 +695,30 @@ export async function generateApplyInstructions(
     instruction += `\nTask completion is not verified because tracking evidence was unavailable:\n${unavailableDetails}`;
   }
 
-  const warnings = [
-    ...(context.warnings ?? []),
-    ...(await collectApplyWarnings({
-      state,
-      schema,
-      changeDir,
-      changeName,
-      skippedArtifacts: context.skippedArtifacts,
-    })),
-  ];
+  let specWarnings = await collectApplyWarnings({
+    state,
+    schema,
+    changeDir,
+    changeName,
+    skippedArtifacts: context.skippedArtifacts,
+  });
+
+  // A change `openspec validate` rejects is not ready to build, so apply does
+  // not call it ready. Reporting `ready` with a warning beside it made apply
+  // the one surface that green-lit what every other surface fails, and left
+  // the gate to instruction text no skill was obliged to read (#2166).
+  // `blocked` is the state every skill already pauses on, so the repair
+  // belongs in `instruction` - which is also why these stop being warnings
+  // here: a blocked state carries its reason in one place, never two.
+  if (state === 'ready' && specWarnings.length > 0) {
+    state = 'blocked';
+    instruction =
+      `Cannot apply this change yet. \`openspec validate ${changeName}\` rejects it as it stands:\n` +
+      specWarnings.map((warning) => `- ${warning}`).join('\n');
+    specWarnings = [];
+  }
+
+  const warnings = [...(context.warnings ?? []), ...specWarnings];
 
   return {
     changeName,
@@ -786,18 +802,24 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
     console.log();
   }
 
-  // Warning for blocked state
-  if (state === 'blocked' && missingArtifacts) {
+  // Warning for blocked state. Shown for every blocked state, not only the
+  // missing-artifact one: a reader scanning past Progress and Tasks needs the
+  // header to stop on, and a spec gap blocks with no artifact to name.
+  if (state === 'blocked') {
     console.log('### ⚠️ Blocked');
     console.log();
-    console.log(`Missing artifacts: ${missingArtifacts.join(', ')}`);
-    if (
-      instructions.missingPrerequisites &&
-      instructions.missingPrerequisites.length > missingArtifacts.length
-    ) {
-      console.log(
-        `Not created yet, in build order: ${instructions.missingPrerequisites.join(', ')}`
-      );
+    if (missingArtifacts) {
+      console.log(`Missing artifacts: ${missingArtifacts.join(', ')}`);
+      if (
+        instructions.missingPrerequisites &&
+        instructions.missingPrerequisites.length > missingArtifacts.length
+      ) {
+        console.log(
+          `Not created yet, in build order: ${instructions.missingPrerequisites.join(', ')}`
+        );
+      }
+    } else {
+      console.log('See the instruction below.');
     }
     console.log();
   }
