@@ -17,6 +17,7 @@ Implement the tasks of an OpenSpec change, one checkbox at a time.
 
    - If `state: "blocked"`: show the message and pause implementation. If `missingArtifacts` is non-empty, suggest using `/openspec-beta-continue` to create them. Otherwise follow the CLI instruction to repair the tracking file. Do not assume another artifact is ready or start implementation while blocked.
    - If `state: "all_done"`: report that all tracked tasks are complete and suggest review or verification as appropriate before archiving.
+   - **Read `warnings`.** A change with no delta specs that does not declare `skip_specs` is one `openspec validate` rejects, so building it would leave work that cannot be archived. Judge which it is: a change that alters no specified behavior (a refactor, tooling, docs) declares `skip_specs: true` in its `.openspec.yaml`, and you say so; one that does alter behavior needs its specs first, so stop and say which capability they belong to. Ask the user when it is a real judgment call rather than deciding for them.
 
 3. **Read every file in `contextFiles`.** Use contextFiles from CLI output, don't assume specific file names. Show the schema, "N/M tasks complete", and what remains.
 

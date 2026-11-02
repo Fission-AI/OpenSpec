@@ -770,6 +770,52 @@ export const SCENARIOS = [
     },
   },
   {
+    // Tasks but no delta specs and no `skip_specs`, so `openspec validate`
+    // rejects the change while apply still reports it ready (#2166). The work
+    // is pure tooling, so the judgment call is to declare `skip_specs`, not to
+    // invent a requirement. Stopping to ask is fine; building on regardless,
+    // and leaving the change invalid, is not.
+    id: 'apply-no-specs',
+    setup: (root) => {
+      const change = path.join(root, 'openspec/changes/add-lint-script');
+      fs.mkdirSync(change, { recursive: true });
+      fs.writeFileSync(path.join(change, '.openspec.yaml'), 'schema: spec-driven\ncreated: 2026-11-02\n');
+      fs.writeFileSync(
+        path.join(change, 'proposal.md'),
+        '## Why\n\nNothing catches a syntax error before the tests run.\n\n## What Changes\n\n- Add a `lint` npm script that syntax-checks the source. No behavior changes for callers.\n\n## Capabilities\n\n### New Capabilities\n\n### Modified Capabilities\n\n## Impact\n\n- `package.json`\n'
+      );
+      fs.writeFileSync(
+        path.join(change, 'tasks.md'),
+        '## 1. Lint script\n\n- [ ] 1.1 Add a `lint` script to `package.json` that runs `node --check src/todo.js`; verify `npm run lint` exits 0\n'
+      );
+    },
+    prompt: '/openspec-apply-change add-lint-script.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const yaml = ctx.read('openspec/changes/add-lint-script/.openspec.yaml') ?? '';
+      return {
+        declaredSkipSpecs: /skip_specs:\s*true/.test(yaml),
+        inventedRequirement: deltaSpecs(ctx, 'add-lint-script').length > 0,
+        toldTheUser: /skip_specs|delta spec|no spec|validate/i.test(ctx.result ?? ''),
+      };
+    },
+    checks: (ctx) => {
+      const { open, done } = tasksDone(ctx, 'add-lint-script');
+      const validate = ctx.openspec(['validate', 'add-lint-script', '--strict']);
+      const built = /"lint"/.test(ctx.read('package.json') ?? '');
+      // Either resolve the gap and build, or stop and leave the work undone.
+      // What must never happen: tasks ticked while the change stays invalid.
+      return [
+        {
+          name: 'never reports done while the change fails validate',
+          pass: validate.code === 0 || (open > 0 && done === 0),
+          detail: `validate=${validate.code} open=${open} done=${done}`,
+        },
+        { name: 'no invented requirement', pass: deltaSpecs(ctx, 'add-lint-script').length === 0 },
+        { name: 'built only what the task asked', pass: built || done === 0, detail: `lintScript=${built}` },
+      ];
+    },
+  },
+  {
     // A plain request to tidy a spec, with no skill named: does the agent find
     // OpenSpec's way of changing a spec on its own?
     id: 'natural-spec-edit',

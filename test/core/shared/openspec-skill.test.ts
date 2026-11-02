@@ -120,7 +120,7 @@ describe('the openspec skill', () => {
       expect(size(file), file.relativePath).toBeLessThanOrEqual(12_000);
     }
     const core = render(CORE_WORKFLOWS).reduce((total, file) => total + size(file), 0);
-    expect(core, 'default install').toBeLessThanOrEqual(52_000);
+    expect(core, 'default install').toBeLessThanOrEqual(53_000);
   });
 
   // A host picks the skill by its description alone, so it must say what the
