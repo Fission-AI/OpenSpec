@@ -31,8 +31,10 @@ if (!dir || !labelA || !labelB) {
 
 const scenario = SCENARIOS.find((s) => s.id === values.scenario);
 const request = scenario.prompt.replace(/^\/\S+\s*/, '');
+// Each repo scenario names its own project: the judge must not be told a
+// plan for one codebase is for another.
 const context = scenario.judgeContext
-  ? `This project is OpenSpec, a spec-driven development CLI. ${scenario.judgeContext(path.resolve(values.fixture))}`
+  ? scenario.judgeContext(path.resolve(values.fixture))
   : `This is a small JavaScript library. Its current source:\n\n\`\`\`js\n${fs.readFileSync(new URL('./fixture/src/todo.js', import.meta.url), 'utf8')}\n\`\`\``;
 
 function plan(label, rep) {

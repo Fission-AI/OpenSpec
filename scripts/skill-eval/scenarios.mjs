@@ -85,7 +85,8 @@ function freshRepoPropose({ id, prompt, extraMetrics, refactor = false }) {
     id,
     fixture: 'repo',
     prompt,
-    judgeContext: () => 'The project had no OpenSpec specs before this change: `openspec/specs/` was empty.',
+    judgeContext: () =>
+      'This project is commander.js, the widely used Node.js library for parsing command-line options and commands. It had no OpenSpec specs before this change: `openspec/specs/` was empty.',
     metrics: (ctx) => {
       const name = touchedChangeNames(ctx)[0];
       if (!name) return {};
@@ -138,7 +139,7 @@ function repoPropose({ id, prompt, capability }) {
     prompt,
     // What the plan judge sees of the project: the capability's main spec today.
     judgeContext: (root) =>
-      `The project's current spec for \`${capability}\`:\n\n${fs.readFileSync(path.join(root, 'openspec', 'specs', capability, 'spec.md'), 'utf8')}`,
+      `This project is OpenSpec, a spec-driven development CLI. The project's current spec for \`${capability}\`:\n\n${fs.readFileSync(path.join(root, 'openspec', 'specs', capability, 'spec.md'), 'utf8')}`,
     metrics: (ctx) => {
       const name = touchedChangeNames(ctx)[0];
       return name ? { ...specQuality(ctx, name, capability), ...planSize(ctx, name), ...planTrace(ctx, name) } : {};
