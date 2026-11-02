@@ -4,10 +4,10 @@ import {
   getUpdateChangeSkillTemplate,
   getOpsxUpdateCommandTemplate,
 } from '../../../src/core/templates/skill-templates.js';
+import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
+import { PROJECT_ROOT_GUARD } from '../../../src/core/templates/workflows/project-root.js';
 import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
 import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../../src/core/profiles.js';
-import { BEFORE_YOU_START } from '../../../src/core/templates/workflows/references.js';
-import { skillSource } from '../../helpers/skill-text.js';
 
 const skill = getUpdateChangeSkillTemplate();
 const command = getOpsxUpdateCommandTemplate();
@@ -15,7 +15,7 @@ const command = getOpsxUpdateCommandTemplate();
 const render = (workflows: readonly string[]): Array<[string, string]> => {
   const installed = new Set<string>(workflows);
   return [
-    ['skill', resolveOptionalWorkflows(skillSource(skill), installed)],
+    ['skill', resolveOptionalWorkflows(skill.instructions, installed)],
     ['command', resolveOptionalWorkflows(command.content, installed)],
   ];
 };
@@ -114,7 +114,9 @@ function writeAuthorizationsOutsideStepFive(body: string, label: string): string
   let rest = body
     .split(stepFive(body, label))
     .join('\n')
-    .split(BEFORE_YOU_START)
+    .split(STORE_SELECTION_GUIDANCE)
+    .join('')
+    .split(PROJECT_ROOT_GUARD)
     .join('');
   for (const sanctioned of SANCTIONED_OUTSIDE_STEP_FIVE) {
     rest = rest.split(sanctioned).join('');
@@ -214,7 +216,7 @@ describe('update-change templates', () => {
     expect(command.content).toContain('/opsx:update add-auth');
 
     for (const [label, body] of bodies) {
-      expect(body, label).toContain(BEFORE_YOU_START);
+      expect(body, label).toContain(STORE_SELECTION_GUIDANCE);
       expect(body, label).toContain('openspec list --json');
       expect(body, label).toContain('openspec status --change "<name>" --json');
       expect(body, label).toContain('openspec instructions "<artifact-id>" --change "<name>" --json');
@@ -228,12 +230,8 @@ describe('update-change templates', () => {
       expect(body, label).toContain('Custom schemas must work unchanged');
       // No literal artifact filenames anywhere: no proposal.md/design.md/tasks.md
       // branching, and no worked example that names them. The only .md literal
-      // allowed is the specs/**/*.md glob illustration, beside the skill's own
-      // references/<name>.md files.
-      expect(
-        body.replace(/specs\/\*\*\/\*\.md/g, '').replace(/references\/[\w-]+\.md/g, ''),
-        label
-      ).not.toMatch(/\b[\w-]+\.md\b/);
+      // allowed is the specs/**/*.md glob illustration.
+      expect(body.replace(/specs\/\*\*\/\*\.md/g, ''), label).not.toMatch(/\b[\w-]+\.md\b/);
     }
   });
 
@@ -384,7 +382,7 @@ describe('update-change templates', () => {
         '`openspec instructions "<artifact-id>" --change "<name>" --json` for how to create them'
       );
       expect(body, label).toContain(
-        'anything left because it does not exist yet'
+        'Anything deferred because it does not exist yet'
       );
       expect(body, label).toContain('creating them is a separate step, outside this workflow');
     }

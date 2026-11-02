@@ -44,7 +44,7 @@ import { parseSchema } from '../../../src/core/artifact-graph/schema.js';
 import {
   BEFORE_YOU_START,
   RUNTIME_INPUTS,
-} from '../../../src/core/templates/workflows/references.js';
+} from '../../../src/core/templates/beta/workflows/references.js';
 import { skillSource } from '../../helpers/skill-text.js';
 
 /**

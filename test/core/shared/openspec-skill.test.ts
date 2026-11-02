@@ -4,7 +4,7 @@ import { parse as parseYaml } from 'yaml';
 import { SKILL_NAMESPACE as NS, generateOpenSpecSkill, generateOpenSpecSkillSet, hasLayoutMarker, workflowSkillName } from '../../../src/core/shared/openspec-skill.js';
 import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../../src/core/profiles.js';
 import { OPENSPEC_GUIDES } from '../../../src/core/shared/openspec-guides.js';
-import { BEFORE_YOU_START, RUNTIME_INPUTS } from '../../../src/core/templates/workflows/references.js';
+import { BEFORE_YOU_START, RUNTIME_INPUTS } from '../../../src/core/templates/beta/workflows/references.js';
 
 function render(workflows: readonly string[]) {
   return generateOpenSpecSkill({ workflows, version: 'test', invoke: (id) => `/openspec:${id}`, skillName: (id) => id });

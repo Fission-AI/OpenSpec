@@ -4,13 +4,12 @@ import {
   getOpsxVerifyCommandTemplate,
   getVerifyChangeSkillTemplate,
 } from '../../../src/core/templates/skill-templates.js';
-import { skillSource } from '../../helpers/skill-text.js';
 
 const skill = getVerifyChangeSkillTemplate();
 const command = getOpsxVerifyCommandTemplate();
 
 const bodies: Array<[string, string]> = [
-  ['skill', skillSource(skill)],
+  ['skill', skill.instructions],
   ['command', command.content],
 ];
 

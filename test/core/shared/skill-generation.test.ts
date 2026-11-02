@@ -4,6 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {
   getSkillTemplates,
+  getBetaSkillTemplates,
   getCommandTemplates,
   getCommandContents,
   generateSkillContent,
@@ -11,7 +12,7 @@ import {
   writeSkillFiles,
 } from '../../../src/core/shared/skill-generation.js';
 import { optionalWorkflow } from '../../../src/core/templates/optional-workflow.js';
-import { withReferences } from '../../../src/core/templates/workflows/references.js';
+import { withReferences } from '../../../src/core/templates/beta/workflows/references.js';
 import type { SkillTemplate } from '../../../src/core/templates/types.js';
 
 describe('skill-generation', () => {
@@ -348,7 +349,7 @@ describe('skill-generation', () => {
     });
 
     it('resolves optional-workflow blocks in references against the installed set', () => {
-      const [explore] = getSkillTemplates(['explore']);
+      const [explore] = getBetaSkillTemplates(['explore']);
       const capture = explore.template.references?.find((ref) => ref.path === 'references/capture.md');
       expect(capture?.content).toBeDefined();
       expect(capture!.content).not.toContain('[[opsx:');
@@ -358,7 +359,7 @@ describe('skill-generation', () => {
     });
 
     it('ships the references every deployed skill points to', () => {
-      for (const { template: deployed, dirName } of getSkillTemplates()) {
+      for (const { template: deployed, dirName } of getBetaSkillTemplates()) {
         const files = generateSkillFiles(deployed, '1.2.3');
         const shipped = new Set(files.map((file) => file.relativePath));
         const body = files.map((file) => file.content).join('\n');

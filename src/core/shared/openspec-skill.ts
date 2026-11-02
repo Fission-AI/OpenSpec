@@ -20,10 +20,10 @@ import {
   RUNTIME_INPUTS,
   writingAnArtifact,
   writingAnArtifactReference,
-} from '../templates/workflows/references.js';
+} from '../templates/beta/workflows/references.js';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
 import { OPENSPEC_GUIDES } from './openspec-guides.js';
-import { getSkillTemplates, type GeneratedSkillFile } from './skill-generation.js';
+import { getBetaSkillTemplates, type GeneratedSkillFile } from './skill-generation.js';
 
 /**
  * The namespace the new skills install under: the router is `openspec-beta` and
@@ -281,7 +281,7 @@ ${CONTEXT_FROM_CLI}
 
 /** Every file of the `openspec` skill, relative to the skill directory. */
 export function generateOpenSpecSkill(options: OpenSpecSkillOptions): GeneratedSkillFile[] {
-  const templates = getSkillTemplates([...new Set([...options.workflows, ...REFERENCE_ONLY])]);
+  const templates = getBetaSkillTemplates([...new Set([...options.workflows, ...REFERENCE_ONLY])]);
   const installed = new Set(templates.map((entry) => entry.workflowId));
   const routes = WORKFLOW_ROUTES.filter(([id]) => installed.has(id));
   const foldCapture = installed.has('propose');
@@ -376,7 +376,7 @@ ${LAYOUT_MARKER}
  */
 export function generateOpenSpecSkillSet(options: OpenSpecSkillOptions): GeneratedSkill[] {
   const router: GeneratedSkill = { dirName: OPENSPEC_SKILL_NAME, files: generateOpenSpecSkill(options) };
-  const own = getSkillTemplates(options.workflows).filter(({ workflowId }) => !REFERENCE_ONLY.includes(workflowId));
+  const own = getBetaSkillTemplates(options.workflows).filter(({ workflowId }) => !REFERENCE_ONLY.includes(workflowId));
   const thin = own.map(({ template, workflowId }): GeneratedSkill => {
     const name = options.skillName(workflowId);
     const body = `# OpenSpec ${workflowId}

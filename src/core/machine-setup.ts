@@ -32,7 +32,7 @@ import {
 } from './shared/openspec-skill.js';
 import { AI_TOOLS } from './config.js';
 import { CommandAdapterRegistry } from './command-generation/registry.js';
-import { getSkillTemplates, type GeneratedSkillFile } from './shared/skill-generation.js';
+import { getBetaSkillTemplates, type GeneratedSkillFile } from './shared/skill-generation.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -384,7 +384,7 @@ export async function setupMachine(options: MachineSetupOptions = {}): Promise<M
   // Resolved through the templates so a workflow that needs another (archive
   // needs sync) brings it along. Only workflows with a skill of their own are
   // listed; the router ships the rest (sync) as steps.
-  const workflows = getSkillTemplates(getProfileWorkflows(config.profile ?? 'core', config.workflows))
+  const workflows = getBetaSkillTemplates(getProfileWorkflows(config.profile ?? 'core', config.workflows))
     .map((entry) => entry.workflowId)
     .filter((id) => WORKFLOW_ORDER.includes(id))
     .sort((a, b) => WORKFLOW_ORDER.indexOf(a) - WORKFLOW_ORDER.indexOf(b));

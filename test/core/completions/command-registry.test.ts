@@ -3,7 +3,7 @@ import type { Command } from 'commander';
 
 import { COMMAND_REGISTRY } from '../../../src/core/completions/command-registry.js';
 import { COMMON_FLAGS } from '../../../src/core/completions/shared-flags.js';
-import { BEFORE_YOU_START as STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/references.js';
+import { BEFORE_YOU_START as STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/beta/workflows/references.js';
 import { getCommandPath, program } from '../../../src/cli/index.js';
 import type {
   CommandDefinition,
