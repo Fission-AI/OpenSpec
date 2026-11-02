@@ -39,3 +39,9 @@ overrides:
   # in the published CLI. Remove once transitive launch-editor is >=2.14.2
   # (check: pnpm why launch-editor).
   launch-editor@<2.14.2: '>=2.14.2 <3'
+  # GHSA-g3hv-75wg-m249 / CVE-2026-118764 — minimatch globParts amplification in
+  # firstPhasePreProcess(), then quadratic pairwise processing. Dev-only (transitive
+  # via eslint, @eslint/config-array and @typescript-eslint/typescript-estree, which
+  # all pin ^10.x); never in the published CLI. Remove once those ranges allow
+  # >=11.0.1 (check: pnpm why minimatch).
+  minimatch@<11.0.1: '>=11.0.1'
