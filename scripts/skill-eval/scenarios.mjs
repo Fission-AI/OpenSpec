@@ -18,6 +18,9 @@ export const UNFINISHED_TASKS =
 // A stable ID at the start of a heading, as the CLI reads it (#2167).
 const STABLE_ID = /^\[[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)*-\d+(?:\.\d+)*\](?=\s|$)/;
 
+/** The latency budget, however an agent spells it: 50ms, 50 ms, 50 milliseconds. */
+const BUDGET = /\b50\s*(ms|millisecond)/i;
+
 const SEEDS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'seeds');
 
 function seedChange(root, name) {
@@ -847,16 +850,25 @@ export const SCENARIOS = [
       if (!name) return {};
       const deltas = deltaSpecs(ctx, name).map((spec) => spec.text).join('\n');
       const blocks = requirementBlocks(deltas);
-      const statement = (block) => block.split(/^#### Scenario:/m)[0];
+      // The block starts with the heading text, which is not the promise: a
+      // requirement may be *named* "Reading a large list is fast" and still
+      // state an exact threshold. Judge the statement, not the name.
+      const statement = (block) => block.split(/^#### Scenario:/m)[0].split('\n').slice(1).join('\n');
       return {
         ...specQuality(ctx, name),
         ...planSize(ctx, name),
         // The budget reaches the spec, not just the proposal.
-        budgetInSpec: /50\s*ms|50ms|10,?000/.test(deltas),
+        budgetInSpec: BUDGET.test(deltas),
         // ...and it is a number a test can check, in a scenario.
-        budgetInScenario: blocks.some((block) => /50\s*ms|50ms/.test(block.split(/^#### Scenario:/m).slice(1).join('\n'))),
-        // The failure mode: an adjective instead of a threshold.
-        vagueAdjective: /\b(fast|performant|scalable|efficient|snappy|responsive)\b/i.test(blocks.map(statement).join('\n')),
+        budgetInScenario: blocks.some((block) => BUDGET.test(block.split(/^#### Scenario:/m).slice(1).join('\n'))),
+        // The failure mode: an adjective in place of a threshold, with no
+        // number anywhere in the statement.
+        vagueAdjective: blocks.some(
+          (block) => /\b(fast|performant|scalable|efficient|snappy|responsive)\b/i.test(statement(block)) && !BUDGET.test(statement(block))
+        ),
+        // The crowding cross-check: today's skills tend to bolt the budget on
+        // to the existing "Reading todos" promise.
+        maxShallsInOneRequirement: Math.max(0, ...blocks.map((block) => (statement(block).match(/\bSHALL\b/g) ?? []).length)),
         // Does the plan keep it from regressing, as asked?
         hasRegressionGuard: /benchmark|perf|regress|budget|threshold|timing/i.test(ctx.read(`openspec/changes/${name}/tasks.md`) ?? ''),
       };
@@ -871,7 +883,7 @@ export const SCENARIOS = [
         { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
         // A performance promise callers rely on belongs in the spec, not only
         // in the proposal's prose.
-        { name: 'the budget is specified, not just described', pass: /50\s*ms|50ms/.test(deltas) },
+        { name: 'the budget is specified, not just described', pass: BUDGET.test(deltas) },
         onlyOpenspecChanged(ctx)
       );
       return results;
