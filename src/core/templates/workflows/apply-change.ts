@@ -83,7 +83,7 @@ ${PROJECT_ROOT_GUARD}
    **Handle states:**
    - If \`state: "blocked"\`: show the message and pause implementation.
      - If \`missingArtifacts\` is non-empty: ${BLOCKED_STATE_HANDOFF}
-     - Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file from existing planning artifacts. Do not assume another artifact is ready or start implementation while blocked.
+     - Otherwise, follow the repair the CLI instruction names - it may be delta specs that are missing, a stray delta file, or the schema-configured tracking file. Do not assume another artifact is ready or start implementation while blocked.
    - If \`state: "all_done"\`: report that all tracked tasks are complete and suggest review or verification as appropriate before archiving
    - Otherwise: proceed to implementation
 

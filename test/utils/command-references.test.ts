@@ -375,7 +375,7 @@ describe('apply skill template generates valid per-target invocations', () => {
     expect(blocked).toContain('openspec instructions "<artifact-id>" --change "<name>" --json');
     expect(blocked).toContain('Keep the selected `--store <id>` on both commands');
     expect(blocked).toContain(
-      'Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file'
+      'Otherwise, follow the repair the CLI instruction names'
     );
     expect(blocked).toContain(
       'Do not assume another artifact is ready or start implementation while blocked'

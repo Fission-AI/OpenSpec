@@ -161,6 +161,8 @@ The tracked files drive the apply state:
 - **`ready`**: at least one task is pending, or a matched file could not be read while another provides tasks.
 - **`all_done`**: every tracked task is checked and every matched file was read.
 
+A change that would otherwise be `ready` is `blocked` instead when its specs are in a state `openspec validate` rejects: no delta specs and no `skip_specs: true`, or a delta file outside a capability's `spec.md`. `instruction` names the repair.
+
 If a matched file cannot be read, apply keeps the tasks and progress from readable files but does not mark the change `all_done`. [Apply JSON output](../cli.md#openspec-instructions) identifies each unavailable file and the reason.
 
 OpenSpec rejects absolute paths and paths containing a `..` segment.
