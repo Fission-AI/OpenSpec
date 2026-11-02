@@ -34,14 +34,14 @@ You say what you want. The agent picks the skill that fits, or you name one. Eac
 
 ```text
 openspec-beta/
-├── SKILL.md            what OpenSpec is, the agent's job, which skill to run, how to find the project, six principles
+├── SKILL.md            what OpenSpec is, the agent's job, which skill to run, how to find the project, eight principles
 └── references/
     ├── propose.md, apply.md, archive.md, …   one skill's steps each
-    └── changes.md, capabilities.md, decisions.md, deltas.md   short guides
+    └── changes.md, capabilities.md, decisions.md, specs.md, deltas.md   short guides
 openspec-beta-propose/SKILL.md   "read ../openspec-beta/SKILL.md, then follow references/propose.md"
 ```
 
-The agent reads `SKILL.md` first, then the steps for its skill. It reads a guide only when a step reaches that kind of decision: sizing or splitting a change, naming a capability, raising a costly choice, or changing an existing spec without losing a requirement.
+The agent reads `SKILL.md` first, then the steps for its skill. It reads a guide only when a step reaches that kind of decision: sizing or splitting a change, naming a capability, raising a costly choice, writing a requirement, or changing an existing spec without losing a requirement.
 
 What to say:
 
