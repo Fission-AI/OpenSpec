@@ -10,7 +10,7 @@ Archive several completed changes in one confirmed batch. The CLI archives each 
 
 2. **Check each change.** From the `openspec list --json` output (with the same selected-root flags), find the entry in `changes` whose `name` exactly matches each change, and require nonnegative integer `totalTasks` and `completedTasks`, with `completedTasks <= totalTasks`. Incomplete tasks = `totalTasks - completedTasks`. If a change is missing, duplicated, or miscounted, report it and stop. The CLI counts only `x`/`X` checkbox markers as complete; other markers remain incomplete. Never infer completion from artifact status or the absence of a `tasks.md`.
 
-   Run `openspec status --change "<name>" --json` for each and note its `schemaName`, any artifact neither `done` nor `skipped`, and its delta specs: `artifactPaths.specs.existingOutputPaths` is the only source; never infer them from other artifacts. Note each delta's `<capability-path>` (the spec directory relative to `specs/`) and its requirement names.
+   Run `openspec status --change "<name>" --json` for each and note its `schemaName`, any artifact neither `done` nor `skipped`, and its delta specs: the `specs/<capability-path>/spec.md` files in the `existingOutputPaths` of any `artifactPaths` entry under the change's `specs/` folder (do not assume the id `specs`); never infer them from other artifacts. Note each delta's `<capability-path>` (the spec directory relative to `specs/`) and its requirement names.
 
 3. **Resolve conflicts.** Build a map keyed by `<capability-path>`, the exact path relative to `specs/`:
 
