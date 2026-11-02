@@ -54,16 +54,22 @@ for (const scenario of scenarios) {
 }
 lines.push(row('**All**', summarize(a), summarize(b)));
 
-// Per-scenario observations (share of runs where each was true).
+// Per-scenario observations: a true/false one is the share of runs where it
+// held; a count (words, SHALLs) is its mean, never read as a percentage.
 const metricRows = [];
 for (const scenario of scenarios) {
   const names = new Set(
     [...a, ...b].filter((r) => r.scenario === scenario).flatMap((r) => Object.keys(r.metrics ?? {}))
   );
   for (const name of [...names].sort()) {
+    const raw = [...a, ...b].filter((r) => r.scenario === scenario && r.metrics && name in r.metrics).map((r) => r.metrics[name]);
+    // A metric that is text (a list of names) has no average.
+    if (raw.some((value) => typeof value === 'string')) continue;
+    const count = raw.some((value) => typeof value === 'number');
     const rate = (rows) => {
       const values = rows.filter((r) => r.scenario === scenario && r.metrics && name in r.metrics).map((r) => Number(r.metrics[name]));
-      return values.length ? `${Math.round(mean(values) * 100)}%` : 'n/a';
+      if (!values.length) return 'n/a';
+      return count ? `${Math.round(mean(values))}` : `${Math.round(mean(values) * 100)}%`;
     };
     metricRows.push(`| ${scenario} | ${name} | ${rate(a)} → ${rate(b)} |`);
   }
