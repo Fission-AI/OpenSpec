@@ -142,6 +142,26 @@ function specQuality(ctx, name) {
   };
 }
 
+/**
+ * How much plan a change actually carries, so "shorter artifacts" is a number
+ * rather than an impression. Words, not bytes, and per artifact as well as
+ * total: a plan can be short because it is tight or because it is missing.
+ */
+function planSize(ctx, name) {
+  const dir = path.join(ctx.root, 'openspec', 'changes', name);
+  if (!fs.existsSync(dir)) return {};
+  const files = fs.readdirSync(dir, { recursive: true }).map(String).filter((file) => file.endsWith('.md'));
+  const words = (file) => fs.readFileSync(path.join(dir, file), 'utf8').split(/\s+/).filter(Boolean).length;
+  const total = files.reduce((sum, file) => sum + words(file), 0);
+  const of = (file) => (files.includes(file) ? words(file) : 0);
+  return {
+    planWords: total,
+    proposalWords: of('proposal.md'),
+    tasksWords: of('tasks.md'),
+    specWords: files.filter((file) => file.startsWith('specs')).reduce((sum, file) => sum + words(file), 0),
+  };
+}
+
 /** Whether the agent's reply names the folder it wrote the change to. */
 function saysWhere(ctx, name) {
   return new RegExp(`openspec/changes/${name}`).test(ctx.result ?? '');
@@ -292,6 +312,7 @@ export const SCENARIOS = [
       const groups = (ctx.read(`openspec/changes/${name}/tasks.md`) ?? '').split(/^## /m);
       return {
         ...specQuality(ctx, name),
+        ...planSize(ctx, name),
         tasksEndWithSpecSync: /\b(sync|merge|update)\b[^\n]*\bspecs?\b/i.test(groups.at(-1) ?? ''),
         saysWhere: saysWhere(ctx, name),
         ...planTrace(ctx, name),
@@ -805,6 +826,52 @@ export const SCENARIOS = [
           name: 'no more crowded than it was',
           pass: Math.max(0, ...requirementBlocks(text).map((block) => (block.split(/^#### Scenario:/m)[0].match(/\bSHALL\b/g) ?? []).length)) <= 5,
         },
+        onlyOpenspecChanged(ctx)
+      );
+      return results;
+    },
+  },
+  {
+    // Nothing in the skills or the guides says how a non-functional need is
+    // specified. A budget ("under 50ms", "10k todos") is a real promise and
+    // belongs in a requirement, but only if it is stated so a test can check
+    // it. The failures are the two ends: dropping it from the specs and
+    // leaving it in prose, or writing it as an untestable adjective ("fast",
+    // "scalable", "performant").
+    id: 'propose-nonfunctional',
+    prompt:
+      '/openspec-propose Callers are loading lists of 10,000 todos and `items()` has become the slow part of their render. Plan a change so reading the list stays under 50ms at that size, and keep it from regressing.' +
+      AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      const deltas = deltaSpecs(ctx, name).map((spec) => spec.text).join('\n');
+      const blocks = requirementBlocks(deltas);
+      const statement = (block) => block.split(/^#### Scenario:/m)[0];
+      return {
+        ...specQuality(ctx, name),
+        ...planSize(ctx, name),
+        // The budget reaches the spec, not just the proposal.
+        budgetInSpec: /50\s*ms|50ms|10,?000/.test(deltas),
+        // ...and it is a number a test can check, in a scenario.
+        budgetInScenario: blocks.some((block) => /50\s*ms|50ms/.test(block.split(/^#### Scenario:/m).slice(1).join('\n'))),
+        // The failure mode: an adjective instead of a threshold.
+        vagueAdjective: /\b(fast|performant|scalable|efficient|snappy|responsive)\b/i.test(blocks.map(statement).join('\n')),
+        // Does the plan keep it from regressing, as asked?
+        hasRegressionGuard: /benchmark|perf|regress|budget|threshold|timing/i.test(ctx.read(`openspec/changes/${name}/tasks.md`) ?? ''),
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      const deltas = deltaSpecs(ctx, names[0]).map((spec) => spec.text).join('\n');
+      results.push(
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        // A performance promise callers rely on belongs in the spec, not only
+        // in the proposal's prose.
+        { name: 'the budget is specified, not just described', pass: /50\s*ms|50ms/.test(deltas) },
         onlyOpenspecChanged(ctx)
       );
       return results;
