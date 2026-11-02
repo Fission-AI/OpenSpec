@@ -792,7 +792,19 @@ export const SCENARIOS = [
         // The promise that moves is an existing one, so it has to be modified,
         // not restated as a second requirement beside it.
         { name: 'the existing requirement is modified, not duplicated', pass: /## MODIFIED Requirements/.test(text) },
-        { name: 'the new ordering is specified', pass: /end of the list|last|append/i.test(text) },
+        // Any wording for the new order counts, including moving the promise
+        // into "Reading todos" as open-then-completed grouping.
+        {
+          name: 'the new ordering is specified',
+          pass: /end of the list|at the end|last|append|open .{0,30}first|before .{0,20}completed|after .{0,20}(open|incomplete)/i.test(text),
+        },
+        // The same floor `propose-crowded-spec` holds: a MODIFIED block copies
+        // the statement, so it must not come back with more promises than the
+        // five it started with.
+        {
+          name: 'no more crowded than it was',
+          pass: Math.max(0, ...requirementBlocks(text).map((block) => (block.split(/^#### Scenario:/m)[0].match(/\bSHALL\b/g) ?? []).length)) <= 5,
+        },
         onlyOpenspecChanged(ctx)
       );
       return results;
