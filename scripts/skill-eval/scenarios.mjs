@@ -743,6 +743,62 @@ export const SCENARIOS = [
     },
   },
   {
+    // The other half of #2139: here the request changes a clause the crowded
+    // requirement already promises, so a MODIFIED block is unavoidable and the
+    // whole five-SHALL statement has to be copied forward. #2139 reports a
+    // 10-word edit producing a 180-word MODIFIED block. Does the agent carry
+    // the crowding forward, or split it while it is already in there?
+    id: 'propose-crowded-edit',
+    setup: (root) => {
+      const spec = path.join(root, 'openspec/specs/todo-list/spec.md');
+      fs.writeFileSync(
+        spec,
+        fs.readFileSync(spec, 'utf8').replace(
+          'The list SHALL mark an existing todo as done by id.',
+          'The list SHALL mark an existing todo as done by id, and SHALL throw an error naming the id when no todo has it, and SHALL leave every other todo untouched, and SHALL return a copy of the updated todo rather than the stored object, and SHALL keep the completed todo in its original position in the list.'
+        )
+      );
+    },
+    prompt:
+      '/openspec-propose Completed todos should move to the end of the list instead of staying where they were, so the open ones are read first.' +
+      AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      const text = deltaSpecs(ctx, name).map((spec) => spec.text).join('\n');
+      const completing = requirementBlocks(text).filter((block) =>
+        /^\s*(\[[^\]]+\]\s*)?Completing a todo/.test(block)
+      );
+      const statement = (block) => block.split(/^#### Scenario:/m)[0];
+      const shalls = (block) => (statement(block).match(/\bSHALL\b/g) ?? []).length;
+      return {
+        ...specQuality(ctx, name),
+        modifiedTheRequirement: /## MODIFIED Requirements/.test(text) && completing.length > 0,
+        // Did it come back smaller than the five SHALLs it had to copy forward?
+        splitWhileEditing: completing.length > 0 && completing.every((block) => shalls(block) <= 2),
+        shallsCarriedForward: completing.length > 0 ? Math.max(...completing.map(shalls)) : 0,
+        modifiedStatementWords:
+          completing.length > 0 ? Math.max(...completing.map((block) => statement(block).split(/\s+/).filter(Boolean).length)) : 0,
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const text = deltaSpecs(ctx, names[0]).map((spec) => spec.text).join('\n');
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      results.push(
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        // The promise that moves is an existing one, so it has to be modified,
+        // not restated as a second requirement beside it.
+        { name: 'the existing requirement is modified, not duplicated', pass: /## MODIFIED Requirements/.test(text) },
+        { name: 'the new ordering is specified', pass: /end of the list|last|append/i.test(text) },
+        onlyOpenspecChanged(ctx)
+      );
+      return results;
+    },
+  },
+  {
     // #2139: requirements grow because agents copy the shape of the specs
     // around them. The seeded spec has one requirement carrying five SHALLs,
     // and the request changes that very promise. The pull is to append a sixth.
@@ -772,7 +828,9 @@ export const SCENARIOS = [
       const completing = blocks.filter((block) => /^\s*(\[[^\]]+\]\s*)?Completing a todo/.test(block));
       return {
         ...specQuality(ctx, name),
-        // Did the requirement it edits come out smaller than the five it found?
+        // Both only mean something when the delta touches the crowded
+        // requirement at all; a plan that adds a new promise instead never does.
+        touchedCrowdedRequirement: completing.length > 0,
         splitTheCrowdedRequirement: completing.length > 0 && completing.every((block) => shalls(block) <= 2),
         maxShallsInOneRequirement: counts.length > 0 ? Math.max(...counts) : 0,
         requirementsInDelta: blocks.length,
