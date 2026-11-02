@@ -71,6 +71,65 @@ function touchedChangeNames(ctx) {
   return [...new Set(names)];
 }
 
+/** A capability named for the work rather than the behavior: wrong once the change is archived. */
+const WORKSY = /^(add|create|update|new|improve|fix|enhance|implement|support)-/;
+
+/**
+ * A propose request against a real project that has no specs yet. Nothing
+ * here assumes a capability name, since there is none to reuse; every check
+ * is one a reviewer would make of any plan.
+ */
+function freshRepoPropose({ id, prompt, extraMetrics, refactor = false }) {
+  const capabilitiesOf = (ctx, name) => [...new Set(deltaSpecs(ctx, name).map((spec) => spec.file.split(/[\\/]/)[0]))];
+  return {
+    id,
+    fixture: 'repo',
+    prompt,
+    judgeContext: () => 'The project had no OpenSpec specs before this change: `openspec/specs/` was empty.',
+    metrics: (ctx) => {
+      const name = touchedChangeNames(ctx)[0];
+      if (!name) return {};
+      const blocks = deltaSpecs(ctx, name).flatMap((spec) => requirementBlocks(spec.text));
+      const statement = (block) => block.split(/^#### Scenario:/m)[0].split('\n').slice(1).join('\n');
+      const { usesExistingCapability, ...quality } = specQuality(ctx, name);
+      const capabilities = capabilitiesOf(ctx, name);
+      return {
+        ...quality,
+        ...planSize(ctx, name),
+        capabilityNames: capabilities.join(' '),
+        namedForTheWork: capabilities.some((capability) => WORKSY.test(capability)),
+        requirements: blocks.length,
+        maxShallsInOneRequirement: Math.max(0, ...blocks.map((block) => (statement(block).match(/\bSHALL\b/g) ?? []).length)),
+        declaredSkipSpecs: /skip_specs:\s*true/.test(ctx.read(`openspec/changes/${name}/.openspec.yaml`) ?? ''),
+        ...(extraMetrics?.(ctx, name) ?? {}),
+      };
+    },
+    checks: (ctx) => {
+      const names = touchedChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) });
+      if (refactor) {
+        results.push({
+          name: 'no requirement invented for a refactor',
+          pass: deltaSpecs(ctx, names[0]).length === 0,
+          detail: deltaSpecs(ctx, names[0]).map((spec) => spec.file).join(', '),
+        });
+      } else {
+        const capabilities = capabilitiesOf(ctx, names[0]);
+        results.push({
+          name: 'no capability named for the work',
+          pass: !capabilities.some((capability) => WORKSY.test(capability)),
+          detail: capabilities.join(', '),
+        });
+      }
+      results.push(onlyOpenspecChanged(ctx));
+      return results;
+    },
+  };
+}
+
 /** A propose request against a real project: one new change, valid, on the existing capability. */
 function repoPropose({ id, prompt, capability }) {
   return {
@@ -82,7 +141,7 @@ function repoPropose({ id, prompt, capability }) {
       `The project's current spec for \`${capability}\`:\n\n${fs.readFileSync(path.join(root, 'openspec', 'specs', capability, 'spec.md'), 'utf8')}`,
     metrics: (ctx) => {
       const name = touchedChangeNames(ctx)[0];
-      return name ? { ...specQuality(ctx, name), ...planTrace(ctx, name) } : {};
+      return name ? { ...specQuality(ctx, name, capability), ...planSize(ctx, name), ...planTrace(ctx, name) } : {};
     },
     checks: (ctx) => {
       const names = touchedChangeNames(ctx);
@@ -143,13 +202,13 @@ function requirementBlocks(text) {
  * a failure path, one obligation per requirement, no internals in the
  * requirement statement, and the existing capability reused.
  */
-function specQuality(ctx, name) {
+function specQuality(ctx, name, capability = 'todo-list') {
   const specs = deltaSpecs(ctx, name);
   const blocks = specs.flatMap((spec) => requirementBlocks(spec.text));
   const statement = (block) => block.split(/^#### Scenario:/m)[0];
   const failure = /\b(invalid|unknown|missing|empty|reject|rejects|error|throws|fails?|not found|malformed|outside)\b/i;
   return {
-    usesExistingCapability: specs.length > 0 && specs.every((spec) => spec.file.startsWith('todo-list')),
+    usesExistingCapability: specs.length > 0 && specs.every((spec) => spec.file.startsWith(capability)),
     everyRequirementHasFailurePath:
       blocks.length > 0 &&
       blocks.every((block) =>
@@ -1541,6 +1600,40 @@ export const SCENARIOS = [
     prompt:
       '/openspec-propose Add a `--quiet` option to `openspec validate` that prints nothing when everything is valid, and only the problems otherwise.' +
       AUTONOMOUS,
+  }),
+  // A well-known project with no specs framework at all: commander.js, the
+  // Node CLI library. Run with `--fixture <commander checkout>` and `--only`.
+  // With no specs to read, everything the plan knows about today's behavior
+  // has to come from the code.
+  freshRepoPropose({
+    id: 'oss-deprecated-option',
+    prompt:
+      '/openspec-propose Let an option be marked deprecated, with an optional message. Help should show it as deprecated, and using it on the command line should print a warning to stderr but still work.' +
+      AUTONOMOUS,
+  }),
+  freshRepoPropose({
+    id: 'oss-more-suggestions',
+    prompt:
+      '/openspec-propose When someone mistypes an option or command, suggest up to three close matches, closest first, instead of just one.' +
+      AUTONOMOUS,
+    // The request says "instead of just one", but commander already lists
+    // several when they tie for closest, sorted alphabetically. A plan that
+    // read the code says so; one written from the request alone repeats it.
+    extraMetrics: (ctx, name) => ({
+      describesTodaysTies: /\b(tie|tied|equally close|same distance|one of)\b/i.test(
+        ['proposal.md', 'design.md'].map((file) => ctx.read(`openspec/changes/${name}/${file}`) ?? '').join('\n') +
+          deltaSpecs(ctx, name).map((spec) => spec.text).join('\n')
+      ),
+    }),
+  }),
+  freshRepoPropose({
+    id: 'oss-split-command',
+    prompt:
+      '/openspec-propose `lib/command.js` is nearly 2,800 lines. Plan splitting it into smaller modules. Nothing a user of the library can observe should change.' +
+      AUTONOMOUS,
+    // The #2170 judgment on real code: a pure refactor declares `skip_specs`
+    // rather than inventing a requirement for it.
+    refactor: true,
   }),
 ];
 
