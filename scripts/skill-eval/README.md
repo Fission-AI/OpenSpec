@@ -26,6 +26,7 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `propose-french` | propose, asked in French | everything `propose` checks; records whether the plan is written in French |
 | `apply-reconcile` | apply a change whose design contradicts its spec | tasks done, tests pass, priorities follow the spec; records whether the design was brought in line |
 | `propose-bugfix` | plan a fix where the code drifted from a spec that is already right | one change, validates, no code touched; records plan size, skipped design, no new requirement |
+| `propose-crowded-spec` | add a behavior to a spec whose requirement already carries five SHALLs (#2139) | one change, validates, covers the new behavior, no requirement left more crowded; records whether the edited one was split |
 | `propose-refactor` | plan a pure internal refactor | one change, validates, no code touched, no requirement invented; records whether it declared `skip_specs` |
 | `propose-tidy-up` | plan a "clean-up" that in fact changes a promised behavior | one change, validates, a MODIFIED delta, no `skip_specs`, no code touched |
 | `apply-no-specs` | apply a tooling change with tasks but no delta specs and no `skip_specs` | never ticks tasks while `validate` still rejects the change, invents no requirement |

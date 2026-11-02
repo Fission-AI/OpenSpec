@@ -743,6 +743,60 @@ export const SCENARIOS = [
     },
   },
   {
+    // #2139: requirements grow because agents copy the shape of the specs
+    // around them. The seeded spec has one requirement carrying five SHALLs,
+    // and the request changes that very promise. The pull is to append a sixth.
+    // Leaving it no more crowded than you found it is the floor; splitting it
+    // while you are already editing it is the win.
+    id: 'propose-crowded-spec',
+    setup: (root) => {
+      const spec = path.join(root, 'openspec/specs/todo-list/spec.md');
+      fs.writeFileSync(
+        spec,
+        fs.readFileSync(spec, 'utf8').replace(
+          'The list SHALL mark an existing todo as done by id.',
+          'The list SHALL mark an existing todo as done by id, and SHALL throw an error naming the id when no todo has it, and SHALL leave every other todo untouched, and SHALL return a copy of the updated todo rather than the stored object, and SHALL keep the completed todo in its original position in the list.'
+        )
+      );
+    },
+    prompt:
+      '/openspec-propose Completing a todo should also record when it happened, in a `completedAt` timestamp, and callers need a way to list the todos completed today.' +
+      AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      const blocks = deltaSpecs(ctx, name).flatMap((spec) => requirementBlocks(spec.text));
+      const statement = (block) => block.split(/^#### Scenario:/m)[0];
+      const shalls = (block) => (statement(block).match(/\bSHALL\b/g) ?? []).length;
+      const counts = blocks.map(shalls);
+      const completing = blocks.filter((block) => /^\s*(\[[^\]]+\]\s*)?Completing a todo/.test(block));
+      return {
+        ...specQuality(ctx, name),
+        // Did the requirement it edits come out smaller than the five it found?
+        splitTheCrowdedRequirement: completing.length > 0 && completing.every((block) => shalls(block) <= 2),
+        maxShallsInOneRequirement: counts.length > 0 ? Math.max(...counts) : 0,
+        requirementsInDelta: blocks.length,
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      const blocks = deltaSpecs(ctx, names[0]).flatMap((spec) => requirementBlocks(spec.text));
+      const statement = (block) => block.split(/^#### Scenario:/m)[0];
+      const worst = Math.max(0, ...blocks.map((block) => (statement(block).match(/\bSHALL\b/g) ?? []).length));
+      results.push(
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        { name: 'the delta covers the new behavior', pass: blocks.length > 0 && /completedAt/.test(deltaSpecs(ctx, names[0]).map((spec) => spec.text).join('\n')) },
+        // Never leave a requirement more crowded than the five SHALLs it found.
+        { name: 'no requirement left more crowded than it was', pass: worst <= 5, detail: `maxShalls=${worst}` },
+        onlyOpenspecChanged(ctx)
+      );
+      return results;
+    },
+  },
+  {
     // A pure internal refactor: no caller-visible behavior changes, so there is
     // no requirement to write. The judgment the plan has to make up front is
     // the one apply already makes (#2170): declare `skip_specs: true`, or
