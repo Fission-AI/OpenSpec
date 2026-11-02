@@ -492,17 +492,20 @@ describe('artifact loop guards (propose and ff)', () => {
     }
   });
 
-  // specs must not be skippable on the agent's own judgment. The artifact's own
-  // instruction is the signal: spec-driven's design says "create only if any
-  // apply", specs says nothing of the kind. The one legitimate way to skip specs
-  // is the `skipped` status the CLI reports for a change declaring `skip_specs`
-  // (#1399) — a decision the tool makes, never the agent.
+  // An artifact other than specs is skippable only on its own instruction:
+  // spec-driven's design says "create only if any apply", specs says nothing of
+  // the kind (#1399). Specs themselves are a judgment, named here so propose
+  // makes the call apply makes (#2170) instead of inventing a requirement for a
+  // refactor. Both directions are pinned: `skip_specs` is the only way to skip
+  // them, and a request's own wording never decides it.
   it('permits skipping only artifacts their own instruction marks optional', () => {
     for (const [label, body] of loopBodies) {
       // The agent has to fetch the instruction before skipping, or a
       // momentum-driven agent skips specs without checking.
       expect(body, label).toContain('Skip any other only when its own `instruction`, read with `openspec instructions`, marks it optional');
-      expect(body, label).toContain('never skip specs by your own judgment');
+      expect(body, label).toContain('**Specs are the one judgment call.**');
+      expect(body, label).toContain('declares `skip_specs: true` in its `.openspec.yaml` and writes no spec files');
+      expect(body, label).toContain('anything else needs its deltas, whatever the request calls it');
       expect(body, label).toContain('do not revisit it');
     }
   });

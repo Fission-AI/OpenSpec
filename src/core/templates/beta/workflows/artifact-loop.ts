@@ -5,7 +5,7 @@
  * How to write one artifact (instruction fields, output path, delegation)
  * is `writingAnArtifact()` in references.ts. This loop decides which
  * artifacts to write and when to stop; each rule in it answers a reported
- * failure (#788, #1260, #1399, #1412, #339).
+ * failure (#788, #1260, #1399, #1412, #339, #2170).
  */
 
 /**
@@ -42,7 +42,7 @@ ${first + 1}. **Write them, in dependency order**
    - **Look at the project first**, read-only and in proportion to the change: its \`context\` and \`rules\`, then the code, tests, and docs it touches (the code may live outside the OpenSpec root). Reuse what you find for later artifacts. If the code already does part of the request, say so and plan only the gap, which can be a spec update alone. If the target is unclear, ask. With no code yet, or none you can read, say so. Keep what you saw apart from what you assume, and raise conflicts with the specs rather than settling them quietly. Do this now, not as a task for later.
    - Write it as **Writing an artifact** below describes, show "${progress}<artifact-id>", and re-run status: one artifact can unblock others.
 
-   An artifact is finished when it is written or \`skipped\` (the change declares \`skip_specs\`, so its files must not exist). Skip any other only when its own \`instruction\`, read with \`openspec instructions\`, marks it optional, as spec-driven's design.md does; never skip specs by your own judgment. Say what you skipped and why, do not revisit it, and keep going: a skipped dependency does not block what comes after it.
+   An artifact is finished when it is written or \`skipped\` (the change declares \`skip_specs\`, so its files must not exist). Skip any other only when its own \`instruction\`, read with \`openspec instructions\`, marks it optional, as spec-driven's design.md does. **Specs are the one judgment call.** A change that alters nothing a caller or a test could notice (a refactor, tooling, docs) declares \`skip_specs: true\` in its \`.openspec.yaml\` and writes no spec files; anything else needs its deltas, whatever the request calls it — a "clean-up" that moves an error, a return value, or a default changes behavior. Say what you skipped and why, do not revisit it, and keep going: a skipped dependency does not block what comes after it.
 
    Stop when every artifact in the set is finished. If one needs input from the user (${clarifyWhen}), ask, then continue.`;
 }
