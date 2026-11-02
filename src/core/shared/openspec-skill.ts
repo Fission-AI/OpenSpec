@@ -97,7 +97,7 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
   ['and keep the plan to it.', 'and keep the plan to it. If the request holds more than one outcome, read `references/changes.md` first.'],
   ['or what counts as done.', 'or what counts as done (`references/decisions.md` lists what to raise).'],
   ['If no capability is related, say so in one line and continue.', 'If no capability is related, say so in one line and continue. Before naming a new capability, read `references/capabilities.md`.'],
-  ['it needs a MODIFIED delta too.', 'it needs a MODIFIED delta too; read `references/deltas.md` before writing one.'],
+  ['it needs a MODIFIED delta too.', 'it needs a MODIFIED delta too; read `references/deltas.md` and `references/specs.md` before writing one.'],
   // Say where the plan guessed, so a reviewer checks those first (#1908).
   [
     'list each artifact written and any you skipped with the reason, then say:',
@@ -268,7 +268,7 @@ ${CONTEXT_FROM_CLI}
 
 ## Principles
 
-- **Specs describe behavior, not code:** what a user or caller can observe, one behavior per requirement, in short sentences with concrete examples (a real date, an exact message).
+- **Specs describe behavior, not code:** what a user or caller can observe, one behavior per requirement, in short sentences with concrete examples (a real date, an exact message). See ${guide('specs')}.
 - **Start from what exists:** read the related specs and code, keep their names, and plan only the gap, with nothing the request did not ask for. See ${guide('changes')} and ${guide('capabilities')}.
 - **Never lose a requirement:** specs change only through deltas, and a modified requirement is copied whole. See ${guide('deltas')}.
 - **Decide the small things, raise the big ones:** say what you chose and what you assumed, plainly; ask about anything costly to undo. See ${guide('decisions')}.

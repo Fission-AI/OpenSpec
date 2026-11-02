@@ -110,7 +110,10 @@ describe('the openspec skill', () => {
   // Budgets keep the skill from growing back. Raise one only on purpose, with
   // an eval run showing the extra text pays for itself. Raised for the role,
   // principles, and guides (2026-10-23 A/B), and for the stable-ID principle
-  // (2026-10-29: propose-ids 10/10 with it, 6/10 without).
+  // (2026-10-29: propose-ids 10/10 with it, 6/10 without), and for the
+  // writing-a-requirement guide (#2139; 2026-11-02: propose-crowded-spec 10/10
+  // with it, 5/10 without, and 20/20 on propose, propose-ripple,
+  // propose-refactor and propose-tidy-up either way).
   it('stays within its size budgets', () => {
     const files = render(ALL_WORKFLOWS);
     const size = (file: { content: string }) => Buffer.byteLength(file.content);
@@ -120,7 +123,7 @@ describe('the openspec skill', () => {
       expect(size(file), file.relativePath).toBeLessThanOrEqual(12_000);
     }
     const core = render(CORE_WORKFLOWS).reduce((total, file) => total + size(file), 0);
-    expect(core, 'default install').toBeLessThanOrEqual(53_000);
+    expect(core, 'default install').toBeLessThanOrEqual(55_000);
   });
 
   // A host picks the skill by its description alone, so it must say what the
