@@ -207,9 +207,15 @@ function specQuality(ctx, name, capability = 'todo-list') {
   const specs = deltaSpecs(ctx, name);
   const blocks = specs.flatMap((spec) => requirementBlocks(spec.text));
   const statement = (block) => block.split(/^#### Scenario:/m)[0];
-  const failure = /\b(invalid|unknown|missing|empty|reject|rejects|error|throws|fails?|not found|malformed|outside)\b/i;
+  // Agents word a failure case many ways ("unrecognized", "not a valid"); a
+  // narrower pattern scored covered cases as missing.
+  const failure = /\b(invalid|unknown|unrecogni[sz]ed|unsupported|missing|empty|reject|rejects|rejected|error|throws|fails?|not found|malformed|outside|not (one of|a valid|recogni[sz]ed|supported))\b/i;
   return {
     usesExistingCapability: specs.length > 0 && specs.every((spec) => spec.file.startsWith(capability)),
+    // Whether the plan says what happens on bad input anywhere at all. Unlike
+    // the per-requirement rate, splitting a plan into more requirements
+    // cannot move this one.
+    coversAFailureCase: blocks.some((block) => block.split(/^#### Scenario:/m).slice(1).some((scenario) => failure.test(scenario))),
     everyRequirementHasFailurePath:
       blocks.length > 0 &&
       blocks.every((block) =>
