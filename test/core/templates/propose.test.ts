@@ -157,7 +157,10 @@ describe('default task guidance', () => {
     const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
     expect(example).toBeDefined();
     const numberedTasks = example!.split('\n').filter(line => /^- \[ \] \d+\.\d+ /.test(line));
-    expect(numberedTasks).toHaveLength(5);
+    // #1968: the example ends with the spec-sync group, so the main specs are
+    // current as soon as the work is.
+    expect(numberedTasks).toHaveLength(6);
+    expect(numberedTasks[5]).toContain("Sync this change's delta specs into the main specs");
     expect(numberedTasks.every(line => /\bverify\b/i.test(line))).toBe(true);
     expect(numberedTasks[0]).toContain('expected files are present');
     expect(numberedTasks[1]).toContain('package installation succeeds');
@@ -196,13 +199,19 @@ describe('default task guidance', () => {
       .split('\n')
       .filter(line => /^## /.test(line.trim()))
       .map(line => line.trim());
-    expect(headings).toHaveLength(2);
+    expect(headings).toHaveLength(3);
+    expect(headings[2]).toBe('## 3. Update the specs');
     expect(headings.some(heading => /\b(test|testing|documentation|docs)\b/i.test(heading))).toBe(
       false
     );
 
-    const lastGroup = example!.slice(example!.lastIndexOf(headings[headings.length - 1]));
-    expect(lastGroup).toMatch(/^- \[ \] \d+\.\d+ Document the export API in docs\/export\.md/im);
+    // The docs task belongs to the group whose work it documents, which is the
+    // implementation group; the trailing group is the #1968 spec sync.
+    const implementationGroup = example!.slice(
+      example!.indexOf(headings[1]),
+      example!.indexOf(headings[2])
+    );
+    expect(implementationGroup).toMatch(/^- \[ \] \d+\.\d+ Document the export API in docs\/export\.md/im);
   });
 });
 

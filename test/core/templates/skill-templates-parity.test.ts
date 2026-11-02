@@ -31,12 +31,12 @@ import {
   getSyncSpecsSkillTemplate,
   getUpdateChangeSkillTemplate,
   getVerifyChangeSkillTemplate,
-} from '../../../src/core/templates/skill-templates.js';
+} from '../../../src/core/templates/beta/skill-templates.js';
 import {
   generateSkillContent,
   generateSkillFiles,
-  getCommandContents,
-  getSkillTemplates,
+  getBetaCommandContents,
+  getBetaSkillTemplates,
 } from '../../../src/core/shared/skill-generation.js';
 import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
@@ -51,7 +51,7 @@ import { skillSource } from '../../helpers/skill-text.js';
  * Templates carry optional-workflow conditionals that the production registry
  * resolves against the installed workflow set. Pin what generation emits, not
  * the unresolved authoring form: with every workflow installed this is byte
- * for byte what `getSkillTemplates()` returns.
+ * for byte what `getBetaSkillTemplates()` returns.
  */
 const asDeployed = (template: SkillTemplate): SkillTemplate => ({
   ...template,
@@ -264,11 +264,11 @@ describe('skill templates split parity', () => {
   });
 
   // The assertion above only compares the skills this file already lists, so a
-  // workflow added to getSkillTemplates() but never pinned here would ship with
+  // workflow added to getBetaSkillTemplates() but never pinned here would ship with
   // no golden hash and nothing would fail. Pin the registry itself.
   it('pins every skill the production registry deploys', () => {
     const pinned = GENERATED_SKILL_FACTORIES.map(([dirName]) => dirName).sort();
-    const deployed = getSkillTemplates().map(({ dirName }) => dirName).sort();
+    const deployed = getBetaSkillTemplates().map(({ dirName }) => dirName).sort();
 
     expect(pinned, 'add the new skill to GENERATED_SKILL_FACTORIES and EXPECTED_GENERATED_SKILL_CONTENT_HASHES').toEqual(deployed);
   });
@@ -277,7 +277,7 @@ describe('skill templates split parity', () => {
   // added workflow is covered automatically; the full-constant containment
   // check fails if any template's interpolation drifts.
   it('teaches store selection in every deployed skill template', () => {
-    for (const { template, dirName } of getSkillTemplates()) {
+    for (const { template, dirName } of getBetaSkillTemplates()) {
       expect(generateSkillContent(template, 'PARITY-BASELINE'), dirName).toContain(BEFORE_YOU_START);
     }
   });
@@ -286,14 +286,14 @@ describe('skill templates split parity', () => {
   // `allowed-tools: Bash(openspec:*)` so agents that honor it stop prompting
   // on each `openspec` call. Iterating the registry covers new skills too.
   it('pre-approves the openspec CLI via allowed-tools in every deployed skill', () => {
-    for (const { template, dirName } of getSkillTemplates()) {
+    for (const { template, dirName } of getBetaSkillTemplates()) {
       const content = generateSkillContent(template, 'PARITY-BASELINE');
       expect(content, dirName).toContain('allowed-tools: Bash(openspec:*)');
     }
   });
 
   it('teaches store selection in every deployed opsx command template', () => {
-    for (const entry of getCommandContents()) {
+    for (const entry of getBetaCommandContents()) {
       expect(entry.body, entry.id).toContain(BEFORE_YOU_START);
     }
 
@@ -797,10 +797,10 @@ describe('skill templates split parity', () => {
     // Sweep the whole corpus, not just the one template that has such an
     // invocation today: the point is to catch the next one.
     const corpus: Array<[string, string]> = [
-      ...getSkillTemplates().map(
+      ...getBetaSkillTemplates().map(
         ({ dirName, template }) => [dirName, skillSource(template)] as [string, string]
       ),
-      ...getCommandContents().map((entry) => [entry.id, entry.body] as [string, string]),
+      ...getBetaCommandContents().map((entry) => [entry.id, entry.body] as [string, string]),
     ];
 
     // Only runnable invocations count: prose that merely names the command
@@ -937,7 +937,7 @@ describe('skill templates split parity', () => {
   // learns that retiring a capability needs the marker; pin the fact, not the
   // hash, so losing the guidance fails here instead of shipping.
   it('tells the sync skill that retirement needs the retire_capabilities marker', () => {
-    const sync = getSkillTemplates().find(
+    const sync = getBetaSkillTemplates().find(
       ({ dirName }) => dirName === 'openspec-sync-specs'
     );
     expect(sync, 'openspec-sync-specs template').toBeTruthy();
