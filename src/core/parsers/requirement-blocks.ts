@@ -577,7 +577,13 @@ function parseRenamedPairs(
   return pairs;
 }
 
-interface ScenarioBlock {
+/**
+ * One `#### ` child of a requirement block: its rendered name and its lines,
+ * header included. Exported because the validator's scenario-step check walks
+ * the same blocks the loss comparison does — a second reader of the same
+ * format is how the two drifted apart before.
+ */
+export interface ScenarioBlock {
   name: string;
   raw: string;
 }
@@ -714,16 +720,30 @@ export function scenarioNameFromHeaderText(headerText: string): string {
     .trim();
 }
 
-function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
+/**
+ * Whether a `#### ` header line carries the canonical `Scenario:` label. Any
+ * level-4 child counts as a scenario for counting and loss purposes (the
+ * parity the SCENARIO_HEADER comment protects), but the step check warns only
+ * about blocks that claim to be scenarios: a `#### Notes` child is prose on
+ * purpose, and a missing WHEN/THEN there is noise, not a finding.
+ */
+export function isScenarioLabeledHeader(headerLine: string): boolean {
+  return /^Scenario:\s*/i.test(headerLine.replace(SCENARIO_HEADER, ''));
+}
+
+/**
+ * Every `#### ` child of a requirement block, header line included in `raw`,
+ * in document order. A scenario is ANY non-fenced `#### ` header, matching the
+ * spec path's SCENARIO_HEADER / countScenarios (requirement-text.ts) exactly —
+ * not only `#### Scenario:`. The two MUST agree: a level-4 child whose header
+ * is not literally `Scenario:` (e.g. `#### Edge case`) is still a scenario the
+ * spec path counts, so a MODIFIED block that drops it would otherwise slip past
+ * the loss check and be deleted by archive with no error (the parity the
+ * SCENARIO_HEADER comment warns not to break). A `####` inside a fenced example
+ * is masked out, matching countScenarios.
+ */
+export function parseScenarioBlocks(requirementRaw: string): ScenarioBlock[] {
   const lines = requirementRaw.replace(/\r\n?/g, '\n').split('\n');
-  // A scenario is ANY non-fenced `#### ` header, matching the spec path's
-  // SCENARIO_HEADER / countScenarios (requirement-text.ts) exactly — not only
-  // `#### Scenario:`. The two MUST agree: a level-4 child whose header is not
-  // literally `Scenario:` (e.g. `#### Edge case`) is still a scenario the spec
-  // path counts, so a MODIFIED block that drops it would otherwise slip past
-  // this loss check and be deleted by archive with no error (the parity the
-  // SCENARIO_HEADER comment warns not to break). A `####` inside a fenced
-  // example is masked out, matching countScenarios.
   const mask = buildCodeFenceMask(lines);
   const scenarios: ScenarioBlock[] = [];
   let index = 0;

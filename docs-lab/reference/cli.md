@@ -864,7 +864,7 @@ Next steps:
 **Exit codes**
 
 - `0`: every validated item passed, including an empty bulk scope.
-- `1`: an item failed, the report request is invalid, or the run failed (for example an unknown name or no OpenSpec root).
+- `1`: an item failed, the report request is invalid, `openspec/config.yaml` cannot be read or is not valid YAML, or the run failed (for example an unknown name or no OpenSpec root). A config that cannot be read or parsed stops the run before any item is checked; with `--json` it is reported as a single `status` entry with the code `unreadable_config` or `unparseable_config`.
 
 ### --report full|findings
 
@@ -2329,7 +2329,7 @@ For the standalone install, the update command is `openspec install`.
 
 ## openspec install
 
-Installs the standalone `openspec`, a single file that runs without Node.js. Run it from an npm or Homebrew install to switch, or from the standalone install to upgrade it in place.
+Installs the standalone `openspec`. Run it from an npm or Homebrew install to switch, or from the standalone install to upgrade it in place.
 
 ```bash
 openspec install          # newest release
@@ -2437,12 +2437,14 @@ Writes the script and edits your shell config. Config edits sit between `# OPENS
 
 | Shell | Script location | Config edited |
 |---|---|---|
-| zsh | `~/.zsh/completions/_openspec` | `~/.zshrc` |
+| zsh | `~/.zsh/completions/_openspec` | `$ZDOTDIR/.zshrc` when `ZDOTDIR` is an absolute path, otherwise `~/.zshrc` |
 | bash | `~/.local/share/bash-completion/completions/openspec` | `~/.bashrc` |
 | fish | `~/.config/fish/completions/openspec.fish` | None: fish auto-loads it. |
 | powershell | `OpenSpecCompletion.ps1` beside your profile | `$PROFILE` |
 
 With Oh My Zsh installed, the script lands in `$ZSH_CUSTOM/completions/_openspec` instead (default `~/.oh-my-zsh/custom/completions/_openspec`).
+
+A relative or `~`-prefixed `ZDOTDIR` is ignored, and `~/.zshrc` is edited instead. Running install again when the script is already current still adds the block to the `.zshrc` zsh reads.
 
 **Options**
 
@@ -2461,6 +2463,8 @@ Restart your shell or run: exec zsh
 ### openspec completion uninstall
 
 Removes the script and the marked config block. It asks before touching your config (default: No).
+
+For zsh, it cleans the `.zshrc` that install edits, and also `~/.zshrc` when an older install left a block there under `ZDOTDIR`. If a block can't be removed, uninstall names the file and exits 1.
 
 **Options**
 

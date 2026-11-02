@@ -452,6 +452,34 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
   }
 }
 
+/**
+ * Warning-silent check for a config file that cannot be read or is not valid
+ * YAML at all. `readProjectConfig` ignores such a file with a warning, so
+ * `validate` uses this to fail instead and give CI a non-zero exit (#1892).
+ */
+export function readConfigParseError(
+  projectRoot: string
+): { kind: 'read' | 'parse'; filePath: string; message: string } | null {
+  const filePath = resolveConfigFilePath(projectRoot);
+  if (filePath === null) {
+    return null;
+  }
+  const firstLine = (error: unknown) =>
+    error instanceof Error ? error.message.split('\n')[0] : String(error);
+  let content: string;
+  try {
+    content = readFileSync(filePath, 'utf-8');
+  } catch (error) {
+    return { kind: 'read', filePath, message: firstLine(error) };
+  }
+  try {
+    parseYaml(content);
+    return null;
+  } catch (error) {
+    return { kind: 'parse', filePath, message: firstLine(error) };
+  }
+}
+
 function configPathForWarnings(projectRoot: string): string {
   return resolveConfigFilePath(projectRoot) ?? path.join(projectRoot, 'openspec', 'config.yaml');
 }

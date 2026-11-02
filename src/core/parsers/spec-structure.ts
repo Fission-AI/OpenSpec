@@ -4,7 +4,7 @@ import { normalizeRequirementName } from './requirement-blocks.js';
 const REQUIREMENTS_SECTION_HEADER = /^##\s+Requirements\s*$/i;
 const TOP_LEVEL_SECTION_HEADER = /^##\s+/;
 const DELTA_HEADER = /^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements\s*$/i;
-const REQUIREMENT_HEADER = /^###\s+Requirement:\s*(.+)\s*$/i;
+const REQUIREMENT_HEADER = /^###\s*Requirement:\s*(.+)\s*$/i;
 
 export interface MainSpecStructureIssue {
   kind: 'delta-header' | 'requirement-outside-requirements' | 'duplicate-requirement';
