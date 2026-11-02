@@ -890,6 +890,56 @@ export const SCENARIOS = [
     },
   },
   {
+    // `capabilities.md` has shipped since the beta began and has never been
+    // measured. The request needs a capability the fixture does not have, so
+    // a new one must be named: the guide asks for the behavior ("todo-export"),
+    // not the work ("add-csv-export") and not a catch-all ("misc", "core").
+    id: 'propose-new-capability',
+    prompt:
+      '/openspec-propose Finance need the whole todo list as a CSV file they can open in a spreadsheet, including whether each todo is done.' +
+      AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      const dirs = deltaSpecs(ctx, name).map((spec) => spec.file.split('/')[0]);
+      const fresh = dirs.filter((dir) => dir !== 'todo-list');
+      // Named for the work rather than the behavior, or a catch-all with no boundary.
+      const worksy = /^(add|create|update|new|improve|fix|enhance|implement|support)-/;
+      const catchAll = /^(misc|core|common|util|utils|shared|general|improvements|features?)$/;
+      return {
+        ...planSize(ctx, name),
+        reusedTodoList: dirs.includes('todo-list'),
+        createdCapability: fresh.length > 0,
+        capabilityNames: [...new Set(dirs)].join(' '),
+        namedForTheWork: fresh.some((dir) => worksy.test(dir)),
+        catchAllName: fresh.some((dir) => catchAll.test(dir)),
+        kebabCase: fresh.every((dir) => /^[a-z0-9]+(-[a-z0-9]+)*$/.test(dir)),
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      const dirs = deltaSpecs(ctx, names[0]).map((spec) => spec.file.split('/')[0]);
+      const fresh = dirs.filter((dir) => dir !== 'todo-list');
+      const worksy = /^(add|create|update|new|improve|fix|enhance|implement|support)-/;
+      results.push(
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        { name: 'the export behavior is specified', pass: /csv/i.test(deltaSpecs(ctx, names[0]).map((spec) => spec.text).join('\n')) },
+        // Capabilities outlive the change that adds them, so a name that
+        // describes the work is wrong the moment the change is archived.
+        {
+          name: 'no capability named for the work',
+          pass: !fresh.some((dir) => worksy.test(dir)),
+          detail: fresh.join(', '),
+        },
+        onlyOpenspecChanged(ctx)
+      );
+      return results;
+    },
+  },
+  {
     // #2139: requirements grow because agents copy the shape of the specs
     // around them. The seeded spec has one requirement carrying five SHALLs,
     // and the request changes that very promise. The pull is to append a sixth.
