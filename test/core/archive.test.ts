@@ -3665,6 +3665,59 @@ The system SHALL do B differently.
       expect(archives.some(a => a.includes(changeName))).toBe(false);
     });
 
+    it('should abort instead of dropping a block when the target spec duplicates a requirement as ###Requirement:', async () => {
+      const changeName = 'unspaced-duplicate-target';
+      const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);
+      const changeSpecDir = path.join(changeDir, 'specs', 'delta-target');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const mainSpecDir = path.join(tempDir, 'openspec', 'specs', 'delta-target');
+      await fs.mkdir(mainSpecDir, { recursive: true });
+      const malformedMain = `# delta-target Specification
+
+## Purpose
+Delta target purpose.
+
+## Requirements
+
+###Requirement: A
+The system SHALL do A one way.
+
+#### Scenario: A first
+- **WHEN** foo
+- **THEN** bar
+
+### Requirement: A
+The system SHALL do A another way.
+
+#### Scenario: A second
+- **WHEN** baz
+- **THEN** qux
+`;
+      await fs.writeFile(path.join(mainSpecDir, 'spec.md'), malformedMain);
+
+      const deltaContent = `# Delta Target Changes
+
+## MODIFIED Requirements
+
+### Requirement: A
+The system SHALL do A differently.
+
+#### Scenario: A changes
+- **WHEN** foo changes
+- **THEN** bar changes`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), deltaContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringContaining('delta-target: target spec is structurally invalid and cannot be updated until fixed:')
+      );
+      expect(console.log).toHaveBeenCalledWith('Aborted. No files were changed.');
+      const still = await fs.readFile(path.join(mainSpecDir, 'spec.md'), 'utf-8');
+      expect(still).toBe(malformedMain);
+    });
+
     it('should require MODIFIED to reference the NEW header when a rename exists (error format)', async () => {
       const changeName = 'rename-modify-new-header';
       const changeDir = path.join(tempDir, 'openspec', 'changes', changeName);

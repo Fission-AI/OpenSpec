@@ -5,55 +5,19 @@
 
 ## Install
 
-OpenSpec installs as a single `openspec` file. It needs no Node.js.
-
 On macOS or Linux, in your terminal:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.sh | sh
+curl -fsSL https://openspec.dev/cli/install.sh | sh
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/scripts/binary/install.ps1 | iex
+irm https://openspec.dev/cli/install.ps1 | iex
 ```
 
-- **Where it goes**: `~/.local/bin`; on Windows, `%LOCALAPPDATA%\Programs\openspec`, which it adds to your user PATH.
-- **What it checks**: it picks the file for your machine and verifies it against the release's `SHA256SUMS` before installing.
-- **Which release**: the newest one whose files are all attached. For the few minutes after a release is published while its files upload, it installs the previous one and says so.
-- **Alpine Linux**: run `apk add libstdc++ libgcc` first.
-- **Options**: set `OPENSPEC_INSTALL_DIR` to install elsewhere, or `OPENSPEC_VERSION=v1.15.0` to pin a release.
-
-If the installer says the folder isn't on your PATH, add it as it shows. Then [check it worked](#check-it-worked).
-
-The workflow itself runs inside an AI coding tool: Claude Code, Cursor, or any other tool on the [supported list](../reference/supported-tools.md).
-
-### Download it yourself
-
-Each [release](https://github.com/Fission-AI/OpenSpec/releases/latest) has one file per platform:
-
-| Platform | File |
-|---|---|
-| macOS 13+ (Apple silicon / Intel) | `openspec-darwin-arm64` / `openspec-darwin-x64` |
-| Linux, glibc 2.17+ (arm64 / x64) | `openspec-linux-arm64` / `openspec-linux-x64` |
-| Alpine 3.17+ (arm64 / x64) | `openspec-linux-arm64-musl` / `openspec-linux-x64-musl` |
-| Windows 10+ (arm64 / x64) | `openspec-windows-arm64.exe` / `openspec-windows-x64.exe` |
-
-Rename it to `openspec` (`openspec.exe` on Windows), run `chmod +x openspec` on macOS or Linux, and put it in a folder on your PATH.
-
-> [!NOTE]
-> macOS blocks a file downloaded in a browser until you run `xattr -d com.apple.quarantine openspec`. The install command above doesn't need this.
-
-### Verify a download
-
-Each release binary comes with a signed record of the workflow run that built it. With the [GitHub CLI](https://cli.github.com), in your terminal:
-
-```bash
-gh attestation verify openspec-darwin-arm64 --repo Fission-AI/OpenSpec
-```
-
-It confirms the file is the one that release's workflow built, or fails. This is optional; the installer already checks every download against `SHA256SUMS`.
+If the installer prints an `export PATH=...` line, run it. Then [check it worked](#check-it-worked).
 
 ## Install with your AI assistant
 
@@ -72,7 +36,7 @@ curl -fsSL https://raw.githubusercontent.com/Fission-AI/OpenSpec/main/install.md
 That fetches [install.md at the repo root](https://github.com/Fission-AI/OpenSpec/blob/main/install.md), a prompt written for any agent that can run shell commands (a few IDE integrations can't). Expect your assistant to:
 
 1. Skip the install if the CLI is already on your machine, and offer to update it the way it was installed. If that was npm or Homebrew, mention once that `openspec install` switches to the standalone install, without pushing it. Otherwise, show you the install command above and wait for your confirmation before running it.
-2. Use npm instead only if you ask for it or the installer fails, and stop if your Node is older than 20.19.0.
+2. Use npm instead only if you ask for it or the installer fails, and stop if your Node is older than 22.12.0.
 3. Verify `openspec` is on your PATH.
 4. Name the folder it thinks you mean, suggest the AI tool you're already talking to, and ask which others you use, then run `openspec init` there (the [project setup](setup.md) step).
 5. Report what init created and the exact spelling to invoke OpenSpec in your tool.
@@ -83,13 +47,13 @@ This install method is new and can have varying results depending on model used.
 
 ## Package managers
 
-These install OpenSpec as a Node.js package, so they need Node.js 20.19.0 or newer (Homebrew and Nix bring their own). In your terminal:
+These install OpenSpec as a Node.js package, so they need Node.js 22.12.0 or newer (Homebrew and Nix bring their own). In your terminal:
 
 ```bash
 node --version
 ```
 
-If that prints `v20.19.0` or higher, install with npm:
+If that prints `v22.12.0` or higher, install with npm:
 
 ```npm
 npm install -g @fission-ai/openspec@latest
@@ -164,6 +128,56 @@ openspec --version
 If that prints a version number, the CLI is on your PATH. It installs once per machine.
 
 Next, [set up your project](setup.md). If your assistant already ran init, that page shows what it wrote and how to adjust it.
+
+## Install options
+
+To pick a version or a folder, set a variable before `sh`:
+
+```bash
+curl -fsSL https://openspec.dev/cli/install.sh | OPENSPEC_VERSION=v1.15.0 sh
+```
+
+- **`OPENSPEC_VERSION`**: the release to install, such as `v1.15.0`. The default is the newest release.
+- **`OPENSPEC_INSTALL_DIR`**: the folder to install to. The default is `~/.local/bin` (Windows: `%LOCALAPPDATA%\Programs\openspec`).
+
+On Windows, set the variable first:
+
+```powershell
+$env:OPENSPEC_VERSION = 'v1.15.0'
+irm https://openspec.dev/cli/install.ps1 | iex
+```
+
+On Alpine Linux, run `apk add libstdc++ libgcc` before installing.
+
+### Download by hand
+
+Each release has one file per computer:
+
+| Computer | File |
+|---|---|
+| Mac, Apple silicon | `openspec-darwin-arm64.tar.gz` |
+| Mac, Intel | `openspec-darwin-x64.tar.gz` |
+| Linux, arm64 | `openspec-linux-arm64.tar.gz` |
+| Linux, x64 | `openspec-linux-x64.tar.gz` |
+| Alpine, arm64 | `openspec-linux-arm64-musl.tar.gz` |
+| Alpine, x64 | `openspec-linux-x64-musl.tar.gz` |
+| Windows, arm64 | `openspec-windows-arm64.zip` |
+| Windows, x64 | `openspec-windows-x64.zip` |
+
+1. **Download** your file from the [latest release](https://github.com/Fission-AI/OpenSpec/releases/latest). Files are attached a few minutes after a release is published. If yours isn't listed yet, wait and reload, or take it from the previous release.
+2. **Unpack** it. In your terminal: `tar -xzf openspec-darwin-arm64.tar.gz`. On Windows, right-click the `.zip` and choose Extract All.
+3. **On macOS**, run `xattr -d com.apple.quarantine openspec` in the folder you unpacked to. macOS blocks files downloaded in a browser until you do.
+4. **Move** `openspec` into a folder on your PATH, such as `~/.local/bin`. On Windows, move `openspec.exe` into a folder on your user PATH, such as `%LOCALAPPDATA%\Programs\openspec`.
+
+### Verify a download
+
+To check that a file was built by the OpenSpec release workflow, run this with the [GitHub CLI](https://cli.github.com):
+
+```bash
+gh attestation verify openspec-darwin-arm64.tar.gz --repo Fission-AI/OpenSpec
+```
+
+It fails if the workflow didn't build the file. The install command already checks each download against the release's `SHA256SUMS`, so this step is optional.
 
 ## Switch from npm to the standalone install
 

@@ -18,6 +18,15 @@ export const metadata: Metadata = {
     template: `%s | ${appName}`,
   },
   description,
+  // The openspec.dev routing Worker sends /docs/* to this site, but root paths
+  // go to the landing site, so icons (and the logo) live under public/docs.
+  icons: {
+    icon: [
+      { url: '/docs/icon-32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/docs/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: { url: '/docs/apple-icon.png', sizes: '180x180', type: 'image/png' },
+  },
   openGraph: {
     title: `${appName} | Agree first, then build confidently`,
     description,

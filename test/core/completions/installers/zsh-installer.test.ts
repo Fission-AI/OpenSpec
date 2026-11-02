@@ -9,6 +9,7 @@ describe('ZshInstaller', () => {
   let installer: ZshInstaller;
   let originalZsh: string | undefined;
   let originalZshCustom: string | undefined;
+  let originalZdotdir: string | undefined;
 
   beforeEach(async () => {
     // Clear $ZSH and $ZSH_CUSTOM (set by a real Oh My Zsh install) so the
@@ -18,6 +19,10 @@ describe('ZshInstaller', () => {
     delete process.env.ZSH;
     originalZshCustom = process.env.ZSH_CUSTOM;
     delete process.env.ZSH_CUSTOM;
+    // Same for $ZDOTDIR: with it set, the installer edits $ZDOTDIR/.zshrc,
+    // which on a developer machine is their real one (#2138)
+    originalZdotdir = process.env.ZDOTDIR;
+    delete process.env.ZDOTDIR;
 
     // Create a temporary home directory for testing
     testHomeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-zsh-test-'));
@@ -35,6 +40,11 @@ describe('ZshInstaller', () => {
       process.env.ZSH_CUSTOM = originalZshCustom;
     } else {
       delete process.env.ZSH_CUSTOM;
+    }
+    if (originalZdotdir !== undefined) {
+      process.env.ZDOTDIR = originalZdotdir;
+    } else {
+      delete process.env.ZDOTDIR;
     }
 
     // Clean up test directory
@@ -785,6 +795,166 @@ describe('ZshInstaller', () => {
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('.zshrc configured');
+    });
+  });
+
+  // zsh reads $ZDOTDIR/.zshrc when ZDOTDIR is set and never looks at
+  // ~/.zshrc, so that is where the block has to go (#2138).
+  describe('with $ZDOTDIR set', () => {
+    let zdotdir: string;
+
+    beforeEach(async () => {
+      zdotdir = path.join(testHomeDir, '.config', 'zsh');
+      await fs.mkdir(zdotdir, { recursive: true });
+      await fs.writeFile(path.join(zdotdir, '.zshrc'), '# my zshrc\n');
+      process.env.ZDOTDIR = zdotdir;
+    });
+
+    it('writes the block to $ZDOTDIR/.zshrc and leaves ~/.zshrc alone', async () => {
+      const result = await installer.install('#compdef openspec\n');
+
+      expect(result.zshrcConfigured).toBe(true);
+      const content = await fs.readFile(path.join(zdotdir, '.zshrc'), 'utf-8');
+      expect(content).toContain('# OPENSPEC:START');
+      expect(content).toContain('# my zshrc');
+      await expect(fs.access(path.join(testHomeDir, '.zshrc'))).rejects.toThrow();
+    });
+
+    it('names $ZDOTDIR/.zshrc in the manual instructions when it cannot write', async () => {
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+      try {
+        const result = await installer.install('#compdef openspec\n');
+
+        expect(result.zshrcConfigured).toBe(false);
+        const text = result.instructions!.join('\n');
+        expect(text).toContain(`add the following to your ${path.join(zdotdir, '.zshrc')} file`);
+        expect(text).toContain(`already exist in ${path.join(zdotdir, '.zshrc')}`);
+        expect(text).not.toContain('~/.zshrc');
+      } finally {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      }
+    });
+
+    it('uninstall removes the block from $ZDOTDIR/.zshrc and names that file', async () => {
+      await installer.install('#compdef openspec\n');
+
+      const result = await installer.uninstall();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain(`Removed OpenSpec configuration from ${path.join(zdotdir, '.zshrc')}`);
+      expect(await fs.readFile(path.join(zdotdir, '.zshrc'), 'utf-8')).toBe('# my zshrc\n');
+    });
+
+    it('uninstall also clears a stray ~/.zshrc block left by an install before the fix', async () => {
+      const homeZshrc = path.join(testHomeDir, '.zshrc');
+      await fs.writeFile(homeZshrc, '# OPENSPEC:START\nfpath=(x $fpath)\n# OPENSPEC:END\n\n# kept\n');
+
+      const result = await installer.uninstall();
+
+      expect(result.success).toBe(true);
+      expect(result.message).toContain('Removed OpenSpec configuration from ~/.zshrc');
+      expect(await fs.readFile(homeZshrc, 'utf-8')).toBe('# kept\n');
+      expect(await fs.readFile(path.join(zdotdir, '.zshrc'), 'utf-8')).toBe('# my zshrc\n');
+    });
+
+    it('re-running install configures $ZDOTDIR/.zshrc even when the script is already current', async () => {
+      // An install made before #2138: the script is in place, but the block
+      // went to ~/.zshrc, which zsh never reads under ZDOTDIR.
+      delete process.env.ZDOTDIR;
+      await installer.install('#compdef openspec\n');
+      process.env.ZDOTDIR = zdotdir;
+
+      const result = await installer.install('#compdef openspec\n');
+
+      expect(result.message).toContain('up to date');
+      expect(result.zshrcConfigured).toBe(true);
+      expect(await fs.readFile(path.join(zdotdir, '.zshrc'), 'utf-8')).toContain('# OPENSPEC:START');
+    });
+
+    it('shows manual instructions for an up-to-date script when it cannot configure .zshrc', async () => {
+      await installer.install('#compdef openspec\n');
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+      try {
+        const result = await installer.install('#compdef openspec\n');
+
+        expect(result.zshrcConfigured).toBe(false);
+        expect(result.instructions!.join('\n')).toContain(
+          `add the following to your ${path.join(zdotdir, '.zshrc')} file`
+        );
+      } finally {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      }
+    });
+
+    it('uninstall fails and names the file when a block cannot be removed', async () => {
+      if (process.platform === 'win32') return; // chmod does not make a file read-only for the owner on Windows
+      await installer.install('#compdef openspec\n');
+      const zshrc = path.join(zdotdir, '.zshrc');
+      await fs.chmod(zshrc, 0o444);
+      try {
+        // Root can still write a 0o444 file, so there is no failure to observe.
+        if (process.getuid?.() === 0) return;
+
+        const result = await installer.uninstall();
+
+        expect(result.success).toBe(false);
+        expect(result.message).toContain(`Could not remove the OpenSpec block from ${zshrc}`);
+        expect(await fs.readFile(zshrc, 'utf-8')).toContain('# OPENSPEC:START');
+      } finally {
+        await fs.chmod(zshrc, 0o644);
+      }
+    });
+
+    it('falls back to ~/.zshrc when ZDOTDIR is empty', async () => {
+      process.env.ZDOTDIR = '';
+
+      await installer.install('#compdef openspec\n');
+
+      expect(await fs.readFile(path.join(testHomeDir, '.zshrc'), 'utf-8')).toContain('# OPENSPEC:START');
+    });
+
+    // zsh never expands `~` in ZDOTDIR, and a relative value would resolve
+    // against the current directory: writing there drops a .zshrc into the
+    // user's project, so only an absolute ZDOTDIR moves the file.
+    it.each(['openspec-zdotdir-relative-test', '~/openspec-zdotdir-tilde-test'])(
+      'ignores a non-absolute ZDOTDIR (%s) and uses ~/.zshrc',
+      async (value) => {
+        process.env.ZDOTDIR = value;
+
+        const result = await installer.install('#compdef openspec\n');
+
+        expect(result.zshrcConfigured).toBe(true);
+        expect(await fs.readFile(path.join(testHomeDir, '.zshrc'), 'utf-8')).toContain('# OPENSPEC:START');
+        await expect(fs.access(path.resolve(value.split('/')[0]))).rejects.toThrow();
+      }
+    );
+
+    it('treats a trailing slash on ZDOTDIR as the same directory', async () => {
+      process.env.ZDOTDIR = `${zdotdir}${path.sep}`;
+
+      await installer.install('#compdef openspec\n');
+      const result = await installer.uninstall();
+
+      expect(result.message).toContain(`Removed OpenSpec configuration from ${path.join(zdotdir, '.zshrc')}`);
+      expect(await fs.readFile(path.join(zdotdir, '.zshrc'), 'utf-8')).toBe('# my zshrc\n');
+    });
+
+    it('shows ~/.zshrc and cleans it once when ZDOTDIR is the home directory', async () => {
+      process.env.ZDOTDIR = `${testHomeDir}${path.sep}`;
+
+      await installer.install('#compdef openspec\n');
+      const result = await installer.uninstall();
+
+      expect(result.message.match(/Removed OpenSpec configuration from/g)).toHaveLength(1);
+      expect(result.message).toContain('Removed OpenSpec configuration from ~/.zshrc');
+
+      process.env.OPENSPEC_NO_AUTO_CONFIG = '1';
+      try {
+        const manual = await installer.install('#compdef openspec\n');
+        expect(manual.instructions!.join('\n')).toContain('add the following to your ~/.zshrc file');
+      } finally {
+        delete process.env.OPENSPEC_NO_AUTO_CONFIG;
+      }
     });
   });
 

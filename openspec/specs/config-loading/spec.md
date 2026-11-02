@@ -4,6 +4,7 @@
 Define how `openspec/config.yaml` is discovered, parsed, validated, and exposed to callers with safe fallbacks.
 
 ## Requirements
+
 ### Requirement: Load project config from openspec/config.yaml
 
 The system SHALL read and parse the project configuration file located at `openspec/config.yaml` relative to the project root.
@@ -96,6 +97,45 @@ The system SHALL reject context fields exceeding 50KB and log a warning.
 - **WHEN** config contains context of 51KB
 - **THEN** warning is logged with size and limit, context field is not included in returned config
 
+### Requirement: Load operation guidance independently
+
+The system SHALL parse the optional `operations` project-config field independently from `schema`, `context`, `rules`, `references`, and `store` so an invalid operation entry does not discard other valid configuration.
+
+#### Scenario: Valid operation guidance
+
+- **WHEN** config contains `operations.apply.guidance` and `operations.archive.guidance` as arrays of strings
+- **THEN** the returned project config includes both operation entries
+
+#### Scenario: One operation is malformed
+
+- **WHEN** apply guidance is a valid string array and archive guidance is malformed
+- **THEN** the returned project config includes apply guidance
+- **AND** omits archive guidance with an actionable warning
+
+#### Scenario: Operations field is not an object
+
+- **WHEN** config contains a non-object `operations` value
+- **THEN** the system warns about the invalid field
+- **AND** continues with all independently valid config fields
+
+#### Scenario: Unknown operation ID
+
+- **WHEN** config contains an unsupported operation ID
+- **THEN** the system warns with the supported operation IDs
+- **AND** ignores only the unsupported operation entry
+
+#### Scenario: Unknown fields in an operation
+
+- **WHEN** a supported operation contains fields other than `guidance`
+- **THEN** the system warns about those fields
+- **AND** preserves valid guidance for that operation
+
+#### Scenario: Empty and formatted guidance
+
+- **WHEN** a guidance array contains empty strings and non-empty strings with line breaks or Markdown
+- **THEN** the system removes the empty entries
+- **AND** preserves the non-empty entries in their original order and form
+
 ### Requirement: Defer artifact ID validation to instruction loading
 
 The system SHALL NOT validate artifact IDs in rules during config load time. Validation happens during instruction loading when schema is known.
@@ -110,7 +150,7 @@ The system SHALL NOT validate artifact IDs in rules during config load time. Val
 
 ### Requirement: Gracefully handle config errors without halting
 
-The system SHALL continue operation with default values when config loading or parsing fails.
+The system SHALL continue operation with default values when config loading or parsing fails, except in `openspec validate`, which SHALL report the failure and exit with status 1 before checking any item.
 
 #### Scenario: Config parse failure during command execution
 - **WHEN** config file has syntax errors and user runs `openspec new change`
@@ -119,4 +159,14 @@ The system SHALL continue operation with default values when config loading or p
 #### Scenario: Warning is visible to user
 - **WHEN** config loading fails
 - **THEN** system outputs warning message to stderr with details about the failure
+
+#### Scenario: Validate fails on a config that is not valid YAML
+- **WHEN** config file has syntax errors and user runs `openspec validate`
+- **THEN** the command reports `Could not parse` with the config path, validates no items, and exits with status 1
+- **AND** with `--json` the failure is a single `status` entry with code `unparseable_config`
+
+#### Scenario: Validate fails on a config that cannot be read
+- **WHEN** the config path exists but cannot be read as a file (for example it is a directory) and user runs `openspec validate`
+- **THEN** the command reports `Could not read` with the config path, validates no items, and exits with status 1
+- **AND** with `--json` the failure is a single `status` entry with code `unreadable_config`
 

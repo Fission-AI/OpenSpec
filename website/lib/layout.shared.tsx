@@ -10,7 +10,7 @@ export function baseOptions(): BaseLayoutProps {
       url: '/docs',
       title: (
         <img
-          src="/openspec-pixel.svg"
+          src="/docs/openspec-pixel.svg"
           alt={appName}
           className="h-3 w-auto dark:invert [#nd-sidebar_&]:ml-2"
         />

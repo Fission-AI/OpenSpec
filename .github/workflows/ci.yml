@@ -61,17 +61,17 @@ jobs:
           - os: ubuntu-latest
             shell: bash
             label: linux-bash
-            node: '20.19.0'
+            node: '22.12.0'
             vitest_workers: 4
           - os: macos-latest
             shell: bash
             label: macos-bash
-            node: '20.19.0'
+            node: '22.12.0'
             vitest_workers: 4
           - os: windows-latest
             shell: pwsh
             label: windows-pwsh
-            node: '20.19.0'
+            node: '22.12.0'
             vitest_workers: 2
           - os: ubuntu-latest
             shell: bash
@@ -120,7 +120,7 @@ jobs:
         run: pnpm test
 
       - name: Upload test coverage
-        if: matrix.os == 'ubuntu-latest' && matrix.node == '20.19.0'
+        if: matrix.os == 'ubuntu-latest' && matrix.node == '22.12.0'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: coverage-report-${{ github.event_name }}
@@ -156,7 +156,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '20.19.0'
+          node-version: '22.12.0'
           cache: 'pnpm'
 
       - name: Install dependencies

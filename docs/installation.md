@@ -53,7 +53,7 @@ order, and stop where a step tells you to stop.
    If I'd rather use a package manager, or the installer fails, go to step 2.
 
 2. PACKAGE MANAGER (only if step 1 did not install it). Run `node --version`:
-   this needs Node.js 20.19.0 or higher. If Node is missing or older, say so and
+   this needs Node.js 22.12.0 or higher. If Node is missing or older, say so and
    stop — don't install Node, switch versions, or reconfigure my version
    manager for me. Otherwise use whichever package manager is already on my
    PATH, preferring npm:
@@ -118,7 +118,7 @@ Nothing in the prompt is vendor-specific: it's plain instructions plus the same 
 
 ## Package Managers
 
-Installing with a package manager needs **Node.js 20.19.0 or higher** (check with `node --version`).
+Installing with a package manager needs **Node.js 22.12.0 or higher** (check with `node --version`).
 
 ### npm
 
@@ -160,7 +160,7 @@ Note: If your subcommands launch external tools, like config edit, feedback, or 
 ### bun
 
 Bun can install OpenSpec globally, but OpenSpec currently runs on Node.js.
-You still need Node.js 20.19.0 or higher available on `PATH`.
+You still need Node.js 22.12.0 or higher available on `PATH`.
 
 ```bash
 bun add -g @fission-ai/openspec@latest

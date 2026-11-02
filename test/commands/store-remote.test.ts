@@ -17,7 +17,11 @@ import { cleanupTempPath } from '../helpers/temp-cleanup.js';
 const TEST_NET_URL = 'https://192.0.2.1/acme/team-context.git';
 const GIT_JOURNEY_TIMEOUT_MS = 60_000;
 
-describe('store canonical remote (3.3)', () => {
+// These tests spawn many real git processes. Windows process startup is slow
+// enough to push one past the default 10s, so give them more room there.
+const REAL_GIT_TEST_TIMEOUT_MS = process.platform === 'win32' ? 30_000 : 10_000;
+
+describe('store canonical remote (3.3)', { timeout: REAL_GIT_TEST_TIMEOUT_MS }, () => {
   let tempDir: string;
   let globalDataDir: string;
   let env: NodeJS.ProcessEnv;
