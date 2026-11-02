@@ -743,6 +743,45 @@ export const SCENARIOS = [
     },
   },
   {
+    // A pure internal refactor: no caller-visible behavior changes, so there is
+    // no requirement to write. The judgment the plan has to make up front is
+    // the one apply already makes (#2170): declare `skip_specs: true`, or
+    // invent a requirement and leave a change `openspec validate` rejects.
+    id: 'propose-refactor',
+    prompt:
+      '/openspec-propose The id lookup in `complete()` is inline and will be repeated by the next method that takes an id. Plan a refactor that extracts it into a private helper. Nothing callers can observe changes.' +
+      AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      const yaml = ctx.read(`openspec/changes/${name}/.openspec.yaml`) ?? '';
+      return {
+        declaredSkipSpecs: /skip_specs:\s*true/.test(yaml),
+        inventedRequirement: deltaSpecs(ctx, name).some((spec) => /## (ADDED|MODIFIED) Requirements/.test(spec.text)),
+        skipsDesign: !ctx.exists(`openspec/changes/${name}/design.md`),
+        toldTheUser: /skip_specs|no spec|without a spec|no requirement|no behaviou?r change/i.test(ctx.result ?? ''),
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      // No deltas and a passing `validate` means the change declared
+      // `skip_specs`; deltas mean a requirement was invented for a refactor.
+      results.push(
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        {
+          name: 'no invented requirement',
+          pass: deltaSpecs(ctx, names[0]).length === 0,
+          detail: deltaSpecs(ctx, names[0]).map((spec) => spec.file).join(', '),
+        },
+        onlyOpenspecChanged(ctx)
+      );
+      return results;
+    },
+  },
+  {
     // A bug where the code drifted from a spec that is already right. A good
     // plan stays small: no new or changed requirement, no design unless needed.
     id: 'propose-bugfix',
@@ -766,6 +805,45 @@ export const SCENARIOS = [
       if (names.length !== 1) return results;
       const validate = ctx.openspec(['validate', names[0], '--strict']);
       results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) }, onlyOpenspecChanged(ctx));
+      return results;
+    },
+  },
+  {
+    // The same judgment from the other side: a request worded as a clean-up
+    // that does change a promised behavior (the spec says an unknown id
+    // throws). The answer is a MODIFIED delta, not `skip_specs` - the error a
+    // gate that trusts the request's wording would make.
+    id: 'propose-tidy-up',
+    prompt:
+      '/openspec-propose Tidy up `complete()`: pull the id lookup into a private helper, and while you are in there have `complete()` return undefined for an unknown id instead of throwing, so callers can just check the result. Small internal clean-up.' +
+      AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      const yaml = ctx.read(`openspec/changes/${name}/.openspec.yaml`) ?? '';
+      const deltas = deltaSpecs(ctx, name).map((spec) => spec.text).join('\n');
+      return {
+        declaredSkipSpecs: /skip_specs:\s*true/.test(yaml),
+        modifiesCompleting: /## MODIFIED Requirements/.test(deltas) && /Completing a todo/.test(deltas),
+        saysBehaviorChanges: /throw|undefined|behaviou?r|breaking/i.test(ctx.result ?? ''),
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const yaml = ctx.read(`openspec/changes/${names[0]}/.openspec.yaml`) ?? '';
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      results.push(
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        {
+          name: 'the spec change is planned',
+          pass: deltaSpecs(ctx, names[0]).some((spec) => /## MODIFIED Requirements/.test(spec.text)),
+          detail: deltaSpecs(ctx, names[0]).map((spec) => spec.file).join(', '),
+        },
+        { name: 'does not declare skip_specs', pass: !/skip_specs:\s*true/.test(yaml) },
+        onlyOpenspecChanged(ctx)
+      );
       return results;
     },
   },
