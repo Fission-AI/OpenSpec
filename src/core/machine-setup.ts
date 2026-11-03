@@ -517,15 +517,20 @@ export async function setupMachine(options: MachineSetupOptions = {}): Promise<M
     }
   }
 
+  // The canonical install. `~/.agents/skills` is the cross-vendor Agent Skills
+  // location, so writing it unconditionally is what lets a harness OpenSpec has
+  // never heard of pick these skills up: it honours the convention instead of
+  // waiting for us to learn its name. Detection below only decides what the
+  // summary says, never whether this copy exists, and never writes a second
+  // copy under a harness's own folder - two copies of one name is what makes
+  // harnesses that read both locations warn on every start (#2180).
   const sharedDir = sharedSkillsDir(home);
-  if (agents.some((agent) => agent.route === 'shared-skills') || fs.existsSync(sharedDir)) {
-    result.sharedSkills = { dir: sharedDir, installed: [], removed: [] };
-    if (!options.dryRun) {
-      result.sharedSkills = {
-        dir: sharedDir,
-        ...(await writeSharedSkills(sharedDir, workflows, agents.some((agent) => agent.id === 'codex'))),
-      };
-    }
+  result.sharedSkills = { dir: sharedDir, installed: [], removed: [] };
+  if (!options.dryRun) {
+    result.sharedSkills = {
+      dir: sharedDir,
+      ...(await writeSharedSkills(sharedDir, workflows, agents.some((agent) => agent.id === 'codex'))),
+    };
   }
 
   if (!options.dryRun) {
@@ -699,18 +704,9 @@ function tilde(dir: string): string {
 
 /** The summary `openspec setup` and interactive `openspec init` print. */
 export function formatMachineSetup(result: MachineSetupResult, options: { dryRun?: boolean } = {}): string {
-  // Setup also writes `~/.agents/skills` when that folder already exists, even
-  // with no agent detected, and a revert then has work to do. Saying nothing
-  // was found would contradict what is on disk, so only say it when nothing
-  // was installed either.
-  if (result.agents.length === 0 && !result.sharedSkills && !result.claudePlugin) {
-    return [
-      'No coding agents found on this machine.',
-      'Install one (Claude Code, Codex, Cursor, ...) and run `openspec setup` again,',
-      'or install into a single project with `openspec init --tools <tool>`.',
-    ].join('\n');
-  }
-
+  // There is no "nothing installed" case any more: the canonical copy at
+  // `~/.agents/skills` is always written, so the summary's job is to say where
+  // it went and which agents will pick it up, never to report a dead end.
   const lines = [options.dryRun ? 'OpenSpec would install:' : 'OpenSpec is set up on this machine.', ''];
   const row = (label: string, text: string) =>
     lines.push(label.length <= 12 ? `  ${label.padEnd(14)}${text}` : `  ${label}\n${' '.repeat(16)}${text}`);
@@ -734,8 +730,14 @@ export function formatMachineSetup(result: MachineSetupResult, options: { dryRun
       : agents.some((agent) => agent.id === 'codex')
         ? `/${propose} ($${propose} in Codex)`
         : `/${propose}`;
-    const label = agents.length > 0 ? agents.map((agent) => agent.name).join(', ') : 'Other agents';
+    // Named agents when we recognise one, otherwise say what the folder is for:
+    // any harness that follows the Agent Skills convention reads it, including
+    // ones OpenSpec does not know by name.
+    const label = agents.length > 0 ? agents.map((agent) => agent.name).join(', ') : 'Any agent';
     row(label, `${tilde(shared.dir)}: ${invoke}`);
+    if (agents.length === 0 && !plugin) {
+      lines.push(chalk.dim(`${indent}the standard skills folder, read by any agent that supports it`));
+    }
   }
   if (result.moved.length > 0) {
     lines.push('');

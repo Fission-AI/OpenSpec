@@ -34,7 +34,9 @@ npx skills remove -g -y openspec-propose openspec-explore openspec-new-change op
 | Agent | Where | Start a workflow |
 |---|---|---|
 | Claude Code | an `openspec-beta` plugin | `/openspec-beta:propose` |
-| Codex, Cursor, Gemini CLI, OpenCode, GitHub Copilot, and others that read `~/.agents/skills` | `~/.agents/skills/openspec-beta*` | `/openspec-beta-propose` (`$openspec-beta-propose` in Codex) |
+| Any other agent | `~/.agents/skills/openspec-beta*` | `/openspec-beta-propose` (`$openspec-beta-propose` in Codex) |
+
+`~/.agents/skills` is the standard Agent Skills folder, so setup writes it whether or not it recognises an agent on your machine: an agent you install later finds the skills without re-running anything, and one OpenSpec has never heard of works as long as it follows the convention. There is only ever one copy, which is what keeps a harness that reads both its own folder and the standard one from finding the same skill twice and warning about it ([#2180](https://github.com/Fission-AI/OpenSpec/issues/2180)). Claude Code is the exception: it does not read that folder, so it gets a plugin instead.
 
 Or ask in plain words ("plan this as an OpenSpec change"). The `openspec-beta` skill tells the agent what OpenSpec is and holds short guides it reads when needed: sizing a change, naming capabilities, decisions to raise, and how specs change. Explore keeps a living draft of the scope; propose turns the settled draft into the change. Specs are merged by apply's last task and by archive, so there is no separate sync skill. Setup moves your older OpenSpec skills and, when run inside a project, its `/opsx` command files into a backup, so you never see two copies.
 
@@ -81,7 +83,7 @@ npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive 
 ## Known limits
 
 - Plans are as good as today's or slightly better, at about the same token cost.
-- Claude Code, Codex, and Gemini CLI are tested with their real CLIs on macOS, Linux, and Windows. Cursor, OpenCode, and the other agents are covered by their documented `~/.agents/skills` support.
+- Claude Code, Codex, and Gemini CLI are tested with their real CLIs on macOS, Linux, and Windows. Every other agent reads the same standard folder, so there is nothing agent-specific to test, but whether a given one honours the convention is its own to say.
 - `openspec init --tools <tool>` still installs per-project skills under today's names. They carry the same shorter steps as the beta, but not the router or its guides.
 
 ## Feedback

@@ -59,18 +59,53 @@ describe('machine setup', () => {
   }
   const OLD = (name: string) => `---\nname: ${name}\nmetadata:\n  generatedBy: "1.14.0"\n---\nold ${name}\n`;
 
-  it('finds no agents on a bare machine and installs nothing', async () => {
+  // `~/.agents/skills` is the cross-vendor Agent Skills location, so the copy
+  // there is written whether or not OpenSpec recognises an agent: that is what
+  // lets a harness it has never heard of pick these skills up by honouring the
+  // convention. Detection only shapes the summary.
+  it('installs the canonical copy on a machine with no agent it knows', async () => {
     expect(detectMachineAgents({ homedir: home, env })).toEqual([]);
     const result = await setupMachine({ homedir: home, env, runClaude });
+
     expect(result.claudePlugin).toBeUndefined();
-    expect(result.sharedSkills).toBeUndefined();
     expect(runClaude).not.toHaveBeenCalled();
-    expect(formatMachineSetup(result)).toContain('No coding agents found');
+    expect(result.sharedSkills?.installed).toContain(NS);
+    expect(read(home, '.agents', 'skills', NS, 'SKILL.md')).toContain(LAYOUT_MARKER);
+    const text = formatMachineSetup(result);
+    expect(text).not.toContain('No coding agents found');
+    expect(text).toContain('Any agent');
   });
 
-  // Setup writes `~/.agents/skills` when that folder exists, whether or not it
-  // recognises an agent, and a revert then has work to do. Saying nothing was
-  // found would contradict the disk and send the user to run setup again.
+  // #2180: a harness that reads both its own folder and the portable one finds
+  // two skills of the same name, keeps one and warns on every start. The guard
+  // is that OpenSpec writes skills to exactly one container folder - the
+  // portable one - and never a second copy under a harness's own folder. The
+  // Claude plugin is delivered through its marketplace rather than scanned as
+  // a container, so it is not one of these folders.
+  it('writes skills to one container folder, never a harness-native copy', async () => {
+    for (const marker of ['.codex', '.gemini', '.pi', '.cursor']) {
+      fs.mkdirSync(path.join(home, marker), { recursive: true });
+    }
+    await setupMachine({ homedir: home, env, runClaude });
+
+    const containers = new Map<string, string[]>();
+    const walk = (dir: string) => {
+      if (!fs.existsSync(dir)) return;
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name === 'SKILL.md') {
+          // The container root is the folder holding the skill directory.
+          const container = path.dirname(path.dirname(full));
+          containers.set(container, [...(containers.get(container) ?? []), entry.name]);
+        }
+      }
+    };
+    walk(home);
+
+    expect([...containers.keys()]).toEqual([path.join(home, '.agents', 'skills')]);
+  });
+
   it('does not claim nothing was found when it wrote the shared skills', async () => {
     fs.mkdirSync(path.join(home, '.agents', 'skills'), { recursive: true });
     const result = await setupMachine({ homedir: home, env, runClaude });
@@ -123,7 +158,7 @@ describe('machine setup', () => {
       ['plugin', 'marketplace', 'add', dir],
       ['plugin', 'install', `${NS}@${NS}-local`],
     ]);
-    expect(getGlobalConfig().machineSetup).toMatchObject({ claudePlugin: true, sharedSkills: false });
+    expect(getGlobalConfig().machineSetup).toMatchObject({ claudePlugin: true, sharedSkills: true });
   });
 
   it('keeps the plugin files and prints the manual commands when registration fails', async () => {
