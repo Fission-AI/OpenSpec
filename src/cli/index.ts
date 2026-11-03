@@ -706,8 +706,19 @@ program
       const { SetupCommand } = await import('../commands/setup.js');
       await new SetupCommand().execute(options);
     } catch (error) {
-      await failWithError(error);
-      process.exit(1);
+      // `--json` follows the agent contract: exactly one JSON document on
+      // stdout, even on failure, in the shape the mode would have returned.
+      // failWithError sets the exit code, and returning rather than calling
+      // process.exit() lets piped stdout drain - an exit can cut the document
+      // short where pipes are asynchronous (macOS, Windows) - and keeps
+      // commander's postAction telemetry flush, as `update` above does.
+      await failWithError(error, {
+        enabled: options?.json,
+        payload: options?.revert
+          ? { pluginRemoved: false, removed: [], restored: [], skipped: [] }
+          : { agents: [], workflows: [], moved: [] },
+        fallbackCode: 'setup_error',
+      });
     }
   });
 

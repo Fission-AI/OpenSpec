@@ -4,20 +4,24 @@ A shorter, easier-to-read set of OpenSpec skills, installed once for every codin
 
 ## Try it
 
-Before the beta is published, install the CLI from the branch:
-
 ```bash
-npm i -g github:Fission-AI/OpenSpec#claude/openspec-skills-overhaul-1e6c68
+npm i -g @fission-ai/openspec@beta
 openspec setup
 ```
 
-Once it is published: `npm i -g @fission-ai/openspec@beta && openspec setup`.
+Until the beta release goes out, that tag does not exist yet; install from the
+default branch instead, which carries the same skills once this has merged:
+
+```bash
+npm i -g github:Fission-AI/OpenSpec
+openspec setup
+```
 
 If you installed OpenSpec as a standalone binary, the npm install sits beside it and both report the same version. Run `which -a openspec` (`Get-Command -All openspec` in PowerShell) and make sure the npm one comes first, or call it by its full path.
 
 Run `openspec setup --dry-run` first to see what it would install and move. Start a new agent session afterwards.
 
-Or install only the skills with `npx skills add "Fission-AI/OpenSpec#claude/openspec-skills-overhaul-1e6c68" -g` (you still need the CLI). To update, run the same command again.
+Or install only the skills with `npx skills add Fission-AI/OpenSpec -g` (you still need the CLI). To update, run the same command again.
 
 That route installs the beta beside anything already on your machine, so if an earlier `npx skills add` put `openspec-propose` and the rest there, your agent now sees two OpenSpec skill sets. `openspec setup` moves the older ones into a backup for you; after `npx skills add`, remove them yourself:
 
