@@ -86,7 +86,7 @@ Install OpenSpec's skills once for every coding agent on this machine, so no pro
 openspec setup [--dry-run] [--revert] [--json]
 ```
 
-It installs an `openspec-beta` router skill and one short skill per workflow. The router's `SKILL.md` names the workflows and holds the rules they all share; each workflow's steps are in `openspec-beta/references/<workflow>.md`. The `openspec-beta` names never clash with the `openspec-*` skills earlier versions installed. Each workflow skill only points there, so workflows autocomplete while every rule lives in one place. Setup finds your agents from the folders they create in your home directory:
+It installs an `openspec-beta` router skill and one short skill per workflow in your profile. The router's `SKILL.md` names the workflows and holds the rules they all share; each workflow's steps are in `openspec-beta/references/<workflow>.md`. The `openspec-beta` names never clash with the `openspec-*` skills earlier versions installed. Each workflow skill only points there, so workflows autocomplete while every rule lives in one place. Setup finds your agents from the folders they create in your home directory:
 
 | Agent | What you get | Start a workflow |
 |-------|--------------|-----|
@@ -99,10 +99,13 @@ OpenSpec is set up on this machine.
   Claude Code   plugin "openspec-beta": /openspec-beta:propose
   Codex         ~/.agents/skills: $openspec-beta-propose
 
-Moved 18 older OpenSpec files to a backup:
-  .agents/skills (6)
+Moved 24 files out of the way, from:
+  ~/.agents/skills (6)
+  ~/.claude/skills (6)
   .claude/skills (6)
   .claude/commands/opsx (6)
+  into ~/.local/share/openspec/backups/2026-01-01T00-00-00-000Z
+  `openspec setup --revert` puts them back
 
 The "openspec-beta" skill explains OpenSpec and picks the right skill; 5 skills start one directly: explore, propose, update, apply, archive.
 
@@ -113,7 +116,7 @@ Setup moves what an earlier OpenSpec wrote into a dated backup in OpenSpec's dat
 
 The skills follow your profile (`openspec config profile`). Claude Code loads the plugin in place from `~/.local/share/openspec/claude-plugin`, so `openspec update` refreshes it, and `~/.agents/skills`, from any directory. If the `claude` command is not on your `PATH`, setup writes the plugin and prints the two commands that register it. Interactive `openspec init` offers this install instead of adding skill files to the project; `openspec init --tools <tool>` still installs into the project.
 
-Skills installed with `npx skills add` are not setup's to remove. Remove them by name:
+Setup never deletes skills `npx skills add` installed. It does move ones sitting on its own names into its backup, which `--revert` puts back. To remove npx copies yourself:
 
 ```bash
 npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive openspec-beta-bulk-archive openspec-beta-continue openspec-beta-explore openspec-beta-ff openspec-beta-new openspec-beta-onboard openspec-beta-propose openspec-beta-update openspec-beta-verify
