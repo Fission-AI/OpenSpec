@@ -196,6 +196,44 @@ describe('machine setup', () => {
     expect(read(project, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md')).toBe(OLD('openspec-apply-change'));
   });
 
+  // `claude plugin uninstall` leaves its own copy of the plugin under
+  // plugins/cache, marks it `.orphaned_at` and never prunes it. Revert tidies
+  // that folder, or a reverted machine keeps the skill files for good.
+  it('removes the plugin cache Claude Code orphaned, and nothing else', async () => {
+    const cache = path.join(home, '.claude', 'plugins', 'cache');
+    fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+    await setupMachine({ homedir: home, env, runClaude });
+
+    // What the real CLI leaves behind: our marketplace, orphaned; another
+    // plugin's cache; and a second copy of ours that is still in use.
+    const ours = path.join(cache, `${NS}-local`, NS, '1.0.0');
+    fs.mkdirSync(ours, { recursive: true });
+    fs.writeFileSync(path.join(ours, '.orphaned_at'), '1');
+    fs.writeFileSync(path.join(ours, 'SKILL.md'), 'cached');
+    const other = path.join(cache, 'someone-else-local', 'their-plugin', '2.0.0');
+    fs.mkdirSync(other, { recursive: true });
+    fs.writeFileSync(path.join(other, 'SKILL.md'), 'theirs');
+
+    await revertMachineSetup({ homedir: home, env, runClaude });
+
+    expect(fs.existsSync(path.join(cache, `${NS}-local`)), 'our orphaned cache').toBe(false);
+    expect(read(other, 'SKILL.md'), "another plugin's cache").toBe('theirs');
+  });
+
+  it('leaves a plugin cache Claude Code has not orphaned alone', async () => {
+    const cache = path.join(home, '.claude', 'plugins', 'cache');
+    fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+    await setupMachine({ homedir: home, env, runClaude });
+
+    const live = path.join(cache, `${NS}-local`, NS, '1.0.0');
+    fs.mkdirSync(live, { recursive: true });
+    fs.writeFileSync(path.join(live, 'SKILL.md'), 'still in use');
+
+    await revertMachineSetup({ homedir: home, env, runClaude });
+
+    expect(read(live, 'SKILL.md'), 'cache with no orphan marker').toBe('still in use');
+  });
+
   it('backs up a copy npx installed under the same names, so revert brings it back', async () => {
     fs.mkdirSync(path.join(home, '.codex'));
     const dir = path.join(home, '.agents', 'skills');

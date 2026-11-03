@@ -118,6 +118,34 @@ function sharedSkillsDir(home: string): string {
   return path.join(home, '.agents', 'skills');
 }
 
+/**
+ * `claude plugin uninstall` leaves its copy of the plugin in
+ * `plugins/cache/<marketplace>/`, marked with `.orphaned_at` and never pruned,
+ * so a revert otherwise leaves our skill files on disk for good. Remove only
+ * our own marketplace folder, and only once Claude Code has marked it orphaned:
+ * without that marker the cache is still in use and is not ours to delete.
+ */
+async function removeOrphanedPluginCache(configDir: string, pluginName: string): Promise<void> {
+  const marketplace = path.join(configDir, 'plugins', 'cache', `${pluginName}-local`);
+  if (!fs.existsSync(marketplace)) return;
+  // A folder counts as orphaned when it carries the marker, or when it holds
+  // at least one subfolder and every one of those is orphaned. A leaf without
+  // the marker is a live cache, so an empty `every()` must not vouch for it.
+  const orphaned = (dir: string): boolean => {
+    if (fs.existsSync(path.join(dir, '.orphaned_at'))) return true;
+    const children = fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => path.join(dir, entry.name));
+    return children.length > 0 && children.every(orphaned);
+  };
+  try {
+    if (orphaned(marketplace)) await fs.promises.rm(marketplace, { recursive: true, force: true });
+  } catch {
+    // Claude Code's cache is its own; failing to tidy it never fails a revert.
+  }
+}
+
 export function getClaudePluginDir(env: NodeJS.ProcessEnv = process.env, home = resolveHome(env)): string {
   return path.join(getGlobalDataDir({ env, homedir: home }), 'claude-plugin');
 }
@@ -522,6 +550,7 @@ export async function revertMachineSetup(
       }
     }
     await fs.promises.rm(pluginDir, { recursive: true, force: true });
+    await removeOrphanedPluginCache(claudeConfigDir(home, env), record.pluginName ?? PLUGIN_NAME);
     result.pluginRemoved = result.error === undefined;
   }
 

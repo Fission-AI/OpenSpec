@@ -102,6 +102,11 @@ describe.skipIf(!enabled)('openspec setup with the real Claude Code CLI', () => 
     expect(installed()).toEqual([]);
     expect(fs.existsSync(path.join(root, 'data dir', 'openspec', 'claude-plugin'))).toBe(false);
     expect(fs.existsSync(path.join(env.HOME!, '.agents', 'skills', NS))).toBe(false);
+    // `claude plugin uninstall` keeps its own copy of the plugin under
+    // plugins/cache, marks it `.orphaned_at` and never prunes it, so without
+    // the revert tidying that folder a reverted machine kept 23 skill files.
+    // Only a real CLI writes this cache, which is why it is checked here.
+    expect(fs.existsSync(path.join(env.CLAUDE_CONFIG_DIR!, 'plugins', 'cache', `${NS}-local`))).toBe(false);
     for (const [agent, seen] of Object.entries(agentSees())) {
       if (seen !== null) expect(seen, `${agent} still lists ${NS}-propose`).toBe(0);
     }
