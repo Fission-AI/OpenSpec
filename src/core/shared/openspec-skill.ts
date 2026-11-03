@@ -98,6 +98,11 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
   ['or what counts as done.', 'or what counts as done (`references/decisions.md` lists what to raise).'],
   ['If no capability is related, say so in one line and continue.', 'If no capability is related, say so in one line and continue. Before naming a new capability, read `references/capabilities.md`.'],
   ['it needs a MODIFIED delta too.', 'it needs a MODIFIED delta too; read `references/deltas.md` and `references/specs.md` before writing one.'],
+  // The CLI's tasks guidance ends every change with a spec-sync task, and
+  // apply is the workflow that runs it, so name the steps there. Only the
+  // router ships `sync.md`, so the pointer is injected rather than written
+  // into the template, which also deploys standalone.
+  ['Do it with the sync steps rather than', 'Follow `references/sync.md` rather than'],
   // Say where the plan guessed, so a reviewer checks those first (#1908).
   [
     'list each artifact written and any you skipped with the reason, then say:',

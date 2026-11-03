@@ -22,6 +22,7 @@ Implement the tasks of an OpenSpec change, one checkbox at a time.
 3. **Read every file in `contextFiles`.** Use contextFiles from CLI output, don't assume specific file names. Show the schema, "N/M tasks complete", and what remains.
 
 4. **Work through the tasks.** For each pending task: say which one, make the smallest change that fully does it, then mark it `- [ ]` → `- [x]` at its `sourcePath` and `line` (confirm that line still matches the task first; if not, rerun the apply instructions). Rerun the apply instructions to confirm progress moved. If building needed a decision the plan did not make, or a departure from it, update the design (and the specs, if behavior changed) to match, and say what you changed.
+   - **A task that says to sync this change's delta specs into the main specs is the merge**, which the default schema asks for as its last task group. Follow `references/sync.md` rather than editing a main spec ad hoc, then check `openspec validate --specs`. Archive afterwards reports no spec update and zero totals, because the specs are already current: say that, rather than that nothing was updated.
 
    **Pause and ask when:**
    - a task is unclear;
