@@ -25,7 +25,7 @@ Or install only the skills with `npx skills add Fission-AI/OpenSpec -g` (you sti
 That route installs the beta beside anything already on your machine, so if an earlier `npx skills add` put `openspec-propose` and the rest there, your agent now sees two OpenSpec skill sets. `openspec setup` moves aside only skills OpenSpec itself wrote, through `init`, `update` or `setup`; a copy `npx skills add` left under the older names is not one of those, so remove it yourself:
 
 ```bash
-npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard
+npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard draft-openspec-docs release-openspec verify-openspec-docs write-openspec-docs
 ```
 
 ## What you get
@@ -54,7 +54,7 @@ openspec-beta-propose/SKILL.md   "read ../openspec-beta/SKILL.md, then follow re
 
 The agent reads `SKILL.md` first, then the steps for its skill. It reads a guide only when a step reaches that kind of decision: sizing or splitting a change, naming a capability, raising a costly choice, writing a requirement, or changing an existing spec without losing a requirement.
 
-What to say:
+What to say (in Claude Code the skills are namespaced by the plugin, so it is `/openspec-beta:explore` and so on):
 
 | You want | Say |
 |---|---|

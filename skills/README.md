@@ -32,7 +32,7 @@ left on your machine stay until you remove them, and until you do, your agent
 sees two OpenSpec skill sets at once. Remove them by name:
 
 ```bash
-npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard
+npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard draft-openspec-docs release-openspec verify-openspec-docs write-openspec-docs
 ```
 
 `openspec setup` moves aside only the skills OpenSpec wrote itself, through
