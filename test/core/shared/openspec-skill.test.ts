@@ -131,7 +131,9 @@ describe('the openspec skill', () => {
       expect(size(file), file.relativePath).toBeLessThanOrEqual(12_000);
     }
     const core = render(CORE_WORKFLOWS).reduce((total, file) => total + size(file), 0);
-    expect(core, 'default install').toBeLessThanOrEqual(56_000);
+    // 57K, not 56K: the scenario and compatibility rules moved here from the
+    // default schema, which every user reads, so the agent reads no more than before.
+    expect(core, 'default install').toBeLessThanOrEqual(57_000);
   });
 
   // A host picks the skill by its description alone, so it must say what the

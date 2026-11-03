@@ -41,13 +41,15 @@ ${BEFORE_YOU_START}
 
    Ask (open-ended, no preset options): "What change do you want to work on? Describe what you want to build or fix." Derive a kebab-case name ("add user authentication" → \`add-user-auth\`). Do NOT proceed without understanding what the user wants to build.
 
+   State the scope in two or three lines (in, out, and the capabilities it touches), and keep the plan to it. Fast-forward decides the small things itself, but not what is costly to undo: ask before creating the change about anything that would change the scope, observable behavior, compatibility, or what counts as done. For smaller details, assume, and write the assumption into the plan.
+
 ${readExistingSpecsStep(2)}
 
 3. **Create the change directory**
    \`\`\`bash
    openspec new change "<name>"
    \`\`\`
-   If a change with that name already exists, suggest continuing that change instead.
+   If the name is taken, ask whether to continue that change or start a new one.
 
 ${artifactLoopSteps(4, '✓ Created ', 'critically unclear context')} Otherwise prefer making reasonable decisions to keep momentum.
 
@@ -60,7 +62,7 @@ ${artifactLoopSteps(4, '✓ Created ', 'critically unclear context')} Otherwise 
 
 **Output**
 
-Summarize the change name and location, each artifact created (plus any conditional artifact you skipped and why), then: "All artifacts needed for implementation are ready. ${applyHandoff}"
+Name the change and its folder (\`changeRoot\`), list each artifact written and any you skipped with the reason, then say: "All artifacts needed for implementation are ready. ${applyHandoff}"
 
 **Guardrails**
 - Create every artifact the apply phase transitively depends on, not just the ids listed in \`apply.requires\``;

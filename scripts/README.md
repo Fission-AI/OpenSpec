@@ -67,6 +67,19 @@ against fabricated input — see `test/core/templates/parity-hash-shared.test.ts
 A test that ran this script for real would rewrite the repository's own parity
 test file mid-suite.
 
+## regen-beta-parity-hashes.mjs
+
+The same, for the `openspec-beta` skills: recomputes the hashes pinned in
+`test/core/templates/beta/skill-templates-parity.test.ts` from the beta
+templates (`src/core/templates/beta/`), hashing each skill's `references/`
+files with its SKILL.md. Run it after changing a beta template; the frozen
+per-project hashes above must not move when you do.
+
+```bash
+pnpm build && pnpm regen:beta-parity-hashes
+pnpm vitest run test/core/templates/beta/skill-templates-parity.test.ts
+```
+
 ## pack-version-check.mjs
 
 Validates package version consistency before publishing.

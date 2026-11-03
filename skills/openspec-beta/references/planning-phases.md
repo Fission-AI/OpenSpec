@@ -218,8 +218,8 @@ Here are the implementation tasks:
 
 ## 1. [Category or file]
 
-- [ ] 1.1 [Specific task] — verify: [test, command, observable behavior, or delivered artifact]
-- [ ] 1.2 [Specific task] — verify: [test, command, observable behavior, or delivered artifact]
+- [ ] 1.1 [Specific task] ([<ID>]) — verify: [test, command, observable behavior, or delivered artifact]
+- [ ] 1.2 [Specific task] ([<ID>]) — verify: [test, command, observable behavior, or delivered artifact]
 
 ## 2. Integration Verification
 
@@ -227,7 +227,7 @@ Here are the implementation tasks:
 
 ---
 
-Each checkbox becomes a unit of work in the apply phase. Does this task breakdown look right?
+Each checkbox becomes a unit of work in the apply phase, and the ID in brackets is the requirement it implements. Does this task breakdown look right?
 ```
 
 **PAUSE** - Wait for user approval/feedback.

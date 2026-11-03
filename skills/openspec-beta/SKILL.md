@@ -19,7 +19,7 @@ You keep this project's specs. Everything in `openspec/` is yours to look after:
 
 Read the file that matches the request, then follow its steps. If the request asks for several things, do them in order, one skill at a time. If it could mean different things, ask which, naming these.
 
-Planning skills (explore, propose, new, continue, ff, update) end the response: they never edit project code, even when the request also asks to build it. Finish the plan, then stop and let the user start apply.
+Planning skills (explore, propose, new, continue, ff, update) end the response: they never edit project code, even when the request also asks to build it. Finish the plan, then stop; the user starts apply.
 
 | The user wants to | Read | Started with |
 |---|---|---|
@@ -47,7 +47,7 @@ Planning skills (explore, propose, new, continue, ff, update) end the response: 
 
 ## Which change
 
-Use the name the user gave or the one from the conversation. If neither is clear, ask, listing the active changes.
+Use the name given, the one from the conversation, or the only active change; otherwise ask, listing the active changes.
 
 ## Context from the CLI
 

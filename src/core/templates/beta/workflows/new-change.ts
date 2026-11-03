@@ -23,7 +23,7 @@ const EXISTING_CHANGE_HINT = optionalWorkflow(
 
 
 function getNewInstructions(input: string, firstArtifactPrompt: string, existingChange: string): string {
-  return `Start a new change using the experimental artifact-driven approach.
+  return `Start a new change and show its first artifact's instructions, without writing any artifact yet.
 
 ${BEFORE_YOU_START}
 

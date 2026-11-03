@@ -12,6 +12,7 @@ Decide the small things yourself and say what you chose. Raise a decision when a
 **How to raise one:**
 - If the request already answers it, follow the request. If the user is there to answer, ask before writing the artifact it would change.
 - Give two or three options in a line each, with your recommendation and its trade-off. Put related questions in one message.
+- Prefer the option that keeps existing behavior, data shapes, and tests working. When something must break, mark it **BREAKING** in the proposal and say why it is needed.
 - When you must go on without an answer, pick the option that keeps today's behavior, and mark it as an assumption where a reviewer will see it.
 - Record the answer where it belongs: the choice and its reason in the design (or the proposal when there is no design), the behavior it leads to in the specs.
 - In the design, each decision is a `### D1`, `### D2`, ... heading with at most two sentences: the choice, and why. Edge cases, error messages and test notes go in the specs and tasks, not the decision. Keep a decision's ID when you reword or reorder it, never reuse a removed one, and list an alternative only if someone raised it. Tasks and risks cite it as `[D1](./design.md#d1)`.

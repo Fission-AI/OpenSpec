@@ -10,6 +10,8 @@ A requirement is one promise someone relies on, named after that promise, in a s
 
 **Where new behavior goes.** Ask whether it is a new promise or a change to an existing one: ADDED for a new promise, MODIFIED for a changed one. Appending a clause to a requirement that promises something else is neither, and it is how requirements grow.
 
+**Scenarios cover the failures too.** Start with the main success path, then add a scenario for each way the behavior can fail or surprise a reader: invalid input, a missing item, a refused action, a boundary value. A tester should be able to write one test per scenario, so use concrete values (a specific date, an exact message), not "a valid value". Describe how the requested behavior fails; do not add validation, errors, or limits the request did not ask for.
+
 **Never leave one more crowded than you found it.** A MODIFIED block carries the whole requirement, so a new clause is easy to add and the rest comes along. If the new behavior is a separate promise, give it its own requirement instead of widening this one. Splitting a requirement you are already editing is welcome; reshaping ones you are not touching is not.
 
 **Not in a requirement:** file or symbol names, framework settings, component responsibilities, test procedures, or code-structure rules. Those belong in the design, the tasks, or the project's config.

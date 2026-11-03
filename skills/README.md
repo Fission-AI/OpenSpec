@@ -3,7 +3,7 @@
 Install the OpenSpec skills into any [skills.sh](https://skills.sh)-compatible agent:
 
 ```bash
-npx skills add Fission-AI/OpenSpec
+npx skills add Fission-AI/OpenSpec -g
 ```
 
 `openspec-beta/` is the router skill: its `SKILL.md` says what OpenSpec is, the

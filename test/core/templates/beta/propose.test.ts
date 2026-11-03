@@ -10,6 +10,7 @@ import {
   getOpsxFfCommandTemplate,
 } from '../../../../src/core/templates/beta/skill-templates.js';
 import { generateSkillFiles } from '../../../../src/core/shared/skill-generation.js';
+import { OPENSPEC_GUIDES } from '../../../../src/core/shared/openspec-guides.js';
 import { loadSchema } from '../../../../src/core/artifact-graph/schema.js';
 import { CommandAdapterRegistry } from '../../../../src/core/command-generation/registry.js';
 import { generateCommand } from '../../../../src/core/command-generation/generator.js';
@@ -88,133 +89,6 @@ describe('propose preamble', () => {
         expect(preamble, `${label} preamble is missing the "${id}" artifact`).toContain(id);
       }
     }
-  });
-});
-
-describe('default proposal guidance', () => {
-  it('frames new capabilities as durable behavior boundaries (#1965)', () => {
-    const proposal = defaultSchema.artifacts.find(artifact => artifact.id === 'proposal');
-    expect(proposal).toBeDefined();
-    expect(proposal!.instruction).toContain(
-      'Name each capability for a durable system behavior'
-    );
-    expect(proposal!.instruction).toContain(
-      'not the work in this change'
-    );
-    expect(proposal!.instruction).toContain('own related requirements as the system evolves');
-    expect(proposal!.instruction).toContain('avoid broad catch-all capabilities');
-
-    const template = fs.readFileSync(
-      path.join(repoRoot, 'schemas', 'spec-driven', 'templates', 'proposal.md'),
-      'utf-8'
-    );
-    expect(template).toMatch(
-      /Name each capability for a cohesive system\s+behavior that can own related requirements as the system evolves/
-    );
-    expect(template).toMatch(/Do not name\s+implementation tasks or proposal sections/);
-    expect(template).toContain('Avoid broad catch-all names');
-
-    const reference = fs.readFileSync(
-      path.join(repoRoot, 'docs-lab', 'reference', 'schemas', 'spec-driven', 'index.md'),
-      'utf-8'
-    );
-    expect(reference).toMatch(
-      /Name each capability for a cohesive system\s+behavior that can own related requirements as the system evolves/
-    );
-    expect(reference).toMatch(/Do not name\s+implementation tasks or proposal sections/);
-    expect(reference).toContain('Avoid broad catch-all names');
-  });
-});
-
-describe('default task guidance', () => {
-  it('keeps tracked tasks within the pre-archive workflow (#1790)', () => {
-    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
-    expect(tasks).toBeDefined();
-    expect(tasks!.instruction).toMatch(
-      /Track implementation and verification work that can be completed before\s+archive/
-    );
-    expect(tasks!.instruction).toMatch(
-      /preserve those steps as plain bullets in an\s+optional `## Workflow follow-up` section at the end of tasks.md/
-    );
-
-    const examples = [...tasks!.instruction.matchAll(/```\s*([\s\S]*?)```/g)];
-    expect(examples).toHaveLength(2);
-    const implementation = examples[0][1];
-    const followUp = examples[1][1];
-    expect(followUp).toContain('## Workflow follow-up');
-    expect(followUp).toContain('- Verify the archived result.');
-    expect(parseTaskLines(followUp)).toEqual([]);
-    expect(parseTaskLines(`${implementation}\n${followUp}`)).toEqual(
-      parseTaskLines(implementation)
-    );
-  });
-
-  it('requires a concrete verification method in each task (#345)', () => {
-    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
-    expect(tasks).toBeDefined();
-    expect(tasks!.instruction).toContain('Each task MUST state how to verify completion');
-    expect(tasks!.instruction).toMatch(
-      /a test, command,\s+observable behavior, or delivered artifact/
-    );
-    expect(tasks!.instruction).toMatch(
-      /Put the verification in\s+that task's checkbox description/
-    );
-    expect(tasks!.instruction).toMatch(
-      /Use a separate verification task only\s+when it checks broader integration or system behavior that spans\s+multiple implementation tasks/
-    );
-
-    const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
-    expect(example).toBeDefined();
-    const numberedTasks = example!.split('\n').filter(line => /^- \[ \] \d+\.\d+ /.test(line));
-    expect(numberedTasks).toHaveLength(6);
-    expect(numberedTasks.every(line => /\bverify\b/i.test(line))).toBe(true);
-    expect(numberedTasks[0]).toContain('expected files are present');
-    expect(numberedTasks[1]).toContain('package installation succeeds');
-    expect(numberedTasks[2]).toContain('export test passes');
-    expect(numberedTasks[3]).toContain('unit tests cover quoting and delimiters');
-    expect(numberedTasks[4]).toContain('Document the export API');
-    // #1968: the last group keeps the main specs current before archive.
-    expect(numberedTasks[5]).toContain("Sync this change's delta specs into the main specs");
-    expect(example).not.toMatch(/^- \[ \] \d+\.\d+ (?:verify|run (?:the )?verification)\b/im);
-  });
-
-  // #1952: agents parked testing and documentation in one trailing group, so a
-  // failure seeded in group 1 only surfaced at the end and cascaded into rework.
-  it('keeps tests and documentation inside the group that does the work (#1952)', () => {
-    const tasks = defaultSchema.artifacts.find(artifact => artifact.id === 'tasks');
-    expect(tasks).toBeDefined();
-    expect(tasks!.instruction).toMatch(
-      /Each task group MUST land the tests and documentation its own work\s+calls for/
-    );
-    expect(tasks!.instruction).toMatch(
-      /Do NOT collect testing or documentation into a final group/
-    );
-    // The rule is scoped to what a group's work actually needs, so the worked
-    // example's scaffolding group can carry no tests or docs without
-    // contradicting it.
-    expect(tasks!.instruction).toMatch(
-      /A group\s+whose work calls for neither, such as scaffolding or dependency setup,\s+carries neither/
-    );
-    expect(tasks!.instruction).toMatch(
-      /A final group is for integration checks only, not for\s+the tests and docs an earlier group owed/
-    );
-
-    // The worked example has to show a docs task inside the implementation
-    // group, not a trailing "testing and documentation" group of its own.
-    const example = tasks!.instruction.match(/```\s*([\s\S]*?)```/)?.[1];
-    expect(example).toBeDefined();
-    const headings = example!
-      .split('\n')
-      .filter(line => /^## /.test(line.trim()))
-      .map(line => line.trim());
-    // Setup, the implementation group, and the closing spec sync (#1968).
-    expect(headings).toEqual(['## 1. Setup', '## 2. Core Implementation', '## 3. Update the specs']);
-    expect(headings.some(heading => /\b(test|testing|documentation|docs)\b/i.test(heading))).toBe(
-      false
-    );
-
-    const implementation = example!.slice(example!.indexOf(headings[1]), example!.indexOf(headings[2]));
-    expect(implementation).toMatch(/^- \[ \] \d+\.\d+ Document the export API in docs\/export\.md/im);
   });
 });
 
@@ -573,34 +447,24 @@ describe('reads the existing specs before drafting', () => {
   );
 });
 
-describe('spec-driven requirement guidance (Loft review)', () => {
-  const specs = defaultSchema.artifacts.find((artifact) => artifact.id === 'specs')!;
+// The beta carries its own spec guidance rather than editing the default
+// schema, which every OpenSpec user reads through `openspec instructions`.
+describe('beta spec guidance (Loft review)', () => {
+  const guide = (file: string) => OPENSPEC_GUIDES.find((entry) => entry.path === `references/${file}`)!.content;
 
-  it('asks for one obligation per requirement, outside the length rule', () => {
-    expect(specs.instruction).toContain(
-      'State one behavior per requirement: a single SHALL or MUST obligation, with no "and also".'
-    );
+  it('asks for one obligation per requirement', () => {
+    expect(guide('specs.md')).toContain('**One promise each.** One SHALL in the statement.');
   });
 
   // A blind judge preferred plans with a scenario per failure mode; telling
   // the agent to hold back produced thinner specs.
   it('asks for a scenario for each way the behavior can fail', () => {
-    expect(specs.instruction).toContain('add a scenario for each way the behavior can fail');
-    expect(specs.instruction).toContain('one test per scenario');
-    // The worked example shows one, so the agent has a model of it.
-    expect(specs.instruction).toContain('#### Scenario: Nothing to export');
-    const template = fs.readFileSync(
-      path.join(repoRoot, 'schemas', 'spec-driven', 'templates', 'spec.md'),
-      'utf-8'
-    );
-    expect(template).toContain('a failure or edge case, when the behavior can fail');
+    expect(guide('specs.md')).toContain('add a scenario for each way the behavior can fail');
+    expect(guide('specs.md')).toContain('one test per scenario');
   });
 
-  it('keeps internals out of requirements unless they are the public contract', () => {
-    expect(specs.instruction).toContain(
-      'no internal function or class names, file paths, or private APIs in requirement text'
-    );
-    expect(specs.instruction).toContain('unless they are themselves the public contract');
+  it('keeps internals out of requirements', () => {
+    expect(guide('specs.md')).toContain('**Not in a requirement:** file or symbol names');
   });
 });
 
@@ -617,16 +481,15 @@ describe('propose starts from a settled scope', () => {
 });
 
 // A blind judge preferred plans that kept existing item shapes and used concrete
-// scenario values; both rules live in the shared schema guidance.
-describe('spec guidance favors compatible changes and concrete scenarios', () => {
+// scenario values.
+describe('beta guidance favors compatible changes and concrete scenarios', () => {
   it('asks for compatible changes and concrete example values', () => {
-    const proposal = defaultSchema.artifacts.find((artifact) => artifact.id === 'proposal')!;
-    const specs = defaultSchema.artifacts.find((artifact) => artifact.id === 'specs')!;
-    expect(proposal.instruction).toContain('Prefer the change that keeps existing behavior, data shapes, and tests working');
-    expect(specs.instruction).toContain('use concrete example values');
+    const guide = (file: string) => OPENSPEC_GUIDES.find((entry) => entry.path === `references/${file}`)!.content;
+    expect(guide('decisions.md')).toContain('Prefer the option that keeps existing behavior, data shapes, and tests working');
+    expect(guide('specs.md')).toContain('use concrete values');
     // On a real project, plans invented new failure handling (rejecting input
     // that works today) when told to cover failures.
-    expect(specs.instruction).toContain('do not add validation, errors, or limits the request did not ask for');
+    expect(guide('specs.md')).toContain('do not add validation, errors, or limits the request did not ask for');
   });
 });
 

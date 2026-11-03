@@ -66,8 +66,8 @@ const ARCHIVE_HANDOFF = optionalWorkflow(
 
 const INTENT_CHANGE_GUARDRAIL = optionalWorkflow(
   'new',
-  'recommend starting fresh with `/opsx:new` (the "Update vs. Start Fresh" heuristic)',
-  'ask for a distinct unused change name and recommend `openspec new change "<new-change-name>"` instead (the "Update vs. Start Fresh" heuristic)'
+  'recommend starting fresh with `/opsx:new`: a different outcome is a new change, not a revision of this one',
+  'ask for a distinct unused change name and recommend `openspec new change "<new-change-name>"` instead: a different outcome is a new change, not a revision of this one'
 );
 
 

@@ -398,7 +398,7 @@ describe('update-change templates', () => {
       expect(body, label).toContain('Write only after the user confirms');
       expect(body, label).toContain('If the user rejects a revision, do not write it');
       expect(body, label).toContain('recommend starting fresh with `/opsx:new`');
-      expect(body, label).toContain('Update vs. Start Fresh');
+      expect(body, label).toContain('a different outcome is a new change, not a revision of this one');
       expect(body, label).not.toContain('first verify whether the optional');
     }
   });
@@ -409,7 +409,7 @@ describe('update-change templates', () => {
       expect(body, label).toContain('ask for a distinct unused change name');
       expect(body, label).toContain('openspec new change "<new-change-name>"');
       expect(body, label).not.toContain('openspec new change "<name>"');
-      expect(body, label).toContain('Update vs. Start Fresh');
+      expect(body, label).toContain('a different outcome is a new change, not a revision of this one');
     }
   });
 });

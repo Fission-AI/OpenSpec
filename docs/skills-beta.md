@@ -83,7 +83,7 @@ npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive 
 
 - Plans are as good as today's or slightly better, at about the same token cost.
 - Claude Code, Codex, and Gemini CLI are tested with their real CLIs on macOS, Linux, and Windows. Every other agent reads the same standard folder, so there is nothing agent-specific to test, but whether a given one honours the convention is its own to say.
-- `openspec init --tools <tool>` still installs per-project skills under today's names, with the same text as the previous release: `init` and `update` write byte for byte what `main` writes. The shorter steps, the router and its guides are the machine install only.
+- `openspec init` and `openspec update` never install the beta. They write today's per-project skills, byte for byte what the previous release writes; the beta comes only from `openspec setup` or `npx skills add`.
 
 ## Feedback
 

@@ -54,8 +54,7 @@ import {
   getToolStates,
   getSkillTemplates,
   getCommandContents,
-  generateSkillFiles,
-  writeSkillFiles,
+  generateSkillContent,
   hasGlobalSkillTarget,
   resolveToolSkillsDir,
   toolSupportsSkills,
@@ -64,8 +63,6 @@ import {
 } from './shared/index.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
-import { PLUGIN_NAME, detectMachineAgents, formatMachineSetup, isMachineSetUp, setupMachine } from './machine-setup.js';
-import { workflowSkillName } from './shared/openspec-skill.js';
 import { getAvailableTools } from './available-tools.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import {
@@ -179,8 +176,6 @@ export class InitCommand {
   private readonly interactiveOption?: boolean;
   private readonly profileOverride?: string;
   private readonly animation: boolean;
-  /** Skills come from `openspec setup` instead of this project. */
-  private usesMachineInstall = false;
   private readonly copilotCloudOption?: boolean;
 
   constructor(options: InitCommandOptions = {}) {
@@ -638,45 +633,6 @@ export class InitCommand {
   // TOOL SELECTION
   // ═══════════════════════════════════════════════════════════
 
-  /**
-   * Offers `openspec setup` when agents are installed on this machine.
-   * Returns true when the machine install replaces project skill files.
-   */
-  private async offerMachineSetup(projectPath: string): Promise<boolean> {
-    const agents = detectMachineAgents();
-    if (agents.length === 0) return false;
-    const names = agents.map((agent) => agent.name).join(', ');
-    const alreadySetUp = isMachineSetUp();
-    // Setup moves whatever sits where it installs, this project's `/opsx`
-    // command files among them. Say so before asking, and count them from a
-    // dry run rather than describing it in the abstract: a yes here should
-    // never be the moment a user discovers their files moved.
-    const moving = alreadySetUp
-      ? []
-      : (await setupMachine({ dryRun: true, migrate: true, projectPath })).moved.filter(({ from }) =>
-          from.startsWith(projectPath)
-        );
-    const movesNote =
-      moving.length > 0
-        ? ` ${moving.length} file${moving.length === 1 ? '' : 's'} in this project would move into a backup that \`openspec setup --revert\` restores.`
-        : '';
-    const { confirm } = await import('@inquirer/prompts');
-    const useMachine = await confirm({
-      message: alreadySetUp
-        ? `OpenSpec is already installed on this machine for ${names}. Use that instead of adding skill files to this project?`
-        : `Install OpenSpec once on this machine for ${names}, instead of adding skill files to this project?${movesNote} (recommended)`,
-      default: moving.length === 0,
-    });
-    if (!useMachine) return false;
-    this.usesMachineInstall = true;
-    if (!alreadySetUp) {
-      console.log();
-      console.log(formatMachineSetup(await setupMachine({ migrate: true, projectPath })));
-      console.log();
-    }
-    return true;
-  }
-
   private async getSelectedTools(
     toolStates: Map<string, ToolSkillStatus>,
     extendMode: boolean,
@@ -714,12 +670,6 @@ export class InitCommand {
       throw new Error(
         `No tools available for skill generation.`
       );
-    }
-
-    // A first-time project can use one install for the whole machine instead
-    // of skill files of its own.
-    if (configuredToolIds.size === 0 && (await this.offerMachineSetup(projectPath))) {
-      return [];
     }
 
     // Interactive mode: show searchable multi-select
@@ -1042,19 +992,20 @@ export class InitCommand {
           // Create skill directories and SKILL.md files
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(tool.skillsPath, dirName);
+            const skillFile = path.join(skillDir, 'SKILL.md');
 
-            // Generate SKILL.md (frontmatter includes generatedBy) and its references
+            // Generate SKILL.md content with YAML frontmatter including generatedBy
             const transformer = getTransformerForTool(
               tool.value,
               delivery,
               resolveCommandSurfaceCapability(tool.value),
               resolveCommandInvocation(tool.value)
             );
-            await writeSkillFiles(
-              tool.skillsRoot,
-              skillDir,
-              generateSkillFiles(template, OPENSPEC_VERSION, transformer)
-            );
+            const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+
+            // Write the skill file
+            FileSystemUtils.assertPathWithin(tool.skillsRoot, skillFile);
+            await FileSystemUtils.writeFile(skillFile, skillContent);
           }
           writeSharedSkillTarget(projectPath, tool.value);
         }
@@ -1446,20 +1397,6 @@ export class InitCommand {
           continue;
         }
         hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
-      }
-      if (hintToTools.size === 0 && this.usesMachineInstall) {
-        // Machine-installed workflow skills are named for the workflow id:
-        // `/openspec-beta:propose` in the Claude Code plugin, `/openspec-beta-propose` elsewhere.
-        const id = command.replace(/^\/opsx:/, '');
-        const agents = detectMachineAgents();
-        const lines: string[] = [];
-        if (agents.some((agent) => agent.route === 'claude-plugin')) {
-          lines.push(`/${PLUGIN_NAME}:${id} "your idea" (Claude Code)`);
-        }
-        if (agents.some((agent) => agent.route === 'shared-skills')) {
-          lines.push(`/${workflowSkillName(id)} "your idea" (other agents)`);
-        }
-        return lines.map((line) => `Start your first change: ${line}`);
       }
       if (hintToTools.size === 0) {
         // No successful tools: keep the generic command hint
