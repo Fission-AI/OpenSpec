@@ -1,55 +1,28 @@
 # OpenSpec skills for skills.sh
 
-Install the OpenSpec skills into any [skills.sh](https://skills.sh)-compatible agent:
+Install the OpenSpec beta skills into any [skills.sh](https://skills.sh)-compatible agent:
 
 ```bash
-npx skills add Fission-AI/OpenSpec -g
+npx skills add Fission-AI/OpenSpec -g -y
 ```
 
-`openspec-beta/` is the router skill: its `SKILL.md` says what OpenSpec is, the
-principles every skill follows, and which file to read. Each skill's steps and
-a few short guides live in `openspec-beta/references/`. Each
-`openspec-beta-<skill>/` is a short pointer into it, so skills autocomplete
-(`/openspec-beta-propose`). Install them together.
+They drive the `openspec` CLI (`npm i -g @fission-ai/openspec`); without it, they ask you to install it. To update, run the same command again.
 
-The skills drive the `openspec` CLI. To install the CLI and the skills for
-every agent on your machine at once:
+`openspec-beta/` is the router skill: its `SKILL.md` says what OpenSpec is, the principles every skill follows, and which file to read. Each skill's steps and a few short guides live in `openspec-beta/references/`. Each `openspec-beta-<skill>/` is a short pointer into it, so skills autocomplete (`/openspec-beta-propose`). Install them together.
+
+To go back, or ask your agent to "remove OpenSpec beta" (the command is in `openspec-beta/references/install.md`):
 
 ```bash
-npm i -g github:Fission-AI/OpenSpec && openspec setup
+npx skills remove -g -y openspec-beta openspec-beta-explore openspec-beta-propose openspec-beta-new openspec-beta-continue openspec-beta-ff openspec-beta-update openspec-beta-apply openspec-beta-verify openspec-beta-archive openspec-beta-bulk-archive openspec-beta-onboard
 ```
 
-(`openspec setup` ships with this work, so install the default branch for now:
-the `@beta` tag still points at `1.6.0-beta.1`, which does not have it.)
+A wildcard removes only the router, so every name is listed. Nothing else is touched: your `openspec/` folder, the CLI, and any per-project OpenSpec skills stay.
 
-To update, run the same `npx skills add` again. The skills drive the `openspec`
-CLI; without it, they ask you to install it.
-
-**Upgrading from the earlier skills?** This folder used to hold
-`openspec-propose`, `openspec-apply-change` and the rest. Those names are gone
-from it, so `npx skills add` no longer touches them: the copies an earlier run
-left on your machine stay until you remove them, and until you do, your agent
-sees two OpenSpec skill sets at once. Remove them by name:
+**Upgrading from the earlier skills?** This folder used to hold `openspec-propose`, `openspec-apply-change` and the rest. `npx skills add` no longer touches them, so the copies an earlier run left on your machine stay until you remove them:
 
 ```bash
 npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard draft-openspec-docs release-openspec verify-openspec-docs write-openspec-docs
 ```
-
-`openspec setup` moves aside only the skills OpenSpec wrote itself, through
-`init`, `update` or `setup`; a copy left by `npx skills add` under the older
-names is not one of those, so setup leaves it in place and prints the
-command above for the ones it finds.
-
-To go back:
-
-- Installed with `openspec setup`: run `openspec setup --revert`. It removes these
-  skills and restores what setup moved aside.
-- Installed with `npx skills add`: remove them by name (a wildcard removes only
-  the router):
-
-  ```bash
-  npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive openspec-beta-bulk-archive openspec-beta-continue openspec-beta-explore openspec-beta-ff openspec-beta-new openspec-beta-onboard openspec-beta-propose openspec-beta-update openspec-beta-verify
-  ```
 
 > These files are generated from the skill templates — do not edit by hand. Run
 > `pnpm build && pnpm generate:skills` after changing a template;

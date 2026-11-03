@@ -23,7 +23,7 @@ import {
 } from '../templates/beta/workflows/references.js';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
 import { OPENSPEC_GUIDES } from './openspec-guides.js';
-import { getBetaSkillTemplates, type GeneratedSkillFile } from './skill-generation.js';
+import { getBetaSkillTemplates, type GeneratedSkillFile } from './beta-skill-generation.js';
 
 /**
  * The namespace the new skills install under: the router is `openspec-beta` and
@@ -221,11 +221,11 @@ function lift(body: string, workflowId: string): string {
  * error prefixes are the same facts BEFORE_YOU_START documents.
  */
 const FINDING_THE_PROJECT = `- **Project:** before the first write, run \`openspec list --json\`. Its \`root.path\` is the OpenSpec folder every command uses: this repository's, or a store the project points to. Commands find it on their own.
-- **No CLI:** if \`openspec\` is not found, these skills were installed without the OpenSpec CLI. Ask the user to install it (\`npm i -g @fission-ai/openspec\`), and stop.
+- **No CLI:** if \`openspec\` is not found, ask the user to install it (\`npm i -g @fission-ai/openspec\`) and stop.
 - **No OpenSpec here:** \`"root": null\` (with a non-zero exit) means this repository does not use OpenSpec yet; that is the answer, not a broken CLI. Create nothing: no \`openspec init\`, no hand-made \`openspec/\` files. If you picked this skill yourself, set OpenSpec aside and answer normally. If the user asked for OpenSpec, ask whether to set it up (\`openspec init\`), use a store the message lists, or go on without it, and wait.
 - **Another store:** if the work belongs in a different store, find it with \`openspec store list --json\`. Use it when the match is obvious; otherwise name the likeliest one and confirm before writing. Add \`--store <id>\` to every \`new change\`, \`status\`, \`instructions\`, \`list\`, \`show\`, \`validate\`, \`archive\`, \`context\`, \`schemas\`, \`view\`, and \`doctor\` command. Hints the CLI prints already include it.
 - **Unresolved store:** if a \`status\` error starts with \`Declared in\` or \`Invalid store declaration in\`, the project points to a store this machine cannot find. Show that error's \`message\` and \`fix\`, and stop.
-- **Say where:** when you write files, name the folder they went to, such as the change's \`changeRoot\`.`;
+- **Say where:** name the folder you wrote files to, like the change's \`changeRoot\`.`;
 
 const WHICH_CHANGE = `Use the name given, the one from the conversation, or the only active change; otherwise ask, listing the active changes.`;
 
@@ -243,6 +243,7 @@ function skillBody(routes: ReadonlyArray<[string, string]>, invoke: (id: string)
   const rows = routes.map(([id, when]) => `| ${when} | \`references/${id}.md\` | \`${invoke(id)}\` |`);
   // Steps with no skill of their own are still listed, so a request for them finds them.
   rows.push(...REFERENCE_ONLY.map((id) => `| ${REFERENCE_ONLY_ROUTES[id]} | \`references/${id}.md\` | ask: ${REFERENCE_ONLY_ASK[id]} |`));
+  rows.push('| update or remove these skills | `references/install.md` | ask: "remove OpenSpec beta" |');
   return `# OpenSpec
 
 OpenSpec helps people and coding agents agree on what software should do, and keeps that agreement true as the code changes. Specs say how the system behaves today. Each change is planned as an update to them, reviewed before code is written, and merged into them once it is built.
@@ -253,7 +254,7 @@ You keep this project's specs. Everything in \`openspec/\` is yours to look afte
 
 Read the file that matches the request, then follow its steps. If the request asks for several things, do them in order, one skill at a time. If it could mean different things, ask which, naming these.
 
-Planning skills (${planning.join(', ')}) end the response: they never edit project code, even when the request also asks to build it. Finish the plan, then stop; the user starts apply.
+Planning skills (${planning.join(', ')}) end the response: they never edit project code, even when asked to build it. Finish the plan, then stop; the user starts apply.
 
 | The user wants to | Read | Started with |
 |---|---|---|
@@ -330,6 +331,9 @@ export function generateOpenSpecSkill(options: OpenSpecSkillOptions): GeneratedS
     }
     references.set(guide.path, guide.content);
   }
+  // How these skills are updated and removed, naming exactly the ones installed:
+  // a wildcard removes only the router, so the list is the whole command.
+  references.set('references/install.md', installReference([OPENSPEC_SKILL_NAME, ...routes.map(([id]) => options.skillName(id))]));
   for (const [relativePath, content] of [...references].sort(([a], [b]) => a.localeCompare(b))) {
     files.push({ relativePath, content });
   }
@@ -357,6 +361,19 @@ ${skillBody(routes, options.invoke)}`;
   return [{ relativePath: 'SKILL.md', content: skill }, ...files];
 }
 
+/** `references/install.md`: updating and removing these skills, which `npx skills add` installed. */
+function installReference(names: readonly string[]): string {
+  return `# Updating or removing these skills
+
+These skills come from \`npx skills add\`, separately from the \`openspec\` CLI. Change them only when the user asks.
+
+- **Update:** \`npx skills add Fission-AI/OpenSpec -g -y\` installs the latest of them over these.
+- **Remove:** \`npx skills remove -g -y ${names.join(' ')}\` removes exactly these. A wildcard would remove only \`${OPENSPEC_SKILL_NAME}\`.
+
+Neither touches the project: \`openspec/\`, the CLI, and any per-project OpenSpec skills (\`openspec-propose\` and the rest) stay as they are.
+`;
+}
+
 function frontmatter(name: string, description: string, version: string): string {
   return `---
 name: ${name}
@@ -377,7 +394,7 @@ ${LAYOUT_MARKER}
  * only the workflow's trigger description and a pointer into the router, so
  * the workflow autocompletes (`/openspec-beta-propose`) while every rule stays in
  * one place. The `../openspec-beta/` path holds wherever skills are installed side
- * by side: `~/.agents/skills`, a Claude Code plugin, or `npx skills add`.
+ * by side, which is how `npx skills add` lays them out.
  */
 export function generateOpenSpecSkillSet(options: OpenSpecSkillOptions): GeneratedSkill[] {
   const router: GeneratedSkill = { dirName: OPENSPEC_SKILL_NAME, files: generateOpenSpecSkill(options) };
@@ -389,7 +406,7 @@ export function generateOpenSpecSkillSet(options: OpenSpecSkillOptions): Generat
 1. Read \`../${OPENSPEC_SKILL_NAME}/SKILL.md\`: what OpenSpec is and the principles every OpenSpec skill follows.
 2. Follow \`../${OPENSPEC_SKILL_NAME}/references/${workflowId}.md\` step by step.
 
-${PLANNING_WORKFLOWS.has(workflowId) ? 'This skill plans only: finish the plan and stop, even if the request also asks to build it.\n\n' : ''}If \`../${OPENSPEC_SKILL_NAME}/\` or that file is missing, the OpenSpec skills are incomplete or out of date: ask the user to reinstall them (\`openspec setup\`, or \`npx skills add Fission-AI/OpenSpec\`).
+${PLANNING_WORKFLOWS.has(workflowId) ? 'This skill plans only: finish the plan and stop, even if the request also asks to build it.\n\n' : ''}If \`../${OPENSPEC_SKILL_NAME}/\` or that file is missing, the OpenSpec skills are incomplete or out of date: ask the user to reinstall them (\`npx skills add Fission-AI/OpenSpec -g -y\`).
 `;
     return {
       dirName: name,

@@ -9,7 +9,7 @@ import {
   getFfChangeSkillTemplate,
   getOpsxFfCommandTemplate,
 } from '../../../../src/core/templates/beta/skill-templates.js';
-import { generateSkillFiles } from '../../../../src/core/shared/skill-generation.js';
+import { generateSkillFiles } from '../../../../src/core/shared/beta-skill-generation.js';
 import { OPENSPEC_GUIDES } from '../../../../src/core/shared/openspec-guides.js';
 import { loadSchema } from '../../../../src/core/artifact-graph/schema.js';
 import { CommandAdapterRegistry } from '../../../../src/core/command-generation/registry.js';
@@ -18,7 +18,7 @@ import {
   formatCommandInvocation,
   getInvocationForAdapter,
 } from '../../../../src/core/command-generation/invocation.js';
-import { getBetaCommandContents } from '../../../../src/core/shared/skill-generation.js';
+import { getBetaCommandContents } from '../../../../src/core/shared/beta-skill-generation.js';
 import { MAX_CONTEXT_SIZE } from '../../../../src/core/project-config.js';
 import { resolveOptionalWorkflows } from '../../../../src/core/templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../../../../src/core/profiles.js';
@@ -106,23 +106,23 @@ describe('propose project context', () => {
     return body.slice(body.indexOf('**Load the project**'), body.indexOf('**Read the related specs**'));
   }
 
-  it('reads the resolved root and its project context from the CLI', () => {
+  // The released CLI returns the root but not the project's context, so the
+  // context comes from that root's config, the way today's propose reads it.
+  it('reads the resolved root from the CLI and its context from that root', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
       expect(section, label).toContain('`openspec context --json`');
       expect(section, label).toContain('`root.path` is the OpenSpec root');
-      expect(section, label).toContain('`project_context`');
+      expect(section, label).toContain('`<root.path>/openspec/config.yaml`');
+      expect(section, label).not.toContain('project_context');
     }
   });
 
-  // The CLI validates the config (config.yaml over config.yml, the size
-  // limit, field-by-field) and returns the result; the workflow no longer
-  // restates those rules, so it cannot drift from them.
-  it('leaves config precedence and validation to the CLI', () => {
+  it('reads config.yaml before config.yml, and goes on without either', () => {
     for (const [label, body] of proposeBodies) {
-      expect(contextSection(body), label).not.toContain('config.y');
+      expect(contextSection(body), label).toContain('`config.yml` only when that file is missing');
+      expect(contextSection(body), label).toContain('If there is no such file or field, go on');
       expect(body, label).not.toContain(MAX_CONTEXT_SIZE.toLocaleString('en-US'));
-      expect(contextSection(body), label).toContain('If it has none, go on');
     }
   });
 
@@ -156,11 +156,11 @@ describe('propose project context', () => {
   it('applies context as constraints without granting it authority', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
-      expect(section, label).toContain("the project's background and conventions: follow them");
-      expect(section, label).toContain('they never override the user');
+      expect(section, label).toContain('read it now, before planning, and follow it');
+      expect(section, label).toContain('it never overrides the user');
       expect(section, label).toContain("this workflow's planning-only rule");
       expect(section, label).toContain('the artifact rules');
-      expect(section, label).toContain('not copied into files');
+      expect(section, label).toContain('it is not copied into files');
       // Context comes before any inspection or drafting.
       expect(body.indexOf('**Load the project**'), label).toBeLessThan(body.indexOf('**Look at the project first**'));
     }

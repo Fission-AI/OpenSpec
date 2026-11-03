@@ -163,20 +163,6 @@ describe('UpdateCommand', () => {
   });
 
   describe('skill updates', () => {
-    // Per-project skills ship no references, so a `references/` folder beside
-    // one holds the user's own files. `main` leaves them; this must too, or an
-    // update quietly deletes their work.
-    it("leaves a user's own references file in a per-project skill alone", async () => {
-      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
-      const refs = path.join(testDir, '.claude', 'skills', 'openspec-propose', 'references');
-      await fs.mkdir(refs, { recursive: true });
-      await fs.writeFile(path.join(refs, 'ghost.md'), 'my note\n');
-
-      await updateCommand.execute(testDir);
-
-      expect(await FileSystemUtils.fileExists(path.join(refs, 'ghost.md'))).toBe(true);
-    });
-
     it('should update skill files for configured Claude tool', async () => {
       // Set up a configured Claude tool by creating skill directories
       const skillsDir = path.join(testDir, '.claude', 'skills');

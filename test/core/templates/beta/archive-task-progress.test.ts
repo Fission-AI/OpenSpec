@@ -2,11 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import {
-  generateSkillFiles,
-  getBetaCommandTemplates,
-  getBetaSkillTemplates,
-} from '../../../../src/core/shared/skill-generation.js';
+import { generateSkillFiles, getBetaCommandTemplates, getBetaSkillTemplates } from '../../../../src/core/shared/beta-skill-generation.js';
 import { getGlobalDataDir, registerStore } from '../../../../src/core/index.js';
 import { runCLI } from '../../../helpers/run-cli.js';
 

@@ -10,7 +10,7 @@ import {
   getOpsxUpdateCommandTemplate,
   getUpdateChangeSkillTemplate,
 } from '../../../../src/core/templates/beta/skill-templates.js';
-import { getBetaCommandTemplates, getBetaSkillTemplates } from '../../../../src/core/shared/skill-generation.js';
+import { getBetaCommandTemplates, getBetaSkillTemplates } from '../../../../src/core/shared/beta-skill-generation.js';
 
 describe('workflow list --json field usage', () => {
   it('does not invent schema labels in update and continue pickers', () => {

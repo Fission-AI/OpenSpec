@@ -9,10 +9,11 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { SKILL_NAMESPACE as NS } from '../../src/core/shared/openspec-skill.js';
 
 /**
- * `npx skills add` of this checkout's skills/ mirror, the way a user installs
- * the beta skills without `openspec setup`, then the documented removal. Runs
- * with the real-CLI job (OPENSPEC_REAL_CLAUDE=1) on macOS, Linux, and Windows,
- * and checks Codex and Gemini CLI list the skills when they are on PATH.
+ * Opting in and out of the beta skills, with the real skills CLI: `npx skills
+ * add` of this checkout's skills/ mirror, then the removal command the router
+ * itself hands the agent (references/install.md). Runs with the real-CLI job
+ * (OPENSPEC_REAL_CLAUDE=1) on macOS, Linux, and Windows, and checks Codex and
+ * Gemini CLI list the skills when they are on PATH.
  */
 const enabled = process.env.OPENSPEC_REAL_CLAUDE === '1';
 const SKILLS_CLI = 'skills@1.7.4';
@@ -43,7 +44,7 @@ describe.skipIf(!enabled)('npx skills add with the real skills CLI', () => {
     root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-npx-skills-')));
     // Codex on Windows finds the home folder through the OS profile, not
     // USERPROFILE; on a throwaway CI runner, use the real home there. The
-    // setup tests use that home too, so CI runs these files one at a time.
+    // job runs nothing else that writes there.
     const realHome = process.env.CI === 'true' && process.platform === 'win32';
     const home = realHome ? os.homedir() : path.join(root, 'home dir');
     fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
@@ -69,8 +70,12 @@ describe.skipIf(!enabled)('npx skills add with the real skills CLI', () => {
     }
   }, 600_000);
 
-  it('removes every skill with the documented command', () => {
-    const remove = tool('npx', ['-y', SKILLS_CLI, 'remove', '-g', '-y', ...names]);
+  it('removes every skill with the command the router gives the agent', () => {
+    const install = fs.readFileSync(path.join(repoRoot, 'skills', NS, 'references', 'install.md'), 'utf8');
+    const command = /`npx skills remove -g -y ([^`]+)`/.exec(install)?.[1].split(' ');
+    // The command names exactly the skills that were installed, no more, no fewer.
+    expect([...(command ?? [])].sort()).toEqual([...names].sort());
+    const remove = tool('npx', ['-y', SKILLS_CLI, 'remove', '-g', '-y', ...command!]);
     expect(remove.code, remove.out).toBe(0);
     for (const dir of [path.join(env.HOME!, '.agents', 'skills'), path.join(env.HOME!, '.claude', 'skills')]) {
       for (const name of names) expect(fs.existsSync(path.join(dir, name)), `${dir} ${name}`).toBe(false);

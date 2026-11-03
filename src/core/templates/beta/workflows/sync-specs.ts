@@ -6,7 +6,7 @@
  * SKILL.md; creating a new main spec and retiring one are rarer and stricter,
  * so they live in `references/merge-rules.md`.
  */
-import type { SkillTemplate, CommandTemplate, SkillReference } from '../../types.js';
+import type { SkillTemplate, CommandTemplate, SkillReference } from '../types.js';
 import { BEFORE_YOU_START, withReferences } from './references.js';
 
 const MERGE_RULES_REFERENCE: SkillReference = {

@@ -22,13 +22,12 @@ import {
   getToolVersionStatus,
   getSkillTemplates,
   getCommandContents,
-  generateSkillFiles,
+  generateSkillContent,
   getToolsWithSkillsDir,
   hasGlobalSkillTarget,
   resolveToolSkillsDir,
   toolSupportsSkills,
   type ToolVersionStatus,
-  type GeneratedSkillFile,
   formatIdeRestart,
 } from './shared/index.js';
 import {
@@ -82,7 +81,6 @@ import {
   resolveSharedSkillWriters,
   sharedSkillTargetMarkerPath,
 } from './shared-skill-target.js';
-import { formatMachineRefresh, refreshMachineSetup } from './machine-setup.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import {
   realFileOps,
@@ -212,41 +210,13 @@ export class UpdateCommand {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);
 
-    // Skills installed by `openspec setup` live outside any project; keep
-    // them on this version wherever update runs. A dry run writes nothing.
-    let machine: Awaited<ReturnType<typeof refreshMachineSetup>> = null;
     if (this.dryRun) {
       this.recorder = new UpdatePlanRecorder(resolvedProjectPath);
       this.ops = this.recorder;
-    } else {
-      // The machine install is a separate thing from this project, so a
-      // problem with it (an `~/.agents` someone made a file, a symlinked skill
-      // folder, a permission) must not stop the project from being updated.
-      try {
-        machine = await refreshMachineSetup();
-        if (machine) console.log(formatMachineRefresh(machine));
-      } catch (error) {
-        console.warn(
-          chalk.yellow(
-            `Could not refresh the machine skills: ${error instanceof Error ? error.message : String(error)}\n` +
-              `Run \`openspec setup\` to repair them. Continuing with this project.`
-          )
-        );
-      }
     }
 
     // 1. Check openspec directory exists
     if (!await FileSystemUtils.directoryExists(openspecPath)) {
-      // Refreshing the machine skills is not a substitute for finding the
-      // project: say so and keep the failing exit code this has always had,
-      // which scripts and CI steps read.
-      if (machine) {
-        console.warn(
-          chalk.yellow(`No OpenSpec directory here, so only the machine skills were updated. Run \`openspec init\` first.`)
-        );
-        process.exitCode = 1;
-        return;
-      }
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
     }
 
@@ -461,6 +431,7 @@ export class UpdateCommand {
         if (shouldGenerateSkills && writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
+            const skillFile = path.join(skillDir, 'SKILL.md');
 
             const transformer = getTransformerForTool(
               tool.value,
@@ -468,12 +439,9 @@ export class UpdateCommand {
               resolveCommandSurfaceCapability(tool.value),
               resolveCommandInvocation(tool.value)
             );
-            await this.writeSkill(
-              skillsRoot,
-              skillDir,
-              generateSkillFiles(template, OPENSPEC_VERSION, transformer),
-              tool.value
-            );
+            const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
+            await this.ops.writeFile(skillFile, skillContent, tool.value);
           }
           await this.writeSharedSkillTarget(resolvedProjectPath, tool.value);
 
@@ -675,34 +643,6 @@ export class UpdateCommand {
    * Records the shared-skills-root owner through the write seam, so a dry run
    * lists the marker file a real update would write.
    */
-  /** Writes a skill's files through this.ops, and removes reference files the skill no longer ships. */
-  private async writeSkill(
-    root: string,
-    skillDir: string,
-    files: readonly GeneratedSkillFile[],
-    tool: string
-  ): Promise<void> {
-    for (const file of files) {
-      const target = path.join(skillDir, file.relativePath);
-      FileSystemUtils.assertPathWithin(root, target);
-      await this.ops.writeFile(target, file.content, tool);
-    }
-    // Only a skill that ships references prunes them. Per-project skills ship
-    // none, so a `references/` folder beside one holds the user's own files,
-    // which `main` leaves alone and so must this.
-    if (!files.some((file) => file.relativePath.startsWith('references/'))) return;
-    const referencesDir = path.join(skillDir, 'references');
-    if (!fs.existsSync(referencesDir)) return;
-    const kept = new Set(files.map((file) => file.relativePath));
-    for (const entry of fs.readdirSync(referencesDir, { withFileTypes: true })) {
-      if (entry.isFile() && entry.name.endsWith('.md') && !kept.has(`references/${entry.name}`)) {
-        const stale = path.join(referencesDir, entry.name);
-        FileSystemUtils.assertPathWithin(root, stale);
-        await this.ops.removeFile(stale, tool);
-      }
-    }
-  }
-
   private async writeSharedSkillTarget(projectPath: string, toolId: string): Promise<void> {
     const marker = sharedSkillTargetMarkerPath(projectPath, toolId);
     if (!marker) return;
@@ -858,16 +798,12 @@ export class UpdateCommand {
       );
 
       return getSkillTemplates(workflowsForTool(toolId)).some(({ template, dirName }) => {
-        const skillDir = path.join(skillsDir, dirName);
-        if (!this.view.exists(path.join(skillDir, 'SKILL.md'))) return false;
+        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+        if (!this.view.exists(skillFile)) return false;
         try {
-          // A reference file is part of the skill: a missing or edited one
-          // drifts the install just as an edited SKILL.md does.
-          return generateSkillFiles(template, OPENSPEC_VERSION, transformer).some((file) => {
-            const target = path.join(skillDir, file.relativePath);
-            if (!this.view.exists(target)) return true;
-            return normalizeGeneratedFile(this.view.read(target)) !== normalizeGeneratedFile(file.content);
-          });
+          const existing = this.view.read(skillFile);
+          const generated = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+          return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
         } catch {
           return true;
         }
@@ -1587,6 +1523,7 @@ export class UpdateCommand {
         if (shouldGenerateSkills && writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
+            const skillFile = path.join(skillDir, 'SKILL.md');
 
             const transformer = getTransformerForTool(
               tool.value,
@@ -1594,12 +1531,9 @@ export class UpdateCommand {
               resolveCommandSurfaceCapability(tool.value),
               resolveCommandInvocation(tool.value)
             );
-            await this.writeSkill(
-              skillsRoot,
-              skillDir,
-              generateSkillFiles(template, OPENSPEC_VERSION, transformer),
-              tool.value
-            );
+            const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+            FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
+            await this.ops.writeFile(skillFile, skillContent, tool.value);
           }
           await this.writeSharedSkillTarget(projectPath, tool.value);
         }

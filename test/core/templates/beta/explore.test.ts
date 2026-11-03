@@ -12,13 +12,8 @@ import {
   getInvocationForAdapter,
 } from '../../../../src/core/command-generation/invocation.js';
 import { AI_TOOLS } from '../../../../src/core/config.js';
-import {
-  generateSkillContent,
-  generateSkillFiles,
-  getBetaCommandContents,
-  getBetaCommandTemplates,
-  getBetaSkillTemplates,
-} from '../../../../src/core/shared/skill-generation.js';
+import { generateSkillContent } from '../../../../src/core/shared/skill-generation.js';
+import { generateSkillFiles, getBetaCommandContents, getBetaCommandTemplates, getBetaSkillTemplates } from '../../../../src/core/shared/beta-skill-generation.js';
 import { generateCommands } from '../../../../src/core/command-generation/generator.js';
 import { getProfileWorkflows } from '../../../../src/core/profiles.js';
 import { skillSource } from '../../../helpers/skill-text.js';
@@ -138,12 +133,14 @@ describe('explore templates', () => {
   // returns that context, validated and resolved through the selected root
   // (store-aware, config.yaml or config.yml), so the skill reads it there
   // instead of parsing config files itself.
-  it('loads project context from the CLI at startup (#696)', () => {
+  // No CLI command returns project context before a change exists, so explore
+  // reads it the way today's explore does: from the resolved root's config.
+  it('loads project context at startup from the resolved root (#696)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('openspec list --json');
-      expect(body, label).toContain('openspec context --json');
-      expect(body, label).toContain('`project_context` field');
-      expect(body, label).not.toContain('Then read the project\'s own context from the resolved root');
+      expect(body, label).toContain('`<root.path>/openspec/config.yaml`');
+      expect(body, label).toContain('its `context` field holds the tech stack and conventions');
+      expect(body, label).not.toContain('project_context');
     }
   });
 

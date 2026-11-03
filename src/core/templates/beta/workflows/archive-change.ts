@@ -7,7 +7,7 @@
  * CLI do that work and keeps the agent's part to choosing the change and
  * relaying each confirmation to the user.
  */
-import type { SkillTemplate, CommandTemplate } from '../../types.js';
+import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../../optional-workflow.js';
 import { BEFORE_YOU_START, RUNTIME_INPUTS } from './references.js';
 

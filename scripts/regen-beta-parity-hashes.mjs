@@ -80,7 +80,7 @@ if (srcMtime > distMtime) {
 
 const templates = await import(distUrl('core/templates/beta/skill-templates.js'));
 const { getBetaSkillTemplates, generateSkillFiles } = await import(
-  distUrl('core/shared/skill-generation.js')
+  distUrl('core/shared/beta-skill-generation.js')
 );
 
 const TEST_FILE = join(repoRoot, 'test/core/templates/beta/skill-templates-parity.test.ts');

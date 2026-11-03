@@ -90,9 +90,15 @@ For planning quality, `judge.mjs` shows a judge model each rep's two plans as "P
 node scripts/skill-eval/judge.mjs scripts/skill-eval/results before after --scenario propose
 ```
 
-`--install plugin` runs each request through the Claude Code plugin `openspec setup` installs (prompts become `/openspec-beta:<workflow>`); `--install single` installs the same `openspec-beta` router and `openspec-beta-<workflow>` skills into the project (prompts become `/openspec-beta-<workflow>`), the way agents reading `~/.agents/skills` get them.
+`--install single` installs the `openspec-beta` router and `openspec-beta-<workflow>` skills into the project (prompts become `/openspec-beta-<workflow>`), the way `npx skills add` lays them out.
 
 `--install npx` installs the checkout's committed `skills/` mirror with the real `npx skills add <checkout> -a claude-code`, the way `npx` users get it (regenerate the mirror first).
+
+`--skills <checkout>` takes the beta skills from another checkout than `--cli`. Pairing this branch's skills with an unmodified CLI shows the skills need nothing from the CLI they were written beside:
+
+```bash
+node scripts/skill-eval/run.mjs --label main-beta --cli ../openspec-main --grader ../openspec-main --skills . --install npx --reps 5
+```
 
 `--init-cli <checkout>` sets each project up with another checkout's CLI and then runs this one's `openspec update`, so every scenario also proves the upgrade path. `--delivery both` installs commands beside skills, the default for existing users.
 

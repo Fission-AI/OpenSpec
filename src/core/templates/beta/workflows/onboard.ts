@@ -2,7 +2,7 @@
  * Onboard: a guided first change cycle, narrated, on real work in the user's
  * codebase.
  */
-import type { SkillTemplate, CommandTemplate, SkillReference } from '../../types.js';
+import type { SkillTemplate, CommandTemplate, SkillReference } from '../types.js';
 import { onlyWithWorkflow, optionalWorkflow } from '../../optional-workflow.js';
 import {
   BEFORE_YOU_START,

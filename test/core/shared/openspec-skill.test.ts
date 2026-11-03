@@ -131,9 +131,10 @@ describe('the openspec skill', () => {
       expect(size(file), file.relativePath).toBeLessThanOrEqual(12_000);
     }
     const core = render(CORE_WORKFLOWS).reduce((total, file) => total + size(file), 0);
-    // 57K, not 56K: the scenario and compatibility rules moved here from the
-    // default schema, which every user reads, so the agent reads no more than before.
-    expect(core, 'default install').toBeLessThanOrEqual(57_000);
+    // 58K: the scenario and compatibility rules moved here from the default
+    // schema (the agent reads no more than before), and references/install.md,
+    // which is read only when the user asks to update or remove these skills.
+    expect(core, 'default install').toBeLessThanOrEqual(58_000);
   });
 
   // A host picks the skill by its description alone, so it must say what the
@@ -194,3 +195,17 @@ describe('the openspec skill', () => {
   });
 });
 
+
+// The beta must work with the CLI users already have. `openspec context --json`
+// on a released CLI has no `project_context`, so no skill may rely on it.
+describe('the beta relies only on CLI output that ships today', () => {
+  it('never reads a project_context field', () => {
+    const files = generateOpenSpecSkillSet({
+      workflows: ALL_WORKFLOWS,
+      version: 'test',
+      invoke: (id) => `/openspec-beta-${id}`,
+      skillName: (id) => `openspec-beta-${id}`,
+    }).flatMap((skill) => skill.files);
+    for (const file of files) expect(file.content, file.relativePath).not.toContain('project_context');
+  });
+});

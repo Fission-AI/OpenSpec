@@ -2,11 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { BEFORE_YOU_START } from '../../../../src/core/templates/beta/workflows/references.js';
 import { getFeedbackSkillTemplate } from '../../../../src/core/templates/beta/skill-templates.js';
-import {
-  generateSkillContent,
-  getBetaCommandContents,
-  getBetaSkillTemplates,
-} from '../../../../src/core/shared/skill-generation.js';
+import { generateSkillContent } from '../../../../src/core/shared/skill-generation.js';
+import { getBetaCommandContents, getBetaSkillTemplates } from '../../../../src/core/shared/beta-skill-generation.js';
 
 /**
  * Regression coverage for #1645.

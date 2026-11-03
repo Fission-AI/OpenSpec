@@ -1,7 +1,7 @@
 /**
  * Apply: implement a change's tasks, one checkbox at a time.
  */
-import type { SkillTemplate, CommandTemplate } from '../../types.js';
+import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../../optional-workflow.js';
 import { BEFORE_YOU_START, RUNTIME_INPUTS } from './references.js';
 

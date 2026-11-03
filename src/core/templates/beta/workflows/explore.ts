@@ -2,7 +2,7 @@
  * Explore: a thinking partner. No fixed steps; writes only within a scope the
  * user confirmed.
  */
-import type { SkillTemplate, CommandTemplate, SkillReference } from '../../types.js';
+import type { SkillTemplate, CommandTemplate, SkillReference } from '../types.js';
 import { optionalWorkflow } from '../../optional-workflow.js';
 import {
   BEFORE_YOU_START,
@@ -191,7 +191,7 @@ ${BEFORE_YOU_START}
 ${input}
 ## How to explore
 
-- **Ground it first.** \`openspec list --json\` shows the changes in flight, with their names and task status; \`openspec list --specs\` shows what the project already specifies (add \`--json\` for ids). Read a related spec with \`openspec show "<spec-id>" --type spec --json --no-scenarios\` for a quick overview, and in full with \`openspec show "<spec-id>" --type spec\` before deciding what is already covered. Run \`openspec context --json\` for the project's own background: its \`project_context\` field holds the tech stack and conventions. Artifact \`rules\` arrive with \`openspec instructions\` and apply only when you write that artifact. Treat context and rules as constraints; never copy them into the conversation or an artifact.
+- **Ground it first.** \`openspec list --json\` shows the changes in flight, with their names and task status; \`openspec list --specs\` shows what the project already specifies (add \`--json\` for ids). Read a related spec with \`openspec show "<spec-id>" --type spec --json --no-scenarios\` for a quick overview, and in full with \`openspec show "<spec-id>" --type spec\` before deciding what is already covered. The project's own background is in \`<root.path>/openspec/config.yaml\` (or \`config.yml\`), with \`root.path\` from \`openspec list --json\`: its \`context\` field holds the tech stack and conventions. Skip it when there is no such file. Artifact \`rules\` arrive with \`openspec instructions\` and apply only when you write that artifact. Treat context and rules as constraints; never copy them into the conversation or an artifact.
 - **Find facts yourself.** Check the code, tests, docs, and specs before asking. Ask only what only the user can answer, and say when evidence is missing or conflicting.
 - **One focused question at a time**: the one that unblocks the next decision, with a line on why it matters. Settle outcome and scope before an API or data model, and revisit earlier assumptions when an answer changes them.
 - **Recommend when the evidence supports it**: your preferred option, why it fits the user's goals, and the trade-offs. Ask rather than invent the user's priorities.

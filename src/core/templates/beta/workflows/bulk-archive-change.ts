@@ -6,7 +6,7 @@
  * judgment the CLI cannot make: when two changes touch the same capability,
  * check the codebase to decide whose specs to apply, and in what order.
  */
-import type { SkillTemplate, CommandTemplate } from '../../types.js';
+import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../../optional-workflow.js';
 import { BEFORE_YOU_START, RUNTIME_INPUTS } from './references.js';
 

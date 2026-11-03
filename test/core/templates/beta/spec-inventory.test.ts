@@ -2,10 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { describe, expect, it } from 'vitest';
 
-import {
-  getBetaSkillTemplates,
-  getBetaCommandTemplates,
-} from '../../../../src/core/shared/skill-generation.js';
+import { getBetaSkillTemplates, getBetaCommandTemplates } from '../../../../src/core/shared/beta-skill-generation.js';
 import {
   getExploreSkillTemplate,
   getOpsxExploreCommandTemplate,

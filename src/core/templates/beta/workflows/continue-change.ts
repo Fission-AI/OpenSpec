@@ -1,7 +1,7 @@
 /**
  * Continue: create the next artifact of a change, one per invocation.
  */
-import type { SkillTemplate, CommandTemplate } from '../../types.js';
+import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../../optional-workflow.js';
 import { BEFORE_YOU_START, writingAnArtifact } from './references.js';
 

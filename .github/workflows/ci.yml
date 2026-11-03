@@ -127,10 +127,11 @@ jobs:
           path: coverage/
           retention-days: 7
 
-  skills_setup_real_claude:
-    # `openspec setup` and `--revert` against the real Claude Code, Codex, and
-    # Gemini CLIs on every OS. Not a required check: it depends on external packages.
-    name: Skills setup (${{ matrix.os }}, real agent CLIs)
+  beta_skills_npx:
+    # Opting in and out of the openspec-beta skills with the real skills CLI
+    # (`npx skills add` / `npx skills remove`) on every OS, checking Codex and
+    # Gemini CLI see them. Not a required check: it depends on external packages.
+    name: Beta skills via npx (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
@@ -150,7 +151,6 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          # Claude Code needs Node 22 or newer.
           node-version: '22'
           cache: 'pnpm'
 
@@ -160,15 +160,13 @@ jobs:
       - name: Build project
         run: pnpm run build
 
-      - name: Install Claude Code, Codex, and Gemini CLI
-        run: npm install -g @anthropic-ai/claude-code@2.1.306 @openai/codex@0.163.0 @google/gemini-cli@0.65.0
+      - name: Install Codex and Gemini CLI
+        run: npm install -g @openai/codex@0.163.0 @google/gemini-cli@0.65.0
 
-      - name: Run setup, revert, and npx skills add end to end
+      - name: Opt in and out with npx skills add / remove
         env:
           OPENSPEC_REAL_CLAUDE: '1'
-          OPENSPEC_REQUIRE_AGENTS: 'claude,codex,gemini'
-          DISABLE_AUTOUPDATER: '1'
-        run: pnpm exec vitest run --no-file-parallelism test/cli-e2e/setup-real-claude.test.ts test/cli-e2e/setup-revert-journey.test.ts test/cli-e2e/npx-skills-real.test.ts
+        run: pnpm exec vitest run test/cli-e2e/npx-skills-real.test.ts
 
   test_pr_required:
     name: Test

@@ -24,15 +24,9 @@ export {
   type SkillTemplateEntry,
   type CommandTemplateEntry,
   getSkillTemplates,
-  getBetaCommandTemplates,
-  getBetaCommandContents,
-  getBetaSkillTemplates,
   getCommandTemplates,
   getCommandContents,
   generateSkillContent,
-  generateSkillFiles,
-  writeSkillFiles,
-  type GeneratedSkillFile,
 } from './skill-generation.js';
 
 export {

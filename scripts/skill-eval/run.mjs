@@ -18,6 +18,9 @@ const { values } = parseArgs({
     label: { type: 'string' },
     cli: { type: 'string' },
     'init-cli': { type: 'string' },
+    // Where the beta skills come from, when not the CLI checkout: lets a run
+    // pair this branch's skills with an unmodified CLI.
+    skills: { type: 'string' },
     delivery: { type: 'string', default: 'skills' },
     install: { type: 'string', default: 'project' },
     grader: { type: 'string', default: path.resolve(HERE, '../..') },
@@ -45,6 +48,11 @@ const cliRoot = path.resolve(values.cli);
 // Upgrade mode: set each project up with an older CLI, then run this one's
 // `openspec update`, the way an existing user moves to a new release.
 const initCliRoot = path.resolve(values['init-cli'] ?? values.cli);
+const skillsRoot = path.resolve(values.skills ?? values.cli);
+if (!['project', 'single', 'npx'].includes(values.install)) {
+  console.error(`--install must be project, single or npx (got ${values.install})`);
+  process.exit(2);
+}
 const graderRoot = path.resolve(values.grader);
 const outDir = path.resolve(values.out, values.label);
 // A rerun into the same label would mix its results with the old ones.
@@ -75,24 +83,15 @@ function run(cmd, args, opts = {}) {
   return { code: r.status ?? 1, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 
-// `--install plugin`: the Claude Code plugin `openspec setup` installs (the
-// `openspec` router plus a `/openspec:<workflow>` skill each), built by the CLI
-// under test. `--install single`: the same set in the project's
-// `.claude/skills/`, named the way `~/.agents/skills` gets them
-// (`openspec-beta` + `openspec-beta-<workflow>`).
-async function buildPlugin(dir) {
-  const { writeClaudePlugin } = await import(path.join(cliRoot, 'dist/core/machine-setup.js'));
-  await writeClaudePlugin(dir, WORKFLOWS);
-  return dir;
-}
-
+// `--install single`: the `openspec-beta` router and its `openspec-beta-<workflow>`
+// skills in the project's `.claude/skills/`, built from the skills checkout.
 const { generateOpenSpecSkillSet, workflowSkillName, SKILL_NAMESPACE, WORKFLOW_ORDER } =
-  values.install === 'project' ? {} : await import(path.join(cliRoot, 'dist/core/shared/openspec-skill.js'));
+  values.install === 'project' ? {} : await import(path.join(skillsRoot, 'dist/core/shared/openspec-skill.js'));
 
 // `--install npx`: the real `npx skills add` of this checkout's committed
 // skills/ mirror, into the project for Claude Code, exactly as a user gets it.
 function npxSkills(root) {
-  const result = run('npx', ['-y', 'skills', 'add', cliRoot, '-a', 'claude-code', '-y'], { cwd: root });
+  const result = run('npx', ['-y', 'skills', 'add', skillsRoot, '-a', 'claude-code', '-y'], { cwd: root });
   if (result.code !== 0 || !fs.existsSync(path.join(root, '.claude', 'skills', SKILL_NAMESPACE, 'SKILL.md'))) {
     throw new Error(`npx skills add failed:\n${result.out.slice(-1500)}`);
   }
@@ -137,9 +136,9 @@ function promptFor(prompt) {
     if (!id) throw new Error(`no workflow for ${skill}`);
     // A workflow the router ships as steps only (sync) is started through the router.
     if (!WORKFLOW_ORDER.includes(id)) {
-      return values.install === 'plugin' ? `/${SKILL_NAMESPACE}:${SKILL_NAMESPACE} ${id}` : `/${SKILL_NAMESPACE} ${id}`;
+      return `/${SKILL_NAMESPACE} ${id}`;
     }
-    return values.install === 'plugin' ? `/${SKILL_NAMESPACE}:${id}` : `/${workflowSkillName(id)}`;
+    return `/${workflowSkillName(id)}`;
   });
 }
 
@@ -170,7 +169,7 @@ function makeProject(scenario, work) {
       writeSingleSkill(root);
     } else if (values.install === 'npx') {
       npxSkills(root);
-    } else if (values.install !== 'plugin') {
+    } else {
       run('openspec', ['init', '--tools', 'claude'], { cwd: scratch, env: initEnv });
       if (initCliRoot !== cliRoot) upgrade(scratch, env);
       fs.cpSync(path.join(scratch, '.claude'), path.join(root, '.claude'), { recursive: true });
@@ -317,7 +316,6 @@ async function runOne(scenario, rep) {
   try {
     const { root, configHome, env } = makeProject(scenario, work);
     const started = Date.now();
-    const plugin = values.install === 'plugin' ? ['--plugin-dir', await buildPlugin(path.join(work, 'plugin'))] : [];
     // A scenario with `followUps` is a conversation: each follow-up resumes the
     // first turn's session, which is kept only for that and deleted afterwards.
     const followUps = scenario.followUps ?? [];
@@ -326,7 +324,6 @@ async function runOne(scenario, rep) {
         'claude',
         [
           '-p', promptFor(text),
-          ...plugin,
           '--model', values.model,
           '--output-format', 'stream-json', '--verbose',
           '--setting-sources', 'project,local',

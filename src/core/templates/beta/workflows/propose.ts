@@ -1,7 +1,7 @@
 /**
  * Propose: create a change and write every planning artifact in one pass.
  */
-import type { SkillTemplate, CommandTemplate } from '../../types.js';
+import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../../optional-workflow.js';
 import { artifactLoopSteps, readExistingSpecsStep } from './artifact-loop.js';
 import { BEFORE_YOU_START, writingAnArtifact } from './references.js';
@@ -49,7 +49,7 @@ ${BEFORE_YOU_START}
 
 2. **Load the project**
 
-   Run \`openspec context --json\`. Its \`root.path\` is the OpenSpec root, and its \`project_context\` is the project's background and conventions: follow them, but they never override the user, this workflow's planning-only rule, or the artifact rules, and they are not copied into files. If it has none, go on. If \`root\` is \`null\` (the code varies: \`no_openspec_root\`, or \`no_root_with_registered_stores\` when stores are registered), change nothing and handle it as **Before you start** says. On any other error, stop and report it; do not fall back to the current directory.
+   Run \`openspec context --json\`. Its \`root.path\` is the OpenSpec root. The project's background and conventions are the \`context\` field of \`<root.path>/openspec/config.yaml\` (\`config.yml\` only when that file is missing): read it now, before planning, and follow it, but it never overrides the user, this workflow's planning-only rule, or the artifact rules, and it is not copied into files. If there is no such file or field, go on. If \`root\` is \`null\` (the code varies: \`no_openspec_root\`, or \`no_root_with_registered_stores\` when stores are registered), change nothing and handle it as **Before you start** says. On any other error, stop and report it; do not fall back to the current directory.
 
 ${readExistingSpecsStep(3)}
 

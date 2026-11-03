@@ -695,33 +695,6 @@ program
     }
   });
 
-program
-  .command('setup')
-  .description('Install OpenSpec skills for every coding agent on this machine (beta)')
-  .option('--dry-run', 'Show what would be installed without writing anything')
-  .option('--revert', 'Remove what setup installed and restore the skills it replaced')
-  .option('--json', 'Output as JSON')
-  .action(async (options?: { dryRun?: boolean; json?: boolean; revert?: boolean }) => {
-    try {
-      const { SetupCommand } = await import('../commands/setup.js');
-      await new SetupCommand().execute(options);
-    } catch (error) {
-      // `--json` follows the agent contract: exactly one JSON document on
-      // stdout, even on failure, in the shape the mode would have returned.
-      // failWithError sets the exit code, and returning rather than calling
-      // process.exit() lets piped stdout drain - an exit can cut the document
-      // short where pipes are asynchronous (macOS, Windows) - and keeps
-      // commander's postAction telemetry flush, as `update` above does.
-      await failWithError(error, {
-        enabled: options?.json,
-        payload: options?.revert
-          ? { pluginRemoved: false, removed: [], restored: [], skipped: [], keptBackups: [] }
-          : { agents: [], workflows: [], moved: [] },
-        fallbackCode: 'setup_error',
-      });
-    }
-  });
-
 // Feedback command
 program
   .command('feedback <message>')

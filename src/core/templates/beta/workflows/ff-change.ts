@@ -2,7 +2,7 @@
  * Fast-forward: create a change and write everything implementation needs,
  * keeping momentum over asking.
  */
-import type { SkillTemplate, CommandTemplate } from '../../types.js';
+import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../../optional-workflow.js';
 import { artifactLoopSteps, readExistingSpecsStep } from './artifact-loop.js';
 import { BEFORE_YOU_START, writingAnArtifact } from './references.js';

@@ -10,7 +10,7 @@
  * Commands cannot carry extra files, so `withReferences()` appends a skill's
  * references to its command body under the same path the body names.
  */
-import type { SkillReference } from '../../types.js';
+import type { SkillReference } from '../types.js';
 
 /**
  * Store selection and the project check (#1645). A store is a standalone

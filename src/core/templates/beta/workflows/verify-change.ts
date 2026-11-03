@@ -2,7 +2,7 @@
  * Verify: check an implementation against its change's tasks, specs, and
  * design, and report what is missing. Read-only.
  */
-import type { SkillTemplate, CommandTemplate, SkillReference } from '../../types.js';
+import type { SkillTemplate, CommandTemplate, SkillReference } from '../types.js';
 import {
   BEFORE_YOU_START,
   withReferences,

@@ -1,7 +1,7 @@
 /**
  * New: scaffold a change and show the first artifact's instructions, then wait.
  */
-import type { SkillTemplate, CommandTemplate } from '../../types.js';
+import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { optionalWorkflow } from '../../optional-workflow.js';
 import { BEFORE_YOU_START } from './references.js';
 
