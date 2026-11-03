@@ -128,7 +128,7 @@ const REWRITES: ReadonlyArray<[from: string, to: string]> = [
     'Rerun the apply instructions to confirm progress moved.',
     'Rerun the apply instructions to confirm progress moved. If building needed a decision the plan did not make, or a departure from it, update the design (and the specs, if behavior changed) to match, and say what you changed.',
   ],
-  ['Draft the requested edit in the conversation, not in files.', 'Draft the requested edit in the conversation, not in files. If it changes a spec, read `references/deltas.md` first; if it widens the change, `references/changes.md`.'],
+  ['Draft the requested edit in the conversation, not in files.', 'Draft the requested edit in the conversation, not in files. If it changes a spec, read `references/deltas.md` and `references/specs.md` first; if it widens the change, `references/changes.md`.'],
   // Verify from what the code does, not only from what it says, and by
   // someone without the builder's assumptions.
   [

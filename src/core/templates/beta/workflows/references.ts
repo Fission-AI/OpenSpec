@@ -62,7 +62,7 @@ export function writingAnArtifactReference(): string {
     '# Writing an artifact',
     '',
     '- If you have not loaded it yet, get its guidance: `openspec instructions <artifact-id> --change "<name>" --json`, and re-read each completed file in `dependencies` from disk first; the user may have edited it.',
-    '- Read any guide SKILL.md\'s **Principles** point to that fits this artifact and that you have not read yet.',
+    '- Read any guide SKILL.md\'s **Principles** point to that fits this artifact and that you have not read yet. For a spec that means \`references/specs.md\`, plus \`references/deltas.md\` when it changes an existing requirement: a new behavior is its own requirement, not a clause on one that promises something else.',
     // The schema's instruction rarely mentions stable IDs, and "authoritative"
     // alone read as license to drop them; the Principles fill what it leaves out.
     '- Its \`instruction\` field is the authoritative guidance for this artifact, even for a familiar file name, and \`template\` is the file\'s structure. SKILL.md\'s **Principles**, stable IDs among them, still apply wherever \`instruction\` says nothing; if the two disagree, follow \`instruction\` and say so.',
