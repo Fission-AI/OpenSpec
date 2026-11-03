@@ -61,6 +61,16 @@ node scripts/skill-eval/run.mjs --label after --cli . --reps 5
 node scripts/skill-eval/compare.mjs scripts/skill-eval/results before after
 ```
 
+`showcase.mjs` prints one scenario's artifacts from both sides next to each
+other, for a reader who should not have to trust a number:
+
+```bash
+node scripts/skill-eval/showcase.mjs scripts/skill-eval/results before after --scenario exp-retry-after --file tasks.md
+```
+
+It lists every rep's count of cited requirement and decision IDs, then shows
+the candidate's **median** rep, not its best, so the pair is typical of the run.
+
 For planning quality, `judge.mjs` shows a judge model each rep's two plans as "Plan 1" and "Plan 2" in random order and asks which better serves the request:
 
 ```bash
