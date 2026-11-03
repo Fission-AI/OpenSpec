@@ -79,14 +79,16 @@ const WORKSY = /^(add|create|update|new|improve|fix|enhance|implement|support)-/
  * here assumes a capability name, since there is none to reuse; every check
  * is one a reviewer would make of any plan.
  */
-function freshRepoPropose({ id, prompt, extraMetrics, refactor = false }) {
+const COMMANDER_PROJECT =
+  'This project is commander.js, the widely used Node.js library for parsing command-line options and commands. It had no OpenSpec specs before this change: `openspec/specs/` was empty.';
+
+function freshRepoPropose({ id, prompt, project = COMMANDER_PROJECT, extraMetrics, refactor = false }) {
   const capabilitiesOf = (ctx, name) => [...new Set(deltaSpecs(ctx, name).map((spec) => spec.file.split(/[\\/]/)[0]))];
   return {
     id,
     fixture: 'repo',
     prompt,
-    judgeContext: () =>
-      'This project is commander.js, the widely used Node.js library for parsing command-line options and commands. It had no OpenSpec specs before this change: `openspec/specs/` was empty.',
+    judgeContext: () => project,
     metrics: (ctx) => {
       const name = touchedChangeNames(ctx)[0];
       if (!name) return {};
@@ -132,17 +134,73 @@ function freshRepoPropose({ id, prompt, extraMetrics, refactor = false }) {
 }
 
 /** A propose request against a real project: one new change, valid, on the existing capability. */
-function repoPropose({ id, prompt, capability }) {
+const OPENSPEC_PROJECT = 'This project is OpenSpec, a spec-driven development CLI.';
+/**
+ * A propose request for something the project ALREADY does. Both answers are
+ * right: decline and say so, or plan one real gap. What must never happen is
+ * silently planning it as new behavior, which means the code was never read.
+ */
+function alreadyBuiltPropose({ id, prompt, project, said, capability }) {
+  return {
+    id,
+    fixture: 'repo',
+    judgeContext: (root) =>
+      capability && fs.existsSync(path.join(root, 'openspec', 'specs', capability, 'spec.md'))
+        ? `${project} The project's current spec for \`${capability}\`:\n\n${fs.readFileSync(path.join(root, 'openspec', 'specs', capability, 'spec.md'), 'utf8')}`
+        : project,
+    prompt,
+    metrics: (ctx) => {
+      const name = touchedChangeNames(ctx)[0];
+      return {
+        declinedToPlan: !name,
+        notedAlreadyImplemented: name ? planMentions(ctx, name, said) : said.test(ctx.result ?? ''),
+        ...(name ? { ...planSize(ctx, name), ...planTrace(ctx, name), ...specQuality(ctx, name, capability) } : {}),
+      };
+    },
+    checks: (ctx) => {
+      const names = touchedChangeNames(ctx);
+      if (names.length === 0) {
+        return [
+          {
+            name: 'declined, and said what already exists',
+            pass: said.test(ctx.result ?? ''),
+            detail: (ctx.result ?? '').slice(0, 200),
+          },
+          onlyOpenspecChanged(ctx),
+        ];
+      }
+      const results = [{ name: 'at most one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const validate = ctx.openspec(['validate', names[0], '--strict']);
+      results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) });
+      results.push({ name: 'the plan names what already exists', pass: planMentions(ctx, names[0], said) });
+      results.push(onlyOpenspecChanged(ctx));
+      return results;
+    },
+  };
+}
+
+const ALREADY_PROXY = /trust proxy|req\.ips|proxy-addr|already (support|handle|provide|implement|do|cover)/i;
+const ALREADY_IQR = /already (exist|implement|present|there|available|has)|datalist\.go|existing `?IQR|IQR\(\)/i;
+
+const EXPRESS_PROJECT =
+  'This project is Express, the most widely used Node.js web framework. It had no OpenSpec specs before this change: `openspec/specs/` was empty.';
+const INSYRA_PROJECT =
+  'This project is insyra, a Go library for data analysis, statistics and quantitative finance. It already uses OpenSpec: `openspec/specs/` holds 204 capability specs.';
+
+function repoPropose({ id, prompt, capability, project = OPENSPEC_PROJECT, requireCapabilityDelta = true, extraMetrics, refactor = false }) {
   return {
     id,
     fixture: 'repo',
     prompt,
     // What the plan judge sees of the project: the capability's main spec today.
     judgeContext: (root) =>
-      `This project is OpenSpec, a spec-driven development CLI. The project's current spec for \`${capability}\`:\n\n${fs.readFileSync(path.join(root, 'openspec', 'specs', capability, 'spec.md'), 'utf8')}`,
+      `${project} The project's current spec for \`${capability}\`:\n\n${fs.readFileSync(path.join(root, 'openspec', 'specs', capability, 'spec.md'), 'utf8')}`,
     metrics: (ctx) => {
       const name = touchedChangeNames(ctx)[0];
-      return name ? { ...specQuality(ctx, name, capability), ...planSize(ctx, name), ...planTrace(ctx, name) } : {};
+      return name
+        ? { ...specQuality(ctx, name, capability), ...planSize(ctx, name), ...planTrace(ctx, name), ...(extraMetrics?.(ctx, name) ?? {}) }
+        : {};
     },
     checks: (ctx) => {
       const names = touchedChangeNames(ctx);
@@ -150,10 +208,21 @@ function repoPropose({ id, prompt, capability }) {
       if (names.length !== 1) return results;
       const validate = ctx.openspec(['validate', names[0], '--strict']);
       results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) });
-      results.push({
-        name: `delta targets the existing ${capability} capability`,
-        pass: ctx.exists(`openspec/changes/${names[0]}/specs/${capability}/spec.md`),
-      });
+      if (requireCapabilityDelta) {
+        results.push({
+          name: `delta targets the existing ${capability} capability`,
+          pass: ctx.exists(`openspec/changes/${names[0]}/specs/${capability}/spec.md`),
+        });
+      }
+      if (refactor) {
+        results.push({
+          name: 'no requirement invented for a refactor',
+          pass: deltaSpecs(ctx, names[0]).length === 0,
+          detail: deltaSpecs(ctx, names[0])
+            .map((spec) => spec.file)
+            .join(', '),
+        });
+      }
       results.push(onlyOpenspecChanged(ctx));
       return results;
     },
@@ -259,6 +328,16 @@ function saysWhere(ctx, name) {
  * stays unchanged, and does tasks.md name every requirement the deltas add or
  * change?
  */
+/** Everything the plan says, for probes about what it noticed in the code. */
+function planMentions(ctx, name, pattern) {
+  const dir = `openspec/changes/${name}`;
+  const text =
+    ['proposal.md', 'design.md', 'tasks.md'].map((file) => ctx.read(`${dir}/${file}`) ?? '').join('\n') +
+    deltaSpecs(ctx, name)
+      .map((spec) => spec.text)
+      .join('\n');
+  return pattern.test(text);
+}
 function planTrace(ctx, name) {
   const proposal = ctx.read(`openspec/changes/${name}/proposal.md`) ?? '';
   const tasks = (ctx.read(`openspec/changes/${name}/tasks.md`) ?? '').toLowerCase();
@@ -1632,6 +1711,101 @@ export const SCENARIOS = [
           deltaSpecs(ctx, name).map((spec) => spec.text).join('\n')
       ),
     }),
+  }),
+  // --- ff: fast-forward through ARTIFACT creation. It stops before code
+  // ("All artifacts needed for implementation are ready. Run apply"), so code
+  // and ticked tasks would both be wrong here. Install it with
+  // `--workflows propose,explore,continue,apply,update,sync,archive,verify,ff`,
+  // which neither skill set ships by default. ---
+  {
+    id: 'ff-change',
+    prompt: '/openspec-ff-change Give a todo an optional due date, kept as an ISO date string.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      if (!name) return {};
+      return {
+        ...planSize(ctx, name),
+        ...planTrace(ctx, name),
+        ...specQuality(ctx, name),
+        wroteDesign: ctx.exists(`openspec/changes/${name}/design.md`),
+        pointsAtApply: /apply|implement/i.test(ctx.result ?? ''),
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const name = names[0];
+      const validate = ctx.openspec(['validate', name, '--strict']);
+      const { open, done } = tasksDone(ctx, name);
+      results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) });
+      results.push({ name: 'proposal written', pass: Boolean(ctx.read(`openspec/changes/${name}/proposal.md`)) });
+      results.push({ name: 'delta specs written', pass: deltaSpecs(ctx, name).length > 0 });
+      results.push({ name: 'tasks written, none ticked yet', pass: open + done > 0 && done === 0, detail: `open=${open} done=${done}` });
+      results.push(onlyOpenspecChanged(ctx));
+      return results;
+    },
+  },
+  // --- Express: 69k stars, no spec framework at all. Run with
+  // `--fixture <checkout>` and `--only exp-retry-after,exp-trust-proxy,exp-split-response`. ---
+  freshRepoPropose({
+    id: 'exp-retry-after',
+    project: EXPRESS_PROJECT,
+    // Verified absent: `Retry-After` appears nowhere in lib/ or test/.
+    prompt:
+      '/openspec-propose Give apps a way to set the `Retry-After` header when they reply 429 or 503, so a client knows when to try again.' +
+      AUTONOMOUS,
+  }),
+  alreadyBuiltPropose({
+    // Express already does all of this, through the `trust proxy` setting and
+    // req.ip/req.ips/req.protocol. Reading the code before planning is the
+    // whole test: the audit found agents do that only 44% of the time.
+    id: 'exp-trust-proxy',
+    project: EXPRESS_PROJECT,
+    said: ALREADY_PROXY,
+    prompt: '/openspec-propose Add support for reading the real client IP when the app runs behind a reverse proxy.' + AUTONOMOUS,
+  }),
+  freshRepoPropose({
+    id: 'exp-split-response',
+    project: EXPRESS_PROJECT,
+    prompt:
+      '/openspec-propose `lib/response.js` is over 1,000 lines. Plan splitting it into smaller modules. Nothing a user of the framework can observe should change.' +
+      AUTONOMOUS,
+    refactor: true,
+  }),
+  // --- insyra: a third-party project with 204 OpenSpec specs, in a neutral
+  // domain. The repo is bilingual, so every anchor here is an English spec.
+  // Run with `--fixture <checkout>` and `--only ins-winsorize,ins-iqr,ins-split-ccl`. ---
+  repoPropose({
+    id: 'ins-winsorize',
+    project: INSYRA_PROJECT,
+    capability: 'core-preprocessing',
+    // Verified absent repo-wide. Which existing capability it belongs to is a
+    // judgment call, so the delta's home is a metric, not a check.
+    requireCapabilityDelta: false,
+    prompt:
+      '/openspec-propose Add a way to winsorize a DataList: clamp values below the 5th percentile up to it, and values above the 95th percentile down to it, with both percentiles configurable.' +
+      AUTONOMOUS,
+  }),
+  alreadyBuiltPropose({
+    // `DataList.IQR()` already exists (datalist.go:1876) and no spec covers it,
+    // so the work is a spec, not code. Planning it as new behavior means the
+    // agent never read the code. Declining and saying so is also correct.
+    id: 'ins-iqr',
+    project: INSYRA_PROJECT,
+    capability: 'datalist-quantile',
+    said: ALREADY_IQR,
+    prompt: '/openspec-propose Add an interquartile range helper to DataList.' + AUTONOMOUS,
+  }),
+  repoPropose({
+    id: 'ins-split-ccl',
+    project: INSYRA_PROJECT,
+    capability: 'parquet-ccl-output',
+    requireCapabilityDelta: false,
+    refactor: true,
+    prompt:
+      '/openspec-propose `parquet/ccl.go` is over 3,000 lines. Plan splitting it into smaller files. Nothing a caller of the package can observe should change.' +
+      AUTONOMOUS,
   }),
   freshRepoPropose({
     id: 'oss-split-command',

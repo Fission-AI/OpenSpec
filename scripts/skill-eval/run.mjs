@@ -11,7 +11,7 @@ import { SCENARIOS } from './scenarios.mjs';
 
 const SELF = fileURLToPath(import.meta.url);
 const HERE = path.dirname(SELF);
-const WORKFLOWS = ['propose', 'explore', 'continue', 'apply', 'update', 'sync', 'archive', 'verify'];
+const DEFAULT_WORKFLOWS = ['propose', 'explore', 'continue', 'apply', 'update', 'sync', 'archive', 'verify'];
 
 const { values } = parseArgs({
   options: {
@@ -30,8 +30,12 @@ const { values } = parseArgs({
     // A real project to run the `fixture: 'repo'` scenarios in (e.g. a
     // checkout of OpenSpec itself), instead of the small todo library.
     fixture: { type: 'string' },
+    // The workflow set to install on both sides. Defaults to the eight both
+    // skill sets ship by default; name others (`ff`) to cover them.
+    workflows: { type: 'string' },
   },
 });
+const WORKFLOWS = values.workflows ? values.workflows.split(',').map((id) => id.trim()).filter(Boolean) : DEFAULT_WORKFLOWS;
 if (!values.label || !values.cli) {
   console.error('usage: run.mjs --label <name> --cli <openspec checkout> [--model m] [--reps n] [--only a,b] [--out dir]');
   process.exit(2);
@@ -120,6 +124,9 @@ const WORKFLOW_OF = {
   'openspec-archive-change': 'archive',
   'openspec-continue-change': 'continue',
   'openspec-update-change': 'update',
+  'openspec-ff-change': 'ff',
+  'openspec-new-change': 'new',
+  'openspec-bulk-archive-change': 'bulk-archive',
 };
 
 function promptFor(prompt) {
