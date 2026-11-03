@@ -255,7 +255,11 @@ describe('propose project context', () => {
   it('stops without writing and offers initialization when no root is resolved', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
-      expect(section, label).toContain('If it reports `no_openspec_root`, change nothing');
+      // The status code differs for a store user (`no_root_with_registered_stores`),
+      // so the step keys off `root` being null instead of one code name.
+      expect(section, label).toContain('is `null`');
+      expect(section, label).toContain('change nothing');
+      expect(section, label).toContain('no_root_with_registered_stores');
       expect(section, label).toContain('**Before you start**');
       // Before you start offers setup only on an explicit request and never
       // lets a command create the root on its own.
@@ -422,7 +426,9 @@ describe('propose implementation boundary', () => {
         `When you are ready, run \`${applyInvocation}\`.`
       );
       expect(generated, adapter.toolId).not.toContain('ask me to implement');
-      expect(generated, adapter.toolId).toContain('If it reports `no_openspec_root`, change nothing');
+      // Keyed off `root` being null, since a store user gets a different code.
+      expect(generated, adapter.toolId).toContain('is `null`');
+      expect(generated, adapter.toolId).toContain('change nothing');
       expect(generated, adapter.toolId).toContain('set this project up (`openspec init`)');
       expect(generated, adapter.toolId).toContain('no `openspec init`, no hand-made');
     }

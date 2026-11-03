@@ -36,6 +36,9 @@ const COMMAND_REFERENCE_ROWS = [
   onlyWithWorkflow('continue', ' | `/opsx:continue` | Continue working on an existing change    |'),
   onlyWithWorkflow('ff', ' | `/opsx:ff`      | Fast-forward: create all artifacts at once |'),
   onlyWithWorkflow('verify', ' | `/opsx:verify`  | Verify implementation matches artifacts    |'),
+  onlyWithWorkflow('update', ' | `/opsx:update`  | Revise the plan for a change               |'),
+  onlyWithWorkflow('bulk-archive', ' | `/opsx:bulk-archive` | Archive several finished changes      |'),
+  onlyWithWorkflow('onboard', ' | `/opsx:onboard` | Walk through a full cycle again            |'),
 ].join('\n');
 
 const QUICK_REFERENCE_ROWS = [
@@ -47,6 +50,9 @@ const QUICK_REFERENCE_ROWS = [
   onlyWithWorkflow('continue', ' | `/opsx:continue <name>` | Continue an existing change                |'),
   onlyWithWorkflow('ff', ' | `/opsx:ff <name>`       | Fast-forward: all artifacts at once        |'),
   onlyWithWorkflow('verify', ' | `/opsx:verify <name>`   | Verify implementation                      |'),
+  onlyWithWorkflow('update', ' | `/opsx:update <name>`   | Revise the plan for a change               |'),
+  onlyWithWorkflow('bulk-archive', ' | `/opsx:bulk-archive`    | Archive several finished changes            |'),
+  onlyWithWorkflow('onboard', ' | `/opsx:onboard`         | Walk through a full cycle again             |'),
 ].join('\n');
 
 /**
@@ -102,10 +108,10 @@ Created: <changeRoot from status JSON>
 The folder structure:
 \`\`\`
 <changeRoot>/
-├── proposal.md    ← Why we're doing this (empty, we'll fill it)
-├── design.md      ← How we'll build it (empty)
-├── specs/         ← Detailed requirements (empty)
-└── tasks.md       ← Implementation checklist (empty)
+├── proposal.md    ← Why we're doing this (not created yet)
+├── design.md      ← How we'll build it (not created yet)
+├── specs/         ← Detailed requirements (not created yet)
+└── tasks.md       ← Implementation checklist (not created yet)
 \`\`\`
 
 Now let's fill in the first artifact—the proposal.
@@ -579,9 +585,9 @@ Spend 1-2 minutes investigating the relevant code:
 
 [Your brief analysis—what you found, any considerations]
 
-┌─────────────────────────────────────────┐
-│   [Optional: ASCII diagram if helpful]  │
-└─────────────────────────────────────────┘
++-----------------------------------------+
+|   [Optional: ASCII diagram if helpful]  |
++-----------------------------------------+
 
 ${EXPLORE_MODE_NOTE}
 

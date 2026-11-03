@@ -23,7 +23,7 @@ Planning skills (explore, propose, new, continue, ff, update) end the response: 
 
 | The user wants to | Read | Started with |
 |---|---|---|
-| think an idea or problem through before deciding (writes nothing) | `references/explore.md` | `/openspec-beta-explore` |
+| think an idea or problem through before deciding (writes only what you OK) | `references/explore.md` | `/openspec-beta-explore` |
 | describe what to build and get the whole plan: proposal, specs, design, tasks | `references/propose.md` | `/openspec-beta-propose` |
 | start a change and write its plan one artifact at a time | `references/new.md` | `/openspec-beta-new` |
 | write the next artifact of a change | `references/continue.md` | `/openspec-beta-continue` |

@@ -23,10 +23,10 @@ Created: <changeRoot from status JSON>
 The folder structure:
 ```
 <changeRoot>/
-├── proposal.md    ← Why we're doing this (empty, we'll fill it)
-├── design.md      ← How we'll build it (empty)
-├── specs/         ← Detailed requirements (empty)
-└── tasks.md       ← Implementation checklist (empty)
+├── proposal.md    ← Why we're doing this (not created yet)
+├── design.md      ← How we'll build it (not created yet)
+├── specs/         ← Detailed requirements (not created yet)
+└── tasks.md       ← Implementation checklist (not created yet)
 ```
 
 Now let's fill in the first artifact—the proposal.

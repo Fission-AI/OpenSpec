@@ -53,7 +53,7 @@ export function workflowSkillName(workflowId: string): string {
 
 /** What each workflow is for, in the user's words, in the order users meet them. */
 const WORKFLOW_ROUTES: ReadonlyArray<[id: string, when: string]> = [
-  ['explore', 'think an idea or problem through before deciding (writes nothing)'],
+  ['explore', 'think an idea or problem through before deciding (writes only what you OK)'],
   ['propose', 'describe what to build and get the whole plan: proposal, specs, design, tasks'],
   ['new', 'start a change and write its plan one artifact at a time'],
   ['continue', 'write the next artifact of a change'],

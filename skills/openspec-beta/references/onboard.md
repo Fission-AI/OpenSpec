@@ -137,9 +137,9 @@ Spend 1-2 minutes investigating the relevant code:
 
 [Your brief analysis—what you found, any considerations]
 
-┌─────────────────────────────────────────┐
-│   [Optional: ASCII diagram if helpful]  │
-└─────────────────────────────────────────┘
++-----------------------------------------+
+|   [Optional: ASCII diagram if helpful]  |
++-----------------------------------------+
 
 Explore mode (`/openspec-beta-explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
 
@@ -200,6 +200,9 @@ If the user says they just want to see the commands or skip the tutorial:
  | `/openspec-beta-continue <name>` | Continue an existing change                |
  | `/openspec-beta-ff <name>`       | Fast-forward: all artifacts at once        |
  | `/openspec-beta-verify <name>`   | Verify implementation                      |
+ | `/openspec-beta-update <name>`   | Revise the plan for a change               |
+ | `/openspec-beta-bulk-archive`    | Archive several finished changes            |
+ | `/openspec-beta-onboard`         | Walk through a full cycle again             |
 
 Try `/openspec-beta-propose` to start your first change.
 ```

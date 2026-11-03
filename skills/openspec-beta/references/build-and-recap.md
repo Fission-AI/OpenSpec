@@ -93,6 +93,9 @@ This same rhythm works for any size change—a small fix or a major feature.
  | `/openspec-beta-continue` | Continue working on an existing change    |
  | `/openspec-beta-ff`      | Fast-forward: create all artifacts at once |
  | `/openspec-beta-verify`  | Verify implementation matches artifacts    |
+ | `/openspec-beta-update`  | Revise the plan for a change               |
+ | `/openspec-beta-bulk-archive` | Archive several finished changes      |
+ | `/openspec-beta-onboard` | Walk through a full cycle again            |
 
 ---
 
