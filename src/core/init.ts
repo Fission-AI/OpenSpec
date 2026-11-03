@@ -647,12 +647,25 @@ export class InitCommand {
     if (agents.length === 0) return false;
     const names = agents.map((agent) => agent.name).join(', ');
     const alreadySetUp = isMachineSetUp();
+    // Setup moves whatever sits where it installs, this project's `/opsx`
+    // command files among them. Say so before asking, and count them from a
+    // dry run rather than describing it in the abstract: a yes here should
+    // never be the moment a user discovers their files moved.
+    const moving = alreadySetUp
+      ? []
+      : (await setupMachine({ dryRun: true, migrate: true, projectPath })).moved.filter(({ from }) =>
+          from.startsWith(projectPath)
+        );
+    const movesNote =
+      moving.length > 0
+        ? ` ${moving.length} file${moving.length === 1 ? '' : 's'} in this project would move into a backup that \`openspec setup --revert\` restores.`
+        : '';
     const { confirm } = await import('@inquirer/prompts');
     const useMachine = await confirm({
       message: alreadySetUp
         ? `OpenSpec is already installed on this machine for ${names}. Use that instead of adding skill files to this project?`
-        : `Install OpenSpec once on this machine for ${names}, instead of adding skill files to this project? (recommended)`,
-      default: true,
+        : `Install OpenSpec once on this machine for ${names}, instead of adding skill files to this project?${movesNote} (recommended)`,
+      default: moving.length === 0,
     });
     if (!useMachine) return false;
     this.usesMachineInstall = true;

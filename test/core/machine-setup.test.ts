@@ -5,6 +5,7 @@ import * as path from 'node:path';
 
 import {
   detectMachineAgents,
+  formatMachineRefresh,
   formatMachineRevert,
   formatMachineSetup,
   refreshMachineSetup,
@@ -74,6 +75,63 @@ describe('machine setup', () => {
     const text = formatMachineSetup(result);
     expect(text).not.toContain('No coding agents found');
     expect(text).toContain('Any agent');
+  });
+
+  // A step that throws part way used to leave the plugin registered with no
+  // record, so `--revert` answered "nothing to revert" and the user had no way
+  // back. The record is written from a finally, so it survives the throw.
+  it('records the install even when a later step throws, so revert still works', async () => {
+    fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+    // A regular file where the shared skills go makes writing them fail, after
+    // the plugin has already been written and registered.
+    fs.writeFileSync(path.join(home, '.agents'), 'not a directory\n');
+
+    await expect(setupMachine({ homedir: home, env, runClaude })).rejects.toThrow();
+
+    expect(getGlobalConfig().machineSetup).toMatchObject({ claudePlugin: true });
+    const reverted = await revertMachineSetup({ homedir: home, env, runClaude });
+    expect(reverted).not.toBeNull();
+    expect(runClaude).toHaveBeenCalledWith(['plugin', 'uninstall', `${NS}@${NS}-local`]);
+    expect(getGlobalConfig().machineSetup).toBeUndefined();
+  });
+
+  // The plugin files can be on disk while `claude plugin install` failed, and
+  // revert must still unregister the marketplace. Being told the plugin is not
+  // installed is revert's goal, not an error to show the user.
+  it('reverts a partial registration without reporting a false failure', async () => {
+    fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+    runClaude.mockImplementation((args: string[]) =>
+      args[1] === 'install'
+        ? { ok: false, output: 'error: simulated' }
+        : args[1] === 'uninstall'
+          ? { ok: false, output: 'Plugin "x" not found in installed plugins' }
+          : { ok: true, output: '' }
+    );
+    try {
+      await setupMachine({ homedir: home, env, runClaude });
+      const reverted = await revertMachineSetup({ homedir: home, env, runClaude });
+      expect(reverted?.error).toBeUndefined();
+      expect(runClaude).toHaveBeenCalledWith(['plugin', 'marketplace', 'remove', `${NS}-local`]);
+    } finally {
+      runClaude.mockImplementation(() => ({ ok: true, output: '' }));
+    }
+  });
+
+  // A user who installs Claude Code after `openspec setup` would otherwise get
+  // the plugin files rewritten on every update and never registered, while the
+  // summary claimed the plugin was updated.
+  it('registers a plugin the first refresh finds unregistered, and says so truthfully', async () => {
+    await setupMachine({ homedir: home, env, runClaude });
+    expect(getGlobalConfig().machineSetup).toMatchObject({ claudePlugin: false });
+    expect(formatMachineRefresh({ agents: [], workflows: [], moved: [], sharedSkills: { dir: '', installed: [], removed: [] } })).not.toContain(
+      'Claude Code plugin'
+    );
+
+    fs.mkdirSync(path.join(home, '.claude'), { recursive: true });
+    const refreshed = await refreshMachineSetup({ homedir: home, env, runClaude });
+
+    expect(refreshed?.claudePlugin?.registered).toBe(true);
+    expect(formatMachineRefresh(refreshed!)).toContain('Claude Code plugin');
   });
 
   // On a case-insensitive filesystem a folder spelled `OpenSpec-Beta` answers
