@@ -38,6 +38,14 @@ test('an unknown priority is rejected', () => {
 });
 `
   );
+  // Tick the change's tasks when it is seeded; a fixture without it has none.
   const tasks = path.join(root, 'openspec', 'changes', 'add-priority', 'tasks.md');
-  if (fs.existsSync(tasks)) fs.writeFileSync(tasks, fs.readFileSync(tasks, 'utf8').replaceAll('- [ ]', '- [x]'));
+  let text;
+  try {
+    text = fs.readFileSync(tasks, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return;
+    throw error;
+  }
+  fs.writeFileSync(tasks, text.replaceAll('- [ ]', '- [x]'));
 }
