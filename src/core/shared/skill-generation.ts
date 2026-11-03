@@ -352,6 +352,13 @@ export async function writeSkillFiles(
     await FileSystemUtils.writeFile(target, file.content);
   }
 
+  // Prune a reference this skill no longer ships - a workflow turned off, or a
+  // guide renamed - but only for a skill that ships references at all. The
+  // per-project skills ship none, so a `references/` folder beside one is the
+  // user's, and deleting what is in it would take away their work: `main`
+  // leaves it, and so must this.
+  if (!files.some((file) => file.relativePath.startsWith('references/'))) return;
+
   const referencesDir = path.join(skillDir, 'references');
   let entries: fs.Dirent[];
   try {

@@ -16,8 +16,11 @@ The skills drive the `openspec` CLI. To install the CLI and the skills for
 every agent on your machine at once:
 
 ```bash
-npm i -g @fission-ai/openspec@beta && openspec setup
+npm i -g github:Fission-AI/OpenSpec && openspec setup
 ```
+
+(`openspec setup` ships with this work, so install the default branch for now:
+the `@beta` tag still points at `1.6.0-beta.1`, which does not have it.)
 
 To update, run the same `npx skills add` again. The skills drive the `openspec`
 CLI; without it, they ask you to install it.
@@ -32,8 +35,9 @@ sees two OpenSpec skill sets at once. Remove them by name:
 npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard
 ```
 
-`openspec setup` does this part for you: it moves skills an earlier OpenSpec
-wrote into a backup, and `--revert` puts them back.
+`openspec setup` moves aside only the skills OpenSpec wrote itself, through
+`init`, `update` or `setup`; a copy left by `npx skills add` under the older
+names is not one of those, so the command above is how it goes.
 
 To go back:
 

@@ -715,7 +715,7 @@ program
       await failWithError(error, {
         enabled: options?.json,
         payload: options?.revert
-          ? { pluginRemoved: false, removed: [], restored: [], skipped: [] }
+          ? { pluginRemoved: false, removed: [], restored: [], skipped: [], keptBackups: [] }
           : { agents: [], workflows: [], moved: [] },
         fallbackCode: 'setup_error',
       });

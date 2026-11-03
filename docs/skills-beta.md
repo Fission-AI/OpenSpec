@@ -4,18 +4,17 @@ A shorter, easier-to-read set of OpenSpec skills, installed once for every codin
 
 ## Try it
 
-```bash
-npm i -g @fission-ai/openspec@beta
-openspec setup
-```
-
-Until the beta release goes out, that tag does not exist yet; install from the
-default branch instead, which carries the same skills once this has merged:
+Until a new beta is published, install from the default branch — `openspec setup`
+arrives with this work, so no released version has it yet:
 
 ```bash
 npm i -g github:Fission-AI/OpenSpec
 openspec setup
 ```
+
+Do not use `@fission-ai/openspec@beta` for this: that tag still points at
+`1.6.0-beta.1` from July, which would downgrade you and has no `openspec setup`.
+Once a new beta ships, `npm i -g @fission-ai/openspec@beta` is the command.
 
 If you installed OpenSpec as a standalone binary, the npm install sits beside it and both report the same version. Run `which -a openspec` (`Get-Command -All openspec` in PowerShell) and make sure the npm one comes first, or call it by its full path.
 
@@ -23,7 +22,7 @@ Run `openspec setup --dry-run` first to see what it would install and move. Star
 
 Or install only the skills with `npx skills add Fission-AI/OpenSpec -g` (you still need the CLI). To update, run the same command again.
 
-That route installs the beta beside anything already on your machine, so if an earlier `npx skills add` put `openspec-propose` and the rest there, your agent now sees two OpenSpec skill sets. `openspec setup` moves the older ones into a backup for you; after `npx skills add`, remove them yourself:
+That route installs the beta beside anything already on your machine, so if an earlier `npx skills add` put `openspec-propose` and the rest there, your agent now sees two OpenSpec skill sets. `openspec setup` moves aside only skills OpenSpec itself wrote, through `init`, `update` or `setup`; a copy `npx skills add` left under the older names is not one of those, so remove it yourself:
 
 ```bash
 npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard
@@ -38,7 +37,7 @@ npx skills remove -g -y openspec-propose openspec-explore openspec-new-change op
 
 `~/.agents/skills` is the standard Agent Skills folder, so setup writes it whether or not it recognises an agent on your machine: an agent you install later finds the skills without re-running anything, and one OpenSpec has never heard of works as long as it follows the convention. There is only ever one copy, which is what keeps a harness that reads both its own folder and the standard one from finding the same skill twice and warning about it ([#2180](https://github.com/Fission-AI/OpenSpec/issues/2180)). Claude Code is the exception: it does not read that folder, so it gets a plugin instead.
 
-Or ask in plain words ("plan this as an OpenSpec change"). The `openspec-beta` skill tells the agent what OpenSpec is and holds short guides it reads when needed: sizing a change, naming capabilities, decisions to raise, and how specs change. Explore keeps a living draft of the scope; propose turns the settled draft into the change. Specs are merged by apply's last task and by archive, so there is no separate sync skill. Setup moves your older OpenSpec skills and, when run inside a project, its `/opsx` command files into a backup, so you never see two copies.
+Or ask in plain words ("plan this as an OpenSpec change"). The `openspec-beta` skill tells the agent what OpenSpec is and holds short guides it reads when needed: sizing a change, naming capabilities, decisions to raise, writing a requirement, and how specs change. Explore keeps a living draft of the scope; propose turns the settled draft into the change. Specs are merged by apply's last task and by archive, so there is no separate sync skill. Setup moves the skills OpenSpec wrote itself and, when run inside a project, its `/opsx` command files into a backup, so those never load twice.
 
 ## How it works
 
@@ -84,7 +83,7 @@ npx skills remove -g -y openspec-beta openspec-beta-apply openspec-beta-archive 
 
 - Plans are as good as today's or slightly better, at about the same token cost.
 - Claude Code, Codex, and Gemini CLI are tested with their real CLIs on macOS, Linux, and Windows. Every other agent reads the same standard folder, so there is nothing agent-specific to test, but whether a given one honours the convention is its own to say.
-- `openspec init --tools <tool>` still installs per-project skills under today's names. They carry the same shorter steps as the beta, but not the router or its guides.
+- `openspec init --tools <tool>` still installs per-project skills under today's names, with the same text as the previous release: `init` and `update` write byte for byte what `main` writes. The shorter steps, the router and its guides are the machine install only.
 
 ## Feedback
 

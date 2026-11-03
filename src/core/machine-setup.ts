@@ -341,11 +341,24 @@ function findOlderFiles(
   // is none of our business to move.
   for (const root of machineRoots) {
     if (!fs.existsSync(root)) continue;
-    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+    const entries = fs.readdirSync(root, { withFileTypes: true });
+    for (const entry of entries) {
       if (!inNamespace(entry.name)) continue;
       const dir = path.join(root, entry.name);
       if (isCurrentLayout(dir)) continue;
       if (installing.has(entry.name) || hasLayoutMarker(readSkill(dir))) found.push(dir);
+    }
+    // On a case-insensitive filesystem (macOS, Windows) a folder spelled
+    // `OpenSpec-Beta` answers to the name we write, so the write would land
+    // inside it and overwrite its SKILL.md with no backup. The filesystem
+    // proves the clash: our name resolves while nothing is spelled that way.
+    // Matching case-insensitively instead would wrongly claim a genuinely
+    // separate folder on Linux, where both names can coexist.
+    const spelled = new Set(entries.map((entry) => entry.name));
+    for (const name of installing) {
+      if (spelled.has(name) || !fs.existsSync(path.join(root, name))) continue;
+      const real = [...spelled].find((other) => other.toLowerCase() === name.toLowerCase());
+      if (real !== undefined) found.push(path.join(root, real));
     }
   }
   if (projectPath) {
@@ -570,6 +583,8 @@ export interface MachineRevertResult {
   restored: string[];
   /** Folders left in the backup because something now has their place. */
   skipped: string[];
+  /** Backup folders kept on disk because something in them could not go back. */
+  keptBackups: string[];
   /** Why `claude plugin uninstall` failed, if it did. */
   error?: string;
 }
@@ -586,7 +601,7 @@ export async function revertMachineSetup(
   const home = options.homedir ?? resolveHome(env);
   const record = getGlobalConfig().machineSetup;
   if (!record) return null;
-  const result: MachineRevertResult = { pluginRemoved: false, removed: [], restored: [], skipped: [] };
+  const result: MachineRevertResult = { pluginRemoved: false, removed: [], restored: [], skipped: [], keptBackups: [] };
 
   const pluginDir = getClaudePluginDir(env, home);
   if (record.claudePlugin || fs.existsSync(pluginDir)) {
@@ -638,11 +653,22 @@ export async function revertMachineSetup(
         complete = false;
         continue;
       }
-      await fs.promises.mkdir(path.dirname(from), { recursive: true });
-      await move(to, from);
-      result.restored.push(from);
+      // One folder that cannot go back (a permission, a read-only parent) must
+      // not abort the revert: the plugin and the shared skills are already
+      // gone by now, and throwing here would leave the record in place so
+      // every later revert died on the same file. Leave it in the backup, say
+      // so, and keep going.
+      try {
+        await fs.promises.mkdir(path.dirname(from), { recursive: true });
+        await move(to, from);
+        result.restored.push(from);
+      } catch {
+        result.skipped.push(from);
+        complete = false;
+      }
     }
     if (complete) await fs.promises.rm(backupDir, { recursive: true, force: true });
+    else result.keptBackups.push(backupDir);
   }
 
   const { machineSetup: _removed, ...rest } = getGlobalConfig();
@@ -665,6 +691,7 @@ export function formatMachineRevert(result: MachineRevertResult | null): string 
   }
   if (result.skipped.length > 0) {
     lines.push(chalk.yellow(`  Left in the backup, because something now has their place: ${byFolder(result.skipped).join(', ')}`));
+    for (const dir of result.keptBackups) lines.push(chalk.dim(`                kept at ${tilde(dir)}`));
   }
   lines.push('', 'Start a new agent session to pick up the change.');
   return lines.join('\n');

@@ -219,13 +219,34 @@ export class UpdateCommand {
       this.recorder = new UpdatePlanRecorder(resolvedProjectPath);
       this.ops = this.recorder;
     } else {
-      machine = await refreshMachineSetup();
-      if (machine) console.log(formatMachineRefresh(machine));
+      // The machine install is a separate thing from this project, so a
+      // problem with it (an `~/.agents` someone made a file, a symlinked skill
+      // folder, a permission) must not stop the project from being updated.
+      try {
+        machine = await refreshMachineSetup();
+        if (machine) console.log(formatMachineRefresh(machine));
+      } catch (error) {
+        console.warn(
+          chalk.yellow(
+            `Could not refresh the machine skills: ${error instanceof Error ? error.message : String(error)}\n` +
+              `Run \`openspec setup\` to repair them. Continuing with this project.`
+          )
+        );
+      }
     }
 
     // 1. Check openspec directory exists
     if (!await FileSystemUtils.directoryExists(openspecPath)) {
-      if (machine) return;
+      // Refreshing the machine skills is not a substitute for finding the
+      // project: say so and keep the failing exit code this has always had,
+      // which scripts and CI steps read.
+      if (machine) {
+        console.warn(
+          chalk.yellow(`No OpenSpec directory here, so only the machine skills were updated. Run \`openspec init\` first.`)
+        );
+        process.exitCode = 1;
+        return;
+      }
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
     }
 
@@ -666,6 +687,10 @@ export class UpdateCommand {
       FileSystemUtils.assertPathWithin(root, target);
       await this.ops.writeFile(target, file.content, tool);
     }
+    // Only a skill that ships references prunes them. Per-project skills ship
+    // none, so a `references/` folder beside one holds the user's own files,
+    // which `main` leaves alone and so must this.
+    if (!files.some((file) => file.relativePath.startsWith('references/'))) return;
     const referencesDir = path.join(skillDir, 'references');
     if (!fs.existsSync(referencesDir)) return;
     const kept = new Set(files.map((file) => file.relativePath));

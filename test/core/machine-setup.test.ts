@@ -76,6 +76,56 @@ describe('machine setup', () => {
     expect(text).toContain('Any agent');
   });
 
+  // On a case-insensitive filesystem a folder spelled `OpenSpec-Beta` answers
+  // to the name we write, so the write used to land inside it and overwrite
+  // its SKILL.md with no backup, and revert could not see it afterwards. Only
+  // meaningful where the filesystem folds case, which macOS and Windows do.
+  const foldsCase = (() => {
+    const probe = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-case-'));
+    fs.mkdirSync(path.join(probe, 'CaseProbe'));
+    const folds = fs.existsSync(path.join(probe, 'caseprobe'));
+    fs.rmSync(probe, { recursive: true, force: true });
+    return folds;
+  })();
+  it.skipIf(!foldsCase)('backs up a folder that only differs in case, instead of writing into it', async () => {
+    const shared = path.join(home, '.agents', 'skills');
+    writeSkill(shared, 'OpenSpec-Beta', `---\nname: OpenSpec-Beta\ndescription: mine\n---\nMY NOTES\n`);
+
+    const result = await setupMachine({ homedir: home, env, runClaude, migrate: true });
+
+    expect(result.moved.map(({ from }) => path.basename(from))).toContain('OpenSpec-Beta');
+    expect(read(result.moved[0].to, 'SKILL.md')).toContain('MY NOTES');
+    expect(read(shared, NS, 'SKILL.md')).toContain(`name: ${NS}`);
+
+    await revertMachineSetup({ homedir: home, env, runClaude });
+    expect(read(shared, 'OpenSpec-Beta', 'SKILL.md')).toContain('MY NOTES');
+  });
+
+  // Revert removes the plugin and the shared skills before restoring backups,
+  // so a restore that throws used to abort with the record still in place and
+  // every later revert died on the same file.
+  it('reports a backup it cannot restore and still finishes the revert', async () => {
+    const shared = path.join(home, '.agents', 'skills');
+    writeSkill(shared, 'openspec-propose', OLD('openspec-propose'));
+    const setup = await setupMachine({ homedir: home, env, runClaude, migrate: true });
+    expect(setup.moved.length).toBe(1);
+
+    const move = vi.spyOn(fs.promises, 'rename').mockRejectedValue(Object.assign(new Error('denied'), { code: 'EACCES' }));
+    const copy = vi.spyOn(fs.promises, 'cp').mockRejectedValue(Object.assign(new Error('denied'), { code: 'EACCES' }));
+    let reverted;
+    try {
+      reverted = await revertMachineSetup({ homedir: home, env, runClaude });
+    } finally {
+      move.mockRestore();
+      copy.mockRestore();
+    }
+
+    expect(reverted?.skipped.length).toBeGreaterThan(0);
+    expect(reverted?.keptBackups.length).toBeGreaterThan(0);
+    // The record is cleared, so the user is not stuck re-running a failing revert.
+    expect(getGlobalConfig().machineSetup).toBeUndefined();
+  });
+
   // Setup moves whatever sits on a name it writes. A skill of the user's own
   // that only shares the prefix collides with nothing, so moving it would take
   // away work they did; it has neither `generatedBy` nor the layout marker,
@@ -147,7 +197,9 @@ describe('machine setup', () => {
     expect(result.sharedSkills).toBeTruthy();
     const text = formatMachineSetup(result);
     expect(text).not.toContain('No coding agents found');
-    expect(text).toContain('~/.agents/skills');
+    // `tilde()` builds the path with the platform separator, so a literal
+    // POSIX spelling here fails on Windows.
+    expect(text).toContain(path.join('~', '.agents', 'skills'));
   });
 
   it('detects agents from the folders they create, honoring CLAUDE_CONFIG_DIR', () => {
