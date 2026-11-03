@@ -171,6 +171,17 @@ function defaultRunClaude(env: NodeJS.ProcessEnv) {
   // non-literal argument is OpenSpec's own data directory, quoted.
   const shell = process.platform === 'win32';
   return (args: string[]) => {
+    // `cmd` expands `%VAR%` even inside double quotes and a command line has
+    // no escape for it, so a path holding `%` cannot be passed through safely.
+    // Say so instead of running a command that means something else.
+    if (shell && args.some((arg) => arg.includes('%'))) {
+      return {
+        ok: false,
+        output:
+          'Cannot run `claude` with a path containing "%" on Windows: cmd.exe would expand it. ' +
+          'Set XDG_DATA_HOME to a path without "%", or register the plugin by hand.',
+      };
+    }
     const result = spawnSync('claude', shell ? args.map(quote) : args, {
       encoding: 'utf8',
       env,
@@ -184,12 +195,21 @@ function defaultRunClaude(env: NodeJS.ProcessEnv) {
 }
 
 /**
+ * Characters `cmd.exe` acts on rather than passes through. Double quotes
+ * neutralise all of them, so an argument holding any one must be quoted: a
+ * data directory under a user name like `a&b` would otherwise end the command
+ * at the `&` and run the rest as a second one. `%` is the exception and is
+ * handled by its caller, since `cmd` expands `%VAR%` inside quotes too.
+ */
+const CMD_METACHARACTERS = /[\s"&|<>^()!,;=]/;
+
+/**
  * Quotes one argument for a Windows command line (CommandLineToArgvW rules):
  * backslashes are literal except before a quote, so those, and any trailing
  * run before the closing quote, are doubled.
  */
 function quote(arg: string): string {
-  if (!/[\s"]/.test(arg)) return arg;
+  if (!CMD_METACHARACTERS.test(arg)) return arg;
   const escaped = arg.replace(/(\\*)"/g, '$1$1\\"').replace(/(\\+)$/, '$1$1');
   return `"${escaped}"`;
 }
@@ -356,7 +376,22 @@ async function backUp(folders: readonly string[], backupDir: string): Promise<Mo
     await move(from, to);
     moved.push({ from, to });
     // Written after every move, so an interrupted setup can still be reverted.
-    await fs.promises.writeFile(path.join(backupDir, MANIFEST), `${JSON.stringify(moved, null, 2)}\n`);
+    // Written to a temporary file and renamed, so an interruption mid-write
+    // leaves the previous complete manifest rather than a truncated one: the
+    // revert reads this to put folders back, and cannot guess at half a list.
+    const manifest = path.join(backupDir, MANIFEST);
+    const body = `${JSON.stringify(moved, null, 2)}\n`;
+    const pending = `${manifest}.tmp`;
+    try {
+      await fs.promises.writeFile(pending, body);
+      await fs.promises.rename(pending, manifest);
+    } catch {
+      // A rename can fail where the temporary file and the manifest are not on
+      // one device. Write in place instead: less safe against an interruption,
+      // which the revert now survives anyway, and better than no manifest.
+      await fs.promises.rm(pending, { force: true });
+      await fs.promises.writeFile(manifest, body);
+    }
   }
   return moved;
 }
@@ -564,7 +599,20 @@ export async function revertMachineSetup(
   for (const backupDir of [...(record.backups ?? [])].reverse()) {
     const manifest = path.join(backupDir, MANIFEST);
     if (!fs.existsSync(manifest)) continue;
-    const moved = JSON.parse(fs.readFileSync(manifest, 'utf8')) as MovedSkill[];
+    // A setup interrupted mid-write can leave the manifest truncated. Throwing
+    // here would abort the revert after the plugin and shared skills are
+    // already gone and before the record is cleared, so every later revert
+    // would fail on the same file and the user could never finish. Report the
+    // backup and carry on with the rest.
+    let moved: MovedSkill[];
+    try {
+      const parsed: unknown = JSON.parse(fs.readFileSync(manifest, 'utf8'));
+      if (!Array.isArray(parsed)) throw new Error('manifest is not a list of moves');
+      moved = parsed as MovedSkill[];
+    } catch {
+      result.skipped.push(backupDir);
+      continue;
+    }
     let complete = true;
     for (const { from, to } of moved) {
       if (!pathExists(to)) continue;
@@ -651,7 +699,11 @@ function tilde(dir: string): string {
 
 /** The summary `openspec setup` and interactive `openspec init` print. */
 export function formatMachineSetup(result: MachineSetupResult, options: { dryRun?: boolean } = {}): string {
-  if (result.agents.length === 0) {
+  // Setup also writes `~/.agents/skills` when that folder already exists, even
+  // with no agent detected, and a revert then has work to do. Saying nothing
+  // was found would contradict what is on disk, so only say it when nothing
+  // was installed either.
+  if (result.agents.length === 0 && !result.sharedSkills && !result.claudePlugin) {
     return [
       'No coding agents found on this machine.',
       'Install one (Claude Code, Codex, Cursor, ...) and run `openspec setup` again,',

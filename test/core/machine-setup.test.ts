@@ -68,6 +68,20 @@ describe('machine setup', () => {
     expect(formatMachineSetup(result)).toContain('No coding agents found');
   });
 
+  // Setup writes `~/.agents/skills` when that folder exists, whether or not it
+  // recognises an agent, and a revert then has work to do. Saying nothing was
+  // found would contradict the disk and send the user to run setup again.
+  it('does not claim nothing was found when it wrote the shared skills', async () => {
+    fs.mkdirSync(path.join(home, '.agents', 'skills'), { recursive: true });
+    const result = await setupMachine({ homedir: home, env, runClaude });
+
+    expect(detectMachineAgents({ homedir: home, env })).toEqual([]);
+    expect(result.sharedSkills).toBeTruthy();
+    const text = formatMachineSetup(result);
+    expect(text).not.toContain('No coding agents found');
+    expect(text).toContain('~/.agents/skills');
+  });
+
   it('detects agents from the folders they create, honoring CLAUDE_CONFIG_DIR', () => {
     fs.mkdirSync(path.join(home, '.codex'));
     fs.mkdirSync(path.join(root, 'claude-config'));
@@ -194,6 +208,45 @@ describe('machine setup', () => {
     await revertMachineSetup({ homedir: home, env, runClaude });
     expect(fs.readFileSync(command, 'utf8')).toBe('old command');
     expect(read(project, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md')).toBe(OLD('openspec-apply-change'));
+  });
+
+  // An interrupted setup used to be able to leave a truncated manifest, and a
+  // revert that threw on it had already removed the plugin and the shared
+  // skills without clearing the record, so every later revert failed the same
+  // way and the user could never finish.
+  it('skips a backup whose manifest is unreadable and reverts the rest', async () => {
+    const project = path.join(root, 'project');
+    fs.mkdirSync(path.join(project, '.claude', 'skills', 'openspec-propose'), { recursive: true });
+    fs.writeFileSync(
+      path.join(project, '.claude', 'skills', 'openspec-propose', 'SKILL.md'),
+      `---\nname: openspec-propose\nmetadata:\n  generatedBy: "0.0.1"\n---\nold\n`
+    );
+    const setup = await setupMachine({ homedir: home, env, runClaude, migrate: true, projectPath: project });
+    expect(setup.moved.length).toBe(1);
+
+    const manifest = path.join(setup.moved[0].to, '..', 'manifest.json');
+    fs.writeFileSync(manifest, '[{"from": "truncated');
+
+    const reverted = await revertMachineSetup({ homedir: home, env, runClaude });
+
+    expect(reverted?.skipped.some((entry) => entry.includes('backups'))).toBe(true);
+    // The record is cleared, so a second revert is not stuck on the same file.
+    expect(getGlobalConfig().machineSetup).toBeUndefined();
+    const second = await revertMachineSetup({ homedir: home, env, runClaude });
+    expect(second).toBeNull();
+  });
+
+  it('writes the backup manifest atomically, leaving no partial file behind', async () => {
+    const project = path.join(root, 'project');
+    fs.mkdirSync(path.join(project, '.claude', 'skills', 'openspec-propose'), { recursive: true });
+    fs.writeFileSync(
+      path.join(project, '.claude', 'skills', 'openspec-propose', 'SKILL.md'),
+      `---\nname: openspec-propose\nmetadata:\n  generatedBy: "0.0.1"\n---\nold\n`
+    );
+    const setup = await setupMachine({ homedir: home, env, runClaude, migrate: true, projectPath: project });
+    const backupDir = path.dirname(setup.moved[0].to);
+    expect(fs.readdirSync(backupDir).filter((name) => name.endsWith('.tmp'))).toEqual([]);
+    expect(JSON.parse(read(backupDir, 'manifest.json'))).toHaveLength(1);
   });
 
   // `claude plugin uninstall` leaves its own copy of the plugin under
