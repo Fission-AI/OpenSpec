@@ -115,6 +115,12 @@ export interface MachineSetupResult {
   moved: MovedSkill[];
   /** Where they were moved, with a manifest `--revert` reads. */
   backupDir?: string;
+  /**
+   * Skills under today's per-project names in a machine folder that no
+   * OpenSpec command wrote - what an earlier `npx skills add` leaves. Setup
+   * cannot prove they are ours to move, so it names them instead.
+   */
+  leftBehind?: string[];
 }
 
 /** The user's home, from the environment first so a sandboxed HOME is honored. */
@@ -356,6 +362,29 @@ function namespaceSkillDirs(dir: string): string[] {
  * files, which would otherwise offer every workflow a second time; and any
  * other entry under the namespace's names in the machine folders.
  */
+/**
+ * Today's per-project skill names found in the machine folders without
+ * `generatedBy`. A copy with it is ours and `findOlderFiles` moves it; one
+ * without came from somewhere else, most often `npx skills add`, and agents
+ * load it beside the beta set until the user removes it.
+ */
+function findOtherCopies(home: string, env: NodeJS.ProcessEnv): string[] {
+  const names = new Set(getBetaSkillTemplates().map((entry) => entry.dirName));
+  const found = new Set<string>();
+  for (const root of [
+    sharedSkillsDir(home),
+    path.join(claudeConfigDir(home, env), "skills"),
+  ]) {
+    if (!fs.existsSync(root)) continue;
+    for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      if (names.has(entry.name) && !isOurs(path.join(root, entry.name)))
+        found.add(entry.name);
+    }
+  }
+  return [...found].sort();
+}
+
 function findOlderFiles(
   home: string,
   env: NodeJS.ProcessEnv,
@@ -564,6 +593,7 @@ export async function setupMachine(
   const older = options.migrate
     ? findOlderFiles(home, env, installing, options.projectPath)
     : [];
+  if (options.migrate) result.leftBehind = findOtherCopies(home, env);
   if (older.length > 0) {
     const backupDir = path.join(
       getGlobalDataDir({ env, homedir: home }),
@@ -1016,6 +1046,21 @@ export function formatMachineSetup(
       if (!options.dryRun)
         lines.push(chalk.dim("  `openspec setup --revert` puts them back"));
     }
+  }
+  const others = result.leftBehind ?? [];
+  if (others.length > 0) {
+    // Not moved, because nothing marks them as OpenSpec's to move; named, so
+    // the user is not left with two OpenSpec skill sets and no idea why.
+    lines.push(
+      "",
+      chalk.yellow(
+        `Not moved: ${others.length} older OpenSpec skill${
+          others.length === 1 ? "" : "s"
+        } that OpenSpec did not write, probably from \`npx skills add\`.`
+      ),
+      "Your agent sees both sets until you remove them:",
+      `  npx skills remove -g -y ${others.join(" ")}`
+    );
   }
   lines.push(
     "",

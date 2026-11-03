@@ -37,7 +37,8 @@ npx skills remove -g -y openspec-propose openspec-explore openspec-new-change op
 
 `openspec setup` moves aside only the skills OpenSpec wrote itself, through
 `init`, `update` or `setup`; a copy left by `npx skills add` under the older
-names is not one of those, so the command above is how it goes.
+names is not one of those, so setup leaves it in place and prints the
+command above for the ones it finds.
 
 To go back:
 

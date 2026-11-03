@@ -200,6 +200,38 @@ describe('machine setup', () => {
     expect(read(shared, `${NS}-mine`, 'SKILL.md')).toContain('MINE');
   });
 
+  // An earlier `npx skills add` left today's skills under their own names with
+  // no `generatedBy`, so nothing proves they are ours to move. Left silent,
+  // the agent loads two OpenSpec skill sets and the user never learns why, so
+  // setup names them and prints the command that removes them.
+  it('names the older skills npx left, without moving them', async () => {
+    const shared = path.join(home, '.agents', 'skills');
+    const npxCopy = '---\nname: openspec-propose\ndescription: from npx\n---\nold propose\n';
+    writeSkill(shared, 'openspec-propose', npxCopy);
+    writeSkill(shared, 'openspec-apply-change', npxCopy);
+
+    const result = await setupMachine({ homedir: home, env, runClaude, migrate: true });
+
+    expect(result.leftBehind).toEqual(['openspec-apply-change', 'openspec-propose']);
+    expect(result.moved).toEqual([]);
+    expect(formatMachineSetup(result)).toContain(
+      'npx skills remove -g -y openspec-apply-change openspec-propose'
+    );
+    await revertMachineSetup({ homedir: home, env, runClaude });
+    expect(read(shared, 'openspec-propose', 'SKILL.md')).toBe(npxCopy);
+  });
+
+  it('moves a copy OpenSpec wrote instead of naming it', async () => {
+    const shared = path.join(home, '.agents', 'skills');
+    writeSkill(shared, 'openspec-propose', OLD('openspec-propose'));
+
+    const result = await setupMachine({ homedir: home, env, runClaude, migrate: true });
+
+    expect(result.leftBehind).toEqual([]);
+    expect(result.moved.map(({ from }) => path.basename(from))).toContain('openspec-propose');
+    expect(formatMachineSetup(result)).not.toContain('npx skills remove');
+  });
+
   // The committed `skills/` mirror that `npx skills add` installs carries the
   // layout marker but no `generatedBy`, so a copy of a workflow this install
   // does not write is recognised by the marker alone. Without that it would be

@@ -22,7 +22,7 @@ Run `openspec setup --dry-run` first to see what it would install and move. Star
 
 Or install only the skills with `npx skills add Fission-AI/OpenSpec -g` (you still need the CLI). To update, run the same command again.
 
-That route installs the beta beside anything already on your machine, so if an earlier `npx skills add` put `openspec-propose` and the rest there, your agent now sees two OpenSpec skill sets. `openspec setup` moves aside only skills OpenSpec itself wrote, through `init`, `update` or `setup`; a copy `npx skills add` left under the older names is not one of those, so remove it yourself:
+That route installs the beta beside anything already on your machine, so if an earlier `npx skills add` put `openspec-propose` and the rest there, your agent now sees two OpenSpec skill sets. `openspec setup` moves aside only skills OpenSpec itself wrote, through `init`, `update` or `setup`; a copy `npx skills add` left under the older names is not one of those, so setup leaves it in place and prints the command that removes the ones it finds. To remove the whole older set yourself:
 
 ```bash
 npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard draft-openspec-docs release-openspec verify-openspec-docs write-openspec-docs
