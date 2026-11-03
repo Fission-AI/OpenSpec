@@ -114,6 +114,14 @@ describe('the openspec skill', () => {
   // writing-a-requirement guide (#2139; 2026-11-02: propose-crowded-spec 10/10
   // with it, 5/10 without, and 20/20 on propose, propose-ripple,
   // propose-refactor and propose-tidy-up either way).
+  // Raised again (2026-11-02) to put the one-promise and no-internals rules in
+  // the write step of propose.md. They had lived only in references/specs.md,
+  // which runs opened 6% of the time against propose.md's 47%, and the blind
+  // specs judge scored exactly those two violations against the beta 7-3 on
+  // insyra's winsorize. With the rules in the step: that judge 5-5 and its plan
+  // judge 6-4 -> 5-5, Haiku propose-crowded-spec 3/5 -> 5/5 and
+  // propose-then-stop 4/5 -> 5/5, Sonnet propose-crowded-spec and propose-ids
+  // 4/5 -> 5/5 each, and propose and propose-crowded-edit unchanged.
   it('stays within its size budgets', () => {
     const files = render(ALL_WORKFLOWS);
     const size = (file: { content: string }) => Buffer.byteLength(file.content);
@@ -123,7 +131,7 @@ describe('the openspec skill', () => {
       expect(size(file), file.relativePath).toBeLessThanOrEqual(12_000);
     }
     const core = render(CORE_WORKFLOWS).reduce((total, file) => total + size(file), 0);
-    expect(core, 'default install').toBeLessThanOrEqual(55_000);
+    expect(core, 'default install').toBeLessThanOrEqual(56_000);
   });
 
   // A host picks the skill by its description alone, so it must say what the
