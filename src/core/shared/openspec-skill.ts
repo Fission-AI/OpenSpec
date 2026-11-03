@@ -53,7 +53,7 @@ export function workflowSkillName(workflowId: string): string {
 
 /** What each workflow is for, in the user's words, in the order users meet them. */
 const WORKFLOW_ROUTES: ReadonlyArray<[id: string, when: string]> = [
-  ['explore', 'think an idea or problem through before deciding (writes only what you OK)'],
+  ['explore', 'think an idea or problem through before deciding (writes only if you OK)'],
   ['propose', 'describe what to build and get the whole plan: proposal, specs, design, tasks'],
   ['new', 'start a change and write its plan one artifact at a time'],
   ['continue', 'write the next artifact of a change'],
@@ -220,7 +220,7 @@ function lift(body: string, workflowId: string): string {
  * than waiting for the user to name one. The `--store` command list and the
  * error prefixes are the same facts BEFORE_YOU_START documents.
  */
-const FINDING_THE_PROJECT = `- **Project:** before the first write, run \`openspec list --json\`. Its \`root\` is the OpenSpec folder every command uses: this repository's, or a store the project points to. Commands find it on their own.
+const FINDING_THE_PROJECT = `- **Project:** before the first write, run \`openspec list --json\`. Its \`root.path\` is the OpenSpec folder every command uses: this repository's, or a store the project points to. Commands find it on their own.
 - **No CLI:** if \`openspec\` is not found, these skills were installed without the OpenSpec CLI. Ask the user to install it (\`npm i -g @fission-ai/openspec\`), and stop.
 - **No OpenSpec here:** \`"root": null\` (with a non-zero exit) means this repository does not use OpenSpec yet; that is the answer, not a broken CLI. Create nothing: no \`openspec init\`, no hand-made \`openspec/\` files. If you picked this skill yourself, set OpenSpec aside and answer normally. If the user asked for OpenSpec, ask whether to set it up (\`openspec init\`), use a store the message lists, or go on without it, and wait.
 - **Another store:** if the work belongs in a different store, find it with \`openspec store list --json\`. Use it when the match is obvious; otherwise name the likeliest one and confirm before writing. Add \`--store <id>\` to every \`new change\`, \`status\`, \`instructions\`, \`list\`, \`show\`, \`validate\`, \`archive\`, \`context\`, \`schemas\`, \`view\`, and \`doctor\` command. Hints the CLI prints already include it.

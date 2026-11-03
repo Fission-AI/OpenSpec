@@ -375,9 +375,13 @@ When a change is complete, we archive it. The archive path is derived from \`pla
 Archived changes become your project's decision history—you can always find them later to understand why something was built a certain way.
 \`\`\`
 
-**DO:** Archive the change (\`--yes\` answers the confirmation prompts, which you cannot answer from a tool call):
+**DO:** Preview first, because this updates the project's main specs. Run it without \`--yes\`, which moves nothing that needs confirmation:
 \`\`\`bash
-openspec archive "<name>" --yes
+openspec archive "<name>" --json
+\`\`\`
+If it reports something needing a go-ahead, tell the user what it says and ask whether to archive and update the specs. Only once they agree, run it again with \`--yes\` (which answers the prompts you cannot answer from a tool call):
+\`\`\`bash
+openspec archive "<name>" --json --yes
 \`\`\`
 
 **SHOW:**
