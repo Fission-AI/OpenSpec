@@ -5,6 +5,7 @@
 // usage: judge.mjs <results-dir> <label-a> <label-b> [--scenario propose] [--model m]
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { SCENARIOS } from './scenarios.mjs';
@@ -33,9 +34,31 @@ const scenario = SCENARIOS.find((s) => s.id === values.scenario);
 const request = scenario.prompt.replace(/^\/\S+\s*/, '');
 // Each repo scenario names its own project: the judge must not be told a
 // plan for one codebase is for another.
-const context = scenario.judgeContext
-  ? scenario.judgeContext(path.resolve(values.fixture))
-  : `This is a small JavaScript library. Its current source:\n\n\`\`\`js\n${fs.readFileSync(new URL('./fixture/src/todo.js', import.meta.url), 'utf8')}\n\`\`\``;
+/**
+ * The project as the agent found it: the fixture with the scenario's `setup`
+ * applied. Without this the judge reads the pristine fixture and calls a plan
+ * ungrounded for naming code or a spec the setup had seeded (update-ripple
+ * seeds `exportJson()` and a `todo-export` spec; 8 of 10 verdicts said both
+ * plans had invented them).
+ */
+function fixtureContext() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'judge-fixture-'));
+  try {
+    fs.cpSync(new URL('./fixture/', import.meta.url), root, { recursive: true });
+    scenario.setup?.(root);
+    const parts = [`\`\`\`js\n// src/todo.js\n${fs.readFileSync(path.join(root, 'src/todo.js'), 'utf8')}\n\`\`\``];
+    const specs = path.join(root, 'openspec/specs');
+    for (const name of fs.existsSync(specs) ? fs.readdirSync(specs).sort() : []) {
+      const file = path.join(specs, name, 'spec.md');
+      if (fs.existsSync(file)) parts.push(`Its \`${name}\` spec:\n\n${fs.readFileSync(file, 'utf8')}`);
+    }
+    return `This is a small JavaScript library. Its current source:\n\n${parts.join('\n\n')}`;
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
+const context = scenario.judgeContext ? scenario.judgeContext(path.resolve(values.fixture)) : fixtureContext();
 
 function plan(label, rep) {
   if (values.reply) {
