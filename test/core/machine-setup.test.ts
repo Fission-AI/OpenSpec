@@ -76,6 +76,39 @@ describe('machine setup', () => {
     expect(text).toContain('Any agent');
   });
 
+  // Setup moves whatever sits on a name it writes. A skill of the user's own
+  // that only shares the prefix collides with nothing, so moving it would take
+  // away work they did; it has neither `generatedBy` nor the layout marker,
+  // which is how it is told apart from a copy of ours.
+  it("leaves a user's own skill that shares the namespace prefix alone", async () => {
+    const shared = path.join(home, '.agents', 'skills');
+    writeSkill(shared, `${NS}-mine`, `---\nname: ${NS}-mine\ndescription: mine\n---\nMINE\n`);
+
+    const result = await setupMachine({ homedir: home, env, runClaude, migrate: true });
+
+    expect(result.moved).toEqual([]);
+    expect(read(shared, `${NS}-mine`, 'SKILL.md')).toContain('MINE');
+    await revertMachineSetup({ homedir: home, env, runClaude });
+    expect(read(shared, `${NS}-mine`, 'SKILL.md')).toContain('MINE');
+  });
+
+  // The committed `skills/` mirror that `npx skills add` installs carries the
+  // layout marker but no `generatedBy`, so a copy of a workflow this install
+  // does not write is recognised by the marker alone. Without that it would be
+  // left behind and the agent would load skills OpenSpec is not maintaining.
+  it('moves an npx copy aside even for a workflow it does not install', async () => {
+    const shared = path.join(home, '.agents', 'skills');
+    const npxCopy = `---\nname: ${NS}-ff\ndescription: from npx\nmetadata:\n${LAYOUT_MARKER}\n---\nnpx copy\n`;
+    writeSkill(shared, `${NS}-ff`, npxCopy);
+
+    const result = await setupMachine({ homedir: home, env, runClaude, migrate: true });
+
+    expect(result.moved.map(({ from }) => path.basename(from))).toContain(`${NS}-ff`);
+    expect(fs.existsSync(path.join(shared, `${NS}-ff`))).toBe(false);
+    await revertMachineSetup({ homedir: home, env, runClaude });
+    expect(read(shared, `${NS}-ff`, 'SKILL.md')).toContain('npx copy');
+  });
+
   // #2180: a harness that reads both its own folder and the portable one finds
   // two skills of the same name, keeps one and warns on every start. The guard
   // is that OpenSpec writes skills to exactly one container folder - the

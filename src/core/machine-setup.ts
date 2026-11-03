@@ -307,7 +307,12 @@ function namespaceSkillDirs(dir: string): string[] {
  * files, which would otherwise offer every workflow a second time; and any
  * other entry under the namespace's names in the machine folders.
  */
-function findOlderFiles(home: string, env: NodeJS.ProcessEnv, projectPath?: string): string[] {
+function findOlderFiles(
+  home: string,
+  env: NodeJS.ProcessEnv,
+  installing: ReadonlySet<string>,
+  projectPath?: string
+): string[] {
   const machineRoots = [sharedSkillsDir(home), path.join(claudeConfigDir(home, env), 'skills')];
   const roots = new Set(machineRoots);
   if (projectPath) {
@@ -326,15 +331,21 @@ function findOlderFiles(home: string, env: NodeJS.ProcessEnv, projectPath?: stri
       if (isOurs(dir) && !(inNamespace(entry.name) && isCurrentLayout(dir))) found.push(dir);
     }
   }
-  // Anything else under the namespace's names in the machine folders that this
-  // setup did not write (a copy from `npx skills add`, or its symlink) is in
-  // the way of the install, so it goes into the backup too, never deleted.
+  // A copy of these skills this setup did not write - from `npx skills add`,
+  // or its symlink - is in the way and goes into the backup too, never
+  // deleted. Two things mark one: it sits on a name this install writes, or it
+  // carries the layout marker, which only these generated skills have (the
+  // committed `skills/` mirror has the marker but no `generatedBy`, so the
+  // marker is what recognises an npx copy of a workflow we do not install).
+  // A skill of the user's own that merely shares the prefix has neither, and
+  // is none of our business to move.
   for (const root of machineRoots) {
     if (!fs.existsSync(root)) continue;
     for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-      if (entry.name !== SKILL_NAMESPACE && !entry.name.startsWith(`${SKILL_NAMESPACE}-`)) continue;
+      if (!inNamespace(entry.name)) continue;
       const dir = path.join(root, entry.name);
-      if (!isCurrentLayout(dir)) found.push(dir);
+      if (isCurrentLayout(dir)) continue;
+      if (installing.has(entry.name) || hasLayoutMarker(readSkill(dir))) found.push(dir);
     }
   }
   if (projectPath) {
@@ -456,7 +467,8 @@ export async function setupMachine(options: MachineSetupOptions = {}): Promise<M
 
   // Move the skills an older OpenSpec wrote out of the way, so agents do not
   // load both; `openspec setup --revert` moves them back.
-  const older = options.migrate ? findOlderFiles(home, env, options.projectPath) : [];
+  const installing = new Set([SKILL_NAMESPACE, ...workflows.map((id) => workflowSkillName(id))]);
+  const older = options.migrate ? findOlderFiles(home, env, installing, options.projectPath) : [];
   if (older.length > 0) {
     const backupDir = path.join(
       getGlobalDataDir({ env, homedir: home }),
@@ -741,8 +753,16 @@ export function formatMachineSetup(result: MachineSetupResult, options: { dryRun
   }
   if (result.moved.length > 0) {
     lines.push('');
-    lines.push(`${options.dryRun ? 'Would move' : 'Moved'} ${result.moved.length} older OpenSpec files to a backup:`);
+    // Say where the backup is, not only that there is one: what moves is
+    // whatever sat on a name this install writes, which can include a file the
+    // user put there, and they need to be able to find it.
+    const count = `${result.moved.length} file${result.moved.length === 1 ? '' : 's'}`;
+    lines.push(`${options.dryRun ? 'Would move' : 'Moved'} ${count} out of the way, from:`);
     for (const line of byFolder(result.moved.map(({ from }) => from))) lines.push(chalk.dim(`  ${line}`));
+    if (result.backupDir) {
+      lines.push(chalk.dim(`  into ${tilde(result.backupDir)}`));
+      if (!options.dryRun) lines.push(chalk.dim('  `openspec setup --revert` puts them back'));
+    }
   }
   lines.push(
     '',
