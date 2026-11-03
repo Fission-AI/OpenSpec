@@ -19,6 +19,12 @@ Run `openspec setup --dry-run` first to see what it would install and move. Star
 
 Or install only the skills with `npx skills add "Fission-AI/OpenSpec#claude/openspec-skills-overhaul-1e6c68" -g` (you still need the CLI). To update, run the same command again.
 
+That route installs the beta beside anything already on your machine, so if an earlier `npx skills add` put `openspec-propose` and the rest there, your agent now sees two OpenSpec skill sets. `openspec setup` moves the older ones into a backup for you; after `npx skills add`, remove them yourself:
+
+```bash
+npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard
+```
+
 ## What you get
 
 | Agent | Where | Start a workflow |

@@ -22,6 +22,19 @@ npm i -g @fission-ai/openspec@beta && openspec setup
 To update, run the same `npx skills add` again. The skills drive the `openspec`
 CLI; without it, they ask you to install it.
 
+**Upgrading from the earlier skills?** This folder used to hold
+`openspec-propose`, `openspec-apply-change` and the rest. Those names are gone
+from it, so `npx skills add` no longer touches them: the copies an earlier run
+left on your machine stay until you remove them, and until you do, your agent
+sees two OpenSpec skill sets at once. Remove them by name:
+
+```bash
+npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard
+```
+
+`openspec setup` does this part for you: it moves skills an earlier OpenSpec
+wrote into a backup, and `--revert` puts them back.
+
 To go back:
 
 - Installed with `openspec setup`: run `openspec setup --revert`. It removes these
