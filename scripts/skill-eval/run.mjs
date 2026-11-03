@@ -127,6 +127,7 @@ const WORKFLOW_OF = {
   'openspec-ff-change': 'ff',
   'openspec-new-change': 'new',
   'openspec-bulk-archive-change': 'bulk-archive',
+  'openspec-onboard': 'onboard',
 };
 
 function promptFor(prompt) {
@@ -225,6 +226,30 @@ function grade(scenario, root, configHome, result, skillsUsed = []) {
   return { checks: scenario.checks(ctx), metrics: scenario.metrics?.(ctx) ?? {} };
 }
 
+/** The session a stream-json run reported, so a follow-up turn can resume it. */
+function sessionIdOf(stream) {
+  for (const line of stream.split('\n')) {
+    try {
+      const id = JSON.parse(line).session_id;
+      if (typeof id === 'string' && /^[0-9a-f-]{36}$/.test(id)) return id;
+    } catch {
+      // not a JSON line
+    }
+  }
+  return null;
+}
+
+/** Deletes the transcript Claude Code kept for one session, and nothing else. */
+function removeSession(id, env) {
+  const projects = path.join(env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'projects');
+  if (!fs.existsSync(projects)) return;
+  for (const dir of fs.readdirSync(projects)) {
+    for (const name of [`${id}.jsonl`, id]) {
+      fs.rmSync(path.join(projects, dir, name), { recursive: true, force: true });
+    }
+  }
+}
+
 function summarizeStream(stream) {
   const lines = stream.split('\n').filter(Boolean).map((line) => {
     try {
@@ -265,15 +290,19 @@ function summarizeStream(stream) {
       }
     }
   }
-  const usage = final.usage ?? {};
+  // A conversation has one result per turn; cost and tokens are their sums.
+  const results = lines.filter((event) => event.type === 'result');
+  const sum = (pick) => results.reduce((total, event) => total + (pick(event) ?? 0), 0);
+  const tokensIn = (usage = {}) =>
+    (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0);
   return {
     result: final.result ?? '',
-    isError: final.is_error ?? true,
-    costUsd: final.total_cost_usd ?? null,
-    turns: final.num_turns ?? null,
-    durationMs: final.duration_ms ?? null,
-    inputTokens: (usage.input_tokens ?? 0) + (usage.cache_creation_input_tokens ?? 0) + (usage.cache_read_input_tokens ?? 0),
-    outputTokens: usage.output_tokens ?? 0,
+    isError: results.length === 0 || results.some((event) => event.is_error),
+    costUsd: results.length ? sum((event) => event.total_cost_usd) : null,
+    turns: results.length ? sum((event) => event.num_turns) : null,
+    durationMs: results.length ? sum((event) => event.duration_ms) : null,
+    inputTokens: sum((event) => tokensIn(event.usage)),
+    outputTokens: sum((event) => event.usage?.output_tokens),
     skillFilesRead: reads.filter((file) => file && /(^skill:|skills\/)/.test(file)).map((file) => file.replace(/^.*skills\//, '')),
     readSpecs,
     readSpecsBeforeDraft,
@@ -289,25 +318,36 @@ async function runOne(scenario, rep) {
     const { root, configHome, env } = makeProject(scenario, work);
     const started = Date.now();
     const plugin = values.install === 'plugin' ? ['--plugin-dir', await buildPlugin(path.join(work, 'plugin'))] : [];
-    const prompt = promptFor(scenario.prompt);
-    const agent = spawnSync(
-      'claude',
-      [
-        '-p', prompt,
-        ...plugin,
-        '--model', values.model,
-        '--output-format', 'stream-json', '--verbose',
-        '--setting-sources', 'project,local',
-        // Each run gets a throwaway project in a temp directory, so the agent
-        // may run any shell command there; web access stays off.
-        '--permission-mode', 'bypassPermissions',
-        '--disallowedTools', 'WebFetch', 'WebSearch',
-        '--no-session-persistence',
-        '--max-budget-usd', '5',
-      ],
-      { cwd: root, env, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 20 * 60 * 1000 }
-    );
-    const summary = summarizeStream(agent.stdout ?? '');
+    // A scenario with `followUps` is a conversation: each follow-up resumes the
+    // first turn's session, which is kept only for that and deleted afterwards.
+    const followUps = scenario.followUps ?? [];
+    const spawnAgent = (text, resume) =>
+      spawnSync(
+        'claude',
+        [
+          '-p', promptFor(text),
+          ...plugin,
+          '--model', values.model,
+          '--output-format', 'stream-json', '--verbose',
+          '--setting-sources', 'project,local',
+          // Each run gets a throwaway project in a temp directory, so the agent
+          // may run any shell command there; web access stays off.
+          '--permission-mode', 'bypassPermissions',
+          '--disallowedTools', 'WebFetch', 'WebSearch',
+          ...(followUps.length === 0 ? ['--no-session-persistence'] : []),
+          ...(resume ? ['--resume', resume] : []),
+          '--max-budget-usd', '5',
+        ],
+        { cwd: root, env, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, timeout: 20 * 60 * 1000 }
+      ).stdout ?? '';
+    let stdout = spawnAgent(scenario.prompt);
+    const sessionId = sessionIdOf(stdout);
+    for (const followUp of followUps) {
+      if (!sessionId) break;
+      stdout += spawnAgent(followUp, sessionId);
+    }
+    if (followUps.length > 0 && sessionId) removeSession(sessionId, env);
+    const summary = summarizeStream(stdout);
     const { checks, metrics } = grade(scenario, root, configHome, summary.result, summary.skillFilesRead);
     const record = {
       label: values.label,
@@ -329,7 +369,7 @@ async function runOne(scenario, rep) {
       wallMs: Date.now() - started,
     };
     fs.writeFileSync(`${base}.json`, JSON.stringify(record, null, 2));
-    fs.writeFileSync(`${base}.stream.jsonl`, agent.stdout ?? '');
+    fs.writeFileSync(`${base}.stream.jsonl`, stdout);
     // Keep what the agent planned, for judge.mjs: only the change folders this
     // run created or touched, since a real project already has others.
     fs.rmSync(`${base}.changes`, { recursive: true, force: true });

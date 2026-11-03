@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyClearCompleted } from './seeds/add-clear-completed/implementation.patch.mjs';
+import { applyPriority } from './seeds/add-priority/implementation.patch.mjs';
 
 // Runs are headless, so nobody can answer a question. Requests that should
 // finish on their own say so, the way a user stepping away would.
@@ -466,6 +467,21 @@ function seedReopenChange(root, { staleBase = false } = {}) {
       )
     );
   }
+}
+
+
+/** Archived change folders whose name ends with `name`. */
+function archivedAs(ctx, name) {
+  const dir = path.join(ctx.root, 'openspec/changes/archive');
+  return fs.existsSync(dir) ? fs.readdirSync(dir).filter((entry) => entry.endsWith(name)) : [];
+}
+
+/** Both seeded changes, with whichever implementations the scenario wants applied. */
+function seedTwoChanges(root, { priority, clearCompleted }) {
+  seedChange(root, 'add-clear-completed');
+  seedChange(root, 'add-priority');
+  if (clearCompleted) applyClearCompleted(root);
+  if (priority) applyPriority(root);
 }
 
 export const SCENARIOS = [
@@ -1745,6 +1761,174 @@ export const SCENARIOS = [
       results.push({ name: 'tasks written, none ticked yet', pass: open + done > 0 && done === 0, detail: `open=${open} done=${done}` });
       results.push(onlyOpenspecChanged(ctx));
       return results;
+    },
+  },
+  // --- Workflows the first 53 scenarios barely reached (verify, update and ff
+  // had one each; bulk-archive and onboard had none). ---
+  {
+    // Two finished changes that both ADD to todo-list: bulk-archive's conflict
+    // case. Both are built, so both apply, older first.
+    id: 'bulk-archive-both',
+    requiresWorkflow: 'bulk-archive',
+    setup: (root) => seedTwoChanges(root, { priority: true, clearCompleted: true }),
+    prompt:
+      '/openspec-bulk-archive-change Archive add-clear-completed and add-priority. Both are finished; I confirm archiving both and updating the main specs.',
+    checks: (ctx) => {
+      const main = ctx.read('openspec/specs/todo-list/spec.md') ?? '';
+      const validate = ctx.openspec(['validate', '--all', '--strict']);
+      return [
+        { name: 'both changes archived', pass: archivedAs(ctx, 'add-clear-completed').length === 1 && archivedAs(ctx, 'add-priority').length === 1 && !ctx.exists('openspec/changes/add-clear-completed') && !ctx.exists('openspec/changes/add-priority') },
+        { name: 'main spec gains both requirements', pass: /### Requirement: Clearing completed todos/.test(main) && /### Requirement: Todo priority/.test(main) },
+        { name: 'existing requirements kept', pass: ['Adding a todo', 'Completing a todo', 'Reading todos'].every((r) => main.includes(`### Requirement: ${r}`)) },
+        { name: 'everything validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        { name: 'no source files changed', pass: ctx.changedFiles().every((file) => file.startsWith('openspec/')) },
+      ];
+    },
+  },
+  {
+    // One change is built, the other is not: only the finished one is archived.
+    id: 'bulk-archive-partial',
+    requiresWorkflow: 'bulk-archive',
+    setup: (root) => seedTwoChanges(root, { priority: false, clearCompleted: true }),
+    prompt:
+      '/openspec-bulk-archive-change Archive every change that is finished and leave the rest. I confirm that batch, updating the main specs.',
+    checks: (ctx) => {
+      const main = ctx.read('openspec/specs/todo-list/spec.md') ?? '';
+      const validate = ctx.openspec(['validate', '--all', '--strict']);
+      return [
+        { name: 'the finished change archived', pass: archivedAs(ctx, 'add-clear-completed').length === 1 && !ctx.exists('openspec/changes/add-clear-completed') },
+        { name: 'the unfinished change left active', pass: ctx.exists('openspec/changes/add-priority/tasks.md') && archivedAs(ctx, 'add-priority').length === 0 },
+        { name: "main spec has no requirement from the unfinished change", pass: /### Requirement: Clearing completed todos/.test(main) && !/### Requirement: Todo priority/.test(main) },
+        { name: 'everything validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        { name: 'no source files changed', pass: ctx.changedFiles().every((file) => file.startsWith('openspec/')) },
+      ];
+    },
+  },
+  {
+    // A correct, finished change: verify must not invent a critical issue.
+    id: 'verify-clean',
+    setup: (root) => {
+      seedChange(root, 'add-clear-completed');
+      applyClearCompleted(root);
+    },
+    prompt: '/openspec-verify-change add-clear-completed',
+    metrics: (ctx) => ({ ranScenario: /node --test|ran (the )?tests?|tests? pass/i.test(ctx.result) }),
+    checks: (ctx) => [
+      {
+        name: 'reports no critical issue',
+        pass: /no critical|0 critical|ready for archive|all checks passed/i.test(ctx.result) && !/\b[1-9]\d* critical issues? found/i.test(ctx.result),
+        detail: (ctx.result ?? '').slice(-300),
+      },
+      { ...nothingChanged(ctx), name: 'verify is read-only' },
+    ],
+  },
+  {
+    // The design contradicts the spec (silent fallback vs. rejection); the user
+    // asks for coherence and approves every edit up front.
+    id: 'update-coherence',
+    setup: (root) => {
+      seedChange(root, 'add-priority');
+      const design = path.join(root, 'openspec/changes/add-priority/design.md');
+      fs.appendFileSync(design, '- An unknown priority falls back to `normal` silently, so callers never see an error.\n');
+    },
+    prompt:
+      '/openspec-update-change add-priority The design must agree with the spec: an unknown priority is rejected. Make the change coherent. I approve every edit you propose, so apply them.',
+    checks: (ctx) => {
+      const design = ctx.read('openspec/changes/add-priority/design.md') ?? '';
+      const spec = ctx.read('openspec/changes/add-priority/specs/todo-list/spec.md') ?? '';
+      const validate = ctx.openspec(['validate', 'add-priority', '--strict']);
+      return [
+        { name: 'design no longer promises a silent fallback', pass: !/falls back to `?normal`? silently/i.test(design) },
+        { name: 'spec still rejects unknown priorities', pass: /reject/i.test(spec) && /urgent/.test(spec) },
+        { name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+        onlyOpenspecChanged(ctx),
+      ];
+    },
+  },
+  {
+    // A breaking request: ff should still flag the break and the choices it
+    // made, not fast-forward through them silently.
+    id: 'ff-breaking',
+    requiresWorkflow: 'ff',
+    prompt: '/openspec-ff-change Make todo ids random UUID strings instead of numbers.' + AUTONOMOUS,
+    metrics: (ctx) => {
+      const name = newChangeNames(ctx)[0];
+      return {
+        namesDecisionToConfirm: /confirm|decision|assum/i.test(ctx.result ?? ''),
+        ...(name ? specQuality(ctx, name) : {}),
+      };
+    },
+    checks: (ctx) => {
+      const names = newChangeNames(ctx);
+      const results = [{ name: 'exactly one change created', pass: names.length === 1, detail: names.join(', ') }];
+      if (names.length !== 1) return results;
+      const name = names[0];
+      const validate = ctx.openspec(['validate', name, '--strict']);
+      const proposal = ctx.read(`openspec/changes/${name}/proposal.md`) ?? '';
+      results.push({ name: 'change validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) });
+      results.push({ name: 'the break is flagged', pass: /BREAKING/.test(proposal) || /\bbreak(ing|s)?\b/i.test(ctx.result ?? '') });
+      results.push({ name: 'the id requirement is MODIFIED, not left stale', pass: deltaSpecs(ctx, name).some((spec) => /## MODIFIED Requirements[\s\S]*Adding a todo/.test(spec.text ?? '')) });
+      results.push(onlyOpenspecChanged(ctx));
+      return results;
+    },
+  },
+  {
+    // `new` scaffolds the change and shows the first artifact's instructions,
+    // then stops: no artifact is written until the user asks.
+    id: 'new-change',
+    requiresWorkflow: 'new',
+    prompt: '/openspec-new-change add-due-dates',
+    checks: (ctx) => {
+      const exists = ctx.exists('openspec/changes/add-due-dates/.openspec.yaml');
+      const written = ['proposal.md', 'design.md', 'tasks.md', 'specs'].filter((file) => ctx.exists(`openspec/changes/add-due-dates/${file}`));
+      return [
+        { name: 'the change was scaffolded by the CLI', pass: exists },
+        { name: 'no artifact written yet', pass: written.length === 0, detail: written.join(', ') },
+        { name: 'shows the first artifact', pass: /proposal/i.test(ctx.result ?? '') },
+        onlyOpenspecChanged(ctx),
+      ];
+    },
+  },
+  {
+    // Onboarding's first turn scans the code and asks which task to take.
+    id: 'onboard-start',
+    requiresWorkflow: 'onboard',
+    prompt: '/openspec-onboard',
+    checks: (ctx) => [
+      { name: 'suggests a task in this codebase', pass: /todo\.js|TodoList|todo\.test/.test(ctx.result ?? ''), detail: (ctx.result ?? '').slice(0, 300) },
+      { name: 'asks before doing anything', pass: /\?/.test(ctx.result ?? '') },
+      { ...nothingChanged(ctx), name: 'writes nothing before the user picks' },
+    ],
+  },
+  {
+    // The whole guided cycle, one user reply per pause: pick, explore, plan,
+    // build, archive.
+    id: 'onboard-full',
+    requiresWorkflow: 'onboard',
+    prompt: '/openspec-onboard',
+    followUps: [
+      "Let's do your first suggestion.",
+      'Makes sense. Continue.',
+      'Looks good. Continue.',
+      'Looks good. Continue.',
+      'Looks good. Continue.',
+      'Yes, implement it.',
+      'Yes, archive it.',
+    ],
+    checks: (ctx) => {
+      const archiveDir = path.join(ctx.root, 'openspec/changes/archive');
+      // Folders only: the archive keeps a `.gitkeep`.
+      const folders = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name) : []);
+      const archived = folders(archiveDir);
+      const active = folders(path.join(ctx.root, 'openspec/changes')).filter((entry) => entry !== 'archive');
+      const validate = ctx.openspec(['validate', '--all', '--strict']);
+      const tests = ctx.run('node', ['--test']);
+      return [
+        { name: 'one change planned, built and archived', pass: archived.length === 1 && active.length === 0, detail: `archived=${archived.join(',')} active=${active.join(',')}` },
+        { name: 'code changed', pass: ctx.changedFiles().some((file) => file.startsWith('src/') || file.startsWith('test/')) },
+        { name: 'tests pass', pass: tests.code === 0, detail: tests.out.slice(-300) },
+        { name: 'everything validates (strict)', pass: validate.code === 0, detail: validate.out.slice(-300) },
+      ];
     },
   },
   // --- Express: 69k stars, no spec framework at all. Run with

@@ -9,7 +9,7 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `propose` | propose due dates | one change, every artifact written, `validate --strict` passes, no code touched |
 | `propose-then-stop` | propose, "then implement it" | change validates, still no code touched |
 | `apply` | apply `add-priority` | all tasks checked (active or archived), `node --test` passes |
-| `apply-task-driven` | apply a change whose last task syncs the specs, the default `tasks.md` shape (#1968) | tests pass, main specs validate |
+| `apply-task-driven` | apply a change whose last task syncs the specs (#1968) | tests pass, main specs validate |
 | `verify` | verify a change whose tasks lie | reports the missing check, writes nothing; records whether it offers the issues back as tasks |
 | `sync` | sync `add-clear-completed` | main spec gains the requirement, specs validate, change stays active |
 | `archive` | archive a finished change | archived, main spec updated, everything validates |
@@ -48,6 +48,19 @@ Each scenario copies `fixture/` (a small todo library with one spec) into a temp
 | `propose-natural` | propose in plain words, no slash command | an OpenSpec skill was used, plus everything `propose` checks |
 | `repo-list-sort`, `repo-validate-quiet` | propose against OpenSpec's own repository (44 specs), run with `--fixture` | one change on the existing capability, validates, no code touched |
 | `oss-deprecated-option`, `oss-more-suggestions`, `oss-split-command` | propose against commander.js, which has no specs framework, run with `--fixture` | one change, validates, no code touched; a feature names its capability for the behavior, a refactor invents no requirement; records plan size, crowding, and for `oss-more-suggestions` whether the plan noticed commander already lists several suggestions when they tie |
+| `propose-ripple` | propose due dates in a project whose export spec must now carry them | one change, validates (strict), no code touched; records whether the export spec gets a delta |
+| `ff-change` | ff due dates; runs only with `--workflows` including `ff` | one change, proposal, delta specs and tasks written with none ticked, validates (strict), no code touched |
+| `exp-retry-after`, `exp-split-response` | propose against expressjs/express, which has no specs, run with `--fixture` | one change, validates, no code touched; the refactor invents no requirement |
+| `exp-trust-proxy`, `ins-iqr` | propose something the code already does (express's `trust proxy`, insyra's `DataList.IQR()`), run with `--fixture` | either declines and says what exists, or plans at most one change that validates; no code touched |
+| `ins-winsorize`, `ins-split-ccl` | propose against insyra, a third-party project with 204 OpenSpec specs, run with `--fixture` | one change, validates, no code touched; the refactor invents no requirement |
+| `bulk-archive-both` | bulk-archive two finished changes that both add to `todo-list` | both archived, main spec gains both requirements and keeps the rest, validates (strict), no code touched |
+| `bulk-archive-partial` | bulk-archive "every change that is finished" when one is not built | only the finished change archived, the other stays active and out of the main spec, validates |
+| `verify-clean` | verify a correct, finished change | reports no critical issue, writes nothing; records whether it ran the scenarios |
+| `update-coherence` | reconcile a design that contradicts its spec, edits approved up front | design no longer contradicts the spec, spec still rejects unknown priorities, validates (strict) |
+| `ff-breaking` | ff a breaking request (UUID ids) | one change, validates (strict), the break is flagged, the id requirement is MODIFIED; records whether the reply names a decision to confirm |
+| `new-change` | new `add-due-dates` | change scaffolded by the CLI, no artifact written yet, shows the first artifact |
+| `onboard-start` | onboarding's first turn | suggests a task in this codebase, asks, writes nothing |
+| `onboard-full` | the whole onboarding cycle, one reply per pause (`followUps`) | one change planned, built and archived, tests pass, validates (strict) |
 
 Scenarios also record observations that are not pass/fail, reported as rates: whether the agent read the existing specs (from the transcript), spec quality for `propose` (existing capability reused, a failure scenario per requirement, one obligation per requirement, no internals in requirement text), and for the apply scenarios whether the main specs ended current and the change archived.
 
