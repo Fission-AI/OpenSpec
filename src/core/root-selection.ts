@@ -34,6 +34,8 @@ import {
   validateStoreId,
 } from './store/foundation.js';
 import { getStoreRootForBackend } from './store/registry.js';
+import { gitOriginUrl, repoNameFromGitUrl } from './store/git.js';
+import { toKebabCase, isKebabId } from './id.js';
 import { inspectOpenSpecRoot } from './openspec-root.js';
 import { findRepoPlanningRootSync, type PlanningHome } from './planning-home.js';
 import { classifyOpenSpecDir, storePointerProblem } from './project-config.js';
@@ -389,6 +391,36 @@ async function resolveDefaultStoreRoot(
   }
 }
 
+/**
+ * Git-remote store suggestion (#2076): the registered store whose id matches
+ * this repo's origin name, or null. Only ever named in the no-root error, never
+ * selected: a basename is not enough authority to redirect writes, because
+ * `company-a/api` and `company-b/api` both match a store called `api`.
+ */
+async function suggestStoreFromGitRemote(
+  startPath: string,
+  registeredIds: string[]
+): Promise<string | null> {
+  // `git -C <path>` needs a directory; a file entry path would make the probe
+  // fail. canonicalDirectory resolves that.
+  const url = await gitOriginUrl(canonicalDirectory(startPath));
+  if (!url) return null;
+
+  const repoName = repoNameFromGitUrl(url);
+  if (!repoName) return null;
+
+  const candidateId = toKebabCase(repoName);
+  if (!candidateId || !isKebabId(candidateId)) return null;
+
+  return registeredIds.includes(candidateId) ? candidateId : null;
+}
+
+/**
+ * Resolve the OpenSpec root for a command, in precedence order: `--store <id>`,
+ * the nearest local `openspec/` directory, the global `defaultStore`, then the
+ * registered-store hint (which names a store matching the repo's origin, if
+ * any) or an implicit root.
+ */
 export async function resolveOpenSpecRoot(
   options: ResolveOpenSpecRootOptions = {}
 ): Promise<ResolvedOpenSpecRoot> {
@@ -434,6 +466,19 @@ export async function resolveOpenSpecRoot(
     : [];
 
   if (registeredIds.length > 0) {
+    // Only spawn git on this failure path: a repo whose origin name matches a
+    // registered store gets that store suggested, never selected.
+    const suggested = await suggestStoreFromGitRemote(startPath, registeredIds);
+    if (suggested) {
+      throw new RootSelectionError(
+        `No OpenSpec root found in the current directory or its ancestors. This repo's origin name matches the registered store "${suggested}". To use it, rerun with --store ${suggested}, or add "store: ${suggested}" to openspec/config.yaml so every command here uses it.`,
+        'no_root_with_registered_stores',
+        {
+          target: 'openspec.root',
+          fix: `Rerun with --store ${suggested}, or add "store: ${suggested}" to openspec/config.yaml.`,
+        }
+      );
+    }
     throw new RootSelectionError(
       `No OpenSpec root found in the current directory or its ancestors. Registered stores: ${registeredIds.join(', ')}. Pass --store <id> to use one, or run openspec init to create a local root.`,
       'no_root_with_registered_stores',

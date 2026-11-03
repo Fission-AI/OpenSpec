@@ -14,8 +14,17 @@ interface ActiveFence {
 }
 
 function getFenceMarker(line: string): ActiveFence | null {
-  const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/);
+  // Unanchored at the end: `.` does not match `\r`, so `(.*)$` would reject
+  // every opener on a line that still carries a CRLF ending.
+  const fenceMatch = line.match(/^\s*(`{3,}|~{3,})(.*)/);
   if (!fenceMatch) {
+    return null;
+  }
+
+  // CommonMark: a backtick fence's info string may not contain a backtick, so
+  // a line like ```npm test``` is inline code, not a fence opener. Treating it
+  // as one masked every following line, hiding later requirements.
+  if (fenceMatch[1][0] === '`' && fenceMatch[2].includes('`')) {
     return null;
   }
 

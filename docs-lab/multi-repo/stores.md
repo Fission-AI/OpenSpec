@@ -196,6 +196,8 @@ OpenSpec writes artifacts to one of two places: your project's `openspec/` folde
 3. **The `store:` line in your project.** How a store-only project records its store.
 4. **`defaultStore` on your machine.** The fallback when none of the above applies.
 
+If none of these applies and you have registered stores, the command fails and lists them. When one store's id matches your repo's name in its `origin` remote, the error names that store and the `store:` line that selects it. OpenSpec never picks a store by name on its own, because repos in different organizations can share a name.
+
 When OpenSpec selects a store, it prints `Using OpenSpec root: ...` before the command output.
 
 ### The `store:` line (store-only projects)

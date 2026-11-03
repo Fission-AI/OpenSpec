@@ -17,7 +17,7 @@ Each OpenSpec project keeps its config file at `openspec/config.yaml`, in the pr
 | `store` | string | No | Fallback OpenSpec root when this openspec/ is config-only |
 | `references` | list | No | Stores whose specs are indexed into instructions |
 
-Invalid fields never fail a command. Each field is validated on its own, and a bad value is dropped with a warning.
+Invalid fields never fail a command. Each field is validated on its own, and a bad value is dropped with a warning. A file that cannot be read or is not valid YAML is ignored with a warning, except by `openspec validate`, which exits 1 so CI catches it.
 
 What to write in these fields is covered in [Project configuration](../../customize/project-config.md).
 

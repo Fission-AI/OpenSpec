@@ -45,7 +45,7 @@ domain:
 The site itself needs no server runtime. A small routing Worker exposes the
 separate Pages project at `openspec.dev/docs` while the Astro landing project
 continues to own the rest of `openspec.dev`. It also routes the supporting
-`/_next`, search, Open Graph, icon, and `llms` paths. Its source and Wrangler
+`/_next`, search, Open Graph, and `llms` paths. Its source and Wrangler
 configuration live in `cloudflare/router/`.
 
 Cloudflare's Free plan cannot override the Host header or DNS origin in an

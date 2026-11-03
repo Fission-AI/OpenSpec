@@ -3,7 +3,9 @@
 ## Purpose
 
 The `openspec init` command SHALL create a complete OpenSpec directory structure in any project, enabling immediate adoption of OpenSpec conventions with support for multiple AI coding assistants.
+
 ## Requirements
+
 ### Requirement: Progress Indicators
 
 The command SHALL display progress indicators during initialization to provide clear feedback about each step.
@@ -184,7 +186,7 @@ The command SHALL generate Agent Skills for selected AI tools.
 #### Scenario: Generating skills for a tool
 
 - **WHEN** a tool is selected during initialization
-- **THEN** create 9 skill directories under `.<tool>/skills/`:
+- **THEN** create 9 skill directories under the tool's configured skills directory, `<skillsDir>/skills/` (for example `.claude/skills/` for Claude Code, or the shared `.agents/skills/` for Amp):
   - `openspec-explore/SKILL.md`
   - `openspec-new-change/SKILL.md`
   - `openspec-continue-change/SKILL.md`
@@ -196,6 +198,21 @@ The command SHALL generate Agent Skills for selected AI tools.
   - `openspec-bulk-archive-change/SKILL.md`
 - **AND** each SKILL.md SHALL contain YAML frontmatter with name and description
 - **AND** each SKILL.md SHALL contain the skill instructions
+
+#### Scenario: Pre-approving the OpenSpec CLI in skill frontmatter
+
+- **WHEN** generating a skill's YAML frontmatter
+- **THEN** the frontmatter SHALL include an `allowed-tools` field with the value `Bash(openspec:*)`
+- **AND** an agent that honors `allowed-tools` SHALL run `openspec` commands from the skill without prompting for approval
+- **AND** because `allowed-tools` pre-approves rather than restricts, any other tool the skill uses SHALL remain available under the user's existing permission settings
+
+#### Scenario: Devin skills reference skills rather than workflows
+
+- **GIVEN** the Devin Local agent does not support workflows and its documentation directs users to skills instead
+- **WHEN** generating skills for the `devin` tool
+- **THEN** rewrite `/opsx:<id>` references in the skill body to the matching `/openspec-<skill>` invocation, which both Devin agents accept
+- **AND** the getting-started hint SHALL name `/openspec-propose` rather than a workflow
+- **AND** under commands-only delivery, where no Devin skills are written, both the workflow bodies and the hint SHALL fall back to `/opsx-<id>`
 
 ### Requirement: Slash Command Generation
 
@@ -236,6 +253,13 @@ The command SHALL generate opsx slash commands only for selected tools that have
 - **WHEN** the user selects Grok Build during initialization
 - **THEN** OpenSpec SHALL treat it as a supported tool with `skillsDir: '.grok'`
 - **AND** command-file generation SHALL be skipped because no Grok adapter is registered
+
+#### Scenario: Generating workflows for Devin Desktop
+
+- **WHEN** the user selects Devin Desktop during initialization
+- **THEN** create one workflow file per profile workflow at `.devin/workflows/opsx-<id>.md`
+- **AND** include frontmatter with `name`, `description`, `category`, and `tags`
+- **AND** rewrite `/opsx:<id>` references in the body to `/opsx-<id>`, the name Devin registers for a workflow file
 
 ### Requirement: Config File Generation
 
@@ -293,6 +317,101 @@ The command SHALL maintain backward compatibility with the experimental command.
 - **WHEN** user runs `openspec experimental`
 - **THEN** delegate to `openspec init`
 - **AND** the command SHALL be hidden from help output
+
+### Requirement: Oh My Pi tool supported in init
+The `openspec init` command SHALL support Oh My Pi as a configurable tool, generating both skill files and command files using Oh My Pi's conventions when selected.
+
+#### Scenario: Selecting Oh My Pi during init
+- **WHEN** a user selects Oh My Pi during `openspec init`
+- **THEN** skill files are written to `.omp/skills/openspec-<id>/SKILL.md` for each active command
+- **AND** command files are written to `.omp/commands/opsx-<id>.md` for each active command
+- **AND** skill file bodies use hyphen-based `/opsx-<id>` command references
+- **AND** command file bodies have `**Provided arguments**: $@` injected after any `**Input**:` heading
+
+#### Scenario: Oh My Pi listed when .omp directory is detected
+- **WHEN** the project root contains a `.omp/` directory
+- **THEN** Oh My Pi is pre-checked in the tool selection during `openspec init`
+
+### Requirement: Shared .agents target initialization
+
+`openspec init` SHALL accept the shared `agents` target wherever tool IDs are selected, and SHALL treat it as a skills-only tool.
+
+#### Scenario: Non-interactive selection of the shared target
+
+- **WHEN** the user runs `openspec init --tools agents`
+- **THEN** OpenSpec SHALL generate skills for the `agents` target
+- **AND** initialization SHALL NOT fail because `agents` has no registered command adapter
+
+#### Scenario: Shared agents target skips command-file generation
+
+- **GIVEN** the configured delivery includes command generation
+- **WHEN** the user selects the shared `agents` target during initialization
+- **THEN** command-file generation SHALL be skipped because no `agents` adapter is registered
+- **AND** `agents` SHALL be listed among the tools reported as having commands skipped
+
+### Requirement: Codex initialization uses the skills-invocable command surface
+`openspec init` SHALL treat Codex as a skills-invocable tool, not as an adapter-backed command-file tool.
+
+#### Scenario: Codex command surface resolution
+- **WHEN** a user runs `openspec init` and selects Codex
+- **THEN** the command SHALL resolve Codex command surface capability as `skills-invocable`
+- **AND** it SHALL apply delivery behavior through the shared command-surface capability model when that model is available
+- **AND** it SHALL NOT use a Codex-specific delivery predicate that duplicates command-surface capability rules
+
+### Requirement: Codex initialization uses skills only
+`openspec init` SHALL configure Codex through generated OpenSpec skills without generating Codex custom prompt files.
+
+#### Scenario: Initializing Codex with default delivery
+- **WHEN** a user runs `openspec init` and selects Codex
+- **AND** the active delivery mode is `both`
+- **THEN** the command SHALL create the selected OpenSpec skill files under `.agents/skills/`
+- **AND** it SHALL NOT create Codex prompt files under `$CODEX_HOME/prompts` or the default Codex prompt directory
+
+#### Scenario: Initializing Codex with skills delivery
+- **WHEN** a user runs `openspec init` and selects Codex
+- **AND** the active delivery mode is `skills`
+- **THEN** the command SHALL create the selected OpenSpec skill files under `.agents/skills/`
+- **AND** it SHALL NOT create Codex prompt files
+
+#### Scenario: Initializing Codex with commands delivery
+- **WHEN** a user runs `openspec init` and selects Codex
+- **AND** the active delivery mode is `commands`
+- **THEN** the command SHALL still create the selected OpenSpec skill files under `.agents/skills/`
+- **AND** it SHALL skip Codex command-file generation because Codex is `skills-invocable`
+
+### Requirement: Codex initialization cleanup removes managed legacy prompts
+`openspec init` SHALL remove previously managed global Codex prompt files only after replacement Codex skills exist, without deleting user-authored Codex prompts.
+
+#### Scenario: Cleanup removes allowlisted global Codex prompt files after replacement exists
+- **WHEN** initialization cleanup runs
+- **AND** the Codex prompt directory contains exact allowlisted managed global Codex prompt files
+- **AND** replacement Codex skills exist for the workflows represented by those prompt filenames
+- **THEN** the command SHALL remove those managed Codex prompt files
+- **AND** it SHALL leave other Codex prompt files unchanged
+
+#### Scenario: Non-interactive initialization preserves unreplaced global Codex prompts
+- **WHEN** `openspec init` runs without interaction and without `--force`
+- **AND** the resolved global Codex prompt directory contains exact allowlisted managed Codex prompt files
+- **AND** replacement Codex skills do not yet exist for at least one detected prompt workflow
+- **THEN** the command SHALL preserve the unreplaced Codex prompt files
+- **AND** it SHALL continue to leave unmanaged Codex prompt files unchanged
+
+#### Scenario: Non-interactive initialization removes replaced global Codex prompts
+- **WHEN** `openspec init` runs without interaction and without `--force`
+- **AND** the resolved global Codex prompt directory contains exact allowlisted managed Codex prompt files
+- **AND** replacement Codex skills exist for the workflows represented by those prompt filenames
+- **THEN** the command SHALL remove those managed Codex prompt files
+- **AND** it SHALL leave unmanaged Codex prompt files unchanged
+
+#### Scenario: Initialization preview lists deferred global prompts cleanup separately
+- **WHEN** `openspec init` detects managed global Codex prompt files before tool setup
+- **THEN** the command SHALL present deferred global prompts cleanup in a separate section from immediate repo-local removals
+- **AND** that section SHALL list the concrete prompt paths
+- **AND** it SHALL explain that those global prompts are removed only after matching replacement skills are installed
+
+#### Scenario: Cleanup reports Codex skills as the replacement
+- **WHEN** initialization cleanup reports removed Codex prompt files
+- **THEN** the cleanup summary SHALL indicate that the removed prompt files are replaced by Codex skills
 
 ## Why
 
