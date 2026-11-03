@@ -1719,6 +1719,7 @@ export const SCENARIOS = [
   // which neither skill set ships by default. ---
   {
     id: 'ff-change',
+    requiresWorkflow: 'ff',
     prompt: '/openspec-ff-change Give a todo an optional due date, kept as an ISO date string.' + AUTONOMOUS,
     metrics: (ctx) => {
       const name = newChangeNames(ctx)[0];

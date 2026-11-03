@@ -370,8 +370,15 @@ async function runOne(scenario, rep) {
   }
 }
 
-// Repo scenarios run only against --fixture, and the todo scenarios only without it.
-const pool = SCENARIOS.filter((s) => (s.fixture === 'repo') === Boolean(values.fixture));
+// Repo scenarios run only against --fixture, and the todo scenarios only
+// without it. A scenario that names a workflow neither side installs by
+// default sits out unless `--workflows` puts it in, so it cannot quietly
+// join a suite where its skill is missing.
+const pool = SCENARIOS.filter(
+  (s) =>
+    (s.fixture === 'repo') === Boolean(values.fixture) &&
+    (!s.requiresWorkflow || WORKFLOWS.includes(s.requiresWorkflow))
+);
 const selected = values.only ? pool.filter((s) => values.only.split(',').includes(s.id)) : pool;
 const jobs = selected.flatMap((scenario) =>
   Array.from({ length: Number(values.reps) }, (_, i) => ({ scenario, rep: i + 1 }))
