@@ -229,7 +229,8 @@ describe('openspec-beta skills replace per-project ones', () => {
       fs.rmSync(gone, { recursive: true });
       setBetaReplacedTools(project, ['claude']);
       const config = JSON.parse(fs.readFileSync(path.join(home, '.config', 'openspec', 'config.json'), 'utf8'));
-      expect(Object.keys(config.betaReplacedTools)).toEqual([fs.realpathSync(project)]);
+      // The record is keyed by the native canonical path (Windows short names expanded).
+      expect(Object.keys(config.betaReplacedTools)).toEqual([fs.realpathSync.native(project)]);
     });
 
     it('writes nothing into the project', async () => {
@@ -275,7 +276,7 @@ describe('openspec-beta skills replace per-project ones', () => {
       vi.mocked(console.log).mockClear();
       await update();
       const printed = vi.mocked(console.log).mock.calls.map((call) => call.join(' ')).join('\n');
-      expect(printed).toContain(`run \`openspec update\` in: ${fs.realpathSync(other)}`);
+      expect(printed).toContain(`run \`openspec update\` in: ${fs.realpathSync.native(other)}`);
       expect(getBetaReplacedTools(other)).toEqual(['claude']);
     });
 
