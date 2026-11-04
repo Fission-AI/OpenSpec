@@ -68,7 +68,9 @@ import {
   BETA_SKILL_NAME,
   betaReplacedMessage,
   betaReplacesTool,
+  findOldNpxSkills,
   getBetaReplacedTools,
+  oldNpxSkillsMessage,
   setBetaReplacedTools,
 } from './beta-skills.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
@@ -378,6 +380,8 @@ export class InitCommand {
     if (betaTools.length > 0) {
       console.log();
       console.log(chalk.dim(betaReplacedMessage(betaTools.map((tool) => tool.name))));
+      const oldNpxSkills = findOldNpxSkills();
+      if (oldNpxSkills.length > 0) console.log(chalk.yellow(oldNpxSkillsMessage(oldNpxSkills)));
     }
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus, {
       write: copilotDecision.write,
@@ -1527,7 +1531,7 @@ export class InitCommand {
   ): Promise<ValidatedInitTool[]> {
     const betaTools = tools.filter((tool) => {
       const option = AI_TOOLS.find((candidate) => candidate.value === tool.value);
-      return option !== undefined && !tool.isGlobalSkillTarget && betaReplacesTool(projectPath, option);
+      return option !== undefined && betaReplacesTool(projectPath, option);
     });
     for (const tool of betaTools) {
       await this.removeSkillDirs(tool.skillsRoot, tool.skillsPath);

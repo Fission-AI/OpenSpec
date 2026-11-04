@@ -53,8 +53,10 @@ import { getAvailableTools } from './available-tools.js';
 import {
   betaReplacedMessage,
   betaReplacesTool,
+  findOldNpxSkills,
   getBetaReplacedTools,
   getOtherBetaProjects,
+  oldNpxSkillsMessage,
   setBetaReplacedTools,
 } from './beta-skills.js';
 import {
@@ -382,8 +384,9 @@ export class UpdateCommand {
       this.displayUpToDateMessage(toolStatuses);
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
-      // Still check for new tool directories and extra workflows
-      this.detectNewTools(resolvedProjectPath, configuredTools);
+      // Still check for new tool directories and extra workflows. A tool using
+      // the beta skills is set up, not new: suggesting init for it would mislead.
+      this.detectNewTools(resolvedProjectPath, [...configuredTools, ...beta.replaced]);
       this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
       this.stopIfUpdateFailed(legacyUpgradeFailures);
@@ -641,7 +644,7 @@ export class UpdateCommand {
     await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
     // 13. Detect new tool directories not currently configured
-    this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
+    this.detectNewTools(resolvedProjectPath, [...configuredAndNewTools, ...beta.replaced]);
 
     // 14. Display the profile notes
     this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile, delivery);
@@ -1039,10 +1042,13 @@ export class UpdateCommand {
     const restored: string[] = [];
     for (const toolId of new Set([...detected, ...recorded])) {
       const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
-      if (!tool || !toolSupportsSkills(tool) || hasGlobalSkillTarget(tool)) continue;
+      if (!tool || !toolSupportsSkills(tool)) continue;
       if (betaReplacesTool(projectPath, tool)) {
         if (detected.includes(toolId)) {
-          await this.removeSkillDirs(projectPath, resolveToolSkillsDir(projectPath, tool), toolId);
+          // A tool whose skills live in the home folder (MiniMax Code) is
+          // rooted there, exactly as the generation loop below writes it.
+          const skillsDir = resolveToolSkillsDir(projectPath, tool);
+          await this.removeSkillDirs(hasGlobalSkillTarget(tool) ? skillsDir : projectPath, skillsDir, toolId);
           await this.removeCommandFiles(projectPath, toolId);
         }
         replaced.push(toolId);
@@ -1053,11 +1059,15 @@ export class UpdateCommand {
     if (replaced.length > 0) {
       const names = replaced.map((id) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id);
       this.log(chalk.dim(betaReplacedMessage(names)));
+      const oldNpxSkills = findOldNpxSkills();
+      if (oldNpxSkills.length > 0) this.log(chalk.yellow(oldNpxSkillsMessage(oldNpxSkills)));
     }
     if (!this.dryRun) this.recordBetaReplacedTools(projectPath, [...replaced, ...restored]);
     // Opting out restores one project per update; name the rest so none is
     // left with neither skill set.
     if (restored.length > 0) {
+      const names = restored.map((id) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id);
+      this.log(chalk.dim(`The OpenSpec beta skills are gone, so OpenSpec's per-project skills come back for ${names.join(', ')}.`));
       const others = getOtherBetaProjects(projectPath);
       if (others.length > 0) {
         this.log(chalk.dim(`To bring back the per-project OpenSpec skills elsewhere, run \`openspec update\` in: ${others.join(', ')}`));
