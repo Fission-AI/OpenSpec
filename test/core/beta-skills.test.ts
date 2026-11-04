@@ -291,6 +291,21 @@ describe('openspec-beta skills replace per-project ones', () => {
       expect(printed).toContain('Using the OpenSpec beta skills for Claude Code');
     });
 
+    it('gives no per-project hints for a tool a legacy upgrade hands straight to the beta', async () => {
+      fs.mkdirSync(path.join(project, 'openspec'), { recursive: true });
+      const legacy = path.join(project, '.claude', 'commands', 'openspec');
+      fs.mkdirSync(legacy, { recursive: true });
+      fs.writeFileSync(path.join(legacy, 'proposal.md'), '<!-- OPENSPEC:START -->\nold\n<!-- OPENSPEC:END -->\n');
+      installBeta(home);
+      vi.mocked(console.log).mockClear();
+      await new UpdateCommand({ force: true }).execute(project);
+      const printed = vi.mocked(console.log).mock.calls.map((call) => call.join(' ')).join('\n');
+      expect(openspecFiles()).toEqual([]);
+      expect(printed).toContain('Using the OpenSpec beta skills for Claude Code');
+      expect(printed).not.toContain('Getting started');
+      expect(printed).not.toContain('/opsx');
+    });
+
     it('leaves a tool that cannot see the beta exactly as it was', async () => {
       await init('claude,cursor');
       const cursorBefore = Object.entries(projectFiles()).filter(([file]) => file.startsWith('.cursor'));

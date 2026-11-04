@@ -288,7 +288,7 @@ export class UpdateCommand {
       delivery
     );
     const {
-      newlyConfiguredTools,
+      newlyConfiguredTools: legacyConfiguredTools,
       workflowOverrides: legacyWorkflowOverrides,
       deferredGlobalCleanup,
       failedTools: legacyUpgradeFailures = [],
@@ -302,6 +302,9 @@ export class UpdateCommand {
       getConfiguredToolsForProfileSync(resolvedProjectPath, this.view)
     );
     const configuredTools = beta.configuredTools;
+    // A tool the legacy upgrade just set up but the beta covers has had its
+    // per-project files removed above, so it gets no per-project hints either.
+    const newlyConfiguredTools = legacyConfiguredTools.filter((toolId) => !beta.replaced.includes(toolId));
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
