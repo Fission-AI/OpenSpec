@@ -1465,12 +1465,12 @@ export const SCENARIOS = [
       const { open, done } = tasksDone(ctx, 'add-lint-script');
       const validate = ctx.openspec(['validate', 'add-lint-script', '--strict']);
       const built = /"lint"/.test(ctx.read('package.json') ?? '');
-      // Either resolve the gap and build, or stop and leave the work undone.
+      // Either resolve the gap and finish the task, or stop and leave it undone.
       // What must never happen: tasks ticked while the change stays invalid.
       return [
         {
           name: 'never reports done while the change fails validate',
-          pass: validate.code === 0 || (open > 0 && done === 0),
+          pass: validate.code === 0 ? open === 0 && done === 1 : open > 0 && done === 0,
           detail: `validate=${validate.code} open=${open} done=${done}`,
         },
         { name: 'no invented requirement', pass: deltaSpecs(ctx, 'add-lint-script').length === 0 },
