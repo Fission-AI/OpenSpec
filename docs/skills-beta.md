@@ -20,11 +20,17 @@ npx skills remove -g -y openspec-beta openspec-beta-explore openspec-beta-propos
 
 Or ask your agent to "remove OpenSpec beta": the skills carry this exact command. The first part removes those 12 skill folders and nothing else; `openspec update` writes the project's per-project skills back, byte for byte, and names any other project that still needs it. Every name is listed because a wildcard would remove only `openspec-beta`.
 
-## If a project already uses OpenSpec
+## What happens to today's skills
 
-Which tools were switched is remembered in your own OpenSpec config, never in the project. So if a project's per-project skills are committed, the switch shows them as deleted: commit that to switch the whole team, or leave it uncommitted to keep them for teammates.
+| | While the beta is installed | Once it's removed |
+|---|---|---|
+| A project's skills and commands (`.claude/skills/openspec-*`, `/opsx` commands) | `openspec update` removes them; `openspec init` writes none | `openspec update` writes them back, byte for byte |
+| MiniMax Code, whose skills live in `~/.minimax/skills` for every project | switched for the whole machine | any project's `openspec update` brings them back |
+| A tool that can't see the beta | left as it is | left as it is |
 
-If an earlier `npx skills add` installed today's skills on your machine, they stay too until you remove them:
+Only the files `openspec update` already rewrites on every run are removed. Which tools were switched is remembered in your own OpenSpec config, never in the project. So if a project's skills are committed, the switch shows them as deleted: commit that to switch the whole team, or leave it uncommitted to keep them for teammates.
+
+If an earlier `npx skills add` installed today's skills in your home folder, `openspec update` prints the command to remove them. The skills CLI installed them, so it's the one to remove them:
 
 ```bash
 npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard

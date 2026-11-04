@@ -18,7 +18,7 @@ npx skills remove -g -y openspec-beta openspec-beta-explore openspec-beta-propos
 
 A wildcard removes only the router, so every name is listed. `openspec update` writes the project's per-project skills back, byte for byte; your `openspec/` folder and the CLI are untouched.
 
-**Upgrading from the earlier skills?** This folder used to hold `openspec-propose`, `openspec-apply-change` and the rest. `npx skills add` no longer touches them, so the copies an earlier run left on your machine stay until you remove them:
+**Upgrading from the earlier skills?** This folder used to hold `openspec-propose`, `openspec-apply-change` and the rest. `npx skills add` no longer touches them, so the copies an earlier run left on your machine stay until you remove them (`openspec update` prints the command for the ones it finds):
 
 ```bash
 npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard draft-openspec-docs release-openspec verify-openspec-docs write-openspec-docs
