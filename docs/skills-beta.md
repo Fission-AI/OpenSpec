@@ -4,25 +4,25 @@ A shorter, easier-to-read set of OpenSpec skills. They sit beside today's skills
 
 ## Try it
 
-You need the OpenSpec CLI (`npm i -g @fission-ai/openspec`). Then:
+You need the OpenSpec CLI (`npm i -g @fission-ai/openspec`). Then, in your project:
 
 ```bash
-npx skills add Fission-AI/OpenSpec -g -y
+npx skills add Fission-AI/OpenSpec -g -y && openspec update
 ```
 
-Start a new agent session. The skills CLI puts them where your agents read them (for Claude Code, `~/.claude/skills`). To update, run the same command again.
+The first command installs the beta skills where your agents read them (for Claude Code, `~/.claude/skills`). The second removes the project's per-project OpenSpec skills, so your agent loads one set: the beta. New projects need nothing extra, because `openspec init` gives them no per-project skills while the beta is installed. Other projects switch the next time you run `openspec update` in them. Start a new agent session afterwards. To update the beta, run the first command again.
 
 ## Go back
 
 ```bash
-npx skills remove -g -y openspec-beta openspec-beta-explore openspec-beta-propose openspec-beta-new openspec-beta-continue openspec-beta-ff openspec-beta-update openspec-beta-apply openspec-beta-verify openspec-beta-archive openspec-beta-bulk-archive openspec-beta-onboard
+npx skills remove -g -y openspec-beta openspec-beta-explore openspec-beta-propose openspec-beta-new openspec-beta-continue openspec-beta-ff openspec-beta-update openspec-beta-apply openspec-beta-verify openspec-beta-archive openspec-beta-bulk-archive openspec-beta-onboard && openspec update
 ```
 
-Or ask your agent to "remove OpenSpec beta": the skills carry this exact command. It removes those 12 skill folders and nothing else. Your `openspec/` folder, the CLI, and any per-project OpenSpec skills stay as they are. Every name is listed because a wildcard would remove only `openspec-beta`.
+Or ask your agent to "remove OpenSpec beta": the skills carry this exact command. The first part removes those 12 skill folders and nothing else; `openspec update` writes the project's per-project skills back, byte for byte, and names any other project that still needs it. Every name is listed because a wildcard would remove only `openspec-beta`.
 
 ## If a project already uses OpenSpec
 
-Its per-project skills (`openspec-propose` and the rest, written by `openspec init`) stay, so your agent offers both `/openspec-propose` and `/openspec-beta-propose`. They work on the same `openspec/` folder; use the beta ones. Removing the beta brings you back to exactly where you were.
+Which tools were switched is remembered in your own OpenSpec config, never in the project. So if a project's per-project skills are committed, the switch shows them as deleted: commit that to switch the whole team, or leave it uncommitted to keep them for teammates.
 
 If an earlier `npx skills add` installed today's skills on your machine, they stay too until you remove them:
 

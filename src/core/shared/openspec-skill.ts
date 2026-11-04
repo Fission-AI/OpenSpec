@@ -370,7 +370,7 @@ These skills come from \`npx skills add\`, separately from the \`openspec\` CLI.
 - **Update:** \`npx skills add Fission-AI/OpenSpec -g -y\` installs the latest of them over these.
 - **Remove:** \`npx skills remove -g -y ${names.join(' ')}\` removes exactly these. A wildcard would remove only \`${OPENSPEC_SKILL_NAME}\`.
 
-Neither touches the project: \`openspec/\`, the CLI, and any per-project OpenSpec skills (\`openspec-propose\` and the rest) stay as they are.
+After removing them, run \`openspec update\` in the project: while these are installed it gives the project no per-project OpenSpec skills, so the agent loads one set, and once these are gone it writes them back. Neither touches \`openspec/\` or the CLI.
 `;
 }
 
