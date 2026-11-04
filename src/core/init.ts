@@ -64,6 +64,13 @@ import {
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
+import {
+  BETA_SKILL_NAME,
+  betaReplacedMessage,
+  betaReplacesTool,
+  getBetaReplacedTools,
+  setBetaReplacedTools,
+} from './beta-skills.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import {
   resolveSharedSkillWriters,
@@ -308,10 +315,15 @@ export class InitCommand {
       await this.createDirectoryStructure(openspecPath, extendMode);
     }
 
+    // A tool that can see the installed openspec-beta skills gets no
+    // per-project ones, so its agent loads one OpenSpec skill set; any it
+    // already had are removed. See beta-skills.ts.
+    const betaTools = await this.applyBetaSkills(projectPath, validatedTools);
+
     // Generate skills and commands for each tool
     const results = await this.generateSkillsAndCommands(
       projectPath,
-      validatedTools,
+      validatedTools.filter((tool) => !betaTools.includes(tool)),
       copilotDecision.write
     );
 
@@ -363,13 +375,17 @@ export class InitCommand {
     const copilotCollisions = wroteCloud ? await findUnmanagedCloudFiles(projectPath) : [];
 
     // Display success message
+    if (betaTools.length > 0) {
+      console.log();
+      console.log(chalk.dim(betaReplacedMessage(betaTools.map((tool) => tool.name))));
+    }
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus, {
       write: copilotDecision.write,
       skippedUndecided: copilotDecision.skippedUndecided,
       present: copilotPresent,
       collisions: copilotCollisions,
       removed: copilotRemoved,
-    });
+    }, betaTools.map((tool) => tool.name));
     if (results.failedTools.length > 0) {
       throw new Error(
         `OpenSpec setup failed for: ${results.failedTools.map((tool) => tool.name).join(', ')}`
@@ -1198,7 +1214,8 @@ export class InitCommand {
       present: string[];
       collisions: string[];
       removed: number;
-    }
+    },
+    betaToolNames: string[] = []
   ): void {
     console.log();
     console.log(
@@ -1398,6 +1415,12 @@ export class InitCommand {
         }
         hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
       }
+      // A tool using the installed beta skills starts a workflow from its skill.
+      if (betaToolNames.length > 0) {
+        const workflow = command.replace(/^\/opsx:/, '');
+        const hint = `Start your first change: /${BETA_SKILL_NAME}-${workflow} "your idea"`;
+        hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), ...betaToolNames]);
+      }
       if (hintToTools.size === 0) {
         // No successful tools: keep the generic command hint
         return [`Start your first change: ${command} "your idea"`];
@@ -1491,6 +1514,38 @@ export class InitCommand {
       color: 'gray',
       spinner: PROGRESS_SPINNER,
     }).start();
+  }
+
+  /**
+   * The selected tools that can see the installed openspec-beta skills. Their
+   * existing OpenSpec skills and commands are removed and they are recorded,
+   * so a later `openspec update` writes them back once the beta is gone.
+   */
+  private async applyBetaSkills(
+    projectPath: string,
+    tools: ValidatedInitTool[]
+  ): Promise<ValidatedInitTool[]> {
+    const betaTools = tools.filter((tool) => {
+      const option = AI_TOOLS.find((candidate) => candidate.value === tool.value);
+      return option !== undefined && !tool.isGlobalSkillTarget && betaReplacesTool(projectPath, option);
+    });
+    for (const tool of betaTools) {
+      await this.removeSkillDirs(tool.skillsRoot, tool.skillsPath);
+      await this.removeCommandFiles(projectPath, tool.value);
+    }
+    if (betaTools.length > 0) {
+      try {
+        setBetaReplacedTools(projectPath, [
+          ...getBetaReplacedTools(projectPath),
+          ...betaTools.map((tool) => tool.value),
+        ]);
+      } catch (error) {
+        console.log(
+          chalk.yellow(`Could not record which tools use the OpenSpec beta skills: ${(error as Error).message}`)
+        );
+      }
+    }
+    return betaTools;
   }
 
   private async removeSkillDirs(skillsRoot: string, skillsDir: string): Promise<number> {

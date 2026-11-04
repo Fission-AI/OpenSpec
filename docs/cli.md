@@ -200,6 +200,15 @@ home directory) are shown with a `~/` prefix.
 openspec update --dry-run --json
 ```
 
+**With the OpenSpec beta skills installed:**
+
+When a tool can see the `openspec-beta` skills (`npx skills add Fission-AI/OpenSpec`),
+`openspec init` and `openspec update` give that tool no per-project OpenSpec skills or
+commands, and remove the ones they wrote before, so its agent loads one OpenSpec skill set.
+Remove the beta and run `openspec update`, and they come back as before. Which tools were
+switched is remembered in your user config, never in the project, so a teammate's setup
+is unaffected. A tool that cannot see the beta is left as it is.
+
 ```json
 {
   "changes": [

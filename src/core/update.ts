@@ -51,6 +51,13 @@ import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.j
 import { formatOptionalWorkflowsNote, getOnboardingCommands } from './onboarding-commands.js';
 import { getAvailableTools } from './available-tools.js';
 import {
+  betaReplacedMessage,
+  betaReplacesTool,
+  getBetaReplacedTools,
+  getOtherBetaProjects,
+  setBetaReplacedTools,
+} from './beta-skills.js';
+import {
   WORKFLOW_TO_SKILL_DIR,
   getConfiguredToolsForProfileSync,
   getToolsNeedingProfileSync,
@@ -284,8 +291,14 @@ export class UpdateCommand {
       failedTools: legacyUpgradeFailures = [],
     } = legacyUpgrade;
 
-    // 5. Find configured tools
-    const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);
+    // 5. Find configured tools. A tool that can see the installed openspec-beta
+    //    skills drops out (its per-project ones are removed), and one the beta
+    //    replaced before but no longer covers comes back in to be regenerated.
+    const beta = await this.applyBetaSkills(
+      resolvedProjectPath,
+      getConfiguredToolsForProfileSync(resolvedProjectPath, this.view)
+    );
+    const configuredTools = beta.configuredTools;
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
@@ -310,6 +323,8 @@ export class UpdateCommand {
         return;
       }
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+      // Every tool here now uses the beta skills: that is the result, not a misconfiguration.
+      if (beta.replaced.length > 0) return;
       this.log(chalk.yellow('No configured tools found.'));
       this.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -355,6 +370,7 @@ export class UpdateCommand {
       ...toolsNeedingVersionUpdate,
       ...toolsNeedingConfigSync,
       ...toolsWithDriftedSkills,
+      ...beta.restored,
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
@@ -530,6 +546,13 @@ export class UpdateCommand {
 
     if (deferredGlobalCleanup) {
       await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
+    }
+
+    // A tool the beta no longer covers stays recorded until it is written back,
+    // so a failed regeneration is retried by the next update.
+    if (beta.restored.length > 0 && !this.dryRun) {
+      const stillMissing = beta.restored.filter((toolId) => !updatedToolIds.includes(toolId));
+      this.recordBetaReplacedTools(resolvedProjectPath, [...beta.replaced, ...stillMissing]);
     }
 
     // 11. Summary
@@ -998,6 +1021,61 @@ export class UpdateCommand {
     }
     for (const line of note) {
       this.log(chalk.dim(line));
+    }
+  }
+
+  /**
+   * Applies the installed openspec-beta skills to this project's tools. A tool
+   * that can see the beta loses its per-project OpenSpec skills and commands,
+   * so its agent loads one set; a tool the beta replaced before but no longer
+   * covers is handed back to be regenerated. See beta-skills.ts.
+   */
+  private async applyBetaSkills(
+    projectPath: string,
+    detected: string[]
+  ): Promise<{ configuredTools: string[]; replaced: string[]; restored: string[] }> {
+    const recorded = getBetaReplacedTools(projectPath);
+    const replaced: string[] = [];
+    const restored: string[] = [];
+    for (const toolId of new Set([...detected, ...recorded])) {
+      const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
+      if (!tool || !toolSupportsSkills(tool) || hasGlobalSkillTarget(tool)) continue;
+      if (betaReplacesTool(projectPath, tool)) {
+        if (detected.includes(toolId)) {
+          await this.removeSkillDirs(projectPath, resolveToolSkillsDir(projectPath, tool), toolId);
+          await this.removeCommandFiles(projectPath, toolId);
+        }
+        replaced.push(toolId);
+      } else if (recorded.includes(toolId) && !detected.includes(toolId)) {
+        restored.push(toolId);
+      }
+    }
+    if (replaced.length > 0) {
+      const names = replaced.map((id) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id);
+      this.log(chalk.dim(betaReplacedMessage(names)));
+    }
+    if (!this.dryRun) this.recordBetaReplacedTools(projectPath, [...replaced, ...restored]);
+    // Opting out restores one project per update; name the rest so none is
+    // left with neither skill set.
+    if (restored.length > 0) {
+      const others = getOtherBetaProjects(projectPath);
+      if (others.length > 0) {
+        this.log(chalk.dim(`To bring back the per-project OpenSpec skills elsewhere, run \`openspec update\` in: ${others.join(', ')}`));
+      }
+    }
+    return {
+      configuredTools: [...detected.filter((id) => !replaced.includes(id)), ...restored],
+      replaced,
+      restored,
+    };
+  }
+
+  /** Best effort: an unreadable global config must not fail an otherwise good update. */
+  private recordBetaReplacedTools(projectPath: string, toolIds: string[]): void {
+    try {
+      setBetaReplacedTools(projectPath, toolIds);
+    } catch (error) {
+      this.log(chalk.yellow(`Could not record which tools use the OpenSpec beta skills: ${(error as Error).message}`));
     }
   }
 
