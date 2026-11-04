@@ -23,6 +23,8 @@ import path from 'path';
 import { AI_TOOLS, type AIToolOption } from './config.js';
 import { getGlobalConfig, saveGlobalConfig } from './global-config.js';
 import { SKILL_NAMES } from './shared/tool-detection.js';
+import { FileSystemUtils } from '../utils/file-system.js';
+import { DISK_VIEW, type FileView } from './file-view.js';
 
 /** The beta's router skill: the one folder every beta install has. */
 export const BETA_SKILL_NAME = 'openspec-beta';
@@ -93,17 +95,24 @@ export function betaReplacesTool(projectPath: string, tool: AIToolOption): boole
  * link into `~/.agents/skills`, with no `generatedBy`) belongs to the skills
  * CLI, and removing it would leave the skills CLI's own records wrong.
  */
-export function ownSkillDirs(skillsDir: string): string[] {
+export function ownSkillDirs(skillsDir: string, view: FileView = DISK_VIEW): string[] {
   const own: string[] = [];
   for (const name of SKILL_NAMES) {
     const dir = path.join(skillsDir, name);
     try {
-      if (!fs.lstatSync(dir).isDirectory()) continue;
+      // A link on disk is the skills CLI's, whatever a dry run has planned.
+      if (fs.lstatSync(dir).isSymbolicLink()) continue;
+    } catch {
+      // Not on disk: a dry run may still have planned it.
+    }
+    if (!view.isDirectory(dir)) continue;
+    let text: string;
+    try {
+      text = view.read(path.join(dir, 'SKILL.md'));
     } catch {
       continue;
     }
-    const text = readText(path.join(dir, 'SKILL.md'));
-    if (text !== undefined && GENERATED_BY.test(text)) own.push(dir);
+    if (GENERATED_BY.test(text)) own.push(dir);
   }
   return own;
 }
@@ -117,6 +126,7 @@ export function findOldNpxSkills(): string[] {
   const folders = new Set<string>([path.join(homeDir(), '.agents', 'skills')]);
   for (const tool of AI_TOOLS) {
     if (tool.skillsDir) folders.add(path.join(homeDir(), tool.skillsDir, 'skills'));
+    if (tool.globalSkillsDir) folders.add(path.join(homeDir(), tool.globalSkillsDir, 'skills'));
   }
   if (process.env.CLAUDE_CONFIG_DIR) folders.add(path.join(process.env.CLAUDE_CONFIG_DIR, 'skills'));
   const found = new Set<string>();
@@ -129,12 +139,10 @@ export function findOldNpxSkills(): string[] {
   return [...found].sort();
 }
 
+// The same canonical form init and update use for the project root, so a
+// Windows short-name alias (C:\Users\RUNNER~1) and its long form share one key.
 function projectKey(projectPath: string): string {
-  try {
-    return fs.realpathSync(projectPath);
-  } catch {
-    return path.resolve(projectPath);
-  }
+  return FileSystemUtils.canonicalizeExistingPath(projectPath);
 }
 
 function recordKey(projectPath: string, toolId: string): string {

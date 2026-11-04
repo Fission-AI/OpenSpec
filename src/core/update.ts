@@ -325,7 +325,7 @@ export class UpdateCommand {
         }
         return;
       }
-      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, [...configuredAndNewTools, ...beta.replaced]);
       // Every tool here now uses the beta skills: that is the result, not a misconfiguration.
       if (beta.replaced.length > 0) return;
       this.log(chalk.yellow('No configured tools found.'));
@@ -383,7 +383,7 @@ export class UpdateCommand {
       }
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
-      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, [...configuredAndNewTools, ...beta.replaced]);
 
       // Still check for new tool directories and extra workflows. A tool using
       // the beta skills is set up, not new: suggesting init for it would mislead.
@@ -642,7 +642,7 @@ export class UpdateCommand {
       this.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
 
-    await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+    await this.syncCopilotCloudFiles(resolvedProjectPath, [...configuredAndNewTools, ...beta.replaced]);
 
     // 13. Detect new tool directories not currently configured
     this.detectNewTools(resolvedProjectPath, [...configuredAndNewTools, ...beta.replaced]);
@@ -1045,22 +1045,29 @@ export class UpdateCommand {
       const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
       if (!tool || !toolSupportsSkills(tool)) continue;
       if (betaReplacesTool(projectPath, tool)) {
-        if (detected.includes(toolId)) {
-          // A tool whose skills live in the home folder (MiniMax Code) is
-          // rooted there, exactly as the generation loop below writes it.
-          // Only OpenSpec's own folders go: see ownSkillDirs.
-          const skillsDir = resolveToolSkillsDir(projectPath, tool);
-          const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
-          for (const dir of ownSkillDirs(skillsDir)) {
-            FileSystemUtils.assertPathWithin(skillsRoot, dir);
-            await this.ops.removeDirectory(dir, toolId);
-          }
-          await this.removeCommandFiles(projectPath, toolId);
-        }
         replaced.push(toolId);
       } else if (recorded.includes(toolId) && !detected.includes(toolId)) {
         restored.push(toolId);
       }
+    }
+    // Record before removing anything: files removed without a record could
+    // never come back. If the record can't be saved, keep today's skills.
+    if (!this.dryRun && !this.recordBetaReplacedTools(projectPath, [...replaced, ...restored])) {
+      replaced.length = 0;
+    }
+    for (const toolId of replaced) {
+      const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
+      if (!detected.includes(toolId) || !tool || !toolSupportsSkills(tool)) continue;
+      // A tool whose skills live in the home folder (MiniMax Code) is
+      // rooted there, exactly as the generation loop below writes it.
+      // Only OpenSpec's own folders go: see ownSkillDirs.
+      const skillsDir = resolveToolSkillsDir(projectPath, tool);
+      const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
+      for (const dir of ownSkillDirs(skillsDir, this.view)) {
+        FileSystemUtils.assertPathWithin(skillsRoot, dir);
+        await this.ops.removeDirectory(dir, toolId);
+      }
+      await this.removeCommandFiles(projectPath, toolId);
     }
     if (replaced.length > 0) {
       const names = replaced.map((id) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id);
@@ -1068,7 +1075,6 @@ export class UpdateCommand {
       const oldNpxSkills = findOldNpxSkills();
       if (oldNpxSkills.length > 0) this.log(chalk.yellow(oldNpxSkillsMessage(oldNpxSkills)));
     }
-    if (!this.dryRun) this.recordBetaReplacedTools(projectPath, [...replaced, ...restored]);
     // Opting out restores one project per update; name the rest so none is
     // left with neither skill set.
     if (restored.length > 0) {
@@ -1086,12 +1092,21 @@ export class UpdateCommand {
     };
   }
 
-  /** Best effort: an unreadable global config must not fail an otherwise good update. */
-  private recordBetaReplacedTools(projectPath: string, toolIds: string[]): void {
+  /**
+   * Best effort: an unreadable global config must not fail an otherwise good
+   * update. Returns false when the record could not be saved.
+   */
+  private recordBetaReplacedTools(projectPath: string, toolIds: string[]): boolean {
     try {
       setBetaReplacedTools(projectPath, toolIds);
+      return true;
     } catch (error) {
-      this.log(chalk.yellow(`Could not record which tools use the OpenSpec beta skills: ${(error as Error).message}`));
+      this.log(
+        chalk.yellow(
+          `Could not record which tools use the OpenSpec beta skills, so OpenSpec's per-project skills stay: ${(error as Error).message}`
+        )
+      );
+      return false;
     }
   }
 

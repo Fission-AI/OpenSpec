@@ -145,6 +145,25 @@ describe('openspec-beta skills replace per-project ones', () => {
       fs.symlinkSync(elsewhere, path.join(dir, 'openspec-apply-change'), 'junction');
       expect(ownSkillDirs(dir)).toEqual([path.join(dir, 'openspec-propose')]);
     });
+
+    it('reads what a dry run has planned, and still never counts a link', () => {
+      const dir = path.join(root, 'skills');
+      const elsewhere = path.join(root, 'elsewhere', 'openspec-apply-change');
+      fs.mkdirSync(elsewhere, { recursive: true });
+      fs.mkdirSync(dir, { recursive: true });
+      fs.symlinkSync(elsewhere, path.join(dir, 'openspec-apply-change'), 'junction');
+      const ours = '---\nmetadata:\n  generatedBy: "1.16.0"\n---\n';
+      const planned = new Set(['openspec-propose', 'openspec-apply-change'].map((name) => path.join(dir, name)));
+      const view = {
+        exists: (file: string) => planned.has(file) || planned.has(path.dirname(file)),
+        isDirectory: (file: string) => planned.has(file),
+        read: (file: string) => {
+          if (!planned.has(path.dirname(file))) throw new Error('absent');
+          return ours;
+        },
+      };
+      expect(ownSkillDirs(dir, view)).toEqual([path.join(dir, 'openspec-propose')]);
+    });
   });
 
   describe('old skills an earlier npx skills add left', () => {
@@ -162,6 +181,11 @@ describe('openspec-beta skills replace per-project ones', () => {
         '---\nname: openspec-apply-change\nmetadata:\n  generatedBy: "1.16.0"\n---\nours\n'
       );
       expect(findOldNpxSkills()).toEqual(['openspec-explore', 'openspec-propose']);
+    });
+
+    it("looks in MiniMax Code's home skills folder too", () => {
+      writeSkill(path.join(home, '.minimax', 'skills'), 'openspec-onboard', '---\nname: openspec-onboard\n---\nold\n');
+      expect(findOldNpxSkills()).toEqual(['openspec-onboard']);
     });
 
     it('says how to remove them when the beta is in use, and deletes none of them', async () => {
@@ -186,6 +210,16 @@ describe('openspec-beta skills replace per-project ones', () => {
       expect(getBetaReplacedTools(project)).toEqual([]);
       const config = JSON.parse(fs.readFileSync(path.join(home, '.config', 'openspec', 'config.json'), 'utf8'));
       expect(config.betaReplacedTools).toBeUndefined();
+    });
+
+    it('is one record however the project path is spelled', async (context) => {
+      // Windows short names (C:\\Users\\RUNNER~1) are the same kind of alias;
+      // a case-insensitive disk is the one every platform's CI can make.
+      const alias = path.join(path.dirname(project), path.basename(project).toUpperCase());
+      if (!fs.existsSync(alias)) return context.skip();
+      installBeta(home);
+      await init('claude');
+      expect(getBetaReplacedTools(alias)).toEqual(['claude']);
     });
 
     it('drops entries for projects that no longer exist', () => {
@@ -327,19 +361,43 @@ describe('openspec-beta skills replace per-project ones', () => {
       expect(getBetaReplacedTools(project)).toEqual([]);
     });
 
-    it('still succeeds when the user config cannot be read', async () => {
+    it('keeps the per-project skills when the user config cannot be saved, so none are lost', async () => {
       await init('claude');
+      const before = projectFiles();
       installBeta(home);
       const configFile = path.join(home, '.config', 'openspec', 'config.json');
       fs.mkdirSync(path.dirname(configFile), { recursive: true });
       fs.writeFileSync(configFile, '{ not json');
       await expect(update()).resolves.toBeUndefined();
-      expect(openspecFiles()).toEqual([]);
+      // Removing them with no record would leave nothing to bring them back.
+      expect(projectFiles()).toEqual(before);
       expect(fs.readFileSync(configFile, 'utf8')).toBe('{ not json');
+    });
+
+    it("keeps GitHub Copilot's cloud-agent files: the beta replaces skills and commands only", async () => {
+      await new InitCommand({ tools: 'github-copilot', force: true, copilotCloud: true }).execute(project);
+      const setupSteps = path.join(project, '.github', 'workflows', 'copilot-setup-steps.yml');
+      const agent = path.join(project, '.github', 'agents', 'openspec.agent.md');
+      const before = [fs.readFileSync(setupSteps, 'utf8'), fs.readFileSync(agent, 'utf8')];
+      installBeta(home, '.github');
+      await update();
+      expect(fs.existsSync(path.join(project, '.github', 'skills', 'openspec-propose'))).toBe(false);
+      expect(getBetaReplacedTools(project)).toEqual(['github-copilot']);
+      expect([fs.readFileSync(setupSteps, 'utf8'), fs.readFileSync(agent, 'utf8')]).toEqual(before);
     });
   });
 
   describe('openspec init', () => {
+    it('writes the per-project skills when the user config cannot be saved', async () => {
+      const configFile = path.join(home, '.config', 'openspec', 'config.json');
+      fs.mkdirSync(path.dirname(configFile), { recursive: true });
+      fs.writeFileSync(configFile, '{ not json');
+      installBeta(home);
+      await init('claude');
+      expect(openspecFiles().some((file) => file.endsWith(path.join('openspec-propose', 'SKILL.md')))).toBe(true);
+      expect(fs.readFileSync(configFile, 'utf8')).toBe('{ not json');
+    });
+
     it('writes no per-project skills for a tool that can see the beta, and update restores them once it is gone', async () => {
       installBeta(home);
       await init('claude');

@@ -1534,6 +1534,22 @@ export class InitCommand {
       const option = AI_TOOLS.find((candidate) => candidate.value === tool.value);
       return option !== undefined && betaReplacesTool(projectPath, option);
     });
+    if (betaTools.length === 0) return [];
+    // Record before removing anything: files removed without a record could
+    // never come back. If the record can't be saved, write today's skills.
+    try {
+      setBetaReplacedTools(projectPath, [
+        ...getBetaReplacedTools(projectPath),
+        ...betaTools.map((tool) => tool.value),
+      ]);
+    } catch (error) {
+      console.log(
+        chalk.yellow(
+          `Could not record which tools use the OpenSpec beta skills, so OpenSpec's per-project skills are written: ${(error as Error).message}`
+        )
+      );
+      return [];
+    }
     for (const tool of betaTools) {
       // Only OpenSpec's own folders go: see ownSkillDirs.
       for (const dir of ownSkillDirs(tool.skillsPath)) {
@@ -1541,18 +1557,6 @@ export class InitCommand {
         await fs.promises.rm(dir, { recursive: true, force: true });
       }
       await this.removeCommandFiles(projectPath, tool.value);
-    }
-    if (betaTools.length > 0) {
-      try {
-        setBetaReplacedTools(projectPath, [
-          ...getBetaReplacedTools(projectPath),
-          ...betaTools.map((tool) => tool.value),
-        ]);
-      } catch (error) {
-        console.log(
-          chalk.yellow(`Could not record which tools use the OpenSpec beta skills: ${(error as Error).message}`)
-        );
-      }
     }
     return betaTools;
   }
