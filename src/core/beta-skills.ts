@@ -207,7 +207,7 @@ export function betaReplacedMessage(toolNames: readonly string[]): string {
 /** The line `init` and `update` print for old skills an earlier `npx skills add` left. */
 export function oldNpxSkillsMessage(names: readonly string[]): string {
   return (
-    "An earlier `npx skills add` left today's OpenSpec skills in your home folder, so your agent still loads them beside the beta. " +
+    "An earlier `npx skills add` left today's OpenSpec skills in your home folder, so your agent loads a second copy of them. " +
     `Remove them with: npx skills remove -g -y ${names.join(' ')}`
   );
 }

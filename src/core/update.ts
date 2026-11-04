@@ -1049,7 +1049,9 @@ export class UpdateCommand {
       if (!tool || !toolSupportsSkills(tool)) continue;
       if (betaReplacesTool(projectPath, tool)) {
         replaced.push(toolId);
-      } else if (recorded.includes(toolId) && !detected.includes(toolId)) {
+      } else if (recorded.includes(toolId)) {
+        // Includes a tool still detected through a shared folder's marker
+        // (Codex in .agents), so it is named and stays recorded until rewritten.
         restored.push(toolId);
       }
     }
@@ -1087,9 +1089,13 @@ export class UpdateCommand {
       if (others.length > 0) {
         this.log(chalk.dim(`To bring back the per-project OpenSpec skills elsewhere, run \`openspec update\` in: ${others.join(', ')}`));
       }
+      // Old copies duplicate the restored skills, and a link one of them left
+      // in a tool's own folder blocks writing that skill back.
+      const oldNpxSkills = findOldNpxSkills();
+      if (oldNpxSkills.length > 0) this.log(chalk.yellow(oldNpxSkillsMessage(oldNpxSkills)));
     }
     return {
-      configuredTools: [...detected.filter((id) => !replaced.includes(id)), ...restored],
+      configuredTools: [...new Set([...detected.filter((id) => !replaced.includes(id)), ...restored])],
       replaced,
       restored,
     };

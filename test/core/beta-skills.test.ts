@@ -199,6 +199,19 @@ describe('openspec-beta skills replace per-project ones', () => {
       expect(printed).toContain('npx skills remove -g -y openspec-propose');
       expect(fs.existsSync(path.join(old, 'SKILL.md'))).toBe(true);
     });
+
+    it('says how to remove them when opting out too, since they can block the restore', async () => {
+      writeSkill(path.join(home, '.claude', 'skills'), 'openspec-propose', '---\nname: openspec-propose\n---\nold\n');
+      await init('claude');
+      installBeta(home);
+      await update();
+      removeBeta(home);
+      vi.mocked(console.log).mockClear();
+      await update();
+      const printed = vi.mocked(console.log).mock.calls.map((call) => call.join(' ')).join('\n');
+      expect(printed).toContain("per-project skills come back for Claude Code");
+      expect(printed).toContain('npx skills remove -g -y openspec-propose');
+    });
   });
 
   describe('the record', () => {
@@ -259,6 +272,23 @@ describe('openspec-beta skills replace per-project ones', () => {
 
       removeBeta(home);
       await update();
+      expect(projectFiles()).toEqual(original);
+      expect(getBetaReplacedTools(project)).toEqual([]);
+    });
+
+    it('names every tool that comes back, including one still detected through a shared folder', async () => {
+      // Codex shares .agents with other tools; a marker there keeps it detected
+      // after its skills are gone, so it comes back through the normal update.
+      await init('codex');
+      const original = projectFiles();
+      installBeta(home, '.agents');
+      await update();
+      expect(fs.readdirSync(path.join(project, '.agents', 'skills')).filter((name) => name.startsWith('openspec-'))).toEqual([]);
+      removeBeta(home, '.agents');
+      vi.mocked(console.log).mockClear();
+      await update();
+      const printed = vi.mocked(console.log).mock.calls.map((call) => call.join(' ')).join('\n');
+      expect(printed).toContain("OpenSpec's per-project skills come back for Codex");
       expect(projectFiles()).toEqual(original);
       expect(getBetaReplacedTools(project)).toEqual([]);
     });
