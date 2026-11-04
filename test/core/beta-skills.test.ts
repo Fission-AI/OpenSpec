@@ -9,6 +9,7 @@ import {
   betaReplacesTool,
   findOldNpxSkills,
   getBetaReplacedTools,
+  ownSkillDirs,
   setBetaReplacedTools,
 } from '../../src/core/beta-skills.js';
 import { InitCommand } from '../../src/core/init.js';
@@ -126,6 +127,23 @@ describe('openspec-beta skills replace per-project ones', () => {
         expect.arrayContaining(['codex', 'amp', 'zed', 'agents'])
       );
       for (const candidate of agentsTools) expect(betaReplacesTool(project, candidate), candidate.value).toBe(true);
+    });
+  });
+
+  describe("OpenSpec's own skill folders", () => {
+    it('are real folders with generatedBy; links and unmarked copies are not', () => {
+      const dir = path.join(root, 'skills');
+      const write = (name: string, body: string) => {
+        fs.mkdirSync(path.join(dir, name), { recursive: true });
+        fs.writeFileSync(path.join(dir, name, 'SKILL.md'), body);
+      };
+      write('openspec-propose', '---\nname: openspec-propose\nmetadata:\n  generatedBy: "1.16.0"\n---\n');
+      write('openspec-explore', '---\nname: openspec-explore\n---\nfrom npx\n');
+      const elsewhere = path.join(root, 'elsewhere', 'openspec-apply-change');
+      fs.mkdirSync(elsewhere, { recursive: true });
+      fs.writeFileSync(path.join(elsewhere, 'SKILL.md'), '---\nmetadata:\n  generatedBy: "1.16.0"\n---\n');
+      fs.symlinkSync(elsewhere, path.join(dir, 'openspec-apply-change'), 'junction');
+      expect(ownSkillDirs(dir)).toEqual([path.join(dir, 'openspec-propose')]);
     });
   });
 
@@ -276,6 +294,28 @@ describe('openspec-beta skills replace per-project ones', () => {
       await new UpdateCommand().execute(other);
       expect(minimaxFiles()).toEqual(original);
       expect(getBetaReplacedTools(project)).toEqual([]);
+    });
+
+    // skills CLI v1.7.4's default `symlink` mode: the beta is copied into
+    // ~/.agents/skills and each agent folder gets a link to it. 'junction'
+    // needs no admin rights on Windows and is ignored elsewhere.
+    it('works with the skills CLI layout: links into ~/.agents/skills, and its own links are kept', async () => {
+      const canonical = path.join(home, '.agents', 'skills');
+      const minimaxSkills = path.join(home, '.minimax', 'skills');
+      await init('minimax-code');
+      fs.mkdirSync(path.join(canonical, BETA_SKILL_NAME), { recursive: true });
+      fs.writeFileSync(path.join(canonical, BETA_SKILL_NAME, 'SKILL.md'), ROUTER);
+      fs.symlinkSync(path.join(canonical, BETA_SKILL_NAME), path.join(minimaxSkills, BETA_SKILL_NAME), 'junction');
+      // An old skill an earlier `npx skills add` linked in, under a name OpenSpec does not write here.
+      fs.mkdirSync(path.join(canonical, 'openspec-onboard'), { recursive: true });
+      fs.writeFileSync(path.join(canonical, 'openspec-onboard', 'SKILL.md'), '---\nname: openspec-onboard\n---\nold\n');
+      fs.symlinkSync(path.join(canonical, 'openspec-onboard'), path.join(minimaxSkills, 'openspec-onboard'), 'junction');
+
+      expect(betaReplacesTool(project, tool('minimax-code'))).toBe(true);
+      await update();
+      expect(fs.readdirSync(minimaxSkills).sort()).toEqual([BETA_SKILL_NAME, 'openspec-onboard']);
+      expect(fs.readFileSync(path.join(minimaxSkills, BETA_SKILL_NAME, 'SKILL.md'), 'utf8')).toBe(ROUTER);
+      expect(fs.existsSync(path.join(canonical, 'openspec-onboard', 'SKILL.md'))).toBe(true);
     });
 
     it('changes nothing on a dry run', async () => {

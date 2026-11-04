@@ -57,6 +57,7 @@ import {
   getBetaReplacedTools,
   getOtherBetaProjects,
   oldNpxSkillsMessage,
+  ownSkillDirs,
   setBetaReplacedTools,
 } from './beta-skills.js';
 import {
@@ -1047,8 +1048,13 @@ export class UpdateCommand {
         if (detected.includes(toolId)) {
           // A tool whose skills live in the home folder (MiniMax Code) is
           // rooted there, exactly as the generation loop below writes it.
+          // Only OpenSpec's own folders go: see ownSkillDirs.
           const skillsDir = resolveToolSkillsDir(projectPath, tool);
-          await this.removeSkillDirs(hasGlobalSkillTarget(tool) ? skillsDir : projectPath, skillsDir, toolId);
+          const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
+          for (const dir of ownSkillDirs(skillsDir)) {
+            FileSystemUtils.assertPathWithin(skillsRoot, dir);
+            await this.ops.removeDirectory(dir, toolId);
+          }
           await this.removeCommandFiles(projectPath, toolId);
         }
         replaced.push(toolId);

@@ -87,6 +87,28 @@ export function betaReplacesTool(projectPath: string, tool: AIToolOption): boole
 }
 
 /**
+ * OpenSpec's own skill folders in `skillsDir`: real directories, not links,
+ * whose SKILL.md carries `generatedBy`. Only these are removed when the beta
+ * takes over. A folder of the same name that `npx skills add` made (usually a
+ * link into `~/.agents/skills`, with no `generatedBy`) belongs to the skills
+ * CLI, and removing it would leave the skills CLI's own records wrong.
+ */
+export function ownSkillDirs(skillsDir: string): string[] {
+  const own: string[] = [];
+  for (const name of SKILL_NAMES) {
+    const dir = path.join(skillsDir, name);
+    try {
+      if (!fs.lstatSync(dir).isDirectory()) continue;
+    } catch {
+      continue;
+    }
+    const text = readText(path.join(dir, 'SKILL.md'));
+    if (text !== undefined && GENERATED_BY.test(text)) own.push(dir);
+  }
+  return own;
+}
+
+/**
  * Today's OpenSpec skills that an earlier `npx skills add` left in the user's
  * home folders, which an agent loads beside the beta. The skills CLI installed
  * them, so it is the one to remove them; these are only named.

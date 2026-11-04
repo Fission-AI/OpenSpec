@@ -71,6 +71,7 @@ import {
   findOldNpxSkills,
   getBetaReplacedTools,
   oldNpxSkillsMessage,
+  ownSkillDirs,
   setBetaReplacedTools,
 } from './beta-skills.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
@@ -1534,7 +1535,11 @@ export class InitCommand {
       return option !== undefined && betaReplacesTool(projectPath, option);
     });
     for (const tool of betaTools) {
-      await this.removeSkillDirs(tool.skillsRoot, tool.skillsPath);
+      // Only OpenSpec's own folders go: see ownSkillDirs.
+      for (const dir of ownSkillDirs(tool.skillsPath)) {
+        FileSystemUtils.assertPathWithin(tool.skillsRoot, dir);
+        await fs.promises.rm(dir, { recursive: true, force: true });
+      }
       await this.removeCommandFiles(projectPath, tool.value);
     }
     if (betaTools.length > 0) {
