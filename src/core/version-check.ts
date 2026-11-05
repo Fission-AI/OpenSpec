@@ -65,14 +65,14 @@ function standaloneUpgradeCommand(): string | null {
  * or telemetry.enabled false did not agree to a different outbound request.
  *
  * `requested` is an explicit `openspec version --check`: the user asked for
- * this one request, so the telemetry signals do not apply to it. Only the
- * update-check opt-out and the CI/test guards still stop it.
+ * this one request, so neither the telemetry signals nor CI detection apply
+ * to it. Only the update-check opt-out and the test guard still stop it.
  */
 function isCheckEnabled(requested: boolean): boolean {
   if (process.env.OPENSPEC_NO_UPDATE_CHECK !== undefined) return false;
-  if (isCiEnvironment()) return false;
   if (process.env.NODE_ENV === 'test') return false;
   if (requested) return true;
+  if (isCiEnvironment()) return false;
   if (isTelemetryOptedOutByEnv()) return false;
   // Same config opt-out as telemetry (env remains the hard override above).
   if (getGlobalConfig().telemetry?.enabled === false) return false;

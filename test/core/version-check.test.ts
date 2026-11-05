@@ -465,12 +465,22 @@ describe('getAvailableCliUpdate', () => {
       })
     );
 
-    it('still honors the update-check opt-out and the CI/test guards', async () => {
+    it('runs in CI, while the passive check stays off', async () => {
+      process.env.CI = 'true';
+      await expect(checkForCliUpdate({ requested: true })).resolves.toEqual({
+        status: 'available',
+        latest: bumpMajor(OPENSPEC_VERSION),
+      });
+      await expect(checkForCliUpdate()).resolves.toEqual({ status: 'disabled', latest: null });
+      expect(requests).toHaveLength(1);
+    });
+
+    it('still honors the update-check opt-out and the test guard', async () => {
       process.env.OPENSPEC_TELEMETRY = '0';
+      process.env.CI = 'true';
       for (const [key, value] of [
         ['OPENSPEC_NO_UPDATE_CHECK', '1'],
         ['OPENSPEC_NO_UPDATE_CHECK', ''],
-        ['CI', 'true'],
         ['NODE_ENV', 'test'],
       ] as const) {
         process.env[key] = value;
@@ -772,7 +782,7 @@ describe('getAvailableCliUpdate against an unroutable registry', () => {
   }, 30000);
 });
 
-describe('openspec version --check with telemetry off', () => {
+describe('openspec version --check with telemetry off, in CI', () => {
   it('still asks the registry', async () => {
     // Counts connections only: the CLI speaks TLS, so the exchange fails
     // and the result is "offline" — which proves a request was attempted,
@@ -799,8 +809,9 @@ describe('openspec version --check with telemetry off', () => {
       npm_config_registry: `https://127.0.0.1:${port}/`,
     };
     delete env.NODE_ENV;
-    delete env.CI;
     delete env.OPENSPEC_NO_UPDATE_CHECK;
+    // A script reading --json often runs in CI; that must not stop it either.
+    env.CI = 'true';
 
     const cliEntry = fileURLToPath(new URL('../../dist/cli/index.js', import.meta.url));
     try {

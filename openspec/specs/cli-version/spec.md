@@ -86,14 +86,28 @@ The system SHALL contact the configured package registry only when `openspec ver
 
 ### Requirement: Preserve update-check safeguards
 
-The version command SHALL use the same privacy, registry, timeout, response-size, redirect, and version-validation safeguards as OpenSpec's existing update check.
+The version command SHALL use the same registry, timeout, response-size, redirect, and version-validation safeguards as OpenSpec's existing update check, and SHALL honor the update-check opt-out. Because `--check` is an explicit user request, telemetry opt-outs and CI detection SHALL NOT disable it.
 
-#### Scenario: Explicit privacy opt-out
+#### Scenario: Update-check opt-out
 
-- **WHEN** telemetry is disabled or `DO_NOT_TRACK`, `OPENSPEC_TELEMETRY`, or `OPENSPEC_NO_UPDATE_CHECK` disables outbound checks
+- **WHEN** `OPENSPEC_NO_UPDATE_CHECK` is set
 - **AND** a user runs `openspec version --check`
 - **THEN** the command performs no update-check request
 - **AND** reports the update status as `disabled`
+
+#### Scenario: Telemetry opt-out or CI does not disable an explicit check
+
+- **WHEN** telemetry is disabled by `OPENSPEC_TELEMETRY`, `DO_NOT_TRACK`, or `telemetry.enabled: false`, or the run is in CI
+- **AND** `OPENSPEC_NO_UPDATE_CHECK` is not set
+- **AND** a user runs `openspec version --check`
+- **THEN** the command checks the registry
+- **AND** reports the outcome as it would with telemetry enabled
+
+#### Scenario: Passive update check keeps its privacy gates
+
+- **WHEN** telemetry is disabled by `OPENSPEC_TELEMETRY`, `DO_NOT_TRACK`, or `telemetry.enabled: false`, or the run is in CI
+- **AND** a user runs `openspec update`
+- **THEN** the background update check performs no registry request
 
 #### Scenario: Unsafe configured registry
 
