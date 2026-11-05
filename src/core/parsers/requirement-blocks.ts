@@ -292,19 +292,37 @@ const DELTA_SECTION_TITLES = new Set(
 );
 
 /**
+ * True when an orphaned requirement sits under a `## ... Requirements` header
+ * that is not one of the four delta sections - `## DEPRECATED Requirements`,
+ * `## Add Requirements`, `## Requirements`. Such a header reads as a delta
+ * operation, so its requirements were meant to be applied: validate reports
+ * them as an ERROR and archive refuses (#2195). Orphans under prose sections
+ * (`## Notes`, `## Behavior`) or above the first `## ` stay warnings.
+ */
+export function isUnrecognizedDeltaSection(section: string | null): boolean {
+  return (
+    section !== null &&
+    /\brequirements?$/i.test(section) &&
+    !DELTA_SECTION_TITLES.has(section.toLowerCase())
+  );
+}
+
+/**
  * Every canonical `### Requirement:` header that is not inside a delta section,
  * in document order.
  *
  * Walks the whole file rather than the parsed sections so a requirement written
  * ABOVE the first `## ` header is reported too - it is dropped just as silently
  * as one under `## Notes`. Fenced lines are skipped, so a requirement shown
- * inside a markdown example is not mistaken for an authored one.
+ * inside a markdown example is not mistaken for an authored one, and so are
+ * HTML comments, so a commented-out draft is not reported as dropped.
  */
 function findOrphanedRequirements(
   lines: string[],
   fenceMask: boolean[]
 ): OrphanedRequirement[] {
   const orphans: OrphanedRequirement[] = [];
+  const masked = maskHtmlComments(lines, fenceMask);
   let section: string | null = null;
   for (let i = 0; i < lines.length; i++) {
     if (fenceMask[i]) continue;
@@ -315,7 +333,7 @@ function findOrphanedRequirements(
       continue;
     }
     if (section !== null && DELTA_SECTION_TITLES.has(section.toLowerCase())) continue;
-    const header = lines[i].match(REQUIREMENT_HEADER_REGEX);
+    const header = masked[i].match(REQUIREMENT_HEADER_REGEX);
     if (header) {
       orphans.push({
         name: normalizeRequirementName(header[1]),
@@ -341,18 +359,25 @@ export function describeUnappliedContent(content: UnappliedContent, sentenceStar
  * (warned about separately), REMOVED/RENAMED bodies, and stray `###` headers
  * before the first requirement (INFO since #498) are not reported.
  */
-function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedContent[] {
-  // Blank out comments outside fences, keeping line count; an unterminated one
-  // runs to EOF. Comments only decide whether a line holds text: sections come
-  // from the same split the merge reads, where a `## ` line inside a comment is
-  // still a boundary. Fenced lines keep their text, so a `<!--` in a code sample
-  // never hides what follows the fence.
+/**
+ * Blank out comments outside fences, keeping line count; an unterminated one
+ * runs to EOF. Fenced lines keep their text, so a `<!--` in a code sample never
+ * hides what follows the fence.
+ */
+function maskHtmlComments(lines: string[], fenceMask: boolean[]): string[] {
   const comments = lines
     .map((line, i) => (fenceMask[i] ? '' : line))
     .join('\n')
     .replace(/<!--[\s\S]*?(?:--!?>|$)/g, (m) => m.replace(/[^\n]/g, ' '))
     .split('\n');
-  const masked = lines.map((line, i) => (fenceMask[i] ? line : comments[i]));
+  return lines.map((line, i) => (fenceMask[i] ? line : comments[i]));
+}
+
+function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedContent[] {
+  // Comments only decide whether a line holds text: sections come from the
+  // same split the merge reads, where a `## ` line inside a comment is still a
+  // boundary.
+  const masked = maskHtmlComments(lines, fenceMask);
   const sections = splitTopLevelSections(lines, fenceMask);
   const firstText = (from: number, to: number, skip?: RegExp) => {
     for (let i = from; i < to; i++) if (masked[i].trim() && !skip?.test(masked[i])) return i;
