@@ -5,10 +5,10 @@
 - [x] 1.3 Refuse duplicate IDs in archive, report them in validate, and warn on repeated scenario IDs and on a main spec that already repeats an ID, per [D4](./design.md#d4); verify the duplicate-ID tests pass
 - [x] 1.4 Prove bare look-alikes (`SHA-256`, `HTTP-2`, `UTF-8`) behave as before; verify the "ordinary names that look like IDs" tests pass
 
-## 2. Templates and docs
+## 2. Docs
 
-- [x] 2.1 Add the ID lines to the `spec-driven` specs, design and tasks instructions and to the `spec.md` and `design.md` templates, per [D5](./design.md#d5) and [D6](./design.md#d6); verify `openspec instructions specs` and `openspec instructions design` show them
-- [x] 2.2 Mirror the instruction and template text in `docs-lab/reference/schemas/spec-driven/index.md` and document IDs in `docs/concepts.md`; verify the schema docs parity test passes
+- [x] 2.1 Leave the `spec-driven` instructions and templates unchanged, per [D5](./design.md#d5); verify `openspec instructions specs` and `openspec instructions design` match a `main` build byte for byte
+- [x] 2.2 Document what validate and archive do with IDs in `docs-lab/reference/schemas/spec-driven/index.md` and `docs/concepts.md`; verify the schema docs parity test passes
 
 ## 3. Proof
 

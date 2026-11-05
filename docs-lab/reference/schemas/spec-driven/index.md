@@ -153,10 +153,10 @@ The template the agent receives as the output format ([templates/spec.md](https:
 
 ## ADDED Requirements
 
-### Requirement: <!-- ID and name, e.g. [AUTH-3] Users sign in -->
+### Requirement: <!-- requirement name -->
 <!-- requirement text -->
 
-#### Scenario: <!-- ID and name, e.g. [AUTH-3.1] Correct password -->
+#### Scenario: <!-- scenario name -->
 - **WHEN** <!-- condition -->
 - **THEN** <!-- expected outcome -->
 ```
@@ -220,7 +220,6 @@ Format requirements:
 - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3 hashtags or bullets will fail silently.
 - Every requirement MUST have at least one scenario.
 - Every scenario MUST have a WHEN/GIVEN step (its trigger) and a THEN step (its outcome). A scenario with only AND lines or plain prose still counts as a scenario, but `openspec validate` flags it as a warning: normal validation still passes, but `openspec validate --strict` fails on it.
-- Start each new requirement and scenario heading with a stable ID in square brackets, so links and archive survive a reworded name: `### Requirement: [AUTH-3] Users sign in`, `#### Scenario: [AUTH-3.1] Correct password`. Use the next unused number in that spec, keep an existing ID when you reword or move a heading, and never reuse a removed one. A heading that has no ID yet may gain one under MODIFIED. Cite the ID, not the name, in tasks, tests and code.
 - Keep each requirement's description (the text between `### Requirement:` and its first scenario) to 500 characters or fewer. `openspec validate` flags longer descriptions in ADDED requirements and in the main spec. This is a warning: normal validation still passes, but `openspec validate --strict` fails on it. When writing a new requirement, state one behavior per requirement: move examples and edge cases into scenarios, and split a requirement that covers several behaviors into separate `### Requirement:` blocks, each with its own scenarios. Under MODIFIED, keep the existing requirement block whole; never split, trim or rewrite existing text just to meet the length. Split an existing long requirement only when the user asks for it, in a change made for that purpose: under MODIFIED, keep its header and every scenario and cut its description down to one behavior without changing its meaning, then add each behavior you removed as its own ADDED requirement with its own scenarios.
 
 New capabilities only: the delta spec's first section is `## Purpose` -
@@ -243,7 +242,7 @@ MODIFIED requirements workflow:
 1. Locate the existing requirement in `<planningHome.root>/openspec/specs/<capability-path>/spec.md` (the same store-aware root as above)
 2. Copy the ENTIRE requirement block (from `### Requirement:` through all scenarios)
 3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
-4. Keep the header text exactly (whitespace-insensitive), or, if it starts with an ID like `[AUTH-3]`, keep that ID and the name may change
+4. Ensure header text matches exactly (whitespace-insensitive)
 
 Common pitfall: Using MODIFIED with partial content loses detail at archive time.
 If adding new concerns without changing existing behavior, use ADDED instead.
@@ -288,7 +287,9 @@ IDs are optional. A spec without them validates and archives exactly as it did b
 
 - **Syntax**: a word in square brackets at the start of the heading name. It starts with a letter, contains a hyphen and ends in a number: `[AUTH-3]`, `[AUTH-3.1]`, `[REQ-UA-004]`, `[cap-012]`.
 - **Without brackets**: the first word is part of the name. `SHA-256 checksum` and `NAV-5 Users sign in` have no ID.
-- **Who writes it**: your agent, following the instructions above. OpenSpec only reads IDs; it never adds, changes or removes one.
+- **Who writes it**: you, or the `openspec-beta` skills, which add one to every new heading.
+- **Default instructions**: the instructions and templates above don't ask for IDs, so today's skills write headings without them.
+- **What OpenSpec does**: it reads IDs that are already there. It never asks for, adds, changes or removes one.
 
 `openspec validate` and `openspec archive` match a `MODIFIED` requirement on its ID before its name:
 
@@ -330,9 +331,7 @@ The template the agent receives as the output format ([templates/design.md](http
 
 ## Decisions
 
-### D1
-
-<!-- At most two sentences: the choice, and why. Edge cases and error messages go in the specs. Keep this ID if the decision is reworded or reordered. -->
+<!-- Key design decisions with rationale and alternatives considered -->
 
 ## Risks / Trade-offs
 
@@ -355,8 +354,8 @@ When to include design.md (create only if any apply):
 Sections:
 - **Context**: Only the current state and constraints needed to explain the approach. Reference the proposal for motivation instead of restating it (e.g., "See proposal.md - Why").
 - **Goals / Non-Goals**: What this design achieves and explicitly excludes. Don't restate the proposal's scope - add only design-level boundaries.
-- **Decisions**: One `### D1`, `### D2`, ... heading per key technical choice, followed by at most two sentences: the choice, and why. Leave out edge cases, error messages and test notes; they belong in the specs and tasks. Keep a decision's ID when you reword or reorder it, and never reuse a removed one. Mention an alternative only if the user or the code raised it.
-- **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation, linking the decision it comes from (`[D2](#d2)`) when there is one
+- **Decisions**: Key technical choices with rationale (why X over Y?). Include alternatives considered for each decision.
+- **Risks / Trade-offs**: Known limitations, things that could go wrong. Format: [Risk] → Mitigation
 - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
 - **Open Questions**: Unknowns that can safely be answered later without
   changing the specs, the approach, or the task breakdown. Omit if none.
@@ -372,14 +371,6 @@ if a section would only restate them, point to them instead.
 
 Good design docs explain the "why" behind technical decisions.
 ```
-
-### Decision IDs
-
-Each decision is a `### D1`, `### D2`, ... heading followed by at most two sentences: the choice, and why.
-
-- **Links**: tasks and risks link to a decision as `[D1](./design.md#d1)`. The heading holds only the ID, so the link keeps working when the decision is reworded.
-- **Numbering**: a decision keeps its ID when it's reworded or reordered, and a removed decision's ID isn't reused.
-- **Checks**: OpenSpec doesn't validate decision IDs. They're a format the instructions above teach your agent.
 
 ## tasks.md
 
@@ -425,7 +416,6 @@ Guidelines:
 - Each tracked task MUST be a checkbox: `- [ ] X.Y Task description`
 - Tasks should be small enough to complete in one session
 - Order tasks by dependency (what must be done first?)
-- When a task implements a design decision or a requirement, cite its ID: `[D2](./design.md#d2)`, `[AUTH-3]`
 - Track implementation and verification work that can be completed before
   archive. If the requested workflow includes archive or work that requires
   this change to be archived, preserve those steps as plain bullets in an

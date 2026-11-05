@@ -1,6 +1,6 @@
 ## Purpose
 
-Lets requirements, scenarios and decisions keep a stable ID through renames, so validate, archive and anything that cites the ID keep working when a heading is reworded.
+Lets requirements and scenarios keep a stable ID through renames, so validate, archive and anything that cites the ID keep working when a heading is reworded.
 
 ## ADDED Requirements
 
@@ -87,13 +87,9 @@ For specs and deltas that contain no bracketed IDs, validate and archive SHALL p
 - **WHEN** a change with no bracketed IDs in its deltas or main specs is archived
 - **THEN** the rebuilt main specs are byte-identical to the previous behavior
 
-### Requirement: [SID-6] ID conventions in the spec-driven templates
-The `spec-driven` spec template and instructions SHALL show bracketed IDs on requirement and scenario headings, keep existing IDs on edits, and never reuse a removed ID. The design template SHALL give each decision a `### D<n>` heading with the choice and reason in one or two sentences, and SHALL list alternatives only when someone raised them. The tasks instructions SHALL cite decisions as `[D<n>](./design.md#d<n>)`.
+### Requirement: [SID-6] The CLI never asks for IDs
+The `spec-driven` instructions and templates SHALL NOT ask for IDs, so agents using them write exactly what they wrote before this change. IDs SHALL be written only by the author or by skills that ask for them.
 
-#### Scenario: [SID-6.1] Agent writes a decision
-- **WHEN** an agent writes `design.md` from the template
-- **THEN** each decision has a `### D1`-style heading followed by at most two sentences, with no Alternatives section unless one was raised
-
-#### Scenario: [SID-6.2] Task cites a decision
-- **WHEN** a task implements decision D2
-- **THEN** the task line links `[D2](./design.md#d2)`
+#### Scenario: [SID-6.1] Default instructions are unchanged
+- **WHEN** an agent runs `openspec instructions specs` or `openspec instructions design`
+- **THEN** the response is byte-identical to the one before this change

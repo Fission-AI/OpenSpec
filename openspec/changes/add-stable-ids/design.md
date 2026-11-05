@@ -38,11 +38,11 @@ Refuse duplicate IDs instead of guessing, because agents number sequentially and
 
 ### D5
 
-A decision is a `### D1` heading plus the choice and reason in one or two sentences: the bare heading keeps the `#d1` anchor stable (#2056), and dropping the Context, Rationale and Alternatives fields answers #2113's concern about padded, invented alternatives. Decision IDs are local to one change, so the CLI doesn't check them; reporting a task link to a missing decision is a follow-up (#2056 step 2).
+The CLI never asks for IDs. The `spec-driven` instructions and templates are unchanged, so today's skills write what they did before and IDs stay opt-in. The `openspec-beta` skills (#2134) write them, along with short `### D1` decisions, which the CLI doesn't read.
 
 ### D6
 
-Tasks, tests and code cite the ID (`// [AUTH-3.1]`, `[D1](./design.md#d1)`), not the heading, so a later report can find links by pattern without anyone rewriting them.
+Tasks, tests and code cite the ID (`// [AUTH-3.1]`), not the heading, so a later report can find links by pattern without anyone rewriting them.
 
 ## Evidence
 
@@ -66,9 +66,8 @@ The implementation reran the archive check on five repos, including sonqh's spec
 
 1. **Coverage report.** `openspec coverage` lists which IDs tests cite. Earlier review findings belong to it: scan untracked files too (`git ls-files -z --cached --others --exclude-standard`), skip the specs themselves, and ignore Elixir's `@spec`.
 2. **`/opsx:verify` reads cited IDs** instead of guessing coverage.
-3. **Dangling decision links.** Validate reports a `[D3](./design.md#d3)` whose decision no longer exists (#2056 step 2).
-4. **A lasting home for implementation context**, the `specs/<capability>/design.md` the conventions spec promises (#1967 direction 3).
+3. **A lasting home for implementation context**, the `specs/<capability>/design.md` the conventions spec promises (#1967 direction 3).
 
 ## Open Questions
 
-- Should the templates suggest a capability prefix (`[AUTH-3]`), or leave the scheme to each project?
+- Should the default templates ever ask for IDs, once the `openspec-beta` skills have been in use for a while?
