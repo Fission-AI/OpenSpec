@@ -107,7 +107,22 @@ describe('openspec-beta skills replace per-project ones', () => {
 
     it('applies only to the tool whose folder holds the beta', () => {
       installBeta(home);
-      expect(betaReplacesTool(project, tool('cursor'))).toBe(false);
+      expect(betaReplacesTool(project, tool('roocode'))).toBe(false);
+    });
+
+    // `npx skills add -g` puts these tools' copy in ~/.agents/skills, the
+    // folder they read, not in their own folder.
+    it('sees the beta in ~/.agents/skills for tools the skills CLI installs there', () => {
+      installBeta(home, '.agents');
+      for (const id of ['cursor', 'github-copilot', 'gemini', 'opencode', 'cline', 'warp']) {
+        expect(betaReplacesTool(project, tool(id)), id).toBe(true);
+      }
+      expect(betaReplacesTool(project, tool('claude'))).toBe(false);
+    });
+
+    it("sees the beta in Cursor's documented Claude and Codex folders", () => {
+      installBeta(home);
+      expect(betaReplacesTool(project, tool('cursor'))).toBe(true);
     });
 
     it('sees the beta for a tool whose OpenSpec skills live in the home folder, where that tool reads', () => {
@@ -337,12 +352,12 @@ describe('openspec-beta skills replace per-project ones', () => {
     });
 
     it('leaves a tool that cannot see the beta exactly as it was', async () => {
-      await init('claude,cursor');
-      const cursorBefore = Object.entries(projectFiles()).filter(([file]) => file.startsWith('.cursor'));
+      await init('claude,roocode');
+      const rooBefore = Object.entries(projectFiles()).filter(([file]) => file.startsWith('.roo'));
       installBeta(home);
       await update();
       expect(openspecFiles().filter((file) => file.startsWith('.claude'))).toEqual([]);
-      expect(Object.entries(projectFiles()).filter(([file]) => file.startsWith('.cursor'))).toEqual(cursorBefore);
+      expect(Object.entries(projectFiles()).filter(([file]) => file.startsWith('.roo'))).toEqual(rooBefore);
       expect(getBetaReplacedTools(project)).toEqual(['claude']);
     });
 

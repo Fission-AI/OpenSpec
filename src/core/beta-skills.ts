@@ -35,6 +35,17 @@ const MACHINE_KEY = '~';
 /** The router's layout marker, which only the generated beta router carries. */
 const ROUTER_MARKER = /^\s+layout: "router"\s*$/m;
 const ROUTER_NAME = new RegExp(`^name: ["']?${BETA_SKILL_NAME}["']?\\s*$`, 'm');
+/**
+ * Tools that read `.agents/skills`, which is where `npx skills add` (skills
+ * 1.7.4) puts their copy of the beta rather than in their own folder.
+ */
+const READS_AGENTS_SKILLS = new Set([
+  'cline', 'cursor', 'factory', 'gemini', 'github-copilot', 'kilocode', 'kimi', 'opencode', 'pi', 'warp',
+]);
+
+/** Other tools' folders a tool documents loading: Cursor reads Claude Code's and Codex's. */
+const ALSO_READS: Record<string, string[]> = { cursor: ['.claude', '.codex'] };
+
 /** OpenSpec's own skills carry this; copies `npx skills add` made of them do not. */
 const GENERATED_BY = /^\s+generatedBy:/m;
 
@@ -61,15 +72,17 @@ export function isMachineWideTool(tool: AIToolOption): boolean {
  * and the tool's folder in the user's home, where `-g` puts it. For the
  * `.agents` tools (Codex, Amp, Zed, ...) that is `~/.agents/skills`, the skills
  * CLI's canonical copy; for Claude Code, `~/.claude/skills` or
- * `$CLAUDE_CONFIG_DIR/skills`; for MiniMax Code, `~/.minimax/skills`.
+ * `$CLAUDE_CONFIG_DIR/skills`; for MiniMax Code, `~/.minimax/skills`. Tools
+ * the skills CLI installs into `.agents/skills` (Cursor, GitHub Copilot, ...)
+ * and folders a tool documents reading (Cursor's Claude and Codex folders)
+ * count too, or that tool would see two skill sets.
  */
 function betaFolders(projectPath: string, tool: AIToolOption): string[] {
   if (tool.globalSkillsDir) return [path.join(homeDir(), tool.globalSkillsDir, 'skills')];
   if (!tool.skillsDir) return [];
-  const folders = [
-    path.join(projectPath, tool.skillsDir, 'skills'),
-    path.join(homeDir(), tool.skillsDir, 'skills'),
-  ];
+  const dirs = [tool.skillsDir, ...(ALSO_READS[tool.value] ?? [])];
+  if (READS_AGENTS_SKILLS.has(tool.value)) dirs.push('.agents');
+  const folders = dirs.flatMap((dir) => [path.join(projectPath, dir, 'skills'), path.join(homeDir(), dir, 'skills')]);
   if (tool.value === 'claude' && process.env.CLAUDE_CONFIG_DIR) {
     folders.push(path.join(process.env.CLAUDE_CONFIG_DIR, 'skills'));
   }
