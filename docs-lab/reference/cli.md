@@ -245,7 +245,13 @@ The beta skills (`npx skills add Fission-AI/OpenSpec`) replace OpenSpec's per-pr
 | The beta is removed | update writes them back, byte for byte. |
 | A tool can't see the beta | Nothing changes for that tool. |
 
-A tool can see the beta when the beta's `openspec-beta` skill is in a skills folder that tool reads: the project's own (`.claude/skills/`) or the tool's folder in your home directory (`~/.claude/skills/`, or `~/.agents/skills/` for Codex, Amp, Zed and the other `.agents` tools). For MiniMax Code, whose OpenSpec skills live in `~/.minimax/skills/` for every project, the switch is machine-wide too.
+A tool can see the beta when the beta's `openspec-beta` skill is in a skills folder that tool reads:
+
+- **The project's own folder**: `.claude/skills/` for Claude Code, `.cursor/skills/` for Cursor.
+- **The tool's folder in your home directory**: `~/.claude/skills/`, or `~/.agents/skills/` for Codex, Amp, Zed and the other `.agents` tools.
+- **`.agents/skills/`, in the project or your home directory**: for Cursor, GitHub Copilot, Gemini CLI, OpenCode, Cline, Kilo Code, Kimi, Factory, Pi and Warp. `npx skills add -g` installs their copy there.
+- **Claude Code's and Codex's folders**: Cursor reads these too.
+- **`~/.minimax/skills/`**: MiniMax Code keeps OpenSpec's skills here for every project, so its switch is machine-wide.
 
 Which tools were switched is remembered in your global config, never in the project, so a teammate's setup is unaffected. If the skills were committed, the switch shows them as deleted in git: commit that to switch the whole team, or don't, to keep them for teammates.
 
