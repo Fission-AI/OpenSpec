@@ -14,12 +14,22 @@ export interface RequirementsSectionParts {
   after: string;
 }
 
+/**
+ * Drop an ATX heading's closing run of `#`s: `## Purpose ##` renders as
+ * `Purpose`, so the run is not part of the title. As for scenario names, only a
+ * run preceded by a space or tab closes the heading, so `C#` keeps its `#`, and
+ * `[ \t]` rather than `\s` keeps an NBSP-separated run in the title.
+ */
+export function stripClosingSequence(title: string): string {
+  return title.replace(/[ \t]+#+[ \t]*$/, '').trim();
+}
+
+/** The main spec's `## Requirements` header, closing run allowed (`## Requirements ##`). */
+export const REQUIREMENTS_SECTION_HEADER_REGEX = /^##\s+Requirements(?:[ \t]+#+)?\s*$/i;
+
 export function normalizeRequirementName(name: string): string {
-  // An ATX heading may end in a closing run of `#`s: `### Requirement: Foo ###`
-  // renders as `Foo`, so the run is not part of the name. As for scenario names,
-  // only a run preceded by a space or tab closes the heading, so `C#` keeps its
-  // `#`, and `[ \t]` rather than `\s` keeps an NBSP-separated run in the name.
-  return name.replace(/[ \t]+#+[ \t]*$/, '').trim();
+  // `### Requirement: Foo ###` names the requirement `Foo`.
+  return stripClosingSequence(name);
 }
 
 /**
@@ -44,7 +54,7 @@ export function extractRequirementsSection(content: string): RequirementsSection
   const normalized = normalizeLineEndings(content);
   const lines = normalized.split('\n');
   const fenceMask = buildCodeFenceMask(lines);
-  const reqHeaderIndex = lines.findIndex((l, i) => !fenceMask[i] && /^##\s+Requirements\s*$/i.test(l));
+  const reqHeaderIndex = lines.findIndex((l, i) => !fenceMask[i] && REQUIREMENTS_SECTION_HEADER_REGEX.test(l));
 
   if (reqHeaderIndex === -1) {
     // No requirements section; create an empty one at the end
@@ -311,7 +321,7 @@ function findOrphanedRequirements(
     // The same `## ` test splitTopLevelSections uses, so both agree on sections.
     const sectionMatch = lines[i].match(/^(##)\s+(.+)$/);
     if (sectionMatch) {
-      section = sectionMatch[2].trim();
+      section = stripClosingSequence(sectionMatch[2]);
       continue;
     }
     if (section !== null && DELTA_SECTION_TITLES.has(section.toLowerCase())) continue;
@@ -399,7 +409,8 @@ function splitTopLevelSections(lines: string[], fenceMask: boolean[]): DeltaSect
     if (fenceMask[i]) continue;
     const m = lines[i].match(/^(##)\s+(.+)$/);
     if (m) {
-      indices.push({ title: m[2].trim(), index: i });
+      // `## ADDED Requirements ##` is the same section as `## ADDED Requirements`.
+      indices.push({ title: stripClosingSequence(m[2]), index: i });
     }
   }
   for (let i = 0; i < indices.length; i++) {

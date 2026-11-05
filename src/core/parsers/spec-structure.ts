@@ -1,9 +1,11 @@
 import { buildCodeFenceMask } from './code-fence.js';
-import { normalizeRequirementName } from './requirement-blocks.js';
+import {
+  normalizeRequirementName,
+  REQUIREMENTS_SECTION_HEADER_REGEX as REQUIREMENTS_SECTION_HEADER,
+} from './requirement-blocks.js';
 
-const REQUIREMENTS_SECTION_HEADER = /^##\s+Requirements\s*$/i;
 const TOP_LEVEL_SECTION_HEADER = /^##\s+/;
-const DELTA_HEADER = /^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements\s*$/i;
+const DELTA_HEADER = /^##\s+(ADDED|MODIFIED|REMOVED|RENAMED)\s+Requirements(?:[ \t]+#+)?\s*$/i;
 const REQUIREMENT_HEADER = /^###\s*Requirement:\s*(.+)\s*$/i;
 
 export interface MainSpecStructureIssue {

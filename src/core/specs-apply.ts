@@ -1347,7 +1347,7 @@ function extractPurposeSection(content: string): string | undefined {
   const fenceMask = buildCodeFenceMask(masked);
   const isStructural = (i: number) => !fenceMask[i];
 
-  const start = masked.findIndex((line, i) => isStructural(i) && /^##\s+Purpose\s*$/i.test(line));
+  const start = masked.findIndex((line, i) => isStructural(i) && /^##\s+Purpose(?:[ \t]+#+)?\s*$/i.test(line));
   if (start === -1) return undefined;
 
   let end = masked.length;

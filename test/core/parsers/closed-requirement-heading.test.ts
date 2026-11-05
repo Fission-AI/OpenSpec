@@ -45,6 +45,20 @@ describe('requirement names with a CommonMark closing sequence', () => {
   });
 
   describe('readers', () => {
+    it('finds a main-spec ## Requirements heading written with a closing run', () => {
+      const content = [
+        '## Purpose ##',
+        'Late fee rules.',
+        '',
+        '## Requirements ##',
+        '### Requirement: Late Fees',
+        'The system SHALL charge late fees.',
+        '',
+      ].join('\n');
+      expect(extractRequirementsSection(content).bodyBlocks.map((b) => b.name)).toEqual(['Late Fees']);
+      expect(findMainSpecStructureIssues(content)).toEqual([]);
+    });
+
     it('names a closed main-spec heading by its rendered text', () => {
       const parts = extractRequirementsSection(
         ['## Requirements', '### Requirement: Late Fees ###', 'The system SHALL charge late fees.', ''].join('\n')
