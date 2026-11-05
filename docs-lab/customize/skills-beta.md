@@ -12,7 +12,7 @@ You need the OpenSpec CLI (`npm i -g @fission-ai/openspec`). Then, in your proje
 npx skills add Fission-AI/OpenSpec -g -y && openspec update
 ```
 
-The first command installs the beta where your agents read skills (`~/.claude/skills` for Claude Code, `~/.agents/skills` for Codex and the other `.agents` tools). The second switches the project over. Start a new agent session afterwards. To update the beta later, run the first command again.
+The first command installs the beta where your agents read skills (`~/.claude/skills` for Claude Code, `~/.agents/skills` for Codex, Cursor, GitHub Copilot and the other tools that read it). The second switches the project over. Start a new agent session afterwards. To update the beta later, run the first command again.
 
 ## Go back
 
