@@ -5,6 +5,8 @@ import https from 'https';
 import os from 'os';
 import path from 'path';
 import { execFile } from 'child_process';
+import net from 'net';
+import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import {
   compareVersions,
@@ -404,6 +406,94 @@ describe('getAvailableCliUpdate', () => {
     }
   });
 
+  describe('an explicit request (version --check)', () => {
+    function withGlobalConfig(contents: string, run: () => Promise<void>) {
+      return async () => {
+        const xdgHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-vc-requested-'));
+        const previousXdg = process.env.XDG_CONFIG_HOME;
+        vi.spyOn(console, 'error').mockImplementation(() => {});
+        try {
+          process.env.XDG_CONFIG_HOME = xdgHome;
+          fs.mkdirSync(path.join(xdgHome, 'openspec'), { recursive: true });
+          fs.writeFileSync(path.join(xdgHome, 'openspec', 'config.json'), contents);
+          await run();
+        } finally {
+          if (previousXdg === undefined) {
+            delete process.env.XDG_CONFIG_HOME;
+          } else {
+            process.env.XDG_CONFIG_HOME = previousXdg;
+          }
+          fs.rmSync(xdgHome, { recursive: true, force: true });
+        }
+      };
+    }
+
+    it('runs when telemetry is off by env, while the passive check stays off', async () => {
+      for (const [key, value] of [
+        ['OPENSPEC_TELEMETRY', '0'],
+        ['DO_NOT_TRACK', '1'],
+      ] as const) {
+        process.env[key] = value;
+        await expect(checkForCliUpdate({ requested: true })).resolves.toEqual({
+          status: 'available',
+          latest: bumpMajor(OPENSPEC_VERSION),
+        });
+        await expect(checkForCliUpdate()).resolves.toEqual({ status: 'disabled', latest: null });
+        delete process.env[key];
+      }
+      expect(requests).toHaveLength(2);
+    });
+
+    it(
+      'runs when telemetry.enabled is false in global config',
+      withGlobalConfig(JSON.stringify({ telemetry: { enabled: false } }), async () => {
+        await expect(checkForCliUpdate({ requested: true })).resolves.toMatchObject({
+          status: 'available',
+        });
+        await expect(checkForCliUpdate()).resolves.toEqual({ status: 'disabled', latest: null });
+        expect(requests).toHaveLength(1);
+      })
+    );
+
+    it(
+      'runs when the global config cannot be parsed',
+      withGlobalConfig('{\n  "telemetry": {\n    "enabled": false\n  },\n}\n', async () => {
+        await expect(checkForCliUpdate({ requested: true })).resolves.toMatchObject({
+          status: 'available',
+        });
+        expect(requests).toHaveLength(1);
+      })
+    );
+
+    it('still honors the update-check opt-out and the CI/test guards', async () => {
+      process.env.OPENSPEC_TELEMETRY = '0';
+      for (const [key, value] of [
+        ['OPENSPEC_NO_UPDATE_CHECK', '1'],
+        ['OPENSPEC_NO_UPDATE_CHECK', ''],
+        ['CI', 'true'],
+        ['NODE_ENV', 'test'],
+      ] as const) {
+        process.env[key] = value;
+        await expect(checkForCliUpdate({ requested: true })).resolves.toEqual({
+          status: 'disabled',
+          latest: null,
+        });
+        delete process.env[key];
+      }
+      expect(requests).toHaveLength(0);
+    });
+
+    it('still refuses a rejected registry', async () => {
+      process.env.OPENSPEC_TELEMETRY = '0';
+      process.env.npm_config_registry = 'http://169.254.169.254/';
+      await expect(checkForCliUpdate({ requested: true })).resolves.toEqual({
+        status: 'disabled',
+        latest: null,
+      });
+      expect(requests).toHaveLength(0);
+    });
+  });
+
   it('still runs when CI is explicitly switched off', async () => {
     for (const value of ['false', '0', 'no', '']) {
       process.env.CI = value;
@@ -679,6 +769,55 @@ describe('getAvailableCliUpdate against an unroutable registry', () => {
     expect(stderr).toBe('');
     expect(code).toBe(0);
     expect(Date.now() - startedAt).toBeLessThan(process.platform === 'win32' ? 12000 : 6000);
+  }, 30000);
+});
+
+describe('openspec version --check with telemetry off', () => {
+  it('still asks the registry', async () => {
+    // Counts connections only: the CLI speaks TLS, so the exchange fails
+    // and the result is "offline" — which proves a request was attempted,
+    // where the telemetry gate would have said "disabled" without one.
+    let connections = 0;
+    const server = net.createServer((socket) => {
+      connections++;
+      socket.destroy();
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as net.AddressInfo).port;
+    const xdgHome = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-vc-cli-'));
+    fs.mkdirSync(path.join(xdgHome, 'openspec'), { recursive: true });
+    fs.writeFileSync(
+      path.join(xdgHome, 'openspec', 'config.json'),
+      JSON.stringify({ telemetry: { enabled: false } })
+    );
+
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      OPENSPEC_TELEMETRY: '0',
+      DO_NOT_TRACK: '1',
+      XDG_CONFIG_HOME: xdgHome,
+      npm_config_registry: `https://127.0.0.1:${port}/`,
+    };
+    delete env.NODE_ENV;
+    delete env.CI;
+    delete env.OPENSPEC_NO_UPDATE_CHECK;
+
+    const cliEntry = fileURLToPath(new URL('../../dist/cli/index.js', import.meta.url));
+    try {
+      const stdout = await new Promise<string>((resolve, reject) => {
+        execFile(
+          process.execPath,
+          [cliEntry, 'version', '--check', '--json'],
+          { env, timeout: 15000 },
+          (error, out) => (error ? reject(error) : resolve(String(out)))
+        );
+      });
+      expect(JSON.parse(stdout).update).toMatchObject({ status: 'offline', latest: null });
+      expect(connections).toBeGreaterThan(0);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      fs.rmSync(xdgHome, { recursive: true, force: true });
+    }
   }, 30000);
 });
 
