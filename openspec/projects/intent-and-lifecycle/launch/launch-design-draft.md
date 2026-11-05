@@ -1,6 +1,6 @@
-# Design review: what the imagined launch requires
+# Launch design draft
 
-**Companion to:** [Build on the decisions you've already made](./imagined-launch-blog.md)\
+**Companion to:** [Build on the decisions you've already made](./launch-post-draft.md)\
 **Status:** Design analysis, not shipped behavior\
 **Reviewed:** November 4, 2026; aligned with the actions/triggers decision November 5, 2026
 
@@ -10,11 +10,11 @@ This review asks what would make the broader product launch possible. Its contra
 
 The article makes a specific promise: **an agent can start from already-established context, shape the right-sized change, and verify the work against the contracts that apply, whether or not those contracts live in the local repo.**
 
-That is stronger than adding links to a proposal. It requires a supported *implement-existing-contract* path alongside OpenSpec's current *change-a-contract* path. The imagined launch is coherent only if both paths work.
+That is stronger than adding links to a proposal. It requires a supported *implement-existing-contract* path alongside OpenSpec's current *change-a-contract* path. The draft launch depends on both paths working.
 
 ## Launch scope translated into product behavior
 
-The article now describes **one imagined first release**, using existing OpenSpec command names rather than introducing a new `source` command or plugin runtime. Its claims are a target experience, **not current shipped behavior**.
+The article now describes **a proposed first release**, using existing OpenSpec command names rather than introducing a new `source` command or plugin runtime. Its claims are a target experience, **not current shipped behavior**.
 
 | What a reader expects | Existing surface | New behavior required |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ The key release test is that **someone can complete the proposed iOS workflow us
 
 **Exposed by:** Shared checkout requirements fully define price confirmation, but say nothing about iOS resuming after backgrounding.
 
-**Current gap:** The skills inspect context and generate artifacts, but lack a consistent method for deciding what to reuse, what to derive locally, and what remains an open question. The imagined blog also shows a brief pre-artifact judgment; existing `propose` can clarify questions, but it does not yet guarantee that visible decision summary. A fixed role selection or mandatory extra document would add ceremony.
+**Current gap:** The skills inspect context and generate artifacts, but lack a consistent method for deciding what to reuse, what to derive locally, and what remains an open question. The draft launch post also shows a brief pre-artifact judgment; existing `propose` can clarify questions, but it does not yet guarantee that visible decision summary. A fixed role selection or mandatory extra document would add ceremony.
 
 **Need to decide/build:** Add a small, reusable **change-shaping** judgment inside existing planning flows: identify the source's relevant claims, select the local slice, identify missing decisions and component-specific guarantees, and explain the result briefly for review. Make it apply to product, infrastructure, and platform work. Define how the accepted scope and contract links persist in normal artifacts even after the original conversation is gone.
 
@@ -55,7 +55,7 @@ The key release test is that **someone can complete the proposed iOS workflow us
 
 **Exposed by:** An iOS checkout change has tests and a demonstration but no local delta spec.
 
-**Current conflict:** The existing `openspec-verify-change` skill checks requirements and scenarios primarily from delta-spec artifacts. When specs are skipped or absent, spec checks can become not applicable. That would make the imagined change look under-specified precisely where customers want proof.
+**Current conflict:** The existing `openspec-verify-change` skill checks requirements and scenarios primarily from delta-spec artifacts. When specs are skipped or absent, spec checks can become not applicable. That would make the example change look under-specified precisely where customers want proof.
 
 **Need to decide/build:** Make the agent retrieve the **applicable expectations accepted for this change** from source links, local maintained specs, and local deltas. Report evidence per claim and clearly mark inaccessible, ambiguous, outdated, or unverified expectations. Define what happens if the source changes after planning before verification begins.
 
@@ -101,7 +101,7 @@ The key release test is that **someone can complete the proposed iOS workflow us
 
 **OpenSpec Projects:** A shared context-and-work workspace may eventually unify files, designs, changes, and sessions. The article must not imply that it is required now. Its relationship to existing Stores and Worksets is still undecided.
 
-**Observer:** A possible paid service can watch project activity and discover new relationships. It is not simply a scheduler for the on-demand check and is not part of this imagined initial release.
+**Observer:** A possible paid service can watch project activity and discover new relationships. It is not simply a scheduler for the on-demand check and is not part of this proposed initial release.
 
 **Cross-repo delivery status:** Approving a shared contract, verifying the iOS implementation, merging the backend, and delivering the complete checkout feature are distinct events. Coverage and rollout dashboards require additional evidence and coordination models.
 
@@ -109,7 +109,7 @@ The key release test is that **someone can complete the proposed iOS workflow us
 
 Before implementing a general plugin architecture or persistent graph, run **one checkout contract through two repos** and **one infrastructure ADR through one repo**, using real agent tools. Test four transitions: planning from existing context; choosing reuse versus local delta; verification without local deltas; and archiving while preserving useful source links.
 
-If we cannot make those transitions work without duplicating contracts or weakening verification, the imagined launch promise is not yet ready. That's the result the blog-writing exercise was meant to expose.
+If we cannot make those transitions work without duplicating contracts or weakening verification, the draft's launch promise is not yet ready. These are the design questions to resolve before release.
 
 ## Verification references
 

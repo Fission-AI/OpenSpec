@@ -2,7 +2,7 @@
 
 *Run useful checks and offer optional next steps as work moves from planning to implementation, without changing your OpenSpec workflow.*
 
-> **Imagined launch:** This describes the experience we're building toward. The commands and configuration are proposed, not available today. See the [pilot design](lifecycle-checkpoints.md) for what we try first and the [roadmap](../direction/roadmap.md) for what follows.
+> **Draft launch post:** This describes the experience we're building toward. The commands and configuration are proposed, not available today. See the [pilot design](lifecycle-checkpoints.md) for what we try first and the [roadmap](../direction/roadmap.md) for what follows.
 
 Your team agrees on checkout requirements in another repository. You create an OpenSpec change and start building. A week later, someone updates the requirements.
 

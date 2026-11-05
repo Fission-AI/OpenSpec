@@ -12,13 +12,13 @@ The first pilot checks source drift before Apply and offers a feedback review af
 
 The selected lifecycle command is `openspec lifecycle check --at apply.before --change <name> --json`.
 
-The design is proposed, not implemented. The launch post is an imagined future experience. Neither claims these commands or configuration fields work today.
+The design is proposed, not implemented. The launch post is a draft of the intended experience. Neither claims these commands or configuration fields work today.
 
 ## Background
 
 The [enterprise requirements inventory](research/enterprise-requirements.md) preserves the broader integration needs.
 
-The [product direction](direction/intent-to-implementation.md), [external-context PRD](direction/external-context-for-changes.md), [product launch draft](launch/imagined-launch-blog.md), and [design gaps](launch/imagined-launch-design-gaps.md) explore wider questions about context and contract verification. Keep that work separate from this pilot; it doesn't require replacing the existing generator.
+The [product direction](direction/intent-to-implementation.md), [external-context PRD](direction/external-context-for-changes.md), [product launch draft](launch/launch-post-draft.md), and [design draft](launch/launch-design-draft.md) explore wider questions about context and contract verification. Keep that work separate from this pilot; it doesn't require replacing the existing generator.
 
 ## Working on this proposal
 
