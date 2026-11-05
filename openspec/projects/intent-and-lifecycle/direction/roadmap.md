@@ -1,47 +1,41 @@
-# Intent and lifecycle roadmap
+# Lifecycle extensibility roadmap
 
-**Status:** Proposed delivery sequence, updated November 5, 2026; no implementation or dates committed.
-**Purpose:** Coordinate the existing-context workflow and the selected actions/triggers model.
+**Status:** Agreed scope; proposed delivery plan. No dates committed.
 
-The product goal is to implement and verify a focused slice of existing intent without duplicating its authoritative contract. Actions and triggers support that work with checks and optional reviews. They are not a prerequisite for the basic context workflow and do not solve its external-contract lifecycle gaps.
+Keep the existing requirements-to-change workflow. Give built-in skills, custom skills, and CLI operations the same way to run checks and offer useful next steps.
 
-This is the single sequencing reference for these documents. Launch posts illustrate target experiences, not separate release commitments. The earlier optional-skill-first schedule and effort estimates are retired.
+The [lifecycle launch post](../lifecycle/lifecycle-checkpoints-launch.md) shows where we want to end up. Start with the [small pilot](../lifecycle/lifecycle-checkpoints.md), then use what we learn to extend it.
 
-## 1. Validate the two core journeys
+## 1. Walk through the existing skills
 
-| Journey | Prototype | Evidence needed |
-| --- | --- | --- |
-| Existing context to verified implementation | Use one shared checkout contract across two repos and one infrastructure ADR in a repo. Compare existing planning with focused guidance. An optional skill may serve as a test vehicle. | Useful scope, reuse versus local-delta decisions, verification of applicable contracts, and source links that survive archive. |
-| Lifecycle checks and optional reviews | Before Apply, run a built-in Git drift check. After Apply, offer a feedback review in the current session. Exercise manual invocation and a custom caller. | Correct file comparisons; honest unknown results; accept/skip without affecting check status; no repeated prompts from instruction reads. |
+Find where the custom workflow starts Apply and knows its tasks are complete. Check what source identity and revision it already records. Capture the version actually read and save it when the developer accepts the generated change. Map those inputs to the proposed API without rebuilding generation.
 
-These pilots can proceed independently. Neither requires plugin distribution, a general event engine, or changes to the artifact dependency graph. Drafting a good proposal alone does not establish that the context journey works end to end.
+Agree only the contracts needed for that walkthrough: how callers run a lifecycle point synchronously, how a check reports its result, and how an accepted review reaches the agent. Decide whether reviews map directly to skills or need a separate instruction lookup; the two-operation API and reuse of source metadata are proposals, not settled constraints.
 
-## 2. Deliver bounded improvements from the pilots
+## 2. Build one useful loop
 
-For the context workflow, resolve the implement-existing-contract path across planning, validation, Apply, verification, and archive before claiming full support. Preserve ordinary source links and explanations. Use local deltas only for contracts the change actually modifies. Do not repurpose `skip_specs` to stand for external-contract implementation.
+Before Apply, compare the source file with the recorded baseline. Report content changes or explain why it couldn't be checked. Offer a separate impact review: an edit may be a typo, unrelated to this work, or a proposal rather than an accepted requirement. The developer decides what needs updating; the baseline never advances silently.
 
-For lifecycle behavior, deliver optional Git pins, validated actions/triggers, a built-in read-only check, separate findings and suggestions, and warning-only policy. Settle the result contract, Git ref freshness, manual invocation, and duplicate suppression first. Add Archive warnings at the CLI boundary once the pilot works; add other events only when useful.
+After Apply, offer to review the implementation for feedback to the upstream product team. Let the developer run it or skip it. An accepted review drafts feedback in the current agent session; it never submits anything automatically.
 
-A bounded improvement may ship independently with its limits stated. Do not present source drift as semantic reconciliation, optional review as proof, or task completion as delivery.
+Try both the built-in skill and the existing custom workflow. If a final source warning helps, add it before Archive through the same interface. Use warnings for the first examples, retain explicit mode and policy settings, and preserve existing validation and confirmation behavior.
 
-## 3. Prove reuse before packaging it
+## 3. Learn from use
 
-Test with the customer pilot, a smaller team, and a platform engineer. Integrate proven guidance into relevant existing workflows without requiring every project to enable lifecycle actions.
+Check whether warnings arrive at useful moments, whether reviews help, and whether repeated calls create noise. Try a second independent action. Add events or policies when a real workflow needs them.
 
-Demonstrate a second independent integration, then define executable-action trust, permissions, timeouts, versioning, and result compatibility. Build toward independently maintained plugins, global availability with per-project enablement, and versioned team profiles. Keep installation, enablement, and trust distinct. Packaging follows demonstrated reuse; it does not block the first useful behavior.
+A skill must explicitly invoke an event. The CLI can enforce behavior only inside operations it owns. Neither gives us automatic visibility into every agent action.
 
-## Later work
+## 4. Make it easy to share
 
-- Additional providers, item-level traceability, coverage records, and controlled upstream feedback submission.
-- Blocking policies after explicit unknown/error semantics and enforcement boundaries are settled.
-- Custom workflow milestones and event publishers when there are actual callers.
-- Shared Projects, observer-driven relationship discovery, and cross-system approved/implemented/delivered status.
-- Managed agent runs, durable approvals, scheduling, and action chains only if concrete needs justify them.
+Build toward independent plugins, global installation, project-level enablement, and versioned team profiles. Keep action lookup separate from event execution now, so these can arrive without changing skill calls.
 
-These are directions, not a committed ordering or timeline. Estimate after the pilots expose the work.
+Before running third-party code, define trust and execution limits. Installing a plugin must not enable it everywhere or run its code. Multiple plugins should coexist without overwriting one another.
 
-## Customer-facing boundary
+We don't need the complete installer, profile rules, event catalog, or policy engine to ship the pilot.
 
-The pilot may read accessible customer requirements and draft local changes or feedback for review. It does not write to the customer's source system. Generic Git drift needs authorized Git access, not a provider-specific status integration. Readiness, item-level coverage, semantic reconciliation, upstream submission, and delivery rollups need separate design and evidence.
+## Keep separate
 
-All material in this project remains local and unsanitized. No publication or remote work is authorized.
+External-contract generation and verification remain [broader exploration](external-context-for-changes.md), not pilot requirements. Projects, background observers, scheduling, action chains, and managed agent runs can wait for demonstrated need.
+
+This roadmap accompanies a draft proposal; it does not authorize feature implementation.

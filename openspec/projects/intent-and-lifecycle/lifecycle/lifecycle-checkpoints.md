@@ -1,66 +1,132 @@
-# Lifecycle checkpoints: actions and triggers
+# Lifecycle checkpoints: the first pilot
 
-**Status:** Actions/triggers model selected November 5, 2026; technical details proposed, not implemented.
-**Purpose:** Define one model for automatic checks and optional agent reviews at OpenSpec lifecycle moments.
+**Status:** Proposed design. The commands and configuration below are not implemented.
 
-This document consolidates the older checks/checkpoints design. It owns the lifecycle model and its constraints. The [roadmap](../direction/roadmap.md) owns sequencing; the [imagined launch](lifecycle-checkpoints-launch.md) illustrates the experience. Examples below are proposed syntax, not supported configuration or commands.
+The existing integration already turns product requirements into OpenSpec changes. We're adding two points around that workflow: check the source before implementation, and offer a feedback review when implementation finishes.
 
-## Decision and scope
+A skill or CLI command invokes each point explicitly. OpenSpec runs the configured checks and returns any optional reviews. The developer chooses whether to run a review. Generation and the artifact workflow stay as they are.
 
-Use **actions and triggers**. A check is one kind of action. Keep **lifecycle checkpoints** as the feature name: a checkpoint is a named moment where a skill, CLI operation, or external caller explicitly invokes the system.
+The [launch post](lifecycle-checkpoints-launch.md) shows the experience we're building toward. This design covers the small piece we can try first.
 
-A source-drift check produces findings. An optional feedback review offers useful work that the developer can decline. Treating both as pending checks would confuse an unaccepted suggestion with missing verification.
+## One change, from start to finish
 
-The dispatcher stays small and synchronous. It resolves matching triggers, runs supported checks, and returns findings and suggested actions separately. The existing artifact graph continues to determine artifact dependencies. This model does not schedule implementation work, watch files, or automatically synchronize sources.
+An engineer generates an OpenSpec change for the iOS checkout flow using their existing skill. The upstream requirements stay in their original repository.
 
-## Concepts
+Before implementation starts, the Apply skill calls:
 
-| Concept | Meaning |
-| --- | --- |
-| Source | Information a change used; optional revision metadata enables a deterministic comparison. |
-| Action | Reusable work: initially a built-in check or agent guidance. |
-| Check | An action that executes and returns structured findings. |
-| Suggested review | Agent guidance offered for the developer to accept or skip in the current session. |
-| Event / checkpoint | An explicitly invoked lifecycle moment, such as before Apply. |
-| Trigger | Binds an event to an action and its supported execution mode. |
-| Finding | An observed result with action/source identity, evidence, uncertainty, and a useful next step. |
-| Policy | How to handle executed check results; warning-only in the initial pilot. |
+```bash
+openspec lifecycle check --at apply.before --change ios-checkout --json
+```
 
-## Configuration and supported combinations
+OpenSpec finds the actions configured for that event and runs the source-drift check. If the source content changed since the recorded baseline, the skill shows the finding with its requirement impact still unassessed. If it couldn't check them, it explains why. The developer decides whether to review the source before continuing.
 
-Use the existing project configuration file. Validate action kind, mode, and policy together rather than allowing every possible combination.
+The skill then works through its tasks as usual. When it confirms they're complete, it calls:
+
+```bash
+openspec lifecycle check --at apply.completed --change ios-checkout --json
+```
+
+OpenSpec returns an available review. The agent might say:
+
+> Implementation tasks are complete. Want me to review the work for findings worth sending to the upstream product team?
+
+If the developer chooses it, the skill loads the instructions:
+
+```bash
+openspec actions instructions upstream-feedback --change ios-checkout --json
+```
+
+The current agent reads the requirements, implementation decisions, and available evidence, then drafts feedback. It doesn't submit feedback or change upstream requirements without separate approval. If the developer skips the review, nothing runs and no check becomes failed or pending.
+
+The lifecycle call is synchronous: run the configured work at this point and return its results to the caller. It is an operational call used by the skill, not a background event notification or a testing-only interface. The selected command is `openspec lifecycle check --at <point>`. It runs configured automatic checks and returns optional actions; it does not advance the workflow or perform suggested reviews. The command is not implemented yet.
+
+The separate instruction-loading call above is one option, not a settled two-operation API. We still need to decide whether an agent action maps to an existing skill, whether its instructions are returned directly, or whether a separate lookup is useful.
+
+## Configure what happens
+
+An **action** says what to do. A **trigger** connects it to a lifecycle event.
 
 ```yaml
-# openspec/config.yaml — proposed
-schema: spec-driven
-
+# Proposed openspec/config.yaml additions
 actions:
   source-drift:
     uses: builtin/git-file-drift
   upstream-feedback:
     uses: agent-guidance
+    title: Review implementation feedback
+    description: Find decisions or evidence worth sharing upstream.
     instructions: |
-      Review the pinned requirements, implementation decisions, and evidence.
-      Draft feedback with source references. Mark unsupported claims as uncertain.
-      Do not change sources or submit feedback without approval.
+      Review the recorded requirements, implementation decisions,
+      and verification evidence for this change.
+      Draft feedback with source references and mark uncertainty.
+      Do not change upstream requirements or submit feedback
+      without separate approval.
 
 triggers:
-  - on: openspec.apply.before
+  - on: apply.before
     run: source-drift
     mode: auto
     policy: warn
-  - on: openspec.apply.completed
+  - on: apply.completed
     run: upstream-feedback
     mode: suggest
 ```
 
-The pilot supports built-in checks with explicit `mode: auto` and `policy: warn`, and agent guidance with `mode: suggest` and no policy. Reject automatic agent guidance, blocking suggestions, and unsupported action kinds. Exact schema and command spelling remain design work.
+Keep `mode` and `policy` explicit. **Mode** controls whether an action runs automatically or is offered for the developer to choose. **Policy** controls how an executed check's findings affect the workflow, such as warning or blocking. Neither should be inferred solely from the action kind.
 
-Offering or accepting a review does not pass a check. Skipping it leaves no failed check or outstanding verification obligation. The CLI returns guidance; it does not launch an agent. The active agent uses its existing tools and permissions only after the developer chooses the review. Coming back later means requesting it again; no persistent review inbox or resume guarantee is promised.
+The examples use automatic checks with warnings and suggested agent reviews. They do not remove the flexibility to configure the same action differently at another lifecycle point. A suggestion has no passing or failing result until work runs; policy must not turn an optional suggestion into a required review. Valid combinations, execution support, and unknown/error handling still need to be defined. Real blocking is possible only where the caller controls the operation.
 
-## Sources and findings
+Validate action references and reject unsupported kinds or duplicate IDs. When nothing is enabled, the existing workflow continues without extra prompts.
 
-Ordinary links and explanations remain sufficient for the existing-context workflow. Structured pins are optional and serve the narrower need for deterministic Git drift checks. They remain separate from project-level `references:` to registered OpenSpec Stores.
+## What callers receive
+
+An event response separates check findings from review suggestions. For example, before Apply:
+
+```json
+{
+  "findings": [
+    {
+      "actionId": "source-drift",
+      "sourceId": "checkout-requirements",
+      "result": "changed",
+      "message": "Source content changed; requirement impact has not been assessed.",
+      "evidence": {
+        "baselineRevision": "6a81f32",
+        "comparedRevision": "9b02e17"
+      }
+    }
+  ],
+  "suggestedActions": []
+}
+```
+
+After Apply, the response contains a suggestion with an action ID, title, and short description. The instruction call returns the selected action's text; it doesn't launch an agent. Offering a review, loading its instructions, and completing it are not check results.
+
+The Git check reports `unchanged`, `changed`, or `unknown`, with a reason and the revisions it could compare. Unknown never means unchanged. Invalid configuration or a failed command produces a visible error, not a clean result. An unknown or disabled review cannot be loaded. A successful event call means the call completed, not that the implementation passed verification.
+
+Keep the response small. Settle the exact envelope, instruction handoff, and error encoding while walking through the skill and CLI callers; the pilot does not need approval records or stored review state.
+
+## Use the same interface everywhere
+
+Built-in skills and custom skills synchronously run the same named lifecycle points. Each calls once when starting or resuming Apply and once when it confirms its tracked tasks are complete. If a custom wrapper delegates to the built-in skill, choose one of them to make the call.
+
+**Instruction and status reads must not run actions.** Apply refreshes its instructions during the task loop. Attaching checks to those reads would repeat warnings and review offers. An explicit repeat of the lifecycle call runs the actions again; the pilot doesn't promise exactly-once delivery across sessions.
+
+If a final source warning is useful, add `archive.before`. The Archive CLI calls the same internal function before its existing operation. Running that lifecycle point manually does not archive anything, and the pilot leaves existing archive validation and confirmation behavior intact.
+
+Agent-driven lifecycle points happen only when a skill calls the interface. OpenSpec cannot observe every agent edit. CLI operations can enforce a configured policy at boundaries they own. The initial examples warn; broader policy behavior remains part of the design.
+
+A CLI can return instructions or an action reference, but it cannot make an agent execute them. When a skill calls the CLI, the skill can present suggestions and carry out an accepted review. In a terminal-only invocation, the CLI can show available actions; it must not pretend a review ran. Whether agent actions should all map to skills is an open design question. Deterministic checks do not need an agent to run.
+
+## Keep source details with the check
+
+The lifecycle interface needs an event and a change. The Git action needs four things: an existing checkout, a file path, the revision used for planning, and a ref to compare against.
+
+Capture the source identity and exact version when the generation skill reads it, then save the reference when the developer accepts the generated change. The skill can prepare the record or a follow-up step can use the captured read details. Do not reread the latest source at Apply and present it as the planning baseline. Add later sources when the developer accepts their use.
+
+If an existing change has no recoverable planning baseline, report historical comparison as unknown. The developer can explicitly establish a new tracking baseline, clearly labeled as starting now rather than evidence of the original plan. Keep the earlier baseline in history whenever a new one is accepted.
+
+Record the source on the change itself, in `openspec/changes/<change-name>/.openspec.yaml`. Here is the proposed `sources` field; it is not supported by the current implementation:
 
 ```yaml
 # openspec/changes/ios-checkout/.openspec.yaml — proposed
@@ -74,102 +140,46 @@ sources:
     track: main
 ```
 
-Compare the specific file's contents at the pinned revision with the resolved tracked revision. Unrelated commits do not count as drift; edits anywhere in the file do. Report the actual revisions compared. Missing files, inaccessible repositories, and unrecoverable revisions produce `unknown`, never `unchanged` or a pass. The pilot must define whether it uses local refs or explicitly authorized fetching, and report the freshness limit.
+`id` identifies the source within the change. `type` selects the source kind. `repository` and `path` identify the file; `revision` pins the version used for planning or an explicitly accepted later baseline; `track` names the branch to compare against. The short revision is illustrative. The Git check resolves it to a commit and reports the exact revisions compared.
 
-A pin stays unchanged until someone explicitly accepts a new baseline. Reviewing a warning does not repin it. Keep the prior revision recoverable through change history. Checks read sources; they do not rewrite sources, plans, or code. An archived change remains historical; later work belongs in a new change.
+This is change-specific metadata, separate from project-level Store `references:`. The repository URL identifies the source; it does not authorize a clone or fetch. The integration still needs to resolve an accessible checkout. Recording a source does not copy its requirements into local specs or change their owner.
 
-Return check findings separately from suggested actions. Findings need an identity, action/source identity, result, evidence or revisions, and next step. Git comparison outcomes are `unchanged`, `changed`, or `unknown`; the shared result schema is still to be finalized. A changed file is evidence of drift, not proof that the implementation is wrong. Semantic review is a separate action.
+Inspect what the integration already records before choosing the source contract. Reusing that data is a possibility, not a decision to rule out generic source metadata. Preserve generation; decide whether an adapter or a small shared source record gives lifecycle actions reliable inputs. If a baseline is missing, report unknown; never use the current file as a guessed historical baseline.
 
-Initial policy is warning-only, including unknown/error reporting. Blocking is deferred until failure semantics are explicit. Allowing an operation to continue on `unknown` is fail-open; it must not be described as successful verification or a conservative blocking default.
+Compare that file's contents, not just repository commit IDs. An unrelated commit should not produce drift. The proposed pilot uses local refs and does not clone or fetch implicitly. Report that freshness limit and the revisions compared; a local comparison doesn't establish the latest remote state. Missing files, checkouts, or revisions remain unknown.
 
-## Invocation and enforcement
+A change may also link to a Confluence page, Linear issue, Jira ticket, or repository issue. Keep those sources in the same proposed `sources` list using a link record; see the [source examples](lifecycle-checkpoints-launch.md#sources-outside-git) and [agent responses](lifecycle-checkpoints-launch.md#4-what-your-agent-sees). The `link` record shape is illustrative, not a finalized provider API.
 
-| Entry point | Caller and scope |
-| --- | --- |
-| `openspec.apply.before` | Apply skill explicitly invokes it when starting or resuming implementation. |
-| `openspec.apply.completed` | Apply skill invokes it after confirming tracked tasks are complete. This is not verification or release. |
-| Manual invocation | A developer or custom caller requests the same check/review behavior; exact CLI remains proposed. |
-| `openspec.archive.before` | Follow-up integration: the CLI invokes it before archive mutations. |
-| Propose, Verify, custom artifact milestones | Add only when a concrete use case establishes the event and its inputs. Before Propose, a change and its source metadata may not exist. |
+The Git action cannot check those services. A link alone supplies neither access nor a historical baseline. An authorized agent can review current content, while automatic drift comparison needs a provider integration and recoverable history. Keep unsupported or unreadable sources visible as limitations; don't count them as checked. These examples leave the Git pilot's scope unchanged.
 
-An event declaration alone cannot make an event happen. Custom skills can invoke the same interface; they do not need to use the built-in OpenSpec skills. Skills that never invoke it do not run its actions.
+The check is read-only. Its `changed` result means source content differs, not that a requirement changed. Typos, formatting, unrelated sections, and unaccepted proposals can all produce source edits without changing this work's requirements.
 
-Keep status and instruction generation observational. Apply currently refreshes its instructions after each task. Executing actions as a side effect of those reads would repeat checks and suggestions. Use explicit lifecycle calls and suppress duplicate findings/offers within an invocation. Completion retries and later resumes need a defined rule before shipping; no durable orchestration is implied.
+Offer an impact review separately. If chosen, the agent compares the source versions with the accepted scope and available evidence, then reports no relevant requirement changes found, relevant changes found, or unclear. Cite the relevant passages and distinguish accepted requirements from discussion. A relevant change may already be satisfied by the implementation.
 
-OpenSpec can enforce a future gate only at CLI operations it controls. Agent skills can request checks and follow guidance, but cannot prevent edits through other tools. Initially even CLI integrations warn. Defer validation hooks until there is a demonstrated need and a rule preventing recursive checks when an action itself invokes validation.
+The developer decides whether to continue, revise the work, clarify intent, or propose feedback. Skipping the review leaves impact unassessed. Neither a check nor a review advances the baseline; that requires explicit acceptance. See [What your agent sees](lifecycle-checkpoints-launch.md#4-what-your-agent-sees) for the full flow and examples.
 
-## Trust and future team reuse
+## Leave room for plugins without building the whole system
 
-Start with a built-in Git check and suggested agent guidance. Retrieved documents are data, not authority to override the user or workflow. A repository cannot authorize command execution merely by containing configuration.
+Reuse project configuration and OpenSpec's existing change/root resolution. Keep ordinary operation guidance and the artifact graph working as they do today. Add explicit calls to the Apply skill and, if included, the Archive command.
 
-External executable actions need an explicit trust decision, bounded inputs, timeouts, permissions, and an output/error contract. Demonstrate a second real integration before freezing the extension interface.
+Keep loading enabled actions separate from running them. A simple lookup can serve built-ins and project guidance now. Later it can load independent plugins and shared team profiles without changing skill calls. Support namespaced IDs and reject collisions; don't build a package resolver, dependency graph, or profile-precedence system for the pilot.
 
-The future distribution model separates publishing, installing, enabling, and trusting. Multiple independently maintained plugins can contribute namespaced actions and triggers. Developers may install plugins globally while projects enable selected versions. Versioned team profiles can supply shared defaults while retaining the project's artifact schema. Resolve collision, ordering, override, and provenance rules before shipping this layer.
+The destination remains global plugin installation, project-level enablement, and versioned team profiles. Installing a plugin must not enable it everywhere or run code. Before external executable actions ship, define trust and execution limits. The initial pilot runs a built-in check and offers guidance to the current agent session.
 
-Defer arbitrary commands, plugin distribution, custom event families, scheduling, chained actions, fresh agents, persistent approvals, and background observation beyond the initial pilot. None is required to prove a source check and optional review.
+## What proves it works
 
-## Existing implementation and proposed changes
+Try one real generated change through both the built-in skill and the existing custom workflow:
 
-Checked against local OpenSpec `2bd5bc3b`; these are repository observations, not remote release claims.
+- The recorded revision matches the source actually read, even if it changes before plan acceptance.
+- A source-file edit produces drift; an unrelated commit does not.
+- Typo-only, unrelated, proposed, and accepted requirement edits remain distinct in the optional impact review.
+- Skipping a review leaves impact unassessed and the baseline unchanged.
+- An unavailable source produces an honest unknown result.
+- The developer can accept or skip the review without changing check status.
+- Instruction refreshes don't repeat checks or prompts.
+- Checks leave sources, recorded baselines, and the generation workflow unchanged.
+- A project with no enabled actions keeps its existing behavior.
 
-| Surface | Existing behavior and proposed change |
-| --- | --- |
-| `src/core/change-metadata/schema.ts` | No generic `sources` field; add validated optional pins. |
-| `src/core/project-config.ts` | Context, artifact rules, Store references, and advisory Apply/Archive guidance exist; actions/triggers do not. |
-| New lifecycle dispatcher | Resolve explicit events, run built-ins, and return findings and suggestions separately. |
-| `src/core/templates/workflows/apply-change.ts` | Refreshes instructions during the task loop; add explicit lifecycle invocations outside those reads. |
-| `src/commands/workflow/instructions.ts` | Supplies workflow instructions and operation guidance; keep it observational. |
-| `src/core/archive.ts` | Owns archive mutations; integrate a warning there after the pilot proves useful. |
-| `src/core/artifact-graph/types.ts` | Owns artifact dependencies; leave that responsibility unchanged. |
+We haven't inspected the private skills yet. Mapping their call sites and source metadata is the next integration step, not a reason to settle the whole plugin or event system first.
 
-Actions/triggers do not solve implementing an existing external contract without local deltas. That needs coordinated planning, validation, verification, and archive design; see the [design gaps](../launch/imagined-launch-design-gaps.md). `skip_specs` remains for work with no spec-level behavior changes.
-
-## Enterprise requirements coverage
-
-
-The table describes what this **proposed actions/triggers model with Git source tracking** delivers if implemented. It does **not** claim that OpenSpec provides these capabilities today. “Partial” means the proposed model could support part of the requirement; the complete behavior still needs additional functionality. Coverage includes later integrations, not just the initial pilot.
-
-| Upstream requirement | Coverage | What else is needed |
-| --- | --- | --- |
-| Detect when a Git-based source document changes after generation | **Designed to cover** at document level | Access to the upstream Git repository and an accurate file path/revision |
-| Warn at OpenSpec lifecycle points without silently syncing | **Designed to cover** at configured checkpoints | Agent integrations must call the runner; verify cross-agent behavior |
-| Store exact Git revision of a source document | **Designed to cover** at document level | Source pin recorded during generation |
-| Keep locked upstream product specifications unchanged; store tracking outside them | **Designed to cover** by the proposed read-only approach | Do not install any write-capable upstream source handler |
-| Create a well-formed change from an upstream product specification, using team schemas | **Partial** | Existing or improved upstream-to-change generation skill; checkpoints don't generate changes |
-| Pull in related architecture, contracts, dependencies, and constraints | **Not covered** | Provider-specific source discovery and retrieval |
-| Check readiness, promotion, and early-start overrides | **Partial** | Upstream status reader, policy rules, and recorded override |
-| Trace every generated requirement to an upstream requirement and source revision | **Partial** | Item-level IDs, extraction mapping, and coverage records |
-| Preserve MUST/SHALL, numbers, limits, and error codes exactly | **Not covered** | Extraction validation against original items |
-| Never write code or upstream product specifications during generation | **Partial** | Upstream-to-change generation skill's permission/write rules; check runner is read-only |
-| One-way upstream → OpenSpec updates, only after approval | **Not covered** | Reviewable reconciliation and controlled artifact edits |
-| Skip irrelevant archived upstream product specifications when checking drift | **Not covered** | Upstream lifecycle/status awareness in source filtering |
-| Show added, modified, removed, or renamed source sections | **Not covered** | Historical, item-aware diffing and rename matching |
-| Classify upstream-only, OpenSpec-only, both changed, or in sync | **Not covered** | Three-way comparison of source, local work, and original baseline |
-| Capture deviations and evidence during implementation | **Partial** | A feedback record and skill guidance; checks may surface findings |
-| Keep feedback separate from implementation detail and route it to the upstream product team | **Not covered** | Suggested reviews can draft feedback; classification, routing, and approved submission still need a separate workflow |
-| Warn upstream authors during product-requirement editing, auditing, or submission | **Not covered** | Upstream event integration or external observer calling the checks |
-| Show spec approved, implementation complete, feature released separately | **Not covered** | Cross-system delivery model and status aggregation |
-| Every upstream requirement gets a coverage status | **Not covered** | Item-to-change/test mapping and rollups |
-| Preserve history; archived OpenSpec changes remain archived | **Partial** | Existing archive plus explicit new-change-on-drift convention and durable source evidence |
-| Require explicit confirmation for every write | **Partial** | Existing workflow guards plus enforcement in each write-capable integration; no automatic writes in checks |
-| Mark feedback lacking evidence as needing confirmation | **Partial** | Structured feedback workflow and evidence validation |
-| Validate OpenSpec after every write | **Not covered** | Write-path validation or host/CI integration; checkpoints alone cannot observe all agent edits |
-
-The model supplies source-version checks, warnings, and optional review guidance. Generation, item-level traceability, controlled reconciliation, upstream submission, and cross-system delivery status remain separate work.
-
-**Source basis:** Anonymized enterprise integration requirements from the original exploration. This table preserves that analysis; the consolidation did not independently re-read the source attachment. Source filenames and customer identifiers are omitted. Keep this material local pending a separate publication review.
-
-## Pilot questions and acceptance
-
-Use one real Git document, one OpenSpec change, and a deliberate source edit. Test a built-in Apply caller and a custom caller against the same interface.
-
-- Does a relevant file edit produce drift while an unrelated commit does not?
-- Do missing sources and revisions report unknown with a useful explanation?
-- Can the developer accept or skip the post-Apply review without changing check results?
-- Do repeated instruction reads remain read-only and avoid repeated prompts?
-- Do checks leave pins, source files, code, and accepted plans unchanged?
-- Are file-level pins useful enough, or is finer granularity necessary?
-- Who can accept a new baseline, and how is the old one retained?
-- Which additional lifecycle moments add value without duplicate warnings?
-
-Before implementation, settle Git ref freshness, the result schema, manual invocation, duplicate suppression, and caller inputs. The selected model does not settle those contracts or authorize feature implementation.
+See the [roadmap](../direction/roadmap.md) for the sequence and the [enterprise requirements inventory](../research/enterprise-requirements.md) for wider needs. External-contract generation and verification remain separate exploration; they don't gate this pilot.

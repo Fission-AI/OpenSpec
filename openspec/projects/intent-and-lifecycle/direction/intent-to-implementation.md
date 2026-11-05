@@ -2,7 +2,9 @@
 
 **Status:** Working direction · Six product decisions agreed in principle\
 **Updated:** November 5, 2026\
-**Next product increment:** [Use Existing Context in Changes](./external-context-for-changes.md)
+**Related broader exploration:** [Use Existing Context in Changes](./external-context-for-changes.md)
+
+> **Broader product direction:** The current [lifecycle pilot](roadmap.md) keeps an existing generation workflow and adds checks and optional reviews. The wider contract and verification ideas here are separate work.
 
 ## The idea
 
@@ -120,7 +122,7 @@ These six decisions establish the *direction*. They are not claims that every ca
 
 Use **actions and triggers** for lifecycle behavior. Checks are actions that return findings; suggested agent reviews are optional work. A checkpoint names the moment where a caller invokes the system. Keep findings separate from suggestions, and start with a built-in check plus a suggested review rather than a general event engine.
 
-Ordinary links and prose remain the default for connecting context. Optional Git pins serve deterministic drift checks; they are not mandatory for every change or source. The [technical design](../lifecycle/lifecycle-checkpoints.md) owns this model and its unresolved details. The [roadmap](roadmap.md) owns sequencing for both lifecycle behavior and the existing-context workflow.
+Ordinary links and prose remain the default for connecting context. Drift checks need a recorded source revision; other uses of context can keep ordinary links. The [technical design](../lifecycle/lifecycle-checkpoints.md) owns this model and its unresolved details. The [roadmap](roadmap.md) owns lifecycle delivery. The broader context-workflow exploration here has no committed delivery sequence.
 
 ## The experience to build toward
 
@@ -142,25 +144,25 @@ The current default `spec-driven` workflow has a **proposal** (why and scope), *
 
 `openspec/config.yaml` already offers shared agent `context` and `references` to registered read-only OpenSpec Stores. Those references are **not** arbitrary, change-specific source links. Change metadata in `.openspec.yaml` likewise has no generic source-link contract today.
 
-Our near-term work should use the existing workflow wherever it fits while making **implementing an already-defined external contract** an explicit, testable case for its evolution. We should not claim that simple source links alone solve contract duplication.
+This broader exploration considers using the existing workflow wherever it fits while making **implementing an already-defined external contract** an explicit, testable case for its evolution. We should not claim that simple source links alone solve contract duplication.
 
-## What we build next
+## Separate future exploration
 
-The [Working PRD](./external-context-for-changes.md) explores one coherent increment: **create a scoped change from existing information, retain meaningful links, and revisit the information later**. It should improve the handoff across sessions and teams, not merely add decoration to a proposal.
+The [Working PRD](./external-context-for-changes.md) explores possible improvements to shaping changes from existing context and verifying external contracts. Those questions remain useful but do not define the next lifecycle increment.
 
-The context workflow and a small actions/triggers pilot can be validated independently. Broader historical comparison, team packaging, Projects, and the observer follow demonstrated needs. See the [roadmap](roadmap.md) for the proposed sequence; dates and release packaging remain uncommitted.
+The immediate product is lifecycle extensibility around an existing generation workflow. Its [roadmap](roadmap.md) starts with source drift before Apply and an optional feedback review afterward. Preserve that integration's current generation behavior.
 
 ### The real questions left
 
 The **product direction is settled enough to build against**. The remaining work is release and implementation design:
 
-- **Implement-only workflow:** What does an existing-contract implementation change contain, and how does it validate and archive without artificial behavior deltas? This is the main lifecycle question, not a reopening of D1.
+- **Implement-only workflow:** What does an existing-contract implementation change contain, and how does it validate and archive without artificial behavior deltas? This is a broader contract-lifecycle question, not a prerequisite for lifecycle actions/triggers or a reopening of D1.
 
 - **History contract:** For a given source, what baseline can we actually recover? Git revisions may suffice for Git content; other systems may need snapshots or weaker guarantees.
 
 - **Reliability of the simple approach:** Can agents consistently preserve and revisit meaningful links across the real workflows and custom schemas? Prototype this before inventing structured machinery.
 
-We should use concrete user cases to determine **what belongs in the first release**, rather than treating these engineering questions as new strategic debates.
+Use concrete cases to revisit this broader exploration separately. These questions do not block the lifecycle pilot.
 
 ---
 

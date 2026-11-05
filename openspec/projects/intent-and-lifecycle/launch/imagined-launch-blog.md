@@ -1,6 +1,6 @@
 # Build on the decisions you've already made
 
-> **Imagined launch, updated November 5, 2026:** This draft describes target behavior, not shipped capabilities or a committed release. The [roadmap](../direction/roadmap.md) owns sequencing. The separate [lifecycle draft](../lifecycle/lifecycle-checkpoints-launch.md) shows how actions and triggers can add checks and optional reviews; they do not resolve this article's external-contract implementation and verification gaps.
+> **Imagined launch:** This is a broader product exploration, not a shipped release. The current [lifecycle pilot](../lifecycle/lifecycle-checkpoints.md) keeps the existing generation workflow and adds checks and optional reviews. The contract and verification ideas below are separate work.
 
 *OpenSpec helps coding agents turn existing plans into focused changes, carrying forward what matters and defining only what still needs to be worked out.*
 

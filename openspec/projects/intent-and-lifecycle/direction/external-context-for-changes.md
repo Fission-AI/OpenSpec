@@ -4,6 +4,8 @@
 **Updated:** November 5, 2026\
 **Direction:** [Intent to Implementation](./intent-to-implementation.md)
 
+> **Separate exploration:** The current [lifecycle pilot](roadmap.md) adds checks and reviews around an existing generation workflow. This document explores broader improvements to using context; they aren't required for that pilot.
+
 ## 1. The product promise
 
 **Start an OpenSpec change from information your team already has. Choose the work you're taking on, keep links explaining what informed it, and revisit that context as the work evolves.**
@@ -91,7 +93,7 @@ The agent re-reads accessible sources, identifies possible mismatches, and recom
 
 ## 5. Required context-workflow scope
 
-The [roadmap](roadmap.md) owns delivery order. This section describes the context experience, not a competing first-release plan. The selected [actions/triggers model](../lifecycle/lifecycle-checkpoints.md) adds an optional lifecycle pilot; it is not required for basic source links or on-demand review.
+These are requirements for the broader context experience. They have no committed delivery order and are separate from the [lifecycle roadmap](roadmap.md).
 
 ### Required experience
 
@@ -121,7 +123,7 @@ The existing `openspec/config.yaml` `references:` mechanism indexes registered O
 
 ### Relationship to lifecycle work
 
-The actions/triggers pilot adds optional Git pins, a built-in drift check before Apply, and a suggested feedback review afterward. Neither finding a changed file nor completing a review establishes that an external contract has been implemented correctly. The implement-only lifecycle and verification questions below remain part of the context work.
+The lifecycle pilot uses recorded source revisions to check drift before Apply and offers a feedback review afterward. Neither finding a changed file nor completing a review establishes that an external contract has been implemented correctly. The implement-only lifecycle and verification questions below remain part of the context work.
 
 Shared Projects, broader historical comparison, and a proactive observer remain future directions. On-demand and observer-driven review should share reconciliation concepts. A hosted observer is a possible paid offering, not a prerequisite for the context workflow or lifecycle pilot.
 

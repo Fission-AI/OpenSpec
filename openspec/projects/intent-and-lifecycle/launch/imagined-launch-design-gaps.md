@@ -4,7 +4,7 @@
 **Status:** Design analysis, not shipped behavior\
 **Reviewed:** November 4, 2026; aligned with the actions/triggers decision November 5, 2026
 
-The [roadmap](../direction/roadmap.md) owns sequencing. Actions and triggers are now the selected lifecycle model; the [technical design](../lifecycle/lifecycle-checkpoints.md) owns their semantics. That decision does not resolve the contract, verification, or archive gaps below. References to the first release here mean the target context-workflow experience, not a separate committed schedule.
+This review asks what would make the broader product launch possible. Its contract and verification questions remain open. They don't block the [lifecycle pilot](../lifecycle/lifecycle-checkpoints.md), which adds checks and optional reviews around an existing generation workflow.
 
 ## The product bet
 

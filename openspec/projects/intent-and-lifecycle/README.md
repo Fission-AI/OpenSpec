@@ -1,48 +1,31 @@
-# Intent and lifecycle product exploration
+# Lifecycle extensibility
 
-**Status:** Private product exploration; not an implementation plan or shipped behavior.
-**Purpose:** Organize product direction, the selected lifecycle model, and a local Codex handoff.
+An enterprise team already turns upstream product requirements into OpenSpec changes. We want to add useful checks and optional reviews around that workflow while keeping generation working as it does today.
 
-## Local workspace
+The first pilot checks source drift before Apply and offers a feedback review afterward. A check before Archive may be useful too. Later, teams should be able to share independently maintained plugins, install them globally, enable them per project, and use shared profiles.
 
-- Repository: `../openspec` (from this worktree)
-- Worktree: `../openspec-intent-and-lifecycle` (from the original repository)
-- Branch: `explore/intent-and-lifecycle`
-- Base: local `main` at `2bd5bc3b`, created November 5, 2026 without fetching.
-- This document set is maintained on the local branch. No push or remote publication is authorized.
+## Start here
 
-Keep this material local. Do not push, upload, publish, or open a pull request. Sensitive content has not been sanitized. Any later publication requires a separate review and explicit user authorization.
+- [Lifecycle launch post](lifecycle/lifecycle-checkpoints-launch.md) — the experience we're building toward.
+- [Pilot design](lifecycle/lifecycle-checkpoints.md) — how existing skills use it and what we need to build first.
+- [Roadmap](direction/roadmap.md) — the next steps.
 
-## Context and reading order
+The selected lifecycle command is `openspec lifecycle check --at apply.before --change <name> --json`.
 
-The exploration connects upstream product intent to focused OpenSpec changes without duplicating canonical requirements. It considers source revisions, drift review, lifecycle checkpoints, deterministic checks, optional agent actions, and later plugin profiles.
+The design is proposed, not implemented. The launch post is an imagined future experience. Neither claims these commands or configuration fields work today.
 
-1. [Intent to implementation](direction/intent-to-implementation.md) — overall product direction.
-2. [External context for changes](direction/external-context-for-changes.md) — context-workflow requirements and unresolved release questions.
-3. [Roadmap](direction/roadmap.md) — single source for proposed delivery sequencing.
-4. [Imagined launch blog](launch/imagined-launch-blog.md) — intended user experience.
-5. [Imagined launch design gaps](launch/imagined-launch-design-gaps.md) — unresolved design work.
-6. [Lifecycle checkpoints](lifecycle/lifecycle-checkpoints.md) — consolidated actions/triggers design and enterprise requirements coverage analysis.
-7. [Lifecycle checkpoints launch](lifecycle/lifecycle-checkpoints-launch.md) — illustrated experience, with later plugin and profile concepts.
+## Background
 
-## Selected model and document ownership
+The [enterprise requirements inventory](research/enterprise-requirements.md) preserves the broader integration needs.
 
-On November 5, 2026, the user selected **actions and triggers**. A check is one kind of action; an optional review is another. A checkpoint is a lifecycle moment explicitly invoked by a skill, CLI, or custom caller. Findings and suggestions remain separate.
+The [product direction](direction/intent-to-implementation.md), [external-context PRD](direction/external-context-for-changes.md), [product launch draft](launch/imagined-launch-blog.md), and [design gaps](launch/imagined-launch-design-gaps.md) explore wider questions about context and contract verification. Keep that work separate from this pilot; it doesn't require replacing the existing generator.
 
-The technical design now consolidates the older checkpoint proposal, preserving its enterprise requirements coverage analysis, trust limits, and pilot questions. It owns the model. The roadmap owns sequencing. Launch drafts illustrate behavior rather than define independent release plans.
+## Working on this proposal
 
-The initial lifecycle pilot uses a built-in Git check, optional agent guidance, and warning-only policy. Plugin distribution, arbitrary executable commands, blocking, and orchestration remain later work. Exact APIs and unresolved execution details are proposals; no feature implementation is authorized by this documentation update.
+Use branch `explore/intent-and-lifecycle` in `../openspec-intent-and-lifecycle`, beside the original `openspec` checkout. It was created from local `main` at `2bd5bc3b` on November 5, 2026.
 
-## Sources and anonymization
+Read the launch post and pilot design first. Map the proposed calls onto the existing skills before implementing them. We have not inspected the private integration skills; their current generation behavior is the starting point supplied by the user.
 
-Imported from seven private exploration documents on November 5, 2026, then revised locally with the user's authorization to adopt actions/triggers and consolidate the roadmap and design. Customer and upstream-system names, personal filesystem paths, source attachment names, and private page/conversation identifiers have been removed from this document set. Examples use generic enterprise teams, upstream product requirements, and placeholder repositories and packages.
+These docs came from private exploration and have been revised locally. Identifying names, attachment names, personal paths, and private page links were removed. Original remote pages were not changed.
 
-The original remote pages were not changed and may still contain identifying information. This editing pass does not authorize publication; keep all material local pending a separate review.
-
-## Codex handoff
-
-Work only in the worktree above. Read this README, the direction document, the PRD, the roadmap, and the consolidated lifecycle technical design first. Use the launch posts as illustrations. Map the existing implementation before proposing changes. Distinguish observed behavior, agreed direction, proposals, and unresolved questions. This handoff authorizes organizing and reviewing the material, not implementing the proposed features.
-
-Keep the consolidated document ownership clear when making future authorized edits. Do not run proposed commands merely because they appear in a document. Do not push, publish, upload, or create a pull request.
-
-To continue from another local Codex chat, set its project folder to the worktree path above and ask it to read `openspec/projects/intent-and-lifecycle/README.md`.
+This proposal is being shared as a draft PR. It is not ready for review or implementation.
