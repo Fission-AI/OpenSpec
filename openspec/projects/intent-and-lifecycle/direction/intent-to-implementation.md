@@ -122,7 +122,7 @@ These six decisions establish the *direction*. They are not claims that every ca
 
 Use **actions and triggers** for lifecycle behavior. Checks are actions that return findings; suggested agent reviews are optional work. A checkpoint names the moment where a caller invokes the system. Keep findings separate from suggestions, and start with a built-in check plus a suggested review rather than a general event engine.
 
-Ordinary links and prose remain the default for connecting context. Drift checks need a recorded source revision; other uses of context can keep ordinary links. The [technical design](../lifecycle/lifecycle-checkpoints.md) owns this model and its unresolved details. The [roadmap](roadmap.md) owns lifecycle delivery. The broader context-workflow exploration here has no committed delivery sequence.
+Ordinary links and prose remain the default for connecting context. Drift checks need a recorded source revision; other uses of context can keep ordinary links. The [technical design](../lifecycle/design-draft.md) owns this model and its unresolved details. The [roadmap](roadmap.md) owns lifecycle delivery. The broader context-workflow exploration here has no committed delivery sequence.
 
 ## The experience to build toward
 

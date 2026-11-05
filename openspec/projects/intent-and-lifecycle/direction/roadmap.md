@@ -4,7 +4,7 @@
 
 Keep the existing requirements-to-change workflow. Give built-in skills, custom skills, and CLI operations the same way to run checks and offer useful next steps.
 
-The [lifecycle launch post](../lifecycle/lifecycle-checkpoints-launch.md) shows where we want to end up. Start with the [small pilot](../lifecycle/lifecycle-checkpoints.md), then use what we learn to extend it.
+The [lifecycle guide draft](../lifecycle/guide-draft.md) shows where we want to end up. Start with the [small pilot](../lifecycle/design-draft.md), then use what we learn to extend it.
 
 ## 1. Walk through the existing skills
 

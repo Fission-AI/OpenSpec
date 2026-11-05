@@ -1,4 +1,4 @@
-# Lifecycle checkpoints: the first pilot
+# Lifecycle checkpoints design (draft)
 
 **Status:** Proposed design. The commands and configuration below are not implemented.
 
@@ -6,7 +6,7 @@ The existing integration already turns product requirements into OpenSpec change
 
 A skill or CLI command invokes each point explicitly. OpenSpec runs the configured checks and returns any optional reviews. The developer chooses whether to run a review. Generation and the artifact workflow stay as they are.
 
-The [launch post](lifecycle-checkpoints-launch.md) shows the experience we're building toward. This design covers the small piece we can try first.
+The [guide](guide-draft.md) shows the experience we're building toward. This design covers the small piece we can try first.
 
 ## One change, from start to finish
 
@@ -148,7 +148,7 @@ Inspect what the integration already records before choosing the source contract
 
 Compare that file's contents, not just repository commit IDs. An unrelated commit should not produce drift. The proposed pilot uses local refs and does not clone or fetch implicitly. Report that freshness limit and the revisions compared; a local comparison doesn't establish the latest remote state. Missing files, checkouts, or revisions remain unknown.
 
-A change may also link to a Confluence page, Linear issue, Jira ticket, or repository issue. Keep those sources in the same proposed `sources` list using a link record; see the [source examples](lifecycle-checkpoints-launch.md#sources-outside-git) and [agent responses](lifecycle-checkpoints-launch.md#4-what-your-agent-sees). The `link` record shape is illustrative, not a finalized provider API.
+A change may also link to a Confluence page, Linear issue, Jira ticket, or repository issue. Keep those sources in the same proposed `sources` list using a link record; see the [source examples](guide-draft.md#sources-outside-git) and [agent responses](guide-draft.md#4-what-your-agent-sees). The `link` record shape is illustrative, not a finalized provider API.
 
 The Git action cannot check those services. A link alone supplies neither access nor a historical baseline. An authorized agent can review current content, while automatic drift comparison needs a provider integration and recoverable history. Keep unsupported or unreadable sources visible as limitations; don't count them as checked. These examples leave the Git pilot's scope unchanged.
 
@@ -156,7 +156,7 @@ The check is read-only. Its `changed` result means source content differs, not t
 
 Offer an impact review separately. If chosen, the agent compares the source versions with the accepted scope and available evidence, then reports no relevant requirement changes found, relevant changes found, or unclear. Cite the relevant passages and distinguish accepted requirements from discussion. A relevant change may already be satisfied by the implementation.
 
-The developer decides whether to continue, revise the work, clarify intent, or propose feedback. Skipping the review leaves impact unassessed. Neither a check nor a review advances the baseline; that requires explicit acceptance. See [What your agent sees](lifecycle-checkpoints-launch.md#4-what-your-agent-sees) for the full flow and examples.
+The developer decides whether to continue, revise the work, clarify intent, or propose feedback. Skipping the review leaves impact unassessed. Neither a check nor a review advances the baseline; that requires explicit acceptance. See [What your agent sees](guide-draft.md#4-what-your-agent-sees) for the full flow and examples.
 
 ## Leave room for plugins without building the whole system
 
