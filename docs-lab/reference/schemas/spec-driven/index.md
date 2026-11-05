@@ -275,6 +275,36 @@ The system SHALL allow users to export their data in CSV format.
 Specs should be testable - each scenario is a potential test case.
 ````
 
+### Stable IDs
+
+A requirement or scenario heading can start with an ID in square brackets:
+
+```markdown
+### Requirement: [AUTH-3] Users sign in
+#### Scenario: [AUTH-3.1] Correct password
+```
+
+IDs are optional. A spec without them validates and archives exactly as it did before.
+
+- **Syntax**: a word in square brackets at the start of the heading name. It starts with a letter, contains a hyphen and ends in a number: `[AUTH-3]`, `[AUTH-3.1]`, `[REQ-UA-004]`, `[cap-012]`.
+- **Without brackets**: the first word is part of the name. `SHA-256 checksum` and `NAV-5 Users sign in` have no ID.
+- **Who writes it**: your agent, following the instructions above. OpenSpec only reads IDs; it never adds, changes or removes one.
+
+`openspec validate` and `openspec archive` match a `MODIFIED` requirement on its ID before its name:
+
+| In the delta | Result |
+|---|---|
+| A heading that keeps its ID under a new name | Matched by ID. Archive replaces the requirement in place, under the new heading. |
+| A scenario that keeps its ID under a new name | Not counted as dropped. |
+| An ID added to a heading that has none (`Users sign in` or `NAV-5 Users sign in` becomes `[NAV-5] Users sign in`) | Matched by name. Archive writes the heading with its ID. |
+| An ID added and the name reworded in the same change | Not matched. Add the ID in one change and reword in the next. |
+| A dropped scenario, or a scenario that lost its ID | Refused, naming the scenario. |
+| Two requirements in one spec with the same ID | Validate reports it. Archive refuses, naming both. |
+
+When a main spec already repeats an ID, validate warns and that spec matches by name only, as before.
+
+In tasks, tests and code, cite the ID itself (`[AUTH-3]`). A Markdown link to the heading stops working when the heading is reworded, because the link anchor comes from the heading text.
+
 ## design.md
 
 Explains how to implement the change. Drafted only when the change needs one.
@@ -342,6 +372,14 @@ if a section would only restate them, point to them instead.
 
 Good design docs explain the "why" behind technical decisions.
 ```
+
+### Decision IDs
+
+Each decision is a `### D1`, `### D2`, ... heading followed by at most two sentences: the choice, and why.
+
+- **Links**: tasks and risks link to a decision as `[D1](./design.md#d1)`. The heading holds only the ID, so the link keeps working when the decision is reworded.
+- **Numbering**: a decision keeps its ID when it's reworded or reordered, and a removed decision's ID isn't reused.
+- **Checks**: OpenSpec doesn't validate decision IDs. They're a format the instructions above teach your agent.
 
 ## tasks.md
 
