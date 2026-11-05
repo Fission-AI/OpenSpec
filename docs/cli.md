@@ -237,7 +237,11 @@ the beta, `openspec init` writes no OpenSpec skills or commands for it and
 `openspec update`, and they come back byte for byte. A tool sees the beta when
 its `openspec-beta` skill is in a skills folder that tool reads: the project's
 own, or the tool's folder in your home directory (`~/.claude/skills`, or
-`~/.agents/skills` for Codex, Amp, Zed and the other `.agents` tools). For
+`~/.agents/skills` for Codex, Amp, Zed and the other `.agents` tools). Cursor,
+GitHub Copilot, Gemini CLI, OpenCode, Cline, Kilo Code, Kimi, Factory, Pi and
+Warp also see it in `.agents/skills`, in the project or your home directory,
+because `npx skills add -g` installs their copy there, and Cursor also reads
+Claude Code's and Codex's folders. For
 MiniMax Code, whose OpenSpec skills live in `~/.minimax/skills` for every
 project, the switch is machine-wide. Which tools were switched is remembered in
 your global config, never in the project, so a teammate's setup is unaffected,
