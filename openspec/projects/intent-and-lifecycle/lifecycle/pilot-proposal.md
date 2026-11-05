@@ -1,12 +1,12 @@
-# Lifecycle checkpoints design (draft)
+# Lifecycle pilot proposal
 
-**Status:** Proposed design. The commands and configuration below are not implemented.
+**Status:** Draft proposal. The commands and configuration below are not implemented.
 
 The existing integration already turns product requirements into OpenSpec changes. We're adding two points around that workflow: check the source before implementation, and offer a feedback review when implementation finishes.
 
 A skill or CLI command invokes each point explicitly. OpenSpec runs the configured checks and returns any optional reviews. The developer chooses whether to run a review. Generation and the artifact workflow stay as they are.
 
-The [guide](guide-draft.md) shows the experience we're building toward. This design covers the small piece we can try first.
+The [guide](guide-draft.md) shows the experience we're building toward. This proposal covers the small piece we can try first.
 
 ## One change, from start to finish
 

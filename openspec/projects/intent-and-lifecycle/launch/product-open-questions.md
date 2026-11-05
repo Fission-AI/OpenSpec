@@ -1,10 +1,10 @@
-# Launch design draft
+# Product open questions
 
-**Companion to:** [Build on the decisions you've already made](./launch-post-draft.md)\
-**Status:** Design analysis, not shipped behavior\
+**Companion to:** [Build on the decisions you've already made](./product-launch-post-draft.md)\
+**Status:** Open product questions and proposed answers\
 **Reviewed:** November 4, 2026; aligned with the actions/triggers decision November 5, 2026
 
-This review asks what would make the broader product launch possible. Its contract and verification questions remain open. They don't block the [lifecycle pilot](../lifecycle/design-draft.md), which adds checks and optional reviews around an existing generation workflow.
+This review asks what would make the broader product launch possible. Its contract and verification questions remain open. They don't block the [lifecycle pilot](../lifecycle/pilot-proposal.md), which adds checks and optional reviews around an existing generation workflow.
 
 ## The product bet
 

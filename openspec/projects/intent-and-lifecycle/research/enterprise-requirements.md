@@ -2,7 +2,7 @@
 
 **Status:** Research notes, not the pilot backlog.
 
-The [lifecycle pilot](../lifecycle/design-draft.md) covers source checks and optional feedback reviews. This inventory keeps the broader integration needs available without making all of them prerequisites.
+The [lifecycle pilot](../lifecycle/pilot-proposal.md) covers source checks and optional feedback reviews. This inventory keeps the broader integration needs available without making all of them prerequisites.
 
 The table describes what this **proposed actions/triggers model with Git source tracking** delivers if implemented. It does **not** claim that OpenSpec provides these capabilities today. “Partial” means the proposed model could support part of the requirement; the complete behavior still needs additional functionality. Coverage includes later integrations, not just the initial pilot. This is a boundary inventory, not a backlog for this product increment. Generation and source retrieval remain owned by the existing integration; a row marked not covered does not mean that workflow lacks the behavior.
 
