@@ -18,7 +18,7 @@ The design is proposed, not implemented. The guide describes the intended experi
 
 The [enterprise requirements inventory](research/enterprise-requirements.md) preserves the broader integration needs.
 
-The [product direction](direction/intent-to-implementation.md), [external-context PRD](direction/external-context-for-changes.md), [product launch post (draft)](launch/product-launch-post-draft.md), and [product open questions](launch/launch-pilot-proposal.md) explore wider questions about context and contract verification. Keep that work separate from this pilot; it doesn't require replacing the existing generator.
+The [product direction](direction/intent-to-implementation.md), [external-context PRD](direction/external-context-for-changes.md), [product launch post (draft)](launch/product-launch-post-draft.md), and [product open questions](launch/product-open-questions.md) explore wider questions about context and contract verification. Keep that work separate from this pilot; it doesn't require replacing the existing generator.
 
 ## Working on this proposal
 
