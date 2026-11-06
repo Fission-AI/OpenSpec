@@ -86,14 +86,23 @@ export function hasToolProfileOrDeliveryDrift(
   const sharedTarget = tool.skillsDir
     ? readSharedSkillTarget(projectPath, tool.skillsDir, view)
     : undefined;
-  for (const root of tool.legacySkillsDirs ?? []) {
+  // Without skill generation there is no current copy to move a legacy skill
+  // to, so migration keeps it and an update can never settle it.
+  const legacySkillRoots = shouldGenerateSkills ? tool.legacySkillsDirs ?? [] : [];
+  for (const root of legacySkillRoots) {
     for (const workflow of knownDesiredWorkflows) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const legacySkill = path.join(projectPath, root, 'skills', dirName, 'SKILL.md');
       if (!view.exists(legacySkill)) continue;
 
       const currentSkill = path.join(skillsDir, dirName, 'SKILL.md');
-      if (!view.exists(currentSkill) || sharedTarget !== toolId) {
+      // An update is due when the current skill is missing, or when no tool
+      // has claimed the shared root yet, since generating writes the marker.
+      // Once any tool owns the root, an update cannot change the current copy
+      // for this one. Requiring this tool to be the owner looped forever for a
+      // tool sharing a root another tool owns: its divergent legacy copy is
+      // kept by design, so every run asked to sync again.
+      if (!view.exists(currentSkill) || sharedTarget === undefined) {
         return true;
       }
       try {
