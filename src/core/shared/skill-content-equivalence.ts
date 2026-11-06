@@ -1,42 +1,10 @@
 import { OPENSPEC_SKILL_NAMES } from '../config.js';
+import {
+  isReleasedGeneratedContent,
+  normalizeGeneratedContent as normalizeGeneratedSkill,
+} from './generated-fingerprint.js';
 
-const GENERATED_VERSION =
-  /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const OPENSPEC_SKILL_NAME_SET = new Set<string>(OPENSPEC_SKILL_NAMES);
-
-/**
- * Normalizes checkout line endings and a valid generated version inside the
- * YAML frontmatter. Free-form `generatedBy` text in the instructions remains
- * material.
- */
-function normalizeGeneratedSkill(content: string): string {
-  const normalized = content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
-  const frontmatter = normalized.match(/^---\n[\s\S]*?\n---(?:\n|$)/)?.[0];
-  if (!frontmatter) return normalized;
-
-  // `[ \t]` rather than `\s` so a leading/trailing whitespace run can never
-  // cross a newline: an `m`-anchored `\s*` re-scans from every line start,
-  // which is quadratic on a whitespace-heavy frontmatter. YAML indentation is
-  // spaces and tabs only, so matching is unchanged.
-  const versionLine =
-    /^([ \t]*generatedBy:[ \t]*)(?:"([^"\n]+)"|'([^'\n]+)'|([^\s"'#]+))[ \t]*$/m;
-  const normalizedFrontmatter = frontmatter.replace(
-    versionLine,
-    (
-      line: string,
-      prefix: string,
-      doubleQuoted: string | undefined,
-      singleQuoted: string | undefined,
-      bare: string | undefined
-    ) => {
-      const version = doubleQuoted ?? singleQuoted ?? bare;
-      return version && GENERATED_VERSION.test(version)
-        ? `${prefix}"<generated-version>"`
-        : line;
-    }
-  );
-  return normalizedFrontmatter + normalized.slice(frontmatter.length);
-}
 
 /**
  * Converts only known generated dual references in current Codex content back
@@ -64,5 +32,23 @@ export function isLegacyCodexSkillEquivalentToCurrent(
   return (
     normalizedLegacy === normalizedCurrent ||
     normalizedLegacy === toLegacyCodexReferences(normalizedCurrent)
+  );
+}
+
+/**
+ * Whether a legacy copy of an OpenSpec-managed file can be dropped once its
+ * current replacement exists: it matches the replacement, or it is untouched
+ * output of some released OpenSpec version. Either way no user edit is lost.
+ * Anything else may hold the user's changes and must be kept.
+ */
+export function isRedundantLegacyCopy(
+  legacyContent: string,
+  currentContent: string,
+  isSkillFile: boolean
+): boolean {
+  return (
+    legacyContent === currentContent ||
+    (isSkillFile && isLegacyCodexSkillEquivalentToCurrent(legacyContent, currentContent)) ||
+    isReleasedGeneratedContent(legacyContent)
   );
 }

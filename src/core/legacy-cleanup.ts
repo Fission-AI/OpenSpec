@@ -10,6 +10,7 @@ import type { FileHandle } from 'fs/promises';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
+import { hasReleasedOpenSpecBlock, isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
 import { ALL_WORKFLOWS, type WorkflowId } from './profiles.js';
 
 /**
@@ -917,6 +918,48 @@ function buildRemovalsList(detection: LegacyDetectionResult): Array<{ path: stri
   // They always go to the updates list where only markers are removed
 
   return removals;
+}
+
+/**
+ * Whether everything legacy cleanup would remove is untouched output of a
+ * released OpenSpec version, so cleaning up cannot lose a user's edit: every
+ * file it deletes outright, and every OpenSpec block it strips from a user's
+ * own file (CLAUDE.md, AGENTS.md). Any file that cannot be read as a regular
+ * file counts as unrecognized.
+ */
+export async function legacyCleanupDeletesOnlyReleasedOutput(
+  projectPath: string,
+  detection: LegacyDetectionResult
+): Promise<boolean> {
+  const files: string[] = [];
+  for (const dirPath of detection.slashCommandDirs) {
+    const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
+    const entries = await readLegacyCommandDir(fullPath, legacyManagedFileNamesForDir(dirPath));
+    if (!entries) return false;
+    files.push(...entries.managed.map((name) => path.join(fullPath, name)));
+  }
+  files.push(...detection.slashCommandFiles.map((file) => FileSystemUtils.joinPath(projectPath, file)));
+  files.push(...detection.globalSlashCommandFiles);
+  if (detection.hasOpenspecAgents) {
+    files.push(FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md'));
+  }
+
+  const readRegular = async (file: string) => {
+    if (!(await fs.lstat(file)).isFile()) throw new Error('not a regular file');
+    return fs.readFile(file, 'utf-8');
+  };
+  try {
+    for (const file of files) {
+      if (!isReleasedGeneratedContent(await readRegular(file))) return false;
+    }
+    for (const file of detection.configFilesToUpdate) {
+      const content = await readRegular(FileSystemUtils.joinPath(projectPath, file));
+      if (!hasReleasedOpenSpecBlock(content)) return false;
+    }
+  } catch {
+    return false;
+  }
+  return true;
 }
 
 /**

@@ -1,0 +1,169 @@
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { promises as fs } from 'fs';
+import os from 'os';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import {
+  currentGeneratablePaths,
+  findStaleReleasedFiles,
+  pruneEmptyParents,
+} from '../../src/core/released-output-sweep.js';
+import { RELEASED_GENERATED_PATHS } from '../../src/core/shared/released-generated-fingerprints.js';
+import {
+  detectLegacyArtifacts,
+  legacyCleanupDeletesOnlyReleasedOutput,
+} from '../../src/core/legacy-cleanup.js';
+import { runCLI } from '../helpers/run-cli.js';
+
+const fixtures = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/released-output');
+// Real files released versions wrote, kept byte for byte.
+const codexPrompt = () => fs.readFile(path.join(fixtures, 'v1.0.0-codex-prompt-opsx-new.md'), 'utf8');
+const claudeMd = () => fs.readFile(path.join(fixtures, 'v0.23.0-CLAUDE.md'), 'utf8');
+
+const STALE = '.codex/prompts/opsx-new.md';
+
+describe('stale released output', () => {
+  let root: string;
+  let project: string;
+
+  beforeEach(async () => {
+    root = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-sweep-')));
+    project = path.join(root, 'project');
+    await fs.mkdir(project);
+  });
+
+  afterEach(async () => {
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
+  async function write(rel: string, content: string) {
+    const file = path.join(project, rel);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, content);
+  }
+
+  it('records only tool-folder paths, never root files or openspec/', () => {
+    expect(RELEASED_GENERATED_PATHS).toContain(STALE);
+    for (const rel of RELEASED_GENERATED_PATHS) {
+      expect(rel, rel).toContain('/');
+      expect(rel, rel).not.toMatch(/^openspec\//);
+      expect(rel, rel).not.toMatch(/^\.\.|^\//);
+    }
+  });
+
+  it('finds an untouched file an earlier release left at a path no tool reads', async () => {
+    await write(STALE, await codexPrompt());
+    expect(await findStaleReleasedFiles(project)).toEqual([STALE]);
+  });
+
+  it('accepts a CRLF checkout of the same file', async () => {
+    await write(STALE, (await codexPrompt()).replace(/\n/g, '\r\n'));
+    expect(await findStaleReleasedFiles(project)).toEqual([STALE]);
+  });
+
+  it('keeps a file the user edited', async () => {
+    await write(STALE, (await codexPrompt()) + '\nMy own note.\n');
+    expect(await findStaleReleasedFiles(project)).toEqual([]);
+  });
+
+  it('never follows a link out of the project', async () => {
+    const outside = path.join(root, 'outside');
+    await fs.mkdir(path.join(outside, 'prompts'), { recursive: true });
+    await fs.writeFile(path.join(outside, 'prompts', 'opsx-new.md'), await codexPrompt());
+    await fs.symlink(outside, path.join(project, '.codex'), 'dir');
+    expect(await findStaleReleasedFiles(project)).toEqual([]);
+  });
+
+  it('never removes a linked file, even to released output', async () => {
+    const target = path.join(root, 'elsewhere.md');
+    await fs.writeFile(target, await codexPrompt());
+    await fs.mkdir(path.join(project, '.codex', 'prompts'), { recursive: true });
+    await fs.symlink(target, path.join(project, STALE));
+    expect(await findStaleReleasedFiles(project)).toEqual([]);
+  });
+
+  it('leaves former-root skills to the root migration', async () => {
+    await write('.codex/skills/openspec-new-change/SKILL.md', await codexPrompt());
+    const stale = await findStaleReleasedFiles(project);
+    expect(stale.some((rel) => rel.startsWith('.codex/skills/'))).toBe(false);
+  });
+
+  it('leaves a consent-gated root alone until its move has happened', async () => {
+    const command = '.windsurf/commands/opsx/new.md';
+    expect(RELEASED_GENERATED_PATHS).toContain(command);
+    // The Windsurf → Devin move asks first. While OpenSpec skills are still
+    // under .windsurf/, the user may be on a build that reads only that root.
+    await write('.windsurf/skills/openspec-new-change/SKILL.md', 'still here');
+    await write(command, await codexPrompt());
+    expect(await findStaleReleasedFiles(project)).not.toContain(command);
+  });
+
+  it('prunes only the folders its removals emptied', async () => {
+    await write(STALE, 'x');
+    await write('.codex/config.toml', 'mine');
+    await fs.rm(path.join(project, STALE));
+    await pruneEmptyParents(project, [STALE]);
+    await expect(fs.stat(path.join(project, '.codex', 'prompts'))).rejects.toThrow();
+    expect(await fs.readFile(path.join(project, '.codex', 'config.toml'), 'utf8')).toBe('mine');
+  });
+
+  it('covers every path the current release writes', async () => {
+    const home = path.join(root, 'home');
+    const xdg = path.join(home, '.config');
+    await fs.mkdir(path.join(xdg, 'openspec'), { recursive: true });
+    await fs.writeFile(
+      path.join(xdg, 'openspec', 'config.json'),
+      JSON.stringify({ profile: 'custom', delivery: 'both', workflows: [
+        'propose', 'explore', 'new', 'continue', 'apply', 'update',
+        'ff', 'sync', 'archive', 'bulk-archive', 'verify', 'onboard',
+      ] })
+    );
+    const result = await runCLI(['init', '--tools', 'all'], {
+      cwd: project,
+      env: { HOME: home, USERPROFILE: home, XDG_CONFIG_HOME: xdg, CODEX_HOME: path.join(home, '.codex'), CI: '1' },
+    });
+    expect(result.exitCode, result.stderr).toBe(0);
+
+    const current = currentGeneratablePaths();
+    const written: string[] = [];
+    const walk = async (dir: string) => {
+      for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) await walk(full);
+        else written.push(path.relative(project, full).split(path.sep).join('/'));
+      }
+    };
+    await walk(project);
+    const toolFiles = written.filter((rel) => rel.includes('/') && !rel.startsWith('openspec/'));
+    expect(toolFiles.length).toBeGreaterThan(100);
+    expect(toolFiles.filter((rel) => !current.has(rel))).toEqual([]);
+    // And none of it is ever reported stale.
+    expect(await findStaleReleasedFiles(project)).toEqual([]);
+  }, 120_000);
+});
+
+describe('legacy cleanup without --force', () => {
+  let project: string;
+
+  beforeEach(async () => {
+    project = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-legacy-auto-')));
+  });
+
+  afterEach(async () => {
+    await fs.rm(project, { recursive: true, force: true });
+  });
+
+  it('may strip an OpenSpec block a release wrote into the user file', async () => {
+    await fs.writeFile(path.join(project, 'CLAUDE.md'), '# My project\n\n' + (await claudeMd()));
+    const detection = await detectLegacyArtifacts(project);
+    expect(detection.configFilesToUpdate).toContain('CLAUDE.md');
+    expect(await legacyCleanupDeletesOnlyReleasedOutput(project, detection)).toBe(true);
+  });
+
+  it('must ask before stripping a block the user wrote inside', async () => {
+    const edited = (await claudeMd()).replace('<!-- OPENSPEC:END -->', 'Always use pnpm.\n<!-- OPENSPEC:END -->');
+    await fs.writeFile(path.join(project, 'CLAUDE.md'), edited);
+    const detection = await detectLegacyArtifacts(project);
+    expect(await legacyCleanupDeletesOnlyReleasedOutput(project, detection)).toBe(false);
+  });
+});
