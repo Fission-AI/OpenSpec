@@ -15,6 +15,7 @@ import {
   describeScenarioBalance,
   describeUnappliedContent,
   foldRequirementName,
+  isUnrecognizedDeltaSection,
   parseDeltaSpec,
   normalizeRequirementName,
   type RequirementBlock,
@@ -241,7 +242,17 @@ export async function buildUpdatedSpec(
   // A well-formed requirement written outside every delta section is not
   // applied. Say so here as well as in validate: archive is the last point at
   // which the author can still notice, and the block reads exactly like one
-  // that would have applied.
+  // that would have applied. Under an unrecognized `## ... Requirements`
+  // header it was meant as a delta operation, so refuse rather than drop it -
+  // the same verdict validate gives (#2195).
+  const misplaced = plan.orphanedRequirements.find((o) => isUnrecognizedDeltaSection(o.section));
+  if (misplaced) {
+    throw new Error(
+      `${specName} validation failed - requirement "${misplaced.name}" (line ${misplaced.line}) is under ` +
+        `"## ${misplaced.section}", which is not a delta section, so it would not be applied. ` +
+        `Move it under ADDED/MODIFIED/REMOVED/RENAMED Requirements.`
+    );
+  }
   for (const orphan of plan.orphanedRequirements) {
     const where = orphan.section
       ? `under "## ${orphan.section}"`

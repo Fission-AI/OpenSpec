@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { parseDeltaSpec } from '../../../src/core/parsers/requirement-blocks.js';
+import { isUnrecognizedDeltaSection, parseDeltaSpec } from '../../../src/core/parsers/requirement-blocks.js';
 import { buildUpdatedSpec, findSpecUpdates } from '../../../src/core/specs-apply.js';
 import { Validator } from '../../../src/core/validation/validator.js';
 
@@ -296,5 +296,153 @@ describe('validate <change> (requirements outside delta sections)', () => {
     );
     // A warning must not change the verdict.
     expect(report.issues.filter((i) => i.level === 'ERROR')).toEqual([]);
+  });
+});
+
+/**
+ * #2195: a requirement under an unrecognized `## ... Requirements` header reads
+ * as a delta operation the author meant to apply. Dropping it with only a
+ * warning let validate and archive exit 0 while losing it, so both now fail.
+ * Orphans under prose sections or above the first `## ` keep the #1804 warning.
+ */
+describe('isUnrecognizedDeltaSection', () => {
+  it.each([
+    'DEPRECATED Requirements',
+    'Add Requirements',
+    'ADDED  Requirements',
+    'Requirements',
+    'deprecated requirement',
+  ])('treats "## %s" as an unrecognized delta section', (section) => {
+    expect(isUnrecognizedDeltaSection(section)).toBe(true);
+  });
+
+  it.each([
+    'ADDED Requirements',
+    'modified requirements',
+    'REMOVED Requirements',
+    'RENAMED Requirements',
+    'Notes',
+    'Purpose',
+    'Behavior',
+    'Requirements Notes',
+  ])('does not treat "## %s" as one', (section) => {
+    expect(isUnrecognizedDeltaSection(section)).toBe(false);
+  });
+
+  it('does not treat text above the first section as one', () => {
+    expect(isUnrecognizedDeltaSection(null)).toBe(false);
+  });
+});
+
+describe('unrecognized requirement-bearing delta sections (#2195)', () => {
+  let tempDir: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-unrecognized-section-'));
+  });
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  const ADDED = [
+    '## ADDED Requirements',
+    '### Requirement: Applied',
+    'The system SHALL do a thing.',
+    '',
+    '#### Scenario: S',
+    '- **WHEN** a',
+    '- **THEN** b',
+    '',
+  ];
+
+  async function writeChange(deltaBody: string) {
+    const specsRoot = path.join(tempDir, 'openspec', 'specs');
+    const changeDir = path.join(tempDir, 'openspec', 'changes', 'c');
+    await fs.mkdir(specsRoot, { recursive: true });
+    await fs.mkdir(path.join(changeDir, 'specs', 'billing'), { recursive: true });
+    await fs.writeFile(path.join(changeDir, 'specs', 'billing', 'spec.md'), deltaBody);
+    return { specsRoot, changeDir };
+  }
+
+  async function errorsFor(deltaBody: string) {
+    const { changeDir } = await writeChange(deltaBody);
+    const report = await new Validator().validateChangeDeltaSpecs(changeDir);
+    return report.issues.filter((i) => i.level === 'ERROR').map((i) => i.message);
+  }
+
+  async function buildFor(deltaBody: string) {
+    const { specsRoot, changeDir } = await writeChange(deltaBody);
+    const [update] = await findSpecUpdates(changeDir, specsRoot);
+    return buildUpdatedSpec(update, 'c', { silent: true });
+  }
+
+  const DEPRECATED = [
+    ...ADDED,
+    '## DEPRECATED Requirements',
+    '### Requirement: Ignored',
+    'This requirement sits under a section the CLI does not recognise.',
+  ].join('\n');
+
+  it('fails validate when an applied section sits beside an unrecognized one', async () => {
+    const errors = await errorsFor(DEPRECATED);
+    expect(errors).toEqual([
+      expect.stringMatching(
+        /^Requirement "Ignored" is under "## DEPRECATED Requirements", which is not a delta section/
+      ),
+    ]);
+  });
+
+  it('fails validate for CRLF line endings too', async () => {
+    const errors = await errorsFor(DEPRECATED.replace(/\n/g, '\r\n'));
+    expect(errors.some((m) => m.includes('"## DEPRECATED Requirements"'))).toBe(true);
+  });
+
+  it('makes archive refuse instead of dropping the requirement (covers --no-validate)', async () => {
+    await expect(buildFor(DEPRECATED)).rejects.toThrow(
+      /requirement "Ignored" \(line 10\) is under "## DEPRECATED Requirements", which is not a delta section/
+    );
+  });
+
+  it('keeps an orphan under a prose section a warning', async () => {
+    const delta = [...ADDED, '## Notes', '### Requirement: Aside', 'Background only.'].join('\n');
+    expect(await errorsFor(delta)).toEqual([]);
+    const built = await buildFor(delta);
+    expect(built.warnings.some((w) => w.includes('Aside'))).toBe(true);
+  });
+
+  it('keeps an orphan above the first section a warning', async () => {
+    const delta = ['### Requirement: Stray', 'Text.', '', ...ADDED].join('\n');
+    expect(await errorsFor(delta)).toEqual([]);
+    await expect(buildFor(delta)).resolves.toBeDefined();
+  });
+
+  it('does not fail on a requirement commented out under an unrecognized section', async () => {
+    const delta = [
+      ...ADDED,
+      '<!--',
+      '## DEPRECATED Requirements',
+      '### Requirement: Draft idea we did not ship',
+      '-->',
+    ].join('\n');
+    expect(parseDeltaSpec(delta).orphanedRequirements).toEqual([]);
+    expect(await errorsFor(delta)).toEqual([]);
+    await expect(buildFor(delta)).resolves.toBeDefined();
+  });
+
+  it('does not fail on prose-only or fenced content under an unrecognized section', async () => {
+    const delta = [
+      '## Purpose',
+      'Describes a new capability.',
+      '',
+      ...ADDED,
+      '## DEPRECATED Requirements',
+      'Nothing is deprecated yet. Example of the format:',
+      '',
+      '```markdown',
+      '### Requirement: Just An Example',
+      '```',
+    ].join('\n');
+    expect(await errorsFor(delta)).toEqual([]);
+    await expect(buildFor(delta)).resolves.toBeDefined();
   });
 });
