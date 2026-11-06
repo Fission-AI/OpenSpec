@@ -1,3 +1,4 @@
+import { activeChangeNames } from './change-directory.js';
 import { promises as fs } from 'fs';
 import path from 'path';
 import { discoverSpecFiles } from './spec-discovery.js';
@@ -14,16 +15,7 @@ import { discoverSpecFiles } from './spec-discovery.js';
  * all (#1161).
  */
 export async function getActiveChangeIds(root: string = process.cwd()): Promise<string[]> {
-  const changesPath = path.join(root, 'openspec', 'changes');
-  try {
-    const entries = await fs.readdir(changesPath, { withFileTypes: true });
-    return entries
-      .filter((entry) => entry.isDirectory() && entry.name !== 'archive' && !entry.name.startsWith('.'))
-      .map((entry) => entry.name)
-      .sort();
-  } catch {
-    return [];
-  }
+  return activeChangeNames(path.join(root, 'openspec', 'changes'));
 }
 
 export async function getSpecIds(root: string = process.cwd()): Promise<string[]> {
@@ -52,4 +44,3 @@ export async function getArchivedChangeIds(root: string = process.cwd()): Promis
     return [];
   }
 }
-

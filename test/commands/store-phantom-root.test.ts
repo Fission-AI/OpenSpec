@@ -106,8 +106,12 @@ describe('a store named specs or changes at ~/openspec/<id>', () => {
       const result = await runCLI(['new', 'change', 'probe-change', '--json'], { cwd: workDir, env });
 
       expect(result.exitCode).toBe(0);
-      expect(fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'probe-change'))).toBe(true);
-      expect(fs.existsSync(path.join(home, 'openspec', 'changes', 'probe-change'))).toBe(false);
+      expect(
+        fs.existsSync(path.join(storeRoot, 'openspec', 'changes', 'proposed', 'probe-change'))
+      ).toBe(true);
+      expect(
+        fs.existsSync(path.join(home, 'openspec', 'changes', 'proposed', 'probe-change'))
+      ).toBe(false);
     },
     60_000
   );

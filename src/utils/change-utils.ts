@@ -1,3 +1,4 @@
+import { proposedChangesDir, resolveChangeDir } from './change-directory.js';
 import path from 'path';
 import { FileSystemUtils } from './file-system.js';
 import { writeChangeMetadata, validateSchemaName } from './change-metadata.js';
@@ -119,12 +120,12 @@ export function validateChangeName(name: string): ValidationResult {
  * @returns Result containing the resolved schema name
  *
  * @example
- * // Creates openspec/changes/add-auth/ with default schema
+ * // Creates openspec/changes/proposed/add-auth/ with default schema
  * const result = await createChange('/path/to/project', 'add-auth')
  * console.log(result.schema) // 'spec-driven' or value from config
  *
  * @example
- * // Creates openspec/changes/add-auth/ with custom schema
+ * // Creates openspec/changes/proposed/add-auth/ with custom schema
  * const result = await createChange('/path/to/project', 'add-auth', { schema: 'my-workflow' })
  * console.log(result.schema) // 'my-workflow'
  */
@@ -160,11 +161,13 @@ export async function createChange(
   validateSchemaName(schemaName, projectRoot);
 
   // Build the change directory path
-  const changeDir = path.join(options.changesDir ?? path.join(projectRoot, 'openspec', 'changes'), name);
+  const changesDir = options.changesDir ?? path.join(projectRoot, 'openspec', 'changes');
+  const existingDir = resolveChangeDir(changesDir, name);
+  const changeDir = path.join(proposedChangesDir(changesDir), name);
 
   // Check if change already exists
-  if (await FileSystemUtils.directoryExists(changeDir)) {
-    throw new Error(`Change '${name}' already exists at ${changeDir}`);
+  if (await FileSystemUtils.directoryExists(existingDir)) {
+    throw new Error(`Change '${name}' already exists at ${existingDir}`);
   }
 
   const schema = resolveSchema(schemaName, projectRoot);

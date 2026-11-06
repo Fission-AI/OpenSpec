@@ -123,6 +123,8 @@ ${PROJECT_ROOT_GUARD}
       - A blocked change is never synced or moved: show it as \`Blocked\` in the step 6 table, leave it out of conflict resolution (resolve its conflicts using only the other changes), and record it as Failed in step 8d
       - Checking here, before any main spec is written, matches \`openspec archive\`: a collision found after sync would leave main specs rewritten for an archive that never happened
 
+   e. **Approval** - If a change's \`changeRoot\` is under \`<planningHome.changesDir>/proposed/\`, mark it \`Blocked\` with \`Change is still proposed; approve it first\` and handle it like any other blocked change above
+
 4. **Detect spec conflicts**
 
    Build a map keyed by \`<capability-path>\`, the exact path relative to \`specs/\`:
@@ -196,7 +198,7 @@ ${PROJECT_ROOT_GUARD}
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change that is not \`Blocked\`
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with \`Archive directory already exists\`. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with their recorded blocking reason. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every
@@ -491,6 +493,8 @@ ${PROJECT_ROOT_GUARD}
       - A blocked change is never synced or moved: show it as \`Blocked\` in the step 6 table, leave it out of conflict resolution (resolve its conflicts using only the other changes), and record it as Failed in step 8d
       - Checking here, before any main spec is written, matches \`openspec archive\`: a collision found after sync would leave main specs rewritten for an archive that never happened
 
+   e. **Approval** - If a change's \`changeRoot\` is under \`<planningHome.changesDir>/proposed/\`, mark it \`Blocked\` with \`Change is still proposed; approve it first\` and handle it like any other blocked change above
+
 4. **Detect spec conflicts**
 
    Build a map keyed by \`<capability-path>\`, the exact path relative to \`specs/\`:
@@ -564,7 +568,7 @@ ${PROJECT_ROOT_GUARD}
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change that is not \`Blocked\`
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with \`Archive directory already exists\`. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with their recorded blocking reason. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every

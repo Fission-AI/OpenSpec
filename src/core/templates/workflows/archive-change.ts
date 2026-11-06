@@ -92,6 +92,8 @@ ${PROJECT_ROOT_GUARD}
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
    - \`artifacts\`: List of artifacts with their status (\`done\`, \`skipped\`, or other)
 
+   **If \`changeRoot\` is under \`<planningHome.changesDir>/proposed/\`**, report that the change must be approved first and stop before syncing or archiving.
+
    **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
    - Display warning listing incomplete artifacts
    - Ask the user to confirm they want to proceed
@@ -303,6 +305,8 @@ ${PROJECT_ROOT_GUARD}
    - \`schemaName\`: The workflow being used
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
    - \`artifacts\`: List of artifacts with their status (\`done\`, \`skipped\`, or other)
+
+   **If \`changeRoot\` is under \`<planningHome.changesDir>/proposed/\`**, report that the change must be approved first and stop before syncing or archiving.
 
    **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
    - Display warning listing incomplete artifacts
