@@ -117,13 +117,24 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     await fs.rm(tempRoot, { recursive: true, force: true });
   });
 
-  async function initWith(version: string, name: string): Promise<Sandbox> {
+  async function initWith(
+    version: string,
+    name: string,
+    tools = 'all',
+    globalConfig?: Record<string, unknown>
+  ): Promise<Sandbox> {
     const box = { home: path.join(tempRoot, name, 'home'), project: path.join(tempRoot, name, 'project') };
-    await fs.mkdir(path.join(box.home, '.config'), { recursive: true });
+    await fs.mkdir(path.join(box.home, '.config', 'openspec'), { recursive: true });
     await fs.mkdir(box.project, { recursive: true });
-    const init = run(releaseBin(version), ['init', '--tools', 'all'], box);
+    if (globalConfig) {
+      await fs.writeFile(
+        path.join(box.home, '.config', 'openspec', 'config.json'),
+        JSON.stringify(globalConfig)
+      );
+    }
+    const init = run(releaseBin(version), ['init', '--tools', tools], box);
     expect(init.status, init.output).toBe(0);
-    expect(listFiles(box.project).length).toBeGreaterThan(20);
+    expect(listFiles(box.project).length).toBeGreaterThan(3);
     return box;
   }
 
@@ -176,5 +187,43 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
       expect(content, rel).toContain('My own note.');
     }
     expect(result.output).toMatch(/Left 1 file in \.codex\/ that differs/);
+  }, 600_000);
+
+  it('removes nothing old when the user has not agreed to the cleanup', async () => {
+    // 0.23 commands for Claude and Cursor, a hand-edited openspec/AGENTS.md so
+    // cleanup is not automatic, and a tool already on 1.16 so update runs.
+    const box = await initWith('0.23.0', 'declined', 'claude,cursor');
+    await fs.appendFile(path.join(box.project, 'openspec', 'AGENTS.md'), '\nOur own rule.\n');
+    // 1.16's own init would clean the 0.23 files up, so its OpenCode output is
+    // made in a separate project and copied in.
+    const donor = await initWith('1.16.0', 'declined-donor', 'opencode');
+    await fs.cp(path.join(donor.project, '.opencode'), path.join(box.project, '.opencode'), { recursive: true });
+    const before = listFiles(box.project).filter((rel) => /^\.(claude|cursor)\//.test(rel));
+    expect(before.length).toBeGreaterThan(0);
+
+    const result = run(currentBin, ['update'], box);
+    expect(result.status, result.output).toBe(0);
+    expect(result.output).toContain('Run with --force to auto-cleanup');
+    for (const rel of before) {
+      expect(existsSync(path.join(box.project, rel)), rel).toBe(true);
+    }
+  }, 600_000);
+
+  it('never leaves a tool without its commands', async () => {
+    // Commands-only Antigravity: its only OpenSpec files are old commands.
+    const box = await initWith('1.10.0', 'commands-only', 'antigravity,claude', {
+      profile: 'core',
+      delivery: 'commands',
+    });
+    const old = listFiles(path.join(box.project, '.agent', 'workflows'));
+    expect(old.length).toBeGreaterThan(0);
+
+    const result = run(currentBin, ['update'], box);
+    expect(result.status, result.output).toBe(0);
+    for (const name of old) {
+      const kept = existsSync(path.join(box.project, '.agent', 'workflows', name));
+      const moved = existsSync(path.join(box.project, '.agents', 'workflows', name));
+      expect(kept || moved, name).toBe(true);
+    }
   }, 600_000);
 });

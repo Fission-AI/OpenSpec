@@ -921,8 +921,8 @@ function buildRemovalsList(detection: LegacyDetectionResult): Array<{ path: stri
 }
 
 /**
- * Whether everything legacy cleanup would remove is untouched output of a
- * released OpenSpec version, so cleaning up cannot lose a user's edit: every
+ * Whether everything legacy cleanup would remove inside the project is
+ * untouched output of a released OpenSpec version, so cleaning up cannot lose a user's edit: every
  * file it deletes outright, and every OpenSpec block it strips from a user's
  * own file (CLAUDE.md, AGENTS.md). Any file that cannot be read as a regular
  * file counts as unrecognized.
@@ -931,6 +931,8 @@ export async function legacyCleanupDeletesOnlyReleasedOutput(
   projectPath: string,
   detection: LegacyDetectionResult
 ): Promise<boolean> {
+  // Prompts in the home folder are not judged here: they are shared by every
+  // project on the machine, so a cleanup without --force leaves them alone.
   const files: string[] = [];
   for (const dirPath of detection.slashCommandDirs) {
     const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
@@ -939,7 +941,6 @@ export async function legacyCleanupDeletesOnlyReleasedOutput(
     files.push(...entries.managed.map((name) => path.join(fullPath, name)));
   }
   files.push(...detection.slashCommandFiles.map((file) => FileSystemUtils.joinPath(projectPath, file)));
-  files.push(...detection.globalSlashCommandFiles);
   if (detection.hasOpenspecAgents) {
     files.push(FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md'));
   }

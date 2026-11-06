@@ -51,22 +51,35 @@ describe('stale released output', () => {
     }
   });
 
-  it('finds an untouched file an earlier release left at a path no tool reads', async () => {
+  // Codex's current skills: the replacement for its old prompt files.
+  const codexReplacement = () => write('.agents/skills/openspec-new-change/SKILL.md', 'current');
+
+  it('finds an untouched file an earlier release left, once its tool has a replacement', async () => {
     await write(STALE, await codexPrompt());
+    await codexReplacement();
     expect(await findStaleReleasedFiles(project)).toEqual([STALE]);
+  });
+
+  it('keeps it while its tool has no replacement in the project', async () => {
+    // Nothing current for Codex: the old file may be all the user has.
+    await write(STALE, await codexPrompt());
+    expect(await findStaleReleasedFiles(project)).toEqual([]);
   });
 
   it('accepts a CRLF checkout of the same file', async () => {
     await write(STALE, (await codexPrompt()).replace(/\n/g, '\r\n'));
+    await codexReplacement();
     expect(await findStaleReleasedFiles(project)).toEqual([STALE]);
   });
 
   it('keeps a file the user edited', async () => {
     await write(STALE, (await codexPrompt()) + '\nMy own note.\n');
+    await codexReplacement();
     expect(await findStaleReleasedFiles(project)).toEqual([]);
   });
 
   it('never follows a link out of the project', async () => {
+    await codexReplacement();
     const outside = path.join(root, 'outside');
     await fs.mkdir(path.join(outside, 'prompts'), { recursive: true });
     await fs.writeFile(path.join(outside, 'prompts', 'opsx-new.md'), await codexPrompt());
@@ -75,6 +88,7 @@ describe('stale released output', () => {
   });
 
   it('never removes a linked file, even to released output', async () => {
+    await codexReplacement();
     const target = path.join(root, 'elsewhere.md');
     await fs.writeFile(target, await codexPrompt());
     await fs.mkdir(path.join(project, '.codex', 'prompts'), { recursive: true });
@@ -88,14 +102,22 @@ describe('stale released output', () => {
     expect(stale.some((rel) => rel.startsWith('.codex/skills/'))).toBe(false);
   });
 
-  it('leaves a consent-gated root alone until its move has happened', async () => {
+  it('leaves a former root alone while its move still has files to make', async () => {
     const command = '.windsurf/commands/opsx/new.md';
     expect(RELEASED_GENERATED_PATHS).toContain(command);
-    // The Windsurf → Devin move asks first. While OpenSpec skills are still
-    // under .windsurf/, the user may be on a build that reads only that root.
-    await write('.windsurf/skills/openspec-new-change/SKILL.md', 'still here');
     await write(command, await codexPrompt());
+    await write('.devin/skills/openspec-new-change/SKILL.md', 'current');
+    // The Windsurf → Devin move asks first. While it still has skills or
+    // commands to move (it was declined, or delivery is commands-only), the
+    // user may be on a build that reads only .windsurf/.
+    await write('.windsurf/workflows/opsx-new.md', 'not moved yet');
     expect(await findStaleReleasedFiles(project)).not.toContain(command);
+    await fs.rm(path.join(project, '.windsurf/workflows/opsx-new.md'));
+    await write('.windsurf/skills/openspec-new-change/SKILL.md', 'not moved yet');
+    expect(await findStaleReleasedFiles(project)).not.toContain(command);
+    // Once the move is done, the leftover is swept like any other.
+    await fs.rm(path.join(project, '.windsurf/skills'), { recursive: true });
+    expect(await findStaleReleasedFiles(project)).toContain(command);
   });
 
   it('prunes only the folders its removals emptied', async () => {
@@ -158,6 +180,18 @@ describe('legacy cleanup without --force', () => {
     const detection = await detectLegacyArtifacts(project);
     expect(detection.configFilesToUpdate).toContain('CLAUDE.md');
     expect(await legacyCleanupDeletesOnlyReleasedOutput(project, detection)).toBe(true);
+  });
+
+  it('judges exactly the span removal would delete', async () => {
+    // An END marker with text after it on the same line is not one removal
+    // accepts, so removal would run on to the next own-line END and take the
+    // user's text in between. The check must see that span, not a shorter one.
+    const tricky =
+      (await claudeMd()).replace('<!-- OPENSPEC:END -->', '<!-- OPENSPEC:END --> <- note') +
+      '\n## My section\n\nMine.\n\n<!-- OPENSPEC:END -->\n';
+    await fs.writeFile(path.join(project, 'CLAUDE.md'), tricky);
+    const detection = await detectLegacyArtifacts(project);
+    expect(await legacyCleanupDeletesOnlyReleasedOutput(project, detection)).toBe(false);
   });
 
   it('must ask before stripping a block the user wrote inside', async () => {

@@ -136,7 +136,7 @@ function classifyManagedFile(
  * command files) or do not start at the tool root — neither can be relocated
  * by swapping a leading segment.
  */
-function legacyCommandPath(
+export function legacyCommandPath(
   commandPath: string,
   currentRoot: string,
   legacyRoot: string

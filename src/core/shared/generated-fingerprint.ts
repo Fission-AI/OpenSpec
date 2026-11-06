@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { RELEASED_GENERATED_FINGERPRINTS } from './released-generated-fingerprints.js';
+import { findMarkerBlock } from '../../utils/file-system.js';
 
 const GENERATED_VERSION =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
@@ -53,14 +54,10 @@ const BLOCK_END = '<!-- OPENSPEC:END -->';
 /**
  * The OpenSpec-managed block of a file older releases added it to (a user's
  * CLAUDE.md or AGENTS.md), markers included, or undefined when there is none.
+ * Found by the same own-line marker rules legacy cleanup removes it by.
  */
 export function extractOpenSpecBlock(content: string): string | undefined {
-  const normalized = content.replace(/\r\n/g, '\n');
-  const start = normalized.indexOf(BLOCK_START);
-  if (start === -1) return undefined;
-  const end = normalized.indexOf(BLOCK_END, start + BLOCK_START.length);
-  if (end === -1) return undefined;
-  return normalized.slice(start, end + BLOCK_END.length);
+  return findMarkerBlock(content.replace(/\r\n/g, '\n'), BLOCK_START, BLOCK_END);
 }
 
 const RELEASED = new Set<string>(RELEASED_GENERATED_FINGERPRINTS);

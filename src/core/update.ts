@@ -212,6 +212,7 @@ export class UpdateCommand {
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);
+    this.legacyCleanupSkipped = false;
 
     if (this.dryRun) {
       this.recorder = new UpdatePlanRecorder(resolvedProjectPath);
@@ -674,6 +675,13 @@ export class UpdateCommand {
   }
 
   /** The tree as the real update would see it at this point. */
+  /**
+   * Set when legacy files were found but their cleanup did not run (no
+   * --force off a terminal, or the user said no). Nothing earlier releases
+   * left is then removed in this run either: the user has not agreed to it.
+   */
+  private legacyCleanupSkipped = false;
+
   private get view(): FileView {
     return this.recorder?.view ?? DISK_VIEW;
   }
@@ -863,7 +871,9 @@ export class UpdateCommand {
 
     // Files an earlier release wrote where no tool reads them any more, still
     // exactly as that release wrote them, hold nothing of the user's.
-    const staleReleasedFiles = await findStaleReleasedFiles(projectPath, this.view);
+    const staleReleasedFiles = this.legacyCleanupSkipped
+      ? []
+      : await findStaleReleasedFiles(projectPath, this.view);
     if (staleReleasedFiles.length > 0) {
       // findStaleReleasedFiles proved each path reaches its literal file with
       // no link on the way, so this is that file.
@@ -1328,6 +1338,17 @@ export class UpdateCommand {
         detection,
         legacyUpgrade.skippedSharedSkillTools
       );
+      // Prompts in the home folder are shared by every project on the
+      // machine, so removing them still takes --force or a yes at a prompt.
+      if (onlyReleasedOutput && detection.globalSlashCommandFiles.length > 0) {
+        this.log(
+          chalk.dim(
+            `Left ${detection.globalSlashCommandFiles.length} OpenSpec prompt file(s) in your home folder: ` +
+              'other projects may still use them. Run "openspec update --force" to remove them.'
+          )
+        );
+        return legacyUpgrade;
+      }
       return {
         ...legacyUpgrade,
         deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
@@ -1340,6 +1361,7 @@ export class UpdateCommand {
     if (!canPrompt) {
       // Non-interactive mode without --force: warn and continue
       // (Unlike init, update doesn't abort - user may just want to update skills)
+      this.legacyCleanupSkipped = true;
       this.log(chalk.yellow('⚠ Run with --force to auto-cleanup legacy files, or run interactively.'));
       this.log();
       this.recorder?.addNote(
@@ -1377,6 +1399,7 @@ export class UpdateCommand {
         ),
       };
     } else {
+      this.legacyCleanupSkipped = true;
       this.log(chalk.dim('Skipping legacy cleanup. Continuing with skill update...'));
       this.log();
       return { newlyConfiguredTools: [], workflowOverrides: {} };
