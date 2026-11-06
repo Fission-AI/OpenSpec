@@ -124,6 +124,40 @@ describe('migration', () => {
     expect(config.workflows).toEqual(['explore', 'archive']);
   });
 
+  it('does not save a delivery from an Amazon Q project, whose prompts exist under every delivery', async () => {
+    // Amazon Q keeps its prompts whatever delivery is set, so they show which
+    // workflows are installed but not what delivery the user wants. Inferring
+    // `commands` from them would be saved globally and strip skills from
+    // every other project on the machine.
+    await writeManagedCommand(projectDir, 'explore', 'amazon-q');
+    await writeManagedCommand(projectDir, 'archive', 'amazon-q');
+
+    migrateIfNeeded(projectDir, [requireTool('amazon-q')]);
+
+    const config = readRawConfig();
+    expect(config.profile).toBe('custom');
+    expect(config.workflows).toEqual(['explore', 'archive']);
+    expect(config).not.toHaveProperty('delivery');
+  });
+
+  it('ignores leftover Amazon Q skills too when inferring delivery', async () => {
+    await writeManagedCommand(projectDir, 'explore', 'amazon-q');
+    await writeSkill(projectDir, 'openspec-explore', '.amazonq');
+
+    migrateIfNeeded(projectDir, [requireTool('amazon-q')]);
+
+    expect(readRawConfig()).not.toHaveProperty('delivery');
+  });
+
+  it('still infers delivery from the other tools in a project that has Amazon Q', async () => {
+    await writeManagedCommand(projectDir, 'explore', 'amazon-q');
+    await writeSkill(projectDir, 'openspec-explore');
+
+    migrateIfNeeded(projectDir, [requireTool('amazon-q'), ensureClaudeTool()]);
+
+    expect(readRawConfig().delivery).toBe('skills');
+  });
+
   it('migrates to custom both delivery when managed skills and commands are detected', async () => {
     await writeSkill(projectDir, 'openspec-explore');
     await writeManagedCommand(projectDir, 'apply');

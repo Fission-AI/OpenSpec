@@ -221,6 +221,18 @@ describe('openspec update --dry-run', () => {
     }
   });
 
+  // #2091: Amazon Q reads only prompts, so they stay under skills-only
+  // delivery; the plan must match what a real update keeps and removes.
+  it('plans Amazon Q prompts as kept under skills-only delivery', async () => {
+    await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
+    await writeGlobalConfig({ profile: 'core', delivery: 'skills' });
+
+    const changes = await expectPlanMatchesRealUpdate();
+
+    expect(changes.filter((change) => change.tool === 'amazon-q' && change.action === 'delete')).toEqual([]);
+    expect(await fs.readdir(path.join(testDir, '.amazonq', 'prompts'))).not.toEqual([]);
+  });
+
   it('plans the Copilot cloud file a real update refreshes', async () => {
     // A project from before the cloud-file opt-in: the managed setup-steps file
     // is present in its old form, and update keeps it current.

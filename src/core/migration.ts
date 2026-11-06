@@ -10,6 +10,7 @@ import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlo
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import {
   resolveCommandInvocation,
+  isCommandsOnlyTool,
   resolveCommandSurfaceCapability,
   shouldGenerateCommandsForTool,
 } from './command-surface.js';
@@ -531,6 +532,12 @@ function scanInstalledWorkflowArtifacts(
   for (const tool of tools) {
     if (!toolSupportsSkills(tool)) continue;
 
+    // A commands-only tool has command files under every delivery setting, so
+    // its files show which workflows are installed but say nothing about the
+    // user's delivery preference. Counting them would let one such project
+    // save `delivery: commands` globally and strip skills from every other.
+    const showsDeliveryPreference = !isCommandsOnlyTool(tool.value);
+
     const skillsDirs: string[] = [];
     if (tool.globalSkillsDir) {
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
@@ -551,7 +558,7 @@ function scanInstalledWorkflowArtifacts(
         const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
         if (view.exists(skillFile)) {
           installed.add(workflowId);
-          hasSkills = true;
+          if (showsDeliveryPreference) hasSkills = true;
         }
       }
     }
@@ -582,7 +589,7 @@ function scanInstalledWorkflowArtifacts(
           : path.join(projectPath, candidate);
         if (view.exists(fullPath)) {
           installed.add(workflowId);
-          hasCommands = true;
+          if (showsDeliveryPreference) hasCommands = true;
           break;
         }
       }
@@ -608,14 +615,21 @@ export function scanInstalledWorkflows(
   return scanInstalledWorkflowArtifacts(projectPath, tools, false, view).workflows;
 }
 
-function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
+/**
+ * The delivery the installed files imply, or undefined when they imply none:
+ * every file found belongs to a tool whose surface does not follow delivery.
+ */
+function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery | undefined {
   if (artifacts.hasSkills && artifacts.hasCommands) {
     return 'both';
   }
   if (artifacts.hasCommands) {
     return 'commands';
   }
-  return 'skills';
+  if (artifacts.hasSkills) {
+    return 'skills';
+  }
+  return undefined;
 }
 
 /**
@@ -667,11 +681,14 @@ export function computeProfileMigration(
   return {
     profile: 'custom',
     workflows: installedWorkflows,
-    ...(rawConfig.delivery === undefined ? { delivery: inferDelivery(artifacts) } : {}),
+    // No delivery yet: record what the files imply, or null when they imply
+    // none (every file belongs to a tool whose surface ignores delivery).
+    ...(rawConfig.delivery === undefined ? { delivery: inferDelivery(artifacts) ?? null } : {}),
   };
 }
 
-export type ProfileMigration = { profile: Profile; workflows: string[]; delivery?: Delivery };
+/** `delivery: null` records no delivery, so the user stays on the default. */
+export type ProfileMigration = { profile: Profile; workflows: string[]; delivery?: Delivery | null };
 
 /** The global config the one-time profile migration saves. */
 export function applyProfileMigration(migration: ProfileMigration): GlobalConfig {
@@ -679,7 +696,9 @@ export function applyProfileMigration(migration: ProfileMigration): GlobalConfig
   // Migrate: set profile to custom with detected workflows
   config.profile = migration.profile;
   config.workflows = migration.workflows;
-  if (migration.delivery !== undefined) {
+  if (migration.delivery === null) {
+    delete config.delivery;
+  } else if (migration.delivery !== undefined) {
     config.delivery = migration.delivery;
   }
   return config;

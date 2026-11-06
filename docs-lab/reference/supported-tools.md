@@ -14,7 +14,7 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 
 | Tool | `--tools` id | Skills | Skill invocation | Commands | Command invocation |
 |---|---|---|---|---|---|
-| Amazon Q Developer | `amazon-q` | `.amazonq/skills/` | `/openspec-apply-change` | `.amazonq/prompts/` | `@opsx-apply` |
+| Amazon Q Developer | `amazon-q` | none | none | `.amazonq/prompts/` | `@opsx-apply` |
 | Amp | `amp` | `.agents/skills/` | `/openspec-apply-change` | none | none |
 | Antigravity | `antigravity` | `.agents/skills/` | `/openspec-apply-change` | `.agents/workflows/` | `/opsx-apply` |
 | AtomCode | `atomcode` | `.atomcode/skills/` | `/openspec-apply-change` | `.atomcode/commands/` | `/opsx-apply` |
@@ -71,6 +71,10 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 ## Per-tool notes
 
 A tool not listed here behaves exactly as its row reads.
+
+### Amazon Q Developer
+
+Amazon Q reads prompts from `.amazonq/prompts/` but no skills folder, so OpenSpec installs its workflows as prompts only, under every delivery setting, including `skills`. Invoke one with `@`, as in `@opsx-propose`. Earlier releases also wrote `.amazonq/skills/`, which Amazon Q never loaded. Those folders do nothing, and OpenSpec leaves them in place under `both` and `skills` delivery, so you can delete them yourself; `commands` delivery removes them, as it removes every tool's skills. AWS [ends support for the Amazon Q Developer IDE plugins on April 30, 2027](https://docs.aws.amazon.com/amazonq/latest/qdeveloper-ug/q-developer-ide-end-of-support.html) and points users to Kiro, which OpenSpec also supports (`--tools kiro`).
 
 ### Amp
 
