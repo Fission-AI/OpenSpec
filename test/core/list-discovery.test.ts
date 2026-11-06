@@ -60,8 +60,37 @@ describe('recursive library listing', () => {
   it('does not traverse excluded directories, planning contents or directory symlinks', async () => {
     await library('actual');
     for (const dir of ['node_modules', '.git', '.venv', '.worktrees', 'dist', '.cache', 'actual/openspec/changes/archive', 'actual/openspec/specs']) await library(dir);
-    await fs.symlink(path.join(base, 'actual'), path.join(base, 'alias'), 'dir');
-    expect((await discoverListLibraries(base)).map(root => root.library)).toEqual(['actual/openspec/']);
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    await fs.symlink(path.join(base, 'actual'), path.join(base, 'alias'), linkType);
+    const roots = await discoverListLibraries(base);
+    expect(roots.map(root => root.library)).toEqual(['actual/openspec/']);
+    expect(roots.map(root => root.path)).toEqual([await fs.realpath(path.join(base, 'actual'))]);
+
+    const aliasBase = `${base}-alias`;
+    try {
+      await fs.symlink(base, aliasBase, linkType);
+      const aliasedRoots = await discoverListLibraries(aliasBase);
+      expect(aliasedRoots.map(root => root.path)).toEqual([await fs.realpath(path.join(base, 'actual'))]);
+    } finally {
+      await fs.rm(aliasBase, { recursive: true, force: true });
+    }
+  });
+  it('keeps a selected root whose openspec directory is a symlink', async () => {
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    const shared = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-linked-root-'));
+    try {
+      await fs.mkdir(path.join(shared, 'specs'), { recursive: true });
+      await fs.mkdir(path.join(shared, 'changes'), { recursive: true });
+      await fs.symlink(shared, path.join(base, 'openspec'), linkType);
+      await library('nested');
+      expect((await discoverListLibraries(base)).map(root => root.library)).toEqual(['openspec/', 'nested/openspec/']);
+      // Descendant links stay out of discovery.
+      await fs.mkdir(path.join(base, 'linked-child'));
+      await fs.symlink(shared, path.join(base, 'linked-child', 'openspec'), linkType);
+      expect((await discoverListLibraries(base)).map(root => root.library)).toEqual(['openspec/', 'nested/openspec/']);
+    } finally {
+      await fs.rm(shared, { recursive: true, force: true });
+    }
   });
   it('aggregates parsed specs with distinct owners', async () => {
     for (const relative of ['', 'nested']) {

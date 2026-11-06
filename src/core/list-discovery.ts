@@ -34,13 +34,18 @@ export async function discoverListLibraries(start: string): Promise<ListLibrary[
       if (dir !== base && (code === 'EACCES' || code === 'EPERM' || code === 'ENOENT')) return;
       throw error;
     }
-    const candidate = entries.find(entry => entry.name === 'openspec' && !entry.isSymbolicLink());
+    // Root selection accepts a linked openspec/, so keep the selected root's
+    // link; descendant links stay out of discovery.
+    const candidate = entries.find(entry => entry.name === 'openspec' && (dir === base || !entry.isSymbolicLink()));
     if (candidate) {
       const library = path.relative(base, path.join(dir, 'openspec')).split(path.sep).join('/') + '/';
       const classification = classifyOpenSpecDir(dir);
       let diagnostic: string | undefined;
       try {
-        if (!candidate.isDirectory()) throw new Error('openspec is not a directory');
+        const isDirectory = candidate.isSymbolicLink()
+          ? (await fs.stat(path.join(dir, 'openspec'))).isDirectory()
+          : candidate.isDirectory();
+        if (!isDirectory) throw new Error('openspec is not a directory');
         await fs.readdir(path.join(dir, 'openspec'));
         for (const name of ['changes', 'specs']) {
           try {
