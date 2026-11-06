@@ -1401,6 +1401,23 @@ describe('InitCommand', () => {
       expect(getConsoleOutput()).toContain('Restart your IDE to refresh skills.');
     });
 
+    it('keeps a command file the user edited when init reconciles to skills-only', async () => {
+      // `init --force` over an existing project reconciles the same way `update`
+      // does, so it must not discard a hand-edited command either.
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+      const proposeCmd = path.join(testDir, '.claude', 'commands', 'opsx', 'propose.md');
+      const applyCmd = path.join(testDir, '.claude', 'commands', 'opsx', 'apply.md');
+      const edited = `${await fs.readFile(proposeCmd, 'utf-8')}\n<!-- team step -->\n`;
+      await fs.writeFile(proposeCmd, edited);
+
+      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+
+      expect(await fs.readFile(proposeCmd, 'utf-8')).toBe(edited);
+      expect(await fileExists(applyCmd)).toBe(false);
+      expect(getConsoleOutput()).toContain('Kept 1 command file that does not match');
+    });
+
     it('should create skills for multiple tools at once', async () => {
       const initCommand = new InitCommand({ tools: 'claude,cursor', force: true });
 
