@@ -235,6 +235,32 @@ In a directory without OpenSpec, update refuses:
 ✖ Error: No OpenSpec directory found. Run 'openspec init' first.
 ```
 
+**With the OpenSpec beta skills installed**
+
+The beta skills (`npx skills add Fission-AI/OpenSpec`) replace OpenSpec's per-project skills, so an agent never loads both. For every tool that can see the beta, update and init switch that tool over:
+
+| When | What update and init do |
+|---|---|
+| The beta is installed | init writes no OpenSpec skills or commands for the tool; update removes the ones it wrote. |
+| The beta is removed | update writes them back, byte for byte. |
+| A tool can't see the beta | Nothing changes for that tool. |
+
+A tool can see the beta when the beta's `openspec-beta` skill is in a skills folder that tool reads:
+
+- **The project's own folder**: `.claude/skills/` for Claude Code, `.cursor/skills/` for Cursor.
+- **The tool's folder in your home directory**: `~/.claude/skills/`, or `~/.agents/skills/` for Codex, Amp, Zed and the other `.agents` tools.
+- **`.agents/skills/`, in the project or your home directory**: for Cursor, GitHub Copilot, Gemini CLI, OpenCode, Cline, Kilo Code, Kimi, Factory, Pi and Warp. `npx skills add -g` installs their copy there.
+- **Claude Code's and Codex's folders**: Cursor reads these too.
+- **`~/.minimax/skills/`**: MiniMax Code keeps OpenSpec's skills here for every project, so its switch is machine-wide.
+
+Which tools were switched is remembered in your global config, never in the project, so a teammate's setup is unaffected. If the skills were committed, the switch shows them as deleted in git: commit that to switch the whole team, or don't, to keep them for teammates.
+
+```
+Using the OpenSpec beta skills for Claude Code, instead of OpenSpec's per-project skills and commands. Remove the beta and run `openspec update` to bring them back.
+```
+
+After opting out, update names any other project that still needs an update. If an earlier `npx skills add` left today's skills in your home folder, which the skills CLI installed and so only it should remove, update prints the `npx skills remove` command for them.
+
 **Exit codes**
 
 - `0`: files updated, or everything already up to date.

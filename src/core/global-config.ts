@@ -38,6 +38,8 @@ export interface GlobalConfig {
   telemetry?: TelemetryConfig;
   /** Whether the first-run shell-completions tip has been shown. */
   completionTipSeen?: boolean;
+  /** Per project root, the tools whose per-project skills the installed `openspec-beta` skills replace. */
+  betaReplacedTools?: Record<string, string[]>;
   /** Whether the one-time note about the standalone install has been shown. */
   standaloneTipSeen?: boolean;
 }

@@ -37,6 +37,8 @@ export const GlobalConfigSchema = z
       .optional(),
     // Runtime-managed (like telemetry.noticeSeen); not user-settable via CLI set.
     completionTipSeen: z.boolean().optional(),
+    // Runtime-managed by `openspec init` and `openspec update`: see beta-skills.ts.
+    betaReplacedTools: z.record(z.string(), z.array(z.string())).optional(),
     standaloneTipSeen: z.boolean().optional(),
   })
   .passthrough();
