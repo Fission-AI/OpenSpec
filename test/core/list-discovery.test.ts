@@ -83,7 +83,9 @@ describe('recursive library listing', () => {
       await fs.mkdir(path.join(shared, 'changes'), { recursive: true });
       await fs.symlink(shared, path.join(base, 'openspec'), linkType);
       await library('nested');
-      expect((await discoverListLibraries(base)).map(root => root.library)).toEqual(['openspec/', 'nested/openspec/']);
+      const roots = await discoverListLibraries(base);
+      expect(roots.map(root => root.library)).toEqual(['openspec/', 'nested/openspec/']);
+      expect(await fs.realpath(roots[0].path)).toBe(await fs.realpath(base));
       // Descendant links stay out of discovery.
       await fs.mkdir(path.join(base, 'linked-child'));
       await fs.symlink(shared, path.join(base, 'linked-child', 'openspec'), linkType);
@@ -91,6 +93,13 @@ describe('recursive library listing', () => {
     } finally {
       await fs.rm(shared, { recursive: true, force: true });
     }
+  });
+  it('skips a dangling root openspec link but keeps descendants', async () => {
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir';
+    await fs.symlink(path.join(base, 'missing-target'), path.join(base, 'openspec'), linkType);
+    expect(await discoverListLibraries(base)).toEqual([]);
+    await library('nested');
+    expect((await discoverListLibraries(base)).map(root => root.library)).toEqual(['nested/openspec/']);
   });
   it('aggregates parsed specs with distinct owners', async () => {
     for (const relative of ['', 'nested']) {

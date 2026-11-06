@@ -36,7 +36,14 @@ export async function discoverListLibraries(start: string): Promise<ListLibrary[
     }
     // Root selection accepts a linked openspec/, so keep the selected root's
     // link; descendant links stay out of discovery.
-    const candidate = entries.find(entry => entry.name === 'openspec' && (dir === base || !entry.isSymbolicLink()));
+    let candidate = entries.find(entry => entry.name === 'openspec' && (dir === base || !entry.isSymbolicLink()));
+    // A dangling link is not a library; leave the default selection to the resolver.
+    if (candidate?.isSymbolicLink() && !(await fs.stat(path.join(dir, 'openspec')).then(
+      () => true,
+      error => (error as NodeJS.ErrnoException).code !== 'ENOENT'
+    ))) {
+      candidate = undefined;
+    }
     if (candidate) {
       const library = path.relative(base, path.join(dir, 'openspec')).split(path.sep).join('/') + '/';
       const classification = classifyOpenSpecDir(dir);
