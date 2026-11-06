@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as yaml from 'yaml';
-import { findRepoPlanningRootSync } from '../core/planning-home.js';
+import { changeProjectRoot } from './change-directory.js';
 import {
   CHANGE_METADATA_KNOWN_KEYS,
   ChangeMetadataSchema,
@@ -264,7 +264,7 @@ export function resolveSchemaForChange(
   projectRootOverride?: string,
   options: ResolveSchemaForChangeOptions = {}
 ): string {
-  const projectRoot = projectRootOverride ?? findRepoPlanningRootSync(path.dirname(changeDir)) ?? path.resolve(changeDir, '../../..');
+  const projectRoot = projectRootOverride ?? changeProjectRoot(changeDir);
 
   // 1. Explicit override wins
   if (explicitSchema) {
@@ -406,7 +406,7 @@ function readBooleanMarker(
     // resolveSchema alone would normalize and accept); resolveSchema then
     // proves the schema actually parses. Any failure fails closed.
     try {
-      const projectRoot = findRepoPlanningRootSync(path.dirname(changeDir)) ?? path.resolve(changeDir, '../../..');
+      const projectRoot = changeProjectRoot(changeDir);
       if (!listSchemas(projectRoot).includes(result.data.schema)) {
         return unhonorable(`schema: unknown schema '${result.data.schema}'`);
       }

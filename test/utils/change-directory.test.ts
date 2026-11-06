@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { activeChangeNames, proposedChangesDir, resolveChangeDir } from '../../src/utils/change-directory.js';
+import { activeChangeNames, changeProjectRoot, proposedChangesDir, resolveChangeDir } from '../../src/utils/change-directory.js';
 import { createChange } from '../../src/utils/change-utils.js';
 import { getTaskProgressForChange } from '../../src/utils/task-progress.js';
 import { ListCommand } from '../../src/core/list.js';
@@ -78,6 +78,23 @@ describe('change directories', () => {
     if (name === 'proposed') expect(() => proposedChangesDir(changes)).toThrow('Rename the existing change');
   });
 
+  it.each(['proposed', 'approved'])('preserves a delta-only legacy change named %s', name => {
+    const old = path.join(changes, name);
+    fs.mkdirSync(path.join(old, 'specs', 'billing'), { recursive: true });
+    fs.writeFileSync(path.join(old, 'specs', 'billing', 'spec.md'), '## ADDED Requirements\n');
+    expect(activeChangeNames(changes)).toEqual([name]);
+    expect(fs.realpathSync.native(resolveChangeDir(changes, name))).toBe(fs.realpathSync.native(old));
+  });
+
+  it('keeps a staged change named specs inside its container', () => {
+    const staged = path.join(changes, 'approved', 'specs');
+    fs.mkdirSync(path.join(staged, 'specs', 'billing'), { recursive: true });
+    fs.writeFileSync(path.join(staged, 'proposal.md'), '# Specs\n');
+    fs.writeFileSync(path.join(staged, 'specs', 'billing', 'spec.md'), '## ADDED Requirements\n');
+    expect(activeChangeNames(changes)).toEqual(['specs']);
+    expect(resolveChangeDir(changes, 'specs')).toBe(staged);
+  });
+
   it('resolves an alias to the same change without ambiguity', async () => {
     const { changeDir } = await createChange(root, 'example');
     fs.symlinkSync(changeDir, path.join(changes, 'example'), process.platform === 'win32' ? 'junction' : 'dir');
@@ -91,5 +108,15 @@ describe('change directories', () => {
 
   it.each(['../outside', '..\\outside', '.', '..'])('rejects unsafe name %s', name => {
     expect(() => resolveChangeDir(changes, name)).toThrow('Invalid change name');
+  });
+
+  it.each([
+    ['legacy', ['openspec', 'changes', 'demo']],
+    ['proposed', ['openspec', 'changes', 'proposed', 'demo']],
+    ['approved', ['openspec', 'changes', 'approved', 'demo']],
+    ['legacy change named approved', ['openspec', 'changes', 'approved']],
+  ])('maps a %s change to its owning project', (_label, parts) => {
+    const project = path.resolve('/work/project');
+    expect(changeProjectRoot(path.join(project, ...parts))).toBe(project);
   });
 });

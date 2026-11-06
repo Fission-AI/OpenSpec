@@ -4,9 +4,41 @@ import { FileSystemUtils } from './file-system.js';
 
 const CHANGE_STAGES = ['proposed', 'approved'];
 
+const CHANGE_ROOT_MARKERS = ['.openspec.yaml', 'proposal.md', 'tasks.md', 'design.md'];
+
+function hasRootMarker(dir: string): boolean {
+  return CHANGE_ROOT_MARKERS.some(file => fs.existsSync(path.join(dir, file)));
+}
+
+function hasFileUnder(dir: string): boolean {
+  try {
+    return fs.readdirSync(dir, { recursive: true, withFileTypes: true }).some(entry => entry.isFile());
+  } catch {
+    return false;
+  }
+}
+
 // Older projects can have a change with the same name as a new container.
+// Like nested-change detection, delta specs alone make a change; a staged
+// change that happens to be named `specs` carries its own root marker.
 function isChange(dir: string): boolean {
-  return ['.openspec.yaml', 'proposal.md', 'tasks.md'].some(file => fs.existsSync(path.join(dir, file)));
+  if (hasRootMarker(dir)) return true;
+  const specs = path.join(dir, 'specs');
+  return !hasRootMarker(specs) && hasFileUnder(specs);
+}
+
+/**
+ * The project that owns a change, read from the path as given. Symlinks are
+ * not resolved: a linked `openspec/changes` still belongs to the project
+ * that links it, not to the directory it points at.
+ */
+export function changeProjectRoot(changeDir: string): string {
+  const parent = path.dirname(path.resolve(changeDir));
+  const changesDir =
+    CHANGE_STAGES.includes(path.basename(parent)) && path.basename(path.dirname(parent)) === 'changes'
+      ? path.dirname(parent)
+      : parent;
+  return path.resolve(changesDir, '../..');
 }
 
 export function proposedChangesDir(changesDir: string): string {
