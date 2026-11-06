@@ -1462,3 +1462,204 @@ describe('standalone binary that `openspec` on PATH does not find', () => {
     }
   });
 });
+
+/**
+ * The standalone binary updates with `openspec install`, which installs the
+ * newest GitHub release whose files are all attached, not npm's `latest`.
+ * A local server stands in for GitHub (and npm, to prove it is not asked).
+ */
+describe('standalone update check', () => {
+  const ENV_KEYS = [
+    'NODE_ENV',
+    'CI',
+    'OPENSPEC_NO_UPDATE_CHECK',
+    'DO_NOT_TRACK',
+    'OPENSPEC_TELEMETRY',
+    'npm_config_registry',
+  ] as const;
+  const RELEASES = '/Fission-AI/OpenSpec/releases';
+
+  let server: http.Server;
+  let requests: string[];
+  let routes: Record<string, (res: http.ServerResponse) => void>;
+  let originalEnv: Record<string, string | undefined>;
+
+  function nextMinor(version: string, by = 1): string {
+    const [major, minor] = version.split('.').map((part) => Number.parseInt(part, 10));
+    return `${major}.${minor + by}.0`;
+  }
+
+  function feed(...versions: string[]) {
+    routes[`${RELEASES}.atom`] = (res) => {
+      res.writeHead(200, { 'content-type': 'application/atom+xml' });
+      res.end(
+        `<feed>${versions
+          .map((v) => `<entry><link href="https://github.com${RELEASES}/tag/v${v}"/></entry>`)
+          .join('')}</feed>`
+      );
+    };
+  }
+
+  function complete(version: string) {
+    // GitHub's answer for an attached file: a redirect to its storage.
+    routes[`${RELEASES}/download/v${version}/SHA256SUMS`] = (res) => {
+      res.writeHead(302, { location: '/storage/SHA256SUMS' });
+      res.end();
+    };
+  }
+
+  async function loadStandalone() {
+    vi.resetModules();
+    const versionCheck = await import('../../src/core/version-check.js');
+    versionCheck.markStandaloneBinary(path.join(os.tmpdir(), 'standalone-check', 'openspec'));
+    return versionCheck;
+  }
+
+  beforeEach(async () => {
+    requests = [];
+    routes = {
+      // npm already has a newer version: the window the issue is about.
+      '/@fission-ai/openspec/latest': (res) => {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ version: bumpMajor(OPENSPEC_VERSION) }));
+      },
+    };
+    server = http.createServer((req, res) => {
+      requests.push(req.url ?? '');
+      const route = routes[req.url ?? ''];
+      if (route) {
+        route(res);
+      } else {
+        res.writeHead(404);
+        res.end();
+      }
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const port = (server.address() as { port: number }).port;
+
+    originalEnv = Object.fromEntries(ENV_KEYS.map((key) => [key, process.env[key]]));
+    for (const key of ENV_KEYS) delete process.env[key];
+    // Every https request, whatever its host, reaches the local server with
+    // its path intact; only the TLS handshake and DNS are stubbed.
+    vi.spyOn(https, 'get').mockImplementation(((target: URL, ...rest: unknown[]) => {
+      const local = new URL(target.toString());
+      local.protocol = 'http:';
+      local.host = `127.0.0.1:${port}`;
+      return (http.get as unknown as (...args: unknown[]) => http.ClientRequest)(local, ...rest);
+    }) as unknown as typeof https.get);
+  });
+
+  afterEach(async () => {
+    for (const [key, value] of Object.entries(originalEnv)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    vi.restoreAllMocks();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+
+  it('does not offer a release whose files are still being attached (#2185)', async () => {
+    const newer = nextMinor(OPENSPEC_VERSION);
+    feed(newer, OPENSPEC_VERSION);
+    complete(OPENSPEC_VERSION);
+    const { checkForCliUpdate } = await loadStandalone();
+
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'current', latest: OPENSPEC_VERSION });
+    expect(requests).toEqual([`${RELEASES}.atom`, `${RELEASES}/download/v${newer}/SHA256SUMS`]);
+  });
+
+  it('offers the newest release that has its files, as the installer picks', async () => {
+    const preparing = nextMinor(OPENSPEC_VERSION, 2);
+    const ready = nextMinor(OPENSPEC_VERSION, 1);
+    feed(preparing, ready, OPENSPEC_VERSION);
+    complete(ready);
+    const { checkForCliUpdate } = await loadStandalone();
+
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'available', latest: ready });
+    // The redirect to the file is not followed: knowing it exists is enough.
+    expect(requests).not.toContain('/storage/SHA256SUMS');
+    expect(requests).not.toContain('/@fission-ai/openspec/latest');
+  });
+
+  it('offers a complete newer release', async () => {
+    const newer = nextMinor(OPENSPEC_VERSION);
+    feed(newer, OPENSPEC_VERSION);
+    complete(newer);
+    const { checkForCliUpdate } = await loadStandalone();
+
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'available', latest: newer });
+  });
+
+  it('needs only the feed when nothing in it is newer', async () => {
+    feed(OPENSPEC_VERSION, '0.1.0');
+    const { checkForCliUpdate } = await loadStandalone();
+
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'current', latest: OPENSPEC_VERSION });
+    expect(requests).toEqual([`${RELEASES}.atom`]);
+  });
+
+  it('skips prerelease tags, as the installer does', async () => {
+    routes[`${RELEASES}.atom`] = (res) => {
+      res.writeHead(200);
+      res.end(
+        `<link href="${RELEASES}/tag/v${bumpMajor(OPENSPEC_VERSION)}-beta.1"/>` +
+          `<link href="${RELEASES}/tag/v${OPENSPEC_VERSION}"/>`
+      );
+    };
+    const { checkForCliUpdate } = await loadStandalone();
+
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'current', latest: OPENSPEC_VERSION });
+  });
+
+  it('reports it could not check, rather than guessing, when GitHub refuses', async () => {
+    const newer = nextMinor(OPENSPEC_VERSION);
+    const rateLimited = (res: http.ServerResponse) => {
+      res.writeHead(403);
+      res.end();
+    };
+    const { checkForCliUpdate } = await loadStandalone();
+
+    routes[`${RELEASES}.atom`] = rateLimited;
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'offline', latest: null });
+
+    feed(newer, OPENSPEC_VERSION);
+    routes[`${RELEASES}/download/v${newer}/SHA256SUMS`] = rateLimited;
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'offline', latest: null });
+  });
+
+  it('reports it could not check when every newer release is incomplete', async () => {
+    feed(nextMinor(OPENSPEC_VERSION, 2), nextMinor(OPENSPEC_VERSION, 1));
+    const { checkForCliUpdate } = await loadStandalone();
+
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'offline', latest: null });
+  });
+
+  it('reports it could not check when GitHub is unreachable', async () => {
+    const { checkForCliUpdate } = await loadStandalone();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    // afterEach closes it again; give it a fresh one to close.
+    server = http.createServer();
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'offline', latest: null });
+  });
+
+  it('gives up within the same time budget as the registry check', async () => {
+    const newer = nextMinor(OPENSPEC_VERSION);
+    feed(newer, OPENSPEC_VERSION);
+    // A probe that never answers.
+    routes[`${RELEASES}/download/v${newer}/SHA256SUMS`] = () => undefined;
+    const { checkForCliUpdate } = await loadStandalone();
+
+    const startedAt = Date.now();
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'offline', latest: null });
+    expect(Date.now() - startedAt).toBeLessThan(2500);
+    server.closeAllConnections();
+  });
+
+  it('is not disabled by a registry setting it never uses', async () => {
+    process.env.npm_config_registry = 'http://registry.internal/';
+    feed(OPENSPEC_VERSION);
+    const { checkForCliUpdate } = await loadStandalone();
+
+    await expect(checkForCliUpdate()).resolves.toEqual({ status: 'current', latest: OPENSPEC_VERSION });
+  });
+});

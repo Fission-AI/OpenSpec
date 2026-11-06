@@ -185,39 +185,35 @@ export function compareVersions(a: string, b: string): number {
   return comparePrerelease(left.prerelease, right.prerelease);
 }
 
+interface HttpsResponse {
+  status: number;
+  body: string;
+}
+
 /**
- * Reads the `latest` dist-tag. Sends no custom Accept header: the registry
- * answers `/<pkg>/latest` with 406 for npm's abbreviated-metadata type, which
- * it only serves on the full packument.
+ * One GET, finished by `deadline`. Uses node:http(s) rather than fetch so the
+ * timeout can destroy the socket. Aborting a fetch that is still completing
+ * its TCP handshake — a firewall dropping packets, a captive portal — leaves
+ * the connect handle open and the CLI cannot exit until the OS gives up, long
+ * after the hint has printed.
  *
- * Uses node:http(s) rather than fetch so the timeout can destroy the socket.
- * Aborting a fetch that is still completing its TCP handshake — a firewall
- * dropping packets, a captive portal — leaves the connect handle open and the
- * CLI cannot exit until the OS gives up, long after the hint has printed.
+ * Resolves the final status (with the body only for a 200), or null on any
+ * network failure, an oversized body, or a redirect that cannot be followed.
+ * With `followRedirects: false` a redirect is returned as-is, unread.
  */
-function fetchLatestVersion(): Promise<string | null> {
+function httpsGet(
+  url: URL,
+  options: { deadline: number; followRedirects: boolean }
+): Promise<HttpsResponse | null> {
   return new Promise((resolve) => {
     let settled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const finish = (version: string | null) => {
+    const finish = (result: HttpsResponse | null) => {
       if (settled) return;
       settled = true;
       if (timer) clearTimeout(timer);
-      resolve(version);
+      resolve(result);
     };
-
-    let url: URL;
-    try {
-      const resolved = registryUrl();
-      if (resolved === null) {
-        resolve(null);
-        return;
-      }
-      url = new URL(resolved);
-    } catch {
-      resolve(null);
-      return;
-    }
 
     // Mirrors and corporate front-ends redirect; without following one the
     // check would be permanently and silently dead for them.
@@ -240,6 +236,10 @@ function fetchLatestVersion(): Promise<string | null> {
           if (status >= 300 && status < 400 && location) {
             response.resume();
             request.destroy();
+            if (!options.followRedirects) {
+              finish({ status, body: '' });
+              return;
+            }
             if (redirectsLeft <= 0) {
               finish(null);
               return;
@@ -267,7 +267,7 @@ function fetchLatestVersion(): Promise<string | null> {
           if (status !== 200) {
             response.resume();
             request.destroy();
-            finish(null);
+            finish({ status, body: '' });
             return;
           }
 
@@ -275,21 +275,13 @@ function fetchLatestVersion(): Promise<string | null> {
           response.setEncoding('utf-8');
           response.on('data', (chunk: string) => {
             body += chunk;
-            // The dist-tag document is small; refuse to buffer a firehose.
+            // Version documents are small; refuse to buffer a firehose.
             if (body.length > MAX_RESPONSE_BYTES) {
               request.destroy();
               finish(null);
             }
           });
-          response.on('end', () => {
-            try {
-              const parsed = JSON.parse(body) as { version?: unknown };
-              const version = parsed.version;
-              finish(typeof version === 'string' && SAFE_VERSION.test(version) ? version : null);
-            } catch {
-              finish(null);
-            }
-          });
+          response.on('end', () => finish({ status, body }));
           response.on('error', () => finish(null));
         }
       );
@@ -307,12 +299,88 @@ function fetchLatestVersion(): Promise<string | null> {
         timer = setTimeout(() => {
           activeRequest?.destroy();
           finish(null);
-        }, REQUEST_TIMEOUT_MS);
+        }, Math.max(0, options.deadline - Date.now()));
       }
     };
 
     send(url);
   });
+}
+
+/**
+ * Reads the `latest` dist-tag. Sends no custom Accept header: the registry
+ * answers `/<pkg>/latest` with 406 for npm's abbreviated-metadata type, which
+ * it only serves on the full packument.
+ */
+async function fetchLatestVersion(): Promise<string | null> {
+  let url: URL;
+  try {
+    const resolved = registryUrl();
+    if (resolved === null) return null;
+    url = new URL(resolved);
+  } catch {
+    return null;
+  }
+
+  const response = await httpsGet(url, {
+    deadline: Date.now() + REQUEST_TIMEOUT_MS,
+    followRedirects: true,
+  });
+  if (!response || response.status !== 200) return null;
+  try {
+    const version = (JSON.parse(response.body) as { version?: unknown }).version;
+    return typeof version === 'string' && SAFE_VERSION.test(version) ? version : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Where `openspec install` gets the standalone binary: install.sh and
+ * install.ps1 default to this releases page.
+ */
+const RELEASES_URL = 'https://github.com/Fission-AI/OpenSpec/releases';
+
+/**
+ * The release `openspec install` would install, found the way install.sh and
+ * install.ps1 find it: stable tags from the releases feed, newest first, and
+ * the first one whose SHA256SUMS (uploaded last) exists. npm's `latest` is not
+ * the answer here: it is published minutes before the standalone files are
+ * attached to the GitHub release (and for good, if that job fails), and
+ * offering a version the installer cannot get makes `openspec install`
+ * quietly reinstall the old one.
+ *
+ * Stops at the first tag that is not newer than this CLI, since nothing from
+ * there on is an update, so an up-to-date binary costs only the feed request.
+ * Null when the answer is not known: the feed or a probe failed or ran out of
+ * time, or every listed newer release is still incomplete.
+ */
+async function fetchLatestStandaloneRelease(): Promise<string | null> {
+  // The same total budget as the registry check, across every request.
+  const deadline = Date.now() + REQUEST_TIMEOUT_MS;
+  const feed = await httpsGet(new URL(`${RELEASES_URL}.atom`), { deadline, followRedirects: true });
+  if (!feed || feed.status !== 200) return null;
+
+  const versions = [
+    ...new Set(Array.from(feed.body.matchAll(/\/releases\/tag\/v(\d+\.\d+\.\d+)"/g), (m) => m[1])),
+  ].filter((version) => SAFE_VERSION.test(version));
+
+  for (const version of versions) {
+    if (compareVersions(version, OPENSPEC_VERSION) <= 0) return version;
+    // GitHub answers for an attached file with a redirect to its storage, so
+    // the file itself never needs downloading.
+    const probe = await httpsGet(new URL(`${RELEASES_URL}/download/v${version}/SHA256SUMS`), {
+      deadline,
+      followRedirects: false,
+    });
+    if (!probe) return null;
+    if (probe.status === 200 || (probe.status >= 300 && probe.status < 400)) return version;
+    // Still being prepared: the installer moves on to the next release too.
+    if (probe.status === 404) continue;
+    // Rate-limited or failing: not knowing beats a wrong answer.
+    return null;
+  }
+  return null;
 }
 
 export type CliUpdateStatus = 'available' | 'current' | 'disabled' | 'offline';
@@ -330,12 +398,15 @@ export interface CliUpdateCheck {
 export async function checkForCliUpdate(
   options: { requested?: boolean } = {}
 ): Promise<CliUpdateCheck> {
-  if (!isCheckEnabled(options.requested === true) || registryUrl() === null) {
+  // The standalone binary updates from GitHub releases, not npm, so the
+  // registry neither answers for it nor can disable its check.
+  const standalone = standaloneBinaryPath !== null;
+  if (!isCheckEnabled(options.requested === true) || (!standalone && registryUrl() === null)) {
     return { status: 'disabled', latest: null };
   }
 
   try {
-    const latest = await fetchLatestVersion();
+    const latest = standalone ? await fetchLatestStandaloneRelease() : await fetchLatestVersion();
     if (!latest) return { status: 'offline', latest: null };
     return {
       status: compareVersions(latest, OPENSPEC_VERSION) > 0 ? 'available' : 'current',
