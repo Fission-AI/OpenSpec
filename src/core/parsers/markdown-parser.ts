@@ -1,6 +1,6 @@
 import { Spec, Change, Requirement, Scenario, Delta, DeltaOperation } from '../schemas/index.js';
 import { buildCodeFenceMask, extractRequirementText, hasScenarioBody } from './requirement-text.js';
-import { normalizeRequirementName, scenarioNameFromHeaderText } from './requirement-blocks.js';
+import { normalizeRequirementName, scenarioNameFromHeaderText, stripClosingSequence } from './requirement-blocks.js';
 
 export interface Section {
   level: number;
@@ -93,7 +93,8 @@ export class MarkdownParser {
       
       if (headerMatch) {
         const level = headerMatch[1].length;
-        const title = headerMatch[2].trim();
+        // `## Purpose ##` is the same heading as `## Purpose`.
+        const title = stripClosingSequence(headerMatch[2]);
         const content = this.getContentUntilNextHeader(i + 1, level);
         
         const section: Section = {

@@ -1532,6 +1532,35 @@ The system SHALL award loyalty points on each completed order.
       expect(updatedContent).toContain('### Requirement: Earn Points');
     });
 
+    it('should carry a closed delta Purpose heading into a new main spec (issue #2145)', async () => {
+      const changeName = 'new-spec-with-closed-purpose';
+      const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'loyalty');
+      await fs.mkdir(changeSpecDir, { recursive: true });
+
+      const specContent = `## Purpose ##
+
+Tracks loyalty points earned and redeemed across the storefront.
+
+## ADDED Requirements ##
+
+### Requirement: Earn Points
+The system SHALL award loyalty points on each completed order.
+
+#### Scenario: Order completes
+- **WHEN** an order completes
+- **THEN** points are credited to the customer
+`;
+      await fs.writeFile(path.join(changeSpecDir, 'spec.md'), specContent);
+
+      await archiveCommand.execute(changeName, { yes: true, noValidate: true });
+
+      const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'loyalty', 'spec.md');
+      const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
+      expect(updatedContent).toContain('Tracks loyalty points earned and redeemed across the storefront.');
+      expect(updatedContent).not.toContain('TBD - created by archiving change');
+      expect(updatedContent).toContain('### Requirement: Earn Points');
+    });
+
     it('should keep fenced code inside a real delta Purpose (issue #1413)', async () => {
       const changeName = 'new-spec-with-fenced-purpose';
       const changeSpecDir = path.join(tempDir, 'openspec', 'changes', changeName, 'specs', 'config-format');

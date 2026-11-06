@@ -1,6 +1,6 @@
 import { MarkdownParser, Section } from './markdown-parser.js';
 import { buildCodeFenceMask } from './requirement-text.js';
-import { parseDeltaSpec, type DeltaPlan, type RequirementBlock } from './requirement-blocks.js';
+import { parseDeltaSpec, stripClosingSequence, type DeltaPlan, type RequirementBlock } from './requirement-blocks.js';
 import { Change, Delta, DeltaOperation, Requirement } from '../schemas/index.js';
 import path from 'path';
 import { promises as fs } from 'fs';
@@ -202,7 +202,8 @@ export class ChangeParser extends MarkdownParser {
       
       if (headerMatch) {
         const level = headerMatch[1].length;
-        const title = headerMatch[2].trim();
+        // `## Purpose ##` is the same heading as `## Purpose`.
+        const title = stripClosingSequence(headerMatch[2]);
         const contentLines = this.getContentUntilNextHeaderFromLines(lines, codeFenceLineMask, i + 1, level);
         
         const section = {

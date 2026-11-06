@@ -255,6 +255,42 @@ Some general description of changes without specific deltas`;
   });
 
   describe('section parsing', () => {
+    it('finds Purpose and Requirements headings written with a closing # run', () => {
+      const content = `# Test Spec
+
+## Purpose ##
+This spec covers closed ATX headings in detail.
+
+## Requirements #
+
+### Requirement: Closed headings
+The system SHALL read closed headings.
+
+#### Scenario: Closed
+- **WHEN** a heading ends in #
+- **THEN** it is read`;
+
+      const spec = new MarkdownParser(content).parseSpec('test');
+
+      expect(spec.overview).toBe('This spec covers closed ATX headings in detail.');
+      expect(spec.requirements.map((r) => r.name)).toEqual(['Closed headings']);
+    });
+
+    it('finds Why and What Changes headings written with a closing # run', () => {
+      const content = `# Change
+
+## Why ##
+Because closed headings are valid Markdown and must be read.
+
+## What Changes ##
+- **auth:** Add closed heading support`;
+
+      const change = new MarkdownParser(content).parseChange('closed');
+
+      expect(change.why).toBe('Because closed headings are valid Markdown and must be read.');
+      expect(change.deltas).toHaveLength(1);
+    });
+
     it('should handle nested sections correctly', () => {
       const content = `# Test Spec
 

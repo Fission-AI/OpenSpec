@@ -69,7 +69,7 @@ const LEADING_MARKER_PUNCTUATED = new RegExp(
   'iu'
 );
 
-const PURPOSE_HEADER = /^ {0,3}##(?!#)[ \t]+Purpose[ \t]*$/i;
+const PURPOSE_HEADER = /^ {0,3}##(?!#)[ \t]+Purpose(?:[ \t]+#+)?[ \t]*$/i;
 const TOP_LEVEL_HEADER = /^ {0,3}#{1,2}(?!#)[ \t]+/;
 
 /**
