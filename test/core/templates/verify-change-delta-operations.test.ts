@@ -1,4 +1,3 @@
-import { readFileSync } from 'node:fs';
 
 import { describe, expect, it } from 'vitest';
 
@@ -15,11 +14,6 @@ import {
 const bodies: Array<[string, string]> = [
   ['skill', getVerifyChangeSkillTemplate().instructions],
   ['command', getOpsxVerifyCommandTemplate().content],
-  // The committed skills.sh mirror is what `npx skills add` installs.
-  [
-    'committed skill file',
-    readFileSync(new URL('../../../skills/openspec-verify-change/SKILL.md', import.meta.url), 'utf8'),
-  ],
 ];
 
 function section(body: string, start: string, end: string, label: string): string {

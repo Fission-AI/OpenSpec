@@ -2,6 +2,9 @@
 name: draft-openspec-docs
 description: Collaborative page-drafting mode for the OpenSpec docs. Builds a scratch plan inside the target page (purpose, structure, numbered draft steps), iterates on it with the user, then drafts one section per approved step and cleans up after itself. Use when a page needs a from-scratch rewrite or a new page is being shaped with the user in the loop.
 argument-hint: target page
+# Repo-maintainer skill: hidden from `npx skills add` (skills CLI discovery).
+metadata:
+  internal: true
 ---
 
 # Draft OpenSpec docs (scratch-plan workflow)

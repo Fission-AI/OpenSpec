@@ -2,6 +2,9 @@
 name: verify-openspec-docs
 description: Fact-checks OpenSpec user documentation with a fresh-context subagent that re-runs commands and checks claims against source. Manually triggered; not part of the drafting loop. Use when the user asks to verify, fact-check, or accuracy-check a docs page, section, or set of changed claims.
 argument-hint: page or section
+# Repo-maintainer skill: hidden from `npx skills add` (skills CLI discovery).
+metadata:
+  internal: true
 ---
 
 # Verify OpenSpec docs
