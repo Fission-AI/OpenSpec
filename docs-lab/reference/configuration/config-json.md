@@ -24,7 +24,7 @@ Which workflow set `openspec init` installs. Defaults to `core`: propose, explor
 
 ### delivery
 
-Whether init installs workflows as skills, as slash commands, or both. Defaults to `both`.
+Whether init installs workflows as skills, as slash commands, or both. Defaults to `both`. Commands are deprecated: the next major version changes the default to `skills`, and an explicit `both` or `commands` keeps its value ([#2022](https://github.com/Fission-AI/OpenSpec/issues/2022)).
 
 ### workflows
 
