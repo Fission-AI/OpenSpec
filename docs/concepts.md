@@ -133,6 +133,17 @@ The system MUST expire sessions after 30 minutes of inactivity.
 - **SHOULD** — recommended, but exceptions exist
 - **MAY** — optional
 
+### Stable IDs
+
+A requirement or scenario can start with an ID in square brackets, so anything that cites the ID keeps working when the heading is reworded:
+
+```markdown
+### Requirement: [AUTH-3] Users sign in
+#### Scenario: [AUTH-3.1] Correct password
+```
+
+An ID is a word that starts with a letter, contains a hyphen and ends in a number (`[AUTH-3]`, `[REQ-UA-004]`, `[cap-012]`). The brackets are required, so a heading like `SHA-256 checksum` or `HTTP-2 support` stays an ordinary name. IDs are optional: the default instructions don't ask for them, and the `openspec-beta` skills write them. OpenSpec only reads an ID that is already there. Validate and archive match a MODIFIED block on its ID before its name, so renaming a requirement or scenario that keeps its ID just works, while dropping a scenario or its ID is still refused. Cite the ID itself (`[AUTH-3]`) rather than a Markdown link to the heading, because the heading's link anchor still changes with its name. Two requirements in one spec can't share an ID. Specs without IDs work exactly as before.
+
 ### What a Spec Is (and Is Not)
 
 A spec is a **behavior contract**, not an implementation plan.
