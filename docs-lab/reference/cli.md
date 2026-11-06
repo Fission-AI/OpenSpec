@@ -372,7 +372,7 @@ Error: /home/you/.config/openspec/config.json could not be parsed, so it was lef
 Fix it with "openspec config edit", or reset it with "openspec config reset --all".
 ```
 
-Until it is fixed, telemetry and the update check stay off.
+Until it is fixed, telemetry and the background update check in `openspec update` stay off. An explicit `openspec version --check` still runs.
 
 ### openspec config unset
 
@@ -2246,18 +2246,18 @@ Reports the running OpenSpec version and how this copy was installed.
 ```bash
 openspec version                 # local version and install details
 openspec version --json          # structured local report
-openspec version --check         # also check the registry for an update
+openspec version --check         # also check for an update
 openspec version --check --json  # structured local and update report
 ```
 
-Without `--check`, this command is local and does not contact a registry. It works outside an OpenSpec project. The existing `openspec --version` flag remains the shortest form and prints only the bare version number.
+Without `--check`, this command is local and makes no network request. It works outside an OpenSpec project. The existing `openspec --version` flag remains the shortest form and prints only the bare version number.
 
 **Options**
 
 | Flag | Effect |
 |---|---|
 | `--json` | Print one versioned JSON document instead of text. |
-| `--check` | Check the configured registry for a newer release. |
+| `--check` | Check for a newer release. npm, project and source installs ask the configured npm registry. The standalone install asks GitHub releases instead (see below). |
 
 **Output**
 
@@ -2313,14 +2313,14 @@ Update status values:
 
 | Status | Meaning |
 |---|---|
-| `available` | The registry returned a safe version newer than the running version. |
+| `available` | A safe version newer than the running version can be installed. |
 | `current` | The check completed and found no newer version. |
-| `disabled` | An existing privacy or update-check setting blocked registry access. `latest` is `null`. |
-| `offline` | The registry was unavailable or returned an unusable response. `latest` is `null`. |
+| `disabled` | `OPENSPEC_NO_UPDATE_CHECK` is set, or (npm installs only) a registry override was rejected. `latest` is `null`. |
+| `offline` | The registry or GitHub was unavailable, refused the request (for example a rate limit), or returned an unusable response. `latest` is `null`. |
 
-For the standalone install, the update command is `openspec install`.
+For the standalone install, the update command is `openspec install`, and the check matches what that command can get: the newest stable release on GitHub that has its `SHA256SUMS` attached. A release published minutes ago whose files are not attached yet is not offered. npm registry settings do not apply to this check.
 
-`DO_NOT_TRACK`, telemetry opt-outs, `OPENSPEC_NO_UPDATE_CHECK`, CI detection, and rejected non-HTTPS registry overrides disable the check. Disabled and offline checks still exit 0 because update availability is advisory. This command never upgrades OpenSpec; `canSelfUpgrade` only reports whether the existing `openspec update` path could safely upgrade this copy.
+Because `--check` is an explicit request, it runs even when telemetry is off (`DO_NOT_TRACK`, `OPENSPEC_TELEMETRY=0`, `telemetry.enabled: false`) and in CI. It is turned off only by `OPENSPEC_NO_UPDATE_CHECK`, or, for npm installs, by a rejected non-HTTPS registry override. The background check in `openspec update` still stays off for all of these. Disabled and offline checks still exit 0 because update availability is advisory. This command never upgrades OpenSpec; `canSelfUpgrade` only reports whether the existing `openspec update` path could safely upgrade this copy.
 
 **Exit codes**
 
