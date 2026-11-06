@@ -13,6 +13,7 @@ The system SHALL provide a `view` command that displays a dashboard overview of 
 
 - **WHEN** user runs `openspec view` in a directory without a local or descendant OpenSpec library
 - **THEN** system displays error message "✗ No openspec directory found"
+- **AND** exits with a nonzero status
 
 #### Scenario: Combined dashboard
 - **WHEN** view runs with multiple discovered local libraries
@@ -21,7 +22,12 @@ The system SHALL provide a `view` command that displays a dashboard overview of 
 - **AND** keep empty libraries visible and duplicate item names distinct
 
 #### Scenario: Partially unreadable dashboard
-- **WHEN** one discovered library is unreadable or malformed
-- **THEN** retain readable libraries and report one actionable diagnostic for the failing library
+- **WHEN** one discovered library cannot be read at library scope, such as an unreadable `openspec`, `changes`, or `specs` directory
+- **THEN** retain readable libraries and report one actionable diagnostic naming the failing library's relative path
 - **AND** exit nonzero
+
+#### Scenario: Item-level read failures
+- **WHEN** a spec cannot be parsed or a change's workflow status cannot be loaded inside an otherwise readable library
+- **THEN** keep the existing item-level handling, a zero-count spec entry or a workflow warning, under that library's section
+- **AND** do not treat the library as failed or change the exit status
 
