@@ -679,6 +679,28 @@ describe('ArchiveCommand', () => {
       expect(archived.some((name) => name.endsWith(`-${changeName}`))).toBe(true);
     });
 
+    it('refuses a proposed change when openspec/changes is a project-owned symlink', async () => {
+      const changeName = 'linked-proposed';
+      const docsRepo = realpathSync.native(
+        await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-docs-repo-'))
+      );
+      onTestFinished(() => fs.rm(docsRepo, { recursive: true, force: true }));
+      const sharedChanges = path.join(docsRepo, 'changes');
+      const proposed = path.join(sharedChanges, 'proposed', changeName);
+      const changesLink = path.join(tempDir, 'openspec', 'changes');
+      await fs.rm(changesLink, { recursive: true, force: true });
+      await fs.mkdir(proposed, { recursive: true });
+      await fs.writeFile(path.join(proposed, 'tasks.md'), '- [x] Task 1\n');
+      await fs.symlink(sharedChanges, changesLink, process.platform === 'win32' ? 'junction' : 'dir');
+
+      await archiveCommand.execute(changeName, { json: true, yes: true, noValidate: true, skipSpecs: true });
+
+      expect(process.exitCode).toBe(1);
+      expect(JSON.stringify(vi.mocked(console.log).mock.calls)).toContain('archive_change_unapproved');
+      expect(await fs.readFile(path.join(proposed, 'tasks.md'), 'utf8')).toBe('- [x] Task 1\n');
+      await expect(fs.access(path.join(sharedChanges, 'archive'))).rejects.toThrow();
+    });
+
     it.each([
       { linkChanges: true, linkSpecs: false },
       { linkChanges: false, linkSpecs: true },
