@@ -110,6 +110,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - A blocked change is never synced or moved: show it as `Blocked` in the step 6 table, leave it out of conflict resolution (resolve its conflicts using only the other changes), and record it as Failed in step 8d
       - Checking here, before any main spec is written, matches `openspec archive`: a collision found after sync would leave main specs rewritten for an archive that never happened
 
+   e. **Approval** - If a change's `changeRoot` is under `<planningHome.changesDir>/proposed/`, mark it `Blocked` with `Change is still proposed; approve it first` and handle it like any other blocked change above
+
 4. **Detect spec conflicts**
 
    Build a map keyed by `<capability-path>`, the exact path relative to `specs/`:
