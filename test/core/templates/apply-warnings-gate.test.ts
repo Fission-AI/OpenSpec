@@ -1,0 +1,77 @@
+import { describe, it, expect } from 'vitest';
+import {
+  getApplyInstructions,
+  getApplyChangeSkillTemplate,
+  getOpsxApplyCommandTemplate,
+} from '../../../src/core/templates/workflows/apply-change.js';
+
+// #2166: `instructions apply --json` returns `state: "ready"` alongside
+// `warnings` (e.g. no delta specs, so `validate` fails), but the apply
+// instructions gated only on `state` and never mentioned `warnings`, so the
+// agent implemented a change the CLI had already flagged.
+describe('apply instructions gate on CLI warnings (#2166)', () => {
+  const instructions = getApplyInstructions();
+
+  it('lists `warnings` among the fields the apply JSON returns', () => {
+    expect(instructions).toMatch(/- `warnings` \(when present\)/);
+  });
+
+  it('pauses on warnings before falling through to implementation', () => {
+    const gate = instructions.indexOf('If `warnings` is non-empty');
+    const proceed = instructions.indexOf('Otherwise: proceed to implementation');
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(proceed);
+    expect(instructions).toMatch(/even when `state` is `"ready"` or `"all_done"`/);
+  });
+
+  it('reruns the apply instructions after a repair instead of using stale output', () => {
+    expect(instructions).toContain(
+      'After any repair, rerun the apply instructions and use the refreshed output.'
+    );
+  });
+
+  it('checks warnings before reporting all_done, so completion never hides them', () => {
+    const gate = instructions.indexOf('If `warnings` is non-empty');
+    const allDone = instructions.indexOf('If `state: "all_done"`');
+    expect(gate).toBeGreaterThan(-1);
+    expect(gate).toBeLessThan(allDone);
+  });
+
+  it('carries the same gate on both the skill and command surfaces', () => {
+    const needle = 'If `warnings` is non-empty';
+    expect(getApplyChangeSkillTemplate().instructions).toContain(needle);
+    expect(getOpsxApplyCommandTemplate().content).toContain(needle);
+  });
+});
+
+describe('apply instructions recheck warnings during the task loop (#2166)', () => {
+  it('pauses on a new warning from the rerun apply instructions', () => {
+    const instructions = getApplyInstructions();
+    const loop = instructions.indexOf('6. **Implement tasks');
+    const newWarning = instructions.indexOf(
+      'return a warning the user has not chosen to continue past since it last appeared'
+    );
+    expect(newWarning).toBeGreaterThan(loop);
+  });
+
+  // Consent is per appearance: a warning the user continued past, then
+  // repaired, then saw return is a new problem and needs a new choice.
+  it('asks again when a repaired warning comes back', () => {
+    const instructions = getApplyInstructions();
+    expect(instructions).toContain('including one that went away after a repair and came back');
+    expect(instructions).toContain(
+      'That choice covers a warning only while it keeps appearing; if it goes away after a repair and later comes back, ask again.'
+    );
+    expect(instructions).not.toContain('a warning not already shown');
+  });
+});
+
+describe('apply completion keeps unresolved warnings visible (#2166)', () => {
+  it('lists warnings the user continued past again in the completion status', () => {
+    const instructions = getApplyInstructions();
+    const status = instructions.indexOf('7. **On completion or pause, show status**');
+    const relist = instructions.indexOf('If the last apply instructions still returned `warnings`');
+    expect(status).toBeGreaterThan(-1);
+    expect(relist).toBeGreaterThan(status);
+  });
+});
