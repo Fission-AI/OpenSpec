@@ -51,7 +51,11 @@ export async function discoverListLibraries(start: string): Promise<ListLibrary[
             if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
           }
         }
-        if (classification.pointer.malformed) throw new Error('invalid config.yaml/config.yml');
+        // Like root resolution, an untrustworthy pointer only fails a config-only
+        // directory; a real planning root ignores it and keeps listing.
+        if (classification.pointer.malformed && !classification.hasPlanningShape) {
+          throw new Error('invalid config.yaml/config.yml');
+        }
       } catch (error) {
         diagnostic = `${(error as Error).message}. Check this library's layout and read permissions.`;
       }

@@ -141,13 +141,21 @@ describe('recursive library listing', () => {
     await fs.writeFile(path.join(base, 'legacy', 'openspec', 'project.md'), '# Project');
     expect((await discoverListLibraries(base)).map(item => item.library)).toEqual(['config-only/openspec/', 'legacy/openspec/']);
   });
-  it('reports malformed configuration without losing readable libraries', async () => {
+  it('reports a malformed config-only pointer without losing readable libraries', async () => {
     await library('', ['good']);
-    const bad = await library('bad-config');
-    await fs.writeFile(path.join(bad, 'openspec', 'config.yaml'), 'schema: [');
+    await fs.mkdir(path.join(base, 'bad-config', 'openspec'), { recursive: true });
+    await fs.writeFile(path.join(base, 'bad-config', 'openspec', 'config.yaml'), 'schema: [');
     await list('changes', true);
     expect(JSON.parse(lines[0]).diagnostics).toHaveLength(1);
     expect(JSON.parse(lines[0]).changes).toHaveLength(1);
+  });
+  it('keeps listing a planning library whose config is malformed', async () => {
+    await library('', ['good']);
+    const bad = await library('bad-config', ['kept']);
+    await fs.writeFile(path.join(bad, 'openspec', 'config.yaml'), 'schema: [');
+    await list('changes', true);
+    expect(JSON.parse(lines[0]).diagnostics ?? []).toHaveLength(0);
+    expect(JSON.parse(lines[0]).changes.map((item: any) => item.name).sort()).toEqual(['good', 'kept']);
   });
   it('puts status below long names in narrow terminals', async () => {
     await library('', ['a-long-change-name-for-a-narrow-terminal']);
