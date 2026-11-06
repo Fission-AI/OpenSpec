@@ -63,12 +63,17 @@ function standaloneUpgradeCommand(): string | null {
  * tests, an explicit escape hatch for anyone offline or air-gapped, and the
  * same privacy signals telemetry already honors — a user who set DO_NOT_TRACK
  * or telemetry.enabled false did not agree to a different outbound request.
+ *
+ * `requested` is an explicit `openspec version --check`: the user asked for
+ * this one request, so neither the telemetry signals nor CI detection apply
+ * to it. Only the update-check opt-out and the test guard still stop it.
  */
-function isCheckEnabled(): boolean {
+function isCheckEnabled(requested: boolean): boolean {
   if (process.env.OPENSPEC_NO_UPDATE_CHECK !== undefined) return false;
-  if (isTelemetryOptedOutByEnv()) return false;
-  if (isCiEnvironment()) return false;
   if (process.env.NODE_ENV === 'test') return false;
+  if (requested) return true;
+  if (isCiEnvironment()) return false;
+  if (isTelemetryOptedOutByEnv()) return false;
   // Same config opt-out as telemetry (env remains the hard override above).
   if (getGlobalConfig().telemetry?.enabled === false) return false;
   // A config that cannot be parsed may be hiding that opt-out.
@@ -319,10 +324,13 @@ export interface CliUpdateCheck {
 
 /**
  * Checks the registry while preserving enough detail for callers to explain
- * why no newer version was reported. Never throws.
+ * why no newer version was reported. Never throws. Pass `requested` only when
+ * the user explicitly asked for the check.
  */
-export async function checkForCliUpdate(): Promise<CliUpdateCheck> {
-  if (!isCheckEnabled() || registryUrl() === null) {
+export async function checkForCliUpdate(
+  options: { requested?: boolean } = {}
+): Promise<CliUpdateCheck> {
+  if (!isCheckEnabled(options.requested === true) || registryUrl() === null) {
     return { status: 'disabled', latest: null };
   }
 

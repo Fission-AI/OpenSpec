@@ -166,7 +166,7 @@ program
       buildVersionReportLines,
     } = await import('../core/version-check.js');
     const install = getCliInstallInfo();
-    const update = options.check ? await checkForCliUpdate() : undefined;
+    const update = options.check ? await checkForCliUpdate({ requested: true }) : undefined;
     const command = update?.status === 'available' ? getCliUpdateCommand(install) : null;
     const output = {
       schemaVersion: 1,
