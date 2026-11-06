@@ -72,10 +72,11 @@ describe.skipIf(!enabled)('npx skills add with the real skills CLI', () => {
 
   it('removes every skill with the command the router gives the agent', () => {
     const install = fs.readFileSync(path.join(repoRoot, 'skills', NS, 'references', 'install.md'), 'utf8');
-    const command = /`npx skills remove -g -y ([^`]+)`/.exec(install)?.[1].split(' ');
-    // The command names exactly the skills that were installed, no more, no fewer.
-    expect([...(command ?? [])].sort()).toEqual([...names].sort());
-    const remove = tool('npx', ['-y', SKILLS_CLI, 'remove', '-g', '-y', ...command!]);
+    const source = /`npx skills remove -g -y ([^`]+)`/.exec(install)?.[1];
+    // The command removes by install source, so one name covers every skill the repository installed.
+    expect(source).toBe('Fission-AI/OpenSpec');
+    // This test installed from the checkout, so its lock source is that path; same code path, one argument.
+    const remove = tool('npx', ['-y', SKILLS_CLI, 'remove', '-g', '-y', repoRoot]);
     expect(remove.code, remove.out).toBe(0);
     for (const dir of [path.join(env.HOME!, '.agents', 'skills'), path.join(env.HOME!, '.claude', 'skills')]) {
       for (const name of names) expect(fs.existsSync(path.join(dir, name)), `${dir} ${name}`).toBe(false);

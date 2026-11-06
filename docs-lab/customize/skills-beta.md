@@ -17,10 +17,10 @@ The first command installs the beta where your agents read skills (`~/.claude/sk
 ## Go back
 
 ```bash
-npx skills remove -g -y openspec-beta openspec-beta-explore openspec-beta-propose openspec-beta-new openspec-beta-continue openspec-beta-ff openspec-beta-update openspec-beta-apply openspec-beta-verify openspec-beta-archive openspec-beta-bulk-archive openspec-beta-onboard && openspec update
+npx skills remove -g -y Fission-AI/OpenSpec && openspec update
 ```
 
-Or ask your agent to "remove OpenSpec beta": the skills carry this exact command. Every name is listed because a wildcard would remove only `openspec-beta`.
+Or ask your agent to "remove OpenSpec beta": the skills carry this exact command. The skills CLI removes by install source, so this takes every skill it installed from the OpenSpec repository, including any copies of today's skills an earlier `npx skills add` left.
 
 ## What happens to today's skills
 

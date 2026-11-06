@@ -13,12 +13,12 @@ npx skills add Fission-AI/OpenSpec -g -y && openspec update
 To go back, or ask your agent to "remove OpenSpec beta" (the command is in `openspec-beta/references/install.md`):
 
 ```bash
-npx skills remove -g -y openspec-beta openspec-beta-explore openspec-beta-propose openspec-beta-new openspec-beta-continue openspec-beta-ff openspec-beta-update openspec-beta-apply openspec-beta-verify openspec-beta-archive openspec-beta-bulk-archive openspec-beta-onboard && openspec update
+npx skills remove -g -y Fission-AI/OpenSpec && openspec update
 ```
 
-A wildcard removes only the router, so every name is listed. `openspec update` writes the project's per-project skills back, byte for byte; your `openspec/` folder and the CLI are untouched.
+The skills CLI removes by install source, so that takes every skill it installed from this repository. `openspec update` writes the project's per-project skills back, byte for byte; your `openspec/` folder and the CLI are untouched.
 
-**Upgrading from the earlier skills?** This folder used to hold `openspec-propose`, `openspec-apply-change` and the rest. `npx skills add` no longer touches them, so the copies an earlier run left on your machine stay until you remove them (`openspec update` prints the command for the ones it finds):
+**Upgrading from the earlier skills?** This folder used to hold `openspec-propose`, `openspec-apply-change` and the rest. `npx skills add` no longer touches them, so the copies an earlier run left on your machine stay until you remove them. The remove command above takes them too, since they came from the same repository, or `openspec update` prints a command naming just the ones it finds:
 
 ```bash
 npx skills remove -g -y openspec-propose openspec-explore openspec-new-change openspec-continue-change openspec-apply-change openspec-update-change openspec-ff-change openspec-sync-specs openspec-archive-change openspec-bulk-archive-change openspec-verify-change openspec-onboard draft-openspec-docs release-openspec verify-openspec-docs write-openspec-docs

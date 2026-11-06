@@ -15,10 +15,10 @@ The first command installs the beta skills where your agents read them (for Clau
 ## Go back
 
 ```bash
-npx skills remove -g -y openspec-beta openspec-beta-explore openspec-beta-propose openspec-beta-new openspec-beta-continue openspec-beta-ff openspec-beta-update openspec-beta-apply openspec-beta-verify openspec-beta-archive openspec-beta-bulk-archive openspec-beta-onboard && openspec update
+npx skills remove -g -y Fission-AI/OpenSpec && openspec update
 ```
 
-Or ask your agent to "remove OpenSpec beta": the skills carry this exact command. The first part removes those 12 skill folders and nothing else; `openspec update` writes the project's per-project skills back, byte for byte, and names any other project that still needs it. Every name is listed because a wildcard would remove only `openspec-beta`.
+Or ask your agent to "remove OpenSpec beta": the skills carry this exact command. The first part removes every skill the skills CLI installed from the OpenSpec repository, which is the 12 beta skills and any copies of today's skills an earlier `npx skills add` left; `openspec update` writes the project's per-project skills back, byte for byte, and names any other project that still needs it.
 
 ## What happens to today's skills
 
