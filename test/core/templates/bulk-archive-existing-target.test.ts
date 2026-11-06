@@ -122,8 +122,11 @@ describe('bulk archive existing-target handling', () => {
   it('keeps blocked changes Failed under the ready-only option (#1827)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        'except `Blocked` changes, which stay Failed with `Archive directory already exists`'
+        'except `Blocked` changes, which stay Failed with their recorded blocking reason'
       );
+      // Each blocker records its own reason, so ready-only must not relabel one as another.
+      expect(body, label).toContain('mark every such change `Blocked` with `Archive directory already exists`');
+      expect(body, label).toContain('mark it `Blocked` with `Change is still proposed; approve it first`');
     }
   });
 

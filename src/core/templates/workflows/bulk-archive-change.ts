@@ -198,7 +198,7 @@ ${PROJECT_ROOT_GUARD}
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change that is not \`Blocked\`
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with \`Archive directory already exists\`. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with their recorded blocking reason. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every
@@ -568,7 +568,7 @@ ${PROJECT_ROOT_GUARD}
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change that is not \`Blocked\`
-   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with \`Archive directory already exists\`. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks \`Ready\` or \`Ready*\`, and record the rest as Skipped in step 8d, except \`Blocked\` changes, which stay Failed with their recorded blocking reason. If a \`Ready*\` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every
