@@ -10,6 +10,7 @@ import type { FileHandle } from 'fs/promises';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
 import { OPENSPEC_MARKERS } from './config.js';
+import { hasReleasedOpenSpecBlock, isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
 import { ALL_WORKFLOWS, type WorkflowId } from './profiles.js';
 
 /**
@@ -29,6 +30,9 @@ export const LEGACY_CONFIG_FILES = [
 
 /** The three commands the old SlashCommandRegistry wrote into each directory. */
 const LEGACY_DIRECTORY_COMMAND_FILES = ['proposal.md', 'apply.md', 'archive.md'] as const;
+
+/** The three commands every pre-opsx release wrote. */
+const LEGACY_THREE_COMMAND_NAMES = ['proposal', 'apply', 'archive'] as const;
 
 /** Exact Kilo workflow files written by OpenSpec before the command path moved. */
 const LEGACY_KILOCODE_COMMAND_FILES = [
@@ -72,7 +76,16 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   'kiro': { type: 'files', pattern: '.kiro/prompts/openspec-*.prompt.md' },
   'github-copilot': { type: 'files', pattern: '.github/prompts/openspec-*.prompt.md' },
   'amazon-q': { type: 'files', pattern: '.amazonq/prompts/openspec-*.md' },
-  'cline': { type: 'files', pattern: '.clinerules/workflows/openspec-*.md' },
+  // Before 0.15, Cline's and Qwen's three commands sat one level up, as
+  // Markdown. `.clinerules/` also holds the user's own rules, so those
+  // releases' exact filenames are listed rather than a wildcard.
+  'cline': {
+    type: 'files',
+    pattern: [
+      '.clinerules/workflows/openspec-*.md',
+      ...LEGACY_THREE_COMMAND_NAMES.map((name) => `.clinerules/openspec-${name}.md`),
+    ],
+  },
   'roocode': { type: 'files', pattern: '.roo/commands/openspec-*.md' },
   'auggie': { type: 'files', pattern: '.augment/commands/openspec-*.md' },
   'factory': { type: 'files', pattern: '.factory/commands/openspec-*.md' },
@@ -86,7 +99,14 @@ export const LEGACY_SLASH_COMMAND_PATHS: Record<string, LegacySlashCommandPatter
   // OpenSpec never wrote `openspec-*` files there, and a user might have.
   'antigravity': { type: 'files', pattern: '.agent/workflows/openspec-*.md' },
   'iflow': { type: 'files', pattern: '.iflow/commands/openspec-*.md' },
-  'qwen': { type: 'files', pattern: ['.qwen/commands/opsx-*.toml', '.qwen/commands/openspec-*.toml'] },
+  'qwen': {
+    type: 'files',
+    pattern: [
+      '.qwen/commands/opsx-*.toml',
+      '.qwen/commands/openspec-*.toml',
+      ...LEGACY_THREE_COMMAND_NAMES.map((name) => `.qwen/commands/openspec-${name}.md`),
+    ],
+  },
   'codex': { type: 'files', pattern: '.codex/prompts/openspec-*.md' },
   // Keep this file-scoped: the CoStrict adapter writes `opsx-*.md` into the
   // same folder, so a directory entry removes the live command files — and
@@ -458,22 +478,30 @@ async function settleLegacyCommandDir(
  * a same-named file without them is the user's.
  */
 async function isGeneratedLegacyCommand(filePath: string): Promise<boolean> {
-  // Judge the opened handle, not the path, so the file checked is the file
-  // read. O_NOFOLLOW refuses a link and O_NONBLOCK keeps a FIFO from hanging;
-  // Windows has neither flag, so a link is refused there by lstat instead.
+  const content = await readRegularFileNoFollow(filePath);
+  return content !== undefined && hasOpenSpecMarkers(content);
+}
+
+/**
+ * Reads a regular file without following a link, or returns undefined.
+ * Judges the opened handle, not the path, so the file checked is the file
+ * read. O_NOFOLLOW refuses a link and O_NONBLOCK keeps a FIFO from hanging;
+ * Windows has neither flag, so a link is refused there by lstat instead.
+ */
+async function readRegularFileNoFollow(filePath: string): Promise<string | undefined> {
   const { O_RDONLY, O_NOFOLLOW, O_NONBLOCK } = fsConstants;
   let handle: FileHandle | undefined;
   try {
     handle = await fs.open(filePath, O_RDONLY | (O_NOFOLLOW ?? 0) | (O_NONBLOCK ?? 0));
     if (O_NOFOLLOW === undefined && (await fs.lstat(filePath)).isSymbolicLink()) {
-      return false;
+      return undefined;
     }
     if (!(await handle.stat()).isFile()) {
-      return false;
+      return undefined;
     }
-    return hasOpenSpecMarkers(await handle.readFile('utf-8'));
+    return await handle.readFile('utf-8');
   } catch {
-    return false;
+    return undefined;
   } finally {
     await handle?.close();
   }
@@ -920,6 +948,42 @@ function buildRemovalsList(detection: LegacyDetectionResult): Array<{ path: stri
 }
 
 /**
+ * Whether everything legacy cleanup would remove inside the project is
+ * untouched output of a released OpenSpec version, so cleaning up cannot lose a user's edit: every
+ * file it deletes outright, and every OpenSpec block it strips from a user's
+ * own file (CLAUDE.md, AGENTS.md). Any file that cannot be read as a regular
+ * file counts as unrecognized.
+ */
+export async function legacyCleanupDeletesOnlyReleasedOutput(
+  projectPath: string,
+  detection: LegacyDetectionResult
+): Promise<boolean> {
+  // Prompts in the home folder are not judged here: they are shared by every
+  // project on the machine, so a cleanup without --force leaves them alone.
+  const files: string[] = [];
+  for (const dirPath of detection.slashCommandDirs) {
+    const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
+    const entries = await readLegacyCommandDir(fullPath, legacyManagedFileNamesForDir(dirPath));
+    if (!entries) return false;
+    files.push(...entries.managed.map((name) => path.join(fullPath, name)));
+  }
+  files.push(...detection.slashCommandFiles.map((file) => FileSystemUtils.joinPath(projectPath, file)));
+  if (detection.hasOpenspecAgents) {
+    files.push(FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md'));
+  }
+
+  for (const file of files) {
+    const content = await readRegularFileNoFollow(file);
+    if (content === undefined || !isReleasedGeneratedContent(content)) return false;
+  }
+  for (const file of detection.configFilesToUpdate) {
+    const content = await readRegularFileNoFollow(FileSystemUtils.joinPath(projectPath, file));
+    if (content === undefined || !hasReleasedOpenSpecBlock(content)) return false;
+  }
+  return true;
+}
+
+/**
  * Build list of files to be updated with explanations.
  * Includes ALL config files with markers - markers are removed, file is never deleted.
  *
@@ -1121,6 +1185,20 @@ function hasLegacyArtifacts(detection: LegacyDetectionResult): boolean {
     detection.hasOpenspecAgents ||
     detection.hasRootAgentsWithMarkers ||
     detection.hasProjectMd
+  );
+}
+
+/**
+ * Whether legacy cleanup would remove or change anything inside the project.
+ * `openspec/project.md` is only a migration hint, and prompts in the home
+ * folder are not the project's, so neither counts.
+ */
+export function hasRepoLocalLegacyRemovals(detection: LegacyDetectionResult): boolean {
+  return (
+    detection.slashCommandDirs.length > 0 ||
+    detection.slashCommandFiles.length > 0 ||
+    detection.hasOpenspecAgents ||
+    detection.configFilesToUpdate.length > 0
   );
 }
 

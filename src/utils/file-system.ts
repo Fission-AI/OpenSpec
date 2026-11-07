@@ -436,6 +436,23 @@ export class FileSystemUtils {
 }
 
 /**
+ * The marker block `removeMarkerBlock` would remove, markers included, found
+ * by exactly the same rules (markers on their own lines), or undefined when
+ * there is none. Checking this span is checking what removal deletes.
+ */
+export function findMarkerBlock(
+  content: string,
+  startMarker: string,
+  endMarker: string
+): string | undefined {
+  const startIndex = findMarkerIndex(content, startMarker);
+  if (startIndex === -1) return undefined;
+  const endIndex = findMarkerIndex(content, endMarker, startIndex + startMarker.length);
+  if (endIndex === -1) return undefined;
+  return content.slice(startIndex, endIndex + endMarker.length);
+}
+
+/**
  * Removes a marker block from file content.
  * Only removes markers that are on their own lines (ignores inline mentions).
  * Cleans up double blank lines that may result from removal.

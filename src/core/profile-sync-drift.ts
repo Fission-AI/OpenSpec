@@ -14,7 +14,7 @@ import {
 import { readSharedSkillTarget } from './shared-skill-target.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
-import { isLegacyCodexSkillEquivalentToCurrent } from './shared/skill-content-equivalence.js';
+import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
 import {
   hasGlobalSkillTarget,
   resolveToolSkillsDir,
@@ -103,13 +103,11 @@ export function hasToolProfileOrDeliveryDrift(
         ) {
           continue;
         }
-        // Equivalent generated copies are actionable: migration can safely
-        // remove the redundant legacy file even when version, line endings,
-        // or supported invocation syntax changed. Materially divergent copies
-        // stay in place without forcing an update on every run.
-        if (
-          isLegacyCodexSkillEquivalentToCurrent(view.read(legacySkill), view.read(currentSkill))
-        ) {
+        // Redundant copies are actionable: migration can safely remove a
+        // legacy file that matches the current one, or that is untouched
+        // output of an older release. Copies holding user edits stay in place
+        // without forcing an update on every run.
+        if (isRedundantLegacyCopy(view.read(legacySkill), view.read(currentSkill), true)) {
           return true;
         }
       } catch {
