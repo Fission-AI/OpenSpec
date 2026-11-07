@@ -263,7 +263,20 @@ describe('command completion registry', () => {
     const remove = store?.subcommands?.find((entry) => entry.name === 'remove');
     expect(remove?.flags.map((flag) => flag.name)).toEqual([
       'yes',
+      'scope',
       'json',
     ]);
+
+    const register = store?.subcommands?.find((entry) => entry.name === 'register');
+    expect(register?.flags.map((flag) => flag.name)).toContain('scope');
+
+    const unregister = store?.subcommands?.find((entry) => entry.name === 'unregister');
+    expect(unregister?.flags.map((flag) => flag.name)).toContain('scope');
+
+    const list = store?.subcommands?.find((entry) => entry.name === 'list');
+    expect(list?.flags.map((flag) => flag.name)).toContain('scope');
+
+    const doctor = store?.subcommands?.find((entry) => entry.name === 'doctor');
+    expect(doctor?.flags.map((flag) => flag.name)).toContain('scope');
   });
 });
