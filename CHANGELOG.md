@@ -1,5 +1,17 @@
 # @fission-ai/openspec
 
+## 1.16.1
+
+### Patch Changes
+
+- [#2205](https://github.com/Fission-AI/OpenSpec/pull/2205) [`c887ab0`](https://github.com/Fission-AI/OpenSpec/commit/c887ab073e0fd27dbce28e51aff078efe238e457) Thanks [@clay-good](https://github.com/clay-good)! - `validate`, `show`, `list`, `view` and `archive` now read section headings written with a CommonMark closing `#` run (`## Purpose ##`, `## Why ##`, `## What Changes ##`, `## Requirements ##`, `## ADDED Requirements ##`) the same as their unclosed forms.
+
+- [#2206](https://github.com/Fission-AI/OpenSpec/pull/2206) [`a1ae536`](https://github.com/Fission-AI/OpenSpec/commit/a1ae53669d25e7ffc6946f623f18abb7fecd3bce) Thanks [@clay-good](https://github.com/clay-good)! - `openspec version --check` on the standalone binary now offers only a release whose files are attached on GitHub, the same one `openspec install` would install, instead of a version npm has but the installer cannot get yet.
+
+- [#2207](https://github.com/Fission-AI/OpenSpec/pull/2207) [`83053dd`](https://github.com/Fission-AI/OpenSpec/commit/83053dd821f03fbc63374d793aa5dfa185ac5600) Thanks [@clay-good](https://github.com/clay-good)! - `validate` now fails, and `archive` refuses, when a delta spec puts a requirement under an unrecognized `## ... Requirements` section such as `## DEPRECATED Requirements`, instead of passing with a warning and silently dropping that requirement.
+
+- [#2204](https://github.com/Fission-AI/OpenSpec/pull/2204) [`ef170fa`](https://github.com/Fission-AI/OpenSpec/commit/ef170faa2912fc642d59b9e82e7932d4aa9e71c3) Thanks [@clay-good](https://github.com/clay-good)! - `openspec version --check` now checks for a newer version even when telemetry is turned off or it runs in CI; only `OPENSPEC_NO_UPDATE_CHECK` skips it, and the background check in `openspec update` still honors the telemetry opt-out and CI.
+
 ## 1.16.0
 
 ### Minor Changes
