@@ -96,6 +96,14 @@ describe('stale released output', () => {
     expect(await findStaleReleasedFiles(project)).toEqual([]);
   });
 
+  it('reports the same paths when the project is reached through a link', async () => {
+    await write(STALE, await codexPrompt());
+    await codexReplacement();
+    const alias = path.join(root, 'alias');
+    await fs.symlink(project, alias, 'dir');
+    expect(await findStaleReleasedFiles(alias)).toEqual([STALE]);
+  });
+
   it('leaves former-root skills to the root migration', async () => {
     await write('.codex/skills/openspec-new-change/SKILL.md', await codexPrompt());
     const stale = await findStaleReleasedFiles(project);
@@ -192,6 +200,19 @@ describe('legacy cleanup without --force', () => {
     await fs.writeFile(path.join(project, 'CLAUDE.md'), tricky);
     const detection = await detectLegacyArtifacts(project);
     expect(await legacyCleanupDeletesOnlyReleasedOutput(project, detection)).toBe(false);
+  });
+
+  it('judges the block removal picks, not an inline one before it', async () => {
+    // Markers that share a line with other text are not a block removal
+    // accepts, so it strips the own-line block that follows: the edited one.
+    const block = await claudeMd();
+    const inline = block.replace(/\n/g, ' ');
+    const edited = block.replace('<!-- OPENSPEC:END -->', 'Always use pnpm.\n<!-- OPENSPEC:END -->');
+    const file = path.join(project, 'CLAUDE.md');
+    await fs.writeFile(file, `Intro ${inline}\n\n${block}`);
+    expect(await legacyCleanupDeletesOnlyReleasedOutput(project, await detectLegacyArtifacts(project))).toBe(true);
+    await fs.writeFile(file, `Intro ${inline}\n\n${edited}`);
+    expect(await legacyCleanupDeletesOnlyReleasedOutput(project, await detectLegacyArtifacts(project))).toBe(false);
   });
 
   it('must ask before stripping a block the user wrote inside', async () => {

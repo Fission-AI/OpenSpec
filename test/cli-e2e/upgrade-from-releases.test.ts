@@ -5,7 +5,7 @@ import { promises as fs, existsSync, readdirSync, readFileSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { findStaleReleasedFiles } from '../../src/core/released-output-sweep.js';
+import { currentGeneratablePaths, findStaleReleasedFiles } from '../../src/core/released-output-sweep.js';
 import { LEGACY_TOOL_ROOTS } from '../../src/core/migration.js';
 
 /**
@@ -20,7 +20,8 @@ import { LEGACY_TOOL_ROOTS } from '../../src/core/migration.js';
  * OPENSPEC_RELEASE_UPGRADES=1. OPENSPEC_RELEASE_CACHE reuses installs.
  */
 const enabled = process.env.OPENSPEC_RELEASE_UPGRADES === '1';
-const RELEASES = ['0.23.0', '1.0.0', '1.2.0', '1.10.0', '1.16.0'];
+// 0.14 is the last layout with Cline's and Qwen's commands one folder up.
+const RELEASES = ['0.14.0', '0.23.0', '1.0.0', '1.2.0', '1.10.0', '1.16.0'];
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const currentBin = path.join(repoRoot, 'bin', 'openspec.js');
@@ -121,9 +122,10 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     version: string,
     name: string,
     tools = 'all',
-    globalConfig?: Record<string, unknown>
+    globalConfig?: Record<string, unknown>,
+    home = path.join(tempRoot, name, 'home')
   ): Promise<Sandbox> {
-    const box = { home: path.join(tempRoot, name, 'home'), project: path.join(tempRoot, name, 'project') };
+    const box = { home, project: path.join(tempRoot, name, 'project') };
     await fs.mkdir(path.join(box.home, '.config', 'openspec'), { recursive: true });
     await fs.mkdir(box.project, { recursive: true });
     if (globalConfig) {
@@ -148,6 +150,13 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
 
     expect(await findStaleReleasedFiles(box.project)).toEqual([]);
     expect(leftoversInFormerRoots(box.project)).toEqual([]);
+    // Nothing was edited, so every file left in a tool folder is one this
+    // build writes: no old layout survives, recognized or not.
+    const current = currentGeneratablePaths();
+    const oldLayout = listFiles(box.project).filter(
+      (rel) => rel.includes('/') && !rel.startsWith('openspec/') && !current.has(rel)
+    );
+    expect(oldLayout).toEqual([]);
 
     const before = snapshot(box.project);
     const second = run(currentBin, ['update'], box);
@@ -209,9 +218,10 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     }
   }, 600_000);
 
-  it('never leaves a tool without its commands', async () => {
-    // Commands-only Antigravity: its only OpenSpec files are old commands.
-    const box = await initWith('1.10.0', 'commands-only', 'antigravity,claude', {
+  it('moves a commands-only tool whose only files are in its former folder', async () => {
+    // Commands-only Antigravity: its only OpenSpec files are old commands in
+    // .agent/, which update used to report as "no configured tools".
+    const box = await initWith('1.10.0', 'commands-only', 'antigravity', {
       profile: 'core',
       delivery: 'commands',
     });
@@ -221,9 +231,36 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     const result = run(currentBin, ['update'], box);
     expect(result.status, result.output).toBe(0);
     for (const name of old) {
-      const kept = existsSync(path.join(box.project, '.agent', 'workflows', name));
-      const moved = existsSync(path.join(box.project, '.agents', 'workflows', name));
-      expect(kept || moved, name).toBe(true);
+      expect(existsSync(path.join(box.project, '.agents', 'workflows', name)), name).toBe(true);
     }
+    expect(leftoversInFormerRoots(box.project)).toEqual([]);
+    expect(run(currentBin, ['update'], box).output).toContain('up to date');
+  }, 600_000);
+
+  it('removes nothing old when a tool fails to set up', async () => {
+    const box = await initWith('0.23.0', 'failed-setup', 'claude');
+    // A file where the skills folder should be makes Claude's setup fail.
+    await fs.writeFile(path.join(box.project, '.claude', 'skills'), 'not a folder');
+    const before = snapshot(box.project);
+
+    const result = run(currentBin, ['update'], box);
+    expect(result.status).not.toBe(0);
+    expect(result.output).toContain('Failed to set up Claude Code');
+    expect(snapshot(box.project)).toEqual(before);
+  }, 600_000);
+
+  it('never sets up a tool or cleans up because of prompts in the home folder', async () => {
+    // Another project on the same machine left Codex prompts in the home folder.
+    const other = await initWith('1.5.0', 'shared-home-other', 'codex');
+    expect(listFiles(path.join(other.home, '.codex', 'prompts')).length).toBeGreaterThan(0);
+    const box = await initWith('1.16.0', 'shared-home', 'claude', undefined, other.home);
+    await fs.writeFile(path.join(box.project, 'openspec', 'project.md'), '# Our context\n');
+    const before = snapshot(box.project);
+
+    const result = run(currentBin, ['update'], box);
+    expect(result.status, result.output).toBe(0);
+    expect(result.output).not.toContain('update removes them');
+    expect(snapshot(box.project)).toEqual(before);
+    expect(listFiles(path.join(other.home, '.codex', 'prompts')).length).toBeGreaterThan(0);
   }, 600_000);
 });

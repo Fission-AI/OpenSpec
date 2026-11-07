@@ -164,6 +164,19 @@ for (const version of versions) {
 
 fs.rmSync(workRoot, { recursive: true, force: true });
 
+// --only adds to what is already recorded rather than replacing it, so
+// releases outside the subset keep their coverage.
+if (only && fs.existsSync(OUTPUT)) {
+  const existing = fs.readFileSync(OUTPUT, 'utf8');
+  const section = (name) => existing.split(`export const ${name}`)[1]?.split('];')[0] ?? '';
+  for (const [, fp] of section('RELEASED_GENERATED_FINGERPRINTS').matchAll(/'([0-9a-f]+)'/g)) fingerprints.add(fp);
+  for (const [, p] of section('RELEASED_GENERATED_PATHS').matchAll(/"((?:[^"\\]|\\.)*)"/g)) projectPaths.add(JSON.parse(`"${p}"`));
+  const earlier = existing.match(/^\/\/ Releases: (.*)$/m)?.[1].split(', ') ?? [];
+  covered.unshift(...earlier.filter((v) => !covered.includes(v)));
+  const notCaptured = existing.match(/^\/\/ Not captured: (.*)$/m)?.[1].split(/, (?=\d)/) ?? [];
+  skipped.unshift(...notCaptured.filter((entry) => !covered.includes(entry.split(' ')[0])));
+}
+
 const sorted = [...fingerprints].sort();
 const sortedPaths = [...projectPaths].sort();
 const lines = [

@@ -41,6 +41,7 @@ import {
   getLegacyWorkflowIdsForTool,
   getToolsFromLegacyArtifacts,
   legacyCleanupDeletesOnlyReleasedOutput,
+  hasRepoLocalLegacyRemovals,
   omitGlobalLegacyPromptFiles,
   omitToolLegacyArtifacts,
   pickGlobalLegacyPromptFiles,
@@ -113,7 +114,7 @@ type LegacyUpgradeResult = {
   skippedSharedSkillTools?: string[];
 };
 
-type ToolFailure = { name: string; error: string };
+type ToolFailure = { name: string; error: string; toolId?: string };
 
 function throwIfUpdateFailed(failedTools: readonly ToolFailure[]): void {
   if (failedTools.length > 0) {
@@ -370,7 +371,12 @@ export class UpdateCommand {
       // behind that nothing reads any more.
       // Kept copies were reported when they were first left in place; an
       // up-to-date run does not repeat that on every invocation.
-      await this.removeEarlierReleaseLeftovers(resolvedProjectPath, [], false);
+      await this.removeEarlierReleaseLeftovers(
+        resolvedProjectPath,
+        [],
+        legacyUpgradeFailures.length > 0,
+        false
+      );
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
@@ -537,7 +543,11 @@ export class UpdateCommand {
       }
     }
 
-    await this.removeEarlierReleaseLeftovers(resolvedProjectPath, updatedToolIds);
+    await this.removeEarlierReleaseLeftovers(
+      resolvedProjectPath,
+      updatedToolIds,
+      failedTools.length > 0
+    );
 
     if (deferredGlobalCleanup) {
       await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
@@ -838,6 +848,7 @@ export class UpdateCommand {
   private async removeEarlierReleaseLeftovers(
     projectPath: string,
     updatedToolIds: readonly string[],
+    anyToolFailed: boolean,
     reportKept = true
   ): Promise<void> {
     // A tool that shares its current root with another (Codex and
@@ -870,22 +881,31 @@ export class UpdateCommand {
     }
 
     // Files an earlier release wrote where no tool reads them any more, still
-    // exactly as that release wrote them, hold nothing of the user's.
-    const staleReleasedFiles = this.legacyCleanupSkipped
+    // exactly as that release wrote them, hold nothing of the user's. Not
+    // after a declined cleanup, and not after a tool failed to update: its
+    // current files may be incomplete, so its old ones may still be needed.
+    const staleReleasedFiles = this.legacyCleanupSkipped || anyToolFailed
       ? []
       : await findStaleReleasedFiles(projectPath, this.view);
-    if (staleReleasedFiles.length > 0) {
+    const removed: string[] = [];
+    for (const rel of staleReleasedFiles) {
       // findStaleReleasedFiles proved each path reaches its literal file with
       // no link on the way, so this is that file.
-      for (const rel of staleReleasedFiles) {
+      try {
         await this.ops.removeFile(path.join(projectPath, ...rel.split('/')), 'earlier-release');
+        removed.push(rel);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.log(chalk.yellow(`Could not remove ${rel}: ${message}`));
       }
+    }
+    if (removed.length > 0) {
       if (!this.dryRun) {
-        await pruneEmptyParents(projectPath, staleReleasedFiles);
+        await pruneEmptyParents(projectPath, removed);
       }
       this.log(
         chalk.dim(
-          `Removed ${staleReleasedFiles.length} unchanged file${staleReleasedFiles.length === 1 ? '' : 's'} ` +
+          `Removed ${removed.length} unchanged file${removed.length === 1 ? '' : 's'} ` +
             'an earlier OpenSpec release left where no tool reads them now.'
         )
       );
@@ -1314,10 +1334,19 @@ export class UpdateCommand {
     // A dry run plans a non-interactive update, so it never prompts.
     const canPrompt = !this.dryRun && isInteractive();
 
-    // Files every earlier release generated and nobody has touched hold
-    // nothing to lose, so removing them needs neither --force nor a prompt.
+    // Files every earlier release generated in this project and nobody has
+    // touched hold nothing to lose, so removing them needs neither --force nor
+    // a prompt. Prompts in the home folder are shared by every project on the
+    // machine: they neither set up a tool here nor get removed without --force
+    // or a yes, and a terminal still asks about them as before.
+    const projectDetection = omitGlobalLegacyPromptFiles(detection);
+    const hasProjectRemovals = hasRepoLocalLegacyRemovals(detection);
+    const hasGlobalPrompts = detection.globalSlashCommandFiles.length > 0;
     const onlyReleasedOutput =
-      !this.force && (await legacyCleanupDeletesOnlyReleasedOutput(projectPath, detection));
+      !this.force &&
+      hasProjectRemovals &&
+      !(canPrompt && hasGlobalPrompts) &&
+      (await legacyCleanupDeletesOnlyReleasedOutput(projectPath, detection));
     if (onlyReleasedOutput) {
       this.log(
         chalk.dim('These are unchanged files from an earlier OpenSpec release, so update removes them.')
@@ -1328,19 +1357,20 @@ export class UpdateCommand {
     if (this.force || onlyReleasedOutput) {
       const legacyUpgrade = await this.upgradeLegacyTools(
         projectPath,
-        detection,
+        onlyReleasedOutput ? projectDetection : detection,
         canPrompt,
         desiredWorkflows,
         delivery
       );
-      await this.performImmediateLegacyCleanup(
-        projectPath,
-        detection,
-        legacyUpgrade.skippedSharedSkillTools
-      );
-      // Prompts in the home folder are shared by every project on the
-      // machine, so removing them still takes --force or a yes at a prompt.
-      if (onlyReleasedOutput && detection.globalSlashCommandFiles.length > 0) {
+      // Unasked cleanup is all or nothing: if a tool failed to set up, its old
+      // commands may still need openspec/AGENTS.md, so nothing old is removed.
+      if (onlyReleasedOutput && (legacyUpgrade.failedTools ?? []).length > 0) {
+        this.legacyCleanupSkipped = true;
+        this.log(chalk.yellow('⚠ Kept the earlier release files because a tool failed to set up. Fix it and run update again.'));
+        return legacyUpgrade;
+      }
+      await this.performImmediateLegacyCleanup(projectPath, detection, legacyUpgrade);
+      if (onlyReleasedOutput && hasGlobalPrompts) {
         this.log(
           chalk.dim(
             `Left ${detection.globalSlashCommandFiles.length} OpenSpec prompt file(s) in your home folder: ` +
@@ -1361,7 +1391,7 @@ export class UpdateCommand {
     if (!canPrompt) {
       // Non-interactive mode without --force: warn and continue
       // (Unlike init, update doesn't abort - user may just want to update skills)
-      this.legacyCleanupSkipped = true;
+      this.legacyCleanupSkipped = hasProjectRemovals;
       this.log(chalk.yellow('⚠ Run with --force to auto-cleanup legacy files, or run interactively.'));
       this.log();
       this.recorder?.addNote(
@@ -1386,11 +1416,7 @@ export class UpdateCommand {
         desiredWorkflows,
         delivery
       );
-      await this.performImmediateLegacyCleanup(
-        projectPath,
-        detection,
-        legacyUpgrade.skippedSharedSkillTools
-      );
+      await this.performImmediateLegacyCleanup(projectPath, detection, legacyUpgrade);
       return {
         ...legacyUpgrade,
         deferredGlobalCleanup: pickGlobalLegacyPromptFiles(
@@ -1399,7 +1425,7 @@ export class UpdateCommand {
         ),
       };
     } else {
-      this.legacyCleanupSkipped = true;
+      this.legacyCleanupSkipped = hasProjectRemovals;
       this.log(chalk.dim('Skipping legacy cleanup. Continuing with skill update...'));
       this.log();
       return { newlyConfiguredTools: [], workflowOverrides: {} };
@@ -1412,13 +1438,18 @@ export class UpdateCommand {
   private async performImmediateLegacyCleanup(
     projectPath: string,
     detection: LegacyDetectionResult,
-    skippedSharedSkillTools: readonly string[] = []
+    legacyUpgrade: LegacyUpgradeResult
   ): Promise<void> {
-    // Tools whose upgrade was skipped (shared root owned by another) had no
-    // replacement written, so their repo-local legacy files must be preserved.
+    // Tools whose upgrade was skipped (shared root owned by another) or failed
+    // had no replacement written, so their repo-local legacy files must be
+    // preserved.
+    const toolsWithoutReplacement = [
+      ...(legacyUpgrade.skippedSharedSkillTools ?? []),
+      ...(legacyUpgrade.failedTools ?? []).flatMap((failure) => failure.toolId ?? []),
+    ];
     const immediateDetection = omitToolLegacyArtifacts(
       omitGlobalLegacyPromptFiles(detection),
-      skippedSharedSkillTools
+      toolsWithoutReplacement
     );
     if (immediateDetection.hasLegacyArtifacts) {
       await this.performLegacyCleanup(projectPath, immediateDetection);
@@ -1679,7 +1710,7 @@ export class UpdateCommand {
         spinner.fail(`Failed to set up ${tool.name}`);
         const message = error instanceof Error ? error.message : String(error);
         this.log(chalk.red(`  ${message}`));
-        failedTools.push({ name: tool.name, error: message });
+        failedTools.push({ name: tool.name, error: message, toolId: tool.value });
         this.recorder?.addFailure(tool.value, message);
       }
     }
