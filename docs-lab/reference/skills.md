@@ -112,7 +112,7 @@ Merge a change proposal's spec updates into `specs/` without archiving it.
 |---|---|
 | **Arguments** | A change proposal name, optional. You can also name a subset of its delta specs, and only those sync. |
 | **Creates** | Edits or creates `openspec/specs/<capability-path>/spec.md` for each delta spec, merging added, modified, removed, and renamed requirements into the main spec. Never code. |
-| **Response** | A per-capability summary of requirements added, modified, removed, or renamed, after the updated specs validate. The change proposal stays active; archiving waits for `openspec-archive-change`. |
+| **Response** | A per-capability summary of requirements added, modified, removed, or renamed, after the updated specs validate. The change proposal stays active; archiving waits for `openspec-archive-change`. Only `specs/<capability-path>/spec.md` files count as delta specs. It runs `openspec validate` first and stops before writing any main spec if that fails. |
 
 ## openspec-archive-change
 
@@ -122,7 +122,7 @@ Move a finished change proposal to the archive.
 |---|---|
 | **Arguments** | A change proposal name, optional. |
 | **Creates** | Moves the change proposal folder to `openspec/changes/archive/YYYY-MM-DD-<name>/` (no date added if the name already starts with one). With your approval it first syncs outstanding delta specs. When `openspec-sync-specs` is installed, it runs that workflow. Otherwise, it merges the delta specs into the main specs itself. Never code. |
-| **Response** | Warns and asks before archiving with incomplete artifacts or tasks, and asks whether to sync when delta specs exist. Ends with a summary: name, schema, archive location, spec sync status, and any warnings. |
+| **Response** | Warns and asks before archiving with incomplete artifacts or tasks, and asks whether to sync when delta specs exist. Stops before syncing or archiving if `openspec validate` fails for the change. Ends with a summary: name, schema, archive location, spec sync status, and any warnings. |
 
 ## openspec-new-change
 
@@ -172,7 +172,7 @@ Archive several change proposals at once.
 |---|---|
 | **Arguments** | None. It lists the active change proposals and asks you to select any number, with an option for all. If none are active it says so and stops. |
 | **Creates** | `openspec/changes/archive/YYYY-MM-DD-<name>/` per archived change proposal (already-dated names keep their prefix). Each one's spec deltas sync first via `openspec-sync-specs`. Never code. |
-| **Response** | A status table per change proposal and one confirmation for the whole batch, then a summary of archived, skipped, and failed, plus spec sync results. When two change proposals touch the same spec it checks the codebase and syncs implemented deltas oldest first. |
+| **Response** | A status table per change proposal and one confirmation for the whole batch, then a summary of archived, skipped, and failed, plus spec sync results. When two change proposals touch the same spec it checks the codebase and syncs implemented deltas oldest first. A change proposal that fails `openspec validate` is marked `Blocked`, and the rest of the batch can still archive. |
 
 ## openspec-onboard
 
