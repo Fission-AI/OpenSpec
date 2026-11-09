@@ -682,6 +682,7 @@ metadata:
     });
 
     it('should not restore legacy Codex workflows excluded by the active profile', async () => {
+      // (An edited copy of an excluded workflow is kept: see the sweep tests.)
       await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
       await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
       await fs.rm(path.join(testDir, '.codex', 'skills', '.openspec-target'));
@@ -704,11 +705,13 @@ metadata:
           path.join(testDir, '.agents', 'skills', 'openspec-apply-change', 'SKILL.md')
         )
       ).toBe(false);
+      // The old copy is untouched OpenSpec output of a workflow the profile
+      // excludes: nothing will ever replace it, so it is removed, not restored.
       expect(
         await FileSystemUtils.fileExists(
           path.join(testDir, '.codex', 'skills', 'openspec-apply-change', 'SKILL.md')
         )
-      ).toBe(true);
+      ).toBe(false);
 
       const consoleSpy = vi.spyOn(console, 'log');
       await updateCommand.execute(testDir);

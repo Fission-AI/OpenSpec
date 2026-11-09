@@ -110,6 +110,57 @@ describe('stale released output', () => {
     expect(stale.some((rel) => rel.startsWith('.codex/skills/'))).toBe(false);
   });
 
+  // Codex's `.codex` and Antigravity's `.agent` are cleaned up only after the
+  // replacement is written, so a copy there with no replacement belongs to a
+  // workflow or delivery the project no longer installs. Nothing else removes it.
+  describe('former-root files with no replacement to wait for', () => {
+    const oldSkill = '.codex/skills/openspec-new-change/SKILL.md';
+    const oldCommand = '.agent/workflows/opsx-new.md';
+
+    it('records these paths', () => {
+      expect(RELEASED_GENERATED_PATHS).toContain(oldSkill);
+      expect(RELEASED_GENERATED_PATHS).toContain(oldCommand);
+    });
+
+    it('sweeps an untouched skill of a workflow the project no longer installs', async () => {
+      await write(oldSkill, await codexPrompt());
+      // Codex is set up, without the `new` workflow.
+      await write('.agents/skills/openspec-propose/SKILL.md', 'current');
+      expect(await findStaleReleasedFiles(project)).toContain(oldSkill);
+    });
+
+    it('sweeps untouched commands once the project installs skills only', async () => {
+      await write(oldCommand, await codexPrompt());
+      // Antigravity is set up with skills and no command files.
+      await write('.agents/skills/openspec-new-change/SKILL.md', 'current');
+      expect(await findStaleReleasedFiles(project)).toContain(oldCommand);
+    });
+
+    it('keeps one the user edited, and still sweeps the untouched one beside it', async () => {
+      const edited = '.codex/skills/openspec-continue-change/SKILL.md';
+      await write(oldSkill, await codexPrompt());
+      await write(edited, (await codexPrompt()) + '\nMy own note.\n');
+      await write('.agents/skills/openspec-propose/SKILL.md', 'current');
+      const stale = await findStaleReleasedFiles(project);
+      expect(stale).toContain(oldSkill);
+      expect(stale).not.toContain(edited);
+    });
+
+    it('keeps everything while the tool has nothing current', async () => {
+      await write(oldSkill, await codexPrompt());
+      await write(oldCommand, await codexPrompt());
+      expect(await findStaleReleasedFiles(project)).toEqual([]);
+    });
+
+    it('leaves the whole root alone while an edited copy sits beside its replacement', async () => {
+      // The root migration kept this one: its replacement exists and differs.
+      await write('.codex/skills/openspec-propose/SKILL.md', 'edited by the user');
+      await write('.agents/skills/openspec-propose/SKILL.md', 'current');
+      await write(oldSkill, await codexPrompt());
+      expect(await findStaleReleasedFiles(project)).not.toContain(oldSkill);
+    });
+  });
+
   it('leaves a former root alone while its move still has files to make', async () => {
     const command = '.windsurf/commands/opsx/new.md';
     expect(RELEASED_GENERATED_PATHS).toContain(command);
