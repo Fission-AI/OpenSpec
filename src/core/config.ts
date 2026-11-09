@@ -38,6 +38,35 @@ export interface AIToolOption {
   requiresIdeRestart?: boolean; // True when slash commands are loaded by an IDE/editor process (a CLI picks them up immediately, so no restart hint — see #1067)
 }
 
+/**
+ * Every tool's project skills live once, in `.agents/skills/`. These tools
+ * don't (or may not) read that folder, so each skill is also linked into the
+ * tool's own `skills/` folder, the way `npx skills` does it. Confirmed by
+ * installing each tool: claude, continue, forgecode (user folder only), kiro,
+ * codebuddy, easycode, iflow, codeartsagent. Unconfirmed without an account:
+ * lingma, gigacode, veai, rovodev, codestudio. Hermes reads only its own and
+ * configured folders.
+ */
+export const SKILL_LINKED_TOOL_IDS: ReadonlySet<string> = new Set([
+  'claude',
+  'continue',
+  'forgecode',
+  'kiro',
+  'codebuddy',
+  'easycode',
+  'iflow',
+  'codeartsagent',
+  'lingma',
+  'gigacode',
+  'veai',
+  'rovodev',
+  'codestudio',
+  'hermes',
+]);
+
+/** Tools that keep skills in their own folder (Amazon Q, being retired). */
+export const OWN_SKILLS_FOLDER_TOOL_IDS: ReadonlySet<string> = new Set(['amazon-q']);
+
 export const AI_TOOLS: AIToolOption[] = [
   { name: 'Amazon Q Developer', value: 'amazon-q', available: true, successLabel: 'Amazon Q Developer', skillsDir: '.amazonq', requiresIdeRestart: true },
   { name: 'Amp', value: 'amp', available: true, successLabel: 'Amp', skillsDir: '.agents', detectionPaths: ['.amp', '.agents/skills'] },

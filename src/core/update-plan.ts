@@ -13,6 +13,7 @@ import * as fs from 'fs';
 import os from 'os';
 import { FileSystemUtils } from '../utils/file-system.js';
 import type { FileView } from './file-view.js';
+import { createSkillLink } from './shared/skill-links.js';
 
 export type UpdatePlanAction = 'add' | 'update' | 'delete';
 
@@ -65,6 +66,12 @@ export interface UpdateFileOps {
   removeDirectory(dirPath: string, tool: string): Promise<void>;
   /** Removes a directory already known to be empty. */
   removeEmptyDirectory(dirPath: string): Promise<void>;
+  /**
+   * Links a skill folder into a tool's own `skills/` folder (a plain copy
+   * where a link can't be made). The caller has checked the spot is not the
+   * user's.
+   */
+  linkSkill(linkPath: string, targetDir: string, tool: string): Promise<void>;
 }
 
 export const realFileOps: UpdateFileOps = {
@@ -79,6 +86,9 @@ export const realFileOps: UpdateFileOps = {
   },
   async removeEmptyDirectory(dirPath) {
     await fs.promises.rmdir(dirPath);
+  },
+  async linkSkill(linkPath, targetDir) {
+    createSkillLink(linkPath, targetDir);
   },
 };
 
@@ -112,6 +122,17 @@ export class UpdatePlanRecorder implements UpdateFileOps {
   async removeEmptyDirectory(dirPath: string): Promise<void> {
     // An empty directory holds no file, so there is nothing to list.
     this.staged.set(path.resolve(dirPath), null);
+  }
+
+  async linkSkill(linkPath: string, targetDir: string, tool: string): Promise<void> {
+    // A link shows up as the shared files appearing at the link path, which
+    // is what anyone listing the folder sees.
+    const to = path.resolve(linkPath);
+    const from = path.resolve(targetDir);
+    for (const filePath of this.filesUnder(to)) this.stage(filePath, null, tool);
+    for (const filePath of this.filesUnder(from)) {
+      this.stage(path.join(to, path.relative(from, filePath)), this.view.read(filePath), tool);
+    }
   }
 
   async removeDirectory(dirPath: string, tool: string): Promise<void> {
