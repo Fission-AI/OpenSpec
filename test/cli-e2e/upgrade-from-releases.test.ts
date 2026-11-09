@@ -253,7 +253,10 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     // Another project on the same machine left Codex prompts in the home folder.
     const other = await initWith('1.5.0', 'shared-home-other', 'codex');
     expect(listFiles(path.join(other.home, '.codex', 'prompts')).length).toBeGreaterThan(0);
-    const box = await initWith('1.16.0', 'shared-home', 'claude', undefined, other.home);
+    // This build's own project, so "nothing changes" means exactly that.
+    const box = { home: other.home, project: path.join(tempRoot, 'shared-home', 'project') };
+    await fs.mkdir(box.project, { recursive: true });
+    expect(run(currentBin, ['init', '--tools', 'claude'], box).status).toBe(0);
     await fs.writeFile(path.join(box.project, 'openspec', 'project.md'), '# Our context\n');
     const before = snapshot(box.project);
 

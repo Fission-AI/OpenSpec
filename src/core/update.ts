@@ -863,9 +863,10 @@ export class UpdateCommand {
         roots.some((root) => root.timing === 'after-generation')
       )
       .map(([toolId]) => toolId);
-    // Like the sweep below: nothing old goes after a declined cleanup or a
-    // failed tool.
-    if (sharedRootStragglers.length > 0 && !this.legacyCleanupSkipped && !anyToolFailed) {
+    // Like the sweep below, nothing old goes after a tool failed. A declined
+    // cleanup does not stop it: it only drops copies the shared folder
+    // already holds, as each updated tool's own move does.
+    if (sharedRootStragglers.length > 0 && !anyToolFailed) {
       if (!this.dryRun) {
         for (const migration of migrateLegacyToolDirs(
           projectPath,
