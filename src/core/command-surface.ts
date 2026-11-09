@@ -52,9 +52,9 @@ export const COMMAND_DEPRECATION_URL = 'https://github.com/Fission-AI/OpenSpec/i
  * change that does not affect it, and a tool that keeps its commands under
  * every delivery is never advised to switch away from its only working surface.
  *
- * Worded "by default" so it holds both for users on the implicit default, whom
- * the next major moves to skills, and for users who set `delivery` explicitly,
- * whose setting the next major keeps.
+ * OpenSpec 2.0 stops generating command files under every delivery setting,
+ * so the notice offers no way to keep them: only the switch, which removes
+ * just the files OpenSpec generated and keeps any the user edited.
  */
 export function formatCommandDeprecationNotice(
   toolIds: readonly string[],
@@ -70,9 +70,9 @@ export function formatCommandDeprecationNotice(
   }
 
   return [
-    'Command files are deprecated: the next major version of OpenSpec installs skills only by default.',
-    '  Switch to skills now: openspec config set delivery skills && openspec update',
-    '  Keep commands for now: openspec config set delivery both',
+    'Command files are deprecated and go away in OpenSpec 2.0. Your OpenSpec skills stay and do the same work.',
+    '  Switch now: openspec config set delivery skills && openspec update',
+    '  This removes only the command files OpenSpec generated; any you edited are kept and listed.',
     `  Details: ${COMMAND_DEPRECATION_URL}`,
   ];
 }

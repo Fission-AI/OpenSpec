@@ -1,5 +1,5 @@
 ---
-"@fission-ai/openspec": patch
+"@fission-ai/openspec": minor
 ---
 
-Generated command files are now marked deprecated. While your delivery setting gives a configured tool command files, `openspec update` ends with a short notice: the next major version installs skills only by default, how to switch now (`openspec config set delivery skills && openspec update`), how to keep commands (`openspec config set delivery both`), and a link to the plan. The notice also appears when every tool is already up to date, and it never appears once delivery is `skills` or for tools that get no command files, such as Codex. Nothing about what OpenSpec installs changes in this release.
+Command files are deprecated and go away in OpenSpec 2.0; skills stay and do the same work. While a configured tool still gets command files, `openspec update` ends with a short notice saying so, with the one command to switch now (`openspec config set delivery skills && openspec update`) and a link to the plan ([#2022](https://github.com/Fission-AI/OpenSpec/issues/2022)). The notice never shows once delivery is `skills`, nor for tools that get no command files, such as Codex. Nothing OpenSpec installs changes in this release.

@@ -9,9 +9,9 @@ describe('formatCommandDeprecationNotice', () => {
     'announces the change when delivery %s still generates command files',
     (delivery) => {
       expect(formatCommandDeprecationNotice(['claude'], delivery)).toEqual([
-        'Command files are deprecated: the next major version of OpenSpec installs skills only by default.',
-        '  Switch to skills now: openspec config set delivery skills && openspec update',
-        '  Keep commands for now: openspec config set delivery both',
+        'Command files are deprecated and go away in OpenSpec 2.0. Your OpenSpec skills stay and do the same work.',
+        '  Switch now: openspec config set delivery skills && openspec update',
+        '  This removes only the command files OpenSpec generated; any you edited are kept and listed.',
         `  Details: ${COMMAND_DEPRECATION_URL}`,
       ]);
     }
