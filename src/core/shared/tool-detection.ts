@@ -27,6 +27,7 @@ import {
   toolSupportsSkills,
 } from './skill-paths.js';
 import { DISK_VIEW, type FileView } from '../file-view.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 
 /**
  * Names of skill directories created by openspec init.
@@ -160,7 +161,7 @@ export function toolHasAnyConfiguredCommand(
  * CRLF line endings, which a Windows clone with `core.autocrlf` reintroduces on
  * every checkout of committed command files.
  */
-function normalizeCommandContent(content: string): string {
+export function normalizeCommandContent(content: string): string {
   return content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
 }
 
@@ -431,6 +432,33 @@ export function getToolVersionStatus(
 }
 
 /**
+ * Whether a tool still has OpenSpec commands under a former root, such as a
+ * commands-only Antigravity install in `.agent/workflows`. Like legacy skills,
+ * they mark the tool as configured, so update can generate the current files
+ * and retire the old ones instead of reporting no tools at all.
+ */
+function hasLegacyCommands(projectRoot: string, toolId: string, view: FileView): boolean {
+  const tool = AI_TOOLS.find((t) => t.value === toolId);
+  const adapter = CommandAdapterRegistry.get(toolId);
+  if (!tool?.skillsDir || !adapter) return false;
+  return (tool.legacySkillsDirs ?? []).some((legacyRoot) =>
+    COMMAND_IDS.some((commandId) => {
+      const commandPath = adapter.getFilePath(commandId);
+      const segments = commandPath.split(/[\\/]/);
+      if (path.isAbsolute(commandPath) || segments[0] !== tool.skillsDir) return false;
+      segments[0] = legacyRoot;
+      const file = path.join(projectRoot, ...segments);
+      try {
+        FileSystemUtils.assertProjectArtifactPath(projectRoot, file);
+        return view.exists(file);
+      } catch {
+        return false;
+      }
+    })
+  );
+}
+
+/**
  * Gets all configured tools in the project (configured via skills or commands).
  */
 export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VIEW): string[] {
@@ -442,7 +470,7 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
         toolHasAnyConfiguredCommand(projectRoot, t.value, view) ||
         (
           resolveCommandSurfaceCapability(t.value) === 'adapter-backed' &&
-          hasLegacySkills(projectRoot, t, view)
+          (hasLegacySkills(projectRoot, t, view) || hasLegacyCommands(projectRoot, t.value, view))
         ) ||
         (Boolean(t.skillsDir) &&
           readSharedSkillTarget(projectRoot, t.skillsDir!, view) === t.value)
@@ -462,7 +490,7 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
         toolHasAnyConfiguredCommand(projectRoot, tool.value, view) ||
         (
           resolveCommandSurfaceCapability(tool.value) === 'adapter-backed' &&
-          hasLegacySkills(projectRoot, tool, view)
+          (hasLegacySkills(projectRoot, tool, view) || hasLegacyCommands(projectRoot, tool.value, view))
         ) ||
         activeProjectTools.has(tool.value)
     )

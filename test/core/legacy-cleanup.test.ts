@@ -17,6 +17,8 @@ import {
   formatDetectionSummary,
   formatProjectMdMigrationHint,
   getToolsFromLegacyArtifacts,
+  legacyCleanupDeletesOnlyReleasedOutput,
+  reachesWithoutLink,
   omitToolLegacyArtifacts,
   LEGACY_CONFIG_FILES,
   LEGACY_GLOBAL_SLASH_COMMAND_PATHS,
@@ -820,6 +822,160 @@ ${OPENSPEC_MARKERS.end}`);
       await expect(fs.access(managedPrompt)).rejects.toThrow();
       await expect(fs.access(unmanagedPrompt)).resolves.not.toThrow();
       await expect(fs.access(outsidePrompt)).resolves.not.toThrow();
+    });
+  });
+
+  // Legacy cleanup builds paths by joining folder names. A folder on the way
+  // that is a link (`.clinerules/workflows` pointing at another project) must
+  // never lead it to files outside this project: not when finding them, not
+  // when judging them safe to remove without asking, and not when deleting.
+  describe('folders reached through a link', () => {
+    // Windows makes directory links as junctions, which need no privilege.
+    const linkDir = (target: string, at: string) =>
+      fs.symlink(target, at, process.platform === 'win32' ? 'junction' : 'dir');
+    const command = (name: string) =>
+      `${OPENSPEC_MARKERS.start}\n${name}\n${OPENSPEC_MARKERS.end}\n`;
+    let outside: string;
+
+    beforeEach(async () => {
+      outside = path.join(testDir, 'outside');
+      await fs.mkdir(outside, { recursive: true });
+    });
+
+    async function outsideFiles(): Promise<string[]> {
+      return (await fs.readdir(outside)).sort();
+    }
+
+    describe('reachesWithoutLink', () => {
+      it('accepts a plain path, and one whose end is missing', async () => {
+        await fs.mkdir(path.join(testDir, '.clinerules', 'workflows'), { recursive: true });
+        expect(await reachesWithoutLink(testDir, '.clinerules/workflows')).toBe(true);
+        expect(await reachesWithoutLink(testDir, '.clinerules/workflows/missing.md')).toBe(true);
+      });
+
+      it('refuses a linked folder anywhere on the way, and a linked end', async () => {
+        await fs.mkdir(path.join(testDir, '.clinerules'), { recursive: true });
+        await linkDir(outside, path.join(testDir, '.clinerules', 'workflows'));
+        expect(await reachesWithoutLink(testDir, '.clinerules/workflows')).toBe(false);
+        expect(await reachesWithoutLink(testDir, '.clinerules/workflows/a.md')).toBe(false);
+      });
+
+      it('refuses a path that climbs out of the project', async () => {
+        expect(await reachesWithoutLink(testDir, '../elsewhere/a.md')).toBe(false);
+      });
+
+      it('still checks a project opened through a link of its own', async () => {
+        await fs.mkdir(path.join(testDir, '.clinerules', 'workflows'), { recursive: true });
+        const alias = path.join(outside, 'alias');
+        await linkDir(testDir, alias);
+        expect(await reachesWithoutLink(alias, '.clinerules/workflows')).toBe(true);
+        await fs.rm(path.join(testDir, '.clinerules', 'workflows'), { recursive: true });
+        await linkDir(outside, path.join(testDir, '.clinerules', 'workflows'));
+        expect(await reachesWithoutLink(alias, '.clinerules/workflows')).toBe(false);
+      });
+    });
+
+    it('does not find commands in a linked folder (files layout, as Cline wrote them)', async () => {
+      await fs.writeFile(path.join(outside, 'openspec-proposal.md'), command('proposal'));
+      await fs.mkdir(path.join(testDir, '.clinerules'), { recursive: true });
+      await linkDir(outside, path.join(testDir, '.clinerules', 'workflows'));
+
+      const result = await detectLegacySlashCommands(testDir);
+
+      expect(result.files.filter((f) => f.startsWith('.clinerules/'))).toEqual([]);
+    });
+
+    it('does not find commands under a linked parent folder (folder layout, as Claude wrote them)', async () => {
+      await fs.mkdir(path.join(outside, 'openspec'), { recursive: true });
+      await fs.writeFile(path.join(outside, 'openspec', 'proposal.md'), command('proposal'));
+      await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
+      await linkDir(outside, path.join(testDir, '.claude', 'commands'));
+
+      const result = await detectLegacySlashCommands(testDir);
+
+      expect(result.directories).not.toContain('.claude/commands/openspec');
+      expect(result.files.filter((f) => f.startsWith('.claude/'))).toEqual([]);
+    });
+
+    it('does not find openspec/AGENTS.md when openspec/ is linked', async () => {
+      await fs.rm(path.join(testDir, 'openspec'), { recursive: true });
+      await fs.writeFile(path.join(outside, 'AGENTS.md'), 'shared instructions\n');
+      await linkDir(outside, path.join(testDir, 'openspec'));
+
+      const result = await detectLegacyStructureFiles(testDir);
+
+      expect(result.hasOpenspecAgents).toBe(false);
+    });
+
+    it('never deletes through a link, even when handed such a path', async () => {
+      // A detection built elsewhere, naming linked paths outright.
+      await fs.writeFile(path.join(outside, 'openspec-proposal.md'), command('proposal'));
+      await fs.mkdir(path.join(outside, 'openspec'), { recursive: true });
+      await fs.writeFile(path.join(outside, 'openspec', 'proposal.md'), command('proposal'));
+      await fs.writeFile(path.join(outside, 'AGENTS.md'), 'shared instructions\n');
+      await fs.mkdir(path.join(testDir, '.clinerules'), { recursive: true });
+      await linkDir(outside, path.join(testDir, '.clinerules', 'workflows'));
+      await fs.mkdir(path.join(testDir, '.claude'), { recursive: true });
+      await linkDir(outside, path.join(testDir, '.claude', 'commands'));
+      await fs.rm(path.join(testDir, 'openspec'), { recursive: true });
+      await linkDir(outside, path.join(testDir, 'openspec'));
+      const before = await outsideFiles();
+
+      const result = await cleanupLegacyArtifacts(testDir, {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: ['.claude/commands/openspec'],
+        slashCommandFiles: ['.clinerules/workflows/openspec-proposal.md'],
+        globalSlashCommandFiles: [],
+        globalSlashCommandDetails: [],
+        hasOpenspecAgents: true,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      });
+
+      expect(await outsideFiles()).toEqual(before);
+      expect(await fs.readdir(path.join(outside, 'openspec'))).toEqual(['proposal.md']);
+      expect(result.deletedFiles).toEqual([]);
+      expect(result.deletedDirs).toEqual([]);
+      expect(result.keptFiles).toEqual(
+        expect.arrayContaining([
+          '.claude/commands/openspec',
+          '.clinerules/workflows/openspec-proposal.md',
+          'openspec/AGENTS.md',
+        ])
+      );
+    });
+
+    it('never calls a linked file safe to remove without asking', async () => {
+      // Real files release 0.23.0 wrote: without the link they would be safe.
+      const fixtures = path.join(__dirname, '..', 'fixtures', 'released-output');
+      const dir = path.join(outside, 'openspec');
+      await fs.mkdir(dir, { recursive: true });
+      for (const name of ['apply', 'archive', 'proposal']) {
+        await fs.copyFile(path.join(fixtures, `v0.23.0-claude-command-${name}.md`), path.join(dir, `${name}.md`));
+      }
+      const detection = {
+        configFiles: [],
+        configFilesToUpdate: [],
+        slashCommandDirs: ['.claude/commands/openspec'],
+        slashCommandFiles: [],
+        globalSlashCommandFiles: [],
+        globalSlashCommandDetails: [],
+        hasOpenspecAgents: false,
+        hasProjectMd: false,
+        hasRootAgentsWithMarkers: false,
+        hasLegacyArtifacts: true,
+      };
+      // In place, the same files are safe to remove.
+      await fs.mkdir(path.join(testDir, '.claude', 'commands'), { recursive: true });
+      await fs.cp(dir, path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
+      expect(await legacyCleanupDeletesOnlyReleasedOutput(testDir, detection)).toBe(true);
+
+      // Reached through a linked parent folder, they are not.
+      await fs.rm(path.join(testDir, '.claude', 'commands'), { recursive: true });
+      await linkDir(outside, path.join(testDir, '.claude', 'commands'));
+      expect(await legacyCleanupDeletesOnlyReleasedOutput(testDir, detection)).toBe(false);
     });
   });
 

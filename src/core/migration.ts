@@ -20,7 +20,7 @@ import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/co
 import { FileSystemUtils } from '../utils/file-system.js';
 import { isSharedSkillTargetActive } from './shared-skill-target.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
-import { isLegacyCodexSkillEquivalentToCurrent } from './shared/skill-content-equivalence.js';
+import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
 import path from 'path';
 import * as fs from 'fs';
 import { resolveToolSkillsDir, toolSupportsSkills } from './shared/skill-paths.js';
@@ -117,11 +117,9 @@ function classifyManagedFile(
   try {
     const sourceContent = fs.readFileSync(source, 'utf-8');
     const destinationContent = view.read(destination);
-    const equivalentGeneratedSkills =
-      path.basename(source) === 'SKILL.md' &&
-      path.basename(destination) === 'SKILL.md' &&
-      isLegacyCodexSkillEquivalentToCurrent(sourceContent, destinationContent);
-    return sourceContent === destinationContent || equivalentGeneratedSkills
+    const isSkillFile =
+      path.basename(source) === 'SKILL.md' && path.basename(destination) === 'SKILL.md';
+    return isRedundantLegacyCopy(sourceContent, destinationContent, isSkillFile)
       ? 'drop'
       : 'keep';
   } catch {
@@ -138,7 +136,7 @@ function classifyManagedFile(
  * command files) or do not start at the tool root — neither can be relocated
  * by swapping a leading segment.
  */
-function legacyCommandPath(
+export function legacyCommandPath(
   commandPath: string,
   currentRoot: string,
   legacyRoot: string
