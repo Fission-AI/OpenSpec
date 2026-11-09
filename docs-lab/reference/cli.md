@@ -178,7 +178,7 @@ openspec update --dry-run
 
 ```
 2 file(s) would change:
-  update  .claude/skills/openspec-propose/SKILL.md  (claude)
+  update  .agents/skills/openspec-propose/SKILL.md  (openspec)
   add     ~/.config/openspec/config.json  (openspec)
 ```
 
@@ -187,7 +187,7 @@ openspec update --dry-run
 ```json
 {
   "changes": [
-    { "path": ".claude/skills/openspec-propose/SKILL.md", "action": "update", "tool": "claude" },
+    { "path": ".agents/skills/openspec-propose/SKILL.md", "action": "update", "tool": "openspec" },
     { "path": "~/.config/openspec/config.json", "action": "add", "tool": "openspec" }
   ],
   "notes": [],
@@ -199,7 +199,7 @@ openspec update --dry-run
 |---|---|
 | `changes[].path` | Project-relative path. A file outside the project, such as a global skill or the global config, is shown from your home directory as `~/...`, or as an absolute path when it is outside home too. |
 | `changes[].action` | `add`, `update`, or `delete`. A file whose new bytes match the old ones is not listed. |
-| `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to OpenSpec itself rather than one tool, the global config and legacy-artifact cleanup, are `openspec`. |
+| `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to no one tool are `openspec`: the shared skills in `.agents/skills/`, the global config, and legacy-artifact cleanup. |
 | `notes[]` | `{ code, message }` for a step a terminal user would be asked about. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. Empty for an ordinary refresh. |
 | `failures[]` | `{ tool, error }` for each tool the real update would fail on, including a write it cannot make: a directory where a file belongs, a file where a directory belongs, or a file or folder without write permission. For that tool, `changes` stops where the real update stops; the other tools are still planned. Failures the disk only reports while writing, such as running out of space, cannot be foreseen. |
 

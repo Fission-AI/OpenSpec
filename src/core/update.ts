@@ -82,6 +82,7 @@ import {
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
+import { isToolListed } from './shared-skill-target.js';
 import { installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import {
@@ -875,6 +876,9 @@ export class UpdateCommand {
       if (!tool || !toolSupportsSkills(tool)) return false;
       if (!shouldGenerateSkillsForTool(tool.value, delivery)) return false;
       if (!getToolSkillStatus(projectPath, tool.value, this.view).configured) return false;
+      // The shared copy is a tool's own only once it is listed; until then its
+      // skills are in its own folder and the update moves them (config sync).
+      if (usesSharedSkills(tool) && !isToolListed(projectPath, tool.value, this.view)) return false;
 
       const skillsDir = resolveToolSkillsDir(projectPath, tool);
       // The shared copy has one wording for every tool; a tool with its own

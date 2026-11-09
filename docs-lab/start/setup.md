@@ -22,7 +22,8 @@ Init asks which AI tools you use, writes the workflow files for the ones you pic
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills and 6 commands in .claude/
+6 skills in .agents/skills/ (linked from .claude/skills/)
+6 commands in .claude/
 Config: openspec/config.yaml (schema: spec-driven)
 ```
 
@@ -55,7 +56,7 @@ Review `config.yaml`, then delete `project.md` when ready.
 Running init creates two things in your project:
 
 - An `openspec/` folder at the repo root
-- Workflow files (skills and commands) added to your AI tool's folder (`.agents/`, `.claude/`, etc.)
+- Workflow files: skills in the shared `.agents/skills/` folder, and commands in your AI tool's folder (`.claude/`, `.cursor/`, etc.)
 
 Commit all of it like the rest of your source. Init changes nothing else in your repo (if it finds leftovers from an older OpenSpec version, it asks before cleaning them up).
 
@@ -75,7 +76,7 @@ openspec/
 
 ### The workflow files (skills and commands)
 
-These are the OpenSpec workflows, the actions you'll use as you work. Here they are as installed skills, in the shared `.agents/` folder most tools use:
+These are the OpenSpec workflows, the actions you'll use as you work. Here they are as installed skills, in the shared `.agents/skills/` folder:
 
 ```
 .agents/skills/
@@ -90,6 +91,8 @@ These are the OpenSpec workflows, the actions you'll use as you work. Here they 
 ```
 
 This is the default set plus two optional workflows. [Profiles](../customize/profiles.md) lists all twelve.
+
+Each skill is written once, here, however many tools you set up. A tool that doesn't read `.agents/skills/` (Claude Code, Kiro, and a few others) gets a link to each skill in its own folder, such as `.claude/skills/openspec-propose`. [Supported tools](../reference/supported-tools.md#where-skills-go) shows the layout and which tools get links.
 
 By default each workflow installs in two forms:
 
@@ -132,7 +135,7 @@ Answering yes applies it to the current project on the spot. Other projects pick
 
 Claude Code loads OpenSpec workflows from one or both of these project paths, based on your delivery setting:
 
-- **Skills**: `.claude/skills/openspec-*/SKILL.md`
+- **Skills**: `.claude/skills/openspec-*`, links to `.agents/skills/openspec-*/SKILL.md`
 - **Commands**: `.claude/commands/opsx/<id>.md`
 
 If the files are missing, refresh the project. In your terminal:

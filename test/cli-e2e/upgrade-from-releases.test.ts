@@ -157,6 +157,19 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
       (rel) => rel.includes('/') && !rel.startsWith('openspec/') && !current.has(rel)
     );
     expect(oldLayout).toEqual([]);
+    // Each linked tool reaches the one shared copy: a link, or where links
+    // can't be made, an identical copy.
+    const shared = path.join(box.project, '.agents', 'skills');
+    for (const dir of ['.claude', '.kiro', '.continue']) {
+      const skillsDir = path.join(box.project, dir, 'skills');
+      if (!existsSync(skillsDir)) continue;
+      for (const name of readdirSync(skillsDir)) {
+        const spot = path.join(skillsDir, name);
+        expect(readFileSync(path.join(spot, 'SKILL.md'), 'utf8'), `${dir}/${name}`).toBe(
+          readFileSync(path.join(shared, name, 'SKILL.md'), 'utf8')
+        );
+      }
+    }
 
     const before = snapshot(box.project);
     const second = run(currentBin, ['update'], box);
@@ -246,7 +259,12 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     const result = run(currentBin, ['update'], box);
     expect(result.status).not.toBe(0);
     expect(result.output).toContain('Failed to set up Claude Code');
-    expect(snapshot(box.project)).toEqual(before);
+    // Every file from before is still there, unchanged. (The shared copy in
+    // .agents/skills may be written before Claude's own folder fails.)
+    const after = snapshot(box.project);
+    for (const [rel, hash] of Object.entries(before)) {
+      expect(after[rel], rel).toBe(hash);
+    }
   }, 600_000);
 
   it('never sets up a tool or cleans up because of prompts in the home folder', async () => {

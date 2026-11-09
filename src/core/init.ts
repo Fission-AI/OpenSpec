@@ -23,6 +23,7 @@ import { ANCHORED_OPENSPEC_DIRS, ensureDirectoryAnchor } from './openspec-root.j
 import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
+  SKILL_LINKED_TOOL_IDS,
   getUniversalTool,
   universalToolFallbackHint,
   OPENSPEC_DIR_NAME,
@@ -1229,29 +1230,26 @@ export class InitCommand {
       const usesGlobalSkillTarget = successfulTools.some((tool) => tool.isGlobalSkillTarget);
 
       if (!usesGlobalSkillTarget) {
-        const toolDirs = [
-          ...new Set(
-            successfulTools
-              .map((tool) => tool.skillsDir)
-              .filter((skillsDir): skillsDir is string => Boolean(skillsDir))
-          ),
-        ].join(', ');
-        const skillCount = successfulTools.some((tool) =>
-          shouldGenerateSkillsForTool(tool.value, delivery)
-        )
-          ? getSkillTemplates(workflows).length
-          : 0;
-        const commandCount = successfulTools.some((tool) =>
-          shouldGenerateCommandsForTool(tool.value, delivery)
-        )
-          ? getCommandContents(workflows).length
-          : 0;
-        if (skillCount > 0 && commandCount > 0) {
-          console.log(`${skillCount} skills and ${commandCount} commands in ${toolDirs}/`);
-        } else if (skillCount > 0) {
-          console.log(`${skillCount} skills in ${toolDirs}/`);
-        } else if (commandCount > 0) {
-          console.log(`${commandCount} commands in ${toolDirs}/`);
+        // Skills sit in one shared folder, linked into the tools that need it;
+        // commands sit in each tool's own folder.
+        const skillTools = successfulTools.filter((tool) => shouldGenerateSkillsForTool(tool.value, delivery));
+        const commandTools = successfulTools.filter((tool) => shouldGenerateCommandsForTool(tool.value, delivery));
+        const toolOption = (id: string) => AI_TOOLS.find((candidate) => candidate.value === id);
+        const skillDirs = [...new Set(skillTools.map((tool) => {
+          const option = toolOption(tool.value);
+          return option && usesSharedSkills(option) ? '.agents/skills/' : `${tool.skillsDir}/skills/`;
+        }))];
+        const linkedFrom = [...new Set(skillTools.flatMap((tool) => {
+          const option = toolOption(tool.value);
+          return option && SKILL_LINKED_TOOL_IDS.has(option.value) ? [`${option.skillsDir}/skills/`] : [];
+        }))];
+        if (skillTools.length > 0) {
+          const links = linkedFrom.length > 0 ? ` (linked from ${linkedFrom.join(', ')})` : '';
+          console.log(`${getSkillTemplates(workflows).length} skills in ${skillDirs.join(', ')}${links}`);
+        }
+        const commandDirs = [...new Set(commandTools.map((tool) => tool.skillsDir).filter(Boolean))];
+        if (commandTools.length > 0 && commandDirs.length > 0) {
+          console.log(`${getCommandContents(workflows).length} commands in ${commandDirs.map((dir) => `${dir}/`).join(', ')}`);
         }
       } else {
         const skillTools = successfulTools.filter((tool) =>
