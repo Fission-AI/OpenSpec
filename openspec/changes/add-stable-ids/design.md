@@ -38,7 +38,7 @@ Refuse duplicate IDs instead of guessing, because agents number sequentially and
 
 ### D5
 
-The CLI never asks for IDs. The `spec-driven` instructions and templates are unchanged, so today's skills write what they did before and IDs stay opt-in. The `openspec-beta` skills (#2134) write them, along with short `### D1` decisions, which the CLI doesn't read.
+The CLI never asks for IDs. The `spec-driven` instructions and templates are unchanged, so today's skills write what they did before and IDs stay opt-in. No skill generates ID labels yet; a later skills rework (#2022) will.
 
 ### D6
 
@@ -70,4 +70,4 @@ The implementation reran the archive check on five repos, including sonqh's spec
 
 ## Open Questions
 
-- Should the default templates ever ask for IDs, once the `openspec-beta` skills have been in use for a while?
+- What guarantees, if any, should ID labels get once skills generate them?

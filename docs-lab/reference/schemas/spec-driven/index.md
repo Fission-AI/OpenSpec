@@ -287,7 +287,7 @@ IDs are optional. A spec without them validates and archives exactly as it did b
 
 - **Syntax**: a word in square brackets at the start of the heading name. It starts with a letter, contains a hyphen and ends in a number: `[AUTH-3]`, `[AUTH-3.1]`, `[REQ-UA-004]`, `[cap-012]`.
 - **Without brackets**: the first word is part of the name. `SHA-256 checksum` and `NAV-5 Users sign in` have no ID.
-- **Who writes it**: the `openspec-beta` skills generate one for every new heading. You can also write one by hand.
+- **Who writes it**: a skill that generates ID labels, or you by hand.
 - **Default instructions**: the instructions and templates above don't ask for IDs, so today's skills write headings without them.
 - **What OpenSpec does**: it reads IDs that are already there. It never asks for, adds, changes or removes one.
 
