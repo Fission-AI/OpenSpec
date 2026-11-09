@@ -2,7 +2,7 @@
 //
 // Fingerprints of every file `openspec init --tools all` generated in each
 // release below, across every profile and delivery that release supports.
-// Releases: 0.12.0, 0.13.0, 0.14.0, 0.15.0, 0.16.0, 0.17.0, 0.17.1, 0.17.2, 0.18.0, 0.19.0, 0.20.0, 0.21.0, 0.22.0, 0.23.0, 1.0.0, 1.0.1, 1.0.2, 1.1.0, 1.1.1, 1.2.0, 1.3.0, 1.3.1, 1.4.0, 1.4.1, 1.5.0, 1.6.0, 1.7.0, 1.8.0, 1.9.0, 1.10.0, 1.11.0, 1.12.0, 1.13.0, 1.13.1, 1.13.2, 1.14.0, 1.14.1, 1.14.2, 1.14.3, 1.15.0, 1.16.0
+// Releases: 0.12.0, 0.13.0, 0.14.0, 0.15.0, 0.16.0, 0.17.0, 0.17.1, 0.17.2, 0.18.0, 0.19.0, 0.20.0, 0.21.0, 0.22.0, 0.23.0, 1.0.0, 1.0.1, 1.0.2, 1.1.0, 1.1.1, 1.2.0, 1.3.0, 1.3.1, 1.4.0, 1.4.1, 1.5.0, 1.6.0, 1.7.0, 1.8.0, 1.9.0, 1.10.0, 1.11.0, 1.12.0, 1.13.0, 1.13.1, 1.13.2, 1.14.0, 1.14.1, 1.14.2, 1.14.3, 1.15.0, 1.16.0, 1.16.1
 // Not captured: 0.1.0 (no non-interactive init), 0.2.0 (no non-interactive init), 0.3.0 (no non-interactive init), 0.4.0 (no non-interactive init), 0.5.0 (no non-interactive init), 0.6.0 (no non-interactive init), 0.7.0 (no non-interactive init), 0.8.0 (no non-interactive init), 0.8.1 (no non-interactive init), 0.9.0 (no non-interactive init), 0.9.1 (no non-interactive init), 0.9.2 (no non-interactive init), 0.10.0 (no non-interactive init), 0.11.0 (no non-interactive init)
 export const RELEASED_GENERATED_FINGERPRINTS: readonly string[] = [
   '0009691a5d8439a0',
