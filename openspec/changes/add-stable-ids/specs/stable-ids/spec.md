@@ -1,6 +1,6 @@
 ## Purpose
 
-Lets requirements and scenarios keep a stable ID through renames, so validate, archive and anything that cites the ID keep working when a heading is reworded.
+Lets requirements and scenarios carry an ID label, so validate and archive can match a reworded heading by its label.
 
 ## ADDED Requirements
 

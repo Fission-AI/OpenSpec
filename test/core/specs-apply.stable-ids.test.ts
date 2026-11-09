@@ -7,7 +7,7 @@ import { headingId } from '../../src/core/parsers/requirement-blocks.js';
 import { Validator } from '../../src/core/validation/validator.js';
 
 /**
- * Stable IDs (#2167): a requirement or scenario heading may start with an ID in
+ * ID labels (#2167): a requirement or scenario heading may start with an ID in
  * square brackets, and validate and archive match a MODIFIED block on that ID
  * before its name, so a renamed heading that keeps its ID is the same
  * requirement or scenario.
@@ -40,7 +40,7 @@ describe('headingId', () => {
   });
 });
 
-describe('buildUpdatedSpec (stable IDs)', () => {
+describe('buildUpdatedSpec (ID labels)', () => {
   let tempDir: string;
 
   beforeEach(async () => {
@@ -242,7 +242,7 @@ describe('buildUpdatedSpec (stable IDs)', () => {
   });
 
   // Headings that start with a version or standard name, but no brackets,
-  // behave exactly as they did before stable IDs.
+  // behave exactly as they did before ID labels.
   describe('ordinary names that look like IDs', () => {
     it('still refuses a dropped scenario whose name starts with SHA-256', async () => {
       const main = spec(requirement('Upload integrity', ['SHA-256 checksum verified', 'Size limit enforced']));

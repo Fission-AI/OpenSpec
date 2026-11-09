@@ -6,7 +6,7 @@ Teams already work around this by putting an ID at the start of the heading (#19
 
 ## What Changes
 
-- **The `openspec-beta` skills (#2134) write the ID into the heading itself,** in square brackets as its first word: `### Requirement: [AUTH-3] Users sign in` and `#### Scenario: [AUTH-3.1] Correct password`. There's no hidden metadata and no new command.
+- **The `openspec-beta` skills (#2134) generate ID labels,** written in square brackets as the heading's first word: `### Requirement: [AUTH-3] Users sign in` and `#### Scenario: [AUTH-3.1] Correct password`. There's no hidden metadata and no new command.
 - **The CLI only reads IDs.** It never asks for, assigns, rewrites or removes one. Its whole role is to match on the ID and refuse duplicates (below).
 - **Validate and archive match on the ID before the name.** A rename that keeps its ID archives, and the scenario-loss guard still refuses a dropped scenario or a dropped ID.
 - **Duplicate IDs are refused,** so two parallel changes that pick the same number are caught instead of overwriting each other.
@@ -17,7 +17,7 @@ Teams already work around this by putting an ID at the start of the heading (#19
 
 ### New Capabilities
 
-- `stable-ids`: recognizing IDs in spec headings, and matching on them in validate and archive.
+- `stable-ids`: recognizing ID labels in spec headings, and matching on them in validate and archive.
 
 ### Modified Capabilities
 

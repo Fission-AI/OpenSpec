@@ -23,7 +23,7 @@ export function normalizeRequirementName(name: string): string {
 }
 
 /**
- * A stable ID written in square brackets at the start of a requirement or
+ * An ID label written in square brackets at the start of a requirement or
  * scenario name (#2167): a word with a hyphen that ends in a number, such as
  * `[AUTH-3]`, `[AUTH-3.1]` or `[cap-012]`. The brackets are required: a bare
  * `SHA-256 checksum` or `HTTP-2 support` is an ordinary name, so specs without

@@ -133,9 +133,9 @@ The system MUST expire sessions after 30 minutes of inactivity.
 - **SHOULD** — recommended, but exceptions exist
 - **MAY** — optional
 
-### Stable IDs
+### ID labels
 
-A requirement or scenario can start with an ID in square brackets, so anything that cites the ID keeps working when the heading is reworded:
+A requirement or scenario can start with an ID label in square brackets, so anything that cites the ID keeps working when the heading is reworded:
 
 ```markdown
 ### Requirement: [AUTH-3] Users sign in
