@@ -18,9 +18,14 @@
   $ProgressPreference = 'SilentlyContinue'
 
   # The OS architecture, not this PowerShell's: an x64 shell on an ARM PC
-  # should still get the native ARM build.
-  $arch = switch ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture) {
-    'X64' { 'x64' }
+  # should still get the native ARM build. In Windows PowerShell 5.1 the bare
+  # RuntimeInformation type can bind to a copy whose OSArchitecture is empty
+  # (#2220), so ask for mscorlib's, and fall back to the machine-wide
+  # PROCESSOR_ARCHITECTURE, which names the OS's CPU even under emulation.
+  $osArch = try { [System.Runtime.InteropServices.RuntimeInformation, mscorlib]::OSArchitecture } catch { $null }
+  if (-not $osArch) { $osArch = [Environment]::GetEnvironmentVariable('PROCESSOR_ARCHITECTURE', 'Machine') }
+  $arch = switch ("$osArch") {
+    { $_ -in 'X64', 'AMD64' } { 'x64' }
     'Arm64' { 'arm64' }
     default { throw "openspec install: unsupported CPU $_. Install with npm instead: npm install -g @fission-ai/openspec" }
   }

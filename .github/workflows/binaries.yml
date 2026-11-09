@@ -172,6 +172,17 @@ jobs:
         shell: pwsh
         run: |
           Invoke-ScriptAnalyzer -Path scripts/binary/install.ps1 -Severity Warning,Error -ExcludeRule PSAvoidUsingWriteHost -EnableExit
+          # Each CPU source install.ps1 reads must name this runner's asset on
+          # its own, so the fallback works where RuntimeInformation is empty (#2220).
+          $want = ($env:ASSET -split '-')[1]
+          foreach ($shell in 'pwsh', 'powershell') {
+            $probe = "try { [string][System.Runtime.InteropServices.RuntimeInformation, mscorlib]::OSArchitecture } catch { 'unresolved' }; [Environment]::GetEnvironmentVariable('PROCESSOR_ARCHITECTURE', 'Machine')"
+            $runtime, $machine = & $shell -NoProfile -Command $probe
+            Write-Host "$shell : RuntimeInformation=$runtime PROCESSOR_ARCHITECTURE=$machine"
+            if ($runtime -notin 'unresolved', '' -and $runtime -ne $want) { throw "$shell RuntimeInformation says $runtime, expected $want" }
+            $mapped = if ($machine -eq 'AMD64') { 'x64' } else { "$machine".ToLowerInvariant() }
+            if ($mapped -ne $want) { throw "$shell PROCESSOR_ARCHITECTURE says $machine, expected $want" }
+          }
           $server = Start-Process python -ArgumentList '-m', 'http.server', '8765', '--directory', 'dist-bin' -PassThru -WindowStyle Hidden
           foreach ($i in 1..40) { try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8765/SHA256SUMS | Out-Null; break } catch { Start-Sleep -Milliseconds 500 } }
           # A user PATH entry that relies on expansion must survive untouched.
