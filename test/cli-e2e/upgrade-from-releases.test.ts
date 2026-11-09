@@ -225,6 +225,25 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     expect(commands).toEqual([]);
   }, 600_000);
 
+  // A folder inside a tool folder can be a link to somewhere else (shared
+  // workflows, another project). Nothing reached through it is the project's.
+  it.each([
+    ['without --force', []],
+    ['with --force', ['--force']],
+  ])('never deletes files outside the project through a linked folder (%s)', async (_label, flags) => {
+    const box = await initWith('0.23.0', `linked-${flags.length}`, 'cline', { delivery: 'skills' });
+    const workflows = path.join(box.project, '.clinerules', 'workflows');
+    const sibling = path.join(tempRoot, `linked-${flags.length}`, 'sibling');
+    await fs.rename(workflows, sibling);
+    await fs.symlink(sibling, workflows, process.platform === 'win32' ? 'junction' : 'dir');
+    const before = snapshot(sibling);
+    expect(Object.keys(before).length).toBeGreaterThan(0);
+
+    const result = run(currentBin, ['update', ...flags], box);
+    expect(result.status, result.output).toBe(0);
+    expect(snapshot(sibling)).toEqual(before);
+  }, 600_000);
+
   it('keeps every file the user edited', async () => {
     const box = await initWith('1.0.0', 'edited');
     const edited = [
