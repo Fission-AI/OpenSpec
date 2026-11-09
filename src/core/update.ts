@@ -30,6 +30,7 @@ import {
   type ToolVersionStatus,
   formatIdeRestart,
 } from './shared/index.js';
+import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -77,6 +78,7 @@ import {
   resolveCommandSurfaceCapability,
   resolveCommandInvocation,
   shouldGenerateCommandsForTool,
+  formatCommandDeprecationNotice,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
@@ -384,6 +386,7 @@ export class UpdateCommand {
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
+      this.displayCommandDeprecation(configuredTools, delivery);
       this.stopIfUpdateFailed(legacyUpgradeFailures);
       return;
     }
@@ -413,6 +416,7 @@ export class UpdateCommand {
     const skillsInvocableCommandSkips: string[] = [];
     const zeroArtifactTools: string[] = [];
     let removedCommandCount = 0;
+    const leftCommandFiles = { kept: [] as string[], unchecked: [] as string[] };
     let removedSkillCount = 0;
     let removedDeselectedCommandCount = 0;
     let removedDeselectedSkillCount = 0;
@@ -516,7 +520,13 @@ export class UpdateCommand {
 
         // Delete command files if delivery is skills-only
         if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
-          removedCommandCount += await this.removeCommandFiles(resolvedProjectPath, toolId);
+          const reconciled = await reconcileCommandFiles(resolvedProjectPath, toolId, toolWorkflows, {
+            view: this.view,
+            remove: (fullPath) => this.ops.removeFile(fullPath, toolId),
+          });
+          removedCommandCount += reconciled.removed.length;
+          leftCommandFiles.kept.push(...reconciled.kept);
+          leftCommandFiles.unchecked.push(...reconciled.unchecked);
         }
 
         spinner.succeed(`Updated ${tool.name}`);
@@ -569,6 +579,12 @@ export class UpdateCommand {
     }
     if (removedCommandCount > 0) {
       this.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
+    }
+    for (const [headline, ...detail] of formatKeptCommandFiles(leftCommandFiles)) {
+      this.log(chalk.yellow(headline));
+      for (const line of detail) {
+        this.log(chalk.dim(line));
+      }
     }
     if (removedSkillCount > 0) {
       this.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (delivery: commands)`));
@@ -647,6 +663,7 @@ export class UpdateCommand {
     // 14. Display the profile notes
     this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile, delivery);
     this.displaySetupNotes(configuredAndNewTools);
+    this.displayCommandDeprecation(configuredAndNewTools, delivery);
 
     // 15. List affected tools
     if (updatedTools.length > 0) {
@@ -1041,6 +1058,23 @@ export class UpdateCommand {
   }
 
   /**
+   * Announces that generated command files are deprecated, on every run while
+   * delivery gives a configured tool command files, whether or not this run
+   * rewrote them. `update` is run on upgrade, so this reaches users
+   * before 2.0 removes command files, without nagging day to day.
+   */
+  private displayCommandDeprecation(toolIds: string[], delivery: Delivery): void {
+    const [headline, ...detail] = formatCommandDeprecationNotice(toolIds, delivery);
+    if (!headline) return;
+
+    this.log();
+    this.log(chalk.yellow(headline));
+    for (const line of detail) {
+      this.log(chalk.dim(line));
+    }
+  }
+
+  /**
    * Detects new tool directories that aren't currently configured and displays a hint.
    */
   private detectNewTools(projectPath: string, configuredTools: string[]): void {
@@ -1224,36 +1258,6 @@ export class UpdateCommand {
       try {
         await this.ops.removeDirectory(skillDir, toolId);
         removed++;
-      } catch {
-        // Ignore errors
-      }
-    }
-
-    return removed;
-  }
-
-  /**
-   * Removes command files for workflows when delivery changed to skills-only.
-   * Returns the number of files removed.
-   */
-  private async removeCommandFiles(
-    projectPath: string,
-    toolId: string,
-  ): Promise<number> {
-    let removed = 0;
-
-    const adapter = CommandAdapterRegistry.get(toolId);
-    if (!adapter) return 0;
-
-    for (const workflow of ALL_WORKFLOWS) {
-      const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
-
-      try {
-        if (this.view.exists(fullPath)) {
-          await this.ops.removeFile(fullPath, toolId);
-          removed++;
-        }
       } catch {
         // Ignore errors
       }

@@ -7,6 +7,11 @@ import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { OPENSPEC_MARKERS } from '../../src/core/config.js';
 import type { GlobalConfig } from '../../src/core/global-config.js';
 import { generateCopilotSetupSteps, persistCopilotCloudOptIn } from '../../src/core/github-copilot/cloud-agent.js';
+import { getCommandContents } from '../../src/core/shared/index.js';
+import {
+  CommandAdapterRegistry,
+  generateCommands,
+} from '../../src/core/command-generation/index.js';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -69,6 +74,24 @@ async function writeReleasedSkill(skillsDir: string, name: string): Promise<stri
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.copyFile(path.join(RELEASED_SKILLS_DIR, name, 'SKILL.md'), target);
   return target;
+}
+
+/**
+ * Writes the command file OpenSpec itself would generate for `workflow`.
+ * Fixtures that stand in a placeholder no longer exercise cleanup, because
+ * cleanup now only deletes files whose content matches generated output.
+ */
+async function writeGeneratedCommand(
+  projectDir: string,
+  toolId: string,
+  workflow: string
+): Promise<string> {
+  const adapter = CommandAdapterRegistry.get(toolId)!;
+  const [generated] = generateCommands(getCommandContents([workflow]), adapter);
+  const full = path.join(projectDir, generated.path);
+  await fs.mkdir(path.dirname(full), { recursive: true });
+  await fs.writeFile(full, generated.fileContent);
+  return full;
 }
 
 async function markCodexTarget(skillsDir: string): Promise<void> {
@@ -1520,6 +1543,48 @@ metadata:
     });
   });
 
+  describe('migrating to skills-only delivery', () => {
+    it('deletes generated command files but keeps one the user edited', async () => {
+      // The migration path for #2022: switching delivery to skills must clear
+      // the generated commands without discarding a user's own work.
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+      const proposeCmd = path.join(testDir, '.claude', 'commands', 'opsx', 'propose.md');
+      const applyCmd = path.join(testDir, '.claude', 'commands', 'opsx', 'apply.md');
+      const edited = `${await fs.readFile(proposeCmd, 'utf-8')}\n<!-- team step -->\n`;
+      await fs.writeFile(proposeCmd, edited);
+
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      const consoleSpy = vi.spyOn(console, 'log');
+      await new UpdateCommand({ force: true }).execute(testDir);
+
+      // The skill is in place, so the workflow still works...
+      expect(
+        await FileSystemUtils.fileExists(
+          path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md')
+        )
+      ).toBe(true);
+      // ...the untouched command is gone...
+      expect(await FileSystemUtils.fileExists(applyCmd)).toBe(false);
+      // ...and the edited one survives byte-for-byte, named in the output.
+      expect(await fs.readFile(proposeCmd, 'utf-8')).toBe(edited);
+      const logs = consoleSpy.mock.calls.flat().map(String);
+      expect(
+        logs.some((entry) => entry.includes('Kept 1 command file that does not match'))
+      ).toBe(true);
+      expect(
+        logs.some((entry) => entry.includes(path.join('.claude', 'commands', 'opsx', 'propose.md')))
+      ).toBe(true);
+
+      // A kept file is not drift: the next plain update finds nothing to sync.
+      consoleSpy.mockClear();
+      await new UpdateCommand().execute(testDir);
+      const nextLogs = consoleSpy.mock.calls.flat().map(String);
+      expect(nextLogs.some((entry) => entry.includes('config sync'))).toBe(false);
+      expect(nextLogs.some((entry) => entry.includes('Kept 1 command file'))).toBe(false);
+      expect(await fs.readFile(proposeCmd, 'utf-8')).toBe(edited);
+    });
+  });
+
   describe('multi-tool support', () => {
     it('should update multiple configured tools', async () => {
       // Set up Claude
@@ -1918,6 +1983,52 @@ metadata:
       const logCalls = consoleSpy.mock.calls.flat().map(String);
       expect(logCalls.some((entry) => entry.includes('.windsurf → .devin'))).toBe(false);
       consoleSpy.mockRestore();
+    });
+  });
+
+  describe('command deprecation notice', () => {
+    const headline = 'Command files are deprecated';
+
+    async function runUpdate(command: UpdateCommand = new UpdateCommand()): Promise<string[]> {
+      const consoleSpy = vi.spyOn(console, 'log');
+      await command.execute(testDir);
+      const logs = consoleSpy.mock.calls.flat().map(String);
+      consoleSpy.mockRestore();
+      return logs;
+    }
+
+    it('announces the deprecation when update regenerates command files', async () => {
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+
+      const logs = await runUpdate(new UpdateCommand({ force: true }));
+
+      expect(logs.some((entry) => entry.includes(headline))).toBe(true);
+      expect(
+        logs.some((entry) => entry.includes('openspec config set delivery skills && openspec update'))
+      ).toBe(true);
+      expect(logs.some((entry) => entry.includes('issues/2022'))).toBe(true);
+    });
+
+    it('still announces it when every tool is already up to date', async () => {
+      // The up-to-date path returns early, and is what most users hit on a
+      // routine run. Missing it there would hide the notice from them.
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+
+      const logs = await runUpdate();
+
+      expect(logs.some((entry) => entry.includes('up to date'))).toBe(true);
+      expect(logs.some((entry) => entry.includes(headline))).toBe(true);
+    });
+
+    it('stays quiet once delivery is skills-only', async () => {
+      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+
+      const forced = await runUpdate(new UpdateCommand({ force: true }));
+      const routine = await runUpdate();
+
+      expect(forced.some((entry) => entry.includes(headline))).toBe(false);
+      expect(routine.some((entry) => entry.includes(headline))).toBe(false);
     });
   });
 
@@ -4215,8 +4326,7 @@ content
       );
 
       const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
-      await fs.mkdir(commandsDir, { recursive: true });
-      await fs.writeFile(path.join(commandsDir, 'explore.md'), 'old command');
+      await writeGeneratedCommand(testDir, 'claude', 'explore');
 
       await updateCommand.execute(testDir);
 

@@ -8,7 +8,8 @@ import {
   WORKFLOW_TO_SKILL_DIR,
 } from '../../src/core/profile-sync-drift.js';
 import { CORE_WORKFLOWS } from '../../src/core/profiles.js';
-import { CommandAdapterRegistry } from '../../src/core/command-generation/index.js';
+import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
+import { getCommandContents } from '../../src/core/shared/index.js';
 
 /**
  * Claude's skill as 2.0 writes it: the one shared copy in .agents/skills, a
@@ -36,6 +37,16 @@ function writeCommand(projectDir: string, workflowId: string): void {
   const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectDir, cmdPath);
   fs.mkdirSync(path.dirname(fullPath), { recursive: true });
   fs.writeFileSync(fullPath, `# ${workflowId}\n`);
+}
+
+function writeGeneratedCommand(projectDir: string, workflowId: string): string {
+  const adapter = CommandAdapterRegistry.get('claude');
+  if (!adapter) throw new Error('Claude adapter unavailable in test environment');
+  const [generated] = generateCommands(getCommandContents([workflowId]), adapter);
+  const fullPath = path.join(projectDir, generated.path);
+  fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+  fs.writeFileSync(fullPath, generated.fileContent);
+  return fullPath;
 }
 
 function setupCoreSkills(projectDir: string): void {
@@ -77,12 +88,24 @@ describe('profile sync drift detection', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('detects drift for skills-only delivery when commands still exist', () => {
+  it('detects drift for skills-only delivery when generated commands still exist', () => {
+    setupCoreSkills(tempDir);
+    for (const workflow of CORE_WORKFLOWS) {
+      writeGeneratedCommand(tempDir, workflow);
+    }
+
+    const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'skills');
+    expect(hasDrift).toBe(true);
+  });
+
+  it('does not report drift for skills-only delivery when only kept command files remain', () => {
+    // Cleanup leaves edited or older-version command files on disk. Counting
+    // them as drift would re-sync on every update without ever clearing them.
     setupCoreSkills(tempDir);
     setupCoreCommands(tempDir);
 
     const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'skills');
-    expect(hasDrift).toBe(true);
+    expect(hasDrift).toBe(false);
   });
 
   it('detects drift for commands-only delivery when skills still exist', () => {

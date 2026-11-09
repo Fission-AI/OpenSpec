@@ -105,7 +105,7 @@ Why two: commands came first, and every tool spells them its own way. Skills are
 
 Some tools install in skill form only. Where the tool runs skills directly, init skips commands and says so (`Commands skipped for: codex (uses skills)`).
 
-We prefer skills and expect to retire commands eventually.
+Commands are deprecated and go away in OpenSpec 2.0; skills stay. [Profiles](../customize/profiles.md#delivery-skills-commands-or-both) shows how to switch now.
 
 #### Change what gets installed
 

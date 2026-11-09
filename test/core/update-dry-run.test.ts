@@ -165,6 +165,15 @@ describe('openspec update --dry-run', () => {
     return plan;
   }
 
+  // #2089: the deprecation notice is progress output, so a dry run, which
+  // prints only its plan, keeps it out.
+  it('prints no command deprecation notice while planning', async () => {
+    const log = vi.mocked(console.log);
+    log.mockClear();
+    await new UpdateCommand({ dryRun: true }).plan(testDir);
+    expect(log.mock.calls.flat().join('\n')).not.toContain('Command files are deprecated');
+  });
+
   it('plans nothing for a fresh install', async () => {
     const changes = await expectPlanMatchesRealUpdate();
     expect(changes).toEqual([]);
@@ -230,6 +239,20 @@ describe('openspec update --dry-run', () => {
       action: 'delete',
       tool: 'claude',
     });
+  });
+
+  // #2087: a command file the user edited is kept, so the plan must not list
+  // it as a deletion, and must still list the generated ones it removes.
+  it('plans to keep an edited command file when delivery becomes skills-only', async () => {
+    const edited = path.join(testDir, '.claude', 'commands', 'opsx', 'apply.md');
+    await fs.writeFile(edited, `${await fs.readFile(edited, 'utf-8')}\nMy own note.\n`);
+    await writeGlobalConfig({ profile: 'core', delivery: 'skills' });
+
+    const changes = await expectPlanMatchesRealUpdate();
+
+    expect(changes).toContainEqual({ path: '.claude/commands/opsx/propose.md', action: 'delete', tool: 'claude' });
+    expect(changes.map((change) => change.path)).not.toContain('.claude/commands/opsx/apply.md');
+    expect(await fs.readFile(edited, 'utf-8')).toContain('My own note.');
   });
 
   it('lists skills that live outside the project, under the user home', async () => {

@@ -41,3 +41,38 @@ export function shouldGenerateCommandsForTool(toolId: string, delivery: Delivery
 export function shouldReconcileCommandFilesForTool(toolId: string, delivery: Delivery): boolean {
   return delivery === 'skills' && resolveCommandSurfaceCapability(toolId) === 'adapter-backed';
 }
+
+export const COMMAND_DEPRECATION_URL = 'https://github.com/Fission-AI/OpenSpec/issues/2022';
+
+/**
+ * The notice `openspec update` prints while delivery gives a tool command files,
+ * which are deprecated in favor of skills. It is shown only for a tool that
+ * switching to skills-only delivery would change: one that gets command files
+ * now and would not under `skills`. A skills-only project is never told about a
+ * change that does not affect it, and a tool that keeps its commands under
+ * every delivery is never advised to switch away from its only working surface.
+ *
+ * OpenSpec 2.0 stops generating command files under every delivery setting,
+ * so the notice offers no way to keep them: only the switch, which removes
+ * just the files OpenSpec generated and keeps any the user edited.
+ */
+export function formatCommandDeprecationNotice(
+  toolIds: readonly string[],
+  delivery: Delivery
+): string[] {
+  const switchingChangesSomething = toolIds.some(
+    (toolId) =>
+      shouldGenerateCommandsForTool(toolId, delivery) &&
+      !shouldGenerateCommandsForTool(toolId, 'skills')
+  );
+  if (!switchingChangesSomething) {
+    return [];
+  }
+
+  return [
+    'Command files are deprecated and go away in OpenSpec 2.0. Your OpenSpec skills stay and do the same work.',
+    '  Switch now: openspec config set delivery skills && openspec update',
+    '  This removes only the command files OpenSpec generated; any you edited are kept and listed.',
+    `  Details: ${COMMAND_DEPRECATION_URL}`,
+  ];
+}
