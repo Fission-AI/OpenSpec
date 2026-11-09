@@ -198,10 +198,12 @@ Skills are the shared copy in `.agents/skills/`.
 
 ### Hermes Agent
 
-Hermes loads skills only from `~/.hermes/skills/` by default. OpenSpec links each
-skill into the project's `.hermes/skills/` folder; add that folder to
-`skills.external_dirs` in `~/.hermes/config.yaml`. Init prints this reminder after
-install.
+OpenSpec links each skill into the project's `.hermes/skills/` folder. Hermes
+v2026.6.5 and later load that folder once you trust the repo: run
+`hermes skills trust` inside the project. Until then, Hermes shows a notice that it
+found project skills but did not load them. On older versions, add the project's
+`.hermes/skills/` folder to `skills.external_dirs` in `~/.hermes/config.yaml`
+instead. Init prints this reminder after install.
 
 ### MiniMax Code
 

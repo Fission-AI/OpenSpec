@@ -1110,7 +1110,7 @@ describe('InitCommand', () => {
       ).toBe(true);
       expect(
         logCalls.some(
-          (entry) => entry.includes('Setup required for Hermes Agent') && entry.includes('skills.external_dirs'),
+          (entry) => entry.includes('Setup required for Hermes Agent') && entry.includes('skills.external_dirs') && entry.includes('hermes skills trust'),
         ),
       ).toBe(true);
     });
