@@ -863,7 +863,9 @@ export class UpdateCommand {
         roots.some((root) => root.timing === 'after-generation')
       )
       .map(([toolId]) => toolId);
-    if (sharedRootStragglers.length > 0) {
+    // Like the sweep below: nothing old goes after a declined cleanup or a
+    // failed tool.
+    if (sharedRootStragglers.length > 0 && !this.legacyCleanupSkipped && !anyToolFailed) {
       if (!this.dryRun) {
         for (const migration of migrateLegacyToolDirs(
           projectPath,
@@ -1355,10 +1357,12 @@ export class UpdateCommand {
     }
 
     if (this.force || onlyReleasedOutput) {
+      // An unasked cleanup replaces every detected tool's old files, so it
+      // sets up every one of them rather than offering a picker to untick.
       const legacyUpgrade = await this.upgradeLegacyTools(
         projectPath,
         onlyReleasedOutput ? projectDetection : detection,
-        canPrompt,
+        canPrompt && !onlyReleasedOutput,
         desiredWorkflows,
         delivery
       );

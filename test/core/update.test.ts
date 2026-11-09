@@ -2746,6 +2746,31 @@ metadata:
   });
 
   describe('legacy cleanup', () => {
+    it('sets up every detected tool, with no picker, when it cleans up without asking', async () => {
+      // Untouched 0.23 Claude commands: update removes them without --force,
+      // so it must not let the user untick the tool that replaces them.
+      const fixtures = path.join(__dirname, '..', 'fixtures', 'released-output');
+      const commandsDir = path.join(testDir, '.claude', 'commands', 'openspec');
+      await fs.mkdir(commandsDir, { recursive: true });
+      for (const name of ['proposal', 'apply', 'archive']) {
+        await fs.copyFile(
+          path.join(fixtures, `v0.23.0-claude-command-${name}.md`),
+          path.join(commandsDir, `${name}.md`)
+        );
+      }
+      interactiveState.value = true;
+      searchableMultiSelectMock.mockResolvedValue([]);
+
+      await new UpdateCommand().execute(testDir);
+
+      expect(searchableMultiSelectMock).not.toHaveBeenCalled();
+      expect(confirmMock).not.toHaveBeenCalled();
+      expect(await FileSystemUtils.fileExists(
+        path.join(testDir, '.claude', 'skills', 'openspec-propose', 'SKILL.md')
+      )).toBe(true);
+      expect(await FileSystemUtils.directoryExists(commandsDir)).toBe(false);
+    });
+
     it('should detect and auto-cleanup legacy files with --force flag', async () => {
       // Set up a configured tool
       const skillsDir = path.join(testDir, '.claude', 'skills');

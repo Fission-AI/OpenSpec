@@ -100,7 +100,7 @@ describe('stale released output', () => {
     await write(STALE, await codexPrompt());
     await codexReplacement();
     const alias = path.join(root, 'alias');
-    await fs.symlink(project, alias, 'dir');
+    await fs.symlink(project, alias, process.platform === 'win32' ? 'junction' : 'dir');
     expect(await findStaleReleasedFiles(alias)).toEqual([STALE]);
   });
 
