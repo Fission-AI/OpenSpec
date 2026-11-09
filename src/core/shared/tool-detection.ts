@@ -10,7 +10,7 @@ import { CommandAdapterRegistry, generateCommands } from '../command-generation/
 import { getCommandContents } from './skill-generation.js';
 import { getGlobalConfig, type Delivery } from '../global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
-import { hasLegacySkills, isToolListed } from '../shared-skill-target.js';
+import { hasLegacySkills, isToolListed, readKeptSharedSkills, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
 import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
@@ -20,6 +20,7 @@ import {
   getSkillCapableTools,
   resolveFormerOwnSkillsDir,
   resolveSharedSkillsDir,
+  resolveSkillLinkDir,
   resolveToolSkillsDir,
   toolSupportsSkills,
   usesSharedSkills,
@@ -96,6 +97,22 @@ export function getToolsWithSkillsDir(): string[] {
 }
 
 /**
+ * Whether a tool listed in `.agents/skills/.openspec-target` is still set up.
+ * A tool OpenSpec gave files of its own (commands, or links) is listed with
+ * `own-files` and stays set up only while some remain: deleting its folder
+ * removes it. A tool with none (a skills-only tool that reads the shared
+ * folder) has only the list to record it.
+ */
+export function isListedToolPresent(projectRoot: string, toolId: string, view: FileView = DISK_VIEW): boolean {
+  const tool = AI_TOOLS.find((t) => t.value === toolId);
+  if (!tool || !usesSharedSkills(tool) || !isToolListed(projectRoot, toolId, view)) return false;
+  if (!readListedToolsWithOwnFiles(projectRoot, view).has(toolId)) return true;
+  if (toolHasAnyConfiguredCommand(projectRoot, toolId, view)) return true;
+  const linkDir = resolveSkillLinkDir(projectRoot, tool);
+  return linkDir !== undefined && OPENSPEC_SKILL_NAMES.some((name) => view.exists(path.join(linkDir, name, 'SKILL.md')));
+}
+
+/**
  * Where a tool's OpenSpec skills can be found, most current first. A tool that
  * shares `.agents/skills` owns what is there only when it is listed as set up;
  * its own folder holds a pre-2.0 copy or, for a linked tool, its links; then
@@ -106,7 +123,7 @@ function skillDirsForTool(projectRoot: string, tool: SkillCapableTool, view: Fil
   if (!usesSharedSkills(tool)) return [resolveToolSkillsDir(projectRoot, tool), ...legacy];
   const own = resolveFormerOwnSkillsDir(projectRoot, tool);
   return [
-    ...(isToolListed(projectRoot, tool.value, view) ? [resolveSharedSkillsDir(projectRoot)] : []),
+    ...(isListedToolPresent(projectRoot, tool.value, view) ? [resolveSharedSkillsDir(projectRoot)] : []),
     ...(own ? [own] : []),
     ...legacy,
   ];
@@ -257,7 +274,7 @@ export function getToolStates(projectRoot: string): Map<string, ToolSkillStatus>
     // A listed tool is set up even when its delivery writes no skills.
     states.set(
       tool.value,
-      isToolListed(projectRoot, tool.value) ? { ...skillStatus, configured: true } : skillStatus
+      isListedToolPresent(projectRoot, tool.value) ? { ...skillStatus, configured: true } : skillStatus
     );
   }
 
@@ -352,8 +369,13 @@ export function getToolVersionStatus(
   } catch {
     usesSkills = true;
   }
+  const sharedDir = resolveSharedSkillsDir(projectRoot);
+  const keptShared = usesSharedSkills(tool) ? readKeptSharedSkills(projectRoot, view) : new Set<string>();
   const speaksForVersion = (skillsDir: string, skillFile: string): boolean => {
-    if (skillsDir !== ownDir || usesSkills) return true;
+    // A skill the user keeps in the shared folder is theirs, not a version,
+    // whether read there or through a tool's link to it.
+    if (keptShared.has(path.basename(path.dirname(skillFile)))) return false;
+    if (skillsDir === sharedDir || skillsDir !== ownDir || usesSkills) return true;
     if (view.linkTarget?.(path.dirname(skillFile)) !== undefined) return true;
     try {
       return isReleasedGeneratedContent(view.read(skillFile));
@@ -376,7 +398,7 @@ export function getToolVersionStatus(
   // Configured from any of its skills; current only from those found above.
   const skillConfigured = foundSkill;
   const commandConfigured = toolHasAnyConfiguredCommand(projectRoot, toolId, view);
-  const markerConfigured = usesSharedSkills(tool) && isToolListed(projectRoot, toolId, view);
+  const markerConfigured = isListedToolPresent(projectRoot, toolId, view);
   const configured =
     getToolSkillStatus(projectRoot, toolId, view).configured || commandConfigured || markerConfigured;
 
@@ -479,7 +501,7 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
           resolveCommandSurfaceCapability(t.value) === 'adapter-backed' &&
           (hasLegacySkills(projectRoot, t, view) || hasLegacyCommands(projectRoot, t.value, view))
         ) ||
-        (usesSharedSkills(t) && isToolListed(projectRoot, t.value, view))
+        isListedToolPresent(projectRoot, t.value, view)
       );
     })
     .map((tool) => tool.value);

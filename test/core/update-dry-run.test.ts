@@ -687,11 +687,10 @@ describe('openspec update --dry-run', () => {
       path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
       '<!-- OPENSPEC:START -->\nold\n<!-- OPENSPEC:END -->\n'
     );
-    // A folder where the first shared skill belongs: setting Cursor up fails
+    // A file where the shared skills folder belongs: setting Cursor up fails
     // before anything is written, so the project stays unconfigured.
-    const blocked = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
-    await fs.mkdir(blocked, { recursive: true });
-    await fs.writeFile(path.join(blocked, 'x'), 'x');
+    await fs.mkdir(path.join(testDir, '.agents'), { recursive: true });
+    await fs.writeFile(path.join(testDir, '.agents', 'skills'), 'not a folder');
     const setupSteps = path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml');
     await fs.mkdir(path.dirname(setupSteps), { recursive: true });
     await fs.writeFile(setupSteps, generateCopilotSetupSteps());

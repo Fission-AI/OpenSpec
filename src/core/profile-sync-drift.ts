@@ -11,7 +11,7 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-import { isToolListed, readSkillToolList } from './shared-skill-target.js';
+import { isToolListed, readKeptSharedSkills, readSkillToolList } from './shared-skill-target.js';
 import { ownSkillFolderNeedsWork } from './shared/shared-skill-install.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
@@ -129,7 +129,11 @@ export function hasToolProfileOrDeliveryDrift(
     if (
       !shouldGenerateSkills &&
       !readSkillToolList(projectPath, view).some((id) => shouldGenerateSkillsForTool(id, delivery)) &&
-      ALL_WORKFLOWS.some((workflow) => view.exists(path.join(skillsDir, WORKFLOW_TO_SKILL_DIR[workflow])))
+      ALL_WORKFLOWS.some((workflow) => {
+        const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+        return view.exists(path.join(skillsDir, dirName, 'SKILL.md')) &&
+          !readKeptSharedSkills(projectPath, view).has(dirName);
+      })
     ) {
       return true;
     }
@@ -144,12 +148,14 @@ export function hasToolProfileOrDeliveryDrift(
       }
     }
 
-    // Deselecting workflows in a profile should trigger sync.
+    // Deselecting workflows in a profile should trigger sync. A skill the
+    // user keeps in the shared folder is theirs and stays.
+    const kept = shared ? readKeptSharedSkills(projectPath, view) : new Set<string>();
     for (const workflow of ALL_WORKFLOWS) {
       if (desiredWorkflowSet.has(workflow)) continue;
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const skillDir = path.join(skillsDir, dirName);
-      if (view.exists(skillDir)) {
+      if (view.exists(path.join(skillDir, 'SKILL.md')) && !kept.has(dirName)) {
         return true;
       }
     }

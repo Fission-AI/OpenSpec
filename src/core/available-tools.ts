@@ -8,7 +8,7 @@
 import path from 'path';
 import { AI_TOOLS, type AIToolOption } from './config.js';
 import { readSkillToolList } from './shared-skill-target.js';
-import { SKILL_NAMES } from './shared/tool-detection.js';
+import { SKILL_NAMES, isListedToolPresent } from './shared/tool-detection.js';
 import { SHARED_SKILLS_ROOT, resolveToolSkillsDir, toolSupportsSkills, usesSharedSkills } from './shared/skill-paths.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 
@@ -57,6 +57,6 @@ export function getAvailableTools(projectPath: string, view: FileView = DISK_VIE
       : tool.skillsDir !== SHARED_SKILLS_ROOT && view.isDirectory(path.join(projectPath, tool.skillsDir));
     // A tool listed as set up is present even with no folder of its own
     // (a skills-only Cursor reads `.agents/skills` and has no `.cursor`).
-    return hasOwnPath || (usesSharedSkills(tool) && listed.includes(tool.value));
+    return hasOwnPath || (usesSharedSkills(tool) && listed.includes(tool.value) && isListedToolPresent(projectPath, tool.value, view));
   });
 }

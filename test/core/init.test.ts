@@ -1261,7 +1261,7 @@ describe('InitCommand', () => {
         expect(proposeSkill).toContain('`openspec-apply-change`');
         expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
         expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe(
-          'antigravity\ncodex\n'
+          'antigravity own-files\ncodex\n'
         );
         expect(
           await fileExists(path.join(testDir, '.agents', 'workflows', 'opsx-propose.md'))
@@ -1275,7 +1275,7 @@ describe('InitCommand', () => {
       await new InitCommand({ tools: 'antigravity', force: true }).execute(testDir);
 
       const skillsDir = path.join(testDir, '.agents', 'skills');
-      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('agents\nantigravity\n');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('agents\nantigravity own-files\n');
       expect(
         await fs.readFile(path.join(skillsDir, 'openspec-propose', 'SKILL.md'), 'utf-8')
       ).toContain('`openspec-apply-change`');
@@ -1303,12 +1303,12 @@ describe('InitCommand', () => {
       await new InitCommand({ tools: 'antigravity', force: true }).execute(testDir);
       expect(
         await fs.readFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'utf-8')
-      ).toBe('antigravity\n');
+      ).toBe('antigravity own-files\n');
 
       await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
 
       const skillsDir = path.join(testDir, '.agents', 'skills');
-      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('antigravity\ncodex\n');
+      expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('antigravity own-files\ncodex\n');
       const proposeSkill = await fs.readFile(
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
@@ -1339,7 +1339,7 @@ describe('InitCommand', () => {
       ).toBe(true);
       expect(
         await fs.readFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'utf-8')
-      ).toBe('antigravity\ncodex\n');
+      ).toBe('antigravity own-files\ncodex\n');
     });
 
     it('should keep a configured Codex tree compatible when Zed is added later', async () => {
@@ -1586,7 +1586,7 @@ describe('InitCommand', () => {
       expect(await fileExists(cursorSkill)).toBe(true);
       // Re-running init for Cursor keeps Claude listed as set up.
       expect(await fs.readFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'utf-8')).toBe(
-        'claude\ncursor\n'
+        'claude own-files\ncursor own-files\n'
       );
     });
 
@@ -2055,7 +2055,7 @@ describe('InitCommand - profile and detection features', () => {
       // The detected tool is set up: listed, reading the one shared copy.
       const skillFile = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
       expect(await fileExists(skillFile)).toBe(true);
-      expect(await fs.readFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'utf-8')).toBe(`${tool}\n`);
+      expect(await fs.readFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'utf-8')).toBe(`${tool} own-files\n`);
     }
   );
 

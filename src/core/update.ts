@@ -82,7 +82,7 @@ import {
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
-import { isToolListed } from './shared-skill-target.js';
+import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
 import { installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import {
@@ -892,7 +892,10 @@ export class UpdateCommand {
           resolveCommandInvocation(tool.value)
         );
 
+      const kept = usesSharedSkills(tool) ? readKeptSharedSkills(projectPath, this.view) : new Set<string>();
       return getSkillTemplates(workflowsForTool(toolId)).some(({ template, dirName }) => {
+        // A skill the user keeps in the shared folder is theirs to change.
+        if (kept.has(dirName)) return false;
         const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
         if (!this.view.exists(skillFile)) return false;
         try {

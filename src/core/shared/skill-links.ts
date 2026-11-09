@@ -35,7 +35,7 @@ function linkPointsTo(linkPath: string, linked: string, targetDir: string): bool
 export function classifySkillLinkSpot(
   linkPath: string,
   targetDir: string,
-  sharedContent: string,
+  sharedContent: string | readonly string[],
   view: FileView = DISK_VIEW
 ): SkillLinkSpot {
   // Everything through the view, so a dry run sees what it planned earlier
@@ -59,8 +59,15 @@ export function classifySkillLinkSpot(
   } catch {
     return 'user';
   }
-  if (normalizeGeneratedContent(content) === normalizeGeneratedContent(sharedContent)) return 'copy';
+  if (matchesAny(content, sharedContent)) return 'copy';
   return isReleasedGeneratedContent(content) ? 'released' : 'user';
+}
+
+/** Whether content equals any of the shared copy's texts (current or previous). */
+function matchesAny(content: string, sharedContent: string | readonly string[]): boolean {
+  const normalized = normalizeGeneratedContent(content);
+  const texts = typeof sharedContent === 'string' ? [sharedContent] : sharedContent;
+  return texts.some((text) => normalizeGeneratedContent(text) === normalized);
 }
 
 /**
@@ -70,7 +77,7 @@ export function classifySkillLinkSpot(
  */
 export function classifySkillFile(
   skillDir: string,
-  sharedContent: string,
+  sharedContent: string | readonly string[],
   view: FileView = DISK_VIEW
 ): 'missing' | 'copy' | 'released' | 'user' {
   const skillFile = path.join(skillDir, 'SKILL.md');
@@ -83,7 +90,7 @@ export function classifySkillFile(
   } catch {
     return 'user';
   }
-  if (normalizeGeneratedContent(content) === normalizeGeneratedContent(sharedContent)) return 'copy';
+  if (matchesAny(content, sharedContent)) return 'copy';
   return isReleasedGeneratedContent(content) ? 'released' : 'user';
 }
 
