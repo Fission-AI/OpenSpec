@@ -51,8 +51,12 @@ describe('stale released output', () => {
     }
   });
 
-  // Codex's current skills: the replacement for its old prompt files.
-  const codexReplacement = () => write('.agents/skills/openspec-new-change/SKILL.md', 'current');
+  // Codex's current skills, as an update leaves them: the shared copy with
+  // Codex listed as set up. The shared copy alone belongs to every tool.
+  const codexReplacement = async () => {
+    await write('.agents/skills/openspec-new-change/SKILL.md', 'current');
+    await write('.agents/skills/.openspec-target', 'codex\n');
+  };
 
   it('finds an untouched file an earlier release left, once its tool has a replacement', async () => {
     await write(STALE, await codexPrompt());
@@ -63,6 +67,15 @@ describe('stale released output', () => {
   it('keeps it while its tool has no replacement in the project', async () => {
     // Nothing current for Codex: the old file may be all the user has.
     await write(STALE, await codexPrompt());
+    expect(await findStaleReleasedFiles(project)).toEqual([]);
+  });
+
+  it('does not treat the shared copy as a replacement for a tool that is not listed', async () => {
+    // Every tool's skills live in .agents/skills now, so a shared skill says
+    // nothing about Codex: with only Claude listed, Codex's file stays.
+    await write(STALE, await codexPrompt());
+    await write('.agents/skills/openspec-new-change/SKILL.md', 'current');
+    await write('.agents/skills/.openspec-target', 'claude\n');
     expect(await findStaleReleasedFiles(project)).toEqual([]);
   });
 
@@ -114,7 +127,8 @@ describe('stale released output', () => {
     const command = '.windsurf/commands/opsx/new.md';
     expect(RELEASED_GENERATED_PATHS).toContain(command);
     await write(command, await codexPrompt());
-    await write('.devin/skills/openspec-new-change/SKILL.md', 'current');
+    await write('.agents/skills/openspec-new-change/SKILL.md', 'current');
+    await write('.agents/skills/.openspec-target', 'devin\n');
     // The Windsurf → Devin move asks first. While it still has skills or
     // commands to move (it was declined, or delivery is commands-only), the
     // user may be on a build that reads only .windsurf/.

@@ -99,11 +99,20 @@ describe('config profile interactive flow', () => {
       'openspec-sync-specs',
       'openspec-archive-change',
     ];
+    // As 2.0 writes them: one shared copy, Claude's links to it, Claude listed.
     for (const dirName of coreSkillDirs) {
-      const skillPath = path.join(projectDir, '.claude', 'skills', dirName, 'SKILL.md');
-      fs.mkdirSync(path.dirname(skillPath), { recursive: true });
-      fs.writeFileSync(skillPath, `name: ${dirName}\n`, 'utf-8');
+      const sharedDir = path.join(projectDir, '.agents', 'skills', dirName);
+      fs.mkdirSync(sharedDir, { recursive: true });
+      fs.writeFileSync(path.join(sharedDir, 'SKILL.md'), `name: ${dirName}\n`, 'utf-8');
+      const linkPath = path.join(projectDir, '.claude', 'skills', dirName);
+      fs.mkdirSync(path.dirname(linkPath), { recursive: true });
+      fs.symlinkSync(
+        process.platform === 'win32' ? sharedDir : path.join('..', '..', '.agents', 'skills', dirName),
+        linkPath,
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
     }
+    fs.writeFileSync(path.join(projectDir, '.agents', 'skills', '.openspec-target'), 'claude\n', 'utf-8');
 
     const coreCommands = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'];
     for (const commandId of coreCommands) {

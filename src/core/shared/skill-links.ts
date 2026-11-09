@@ -7,6 +7,7 @@
 import path from 'path';
 import * as fs from 'fs';
 import { isReleasedGeneratedContent, normalizeGeneratedContent } from './generated-fingerprint.js';
+import { DISK_VIEW, type FileView } from '../file-view.js';
 
 /**
  * What sits where a skill's link belongs:
@@ -18,11 +19,10 @@ import { isReleasedGeneratedContent, normalizeGeneratedContent } from './generat
  */
 export type SkillLinkSpot = 'missing' | 'link' | 'copy' | 'released' | 'user';
 
-function linkPointsTo(linkPath: string, targetDir: string): boolean {
+function linkPointsTo(linkPath: string, linked: string, targetDir: string): boolean {
+  if (path.resolve(linked) === path.resolve(targetDir)) return true;
   try {
-    const target = fs.readlinkSync(linkPath);
-    return path.resolve(path.dirname(linkPath), target) === path.resolve(targetDir) ||
-      fs.realpathSync(linkPath) === fs.realpathSync(targetDir);
+    return fs.realpathSync(linkPath) === fs.realpathSync(targetDir);
   } catch {
     return false;
   }
@@ -32,27 +32,54 @@ function linkPointsTo(linkPath: string, targetDir: string): boolean {
  * Classifies a skill's link spot. `sharedContent` is the SKILL.md the shared
  * copy holds (or will hold, in a dry run).
  */
-export function classifySkillLinkSpot(linkPath: string, targetDir: string, sharedContent: string): SkillLinkSpot {
-  let stats: fs.Stats;
-  try {
-    stats = fs.lstatSync(linkPath);
-  } catch {
-    return 'missing';
-  }
-  if (stats.isSymbolicLink()) return linkPointsTo(linkPath, targetDir) ? 'link' : 'user';
-  if (!stats.isDirectory()) return 'user';
+export function classifySkillLinkSpot(
+  linkPath: string,
+  targetDir: string,
+  sharedContent: string,
+  view: FileView = DISK_VIEW
+): SkillLinkSpot {
+  // Everything through the view, so a dry run sees what it planned earlier
+  // (a link it made, files a move put here) the way the real run sees disk.
+  const linked = view.linkTarget?.(linkPath);
+  if (linked !== undefined) return linkPointsTo(linkPath, linked, targetDir) ? 'link' : 'user';
+  if (!view.exists(linkPath)) return 'missing';
+  if (!view.isDirectory(linkPath)) return 'user';
   let entries: string[];
   try {
-    entries = fs.readdirSync(linkPath);
+    entries = view.listDirectory ? view.listDirectory(linkPath) : fs.readdirSync(linkPath);
   } catch {
     return 'user';
   }
   if (entries.length !== 1 || entries[0] !== 'SKILL.md') return 'user';
   const skillFile = path.join(linkPath, 'SKILL.md');
+  if (view.linkTarget?.(skillFile) !== undefined || view.isDirectory(skillFile)) return 'user';
   let content: string;
   try {
-    if (!fs.lstatSync(skillFile).isFile()) return 'user';
-    content = fs.readFileSync(skillFile, 'utf-8');
+    content = view.read(skillFile);
+  } catch {
+    return 'user';
+  }
+  if (normalizeGeneratedContent(content) === normalizeGeneratedContent(sharedContent)) return 'copy';
+  return isReleasedGeneratedContent(content) ? 'released' : 'user';
+}
+
+/**
+ * Classifies only the SKILL.md in a skill folder, ignoring anything else the
+ * folder holds: OpenSpec's file can be untouched even when the user keeps
+ * notes beside it.
+ */
+export function classifySkillFile(
+  skillDir: string,
+  sharedContent: string,
+  view: FileView = DISK_VIEW
+): 'missing' | 'copy' | 'released' | 'user' {
+  const skillFile = path.join(skillDir, 'SKILL.md');
+  if (view.linkTarget?.(skillDir) !== undefined || view.linkTarget?.(skillFile) !== undefined) return 'user';
+  if (!view.exists(skillFile)) return 'missing';
+  if (view.isDirectory(skillFile)) return 'user';
+  let content: string;
+  try {
+    content = view.read(skillFile);
   } catch {
     return 'user';
   }

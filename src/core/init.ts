@@ -51,6 +51,7 @@ import {
   SKILL_NAMES,
   getToolsWithSkillsDir,
   getToolSkillStatus,
+  getConfiguredTools,
   getToolStates,
   getSkillTemplates,
   getCommandContents,
@@ -65,11 +66,10 @@ import { getGlobalConfig, type Delivery, type Profile } from './global-config.js
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
-import {
-  resolveSharedSkillWriters,
-  sharedSkillRootOwner,
-  writeSharedSkillTarget,
-} from './shared-skill-target.js';
+import { usesSharedSkills } from './shared/skill-paths.js';
+import { installSharedSkills } from './shared/shared-skill-install.js';
+import { realFileOps } from './update-plan.js';
+import { DISK_VIEW } from './file-view.js';
 import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
@@ -834,42 +834,7 @@ export class InitCommand {
       selectedTools.push(tool);
     }
 
-    // A selected tool may share its physical skills root with an already
-    // configured owner. Include that owner in the refresh without dropping the
-    // selected tool: it may still have an independent command surface.
     const generationTools = [...selectedTools];
-    const delivery: Delivery = getGlobalConfig().delivery ?? 'both';
-    for (const selected of selectedTools) {
-      if (!selected.skillsDir) continue;
-      const selectedOwner = selected.value === 'codex' ||
-        !shouldGenerateSkillsForTool(selected.value, delivery)
-        ? undefined
-        : sharedSkillRootOwner(projectPath, selected.value);
-      for (const candidate of AI_TOOLS) {
-        if (
-          candidate.skillsDir === selected.skillsDir &&
-          toolStates.get(candidate.value)?.configured &&
-          candidate.value === selectedOwner &&
-          !generationTools.includes(candidate)
-        ) {
-          generationTools.push(candidate);
-        }
-      }
-    }
-
-    const skillWriters = resolveSharedSkillWriters(projectPath, generationTools);
-    const sharedRoots = new Map<string, AIToolOption[]>();
-    for (const tool of generationTools) {
-      if (!tool.skillsDir) continue;
-      const group = sharedRoots.get(tool.skillsDir) ?? [];
-      group.push(tool);
-      sharedRoots.set(tool.skillsDir, group);
-    }
-    for (const [root, group] of sharedRoots) {
-      if (group.length < 2) continue;
-      const owner = group.find((tool) => skillWriters.has(tool.value));
-      console.log(chalk.dim(`${group.map((tool) => tool.name).join(', ')} share ${root}/skills; writing one tree for ${owner?.value}.`));
-    }
 
     const validatedTools: ValidatedInitTool[] = [];
     for (const tool of generationTools) {
@@ -885,7 +850,8 @@ export class InitCommand {
         skillsRoot: isGlobalSkillTarget ? skillsPath : projectPath,
         isGlobalSkillTarget,
         wasConfigured: preState?.configured ?? false,
-        writesSkills: !tool.skillsDir || skillWriters.has(tool.value),
+        // Shared-folder skills are written once for every tool, not per tool.
+        writesSkills: !usesSharedSkills(tool),
       });
     }
 
@@ -979,11 +945,52 @@ export class InitCommand {
     const skillTemplates = getSkillTemplates(workflows);
     const commandContents = getCommandContents(workflows);
 
+    // Every tool's project skills are one shared copy in `.agents/skills/`,
+    // written once for the selected tools and every tool already set up here
+    // (so re-running init for one tool keeps the others listed).
+    const sharedToolIds = [
+      ...new Set([...tools.map((tool) => tool.value), ...getConfiguredTools(projectPath)]),
+    ];
+    let ownFolderErrors = new Map<string, Error>();
+    try {
+      const shared = await installSharedSkills({
+        projectPath,
+        tools: AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value)),
+        delivery,
+        version: OPENSPEC_VERSION,
+        workflowsFor: () => workflows,
+        ops: realFileOps,
+        view: DISK_VIEW,
+        writesToDisk: true,
+      });
+      if (shared.writtenSkillCount === 0) removedSkillCount += shared.removedSkillCount;
+      ownFolderErrors = shared.toolFailures;
+      if (shared.kept.length > 0) {
+        console.log(
+          chalk.yellow(
+            `Kept ${shared.kept.length} skill folder${shared.kept.length === 1 ? '' : 's'} with your own changes: ` +
+              `${shared.kept.join(', ')}. Nothing was overwritten. Compare each with .agents/skills ` +
+              'and delete yours once you have kept what you need.'
+          )
+        );
+      }
+    } catch (error) {
+      // Every tool sharing the folder fails with this.
+      const message = error instanceof Error ? error.message : String(error);
+      const failure = new Error(`the shared skills in .agents/skills could not be written: ${message}`);
+      ownFolderErrors = new Map(
+        AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value) && usesSharedSkills(tool))
+          .map((tool) => [tool.value, failure])
+      );
+    }
+
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
 
       try {
+        const ownFolderError = ownFolderErrors.get(tool.value);
+        if (ownFolderError) throw ownFolderError;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
 
@@ -1007,7 +1014,6 @@ export class InitCommand {
             FileSystemUtils.assertPathWithin(tool.skillsRoot, skillFile);
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
-          writeSharedSkillTarget(projectPath, tool.value);
         }
         if (
           shouldRemoveSkillsForTool(tool.value, delivery) &&
@@ -1015,9 +1021,6 @@ export class InitCommand {
           !tool.isGlobalSkillTarget
         ) {
           removedSkillCount += await this.removeSkillDirs(tool.skillsRoot, tool.skillsPath);
-          // Retain an explicit selection even when this delivery mode produces
-          // no skills, so a divergent legacy sibling cannot reclaim ownership.
-          writeSharedSkillTarget(projectPath, tool.value);
         }
 
         // Generate commands if delivery includes commands

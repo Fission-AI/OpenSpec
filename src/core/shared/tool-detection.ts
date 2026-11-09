@@ -10,12 +10,7 @@ import { CommandAdapterRegistry, generateCommands } from '../command-generation/
 import { getCommandContents } from './skill-generation.js';
 import { getGlobalConfig, type Delivery } from '../global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
-import {
-  isSharedSkillTargetActive,
-  hasLegacySkills,
-  readSharedSkillTarget,
-  reconcileSharedSkillTargets,
-} from '../shared-skill-target.js';
+import { hasLegacySkills, isToolListed } from '../shared-skill-target.js';
 import {
   shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
@@ -23,11 +18,16 @@ import {
 } from '../command-surface.js';
 import {
   getSkillCapableTools,
+  resolveFormerOwnSkillsDir,
+  resolveSharedSkillsDir,
   resolveToolSkillsDir,
   toolSupportsSkills,
+  usesSharedSkills,
+  type SkillCapableTool,
 } from './skill-paths.js';
 import { DISK_VIEW, type FileView } from '../file-view.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { isReleasedGeneratedContent } from './generated-fingerprint.js';
 
 /**
  * Names of skill directories created by openspec init.
@@ -96,6 +96,23 @@ export function getToolsWithSkillsDir(): string[] {
 }
 
 /**
+ * Where a tool's OpenSpec skills can be found, most current first. A tool that
+ * shares `.agents/skills` owns what is there only when it is listed as set up;
+ * its own folder holds a pre-2.0 copy or, for a linked tool, its links; then
+ * any former root.
+ */
+function skillDirsForTool(projectRoot: string, tool: SkillCapableTool, view: FileView): string[] {
+  const legacy = (tool.legacySkillsDirs ?? []).map((root) => path.join(projectRoot, root, 'skills'));
+  if (!usesSharedSkills(tool)) return [resolveToolSkillsDir(projectRoot, tool), ...legacy];
+  const own = resolveFormerOwnSkillsDir(projectRoot, tool);
+  return [
+    ...(isToolListed(projectRoot, tool.value, view) ? [resolveSharedSkillsDir(projectRoot)] : []),
+    ...(own ? [own] : []),
+    ...legacy,
+  ];
+}
+
+/**
  * Checks which skill files exist for a tool.
  */
 export function getToolSkillStatus(
@@ -107,16 +124,7 @@ export function getToolSkillStatus(
   if (!tool || !toolSupportsSkills(tool)) {
     return { configured: false, fullyConfigured: false, skillCount: 0 };
   }
-  if (tool.skillsDir && !isSharedSkillTargetActive(projectRoot, toolId, view)) {
-    return { configured: false, fullyConfigured: false, skillCount: 0 };
-  }
-
-  const skillsDirs = [
-    resolveToolSkillsDir(projectRoot, tool),
-    ...(tool.legacySkillsDirs ?? []).map((root) =>
-      path.join(projectRoot, root, 'skills')
-    ),
-  ];
+  const skillsDirs = skillDirsForTool(projectRoot, tool, view);
   let skillCount = 0;
 
   for (const skillName of SKILL_NAMES) {
@@ -246,27 +254,11 @@ export function getToolStates(projectRoot: string): Map<string, ToolSkillStatus>
 
   for (const tool of tools) {
     const skillStatus = getToolSkillStatus(projectRoot, tool.value);
-    const markerConfigured =
-      Boolean(tool.skillsDir) &&
-      readSharedSkillTarget(projectRoot, tool.skillsDir!) === tool.value;
+    // A listed tool is set up even when its delivery writes no skills.
     states.set(
       tool.value,
-      markerConfigured
-        ? { ...skillStatus, configured: true }
-        : skillStatus
+      isToolListed(projectRoot, tool.value) ? { ...skillStatus, configured: true } : skillStatus
     );
-  }
-
-  const configuredTools = tools.filter(
-    (tool) => tool.skillsDir && states.get(tool.value)?.configured
-  );
-  const activeSharedTargets = new Set(
-    reconcileSharedSkillTargets(projectRoot, configuredTools).map((tool) => tool.value)
-  );
-  for (const tool of configuredTools) {
-    if (!activeSharedTargets.has(tool.value)) {
-      states.set(tool.value, { configured: false, fullyConfigured: false, skillCount: 0 });
-    }
   }
 
   return states;
@@ -344,20 +336,35 @@ export function getToolVersionStatus(
     };
   }
 
-  const skillsDirs = [
-    resolveToolSkillsDir(projectRoot, tool),
-    ...(tool.legacySkillsDirs ?? []).map((root) =>
-      path.join(projectRoot, root, 'skills')
-    ),
-  ];
+  const skillsDirs = skillDirsForTool(projectRoot, tool, view);
   let generatedByVersion: string | null = null;
   let foundSkill = false;
 
-  // 1. Find the first skill file that exists and read its version
+  // 1. Find the first skill file that exists and read its version. When the
+  //    tool gets no skills under the current delivery, a copy the user keeps
+  //    in its own folder says nothing about what is installed (only a link or
+  //    untouched release output does); reading it would make every update
+  //    think the tool is out of date.
+  const ownDir = usesSharedSkills(tool) ? resolveFormerOwnSkillsDir(projectRoot, tool) : undefined;
+  let usesSkills = true;
+  try {
+    usesSkills = shouldGenerateSkillsForTool(toolId, options?.delivery ?? getGlobalConfig().delivery ?? 'both');
+  } catch {
+    usesSkills = true;
+  }
+  const speaksForVersion = (skillsDir: string, skillFile: string): boolean => {
+    if (skillsDir !== ownDir || usesSkills) return true;
+    if (view.linkTarget?.(path.dirname(skillFile)) !== undefined) return true;
+    try {
+      return isReleasedGeneratedContent(view.read(skillFile));
+    } catch {
+      return false;
+    }
+  };
   for (const skillName of SKILL_NAMES) {
     for (const skillsDir of skillsDirs) {
       const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-      if (view.exists(skillFile)) {
+      if (view.exists(skillFile) && speaksForVersion(skillsDir, skillFile)) {
         generatedByVersion = extractGeneratedByVersion(skillFile, view);
         foundSkill = true;
         break;
@@ -366,12 +373,12 @@ export function getToolVersionStatus(
     if (foundSkill) break;
   }
 
-  const skillConfigured = getToolSkillStatus(projectRoot, toolId, view).configured;
+  // Configured from any of its skills; current only from those found above.
+  const skillConfigured = foundSkill;
   const commandConfigured = toolHasAnyConfiguredCommand(projectRoot, toolId, view);
-  const markerConfigured =
-    Boolean(tool.skillsDir) &&
-    readSharedSkillTarget(projectRoot, tool.skillsDir!, view) === toolId;
-  const configured = skillConfigured || commandConfigured || markerConfigured;
+  const markerConfigured = usesSharedSkills(tool) && isToolListed(projectRoot, toolId, view);
+  const configured =
+    getToolSkillStatus(projectRoot, toolId, view).configured || commandConfigured || markerConfigured;
 
   // 2. Commands-only installs have no skill file to read a version from, so fall
   //    back to comparing the generated command content. Deliberately skipped when
@@ -462,7 +469,7 @@ function hasLegacyCommands(projectRoot: string, toolId: string, view: FileView):
  * Gets all configured tools in the project (configured via skills or commands).
  */
 export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VIEW): string[] {
-  const configured = AI_TOOLS
+  return AI_TOOLS
     .filter((t) => {
       if (!toolSupportsSkills(t)) return false;
       return (
@@ -472,28 +479,9 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
           resolveCommandSurfaceCapability(t.value) === 'adapter-backed' &&
           (hasLegacySkills(projectRoot, t, view) || hasLegacyCommands(projectRoot, t.value, view))
         ) ||
-        (Boolean(t.skillsDir) &&
-          readSharedSkillTarget(projectRoot, t.skillsDir!, view) === t.value)
+        (usesSharedSkills(t) && isToolListed(projectRoot, t.value, view))
       );
-    });
-  const activeProjectTools = new Set(
-    reconcileSharedSkillTargets(
-      projectRoot,
-      configured.filter((tool) => tool.skillsDir),
-      view
-    ).map((tool) => tool.value)
-  );
-  return configured
-    .filter(
-      (tool) =>
-        tool.globalSkillsDir ||
-        toolHasAnyConfiguredCommand(projectRoot, tool.value, view) ||
-        (
-          resolveCommandSurfaceCapability(tool.value) === 'adapter-backed' &&
-          (hasLegacySkills(projectRoot, tool, view) || hasLegacyCommands(projectRoot, tool.value, view))
-        ) ||
-        activeProjectTools.has(tool.value)
-    )
+    })
     .map((tool) => tool.value);
 }
 

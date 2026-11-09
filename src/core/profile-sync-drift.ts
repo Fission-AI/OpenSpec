@@ -11,7 +11,8 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-import { readSharedSkillTarget } from './shared-skill-target.js';
+import { isToolListed, readSkillToolList } from './shared-skill-target.js';
+import { ownSkillFolderNeedsWork } from './shared/shared-skill-install.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
@@ -19,6 +20,7 @@ import {
   hasGlobalSkillTarget,
   resolveToolSkillsDir,
   toolSupportsSkills,
+  usesSharedSkills,
 } from './shared/skill-paths.js';
 
 type WorkflowId = (typeof ALL_WORKFLOWS)[number];
@@ -83,9 +85,8 @@ export function hasToolProfileOrDeliveryDrift(
   const shouldGenerateSkills = shouldGenerateSkillsForTool(toolId, delivery);
   const shouldGenerateCommands = shouldGenerateCommandsForTool(toolId, delivery);
 
-  const sharedTarget = tool.skillsDir
-    ? readSharedSkillTarget(projectPath, tool.skillsDir, view)
-    : undefined;
+  const shared = usesSharedSkills(tool);
+  const listed = shared && isToolListed(projectPath, toolId, view);
   for (const root of tool.legacySkillsDirs ?? []) {
     for (const workflow of knownDesiredWorkflows) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
@@ -93,7 +94,7 @@ export function hasToolProfileOrDeliveryDrift(
       if (!view.exists(legacySkill)) continue;
 
       const currentSkill = path.join(skillsDir, dirName, 'SKILL.md');
-      if (!view.exists(currentSkill) || sharedTarget !== toolId) {
+      if (!view.exists(currentSkill) || (shared && !listed)) {
         return true;
       }
       try {
@@ -116,6 +117,24 @@ export function hasToolProfileOrDeliveryDrift(
     }
   }
 
+  if (shared) {
+    // The shared copy is common to every set-up tool, so only this tool's own
+    // part is checked here: being listed, and its own skills folder.
+    if (shouldGenerateSkills && !listed) return true;
+    const linked = new Set<string>(
+      shouldGenerateSkills ? knownDesiredWorkflows.map((workflow) => WORKFLOW_TO_SKILL_DIR[workflow]) : []
+    );
+    if (ownSkillFolderNeedsWork(projectPath, tool, linked, view)) return true;
+    // Skills no listed tool needs any more (all moved to commands-only).
+    if (
+      !shouldGenerateSkills &&
+      !readSkillToolList(projectPath, view).some((id) => shouldGenerateSkillsForTool(id, delivery)) &&
+      ALL_WORKFLOWS.some((workflow) => view.exists(path.join(skillsDir, WORKFLOW_TO_SKILL_DIR[workflow])))
+    ) {
+      return true;
+    }
+  }
+
   if (shouldGenerateSkills) {
     for (const workflow of knownDesiredWorkflows) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
@@ -134,7 +153,7 @@ export function hasToolProfileOrDeliveryDrift(
         return true;
       }
     }
-  } else if (shouldRemoveSkillsForTool(toolId, delivery) && !hasGlobalSkillTarget(tool)) {
+  } else if (shouldRemoveSkillsForTool(toolId, delivery) && !hasGlobalSkillTarget(tool) && !shared) {
     for (const workflow of ALL_WORKFLOWS) {
       const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
       const skillDir = path.join(skillsDir, dirName);

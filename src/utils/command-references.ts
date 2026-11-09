@@ -123,6 +123,16 @@ export function transformToCodexCompatibleSkillReferences(text: string): string 
 }
 
 /**
+ * The wording of the one shared copy in `.agents/skills/`, which every tool
+ * reads: `/opsx:<command>` becomes the bare skill name (`openspec-propose`).
+ * Each tool invokes a skill by name in its own syntax (`/`, `$`, `/skill:`, or
+ * by asking), so the name alone is the one form that is right in all of them.
+ */
+export function transformToSharedSkillReferences(text: string): string {
+  return replaceCommandsWithSkillReferences(text, '');
+}
+
+/**
  * Transforms command references to skill references using the default `/`
  * invocation prefix. Converts `/opsx:<command>` patterns to
  * `/openspec-<skill>` so that generated skills do not reference commands

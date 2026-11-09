@@ -30,6 +30,12 @@ export function resolveToolSkillsDir(
     return path.join(homeDir, tool.globalSkillsDir, 'skills');
   }
 
+  // Every tool's project skills share one folder; only tools that keep their
+  // own (see usesSharedSkills) are written under their own `skillsDir`.
+  if (usesSharedSkills(tool)) {
+    return resolveSharedSkillsDir(projectRoot);
+  }
+
   if (tool.skillsDir) {
     return path.join(projectRoot, tool.skillsDir, 'skills');
   }

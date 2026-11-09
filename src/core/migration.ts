@@ -18,12 +18,17 @@ import { COMMAND_IDS } from './shared/tool-detection.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer, getTransformerForTool } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { isSharedSkillTargetActive } from './shared-skill-target.js';
+import { isToolListed } from './shared-skill-target.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
 import path from 'path';
 import * as fs from 'fs';
-import { resolveToolSkillsDir, toolSupportsSkills } from './shared/skill-paths.js';
+import {
+  resolveFormerOwnSkillsDir,
+  resolveToolSkillsDir,
+  toolSupportsSkills,
+  usesSharedSkills,
+} from './shared/skill-paths.js';
 
 export interface LegacyToolRoot {
   /** Former tool root, e.g. '.kimi' */
@@ -532,8 +537,16 @@ function scanInstalledWorkflowArtifacts(
     const skillsDirs: string[] = [];
     if (tool.globalSkillsDir) {
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
-    } else if (isSharedSkillTargetActive(projectPath, tool.value, view)) {
+    } else if (!usesSharedSkills(tool)) {
       skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
+    } else {
+      // The shared copy is this tool's when it is listed; its own folder holds
+      // a copy from before 2.0 (or its links).
+      if (isToolListed(projectPath, tool.value, view)) {
+        skillsDirs.push(resolveToolSkillsDir(projectPath, tool));
+      }
+      const own = resolveFormerOwnSkillsDir(projectPath, tool);
+      if (own) skillsDirs.push(own);
       if (includeLegacyRoots) {
         skillsDirs.push(
           ...(tool.legacySkillsDirs ?? []).map((root) =>

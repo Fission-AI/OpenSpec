@@ -11,7 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { getSkillReferenceTransformer, getTransformerForTool, transformToSkillReferences } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool, transformToSharedSkillReferences, transformToSkillReferences } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   generateCommands,
@@ -81,10 +81,8 @@ import {
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
 } from './command-surface.js';
-import {
-  resolveSharedSkillWriters,
-  sharedSkillTargetMarkerPath,
-} from './shared-skill-target.js';
+import { usesSharedSkills } from './shared/skill-paths.js';
+import { installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import {
   realFileOps,
@@ -408,14 +406,6 @@ export class UpdateCommand {
     const deliveryIncludesCommands = delivery !== 'skills';
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
-    const sharedSkillWriters = resolveSharedSkillWriters(
-      resolvedProjectPath,
-      configuredAndNewTools
-        .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
-        .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined),
-      // A legacy upgrade earlier in this run may have claimed the root.
-      this.view
-    );
     const updatedTools: string[] = [];
     const updatedToolIds: string[] = [];
     const failedTools: ToolFailure[] = [...legacyUpgradeFailures];
@@ -425,6 +415,22 @@ export class UpdateCommand {
     let removedSkillCount = 0;
     let removedDeselectedCommandCount = 0;
     let removedDeselectedSkillCount = 0;
+
+    // Every tool's project skills are one shared copy in `.agents/skills/`:
+    // written once for all set-up tools, before any tool's former-root move
+    // (which needs it in place).
+    const sharedInstall = await this.installSharedSkillsForRun(
+      resolvedProjectPath,
+      configuredAndNewTools,
+      toolsToUpdate,
+      delivery,
+      (toolId) => legacyWorkflowOverrides[toolId] ?? desiredWorkflows
+    );
+    if (sharedInstall.writtenSkillCount === 0) {
+      removedSkillCount += sharedInstall.removedSkillCount;
+    } else {
+      removedDeselectedSkillCount += sharedInstall.removedSkillCount;
+    }
 
     for (const toolId of toolsToUpdate) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -437,8 +443,11 @@ export class UpdateCommand {
         const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : resolvedProjectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
-        const writesSkills = !tool.skillsDir || sharedSkillWriters.has(tool.value);
+        // Shared-folder skills were written once above.
+        const writesSkills = !usesSharedSkills(tool);
         const toolWorkflows = legacyWorkflowOverrides[tool.value] ?? desiredWorkflows;
+        const ownFolderError = sharedInstall.toolFailures.get(tool.value);
+        if (ownFolderError) throw ownFolderError;
         const skillTemplates = getSkillTemplates(toolWorkflows);
         const commandContents = getCommandContents(toolWorkflows);
 
@@ -458,8 +467,6 @@ export class UpdateCommand {
             FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await this.ops.writeFile(skillFile, skillContent, tool.value);
           }
-          await this.writeSharedSkillTarget(resolvedProjectPath, tool.value);
-
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(
             skillsRoot,
             skillsDir,
@@ -469,15 +476,10 @@ export class UpdateCommand {
         }
 
         // Delete skill directories if delivery is commands-only
-        if (
-          shouldRemoveSkillsForTool(tool.value, delivery) &&
-          writesSkills &&
-          !hasGlobalSkillTarget(tool)
-        ) {
-          removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir, tool.value);
-          // Persist the selected owner even when commands-only delivery leaves
-          // this target with no generated skills.
-          await this.writeSharedSkillTarget(resolvedProjectPath, tool.value);
+        if (shouldRemoveSkillsForTool(tool.value, delivery) && !hasGlobalSkillTarget(tool)) {
+          if (writesSkills) {
+            removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir, tool.value);
+          }
           // A tool with no command adapter now has zero OpenSpec artifacts;
           // say so like init does, rather than deleting its skills silently
           // and letting tool detection re-suggest an init that would also
@@ -661,14 +663,73 @@ export class UpdateCommand {
   }
 
   /**
-   * Records the shared-skills-root owner through the write seam, so a dry run
-   * lists the marker file a real update would write.
+   * Writes the shared copy in `.agents/skills/`, the links, and moves old
+   * per-tool copies, once per run, when any tool that shares that folder is
+   * being refreshed. If the shared copy itself can't be written, every tool
+   * sharing it fails with that error, so nothing old of theirs is cleaned up
+   * in this run.
    */
-  private async writeSharedSkillTarget(projectPath: string, toolId: string): Promise<void> {
-    const marker = sharedSkillTargetMarkerPath(projectPath, toolId);
-    if (!marker) return;
-    FileSystemUtils.assertProjectArtifactPath(projectPath, marker);
-    await this.ops.writeFile(marker, `${toolId}\n`, toolId);
+  private async installSharedSkillsForRun(
+    projectPath: string,
+    setUpToolIds: readonly string[],
+    toolsToRefresh: readonly string[],
+    delivery: Delivery,
+    workflowsFor: (toolId: string) => readonly string[]
+  ): Promise<SharedSkillInstallResult> {
+    const toolOptions = (ids: readonly string[]) =>
+      ids
+        .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
+        .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined);
+    const empty: SharedSkillInstallResult = {
+      writtenSkillCount: 0,
+      removedSkillCount: 0,
+      replacedOldCopyCount: 0,
+      kept: [],
+      toolFailures: new Map(),
+    };
+    if (!toolOptions(toolsToRefresh).some(usesSharedSkills)) return empty;
+    try {
+      const result = await installSharedSkills({
+        projectPath,
+        tools: toolOptions(setUpToolIds),
+        delivery,
+        version: OPENSPEC_VERSION,
+        workflowsFor,
+        ops: this.ops,
+        view: this.view,
+        writesToDisk: !this.dryRun,
+      });
+      if (result.replacedOldCopyCount > 0) {
+        this.log(
+          chalk.dim(
+            `Replaced ${result.replacedOldCopyCount} unchanged skill cop${result.replacedOldCopyCount === 1 ? 'y' : 'ies'} ` +
+              'in tool folders with the one shared copy in .agents/skills.'
+          )
+        );
+      }
+      if (result.kept.length > 0) {
+        this.log(
+          chalk.yellow(
+            `Kept ${result.kept.length} skill folder${result.kept.length === 1 ? '' : 's'} with your own changes: ` +
+              `${result.kept.join(', ')}. Nothing was overwritten. Compare each with .agents/skills ` +
+              'and delete yours once you have kept what you need.'
+          )
+        );
+      }
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      // Each tool sharing the folder fails with this; the plan lists those
+      // failures, so there is no separate one to add.
+      this.log(chalk.red(`✗ Could not write the shared skills in .agents/skills: ${message}`));
+      const failure = new Error(`the shared skills in .agents/skills could not be written: ${message}`);
+      return {
+        ...empty,
+        toolFailures: new Map(
+          toolOptions(setUpToolIds).filter(usesSharedSkills).map((tool) => [tool.value, failure])
+        ),
+      };
+    }
   }
 
   /**
@@ -813,17 +874,19 @@ export class UpdateCommand {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
       if (!tool || !toolSupportsSkills(tool)) return false;
       if (!shouldGenerateSkillsForTool(tool.value, delivery)) return false;
-      // A shared skills root is generated with its owner's transformer, so
-      // only the owner may compare it. getToolSkillStatus settles ownership.
       if (!getToolSkillStatus(projectPath, tool.value, this.view).configured) return false;
 
       const skillsDir = resolveToolSkillsDir(projectPath, tool);
-      const transformer = getTransformerForTool(
-        tool.value,
-        delivery,
-        resolveCommandSurfaceCapability(tool.value),
-        resolveCommandInvocation(tool.value)
-      );
+      // The shared copy has one wording for every tool; a tool with its own
+      // folder renders its own.
+      const transformer = usesSharedSkills(tool)
+        ? transformToSharedSkillReferences
+        : getTransformerForTool(
+          tool.value,
+          delivery,
+          resolveCommandSurfaceCapability(tool.value),
+          resolveCommandInvocation(tool.value)
+        );
 
       return getSkillTemplates(workflowsForTool(toolId)).some(({ template, dirName }) => {
         const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
@@ -1610,10 +1673,17 @@ export class UpdateCommand {
     const skippedSharedSkillTools: string[] = [];
     const failedTools: ToolFailure[] = [];
     const workflowOverrides: LegacyUpgradeResult['workflowOverrides'] = {};
-    const arbitrationTools = [...new Set([...configuredTools, ...selectedTools])]
-      .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
-      .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined);
-    const sharedSkillWriters = resolveSharedSkillWriters(projectPath, arbitrationTools, this.view);
+    const workflowsForLegacyTool = (toolId: string) =>
+      toolId === 'codex' && inferredCodexWorkflows.length > 0 ? inferredCodexWorkflows : desiredWorkflows;
+    // The shared copy for every tool set up so far and every tool being added,
+    // before any tool's former-root move (which needs it in place).
+    const sharedInstall = await this.installSharedSkillsForRun(
+      projectPath,
+      [...new Set([...configuredTools, ...selectedTools])],
+      selectedTools,
+      delivery,
+      workflowsForLegacyTool
+    );
 
     for (const toolId of selectedTools) {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -1626,39 +1696,16 @@ export class UpdateCommand {
         const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
         const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
         const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
-        const writesSkills = !tool.skillsDir || sharedSkillWriters.has(tool.value);
-        const toolWorkflows = (
-          tool.value === 'codex' && inferredCodexWorkflows.length > 0
-            ? inferredCodexWorkflows
-            : desiredWorkflows
-        );
+        // Shared-folder skills were written once above.
+        const writesSkills = !usesSharedSkills(tool);
+        const ownFolderError = sharedInstall.toolFailures.get(tool.value);
+        if (ownFolderError) throw ownFolderError;
+        const toolWorkflows = workflowsForLegacyTool(tool.value);
         if (tool.value === 'codex' && inferredCodexWorkflows.length > 0) {
           workflowOverrides[tool.value] = inferredCodexWorkflows;
         }
         const skillTemplates = getSkillTemplates(toolWorkflows);
         const commandContents = getCommandContents(toolWorkflows);
-
-        // Never overwrite a shared skills root owned by another tool. A tool
-        // with its own command surface can still install those commands: this
-        // is how a legacy Antigravity install gains `.agents/workflows` beside
-        // Codex-owned `.agents/skills`. A skills-only tool has no safe artifact
-        // to install, so preserve its legacy files and re-offer it later.
-        const sharedOwner = shouldGenerateSkills && !writesSkills
-          ? arbitrationTools.find(
-              (candidate) =>
-                candidate.skillsDir === tool.skillsDir &&
-                sharedSkillWriters.has(candidate.value)
-            )?.value
-          : undefined;
-        if (sharedOwner && !shouldGenerateCommands) {
-          const ownerName =
-            AI_TOOLS.find((candidate) => candidate.value === sharedOwner)?.name ?? sharedOwner;
-          spinner.info(
-            `Skipped ${tool.name}: ${tool.skillsDir}/skills is already managed by another tool (${ownerName}).`
-          );
-          skippedSharedSkillTools.push(tool.value);
-          continue;
-        }
 
         // Create skill files when delivery includes skills
         if (shouldGenerateSkills && writesSkills) {
@@ -1676,7 +1723,6 @@ export class UpdateCommand {
             FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await this.ops.writeFile(skillFile, skillContent, tool.value);
           }
-          await this.writeSharedSkillTarget(projectPath, tool.value);
         }
 
         // Create commands when delivery includes commands

@@ -38,7 +38,10 @@ async function snapshotTree(root: string): Promise<Map<string, string>> {
     const entries = await fs.readdir(dir, { withFileTypes: true });
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
+      if (entry.isSymbolicLink()) {
+        // A skill link counts as one entry, as the plan lists it.
+        files.set(full, `symlink:${await fs.readlink(full)}`);
+      } else if (entry.isDirectory()) {
         await walk(full);
       } else if (entry.isFile()) {
         files.set(full, await fs.readFile(full, 'utf-8'));
@@ -80,6 +83,26 @@ function withoutTool(changes: UpdatePlanChange[]) {
 
 describe('openspec update --dry-run', () => {
   let testDir: string;
+
+  /**
+   * A Kimi install from before Kimi Code's rename: its skills in `.kimi/`,
+   * where releases before 2.0 wrote them, and Kimi not yet listed as set up.
+   */
+  async function legacyKimiInstall(): Promise<void> {
+    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
+    const shared = path.join(testDir, '.agents', 'skills');
+    for (const entry of await fs.readdir(shared)) {
+      if (!entry.startsWith('openspec-')) continue;
+      await fs.mkdir(path.join(testDir, '.kimi', 'skills', entry), { recursive: true });
+      await fs.copyFile(
+        path.join(shared, entry, 'SKILL.md'),
+        path.join(testDir, '.kimi', 'skills', entry, 'SKILL.md')
+      );
+    }
+    const listPath = path.join(shared, '.openspec-target');
+    const listed = (await fs.readFile(listPath, 'utf-8')).split('\n').filter((id) => id && id !== 'kimi');
+    await fs.writeFile(listPath, listed.map((id) => `${id}\n`).join(''));
+  }
   let originalEnv: NodeJS.ProcessEnv;
 
   beforeEach(async () => {
@@ -153,10 +176,11 @@ describe('openspec update --dry-run', () => {
 
     const changes = await expectPlanMatchesRealUpdate();
 
+    // Claude's skill is a link to the one shared copy, which the edit reached.
     expect(changes).toContainEqual({
-      path: '.claude/skills/openspec-propose/SKILL.md',
+      path: '.agents/skills/openspec-propose/SKILL.md',
       action: 'update',
-      tool: 'claude',
+      tool: 'openspec',
     });
   });
 
@@ -165,12 +189,18 @@ describe('openspec update --dry-run', () => {
 
     const changes = await expectPlanMatchesRealUpdate();
 
+    // The shared skill, and Claude's link to it.
     expect(changes).toContainEqual({
-      path: '.claude/skills/openspec-verify-change/SKILL.md',
+      path: '.agents/skills/openspec-verify-change/SKILL.md',
+      action: 'add',
+      tool: 'openspec',
+    });
+    expect(changes).toContainEqual({
+      path: '.claude/skills/openspec-verify-change',
       action: 'add',
       tool: 'claude',
     });
-    expect(changes.every((change) => change.tool === 'claude')).toBe(true);
+    expect(changes.every((change) => ['claude', 'openspec'].includes(change.tool))).toBe(true);
   });
 
   it('plans deletions for deselected workflows', async () => {
@@ -179,7 +209,12 @@ describe('openspec update --dry-run', () => {
     const changes = await expectPlanMatchesRealUpdate();
 
     expect(changes).toContainEqual({
-      path: '.claude/skills/openspec-archive-change/SKILL.md',
+      path: '.agents/skills/openspec-archive-change/SKILL.md',
+      action: 'delete',
+      tool: 'openspec',
+    });
+    expect(changes).toContainEqual({
+      path: '.claude/skills/openspec-archive-change',
       action: 'delete',
       tool: 'claude',
     });
@@ -265,6 +300,9 @@ describe('openspec update --dry-run', () => {
     );
     await fs.rm(path.join(testDir, '.github', 'skills'), { recursive: true, force: true });
     await fs.rm(path.join(testDir, '.github', 'prompts'), { recursive: true, force: true });
+    // Copilot's skills are in the shared folder: taking it off the list of
+    // tools set up here is what leaves it unconfigured.
+    await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'claude\n');
 
     const changes = await expectPlanMatchesRealUpdate();
 
@@ -290,11 +328,19 @@ describe('openspec update --dry-run', () => {
 
     const changes = await expectPlanMatchesRealUpdate({ force: true });
 
+    // Cursor reads the shared copy Claude already has; it gets its commands
+    // and a place on the list of tools set up here.
     expect(changes).toContainEqual({
-      path: '.cursor/skills/openspec-propose/SKILL.md',
+      path: '.cursor/commands/opsx-propose.md',
       action: 'add',
       tool: 'cursor',
     });
+    expect(changes).toContainEqual({
+      path: '.agents/skills/.openspec-target',
+      action: 'update',
+      tool: 'openspec',
+    });
+    expect(changes.some((change) => change.path.startsWith('.cursor/skills/'))).toBe(false);
     expect(changes).toContainEqual({
       path: '.cursor/commands/openspec-proposal.md',
       action: 'delete',
@@ -308,9 +354,9 @@ describe('openspec update --dry-run', () => {
     });
   });
 
-  it('plans legacy Antigravity and Codex sharing one root, arbitrated as a real update does', async () => {
-    // Both legacy tools want .agents/skills. The real update picks one owner
-    // and records it; every later step reads that choice. So does the plan.
+  it('plans legacy Antigravity and Codex joining the one shared folder, as a real update does', async () => {
+    // Both legacy tools read .agents/skills. There is no owner to pick: both
+    // are added to the list of tools set up here, beside Claude.
     const antigravityLegacy = path.join(testDir, '.agent', 'workflows', 'openspec-propose.md');
     const codexLegacy = path.join(testDir, '.codex', 'prompts', 'openspec-propose.md');
     await fs.mkdir(path.dirname(antigravityLegacy), { recursive: true });
@@ -322,8 +368,8 @@ describe('openspec update --dry-run', () => {
 
     expect(changes).toContainEqual({
       path: '.agents/skills/.openspec-target',
-      action: 'add',
-      tool: 'codex',
+      action: 'update',
+      tool: 'openspec',
     });
   });
 
@@ -374,10 +420,10 @@ describe('openspec update --dry-run', () => {
     expect(changes.map((change) => change.path)).not.toContain('codex-home/prompts/personal-notes.md');
   });
 
-  it('lists the shared-skills-root owner marker it would write', async () => {
-    // Codex shares `.agents/skills` with Amp and Antigravity, so the update
-    // writes an owner marker there. It goes through the same write seam, and a
-    // preview that skipped it would under-report.
+  it('lists the file naming the tools set up here that it would write', async () => {
+    // Every tool's skills share `.agents/skills`, so the update records which
+    // tools are set up in a file there. It goes through the same write seam,
+    // and a preview that skipped it would under-report.
     await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
     await fs.rm(path.join(testDir, '.agents', 'skills', '.openspec-target'), { force: true });
 
@@ -387,13 +433,14 @@ describe('openspec update --dry-run', () => {
     expect(plan.changes).toContainEqual({
       path: '.agents/skills/.openspec-target',
       action: 'add',
-      tool: 'codex',
+      tool: 'openspec',
     });
   });
 
-  it('reports a symlinked skills directory as the one link that is removed', async () => {
-    // `fs.rm` with `recursive` unlinks a symlinked directory and leaves the tree
-    // it points at alone, so the plan must not promise the target's files.
+  it('keeps a skill link the user pointed elsewhere, and never touches what it points at', async () => {
+    // OpenSpec's links point at the shared copy. One pointing anywhere else is
+    // the user's: deselecting the skill removes the shared copy, not the link
+    // and never the files behind it.
     await writeGlobalConfig({ profile: 'custom', delivery: 'both', workflows: ['propose'] });
     const skills = path.join(testDir, '.claude', 'skills');
     const real = path.join(testDir, 'elsewhere', 'openspec-archive-change');
@@ -403,16 +450,18 @@ describe('openspec update --dry-run', () => {
     // A junction needs no privilege on Windows, and Node reports it as a link.
     await fs.symlink(real, path.join(skills, 'openspec-archive-change'), 'junction');
 
-    const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
+    const changes = await expectPlanMatchesRealUpdate();
 
-    expect(plan.changes).toContainEqual({
-      path: '.claude/skills/openspec-archive-change',
+    expect(changes).toContainEqual({
+      path: '.agents/skills/openspec-archive-change/SKILL.md',
       action: 'delete',
-      tool: 'claude',
+      tool: 'openspec',
     });
-    expect(plan.changes.map((change) => change.path)).not.toContain(
-      'elsewhere/openspec-archive-change/SKILL.md'
-    );
+    const paths = changes.map((change) => change.path);
+    expect(paths).not.toContain('.claude/skills/openspec-archive-change');
+    expect(paths).not.toContain('elsewhere/openspec-archive-change/SKILL.md');
+    expect((await fs.lstat(path.join(skills, 'openspec-archive-change'))).isSymbolicLink()).toBe(true);
+    expect(await fs.readFile(path.join(real, 'SKILL.md'), 'utf-8')).toBe('kept\n');
   });
 
   it('never prompts, and says the preview is partial, when legacy artifacts exist', async () => {
@@ -457,27 +506,27 @@ describe('openspec update --dry-run', () => {
   it('plans the move out of a renamed tool directory, and what the moved tool then gets', async () => {
     // Kimi Code moved from .kimi to .kimi-code. A real update moves the files
     // first, which is what makes Kimi detected at all.
-    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
-    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
+    await legacyKimiInstall();
 
     const changes = await expectPlanMatchesRealUpdate();
 
+    // The move empties .kimi; the moved copies match the shared one Kimi now
+    // reads, so they don't stay in .kimi-code either. Kimi joins the list.
     expect(changes).toContainEqual({
       path: '.kimi/skills/openspec-propose/SKILL.md',
       action: 'delete',
       tool: 'kimi',
     });
+    expect(changes.some((change) => change.path.startsWith('.kimi-code/'))).toBe(false);
     expect(changes).toContainEqual({
-      path: '.kimi-code/skills/openspec-propose/SKILL.md',
-      action: 'add',
-      tool: 'kimi',
+      path: '.agents/skills/.openspec-target',
+      action: 'update',
+      tool: 'openspec',
     });
-    expect(changes.map((change) => change.path)).not.toContain('.kimi/skills');
   });
 
   it('plans the move out of a renamed tool directory for a stale install', async () => {
-    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
-    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
+    await legacyKimiInstall();
     const skill = path.join(testDir, '.kimi', 'skills', 'openspec-propose', 'SKILL.md');
     await fs.writeFile(
       skill,
@@ -507,9 +556,8 @@ describe('openspec update --dry-run', () => {
   it('plans a legacy-only install whose config predates profiles', async () => {
     // The real update moves Kimi's files first, then the profile migration
     // scans the moved tree. The plan has to scan the same tree.
-    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
+    await legacyKimiInstall();
     await fs.rm(path.join(testDir, '.claude'), { recursive: true, force: true });
-    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
     await fs.rm(path.join(testDir, '.kimi', 'skills', 'openspec-explore'), {
       recursive: true,
       force: true,
@@ -521,8 +569,7 @@ describe('openspec update --dry-run', () => {
 
   it('plans a moved skill that the profile then deselects as gone, not added', async () => {
     await writeGlobalConfig({ profile: 'custom', delivery: 'both', workflows: [...ALL_WORKFLOWS] });
-    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
-    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
+    await legacyKimiInstall();
     await writeGlobalConfig({ profile: 'custom', delivery: 'both', workflows: ['propose'] });
 
     const changes = await expectPlanMatchesRealUpdate();
@@ -591,11 +638,11 @@ describe('openspec update --dry-run', () => {
     ]);
   });
 
-  it('lists the files a legacy move leaves even when the moved tool then fails', async () => {
-    // The move happens before generation, so its files land even though the
-    // tool fails later. The destination is listed by the move itself.
-    await new InitCommand({ tools: 'kimi', force: true }).execute(testDir);
-    await fs.rename(path.join(testDir, '.kimi-code'), path.join(testDir, '.kimi'));
+  it('keeps and lists what a legacy move leaves that is not OpenSpec\'s to replace', async () => {
+    // The move happens before generation, so its files land in .kimi-code. A
+    // folder where a SKILL.md belongs is not a copy OpenSpec wrote, so it
+    // stays there, and Kimi still uses the shared copy.
+    await legacyKimiInstall();
     const blocked = path.join(testDir, '.kimi', 'skills', 'openspec-explore', 'SKILL.md');
     await fs.rm(blocked);
     await fs.mkdir(blocked);
@@ -603,7 +650,7 @@ describe('openspec update --dry-run', () => {
 
     const plan = await expectFullPlanMatchesRealUpdate();
 
-    expect(plan.failures.map((failure) => failure.tool)).toEqual(['kimi']);
+    expect(plan.failures).toEqual([]);
     expect(plan.changes).toContainEqual({
       path: '.kimi-code/skills/openspec-explore/SKILL.md/x',
       action: 'add',
@@ -618,9 +665,10 @@ describe('openspec update --dry-run', () => {
       path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
       '<!-- OPENSPEC:START -->\nold\n<!-- OPENSPEC:END -->\n'
     );
-    // Cursor's skills root is a file, so setting Cursor up fails.
-    await fs.mkdir(path.join(testDir, '.cursor'), { recursive: true });
-    await fs.writeFile(path.join(testDir, '.cursor', 'skills'), 'not a directory');
+    // A folder where one of Cursor's commands belongs, so setting Cursor up
+    // fails. (Its skills are the shared copy, written for every tool.)
+    await fs.mkdir(path.join(testDir, '.cursor', 'commands', 'opsx-propose.md'), { recursive: true });
+    await fs.writeFile(path.join(testDir, '.cursor', 'commands', 'opsx-propose.md', 'x'), 'x');
 
     const plan = await expectFullPlanMatchesRealUpdate({ force: true });
 
@@ -631,13 +679,19 @@ describe('openspec update --dry-run', () => {
     // No configured tools, so the real update runs the unconfigured-project
     // branch: it throws for the failed legacy upgrade before syncing Copilot
     // cloud files. The plan must stop there too, not plan their removal.
+    // (Claude's skills are the shared copy, so both go to leave it unconfigured.)
     await fs.rm(path.join(testDir, '.claude'), { recursive: true, force: true });
+    await fs.rm(path.join(testDir, '.agents'), { recursive: true, force: true });
     await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
     await fs.writeFile(
       path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
       '<!-- OPENSPEC:START -->\nold\n<!-- OPENSPEC:END -->\n'
     );
-    await fs.writeFile(path.join(testDir, '.cursor', 'skills'), 'not a directory');
+    // A folder where the first shared skill belongs: setting Cursor up fails
+    // before anything is written, so the project stays unconfigured.
+    const blocked = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
+    await fs.mkdir(blocked, { recursive: true });
+    await fs.writeFile(path.join(blocked, 'x'), 'x');
     const setupSteps = path.join(testDir, '.github', 'workflows', 'copilot-setup-steps.yml');
     await fs.mkdir(path.dirname(setupSteps), { recursive: true });
     await fs.writeFile(setupSteps, generateCopilotSetupSteps());
