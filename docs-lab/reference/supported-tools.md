@@ -226,7 +226,11 @@ install.
   `vendor-neutral`, or `agents.md`.
 - **Alongside other tools**: every tool reads this one skill tree. `.openspec-target`
   lists the tools set up in the project, and each tool's command files are still
-  generated in its own folder.
+  generated in its own folder. To remove a tool, delete its folder (or, for a tool
+  with no folder of its own, its line in `.openspec-target`).
+- **Your own `openspec-*` skills**: a skill already in `.agents/skills/` before
+  OpenSpec used the folder is kept, never written over, and recorded as
+  `keep <skill>` in `.openspec-target`. Delete that skill to let OpenSpec write its own.
 - **What OpenSpec claims**: only the `openspec-*` folders and the `.openspec-target`
   list. Anything else under `.agents/` is left alone.
 - **`AGENTS.md`**: not created or edited. The target is the `.agents/` folder, not

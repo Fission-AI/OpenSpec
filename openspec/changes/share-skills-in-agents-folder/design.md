@@ -31,6 +31,11 @@ Per-tool rendering existed so a skill could name its own tool's command (`/opsx:
 
 The marker used to name the single tool that rendered a shared folder. With one wording there is nothing to arbitrate, so the marker lists every tool set up in the project. The reader still accepts the old one-id file. A tool counts as set up when it is listed, or has links, commands, old skill copies or old commands. `.agents/skills` alone is no longer evidence of any one tool.
 
+The list also records two things the folder alone can't show:
+
+- **`<tool> own-files`**: OpenSpec gave the tool files of its own (commands or links). It stays set up only while some remain, so deleting its folder removes it, as in 1.x. A tool without them (skills-only, reading the shared folder) has only the list.
+- **`keep <skill>`**: an `openspec-*` skill that was in `.agents/skills/` before OpenSpec used the folder (from `npx skills`, or hand-written). It is the user's: never written over or removed, and skipped by version and drift checks. Deleting it hands the name back.
+
 ### D5. Skills exist per project, not per tool
 
 The shared copy exists when any listed tool needs skills under the current delivery, and holds the union of their workflows. Links follow each tool's own setting.
