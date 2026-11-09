@@ -47,7 +47,7 @@ Delivery is a profile setting that lets you choose to have only skills or only c
 > [!IMPORTANT]
 > Command files are deprecated and go away in OpenSpec 2.0, whatever your delivery setting. Your OpenSpec skills stay and do the same work: ask for the work, or invoke the skill by name (`/openspec-propose` instead of `/opsx:propose` in Claude Code). Until then, `openspec update` reminds you on every run while a configured tool gets command files.
 >
-> To switch now, set `delivery` to `skills` and run `openspec update`. It removes only the command files OpenSpec generated; any you edited are kept and listed, so you can move what you need into a skill. The plan is tracked in [#2022](https://github.com/Fission-AI/OpenSpec/issues/2022).
+> To switch now, set `delivery` to `skills` and run `openspec update`. It removes only the command files OpenSpec generated; any you edited are kept and listed, so you can move what you need into a skill. The setting applies to every project on your machine, so run `openspec update` in each one. The plan is tracked in [#2022](https://github.com/Fission-AI/OpenSpec/issues/2022).
 
 Two ways to change it:
 
