@@ -1,5 +1,17 @@
 # @fission-ai/openspec
 
+## 1.17.0
+
+### Minor Changes
+
+- [#2213](https://github.com/Fission-AI/OpenSpec/pull/2213) [`9ca6b77`](https://github.com/Fission-AI/OpenSpec/commit/9ca6b77cd250dcf0e0a5038d3e4b99244ef18053) Thanks [@clay-good](https://github.com/clay-good)! - Command files are deprecated and go away in OpenSpec 2.0; your skills stay and do the same work. `openspec update` now says so, with the one command to switch early: `openspec config set delivery skills && openspec update`. Details in [#2022](https://github.com/Fission-AI/OpenSpec/issues/2022).
+
+### Patch Changes
+
+- [#2213](https://github.com/Fission-AI/OpenSpec/pull/2213) [`9ca6b77`](https://github.com/Fission-AI/OpenSpec/commit/9ca6b77cd250dcf0e0a5038d3e4b99244ef18053) Thanks [@clay-good](https://github.com/clay-good)! - Switching to skills only (`openspec config set delivery skills`) no longer deletes command files you edited. Only files OpenSpec generated are removed; edited ones are kept and listed.
+
+- [#2213](https://github.com/Fission-AI/OpenSpec/pull/2213) [`9ca6b77`](https://github.com/Fission-AI/OpenSpec/commit/9ca6b77cd250dcf0e0a5038d3e4b99244ef18053) Thanks [@clay-good](https://github.com/clay-good)! - `openspec update` now upgrades a project from any release since 0.12 in one run. It removes old OpenSpec files nobody edited, without needing `--force`, and keeps any you changed. It never touches files outside the project, even through a linked folder.
+
 ## 1.16.1
 
 ### Patch Changes
