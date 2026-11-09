@@ -14,6 +14,7 @@ import type { GeneratedCommand } from '../command-generation/types.js';
 import { ALL_WORKFLOWS } from '../profiles.js';
 import { getCommandContents } from './skill-generation.js';
 import { normalizeCommandContent } from './tool-detection.js';
+import { isReleasedGeneratedContent } from './generated-fingerprint.js';
 import { DISK_VIEW, type FileView } from '../file-view.js';
 
 export interface CommandReconcileResult {
@@ -46,8 +47,10 @@ interface CommandFileClassification {
  * owns, and files that could not be checked.
  *
  * Command files carry no version stamp, so content equality is the only signal
- * for "this is still our generated output". A file that does not match is the
- * user's, whether they edited it or an older OpenSpec version wrote it.
+ * for "this is still our generated output". A file matches when it equals what
+ * this CLI generates, or exactly what a released OpenSpec version generated
+ * (so switching before the first update on a new version still cleans up).
+ * Anything else is the user's.
  *
  * Content depends on which workflows were installed when a file was written,
  * because cross-workflow references resolve against that set. Three candidate
@@ -110,8 +113,9 @@ export function classifyCommandFiles(
 
   for (const { cmdPath, fullPath } of present) {
     try {
-      const onDisk = normalizeCommandContent(view.read(fullPath));
-      if ((generatedByPath.get(cmdPath) ?? []).includes(onDisk)) {
+      const content = view.read(fullPath);
+      const onDisk = normalizeCommandContent(content);
+      if ((generatedByPath.get(cmdPath) ?? []).includes(onDisk) || isReleasedGeneratedContent(content)) {
         generated.push({ cmdPath, fullPath });
       } else {
         kept.push(cmdPath);
@@ -186,7 +190,7 @@ export function formatKeptCommandFiles(
     blocks.push([
       `Kept ${result.kept.length} ${files(result.kept.length)} that ${
         result.kept.length === 1 ? 'does' : 'do'
-      } not match generated output (edited, or written by an older OpenSpec version):`,
+      } not match what OpenSpec generated (likely edited):`,
       ...result.kept.map((cmdPath) => `  ${cmdPath}`),
       'Move anything worth keeping into the skill, then delete by hand.',
     ]);

@@ -55,6 +55,40 @@ describe('reconcileCommandFiles', () => {
     }
   });
 
+  it('removes a command file exactly as an earlier release wrote it', async () => {
+    // Switching to skills before the first update on a new version: the file
+    // is 1.0.0's output, not this version's, and is still safe to delete.
+    const released = await fs.readFile(
+      path.join(__dirname, '..', 'fixtures', 'released-output', 'v1.0.0-claude-command-opsx-explore.md'),
+      'utf-8'
+    );
+    const cmdPath = path.join('.claude', 'commands', 'opsx', 'explore.md');
+    await fs.mkdir(path.join(projectPath, path.dirname(cmdPath)), { recursive: true });
+    await fs.writeFile(path.join(projectPath, cmdPath), released.replace(/\n/g, '\r\n'));
+
+    const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+
+    expect(result.removed).toEqual([cmdPath]);
+    expect(result.kept).toEqual([]);
+  });
+
+  it('keeps an earlier release\'s command file once the user edited it', async () => {
+    const released = await fs.readFile(
+      path.join(__dirname, '..', 'fixtures', 'released-output', 'v1.0.0-claude-command-opsx-explore.md'),
+      'utf-8'
+    );
+    const cmdPath = path.join('.claude', 'commands', 'opsx', 'explore.md');
+    const edited = `${released}\nMy own step.\n`;
+    await fs.mkdir(path.join(projectPath, path.dirname(cmdPath)), { recursive: true });
+    await fs.writeFile(path.join(projectPath, cmdPath), edited);
+
+    const result = await reconcileCommandFiles(projectPath, 'claude', WORKFLOWS);
+
+    expect(result.removed).toEqual([]);
+    expect(result.kept).toEqual([cmdPath]);
+    expect(await fs.readFile(path.join(projectPath, cmdPath), 'utf-8')).toBe(edited);
+  });
+
   it('keeps a hand-edited command file and reports it', async () => {
     const written = await writeGeneratedCommands(projectPath, 'claude', WORKFLOWS);
     const edited = written.find((p) => p.endsWith('propose.md'))!;
@@ -72,7 +106,7 @@ describe('reconcileCommandFiles', () => {
     );
     expect(formatKeptCommandFiles(result)).toEqual([
       [
-        'Kept 1 command file that does not match generated output (edited, or written by an older OpenSpec version):',
+        'Kept 1 command file that does not match what OpenSpec generated (likely edited):',
         `  ${edited}`,
         'Move anything worth keeping into the skill, then delete by hand.',
       ],
