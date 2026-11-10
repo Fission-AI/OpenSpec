@@ -57,7 +57,9 @@ Running init creates two things in your project:
 - An `openspec/` folder at the repo root
 - Workflow files: skills in the shared `.agents/skills/` folder, with links from a tool's own folder where it needs them (`.claude/skills/`, for example)
 
-Commit all of it like the rest of your source. Init changes nothing else in your repo. Init removes command files earlier versions generated and keeps any you edited. For pre-1.0 leftovers, an interactive init asks first; with `--tools` or in a non-interactive run, init removes them without asking, so back them up first.
+Commit all of it like the rest of your source. Init removes command files earlier versions generated and keeps any you edited.
+
+A project set up before 1.0 also has older leftovers: folders like `.claude/commands/openspec/`, and OpenSpec marker blocks in files like `CLAUDE.md` and `AGENTS.md`. An interactive init asks before removing them. With `--tools` or in a non-interactive run, init removes them without asking, including any edits inside those blocks, so back them up first.
 
 ### The `openspec/` folder
 

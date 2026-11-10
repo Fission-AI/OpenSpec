@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync, spawnSync } from 'child_process';
 import { createHash } from 'crypto';
-import { promises as fs, existsSync, readdirSync, readFileSync } from 'fs';
+import { promises as fs, existsSync, readdirSync, readFileSync, readlinkSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -89,11 +89,29 @@ function listFiles(root: string): string[] {
 
 function snapshot(root: string): Record<string, string> {
   return Object.fromEntries(
-    listFiles(root).map((rel) => [
-      rel,
-      createHash('sha256').update(readFileSync(path.join(root, rel))).digest('hex'),
-    ])
+    [
+      ...listFiles(root).map((rel) => [
+        rel,
+        createHash('sha256').update(readFileSync(path.join(root, rel))).digest('hex'),
+      ]),
+      // Links too, recorded by where they point and never followed, so a link
+      // made anywhere shows up.
+      ...listLinks(root).map((rel) => [rel, `link:${readlinkSync(path.join(root, rel))}`]),
+    ]
   );
+}
+
+function listLinks(root: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) out.push(path.relative(root, full).split(path.sep).join('/'));
+      else if (entry.isDirectory()) walk(full);
+    }
+  };
+  walk(root);
+  return out;
 }
 
 /** OpenSpec skills and commands still under a tool's former root. */
