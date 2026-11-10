@@ -35,3 +35,12 @@
 
 - [x] 7.1 Delete the code that wrote command files (behavior unchanged: same tests, matrix and release tests)
 - [x] 7.2 Retire Amazon Q: not offered, `--tools amazon-q` names Kiro, update/init remove its generated files and keep edited ones
+
+## 8. Harden against user setups
+
+- [x] 8.1 Links the user made (a tool folder linked to `.agents/skills`, or a shared skill linked elsewhere) are never written or deleted through
+- [x] 8.2 Links checked out as text files, and a missing `.agents/`, are recognized and repaired
+- [x] 8.3 Kept skills: an edited skill the profile drops, a pre-existing `openspec-*` skill; update settles when every skill is the user's
+- [x] 8.4 Only released text counts as OpenSpec's: unlisted shared folders, global Codex prompts, OS junk ignored beside copies
+- [x] 8.5 Profile migration records `core` for the core set and no delivery
+- [x] 8.6 2.0 wording: welcome screen, init summary, getting-started hints, dry run, `config list`, skill templates

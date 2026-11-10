@@ -10,6 +10,7 @@ import { FileSystemUtils } from '../../src/utils/file-system.js';
 import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 import { getCommandContents } from '../../src/core/shared/skill-generation.js';
 import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
+import { releasedCodexPrompt } from '../helpers/released-codex-prompt.js';
 
 const { confirmMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
   confirmMock: vi.fn(),
@@ -439,7 +440,7 @@ describe('InitCommand', () => {
       );
     });
 
-    it.skipIf(process.platform === 'win32')('should not overwrite a generated artifact symlink outside the project', async () => {
+    it.skipIf(process.platform === 'win32')('keeps a shared skill linked outside the project as the user\'s', async () => {
       const outsideFile = path.join(configTempDir, 'outside-skill.md');
       const originalContent = 'keep me\n';
       await fs.writeFile(outsideFile, originalContent);
@@ -454,13 +455,15 @@ describe('InitCommand', () => {
       await fs.mkdir(path.dirname(skillFile), { recursive: true });
       await fs.symlink(outsideFile, skillFile, 'file');
 
-      const initCommand = new InitCommand({ tools: 'claude', force: true });
-      await expect(initCommand.execute(testDir)).rejects.toThrow(
-        'OpenSpec setup failed for: Claude Code'
-      );
+      // OpenSpec never links a shared skill, so this link is the user's:
+      // set up the rest, write nothing through it, and record it as kept.
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
 
       expect(await fs.readFile(outsideFile, 'utf-8')).toBe(originalContent);
       expect((await fs.lstat(skillFile)).isSymbolicLink()).toBe(true);
+      expect(await fs.readFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'utf-8')).toContain(
+        'keep openspec-propose'
+      );
     });
 
     it.skipIf(process.platform === 'win32')('keeps a skill link the user pointed outside the project and writes nothing through it', async () => {
@@ -784,6 +787,34 @@ describe('InitCommand', () => {
       expect(
         logCalls.some((entry) => entry.includes('commands in') && entry.includes('.minimax'))
       ).toBe(false);
+    });
+
+    it('should count skills once per folder when MiniMax Code joins project tools', async () => {
+      saveGlobalConfig({ featureFlags: {}, profile: 'core' });
+
+      const initCommand = new InitCommand({ tools: 'claude,minimax-code', force: true });
+      await initCommand.execute(testDir);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+        .flat()
+        .map(String);
+      const summary = logCalls.find((entry) => /^\d+ skills in /.test(entry));
+      expect(summary).toBe(
+        '6 skills in .agents/skills/, ~/.minimax/skills/ (linked from .claude/skills/)'
+      );
+    });
+
+    it('should name the skill when no tool was set up', async () => {
+      saveGlobalConfig({ featureFlags: {}, profile: 'core' });
+
+      const initCommand = new InitCommand({ tools: 'none', force: true });
+      await initCommand.execute(testDir);
+
+      const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls
+        .flat()
+        .map(String);
+      expect(logCalls.some((entry) => entry.includes('/openspec-propose "your idea"'))).toBe(true);
+      expect(logCalls.some((entry) => entry.includes('/opsx:propose'))).toBe(false);
     });
 
     it('should refresh global MiniMax Code skills even with delivery=commands', async () => {
@@ -1912,7 +1943,7 @@ describe('InitCommand - profile and detection features', () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     const legacyPrompt = path.join(promptDir, 'opsx-apply.md');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(legacyPrompt, 'legacy apply prompt');
+    await fs.writeFile(legacyPrompt, releasedCodexPrompt('opsx-apply.md'));
 
     const initCommand = new InitCommand({ tools: 'codex' });
     await initCommand.execute(testDir);
@@ -1927,7 +1958,7 @@ describe('InitCommand - profile and detection features', () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     const legacyPrompt = path.join(promptDir, 'opsx-apply.md');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(legacyPrompt, 'legacy apply prompt');
+    await fs.writeFile(legacyPrompt, releasedCodexPrompt('opsx-apply.md'));
 
     const initCommand = new InitCommand({ tools: 'agents' });
     await initCommand.execute(testDir);
@@ -1965,7 +1996,7 @@ describe('InitCommand - profile and detection features', () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     const legacyPrompt = path.join(promptDir, 'opsx-onboard.md');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(legacyPrompt, 'legacy onboard prompt');
+    await fs.writeFile(legacyPrompt, releasedCodexPrompt('opsx-onboard.md'));
 
     const initCommand = new InitCommand({ tools: 'codex' });
     await initCommand.execute(testDir);
@@ -1983,7 +2014,7 @@ describe('InitCommand - profile and detection features', () => {
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     const legacyPrompt = path.join(promptDir, 'opsx-apply.md');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(legacyPrompt, 'legacy apply prompt');
+    await fs.writeFile(legacyPrompt, releasedCodexPrompt('opsx-apply.md'));
 
     searchableMultiSelectMock.mockResolvedValue(['codex']);
 
@@ -2212,7 +2243,8 @@ describe('InitCommand - profile and detection features', () => {
 
     const config = getGlobalConfig();
     expect(config.profile).toBe('custom');
-    expect(config.delivery).toBe('commands');
+    // Migration no longer records a delivery; the default (skills) applies.
+    expect(config.delivery ?? 'skills').toBe('skills');
     expect(config.workflows).toEqual(['explore']);
 
     // The hand-written command does not match generated output, so it is
@@ -2462,7 +2494,7 @@ describe('InitCommand - profile and detection features', () => {
       'Amazon Q Developer is no longer supported'
     );
     await expect(new InitCommand({ tools: 'claude,amazon-q', force: true }).execute(testDir)).rejects.toThrow(
-      'Use --tools kiro instead'
+      'Set up Kiro instead: openspec init --tools kiro'
     );
     expect(await directoryExists(path.join(testDir, '.amazonq'))).toBe(false);
   });

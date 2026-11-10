@@ -338,14 +338,7 @@ export class UpdateCommand {
 
     // 7. Smart update detection
     const toolsNeedingVersionUpdate = toolStatuses
-      .filter((s) => {
-        if (!s.needsUpdate || delivery !== 'commands') {
-          return s.needsUpdate;
-        }
-
-        const tool = AI_TOOLS.find((candidate) => candidate.value === s.toolId);
-        return !tool || !hasGlobalSkillTarget(tool);
-      })
+      .filter((s) => s.needsUpdate)
       .map((s) => s.toolId);
     const toolsNeedingConfigSync = getToolsNeedingProfileSync(
       resolvedProjectPath,

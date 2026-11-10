@@ -5,7 +5,7 @@
  */
 
 import path from 'path';
-import { AI_TOOLS, OPENSPEC_SKILL_NAMES } from '../config.js';
+import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
 import { CommandAdapterRegistry } from '../command-generation/index.js';
 import { hasLegacySkills, isToolListed, readKeptSharedSkills, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
 import {
@@ -22,6 +22,7 @@ import {
   type SkillCapableTool,
 } from './skill-paths.js';
 import { DISK_VIEW, type FileView } from '../file-view.js';
+import { classifySkillLinkSpot, isCheckedOutLink } from './skill-links.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
 /**
@@ -103,7 +104,30 @@ export function isListedToolPresent(projectRoot: string, toolId: string, view: F
   if (!readListedToolsWithOwnFiles(projectRoot, view).has(toolId)) return true;
   if (toolHasAnyConfiguredCommand(projectRoot, toolId, view)) return true;
   const linkDir = resolveSkillLinkDir(projectRoot, tool);
-  return linkDir !== undefined && OPENSPEC_SKILL_NAMES.some((name) => view.exists(path.join(linkDir, name, 'SKILL.md')));
+  return (
+    (linkDir !== undefined && OPENSPEC_SKILL_NAMES.some((name) => view.exists(path.join(linkDir, name, 'SKILL.md')))) ||
+    hasSkillLinks(projectRoot, tool, view)
+  );
+}
+
+/**
+ * Whether a linked tool's own folder still holds OpenSpec's links to the
+ * shared copy, even ones that point nowhere now (`.agents/` deleted, or
+ * gitignored in this clone), or what git checks a link out as without link
+ * support (a small file holding its target). Either way the tool is set up,
+ * and update rebuilds what the links need.
+ */
+export function hasSkillLinks(projectRoot: string, tool: AIToolOption, view: FileView = DISK_VIEW): boolean {
+  const linkDir = resolveSkillLinkDir(projectRoot, tool);
+  if (!linkDir) return false;
+  const sharedDir = resolveSharedSkillsDir(projectRoot);
+  return OPENSPEC_SKILL_NAMES.some((name) => {
+    const spot = path.join(linkDir, name);
+    const target = path.join(sharedDir, name);
+    const linked = view.linkTarget?.(spot);
+    if (linked !== undefined) return classifySkillLinkSpot(spot, target, [], view) === 'link';
+    return view.exists(spot) && !view.isDirectory(spot) && isCheckedOutLink(spot, target, view);
+  });
 }
 
 /**
@@ -297,9 +321,15 @@ export function getToolVersionStatus(
 
   // Configured from any of its skills; current only from those found above.
   const commandConfigured = toolHasAnyConfiguredCommand(projectRoot, toolId, view);
-  const markerConfigured = isListedToolPresent(projectRoot, toolId, view);
+  const markerConfigured = isListedToolPresent(projectRoot, toolId, view) || hasSkillLinks(projectRoot, tool, view);
   const configured =
     getToolSkillStatus(projectRoot, toolId, view).configured || commandConfigured || markerConfigured;
+  // Every skill of the tool's present is the user's own (kept): there is no
+  // OpenSpec skill to date, and nothing for update to write. Missing skills
+  // are profile drift's to find.
+  if (!foundSkill && keptShared.size > 0 && isListedToolPresent(projectRoot, toolId, view)) {
+    generatedByVersion = currentVersion;
+  }
 
   // 2. OpenSpec 2.0 installs skills only, so command files never make a tool
   //    current: a commands-only install from 1.x has no skills and always
@@ -359,7 +389,8 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
           resolveCommandSurfaceCapability(t.value) === 'adapter-backed' &&
           (hasLegacySkills(projectRoot, t, view) || hasLegacyCommands(projectRoot, t.value, view))
         ) ||
-        isListedToolPresent(projectRoot, t.value, view)
+        isListedToolPresent(projectRoot, t.value, view) ||
+        hasSkillLinks(projectRoot, t, view)
       );
     })
     .map((tool) => tool.value);

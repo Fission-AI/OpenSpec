@@ -59,6 +59,33 @@ Update SHALL generate no command files for any tool, whatever the `delivery` set
 - **WHEN** update runs
 - **THEN** it SHALL behave as for any other setting: skills installed, no command files written
 
+### Requirement: Update keeps what the user edited
+
+Update SHALL remove a file only when it equals what OpenSpec wrote (this version or a released one), and SHALL keep and list anything else.
+
+#### Scenario: Edited skill the profile drops
+
+- **GIVEN** `.agents/skills/openspec-onboard/SKILL.md` was edited by the user
+- **AND** the profile no longer includes `onboard`
+- **WHEN** the user runs `openspec update`
+- **THEN** the file SHALL be kept unchanged
+- **AND** `.agents/skills/.openspec-target` SHALL record `keep openspec-onboard`
+- **AND** a second `openspec update` SHALL report everything up to date
+
+#### Scenario: Edited global Codex prompt
+
+- **GIVEN** `~/.codex/prompts/opsx-apply.md` differs from every released version
+- **WHEN** the user runs `openspec update --force`
+- **THEN** that prompt SHALL be kept
+- **AND** prompts equal to released output SHALL be removed
+
+#### Scenario: Link the user made
+
+- **GIVEN** `.claude/skills` is a link to `.agents/skills`, or `.agents/skills/openspec-explore` is a link outside the project
+- **WHEN** the user runs `openspec update`
+- **THEN** nothing SHALL be written or deleted through the link
+- **AND** a second `openspec update` SHALL report everything up to date
+
 ### Requirement: Update cleans up after retired tools
 
 Update SHALL remove the files earlier releases generated for a retired tool (Amazon Q Developer: its prompts and skill copies in `.amazonq/`), SHALL keep and list any of those files the user edited, SHALL leave the user's other files in that folder alone, and SHALL say the tool is no longer supported and name its successor. A retired tool SHALL NOT be set up or listed as configured.

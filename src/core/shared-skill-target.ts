@@ -2,6 +2,7 @@ import path from 'path';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
+import { isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
 import { SHARED_SKILLS_ROOT, resolveFormerOwnSkillsDir } from './shared/skill-paths.js';
 
 /**
@@ -87,6 +88,9 @@ function inferPreListTool(projectPath: string, view: FileView): string | undefin
     try {
       FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
       const content = view.read(skillFile);
+      // Only a release's own output says which tool wrote the folder; a skill
+      // the user wrote (or `npx skills` installed) says nothing.
+      if (!isReleasedGeneratedContent(content)) continue;
       if (content.includes('$openspec-')) return 'codex';
       if (content.includes('/openspec-')) foundGenericReference = true;
     } catch {
@@ -96,28 +100,40 @@ function inferPreListTool(projectPath: string, view: FileView): string | undefin
   return foundGenericReference ? 'agents' : undefined;
 }
 
+/** The known tools the list file names, or none when there is no such file. */
+function readListFileTools(projectPath: string, view: FileView): string[] {
+  const listPath = skillToolListPath(projectPath);
+  try {
+    FileSystemUtils.assertProjectArtifactPath(projectPath, listPath);
+    if (!view.exists(listPath)) return [];
+    const known = new Set(AI_TOOLS.map((tool) => tool.value));
+    return view
+      .read(listPath)
+      .split(/\r?\n/)
+      .map((line) => line.trim().split(/\s+/)[0])
+      .filter((id) => known.has(id));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Whether a list file names a tool. Only then is `.agents/skills` known to be
+ * OpenSpec's; guessing from skill wording never decides whose a skill is.
+ */
+export function hasSkillToolList(projectPath: string, view: FileView = DISK_VIEW): boolean {
+  return readListFileTools(projectPath, view).length > 0;
+}
+
 /**
  * The tools listed as set up in this project. A project from before the list
  * existed yields the one tool its shared folder was written for, if any.
  */
 export function readSkillToolList(projectPath: string, view: FileView = DISK_VIEW): string[] {
-  const listPath = skillToolListPath(projectPath);
-  try {
-    FileSystemUtils.assertProjectArtifactPath(projectPath, listPath);
-    if (view.exists(listPath)) {
-      const known = new Set(AI_TOOLS.map((tool) => tool.value));
-      const listed = view
-        .read(listPath)
-        .split(/\r?\n/)
-        .map((line) => line.trim().split(/\s+/)[0])
-        .filter((id) => known.has(id));
-      // An empty or unrecognized file (an older release's, or hand-edited)
-      // says nothing: fall back to the folder's wording, as before.
-      if (listed.length > 0) return listed;
-    }
-  } catch {
-    return [];
-  }
+  const listed = readListFileTools(projectPath, view);
+  // An empty or unrecognized file (an older release's, or hand-edited) says
+  // nothing: fall back to the folder's wording, as before.
+  if (listed.length > 0) return listed;
   const inferred = inferPreListTool(projectPath, view);
   return inferred ? [inferred] : [];
 }

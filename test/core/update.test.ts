@@ -12,6 +12,7 @@ import {
   CommandAdapterRegistry,
   generateCommands,
 } from '../../src/core/command-generation/index.js';
+import { releasedCodexPrompt } from '../helpers/released-codex-prompt.js';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
@@ -106,7 +107,7 @@ async function markCodexTarget(skillsDir: string): Promise<void> {
 async function createLegacyCodexPrompt(): Promise<string> {
   const prompt = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
   await fs.mkdir(path.dirname(prompt), { recursive: true });
-  await fs.writeFile(prompt, 'legacy prompt');
+  await fs.writeFile(prompt, releasedCodexPrompt('opsx-explore.md'));
   return prompt;
 }
 
@@ -975,7 +976,7 @@ metadata:
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
       const globalPrompt = path.join(promptDir, 'opsx-explore.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(globalPrompt, 'legacy explore prompt');
+      await fs.writeFile(globalPrompt, releasedCodexPrompt('opsx-explore.md'));
 
       await new UpdateCommand({ force: true }).execute(testDir);
 
@@ -997,7 +998,7 @@ metadata:
       setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'skills' });
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'legacy explore prompt');
+      await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), releasedCodexPrompt('opsx-explore.md'));
 
       await new UpdateCommand({ force: true }).execute(testDir);
 
@@ -1089,8 +1090,12 @@ metadata:
       await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
       const skillsDir = path.join(testDir, '.agents', 'skills');
       await fs.rm(path.join(skillsDir, '.openspec-target'));
-      // A tree from before 2.0, when Codex wrote its own `$openspec-` wording.
-      await fs.appendFile(path.join(skillsDir, 'openspec-propose', 'SKILL.md'), '\nNext: $openspec-apply-change\n');
+      // A tree from before 2.0, exactly as 1.9.0 wrote it in Codex's own
+      // `$openspec-` wording.
+      await fs.copyFile(
+        path.join(__dirname, '..', 'fixtures', 'released-output', 'v1.9.0-codex-agents-skills', 'openspec-propose', 'SKILL.md'),
+        path.join(skillsDir, 'openspec-propose', 'SKILL.md')
+      );
 
       await new UpdateCommand({ force: true }).execute(testDir);
 
@@ -1285,18 +1290,23 @@ metadata:
 
     it('should update skill files for configured shared agents target', async () => {
       const skillsDir = path.join(testDir, '.agents', 'skills');
-      const exploreSkillDir = path.join(skillsDir, 'openspec-explore');
-      await fs.mkdir(exploreSkillDir, { recursive: true });
-      // A shared tree from before 2.0, worded for the agents target.
-      await fs.writeFile(path.join(exploreSkillDir, 'SKILL.md'), 'old content\nNext: /openspec-propose\n');
+      const proposeSkillDir = path.join(skillsDir, 'openspec-propose');
+      await fs.mkdir(proposeSkillDir, { recursive: true });
+      // A shared tree from before 2.0, exactly as 1.9.0 wrote it for the
+      // agents target.
+      const released = path.join(
+        __dirname, '..', 'fixtures', 'released-output', 'v1.9.0-agents-skills', 'openspec-propose', 'SKILL.md'
+      );
+      await fs.copyFile(released, path.join(proposeSkillDir, 'SKILL.md'));
 
       await updateCommand.execute(testDir);
 
       const updatedSkill = await fs.readFile(
-        path.join(exploreSkillDir, 'SKILL.md'),
+        path.join(proposeSkillDir, 'SKILL.md'),
         'utf-8'
       );
-      expect(updatedSkill).toContain('name: openspec-explore');
+      expect(updatedSkill).toContain('name: openspec-propose');
+      expect(updatedSkill).not.toBe(await fs.readFile(released, 'utf-8'));
     });
   });
 
@@ -1991,7 +2001,7 @@ metadata:
 
       const prompt = path.join(process.env.CODEX_HOME!, 'prompts', 'opsx-explore.md');
       await fs.mkdir(path.dirname(prompt), { recursive: true });
-      await fs.writeFile(prompt, 'legacy prompt');
+      await fs.writeFile(prompt, releasedCodexPrompt('opsx-explore.md'));
 
       const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
       vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
@@ -2714,7 +2724,7 @@ ${OPENSPEC_MARKERS.end}
       const legacyPrompt = path.join(promptDir, 'openspec-proposal.md');
       const unmanagedPrompt = path.join(promptDir, 'personal-notes.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(managedPrompt, 'legacy explore prompt');
+      await fs.writeFile(managedPrompt, releasedCodexPrompt('opsx-explore.md'));
       await fs.writeFile(legacyPrompt, 'managed');
       await fs.writeFile(unmanagedPrompt, 'user');
 
@@ -2754,7 +2764,7 @@ ${OPENSPEC_MARKERS.end}
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
       const managedPrompt = path.join(promptDir, 'opsx-explore.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(managedPrompt, 'legacy explore prompt');
+      await fs.writeFile(managedPrompt, releasedCodexPrompt('opsx-explore.md'));
 
       const forceUpdateCommand = new UpdateCommand({ force: true });
       await forceUpdateCommand.execute(testDir);
@@ -2784,7 +2794,7 @@ ${OPENSPEC_MARKERS.end}
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
       const managedPrompt = path.join(promptDir, promptName);
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(managedPrompt, 'legacy archive prompt');
+      await fs.writeFile(managedPrompt, releasedCodexPrompt(promptName));
 
       const forceUpdateCommand = new UpdateCommand({ force: true });
       await forceUpdateCommand.execute(testDir);
@@ -2813,7 +2823,7 @@ ${OPENSPEC_MARKERS.end}
       // workflows the upgrade installed.
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(path.join(promptDir, 'opsx-new.md'), 'legacy new prompt');
+      await fs.writeFile(path.join(promptDir, 'opsx-new.md'), releasedCodexPrompt('opsx-new.md'));
 
       const consoleSpy = vi.spyOn(console, 'log');
       const forceUpdateCommand = new UpdateCommand({ force: true });
@@ -2880,7 +2890,7 @@ ${OPENSPEC_MARKERS.end}
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
       const managedPrompt = path.join(promptDir, 'opsx-onboard.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(managedPrompt, 'legacy onboard prompt');
+      await fs.writeFile(managedPrompt, releasedCodexPrompt('opsx-onboard.md'));
 
       const forceUpdateCommand = new UpdateCommand({ force: true });
       await forceUpdateCommand.execute(testDir);
@@ -2905,7 +2915,7 @@ ${OPENSPEC_MARKERS.end}
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
       const managedPrompt = path.join(promptDir, 'opsx-update.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(managedPrompt, 'prompt generated by OpenSpec v1.6.0');
+      await fs.writeFile(managedPrompt, releasedCodexPrompt('opsx-update.md'));
 
       const forceUpdateCommand = new UpdateCommand({ force: true });
       await forceUpdateCommand.execute(testDir);
@@ -3940,7 +3950,7 @@ More user content after markers.
       const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
       const managedPrompt = path.join(promptDir, 'opsx-explore.md');
       await fs.mkdir(promptDir, { recursive: true });
-      await fs.writeFile(managedPrompt, 'legacy explore prompt');
+      await fs.writeFile(managedPrompt, releasedCodexPrompt('opsx-explore.md'));
 
       await updateCommand.execute(testDir);
 

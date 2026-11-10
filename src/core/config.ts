@@ -75,6 +75,8 @@ export interface RetiredTool {
   reason: string;
   /** The `--tools` id to use instead. */
   successor: string;
+  /** That tool's name. */
+  successorName: string;
 }
 
 export const RETIRED_TOOLS: readonly RetiredTool[] = [
@@ -84,6 +86,7 @@ export const RETIRED_TOOLS: readonly RetiredTool[] = [
     folder: '.amazonq',
     reason: "it can't load skills, and AWS is retiring it in favor of Kiro",
     successor: 'kiro',
+    successorName: 'Kiro',
   },
 ];
 
@@ -93,7 +96,7 @@ export function findRetiredTool(toolId: string): RetiredTool | undefined {
 
 /** The line `init --tools <retired id>` fails with. */
 export function formatRetiredToolError(tool: RetiredTool): string {
-  return `${tool.name} is no longer supported: ${tool.reason}. Use --tools ${tool.successor} instead.`;
+  return `${tool.name} is no longer supported: ${tool.reason}. Set up ${tool.successorName} instead: openspec init --tools ${tool.successor}`;
 }
 
 export const AI_TOOLS: AIToolOption[] = [

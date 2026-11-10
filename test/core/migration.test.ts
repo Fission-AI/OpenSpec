@@ -112,7 +112,7 @@ describe('migration', () => {
     ]);
   });
 
-  it('migrates to custom commands delivery when only managed commands are detected', async () => {
+  it('migrates the workflows of a commands-only install, without a delivery', async () => {
     await writeManagedCommand(projectDir, 'explore');
     await writeManagedCommand(projectDir, 'archive');
 
@@ -120,11 +120,12 @@ describe('migration', () => {
 
     const config = readRawConfig();
     expect(config.profile).toBe('custom');
-    expect(config.delivery).toBe('commands');
+    // 2.0 installs skills only: no delivery is inferred.
+    expect(config.delivery ?? 'skills').toBe('skills');
     expect(config.workflows).toEqual(['explore', 'archive']);
   });
 
-  it('migrates to custom both delivery when managed skills and commands are detected', async () => {
+  it('migrates the workflows of skills and commands together, without a delivery', async () => {
     await writeSkill(projectDir, 'openspec-explore');
     await writeManagedCommand(projectDir, 'apply');
 
@@ -132,7 +133,7 @@ describe('migration', () => {
 
     const config = readRawConfig();
     expect(config.profile).toBe('custom');
-    expect(config.delivery).toBe('both');
+    expect(config.delivery ?? 'skills').toBe('skills');
     expect(config.workflows).toEqual(['explore', 'apply']);
   });
 
@@ -401,9 +402,8 @@ describe('migration', () => {
       }
     });
 
-    it('keeps commands delivery when the command files still sit under .agent', async () => {
+    it('counts the workflows of command files still under .agent', async () => {
       // The commands are only findable at the legacy root until migration runs.
-      // Inferring `skills` here would make the next update delete them.
       await writeSkill(projectDir, 'openspec-explore', '.agent');
       const legacyCommand = path.join(projectDir, '.agent', 'workflows', 'opsx-explore.md');
       await fsp.mkdir(path.dirname(legacyCommand), { recursive: true });
@@ -411,7 +411,8 @@ describe('migration', () => {
 
       migrateIfNeeded(projectDir, [requireTool('antigravity')]);
 
-      expect(readRawConfig().delivery).toBe('both');
+      expect(readRawConfig().workflows).toEqual(['explore']);
+      expect(readRawConfig().delivery ?? 'skills').toBe('skills');
     });
 
     it('leaves files the user keeps under .agent alone', async () => {

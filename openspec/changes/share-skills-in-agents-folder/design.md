@@ -38,7 +38,7 @@ The list also records two things the folder alone can't show:
 
 ### D5. Skills exist per project, not per tool
 
-The shared copy exists when any listed tool needs skills under the current delivery, and holds the union of their workflows. Links follow each tool's own setting.
+The shared copy exists when any tool is listed, and holds the union of their workflows. Links follow each tool's own setting.
 
 ### D6. Moving old copies
 
@@ -46,11 +46,24 @@ Each tool's old `<skillsDir>/skills/openspec-*` folders are a skills-only former
 
 ### D7. Skills only, behind one switch
 
-The four delivery helpers in `command-surface.ts` decide every command write and removal, so 2.0 changes them alone: no command files for any tool, skills for every tool, and generated command files reconciled away (edited ones kept). The `delivery` value is still read but no longer consulted. The command adapters stay, because cleanup needs their paths and output to recognize old files; the now-unreachable command-writing branches are left for a follow-up that only deletes code.
+No tool gets command files, every tool gets skills, and generated command files are reconciled away (edited ones kept). The command-writing code is deleted; `delivery` is still accepted but read by nothing. The command adapters stay, because cleanup needs their paths and output to recognize old files.
+
+The profile migration for a 1.x project with no saved profile records only its workflows: `core` when they are exactly the core set, otherwise `custom` with that list. It no longer infers a delivery.
 
 ### D8. Retired tools
 
 A retired tool leaves the tool list, so nothing sets it up or counts it as configured. `RETIRED_TOOLS` in `config.ts` names it, its folder and its successor; `init --tools` rejects it with that successor, and `retired-tools.ts` cleans up after it in `init` and `update`: command files through the same reconcile (its adapter stays registered for this), skill copies only when a release wrote them exactly, nothing through a link, empty folders pruned. Amazon Q Developer is the first: it can't load skills, so skills-only 2.0 has nothing to give it.
+
+### D9. Nothing of the user's is lost
+
+Every removal compares a file with what OpenSpec wrote (this version, or any release) and keeps anything else, listing it. This holds for:
+
+- a skill the new profile drops: an edited `.agents/skills/<skill>/SKILL.md` is kept and recorded as `keep <skill>`;
+- global Codex prompts (`~/.codex/prompts/opsx-*.md`): only released text is removed, even under `--force`;
+- an unlisted `.agents/skills` folder: a tool is inferred from it only when its skills are released text;
+- links: a link the user made (a tool's `skills/` folder linked to `.agents/skills`, or `.agents/skills/<skill>` linked elsewhere) is never written or deleted through. A link git checked out as a text file is recognized and replaced with a copy.
+
+Accepted: a skill OpenSpec still installs is refreshed in place in `.agents/skills`, as 1.x refreshed each tool's copy.
 
 ## Risks
 

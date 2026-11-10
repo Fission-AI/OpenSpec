@@ -20,7 +20,7 @@ import {
 import { findRepoPlanningRootSync } from './planning-home.js';
 import { resolveOpenSpecRoot } from './root-selection.js';
 import { ANCHORED_OPENSPEC_DIRS, ensureDirectoryAnchor } from './openspec-root.js';
-import { getSkillReferenceTransformer, getTransformerForTool, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, getTransformerForTool, transformToSkillReferences, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
   AI_TOOLS,
   SKILL_LINKED_TOOL_IDS,
@@ -1199,32 +1199,24 @@ export class InitCommand {
       const globalConfig = getGlobalConfig();
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
-      const usesGlobalSkillTarget = successfulTools.some((tool) => tool.isGlobalSkillTarget);
 
-      if (!usesGlobalSkillTarget) {
-        // Skills sit in one shared folder, linked into the tools that need it.
-        const skillTools = successfulTools;
-        const toolOption = (id: string) => AI_TOOLS.find((candidate) => candidate.value === id);
-        const skillDirs = [...new Set(skillTools.map((tool) => {
-          const option = toolOption(tool.value);
-          return option && usesSharedSkills(option) ? '.agents/skills/' : `${tool.skillsDir}/skills/`;
-        }))];
-        const linkedFrom = [...new Set(skillTools.flatMap((tool) => {
-          const option = toolOption(tool.value);
-          return option && SKILL_LINKED_TOOL_IDS.has(option.value) ? [`${option.skillsDir}/skills/`] : [];
-        }))];
-        if (skillTools.length > 0) {
-          const links = linkedFrom.length > 0 ? ` (linked from ${linkedFrom.join(', ')})` : '';
-          console.log(`${getSkillTemplates(workflows).length} skills in ${skillDirs.join(', ')}${links}`);
+      // Skills sit in one shared folder, linked into the tools that need it.
+      // MiniMax Code reads its own folder in the home directory instead. Each
+      // folder holds one copy of every skill, so the count is per folder.
+      const toolOption = (id: string) => AI_TOOLS.find((candidate) => candidate.value === id);
+      const skillDirs = [...new Set(successfulTools.map((tool) => {
+        const option = toolOption(tool.value);
+        if (tool.isGlobalSkillTarget && option?.globalSkillsDir) {
+          return `~/${option.globalSkillsDir}/skills/`;
         }
-      } else {
-        const skillTools = successfulTools;
-        const skillCount = skillTools.length * getSkillTemplates(workflows).length;
-        if (skillCount > 0) {
-          const skillDirs = [...new Set(skillTools.map((tool) => tool.skillsPath))];
-          console.log(`${skillCount} skills in ${skillDirs.join(', ')}`);
-        }
-      }
+        return option && usesSharedSkills(option) ? '.agents/skills/' : `${tool.skillsDir}/skills/`;
+      }))];
+      const linkedFrom = [...new Set(successfulTools.flatMap((tool) => {
+        const option = toolOption(tool.value);
+        return option && SKILL_LINKED_TOOL_IDS.has(option.value) ? [`${option.skillsDir}/skills/`] : [];
+      }))];
+      const links = linkedFrom.length > 0 ? ` (linked from ${linkedFrom.join(', ')})` : '';
+      console.log(`${getSkillTemplates(workflows).length} skills in ${skillDirs.join(', ')}${links}`);
     }
 
     // Show failures
@@ -1322,8 +1314,8 @@ export class InitCommand {
         hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
       }
       if (hintToTools.size === 0) {
-        // No successful tools: keep the generic command hint
-        return [`Start your first change: ${command} "your idea"`];
+        // No successful tools: name the skill in its default spelling.
+        return [`Start your first change: ${transformToSkillReferences(command)} "your idea"`];
       }
       if (hintToTools.size === 1) {
         return [[...hintToTools.keys()][0]];

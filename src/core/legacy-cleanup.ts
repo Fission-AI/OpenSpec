@@ -556,7 +556,11 @@ async function detectLegacyGlobalPromptFiles(): Promise<LegacyGlobalPromptMatch[
         if (entry.isFile() && pattern.managedFileNames.includes(entry.name)) {
           const fullPath = path.join(promptDir, entry.name);
           const match = getManagedGlobalLegacyPromptMetadata(fullPath);
-          if (match) {
+          // Shared by every project on the machine: only a prompt exactly as
+          // a release wrote it is OpenSpec's to remove. One the user edited is
+          // theirs, and is neither offered for cleanup nor removed by --force.
+          const content = match ? await readRegularFileNoFollow(fullPath) : undefined;
+          if (match && content !== undefined && isReleasedGeneratedContent(content)) {
             foundFiles.push(match);
           }
         }

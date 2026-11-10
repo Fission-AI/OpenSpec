@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import os from 'os';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
-import { createSkillLink } from './shared/skill-links.js';
+import { createSkillLink, skillLinkText } from './shared/skill-links.js';
 
 export type UpdatePlanAction = 'add' | 'update' | 'delete';
 
@@ -165,9 +165,7 @@ export class UpdatePlanRecorder implements UpdateFileOps {
 
   /** The text of the link the real update makes: relative to the real folder it sits in. */
   private linkText(linkPath: string): string {
-    const realParent = FileSystemUtils.canonicalizeExistingPath(path.dirname(linkPath));
-    const realTarget = FileSystemUtils.canonicalizeExistingPath(this.links.get(linkPath)!);
-    return path.relative(realParent, realTarget);
+    return skillLinkText(linkPath, this.links.get(linkPath)!);
   }
 
   async removeDirectory(dirPath: string, tool: string): Promise<void> {
@@ -505,7 +503,7 @@ function listFilesRecursively(dirPath: string): string[] {
 export function formatUpdatePlan(plan: UpdatePlan): string {
   const lines: string[] = [];
   if (plan.changes.length === 0) {
-    lines.push('No changes: skills and commands are up to date.');
+    lines.push('No changes: skills are up to date.');
   } else {
     lines.push(`${plan.changes.length} file(s) would change:`);
     const width = Math.max(...plan.changes.map((change) => change.action.length));

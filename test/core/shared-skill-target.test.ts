@@ -11,6 +11,11 @@ import {
   skillToolListPath,
 } from '../../src/core/shared-skill-target.js';
 import type { FileView } from '../../src/core/file-view.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+
+const RELEASED = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/released-output');
+const released = (dir: string) => readFileSync(path.join(RELEASED, dir, 'openspec-propose/SKILL.md'), 'utf8');
 
 const tool = (id: string) => AI_TOOLS.find((t) => t.value === id)!;
 
@@ -49,10 +54,15 @@ describe('the list of tools set up in a project', () => {
   });
 
   it('infers the tool an unlisted folder from before the list was written for', async () => {
-    await write('.agents/skills/openspec-explore/SKILL.md', 'Run `$openspec-propose`.');
+    await write('.agents/skills/openspec-propose/SKILL.md', released('v1.9.0-codex-agents-skills'));
     expect(readSkillToolList(project)).toEqual(['codex']);
-    await write('.agents/skills/openspec-explore/SKILL.md', 'Run `/openspec-propose`.');
+    await write('.agents/skills/openspec-propose/SKILL.md', released('v1.9.0-agents-skills'));
     expect(readSkillToolList(project)).toEqual(['agents']);
+  });
+
+  it('never infers a tool from a skill OpenSpec did not write', async () => {
+    await write('.agents/skills/openspec-explore/SKILL.md', 'Run `$openspec-propose`.');
+    expect(readSkillToolList(project)).toEqual([]);
   });
 
   it('lists nothing for a project without one, and never guesses from the shared wording', async () => {

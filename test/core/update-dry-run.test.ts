@@ -13,6 +13,7 @@ import {
   generateCopilotSetupSteps,
   persistCopilotCloudOptIn,
 } from '../../src/core/github-copilot/cloud-agent.js';
+import { releasedCodexPrompt } from '../helpers/released-codex-prompt.js';
 
 const { confirmMock } = vi.hoisted(() => ({ confirmMock: vi.fn() }));
 
@@ -438,7 +439,7 @@ describe('openspec update --dry-run', () => {
     await writeGlobalConfig({ profile: 'core', delivery: 'skills' });
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(path.join(promptDir, 'opsx-archive.md'), 'legacy archive prompt');
+    await fs.writeFile(path.join(promptDir, 'opsx-archive.md'), releasedCodexPrompt('opsx-archive.md'));
 
     await expectPlanMatchesRealUpdate({ force: true });
   });
@@ -449,7 +450,7 @@ describe('openspec update --dry-run', () => {
     await writeGlobalConfig({ profile: 'core', delivery: 'skills' });
     const promptDir = path.join(process.env.CODEX_HOME!, 'prompts');
     await fs.mkdir(promptDir, { recursive: true });
-    await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), 'legacy explore prompt');
+    await fs.writeFile(path.join(promptDir, 'opsx-explore.md'), releasedCodexPrompt('opsx-explore.md'));
     await fs.writeFile(path.join(promptDir, 'personal-notes.md'), 'user');
 
     const changes = await expectPlanMatchesRealUpdate({ force: true });

@@ -87,7 +87,7 @@ export async function cleanUpRetiredTools(
 export function formatRetiredToolCleanup(result: RetiredToolCleanup): string[] {
   const { tool, removed, kept } = result;
   const lines = [
-    `${tool.name} is no longer supported: ${tool.reason}. Set up ${tool.successor} instead: openspec init --tools ${tool.successor}`,
+    `${tool.name} is no longer supported: ${tool.reason}. Set up ${tool.successorName} instead: openspec init --tools ${tool.successor}`,
   ];
   if (removed.length > 0) {
     lines.push(

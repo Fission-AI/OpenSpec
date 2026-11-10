@@ -6,11 +6,11 @@
  */
 
 import { AI_TOOLS, type AIToolOption } from './config.js';
-import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlobalConfig, type Delivery, type GlobalConfig, type Profile } from './global-config.js';
+import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlobalConfig, type GlobalConfig, type Profile } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { COMMAND_IDS } from './shared/tool-detection.js';
-import { ALL_WORKFLOWS } from './profiles.js';
+import { ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { isToolListed } from './shared-skill-target.js';
@@ -614,22 +614,14 @@ export function scanInstalledWorkflows(
   return scanInstalledWorkflowArtifacts(projectPath, tools, false, view).workflows;
 }
 
-function inferDelivery(artifacts: InstalledWorkflowArtifacts): Delivery {
-  if (artifacts.hasSkills && artifacts.hasCommands) {
-    return 'both';
-  }
-  if (artifacts.hasCommands) {
-    return 'commands';
-  }
-  return 'skills';
-}
-
 /**
  * Performs one-time migration if the global config does not yet have a profile field.
  * Called by both init and update before profile resolution.
  *
- * - If no profile field exists and workflows are installed: sets profile to 'custom'
- *   with the detected workflows, preserving the user's existing setup.
+ * - If no profile field exists and workflows are installed: sets the profile to
+ *   the detected workflows, preserving the user's existing setup: 'core' when
+ *   they are exactly the core set, 'custom' otherwise. `delivery` is retired
+ *   and never written.
  * - If no profile field exists and no workflows are installed: no-op (defaults apply).
  * - If profile field already exists: no-op.
  */
@@ -670,14 +662,13 @@ export function computeProfileMigration(
     return null;
   }
 
-  return {
-    profile: 'custom',
-    workflows: installedWorkflows,
-    ...(rawConfig.delivery === undefined ? { delivery: inferDelivery(artifacts) } : {}),
-  };
+  const isCore =
+    installedWorkflows.length === CORE_WORKFLOWS.length &&
+    CORE_WORKFLOWS.every((workflow) => installedWorkflows.includes(workflow));
+  return { profile: isCore ? 'core' : 'custom', workflows: installedWorkflows };
 }
 
-export type ProfileMigration = { profile: Profile; workflows: string[]; delivery?: Delivery };
+export type ProfileMigration = { profile: Profile; workflows: string[] };
 
 /** The global config the one-time profile migration saves. */
 export function applyProfileMigration(migration: ProfileMigration): GlobalConfig {
@@ -685,9 +676,6 @@ export function applyProfileMigration(migration: ProfileMigration): GlobalConfig
   // Migrate: set profile to custom with detected workflows
   config.profile = migration.profile;
   config.workflows = migration.workflows;
-  if (migration.delivery !== undefined) {
-    config.delivery = migration.delivery;
-  }
   return config;
 }
 
@@ -701,6 +689,9 @@ export function migrateIfNeeded(projectPath: string, tools: AIToolOption[]): voi
   const installedWorkflows = migration.workflows;
   saveGlobalConfig(config);
 
+  // Exactly the core set (a project set up by 2.0 itself, before any global
+  // config existed): nothing to tell the user.
+  if (migration.profile === 'core') return;
   console.log(`Migrated: custom profile with ${installedWorkflows.length} workflows`);
   // Each detected tool resolves to its documented skill invocation for
   // propose. When the tools disagree, stay syntax-neutral rather than

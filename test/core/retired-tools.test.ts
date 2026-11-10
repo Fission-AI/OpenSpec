@@ -53,7 +53,7 @@ describe('retired tools', () => {
   it('is no longer a tool OpenSpec sets up', () => {
     expect(AI_TOOLS.some((tool) => tool.value === 'amazon-q')).toBe(false);
     const amazonQ = findRetiredTool('amazon-q')!;
-    expect(formatRetiredToolError(amazonQ)).toContain('Use --tools kiro instead');
+    expect(formatRetiredToolError(amazonQ)).toContain('Set up Kiro instead: openspec init --tools kiro');
   });
 
   it('removes what a release generated and the folder it emptied', async () => {

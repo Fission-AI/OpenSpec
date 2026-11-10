@@ -14,13 +14,44 @@ import { DISK_VIEW, type FileView } from '../file-view.js';
  * - `missing`: nothing yet;
  * - `link`: a link to the shared copy;
  * - `copy`: a plain copy equal to the shared one (the no-link fallback);
- * - `released`: an untouched copy an earlier release wrote, safe to replace;
+ * - `released`: an untouched copy an earlier release wrote, or a link git
+ *   checked out as a file, safe to replace;
  * - `user`: anything else (an edited copy, another link, extra files): kept.
  */
 export type SkillLinkSpot = 'missing' | 'link' | 'copy' | 'released' | 'user';
 
+/**
+ * Files an operating system drops into any folder it shows (Finder, Explorer,
+ * network and FAT volumes). They hold nothing of the user's, so they never make
+ * a skill folder the user's.
+ */
+const OS_JUNK = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini']);
+const isOsJunk = (name: string) => OS_JUNK.has(name) || name.startsWith('._');
+
+/**
+ * The text of the link OpenSpec makes at `linkPath` to `targetDir` (always
+ * `<project>/.agents/skills/<skill>`): relative to the real folder the link
+ * sits in, and through `.agents` as written rather than where `.agents`
+ * itself may point, so a linked `.agents` can move without breaking it.
+ */
+export function skillLinkText(linkPath: string, targetDir: string): string {
+  const projectRoot = path.dirname(path.dirname(path.dirname(targetDir)));
+  const target = path.join(realOrSelf(projectRoot), path.relative(projectRoot, targetDir));
+  return path.relative(realOrSelf(path.dirname(linkPath)), target);
+}
+
+function realOrSelf(p: string): string {
+  try {
+    return fs.realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
 function linkPointsTo(linkPath: string, linked: string, targetDir: string): boolean {
-  if (path.resolve(linked) === path.resolve(targetDir)) return true;
+  const normalized = linked.replace(/\\/g, '/');
+  if (path.resolve(path.dirname(linkPath), normalized) === path.resolve(targetDir)) return true;
+  if (path.resolve(realOrSelf(path.dirname(linkPath)), normalized) === path.resolve(realOrSelf(path.dirname(targetDir)), path.basename(targetDir))) return true;
   try {
     return fs.realpathSync(linkPath) === fs.realpathSync(targetDir);
   } catch {
@@ -43,13 +74,19 @@ export function classifySkillLinkSpot(
   const linked = view.linkTarget?.(linkPath);
   if (linked !== undefined) return linkPointsTo(linkPath, linked, targetDir) ? 'link' : 'user';
   if (!view.exists(linkPath)) return 'missing';
-  if (!view.isDirectory(linkPath)) return 'user';
+  if (!view.isDirectory(linkPath)) {
+    // Git without link support (Windows' default `core.symlinks=false`)
+    // checks a committed link out as a small file holding its target path.
+    // It is OpenSpec's, and needs replacing: 'released' asks for exactly that.
+    return isCheckedOutLink(linkPath, targetDir, view) ? 'released' : 'user';
+  }
   let entries: string[];
   try {
     entries = view.listDirectory ? view.listDirectory(linkPath) : fs.readdirSync(linkPath);
   } catch {
     return 'user';
   }
+  entries = entries.filter((name) => !isOsJunk(name));
   if (entries.length !== 1 || entries[0] !== 'SKILL.md') return 'user';
   const skillFile = path.join(linkPath, 'SKILL.md');
   if (view.linkTarget?.(skillFile) !== undefined || view.isDirectory(skillFile)) return 'user';
@@ -61,6 +98,23 @@ export function classifySkillLinkSpot(
   }
   if (matchesAny(content, sharedContent)) return 'copy';
   return isReleasedGeneratedContent(content) ? 'released' : 'user';
+}
+
+/**
+ * Whether a regular file is what git writes for a link to `targetDir` when it
+ * can't make links: the link's own text, nothing else (either slash).
+ */
+export function isCheckedOutLink(filePath: string, targetDir: string, view: FileView = DISK_VIEW): boolean {
+  let text: string;
+  try {
+    text = view.read(filePath);
+  } catch {
+    return false;
+  }
+  if (text.length > 1024) return false;
+  const linked = text.trim();
+  if (linked === '' || linked.includes('\n')) return false;
+  return linkPointsTo(filePath, linked, targetDir);
 }
 
 /** Whether content equals any of the shared copy's texts (current or previous). */
@@ -109,13 +163,14 @@ export function createSkillLink(
   if (fs.existsSync(linkPath) || isSymlink(linkPath)) {
     fs.rmSync(linkPath, { recursive: true, force: true });
   }
-  // Relative to the real parent, so a linked `skills/` folder still resolves.
-  const relative = path.relative(fs.realpathSync(parent), fs.realpathSync(targetDir));
   try {
-    symlink(relative, linkPath, 'dir');
+    symlink(skillLinkText(linkPath, targetDir), linkPath, 'dir');
     return 'link';
   } catch {
-    fs.cpSync(targetDir, linkPath, { recursive: true });
+    // Only the skill itself: anything else in the shared folder (OS junk, a
+    // user's notes) is not OpenSpec's to copy.
+    fs.mkdirSync(linkPath, { recursive: true });
+    fs.copyFileSync(path.join(targetDir, 'SKILL.md'), path.join(linkPath, 'SKILL.md'));
     return 'copy';
   }
 }
