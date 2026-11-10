@@ -27,6 +27,16 @@ Init SHALL generate no command files for any tool, whatever the `delivery` setti
 - **THEN** skills SHALL be installed and no command file SHALL be written
 - **AND** the hint SHALL read `/openspec-propose`
 
+### Requirement: Init refuses retired tools
+
+Init SHALL reject a retired tool id in `--tools` with a message that names why it is retired and the tool to use instead, before writing anything.
+
+#### Scenario: Amazon Q requested
+
+- **WHEN** the user runs `openspec init --tools amazon-q`
+- **THEN** init SHALL fail with "Amazon Q Developer is no longer supported" and "Use --tools kiro instead"
+- **AND** no file SHALL be written
+
 ## REMOVED Requirements
 
 ### Requirement: Slash Command Generation

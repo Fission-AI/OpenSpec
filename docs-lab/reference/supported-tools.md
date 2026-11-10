@@ -36,7 +36,6 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 
 | Tool | `--tools` id | Skills | Skill invocation |
 |---|---|---|---|
-| Amazon Q Developer | `amazon-q` | `.amazonq/skills/` | none: Amazon Q does not load skills ([see below](#amazon-q-developer)) |
 | Amp | `amp` | `.agents/skills/` | `/openspec-apply-change` |
 | Antigravity | `antigravity` | `.agents/skills/` | `/openspec-apply-change` |
 | AtomCode | `atomcode` | `.agents/skills/` | `/openspec-apply-change` |
@@ -112,12 +111,13 @@ Replace `.mytool` with your tool's folder. If the tool already has a `skills/` f
 
 A tool not listed here behaves exactly as its row reads.
 
-### Amazon Q Developer
+### Amazon Q Developer (retired)
 
-Amazon Q Developer has no skills support, and AWS is retiring it in favor of
-Kiro. OpenSpec 2.0 removes the prompt files it wrote to `.amazonq/prompts/`, so
-Amazon Q no longer gets OpenSpec workflows. Set up Kiro instead:
-`openspec init --tools kiro`.
+OpenSpec 2.0 no longer supports Amazon Q Developer: it can't load skills, and AWS is
+retiring it in favor of Kiro. `openspec init --tools amazon-q` stops with that
+message. In a project set up for it, `openspec update` removes the prompts and skills
+OpenSpec wrote in `.amazonq/`, and keeps and lists any you edited. Set up Kiro
+instead: `openspec init --tools kiro`.
 
 ### Amp
 

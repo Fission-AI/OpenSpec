@@ -64,11 +64,39 @@ export const SKILL_LINKED_TOOL_IDS: ReadonlySet<string> = new Set([
   'hermes',
 ]);
 
-/** Tools that keep skills in their own folder (Amazon Q, being retired). */
-export const OWN_SKILLS_FOLDER_TOOL_IDS: ReadonlySet<string> = new Set(['amazon-q']);
+/** A tool OpenSpec no longer supports (src/core/retired-tools.ts cleans up after it). */
+export interface RetiredTool {
+  /** The id earlier releases accepted in `--tools`. */
+  id: string;
+  name: string;
+  /** The project folder earlier releases wrote into. */
+  folder: string;
+  /** Why it is retired, completing "… is no longer supported: <reason>". */
+  reason: string;
+  /** The `--tools` id to use instead. */
+  successor: string;
+}
+
+export const RETIRED_TOOLS: readonly RetiredTool[] = [
+  {
+    id: 'amazon-q',
+    name: 'Amazon Q Developer',
+    folder: '.amazonq',
+    reason: "it can't load skills, and AWS is retiring it in favor of Kiro",
+    successor: 'kiro',
+  },
+];
+
+export function findRetiredTool(toolId: string): RetiredTool | undefined {
+  return RETIRED_TOOLS.find((tool) => tool.id === toolId);
+}
+
+/** The line `init --tools <retired id>` fails with. */
+export function formatRetiredToolError(tool: RetiredTool): string {
+  return `${tool.name} is no longer supported: ${tool.reason}. Use --tools ${tool.successor} instead.`;
+}
 
 export const AI_TOOLS: AIToolOption[] = [
-  { name: 'Amazon Q Developer', value: 'amazon-q', available: true, successLabel: 'Amazon Q Developer', skillsDir: '.amazonq', requiresIdeRestart: true },
   { name: 'Amp', value: 'amp', available: true, successLabel: 'Amp', skillsDir: '.agents', detectionPaths: ['.amp', '.agents/skills'] },
   // Antigravity moved workspace skills and workflows from `.agent` to the
   // shared `.agents` root in v1.20.5. Detection keys off `.agent` and

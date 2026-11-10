@@ -1348,21 +1348,39 @@ metadata:
       ).toBe(sharedSkill);
     });
 
-    it('removes a generated Amazon Q prompt and heals stale slash references in its skill', async () => {
-      // Amazon Q keeps its skills in its own folder. A 1.x project also has
-      // prompt-library files there, and skills that point at /opsx: commands.
-      await new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir);
-      const promptFile = await writeGeneratedCommand(testDir, 'amazon-q', 'apply');
-      const skillFile = path.join(testDir, '.amazonq', 'skills', 'openspec-apply-change', 'SKILL.md');
-      await fs.appendFile(skillFile, '\nRun /opsx:apply next.\n');
+    it('cleans up after Amazon Q, which is retired, keeping what the user edited', async () => {
+      // A 1.x project set up for Amazon Q and Claude: Amazon Q's prompts and
+      // skills, exactly as release 1.10.0 wrote them, one prompt edited.
+      const fixtures = path.join(__dirname, '..', 'fixtures', 'released-output', 'v1.10.0-amazonq');
+      const write = async (from: string, to: string, extra = '') => {
+        const target = path.join(testDir, '.amazonq', to);
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await fs.writeFile(target, (await fs.readFile(path.join(fixtures, from), 'utf-8')) + extra);
+        return target;
+      };
+      const untouched = await write('prompts/opsx-explore.md', 'prompts/opsx-explore.md');
+      const skill = await write('skills/openspec-explore/SKILL.md', 'skills/openspec-explore/SKILL.md');
+      const edited = await write('prompts/opsx-apply.md', 'prompts/opsx-apply.md', '\nOur step.\n');
+      const editedText = await fs.readFile(edited, 'utf-8');
+      await writeReleasedSkill(path.join(testDir, '.claude', 'skills'), 'openspec-explore');
+      const consoleSpy = vi.spyOn(console, 'log');
 
-      await new UpdateCommand({ force: true }).execute(testDir);
+      await new UpdateCommand().execute(testDir);
 
-      expect(await FileSystemUtils.fileExists(promptFile)).toBe(false);
-      const refreshed = await fs.readFile(skillFile, 'utf-8');
-      // Amazon Q invokes skills by name with a slash.
-      expect(refreshed).toContain('`/openspec-archive-change`');
-      expect(refreshed).not.toMatch(/[/@]opsx[:-]/);
+      expect(await FileSystemUtils.fileExists(untouched)).toBe(false);
+      expect(await FileSystemUtils.fileExists(skill)).toBe(false);
+      expect(await fs.readFile(edited, 'utf-8')).toBe(editedText);
+      const logs = consoleSpy.mock.calls.flat().map(String);
+      expect(logs.some((entry) => entry.includes('Amazon Q Developer is no longer supported'))).toBe(true);
+      expect(logs.some((entry) => entry.includes(path.join('.amazonq', 'prompts', 'opsx-apply.md')))).toBe(true);
+      // Claude is set up as usual, and Amazon Q is not listed.
+      const list = await fs.readFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'utf-8');
+      expect(list).toContain('claude');
+      expect(list).not.toContain('amazon-q');
+
+      consoleSpy.mockClear();
+      await new UpdateCommand().execute(testDir);
+      expect(consoleSpy.mock.calls.flat().map(String).some((entry) => entry.includes('up to date'))).toBe(true);
     });
 
     it('should set up Claude skills and remove its generated commands', async () => {
@@ -1899,18 +1917,18 @@ metadata:
 
       await createLegacyCodexPrompt();
 
-      // Amazon Q keeps its skills in its own folder, outside the shared copy
+      // MiniMax keeps its skills in the user's home, outside the shared copy
       // whose writes fail here.
-      const amazonQSkill = path.join(testDir, '.amazonq', 'skills', 'openspec-explore', 'SKILL.md');
-      await fs.mkdir(path.dirname(amazonQSkill), { recursive: true });
-      await fs.writeFile(amazonQSkill, 'old');
+      const otherSkill = path.join(testDir, 'home', '.minimax', 'skills', 'openspec-explore', 'SKILL.md');
+      await fs.mkdir(path.dirname(otherSkill), { recursive: true });
+      await fs.writeFile(otherSkill, 'old');
 
       failCodexSkillWrites();
 
       await expect(new UpdateCommand({ force: true }).execute(testDir)).rejects.toThrow(
         'OpenSpec update failed for: Codex'
       );
-      expect(await fs.readFile(amazonQSkill, 'utf-8')).toContain('name: openspec-explore');
+      expect(await fs.readFile(otherSkill, 'utf-8')).toContain('name: openspec-explore');
     });
 
     it('should report a failed bootstrap when configured tools are already current', async () => {
@@ -2021,78 +2039,47 @@ metadata:
       consoleSpy.mockRestore();
     });
 
-    it('should continue updating other tools when one fails', async () => {
-      // Set up Amazon Q and Cursor
-      await writeReleasedSkill(path.join(testDir, '.amazonq', 'skills'), 'openspec-explore');
+    // Kiro's own skills folder holds a 1.x copy that OpenSpec may not replace
+    // (read-only folder), so Kiro's links fail. POSIX permissions only.
+    async function lockKiroSkills(): Promise<() => Promise<void>> {
+      const kiroSkills = path.join(testDir, '.kiro', 'skills');
+      await writeReleasedSkill(kiroSkills, 'openspec-explore');
+      await fs.chmod(kiroSkills, 0o555);
+      return () => fs.chmod(kiroSkills, 0o755);
+    }
 
-      const cursorSkillsDir = path.join(testDir, '.cursor', 'skills');
-      await writeReleasedSkill(cursorSkillsDir, 'openspec-explore');
-
-      // Mock writeFile to fail only for Amazon Q's own files: its skills live
-      // in its own folder, apart from the shared copy Cursor reads.
-      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
-      const writeSpy = vi
-        .spyOn(FileSystemUtils, 'writeFile')
-        .mockImplementation(async (filePath, content) => {
-          if (filePath.includes(`${path.sep}.amazonq${path.sep}`)) {
-            throw new Error('EACCES: permission denied');
-          }
-          return originalWriteFile(filePath, content);
-        });
-
+    it.skipIf(process.platform === 'win32')('should continue updating other tools when one fails', async () => {
+      // Kiro and Cursor, both set up; Cursor reads the shared copy.
+      await writeReleasedSkill(path.join(testDir, '.cursor', 'skills'), 'openspec-explore');
+      const unlock = await lockKiroSkills();
       const consoleSpy = vi.spyOn(console, 'log');
 
-      await expect(updateCommand.execute(testDir)).rejects.toThrow(
-        'OpenSpec update failed for: Amazon Q Developer'
-      );
+      try {
+        await expect(updateCommand.execute(testDir)).rejects.toThrow('OpenSpec update failed for: Kiro');
+      } finally {
+        await unlock();
+      }
 
-      // Cursor should still be updated - check the actual format from ora spinner
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Updated: Cursor')
-      );
-
-      // Amazon Q should be reported as failed
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Failed')
-      );
-
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Updated: Cursor'));
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Failed'));
       // Cursor succeeded, so its IDE process still needs to reload the changes.
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Restart your IDE')
-      );
-
-      writeSpy.mockRestore();
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Restart your IDE'));
       consoleSpy.mockRestore();
     });
 
-    it('should not suggest an IDE restart when only the IDE tool fails', async () => {
-      // Amazon Q is an IDE tool whose skills live in its own folder.
-      const claudeSkill = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
-      const amazonQSkill = path.join(testDir, '.amazonq', 'skills', 'openspec-explore', 'SKILL.md');
-      await fs.mkdir(path.dirname(claudeSkill), { recursive: true });
-      await fs.mkdir(path.dirname(amazonQSkill), { recursive: true });
-      await fs.writeFile(claudeSkill, 'old');
-      await fs.writeFile(amazonQSkill, 'old');
-
-      const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
-      vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
-        if (filePath.includes(`${path.sep}.amazonq${path.sep}`)) {
-          throw new Error('EACCES: permission denied');
-        }
-        return originalWriteFile(filePath, content);
-      });
-
+    it.skipIf(process.platform === 'win32')('should not suggest an IDE restart when only the IDE tool fails', async () => {
+      // Kiro is an IDE tool, Claude a CLI. Kiro's links fail; Claude's work.
+      await writeReleasedSkill(path.join(testDir, '.claude', 'skills'), 'openspec-explore');
+      const unlock = await lockKiroSkills();
       const consoleSpy = vi.spyOn(console, 'log');
 
-      await expect(updateCommand.execute(testDir)).rejects.toThrow(
-        'OpenSpec update failed for: Amazon Q Developer'
-      );
-      expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Updated: Claude Code')
-      );
-      expect(consoleSpy).not.toHaveBeenCalledWith(
-        expect.stringContaining('Restart your IDE')
-      );
+      try {
+        await expect(updateCommand.execute(testDir)).rejects.toThrow('OpenSpec update failed for: Kiro');
+      } finally {
+        await unlock();
+      }
+      expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Updated: Claude Code'));
+      expect(consoleSpy).not.toHaveBeenCalledWith(expect.stringContaining('Restart your IDE'));
     });
   });
 

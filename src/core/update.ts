@@ -45,6 +45,7 @@ import {
 } from './legacy-cleanup.js';
 import { isInteractive } from '../utils/interactive.js';
 import { findStaleReleasedFiles, pruneEmptyParents } from './released-output-sweep.js';
+import { cleanUpRetiredTools, formatRetiredToolCleanup } from './retired-tools.js';
 import { getGlobalConfig, getGlobalConfigPath, serializeGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { formatOptionalWorkflowsNote, getOnboardingCommands } from './onboarding-commands.js';
@@ -280,6 +281,18 @@ export class UpdateCommand {
       deferredGlobalCleanup,
       failedTools: legacyUpgradeFailures = [],
     } = legacyUpgrade;
+
+    // 4b. Tools OpenSpec no longer supports: remove what earlier releases
+    //     generated for them, keep what the user edited, and say so.
+    for (const retired of await cleanUpRetiredTools(resolvedProjectPath, {
+      view: this.view,
+      remove: (fullPath) => this.ops.removeFile(fullPath, 'openspec'),
+      prune: !this.dryRun,
+    })) {
+      const [headline, ...detail] = formatRetiredToolCleanup(retired);
+      this.log(chalk.yellow(headline));
+      for (const line of detail) this.log(chalk.dim(line));
+    }
 
     // 5. Find configured tools
     const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);

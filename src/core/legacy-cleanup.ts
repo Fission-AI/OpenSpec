@@ -9,7 +9,7 @@ import { promises as fs, constants as fsConstants } from 'fs';
 import type { FileHandle } from 'fs/promises';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
-import { OPENSPEC_MARKERS } from './config.js';
+import { OPENSPEC_MARKERS, findRetiredTool } from './config.js';
 import { hasReleasedOpenSpecBlock, isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
 import { ALL_WORKFLOWS, type WorkflowId } from './profiles.js';
 
@@ -1150,7 +1150,9 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
     tools.add(prompt.toolId);
   }
 
-  return Array.from(tools);
+  // A retired tool's old files are still cleaned up, but the tool is not set
+  // up again (src/core/retired-tools.ts).
+  return Array.from(tools).filter((toolId) => !findRetiredTool(toolId));
 }
 
 /** The tool that owns a repo-local legacy slash-command directory, if any. */

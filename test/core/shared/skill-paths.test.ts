@@ -25,10 +25,8 @@ describe('skill-paths', () => {
     );
   });
 
-  it('keeps Amazon Q in its own folder', () => {
-    const amazonQ = AI_TOOLS.find((tool) => tool.value === 'amazon-q');
-    if (!amazonQ || !toolSupportsSkills(amazonQ)) throw new Error('amazon-q missing');
-    expect(resolveToolSkillsDir('/repo/app', amazonQ)).toBe(path.join('/repo/app', '.amazonq', 'skills'));
+  it('no longer lists Amazon Q, which is retired', () => {
+    expect(AI_TOOLS.find((tool) => tool.value === 'amazon-q')).toBeUndefined();
   });
 
   it('resolves MiniMax Code skills under the supplied user home', () => {

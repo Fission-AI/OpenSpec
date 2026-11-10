@@ -11,7 +11,7 @@
 | Where skills live | A copy in each tool's own folder | One copy in `.agents/skills/`, with links for tools that need them |
 | Command files (`/opsx:propose`) | Installed beside the skills | Gone. Use the skills, which do the same work |
 | The `delivery` setting | Skills, commands, or both | Retired: everything is skills |
-| Amazon Q Developer | Prompt files | No longer supported: it can't load skills. Use Kiro |
+| Amazon Q Developer | Prompt files | Retired: it can't load skills. `update` removes its OpenSpec files; use Kiro |
 
 [Supported tools](../reference/supported-tools.md#where-skills-go) shows the new layout and which tools get links.
 

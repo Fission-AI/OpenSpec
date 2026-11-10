@@ -48,6 +48,10 @@ Each tool's old `<skillsDir>/skills/openspec-*` folders are a skills-only former
 
 The four delivery helpers in `command-surface.ts` decide every command write and removal, so 2.0 changes them alone: no command files for any tool, skills for every tool, and generated command files reconciled away (edited ones kept). The `delivery` value is still read but no longer consulted. The command adapters stay, because cleanup needs their paths and output to recognize old files; the now-unreachable command-writing branches are left for a follow-up that only deletes code.
 
+### D8. Retired tools
+
+A retired tool leaves the tool list, so nothing sets it up or counts it as configured. `RETIRED_TOOLS` in `config.ts` names it, its folder and its successor; `init --tools` rejects it with that successor, and `retired-tools.ts` cleans up after it in `init` and `update`: command files through the same reconcile (its adapter stays registered for this), skill copies only when a release wrote them exactly, nothing through a link, empty folders pruned. Amazon Q Developer is the first: it can't load skills, so skills-only 2.0 has nothing to give it.
+
 ## Risks
 
 - **Committed links on Windows.** With git's `core.symlinks` off, a teammate on Windows checks links out as text files. `update` sees a non-link and replaces it with a copy. The docs say so.

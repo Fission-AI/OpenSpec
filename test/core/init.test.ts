@@ -2456,25 +2456,28 @@ describe('InitCommand - profile and detection features', () => {
     }
   );
 
-  it('should install Amazon Q skills in its own folder and no prompt files', async () => {
-    // Amazon Q keeps its skills in .amazonq/skills; the 1.x prompt library
-    // files (.amazonq/prompts/opsx-<id>.md) are no longer written.
-    const initCommand = new InitCommand({ tools: 'amazon-q', force: true });
-    await initCommand.execute(testDir);
+  it('refuses Amazon Q, which is retired, and names its successor', async () => {
+    // Amazon Q cannot load skills, and AWS is retiring it in favor of Kiro.
+    await expect(new InitCommand({ tools: 'amazon-q', force: true }).execute(testDir)).rejects.toThrow(
+      'Amazon Q Developer is no longer supported'
+    );
+    await expect(new InitCommand({ tools: 'claude,amazon-q', force: true }).execute(testDir)).rejects.toThrow(
+      'Use --tools kiro instead'
+    );
+    expect(await directoryExists(path.join(testDir, '.amazonq'))).toBe(false);
+  });
 
-    expect(await directoryExists(path.join(testDir, '.amazonq', 'prompts'))).toBe(false);
-    const skillFile = path.join(testDir, '.amazonq', 'skills', 'openspec-apply-change', 'SKILL.md');
-    const content = await fs.readFile(skillFile, 'utf-8');
-    expect(content).toContain('openspec-archive-change');
-    expect(content).not.toMatch(/[@/]opsx[:-]/);
+  it('removes what an earlier release wrote for Amazon Q when init runs again', async () => {
+    const fixtures = path.join(__dirname, '..', 'fixtures', 'released-output', 'v1.10.0-amazonq');
+    const prompt = path.join(testDir, '.amazonq', 'prompts', 'opsx-explore.md');
+    await fs.mkdir(path.dirname(prompt), { recursive: true });
+    await fs.copyFile(path.join(fixtures, 'prompts', 'opsx-explore.md'), prompt);
 
+    await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+
+    expect(await directoryExists(path.join(testDir, '.amazonq'))).toBe(false);
     const logCalls = (console.log as unknown as { mock: { calls: unknown[][] } }).mock.calls.flat().map(String);
-    const startHint = logCalls.find((entry) => entry.includes('Start your first change'));
-    expect(startHint).toContain('openspec-propose');
-    expect(startHint).not.toMatch(/[@/]opsx[:-]/);
-
-    const restartHint = logCalls.find((entry) => entry.includes('Restart your IDE'));
-    expect(restartHint).toContain('Restart your IDE to refresh skills.');
+    expect(logCalls.some((entry) => entry.includes('Amazon Q Developer is no longer supported'))).toBe(true);
   });
 
   it('should label the codex hint separately when mixed with a slash-invocable adapterless tool', async () => {

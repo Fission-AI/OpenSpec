@@ -59,6 +59,12 @@ import {
   formatIdeRestart,
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
+import {
+  cleanUpRetiredTools,
+  findRetiredTool,
+  formatRetiredToolCleanup,
+  formatRetiredToolError,
+} from './retired-tools.js';
 import { pruneEmptyParents } from './released-output-sweep.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
@@ -767,6 +773,13 @@ export class InitCommand {
       throw new Error('Cannot combine reserved values "all" or "none" with specific tool IDs.');
     }
 
+    // A tool OpenSpec no longer supports gets its own reason and successor,
+    // not the generic list.
+    const retired = normalizedTokens.map(findRetiredTool).find((tool) => tool !== undefined);
+    if (retired) {
+      throw new Error(formatRetiredToolError(retired));
+    }
+
     const invalidTokens = tokens.filter(
       (_token, index) => !availableSet.has(normalizedTokens[index])
     );
@@ -957,6 +970,18 @@ export class InitCommand {
         AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value) && usesSharedSkills(tool))
           .map((tool) => [tool.value, failure])
       );
+    }
+
+    // Tools OpenSpec no longer supports: remove what earlier releases
+    // generated for them, keep what the user edited, and say so.
+    for (const retired of await cleanUpRetiredTools(projectPath, {
+      view: DISK_VIEW,
+      remove: (fullPath) => fs.promises.unlink(fullPath),
+      prune: true,
+    })) {
+      const [headline, ...detail] = formatRetiredToolCleanup(retired);
+      console.log(chalk.yellow(headline));
+      for (const line of detail) console.log(chalk.dim(line));
     }
 
     // Process each tool

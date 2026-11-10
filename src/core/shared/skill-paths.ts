@@ -1,7 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 
-import { AI_TOOLS, OWN_SKILLS_FOLDER_TOOL_IDS, SKILL_LINKED_TOOL_IDS, type AIToolOption } from '../config.js';
+import { AI_TOOLS, SKILL_LINKED_TOOL_IDS, type AIToolOption } from '../config.js';
 
 export type SkillCapableTool = AIToolOption & (
   | { skillsDir: string }
@@ -48,7 +48,7 @@ export const SHARED_SKILLS_ROOT = '.agents';
 
 /** Whether a tool's project skills live in the shared `.agents/skills/`. */
 export function usesSharedSkills(tool: AIToolOption): boolean {
-  return Boolean(tool.skillsDir) && !tool.globalSkillsDir && !OWN_SKILLS_FOLDER_TOOL_IDS.has(tool.value);
+  return Boolean(tool.skillsDir) && !tool.globalSkillsDir;
 }
 
 /** Absolute path of the shared skills folder. */

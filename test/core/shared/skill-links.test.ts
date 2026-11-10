@@ -16,12 +16,14 @@ const fixtures = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const tool = (id: string) => AI_TOOLS.find((t) => t.value === id)!;
 
 describe('shared skill paths', () => {
-  it('puts every project-skill tool in .agents/skills except Amazon Q and global tools', () => {
+  it('puts every project-skill tool in .agents/skills except global tools', () => {
     expect(resolveSharedSkillsDir('/p')).toBe(path.join('/p', '.agents', 'skills'));
     expect(usesSharedSkills(tool('cursor'))).toBe(true);
     expect(usesSharedSkills(tool('codex'))).toBe(true);
-    expect(usesSharedSkills(tool('amazon-q'))).toBe(false);
     expect(usesSharedSkills(tool('minimax-code'))).toBe(false);
+    for (const option of AI_TOOLS) {
+      if (option.skillsDir && !option.globalSkillsDir) expect(usesSharedSkills(option), option.value).toBe(true);
+    }
   });
 
   it('links only the tools that may not read .agents/skills', () => {

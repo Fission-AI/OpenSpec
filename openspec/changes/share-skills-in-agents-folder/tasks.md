@@ -30,3 +30,8 @@
 - [x] 6.3 Retire `delivery`: config set note, default `skills`, picker without delivery; drop the 1.x notice
 - [x] 6.4 Tests converted; upgrade matrix and edit-safety runs across every release
 - [x] 6.5 Docs: upgrade guide, supported tools, setup, profiles, CLI, config.json, README, install.md
+
+## 7. Retire Amazon Q and delete dead code
+
+- [x] 7.1 Delete the code that wrote command files (behavior unchanged: same tests, matrix and release tests)
+- [x] 7.2 Retire Amazon Q: not offered, `--tools amazon-q` names Kiro, update/init remove its generated files and keep edited ones

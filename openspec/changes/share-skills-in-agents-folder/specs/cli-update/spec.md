@@ -59,6 +59,18 @@ Update SHALL generate no command files for any tool, whatever the `delivery` set
 - **WHEN** update runs
 - **THEN** it SHALL behave as for any other setting: skills installed, no command files written
 
+### Requirement: Update cleans up after retired tools
+
+Update SHALL remove the files earlier releases generated for a retired tool (Amazon Q Developer: its prompts and skill copies in `.amazonq/`), SHALL keep and list any of those files the user edited, SHALL leave the user's other files in that folder alone, and SHALL say the tool is no longer supported and name its successor. A retired tool SHALL NOT be set up or listed as configured.
+
+#### Scenario: Amazon Q project
+
+- **GIVEN** a project holds Amazon Q prompts and skills a 1.x release wrote, one prompt edited
+- **WHEN** the user runs `openspec update`
+- **THEN** the untouched prompts and skills SHALL be removed and the edited prompt kept byte for byte and listed
+- **AND** the output SHALL say Amazon Q Developer is no longer supported and point to `openspec init --tools kiro`
+- **AND** a second update SHALL change nothing
+
 ## REMOVED Requirements
 
 ### Requirement: Slash Command Updates
