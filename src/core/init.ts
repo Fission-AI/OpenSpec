@@ -1256,7 +1256,7 @@ export class InitCommand {
       console.log(chalk.red(`Failed: ${results.failedTools.map((f) => `${f.name} (${f.error.message})`).join(', ')}`));
     }
 
-    // Show skipped commands
+    // Command files earlier versions generated, now removed
     if (results.removedCommandCount > 0) {
       console.log(chalk.dim(`Removed: ${results.removedCommandCount} command ${results.removedCommandCount === 1 ? 'file' : 'files'} (OpenSpec 2.0 installs skills only)`));
     }

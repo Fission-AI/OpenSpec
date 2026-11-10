@@ -362,6 +362,9 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     for (const [rel, hash] of Object.entries(before)) {
       expect(after[rel], rel).toBe(hash);
     }
+    // Nothing new outside the shared copy.
+    const added = Object.keys(after).filter((rel) => !(rel in before));
+    expect(added.filter((rel) => !rel.startsWith('.agents/skills/'))).toEqual([]);
   }, 600_000);
 
   it('never sets up a tool or cleans up because of prompts in the home folder', async () => {
