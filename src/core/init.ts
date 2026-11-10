@@ -1012,8 +1012,10 @@ export class InitCommand {
               }
               // Refreshed in place, but an edited SKILL.md is saved beside it first.
               if (spot === 'user') {
+                // Taken by anything, a dangling link included: never written through.
+                const taken = (candidate: string) => fs.existsSync(candidate) || DISK_VIEW.linkTarget?.(candidate) !== undefined;
                 let backup = `${skillFile}.bak`;
-                for (let n = 1; fs.existsSync(backup); n += 1) backup = `${skillFile}.bak${n}`;
+                for (let n = 1; taken(backup); n += 1) backup = `${skillFile}.bak${n}`;
                 FileSystemUtils.assertPathWithin(tool.skillsRoot, backup);
                 await FileSystemUtils.writeFile(backup, fs.readFileSync(skillFile, 'utf-8'));
                 savedOwnSkills.push(backup);

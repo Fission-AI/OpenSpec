@@ -305,8 +305,22 @@ export function getToolVersionStatus(
   const keptShared = usesSharedSkills(tool) ? readKeptSharedSkills(projectRoot, view) : new Set<string>();
   // A skill the user keeps in the shared folder is theirs, not a version,
   // whether read there or through a tool's link to it.
-  const speaksForVersion = (skillFile: string): boolean =>
-    !keptShared.has(path.basename(path.dirname(skillFile)));
+  // In a tool's own folder (MiniMax), OpenSpec never makes links: a link at a
+  // skill's spot is the user's and is never written, so it isn't a version
+  // either.
+  const ownFolder = !usesSharedSkills(tool);
+  let usersOwnSkill = false;
+  const speaksForVersion = (skillFile: string): boolean => {
+    if (keptShared.has(path.basename(path.dirname(skillFile)))) return false;
+    if (
+      ownFolder &&
+      (view.linkTarget?.(path.dirname(skillFile)) !== undefined || view.linkTarget?.(skillFile) !== undefined)
+    ) {
+      usersOwnSkill = true;
+      return false;
+    }
+    return true;
+  };
   for (const skillName of SKILL_NAMES) {
     for (const skillsDir of skillsDirs) {
       const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
@@ -327,7 +341,9 @@ export function getToolVersionStatus(
   // Every skill of the tool's present is the user's own (kept): there is no
   // OpenSpec skill to date, and nothing for update to write. Missing skills
   // are profile drift's to find.
-  if (!foundSkill && keptShared.size > 0 && isListedToolPresent(projectRoot, toolId, view)) {
+  if (!foundSkill && usersOwnSkill) {
+    generatedByVersion = currentVersion;
+  } else if (!foundSkill && keptShared.size > 0 && isListedToolPresent(projectRoot, toolId, view)) {
     generatedByVersion = currentVersion;
   }
 

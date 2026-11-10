@@ -393,6 +393,38 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     expect(readFileSync(path.join(team, 'SKILL.md'), 'utf8')).toBe('team propose\n');
   });
 
+  it('settles with the user’s link at a MiniMax skill OpenSpec still installs', async () => {
+    await new InitCommand({ tools: 'minimax-code', force: true }).execute(project);
+    const minimax = path.join(root, 'home', '.minimax', 'skills');
+    const team = path.join(root, 'team', 'explore');
+    await fs.mkdir(team, { recursive: true });
+    await fs.writeFile(path.join(team, 'SKILL.md'), 'mine\n');
+    await fs.rm(path.join(minimax, 'openspec-explore'), { recursive: true });
+    await fs.symlink(team, path.join(minimax, 'openspec-explore'), linkType);
+
+    await new UpdateCommand().execute(project);
+
+    expect(readFileSync(path.join(team, 'SKILL.md'), 'utf8')).toBe('mine\n');
+    await settles();
+  });
+
+  it.skipIf(process.platform === 'win32')('never writes a MiniMax backup through a dangling link', async () => {
+    await new InitCommand({ tools: 'minimax-code', force: true }).execute(project);
+    const skillDir = path.join(root, 'home', '.minimax', 'skills', 'openspec-explore');
+    await fs.appendFile(path.join(skillDir, 'SKILL.md'), '\nEDIT\n');
+    const outside = path.join(root, 'outside', 'stolen.txt');
+    await fs.mkdir(path.dirname(outside), { recursive: true });
+    await fs.symlink(outside, path.join(skillDir, 'SKILL.md.bak'));
+
+    await new UpdateCommand().execute(project);
+    await fs.appendFile(path.join(skillDir, 'SKILL.md'), '\nEDIT AGAIN\n');
+    await new InitCommand({ tools: 'minimax-code', force: true }).execute(project);
+
+    expect(await fs.access(outside).then(() => true, () => false)).toBe(false);
+    expect(readFileSync(path.join(skillDir, 'SKILL.md.bak1'), 'utf8')).toContain('EDIT');
+    expect(readFileSync(path.join(skillDir, 'SKILL.md.bak2'), 'utf8')).toContain('EDIT AGAIN');
+  });
+
   it('installs OpenSpec’s skill again once the user deletes the one kept as theirs', async () => {
     await new InitCommand({ tools: 'claude,codex', force: true }).execute(project);
     await fs.appendFile(p('.agents', 'skills', 'openspec-explore', 'SKILL.md'), '\nmy edit\n');

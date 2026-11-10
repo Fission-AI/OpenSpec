@@ -867,6 +867,10 @@ export class UpdateCommand {
         if (kept.has(dirName)) return false;
         const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
         if (!this.view.exists(skillFile)) return false;
+        // In a tool's own folder, the user's link is never written through.
+        if (!usesSharedSkills(tool) && classifyOwnSkill(path.dirname(skillFile), tool.value, dirName, this.view) === 'link') {
+          return false;
+        }
         try {
           const existing = this.view.read(skillFile);
           const generated = generateSkillContent(template, OPENSPEC_VERSION, transformer);
@@ -1187,7 +1191,8 @@ export class UpdateCommand {
   private freeBackupPath(skillFile: string): string {
     for (let n = 0; ; n += 1) {
       const candidate = `${skillFile}.bak${n === 0 ? '' : n}`;
-      if (!this.view.exists(candidate)) return candidate;
+      // Taken by anything, a dangling link included: never written through.
+      if (!this.view.exists(candidate) && this.view.linkTarget?.(candidate) === undefined) return candidate;
     }
   }
 
