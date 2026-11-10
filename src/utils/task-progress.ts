@@ -81,24 +81,47 @@ export interface LocatedParsedTask extends ParsedTask {
 }
 
 /**
- * A line that starts a new Markdown block, and so ends the task above it
- * instead of continuing its text: a blank line, a heading, a code fence, a
- * block quote, an HTML block such as `<!-- ... -->`, a thematic break, or any
- * list item (a sibling task, a sub-task, or a plain note bullet).
+ * A line that ends the task above it instead of continuing its text: the
+ * Markdown constructs that close a paragraph. Each alternative, in order:
+ * a blank line; an ATX heading (`#` then a space, so a wrapped `#2227` still
+ * continues); a code fence; a block quote; an HTML comment or declaration
+ * (`<!--`, `<!X`, `<?`, so wrapped `<Widget>` or `<= 5` text still continues);
+ * a setext underline (`===` or `--`) or thematic break (`***`, `- - -`); or
+ * any list item - a sibling task, a sub-task, or a plain note bullet.
+ *
+ * Narrower than a full Markdown parser on purpose. Any numbered line ends the
+ * task, though a renderer would sometimes continue it: telling a wrapped
+ * `2. ...` from a sibling list item needs list nesting this parser does not
+ * track, and cutting a rare wrap short is safer than merging another item in.
  */
-const TASK_TEXT_BREAK_PATTERN =
-  /^\s*$|^\s*(?:#|```|~~~|>|<)|^\s*(?:[-*+]|\d{1,9}[.)])(?:\s|$)|^\s*([-*_])(?:\s*\1){2,}\s*$/;
+const TASK_TEXT_BREAK_PATTERN = new RegExp(
+  [
+    /^\s*$/,
+    /^\s*#{1,6}(?:\s|$)/,
+    /^\s*(?:```|~~~)/,
+    /^\s*>/,
+    /^\s*<[!?]/,
+    /^\s*(?:=+|-+)\s*$/,
+    /^\s*([-*_])(?:\s*\1){2,}\s*$/,
+    /^\s*(?:[-*+]|\d{1,9}[.)])(?:\s|$)/,
+  ]
+    .map((part) => part.source)
+    .join('|')
+);
+
+/** A trailing odd run of `\` is a Markdown hard line break; an even run is escaped text. */
+const HARD_BREAK_PATTERN = /(?<!\\)(?:\\\\)*\\$/;
 
 /**
  * Same as `parseTaskLines`, with each task's line number.
  *
- * A task's text runs on past its checkbox line, the way Markdown renders a
- * wrapped list item: each following line that does not start a new block is
+ * A task's text is its whole first paragraph, the way Markdown renders a
+ * wrapped list item: each following line that does not end the paragraph is
  * joined onto the description with a single space. Reading the checkbox line
  * alone cut a wrapped task off at its first newline, so `openspec instructions
  * apply` handed the agent half a sentence while the count still looked right
- * (#2227). A trailing `\` (a Markdown hard line break) is dropped before the
- * join. Counting is unaffected: a continuation line is never itself a task.
+ * (#2227). A hard line break's trailing `\` is dropped before the join.
+ * Counting is unaffected: a continuation line is never itself a task.
  */
 export function parseLocatedTaskLines(content: string): LocatedParsedTask[] {
   const tasks: LocatedParsedTask[] = [];
@@ -114,7 +137,9 @@ export function parseLocatedTaskLines(content: string): LocatedParsedTask[] {
       };
       tasks.push(current);
     } else if (current && !TASK_TEXT_BREAK_PATTERN.test(line)) {
-      const head = current.description.replace(/\s*\\$/, '');
+      const head = HARD_BREAK_PATTERN.test(current.description)
+        ? current.description.slice(0, -1).trimEnd()
+        : current.description;
       current.description = head ? `${head} ${line.trim()}` : line.trim();
     } else {
       current = undefined;

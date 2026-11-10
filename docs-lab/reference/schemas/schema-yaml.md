@@ -153,7 +153,7 @@ Apply stays blocked if no file matches or the matched files contain no checkbox 
 2) [x] Completed task
 ```
 
-Any Markdown list marker works: `-`, `*`, `+`, or a number of up to nine digits followed by `.` or `)`. Leading spaces are allowed. The [tasks.md section of the spec-driven page](spec-driven/index.md#tasksmd) defines the stricter format produced by the default schema.
+Any Markdown list marker works: `-`, `*`, `+`, or a number of up to nine digits followed by `.` or `)`. Leading spaces are allowed. A task's text can wrap onto the lines below it. OpenSpec reads the wrapped lines as part of the task until a blank line, heading, code fence, or another list item. The [tasks.md section of the spec-driven page](spec-driven/index.md#tasksmd) defines the stricter format produced by the default schema.
 
 The tracked files drive the apply state:
 

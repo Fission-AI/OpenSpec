@@ -440,6 +440,8 @@ describe('parseTaskLines', () => {
         '> quoted',
         '<!-- note -->',
         '---',
+        '===',
+        '<?xml version="1.0"?>',
         '- plain bullet',
         '  * nested bullet',
         '1. numbered item',
@@ -450,6 +452,30 @@ describe('parseTaskLines', () => {
         const tasks = parseTaskLines(`- [ ] 1.1 Task\n${next}\n`);
         expect(tasks[0], JSON.stringify(next)).toEqual({ done: false, description: '1.1 Task' });
       }
+    });
+
+    it('continues through text that only looks like the start of a block', () => {
+      // `#` without a space is not a heading, and `<` opens a block only as a
+      // comment or declaration. Ending the task on either lost wrapped text.
+      const continuations = ['      #2227 for details', '      <Widget> and its props', '      <= 5 ms'];
+
+      for (const next of continuations) {
+        expect(parseTaskLines(`- [ ] 1.1 Task\n${next}\n`)[0].description, next).toBe(
+          `1.1 Task ${next.trim()}`
+        );
+      }
+    });
+
+    it('keeps an escaped trailing backslash, which is text and not a line break', () => {
+      expect(parseTaskLines('- [ ] 1.1 Path ends in \\\\\n      next line\n')).toEqual([
+        { done: false, description: '1.1 Path ends in \\\\ next line' },
+      ]);
+    });
+
+    it('reads a bare checkbox whose text starts on the next line', () => {
+      expect(parseTaskLines('- [ ]\n  1.1 Task text\n')).toEqual([
+        { done: false, description: '1.1 Task text' },
+      ]);
     });
 
     it('does not change task counts', () => {
