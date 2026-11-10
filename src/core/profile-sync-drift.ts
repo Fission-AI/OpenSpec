@@ -127,7 +127,11 @@ export function hasToolProfileOrDeliveryDrift(
   for (const workflow of knownDesiredWorkflows) {
     const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
     // Once the user deletes a kept skill, OpenSpec installs its own again.
-    if (kept.has(dirName) && view.exists(path.join(skillsDir, dirName))) continue;
+    const keptSpot = path.join(skillsDir, dirName);
+    if (kept.has(dirName) && (view.exists(keptSpot) || view.linkTarget?.(keptSpot) !== undefined)) continue;
+    // In a tool's own folder (MiniMax), a link at the spot is the user's,
+    // even one whose target is gone.
+    if (!shared && view.linkTarget?.(keptSpot) !== undefined) continue;
     const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
     if (!view.exists(skillFile)) {
       return true;

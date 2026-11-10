@@ -87,6 +87,9 @@ export function classifySkillLinkSpot(
     return 'user';
   }
   entries = entries.filter((name) => !isOsJunk(name));
+  // An empty folder (left by an interrupted run, or by deleting SKILL.md)
+  // holds nothing of the user's: the spot is free.
+  if (entries.length === 0) return 'missing';
   if (entries.length !== 1 || entries[0] !== 'SKILL.md') return 'user';
   const skillFile = path.join(linkPath, 'SKILL.md');
   if (view.linkTarget?.(skillFile) !== undefined || view.isDirectory(skillFile)) return 'user';

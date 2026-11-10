@@ -29,6 +29,8 @@ openspec update
 
 Running `update` again changes nothing.
 
+Commit your work before you upgrade, so you can go back to it. `git stash` can't hold the upgrade itself, because git can't stash a folder that became a link.
+
 ## What update does
 
 - **Skills**: written once to `.agents/skills/`, with a link from a tool's own folder where the tool needs one (`.claude/skills/`, for example).

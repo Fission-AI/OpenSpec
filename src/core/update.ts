@@ -463,7 +463,8 @@ export class UpdateCommand {
               resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
-            if (this.view.exists(skillDir)) {
+            // A dangling link counts: it is the user's, like any other.
+            if (this.view.exists(skillDir) || this.view.linkTarget?.(skillDir) !== undefined) {
               const spot = classifyOwnSkill(skillDir, tool.value, dirName, this.view, OPENSPEC_VERSION);
               // Never written through: the user's link, or their file where
               // the folder goes.

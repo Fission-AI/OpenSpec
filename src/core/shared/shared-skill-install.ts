@@ -154,6 +154,13 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     }
   }
   const sharedSpotIsUsers = (skillName: string): boolean => keptShared.has(skillName);
+  const readOr = (filePath: string): string | undefined => {
+    try {
+      return view.read(filePath);
+    } catch {
+      return undefined;
+    }
+  };
 
   // 1. The one shared copy, and the list of tools set up here.
   for (const dirName of wanted) {
@@ -233,6 +240,15 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     // The folder itself must stay in the project: one linked elsewhere is
     // refused, as every other write is. A single skill's link is the user's
     // business and is classified (and kept) below.
+    if (!linkDir) {
+      // A tool that reads `.agents/skills` needs nothing here; an old folder
+      // linked out of the project is left alone, not a failure.
+      try {
+        FileSystemUtils.assertPathWithin(projectPath, ownDir);
+      } catch {
+        return;
+      }
+    }
     FileSystemUtils.assertPathWithin(projectPath, ownDir);
     const linksWanted = linkDir !== undefined;
     for (const skillName of OPENSPEC_SKILL_NAMES) {
@@ -257,7 +273,10 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
         continue;
       }
       if (linksWanted && wanted.has(skillName)) {
-        // A link already in place stays; an old or fallback copy becomes one.
+        // A link already in place stays, and so does a fallback copy equal to
+        // the shared copy (made where links can't be). An old copy becomes a
+        // link.
+        if (spot === 'copy' && readOr(path.join(spotPath, 'SKILL.md')) === contents.get(skillName)) continue;
         if (spot !== 'link') {
           await ops.linkSkill(spotPath, path.join(sharedDir, skillName), tool.value);
           if (spot === 'released') result.replacedOldCopyCount += 1;
@@ -403,7 +422,10 @@ export function ownSkillFolderNeedsWork(
       continue;
     }
     // A link to a skill kept as the user's stays, wanted or not.
-    if (spot === 'link' && kept.has(skillName) && view.exists(path.join(sharedDir, skillName))) continue;
+    const keptSpot = path.join(sharedDir, skillName);
+    if (spot === 'link' && kept.has(skillName) && (view.exists(keptSpot) || view.linkTarget?.(keptSpot) !== undefined)) {
+      continue;
+    }
     const wanted = linkDir !== undefined && linkedSkillNames.has(skillName);
     if (wanted ? spot === 'missing' || spot === 'released' : spot !== 'missing' && !(spot === 'link' && !linkDir)) {
       return true;

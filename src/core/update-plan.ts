@@ -238,6 +238,15 @@ export class UpdatePlanRecorder implements UpdateFileOps {
       for (const filePath of this.filesUnder(directory)) {
         names.add(path.relative(directory, filePath).split(path.sep)[0]);
       }
+      // Entries on disk that hold no file (an empty folder, a dangling link)
+      // are listed too, as a real listing would, unless the plan removes them.
+      try {
+        for (const name of fs.readdirSync(directory)) {
+          if (this.stagedEntry(path.join(directory, name)) !== null) names.add(name);
+        }
+      } catch {
+        // Not a folder on disk (yet).
+      }
       for (const key of [...this.staged.keys(), ...this.links.keys()]) {
         if (key.startsWith(prefix) && this.stagedEntry(key) !== null) {
           names.add(path.relative(directory, key).split(path.sep)[0]);

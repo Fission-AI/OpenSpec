@@ -446,6 +446,76 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     await settles();
   });
 
+  it('keeps a dangling link in MiniMax’s skills folder, and settles', async () => {
+    await new InitCommand({ tools: 'minimax-code', force: true }).execute(project);
+    const spot = path.join(root, 'home', '.minimax', 'skills', 'openspec-explore');
+    await fs.rm(spot, { recursive: true });
+    await fs.symlink(path.join(root, 'not-here'), spot, linkType);
+
+    await new UpdateCommand({ force: true }).execute(project);
+
+    expect(readlinkSync(spot)).toBe(path.join(root, 'not-here'));
+    await settles();
+  });
+
+  it('plans exactly what it does for a skill folder holding an empty subfolder', async () => {
+    await new InitCommand({ tools: 'claude', force: true }).execute(project);
+    const spot = p('.claude', 'skills', 'openspec-explore');
+    await fs.rm(spot);
+    await fs.mkdir(path.join(spot, 'scripts'), { recursive: true });
+    await fs.copyFile(p('.agents', 'skills', 'openspec-explore', 'SKILL.md'), path.join(spot, 'SKILL.md'));
+
+    const plan = await new UpdateCommand({ force: true, dryRun: true }).plan(project);
+    await new UpdateCommand({ force: true }).execute(project);
+
+    // The user's subfolder makes the folder theirs: kept, in the plan and on disk.
+    expect(plan.changes.filter((change) => change.path.includes('openspec-explore'))).toEqual([]);
+    expect(lstatSync(spot).isDirectory()).toBe(true);
+    expect(lstatSync(path.join(spot, 'scripts')).isDirectory()).toBe(true);
+  });
+
+  it('sets up a tool that reads .agents/skills even when its old skills folder links outside', async () => {
+    const dotfiles = path.join(root, 'dotfiles', 'cursor-skills', 'my-skill');
+    await fs.mkdir(dotfiles, { recursive: true });
+    await fs.writeFile(path.join(dotfiles, 'SKILL.md'), 'mine\n');
+    await fs.mkdir(p('.cursor'), { recursive: true });
+    await fs.symlink(path.dirname(dotfiles), p('.cursor', 'skills'), linkType);
+
+    await new InitCommand({ tools: 'cursor', force: true }).execute(project);
+
+    expect(await exists('.agents/skills/openspec-propose/SKILL.md')).toBe(true);
+    expect(await fs.readdir(path.dirname(dotfiles))).toEqual(['my-skill']);
+    await settles();
+  });
+
+  it('keeps a fallback copy equal to the shared copy (where links can’t be made)', async () => {
+    await new InitCommand({ tools: 'claude', force: true }).execute(project);
+    const spot = p('.claude', 'skills', 'openspec-explore');
+    await fs.rm(spot);
+    await fs.mkdir(spot);
+    await fs.copyFile(p('.agents', 'skills', 'openspec-explore', 'SKILL.md'), path.join(spot, 'SKILL.md'));
+
+    const plan = await new UpdateCommand({ force: true, dryRun: true }).plan(project);
+    await new UpdateCommand({ force: true }).execute(project);
+
+    expect(plan.changes.filter((change) => change.path.includes('openspec-explore'))).toEqual([]);
+    expect(lstatSync(spot).isDirectory()).toBe(true);
+    await settles();
+  });
+
+  it('links a skill whose folder was left empty', async () => {
+    await new InitCommand({ tools: 'claude', force: true }).execute(project);
+    const spot = p('.claude', 'skills', 'openspec-explore');
+    await fs.rm(spot);
+    await fs.mkdir(spot);
+    await fs.writeFile(path.join(spot, '.DS_Store'), 'x');
+
+    await new UpdateCommand().execute(project);
+
+    expect(lstatSync(spot).isSymbolicLink()).toBe(true);
+    await settles();
+  });
+
   it('records a project set up with exactly the core workflows as the core profile, without delivery', async () => {
     await fs.rm(path.join(root, 'home', '.config', 'openspec', 'config.json'));
     await new InitCommand({ tools: 'claude', force: true }).execute(project);
