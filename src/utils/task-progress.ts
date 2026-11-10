@@ -72,12 +72,52 @@ export interface ParsedTask {
  * losing a real task is a silent one.
  */
 export function parseTaskLines(content: string): ParsedTask[] {
-  const tasks: ParsedTask[] = [];
+  return parseLocatedTaskLines(content).map(({ done, description }) => ({ done, description }));
+}
 
-  for (const line of content.split('\n')) {
+/** A parsed task plus the one-based line its checkbox sits on. */
+export interface LocatedParsedTask extends ParsedTask {
+  line: number;
+}
+
+/**
+ * A line that starts a new Markdown block, and so ends the task above it
+ * instead of continuing its text: a blank line, a heading, a code fence, a
+ * block quote, an HTML block such as `<!-- ... -->`, a thematic break, or any
+ * list item (a sibling task, a sub-task, or a plain note bullet).
+ */
+const TASK_TEXT_BREAK_PATTERN =
+  /^\s*$|^\s*(?:#|```|~~~|>|<)|^\s*(?:[-*+]|\d{1,9}[.)])(?:\s|$)|^\s*([-*_])(?:\s*\1){2,}\s*$/;
+
+/**
+ * Same as `parseTaskLines`, with each task's line number.
+ *
+ * A task's text runs on past its checkbox line, the way Markdown renders a
+ * wrapped list item: each following line that does not start a new block is
+ * joined onto the description with a single space. Reading the checkbox line
+ * alone cut a wrapped task off at its first newline, so `openspec instructions
+ * apply` handed the agent half a sentence while the count still looked right
+ * (#2227). A trailing `\` (a Markdown hard line break) is dropped before the
+ * join. Counting is unaffected: a continuation line is never itself a task.
+ */
+export function parseLocatedTaskLines(content: string): LocatedParsedTask[] {
+  const tasks: LocatedParsedTask[] = [];
+  let current: LocatedParsedTask | undefined;
+
+  for (const [index, line] of content.split('\n').entries()) {
     const match = line.match(TASK_LINE_PATTERN);
     if (match) {
-      tasks.push({ done: (match[1] ?? '').toLowerCase() === 'x', description: match[2].trim() });
+      current = {
+        done: (match[1] ?? '').toLowerCase() === 'x',
+        description: match[2].trim(),
+        line: index + 1,
+      };
+      tasks.push(current);
+    } else if (current && !TASK_TEXT_BREAK_PATTERN.test(line)) {
+      const head = current.description.replace(/\s*\\$/, '');
+      current.description = head ? `${head} ${line.trim()}` : line.trim();
+    } else {
+      current = undefined;
     }
   }
 
