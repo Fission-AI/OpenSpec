@@ -1057,7 +1057,11 @@ export class InitCommand {
     const selectedIds = new Set(tools.map((tool) => tool.value));
     for (const other of AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value) && !selectedIds.has(tool.value))) {
       const failure = ownFolderErrors.get(other.value);
-      if (failure) failedTools.push({ name: other.name, error: failure });
+      if (failure) {
+        // As update does: a tool whose folder failed keeps its commands.
+        failedTools.push({ name: `${other.name} (already set up here)`, error: failure });
+        continue;
+      }
       if (!shouldReconcileCommandFilesForTool(other.value)) continue;
       try {
         const reconciled = await reconcileCommandFiles(projectPath, other.value, workflows);

@@ -618,9 +618,18 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     // Claude needs a link it can't write: its skills folder is read-only.
     await fs.rm(p('.claude', 'skills', 'openspec-explore'));
     await fs.chmod(p('.claude', 'skills'), 0o555);
+    // Its generated command files must survive the failure, as in update.
+    await fs.mkdir(p('.claude', 'commands', 'opsx'), { recursive: true });
+    await fs.copyFile(
+      path.join(FIXTURES, 'v1.0.0-claude-command-opsx-explore.md'),
+      p('.claude', 'commands', 'opsx', 'explore.md')
+    );
     try {
-      await expect(new InitCommand({ tools: 'cursor', force: true }).execute(project)).rejects.toThrow('Claude Code');
+      await expect(new InitCommand({ tools: 'cursor', force: true }).execute(project)).rejects.toThrow(
+        'Claude Code (already set up here)'
+      );
       expect(await exists('.agents/skills/openspec-propose/SKILL.md')).toBe(true);
+      expect(await exists('.claude/commands/opsx/explore.md')).toBe(true);
     } finally {
       await fs.chmod(p('.claude', 'skills'), 0o755);
     }
