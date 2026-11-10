@@ -112,7 +112,7 @@ describe('config profile interactive flow', () => {
         process.platform === 'win32' ? 'junction' : 'dir'
       );
     }
-    fs.writeFileSync(path.join(projectDir, '.agents', 'skills', '.openspec-target'), 'claude\n', 'utf-8');
+    fs.writeFileSync(path.join(projectDir, '.agents', 'skills', '.openspec-target'), 'claude own-files\n', 'utf-8');
 
   }
 
@@ -142,6 +142,10 @@ describe('config profile interactive flow', () => {
     process.env.XDG_CONFIG_HOME = tempDir;
     // Never the real home: Codex prompts there would count as a tool here.
     process.env.CODEX_HOME = path.join(tempDir, 'codex-home');
+    // Nor for global-skill tools (MiniMax Code's ~/.minimax/skills): an
+    // in-process update would detect and rewrite them.
+    process.env.HOME = path.join(tempDir, 'home');
+    process.env.USERPROFILE = path.join(tempDir, 'home');
     process.chdir(tempDir);
     (process.stdout as NodeJS.WriteStream & { isTTY?: boolean }).isTTY = true;
     process.exitCode = undefined;
