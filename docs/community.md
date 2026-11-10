@@ -8,6 +8,7 @@ Listed projects are maintained independently. Inclusion does not imply official 
 
 - **[OpenSpec Workbench](https://github.com/VeryComplexAndLongName/OpenSpec-UI)**: Running and supervising agents on OpenSpec changes.
 - **[openspec-guard](https://github.com/guillaume-flambard/spec-guard)**: CLI and GitHub Action that reports which OpenSpec scenarios are covered by a Vitest or Jest test, without running the tests.
+- **[rightcommit](https://github.com/rightcommit/rightcommit/blob/main/ADD-OPENSPEC.md)**: Self-hosted, Apache-2.0 orchestrator with a guide for running OpenSpec's propose, apply, and archive skills as workflow tasks with Claude Code, Codex, or Pi, including an optional human review step before implementation. Requires a local account on your instance and your own agent API keys or authorized provider access.
 
 ## Hosted services
 
