@@ -398,6 +398,105 @@ describe('parseTaskLines', () => {
     expect(tasks.map((task) => task.description)).toEqual(['1.1 Only this one counts']);
   });
 
+  describe('wrapped task text (#2227)', () => {
+    it('joins indented continuation lines onto the task description', () => {
+      const tasks = parseTaskLines(
+        [
+          '# Tasks',
+          '## 1. Repro',
+          '- [ ] 1.1 Implement the widget factory so it accepts a null config and',
+          '      returns a default widget instead of throwing',
+          '',
+        ].join('\n')
+      );
+
+      expect(tasks).toEqual([
+        {
+          done: false,
+          description:
+            '1.1 Implement the widget factory so it accepts a null config and returns a default widget instead of throwing',
+        },
+      ]);
+    });
+
+    it('drops a trailing backslash hard break before joining', () => {
+      expect(parseTaskLines('- [ ] 1.1 First half \\\n      second half\n')).toEqual([
+        { done: false, description: '1.1 First half second half' },
+      ]);
+    });
+
+    it('joins unindented (lazy) continuation lines and CRLF lines', () => {
+      expect(parseTaskLines('- [x] 1.1 First half\r\nsecond half\r\n- [ ] 1.2 Next\r\n')).toEqual([
+        { done: true, description: '1.1 First half second half' },
+        { done: false, description: '1.2 Next' },
+      ]);
+    });
+
+    it('stops at a blank line, heading, fence, quote, comment, rule or any list item', () => {
+      const breaks = [
+        '',
+        '## 2. Next group',
+        '```',
+        '> quoted',
+        '<!-- note -->',
+        '---',
+        '===',
+        '<?xml version="1.0"?>',
+        '- plain bullet',
+        '  * nested bullet',
+        '1. numbered item',
+        '  - [ ] 1.1.1 Sub-task',
+      ];
+
+      for (const next of breaks) {
+        const tasks = parseTaskLines(`- [ ] 1.1 Task\n${next}\n`);
+        expect(tasks[0], JSON.stringify(next)).toEqual({ done: false, description: '1.1 Task' });
+      }
+    });
+
+    it('continues through text that only looks like the start of a block', () => {
+      // `#` without a space is not a heading, and `<` opens a block only as a
+      // comment or declaration. Ending the task on either lost wrapped text.
+      const continuations = ['      #2227 for details', '      <Widget> and its props', '      <= 5 ms'];
+
+      for (const next of continuations) {
+        expect(parseTaskLines(`- [ ] 1.1 Task\n${next}\n`)[0].description, next).toBe(
+          `1.1 Task ${next.trim()}`
+        );
+      }
+    });
+
+    it('keeps an escaped trailing backslash, which is text and not a line break', () => {
+      expect(parseTaskLines('- [ ] 1.1 Path ends in \\\\\n      next line\n')).toEqual([
+        { done: false, description: '1.1 Path ends in \\\\ next line' },
+      ]);
+    });
+
+    it('reads a bare checkbox whose text starts on the next line', () => {
+      expect(parseTaskLines('- [ ]\n  1.1 Task text\n')).toEqual([
+        { done: false, description: '1.1 Task text' },
+      ]);
+    });
+
+    it('does not change task counts', () => {
+      const content = [
+        '- [x] 1.1 Wrapped done task that runs',
+        '      onto a second line',
+        '  - [ ] 1.1.1 Wrapped sub-task that runs',
+        '        onto a second line',
+        '- [ ] 1.2 Single line',
+        '',
+      ].join('\n');
+
+      expect(countTasksFromContent(content)).toEqual({ total: 3, completed: 1 });
+      expect(parseTaskLines(content).map((task) => task.description)).toEqual([
+        '1.1 Wrapped done task that runs onto a second line',
+        '1.1.1 Wrapped sub-task that runs onto a second line',
+        '1.2 Single line',
+      ]);
+    });
+  });
+
   describe('code fences (checkboxes inside them still count)', () => {
     it('counts a checkbox inside a fence, at any indent', () => {
       // Known limitation, unchanged for column-0 lines and extended to indented
