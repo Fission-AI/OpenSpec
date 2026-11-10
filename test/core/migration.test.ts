@@ -85,7 +85,7 @@ describe('migration', () => {
     await fsp.rm(configHome, { recursive: true, force: true });
   });
 
-  it('migrates to custom skills delivery when only managed skills are detected', async () => {
+  it('migrates the workflows of managed skills, without a delivery', async () => {
     await writeSkill(projectDir, 'openspec-explore');
     await writeSkill(projectDir, 'openspec-apply-change');
 
@@ -93,7 +93,7 @@ describe('migration', () => {
 
     const config = readRawConfig();
     expect(config.profile).toBe('custom');
-    expect(config.delivery).toBe('skills');
+    expect(config.delivery).toBeUndefined();
     expect(config.workflows).toEqual(['explore', 'apply']);
   });
 
@@ -121,7 +121,7 @@ describe('migration', () => {
     const config = readRawConfig();
     expect(config.profile).toBe('custom');
     // 2.0 installs skills only: no delivery is inferred.
-    expect(config.delivery ?? 'skills').toBe('skills');
+    expect(config.delivery).toBeUndefined();
     expect(config.workflows).toEqual(['explore', 'archive']);
   });
 
@@ -133,7 +133,7 @@ describe('migration', () => {
 
     const config = readRawConfig();
     expect(config.profile).toBe('custom');
-    expect(config.delivery ?? 'skills').toBe('skills');
+    expect(config.delivery).toBeUndefined();
     expect(config.workflows).toEqual(['explore', 'apply']);
   });
 
@@ -412,7 +412,7 @@ describe('migration', () => {
       migrateIfNeeded(projectDir, [requireTool('antigravity')]);
 
       expect(readRawConfig().workflows).toEqual(['explore']);
-      expect(readRawConfig().delivery ?? 'skills').toBe('skills');
+      expect(readRawConfig().delivery).toBeUndefined();
     });
 
     it('leaves files the user keeps under .agent alone', async () => {

@@ -287,6 +287,9 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     await new UpdateCommand().execute(project);
 
     expect(hasProjectConfigDrift(project, [...CORE_WORKFLOWS], 'skills')).toBe(false);
+    logs = [];
+    await new UpdateCommand().execute(project);
+    expect(logs.join('\n')).not.toContain('not in profile');
   });
 
   it('recognizes its own skill whatever skills sat beside it', async () => {
@@ -453,7 +456,7 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     const config = JSON.parse(readFileSync(path.join(root, 'home', '.config', 'openspec', 'config.json'), 'utf8'));
     expect(config.profile).toBe('core');
     // Never an inferred delivery: at most the default, which changes nothing.
-    expect(config.delivery ?? 'skills').toBe('skills');
+    expect(config.delivery).toBeUndefined();
     expect(logs.some((line) => line.includes('Migrated: custom profile'))).toBe(false);
   });
 

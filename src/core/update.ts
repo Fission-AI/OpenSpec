@@ -1075,7 +1075,7 @@ export class UpdateCommand {
     const extraWorkflows = installedWorkflows.filter((w) => !profileSet.has(w));
 
     if (extraWorkflows.length > 0) {
-      this.log(chalk.dim(`Note: ${extraWorkflows.length} extra workflows not in profile (use \`openspec config profile\` to manage)`));
+      this.log(chalk.dim(`Note: ${extraWorkflows.length} extra ${extraWorkflows.length === 1 ? 'workflow' : 'workflows'} not in profile (use \`openspec config profile\` to manage)`));
       return true;
     }
     return false;

@@ -13,7 +13,7 @@ import { COMMAND_IDS } from './shared/tool-detection.js';
 import { ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { isToolListed } from './shared-skill-target.js';
+import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
 import path from 'path';
@@ -523,6 +523,7 @@ function scanInstalledWorkflowArtifacts(
   view: FileView = DISK_VIEW
 ): InstalledWorkflowArtifacts {
   const installed = new Set<string>();
+  const kept = readKeptSharedSkills(projectPath, view);
   let hasSkills = false;
   let hasCommands = false;
 
@@ -555,7 +556,8 @@ function scanInstalledWorkflowArtifacts(
       for (const workflowId of ALL_WORKFLOWS) {
         const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
         const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
-        if (view.exists(skillFile)) {
+        // A skill kept as the user's in the shared folder is not an install.
+        if (view.exists(skillFile) && !kept.has(skillDirName)) {
           installed.add(workflowId);
           hasSkills = true;
         }
@@ -676,6 +678,14 @@ export function applyProfileMigration(migration: ProfileMigration): GlobalConfig
   // Migrate: set profile to custom with detected workflows
   config.profile = migration.profile;
   config.workflows = migration.workflows;
+  // `delivery` is retired: never write it, though a value the user set stays.
+  let rawDelivery: unknown;
+  try {
+    rawDelivery = JSON.parse(fs.readFileSync(getGlobalConfigPath(), 'utf-8'))?.delivery;
+  } catch {
+    rawDelivery = undefined;
+  }
+  if (rawDelivery === undefined) delete config.delivery;
   return config;
 }
 

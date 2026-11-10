@@ -926,7 +926,7 @@ export function formatCleanupSummary(result: CleanupResult): string {
     }
 
     for (const dir of result.deletedDirs) {
-      lines.push(`  ✓ Removed ${dir}/ (replaced by OpenSpec skills and commands)`);
+      lines.push(`  ✓ Removed ${dir}/ (replaced by OpenSpec skills)`);
     }
 
     for (const entry of keptFiles) {
