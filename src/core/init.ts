@@ -954,7 +954,7 @@ export class InitCommand {
       });
       if (shared.writtenSkillCount === 0) removedSkillCount += shared.removedSkillCount;
       ownFolderErrors = shared.toolFailures;
-      for (const line of formatKeptSkills(shared.kept)) console.log(chalk.yellow(line));
+      for (const line of formatKeptSkills(shared.kept, shared.linkedOutside)) console.log(chalk.yellow(line));
     } catch (error) {
       // Every tool sharing the folder fails with this.
       const message = error instanceof Error ? error.message : String(error);

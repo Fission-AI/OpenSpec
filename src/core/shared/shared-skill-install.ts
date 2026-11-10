@@ -16,6 +16,7 @@ import { transformToSharedSkillReferences } from '../../utils/command-references
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { formatSkillToolList, hasSkillToolList, readKeptSharedSkills, skillToolListPath } from '../shared-skill-target.js';
 import { everySkillRendering, generateSkillContent, getSkillTemplates } from './skill-generation.js';
+import { sharedSkillTexts } from './own-skill-texts.js';
 import { classifySkillFile, classifySkillLinkSpot } from './skill-links.js';
 import { resolveFormerOwnSkillsDir, resolveSharedSkillsDir, resolveSkillLinkDir, usesSharedSkills } from './skill-paths.js';
 
@@ -57,6 +58,8 @@ export interface SharedSkillInstallResult {
   replacedOldCopyCount: number;
   /** Project-relative folders kept because they hold something of the user's. */
   kept: string[];
+  /** Tools' old skills folders that link out of the project and still hold OpenSpec skills. */
+  linkedOutside: string[];
   /**
    * Tools whose own skills folder could not be brought up to date (for
    * example it is a link out of the project). The shared copy is still
@@ -80,6 +83,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     removedSkillCount: 0,
     replacedOldCopyCount: 0,
     kept: [],
+    linkedOutside: [],
     toolFailures: new Map(),
   };
   if (tools.length === 0) return result;
@@ -251,7 +255,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
         names = [];
       }
       if (names.some((name) => (OPENSPEC_SKILL_NAMES as readonly string[]).includes(name))) {
-        result.kept.push(relative(ownDir));
+        result.linkedOutside.push(relative(ownDir));
       }
       return;
     }
@@ -335,7 +339,7 @@ function ownFolderInProject(projectPath: string, ownDir: string): boolean {
 }
 
 /** What init and update print for skill folders they kept as the user's. */
-export function formatKeptSkills(kept: readonly string[]): string[] {
+export function formatKeptSkills(kept: readonly string[], linkedOutside: readonly string[] = []): string[] {
   const inShared = kept.filter((rel) => rel.startsWith('.agents/skills/'));
   const elsewhere = kept.filter((rel) => !rel.startsWith('.agents/skills/'));
   const lines: string[] = [];
@@ -351,6 +355,12 @@ export function formatKeptSkills(kept: readonly string[]): string[] {
       `Kept ${inShared.length} skill${inShared.length === 1 ? '' : 's'} in .agents/skills as your own: ` +
         `${inShared.join(', ')}. OpenSpec won't update or remove ${inShared.length === 1 ? 'it' : 'them'}; ` +
         'delete one to have OpenSpec install its own again.'
+    );
+  }
+  for (const folder of linkedOutside) {
+    lines.push(
+      `Left ${folder} alone: it links outside the project and still holds old OpenSpec skills, ` +
+        'which your tool may load twice. Delete the openspec-* folders in it by hand if nothing else uses them.'
     );
   }
   return lines;
@@ -439,9 +449,13 @@ export function ownSkillFolderNeedsWork(
     } catch {
       // No shared copy of this skill: nothing at the spot can equal it.
     }
-    const spot = classifySkillLinkSpot(path.join(ownDir, skillName), path.join(sharedDir, skillName), sharedContent, view);
+    // Judged as the install judges it: against the shared copy and every text
+    // this version writes for the skill.
+    const ours = [sharedContent, ...sharedSkillTexts(skillName)];
+    const spotPath = path.join(ownDir, skillName);
+    const spot = classifySkillLinkSpot(spotPath, path.join(sharedDir, skillName), ours, view);
     if (spot === 'user') {
-      const skillFile = classifySkillFile(path.join(ownDir, skillName), sharedContent, view);
+      const skillFile = classifySkillFile(spotPath, ours, view);
       if (!linkDir && (skillFile === 'copy' || skillFile === 'released')) return true;
       continue;
     }
@@ -451,6 +465,16 @@ export function ownSkillFolderNeedsWork(
       continue;
     }
     const wanted = linkDir !== undefined && linkedSkillNames.has(skillName);
+    // A fallback copy stays only while it equals the shared copy.
+    if (wanted && spot === 'copy' && !kept.has(skillName)) {
+      let copied: string | undefined;
+      try {
+        copied = view.read(path.join(spotPath, 'SKILL.md'));
+      } catch {
+        copied = undefined;
+      }
+      if (copied !== sharedContent) return true;
+    }
     if (wanted ? spot === 'missing' || spot === 'released' : spot !== 'missing' && !(spot === 'link' && !linkDir)) {
       return true;
     }

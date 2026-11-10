@@ -668,6 +668,7 @@ export class UpdateCommand {
       removedSkillCount: 0,
       replacedOldCopyCount: 0,
       kept: [],
+      linkedOutside: [],
       toolFailures: new Map(),
     };
     if (!toolOptions(toolsToRefresh).some(usesSharedSkills)) return empty;
@@ -689,7 +690,7 @@ export class UpdateCommand {
           )
         );
       }
-      for (const line of formatKeptSkills(result.kept)) this.log(chalk.yellow(line));
+      for (const line of formatKeptSkills(result.kept, result.linkedOutside)) this.log(chalk.yellow(line));
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

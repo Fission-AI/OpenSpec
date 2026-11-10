@@ -502,7 +502,7 @@ describe('OpenSpec 2.0 skills: hardening', () => {
 
     await new InitCommand({ tools: 'cursor', force: true }).execute(project);
 
-    expect(logs.join('\n')).toContain('.cursor/skills');
+    expect(logs.join('\n')).toContain('Left .cursor/skills alone: it links outside the project');
     expect((await fs.readdir(dotfiles)).sort()).toEqual([...SKILLS].sort());
     await settles();
   });
@@ -522,6 +522,38 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     await new UpdateCommand().execute(project);
 
     expect(await read('.claude/skills/openspec-explore/SKILL.md')).toBe('TEAM VERSION\n');
+    await settles();
+  });
+
+  it('reports no command files that aren’t there when a tool folder links outside', async () => {
+    const outside = path.join(root, 'outside-cursor');
+    await fs.mkdir(outside, { recursive: true });
+    await fs.symlink(outside, p('.cursor'), linkType);
+
+    await new InitCommand({ tools: 'cursor', force: true }).execute(project);
+
+    expect(logs.join('\n')).not.toContain('command files in place');
+    expect(await fs.readdir(outside)).toEqual([]);
+  });
+
+  it('refreshes a fallback copy left at an older text, without --force', async () => {
+    await setProfile({
+      profile: 'custom',
+      workflows: ['propose', 'explore', 'new', 'continue', 'apply', 'update', 'ff', 'sync', 'archive', 'bulk-archive', 'verify', 'onboard'],
+    });
+    await new InitCommand({ tools: 'claude', force: true }).execute(project);
+    const older = await read('.agents/skills/openspec-apply-change/SKILL.md');
+    await setProfile({ profile: 'core' });
+    await new UpdateCommand().execute(project);
+    const spot = p('.claude', 'skills', 'openspec-apply-change');
+    await fs.rm(spot);
+    await fs.mkdir(spot);
+    await fs.writeFile(path.join(spot, 'SKILL.md'), older);
+    expect(older).not.toBe(await read('.agents/skills/openspec-apply-change/SKILL.md'));
+
+    await new UpdateCommand().execute(project);
+
+    expect(lstatSync(spot).isSymbolicLink()).toBe(true);
     await settles();
   });
 

@@ -6,7 +6,7 @@
  */
 import path from 'path';
 import { createRequire } from 'module';
-import { getTransformerForTool } from '../../utils/command-references.js';
+import { getTransformerForTool, transformToSharedSkillReferences } from '../../utils/command-references.js';
 import { resolveCommandInvocation, resolveCommandSurfaceCapability } from '../command-surface.js';
 import type { FileView } from '../file-view.js';
 import { everySkillRendering } from './skill-generation.js';
@@ -25,6 +25,18 @@ export function ownSkillTexts(toolId: string, dirName: string, version: string =
   );
   return everySkillRendering(dirName, version, transformer);
 }
+
+/** Every text this version writes for `dirName` in the shared `.agents/skills`. */
+export function sharedSkillTexts(dirName: string, version: string = OPENSPEC_VERSION): string[] {
+  const key = `${version}\0${dirName}`;
+  let texts = sharedTextCache.get(key);
+  if (!texts) {
+    texts = everySkillRendering(dirName, version, transformToSharedSkillReferences);
+    sharedTextCache.set(key, texts);
+  }
+  return texts;
+}
+const sharedTextCache = new Map<string, string[]>();
 
 /**
  * What sits at a skill's spot in a tool's own folder: `link` and `user` are

@@ -5,6 +5,7 @@
  */
 
 import * as fs from 'fs';
+import path from 'path';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import {
   generateCommands,
@@ -81,8 +82,10 @@ export function classifyCommandFiles(
     } catch {
       // A symlink that escapes the project or dangles cannot be proven
       // confined. Never read or delete through it, and do not let one such
-      // entry abort cleanup of the tool's other command files.
-      unchecked.push(cmdPath);
+      // entry abort cleanup of the tool's other command files. Only a file
+      // that is actually there is reported.
+      const lexical = path.join(projectPath, cmdPath);
+      if (view.exists(lexical) || view.linkTarget?.(lexical) !== undefined) unchecked.push(cmdPath);
       continue;
     }
     if (view.exists(fullPath)) {
