@@ -147,6 +147,10 @@ export const sections = [
       */
     ],
   },
+  {
+    label: 'Community',
+    pages: [{ source: 'community/index.md', slug: 'community' }],
+  },
   // TODO (held back 2026-08-21): Help and Legacy are not written yet (FAQ has one
   // answer, Troubleshooting and Migration are headings only), so both sections
   // are hidden from the site until we get to them. The markdown stays in

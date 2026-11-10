@@ -27,7 +27,7 @@ it or cut it.
 ## Structure rules
 
 **Folders are the areas.** Every page lives in its area's folder (`start/`,
-`guides/`, `customize/`, `multi-repo/`, `reference/`, `help/`); the root holds only this
+`guides/`, `customize/`, `multi-repo/`, `reference/`, `community/`, `help/`); the root holds only this
 README, `message-map.md`, and `sources.md`. Most folders publish as one
 sidebar group; `guides/` publishes as the Guides group, holding three collapsible
 subgroups (Understanding OpenSpec, Using OpenSpec, Adopting OpenSpec), all expanded
@@ -160,12 +160,19 @@ the page or rewriting the goal in both places, never letting them drift.
 |---|---|
 | [Migrating from the legacy workflow](help/legacy/migration.md) | Moving from the legacy `/openspec:*` commands to OPSX. |
 
+### Community: examples and projects
+
+| Page | Goal |
+|---|---|
+| [Community](community/index.md) | Explore custom schemas and projects built by the OpenSpec community. |
+
 ## Old docs
 
 The `docs/` tree is legacy, and the plan is to remove it once docs-lab covers what it
 owns. It has become a bit of an AI slop mess, so nothing from it is carried over as text
 (see The bar for every page). Until it's removed it stays untouched: fixes land in
-docs-lab, never in `docs/`.
+docs-lab, never in `docs/`. The migrated community catalogs are link-only pointers to
+the published Community page, preserving their old GitHub paths and headings.
 
 [`sources.md`](sources.md) maps every current `docs/` page to its destination here: the
 source material while drafting, the redirect list at cutover. Cutover steps are in that
