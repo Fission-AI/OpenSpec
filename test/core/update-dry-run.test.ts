@@ -7,6 +7,8 @@ import { InitCommand } from '../../src/core/init.js';
 import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 import { getGlobalConfigPath, type GlobalConfig } from '../../src/core/global-config.js';
 import type { UpdatePlanChange } from '../../src/core/update-plan.js';
+import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
+import { getCommandContents } from '../../src/core/shared/skill-generation.js';
 import {
   generateCopilotSetupSteps,
   persistCopilotCloudOptIn,
@@ -25,6 +27,25 @@ vi.mock('../../src/utils/interactive.js', async (importOriginal) => {
  * Writes the real global config file, so the dry run and the real update read
  * the same settings the way they do in production.
  */
+/**
+ * Writes the command files a 1.x release generated for a tool (OpenSpec 2.0
+ * writes none), optionally under a former root of the tool.
+ */
+async function write1xCommands(
+  projectDir: string,
+  toolId: string,
+  workflows: readonly string[] = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
+  root?: { from: string; to: string }
+): Promise<void> {
+  const adapter = CommandAdapterRegistry.get(toolId)!;
+  for (const cmd of generateCommands(getCommandContents(workflows), adapter)) {
+    const rel = root ? cmd.path.replace(root.from, root.to) : cmd.path;
+    const file = path.join(projectDir, rel);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, cmd.fileContent);
+  }
+}
+
 async function writeGlobalConfig(config: GlobalConfig): Promise<void> {
   const configPath = getGlobalConfigPath();
   await fs.mkdir(path.dirname(configPath), { recursive: true });
@@ -229,8 +250,9 @@ describe('openspec update --dry-run', () => {
     });
   });
 
-  it('plans deletions for command files when delivery becomes skills-only', async () => {
-    await writeGlobalConfig({ profile: 'core', delivery: 'skills' });
+  it('plans deletions for the command files 1.x left, under any delivery setting', async () => {
+    await write1xCommands(testDir, 'claude');
+    await writeGlobalConfig({ profile: 'core', delivery: 'both' });
 
     const changes = await expectPlanMatchesRealUpdate();
 
@@ -243,7 +265,8 @@ describe('openspec update --dry-run', () => {
 
   // #2087: a command file the user edited is kept, so the plan must not list
   // it as a deletion, and must still list the generated ones it removes.
-  it('plans to keep an edited command file when delivery becomes skills-only', async () => {
+  it('plans to keep an edited command file while removing the generated ones', async () => {
+    await write1xCommands(testDir, 'claude');
     const edited = path.join(testDir, '.claude', 'commands', 'opsx', 'apply.md');
     await fs.writeFile(edited, `${await fs.readFile(edited, 'utf-8')}\nMy own note.\n`);
     await writeGlobalConfig({ profile: 'core', delivery: 'skills' });
@@ -351,13 +374,9 @@ describe('openspec update --dry-run', () => {
 
     const changes = await expectPlanMatchesRealUpdate({ force: true });
 
-    // Cursor reads the shared copy Claude already has; it gets its commands
-    // and a place on the list of tools set up here.
-    expect(changes).toContainEqual({
-      path: '.cursor/commands/opsx-propose.md',
-      action: 'add',
-      tool: 'cursor',
-    });
+    // Cursor reads the shared copy Claude already has; it gets a place on the
+    // list of tools set up here, and no command files (2.0 writes none).
+    expect(changes.some((change) => change.path.startsWith('.cursor/commands/opsx'))).toBe(false);
     expect(changes).toContainEqual({
       path: '.agents/skills/.openspec-target',
       action: 'update',
@@ -563,8 +582,8 @@ describe('openspec update --dry-run', () => {
   it('plans a consent-gated move as a non-interactive update makes it, and says so', async () => {
     // Windsurf became Devin Desktop. At a terminal the move is offered; without
     // one it is made, which is what the plan lists.
-    await new InitCommand({ tools: 'devin', force: true }).execute(testDir);
-    await fs.rename(path.join(testDir, '.devin'), path.join(testDir, '.windsurf'));
+    // A 1.x Windsurf project: its workflows in .windsurf/, before the rebrand.
+    await write1xCommands(testDir, 'devin', undefined, { from: '.devin', to: '.windsurf' });
 
     const before = await snapshotTree(testDir);
     const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
@@ -682,20 +701,20 @@ describe('openspec update --dry-run', () => {
   });
 
   it('reports a tool the forced legacy upgrade fails on, and still plans the rest', async () => {
-    await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
-    await fs.mkdir(path.join(testDir, '.cursor', 'commands'), { recursive: true });
+    await new InitCommand({ tools: 'cursor', force: true }).execute(testDir);
+    // A pre-1.0 Claude command, so the forced update sets Claude up.
+    await fs.mkdir(path.join(testDir, '.claude', 'commands', 'openspec'), { recursive: true });
     await fs.writeFile(
-      path.join(testDir, '.cursor', 'commands', 'openspec-proposal.md'),
+      path.join(testDir, '.claude', 'commands', 'openspec', 'proposal.md'),
       '<!-- OPENSPEC:START -->\nold\n<!-- OPENSPEC:END -->\n'
     );
-    // A folder where one of Cursor's commands belongs, so setting Cursor up
-    // fails. (Its skills are the shared copy, written for every tool.)
-    await fs.mkdir(path.join(testDir, '.cursor', 'commands', 'opsx-propose.md'), { recursive: true });
-    await fs.writeFile(path.join(testDir, '.cursor', 'commands', 'opsx-propose.md', 'x'), 'x');
+    // A file where Claude's skills folder belongs, so setting Claude up fails.
+    await fs.rm(path.join(testDir, '.claude', 'skills'), { recursive: true, force: true });
+    await fs.writeFile(path.join(testDir, '.claude', 'skills'), 'not a folder');
 
     const plan = await expectFullPlanMatchesRealUpdate({ force: true });
 
-    expect(plan.failures.map((failure) => failure.tool)).toEqual(['cursor']);
+    expect(plan.failures.map((failure) => failure.tool)).toEqual(['claude']);
   });
 
   it('stops where a real update stops when a legacy upgrade fails in an unconfigured project', async () => {

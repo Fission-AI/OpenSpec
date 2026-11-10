@@ -237,7 +237,13 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       await ops.removeDirectory(spotPath, tool.value);
       if (spot === 'released') result.replacedOldCopyCount += 1;
     }
-    if (input.writesToDisk) removeIfEmpty(ownDir);
+    if (input.writesToDisk) {
+      removeIfEmpty(ownDir);
+      // The tool's folder too (`.cline/` once `.cline/skills/` is gone), when
+      // OpenSpec's skills were all it held. Never the project itself.
+      const toolDir = path.dirname(ownDir);
+      if (path.resolve(toolDir) !== path.resolve(projectPath)) removeIfEmpty(toolDir);
+    }
   }
 
   if (input.writesToDisk && wanted.size === 0) {

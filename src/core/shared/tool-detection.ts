@@ -6,13 +6,10 @@
 
 import path from 'path';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES } from '../config.js';
-import { CommandAdapterRegistry, generateCommands } from '../command-generation/index.js';
-import { getCommandContents } from './skill-generation.js';
+import { CommandAdapterRegistry } from '../command-generation/index.js';
 import { getGlobalConfig, type Delivery } from '../global-config.js';
-import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
 import { hasLegacySkills, isToolListed, readKeptSharedSkills, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
 import {
-  shouldGenerateCommandsForTool,
   shouldGenerateSkillsForTool,
   resolveCommandSurfaceCapability,
 } from '../command-surface.js';
@@ -191,78 +188,6 @@ export function normalizeCommandContent(content: string): string {
 }
 
 /**
- * Checks whether command files for a tool on disk match current generated command contents.
- *
- * Command files carry no version stamp, so content equality is the only available
- * "is this current?" signal for a commands-only install.
- */
-export function areCommandFilesUpToDate(
-  projectRoot: string,
-  toolId: string,
-  options?: {
-    workflows?: readonly string[];
-    /** The tree to read; the disk unless an update is planning. */
-    view?: FileView;
-  }
-): boolean {
-  const adapter = CommandAdapterRegistry.get(toolId);
-  if (!adapter) return false;
-  const view = options?.view ?? DISK_VIEW;
-
-  let workflows: readonly string[];
-  if (options?.workflows) {
-    workflows = options.workflows;
-  } else {
-    try {
-      const globalCfg = getGlobalConfig();
-      const profile = globalCfg.profile ?? 'core';
-      workflows = getProfileWorkflows(profile, globalCfg.workflows);
-    } catch {
-      workflows = ALL_WORKFLOWS;
-    }
-  }
-
-  const knownWorkflows = workflows.filter((w): w is (typeof ALL_WORKFLOWS)[number] =>
-    (ALL_WORKFLOWS as readonly string[]).includes(w)
-  );
-
-  const commandContents = getCommandContents(knownWorkflows);
-  const generatedCommands = generateCommands(commandContents, adapter);
-
-  if (generatedCommands.length === 0) {
-    return false;
-  }
-
-  for (const cmd of generatedCommands) {
-    const cmdPath = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectRoot, cmd.path);
-    if (!view.exists(cmdPath)) {
-      return false;
-    }
-    try {
-      const existingContent = view.read(cmdPath);
-      if (normalizeCommandContent(existingContent) !== normalizeCommandContent(cmd.fileContent)) {
-        return false;
-      }
-    } catch {
-      return false;
-    }
-  }
-
-  // Also check no extra command files exist for deselected workflows
-  const desiredWorkflowSet = new Set(knownWorkflows);
-  for (const workflow of ALL_WORKFLOWS) {
-    if (desiredWorkflowSet.has(workflow)) continue;
-    const cmdPath = adapter.getFilePath(workflow);
-    const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectRoot, cmdPath);
-    if (view.exists(fullPath)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
  * Gets the skill status for all tools with skillsDir configured.
  */
 export function getToolStates(projectRoot: string): Map<string, ToolSkillStatus> {
@@ -396,60 +321,18 @@ export function getToolVersionStatus(
   }
 
   // Configured from any of its skills; current only from those found above.
-  const skillConfigured = foundSkill;
   const commandConfigured = toolHasAnyConfiguredCommand(projectRoot, toolId, view);
   const markerConfigured = isListedToolPresent(projectRoot, toolId, view);
   const configured =
     getToolSkillStatus(projectRoot, toolId, view).configured || commandConfigured || markerConfigured;
 
-  // 2. Commands-only installs have no skill file to read a version from, so fall
-  //    back to comparing the generated command content. Deliberately skipped when
-  //    skill files exist: an unreadable version there must still force a rewrite.
-  if (!skillConfigured && commandConfigured && areCommandFilesUpToDate(projectRoot, toolId, options)) {
-    generatedByVersion = currentVersion;
-  }
-  if (!skillConfigured && !commandConfigured && markerConfigured) {
-    const delivery = options?.delivery ?? getGlobalConfig().delivery ?? 'both';
-    if (
-      !shouldGenerateSkillsForTool(toolId, delivery) &&
-      !shouldGenerateCommandsForTool(toolId, delivery)
-    ) {
-      generatedByVersion = currentVersion;
-    }
-  }
-
-  // 3. A version marker in a skill file only proves the SKILL files came from
-  //    this CLI. It says nothing about the command files written beside them,
-  //    which a user may have hand-edited or a partial write may have truncated.
-  //    Without this, `update` answered "all tools up to date" while a damaged
-  //    command file sat on disk, repairable only by knowing to pass --force.
-  //    The content comparison already exists; it was simply never consulted
-  //    once a skill file supplied a version.
-  //
-  //    Scoped to tools that have BOTH, so the commands-only path above keeps
-  //    its exact behaviour, and skipped when the delivery mode generates no
-  //    commands for this tool - there would be nothing to compare against, and
-  //    `areCommandFilesUpToDate` reports an empty command set as "not current".
-  let commandsDrifted = false;
-  if (skillConfigured && commandConfigured) {
-    let generatesCommands = true;
-    try {
-      generatesCommands = shouldGenerateCommandsForTool(
-        toolId,
-        options?.delivery ?? getGlobalConfig().delivery ?? 'both'
-      );
-    } catch {
-      generatesCommands = true;
-    }
-    commandsDrifted =
-      generatesCommands && !areCommandFilesUpToDate(projectRoot, toolId, options);
-  }
-
+  // 2. OpenSpec 2.0 installs skills only, so command files never make a tool
+  //    current: a commands-only install from 1.x has no skills and always
+  //    needs an update, which installs them and removes the generated commands.
+  //    Leftover command files beside current skills are removal work found by
+  //    profile drift, not a reason to rewrite the skills.
   const needsUpdate =
-    configured &&
-    (generatedByVersion === null ||
-      generatedByVersion !== currentVersion ||
-      commandsDrifted);
+    configured && (generatedByVersion === null || generatedByVersion !== currentVersion);
 
   return {
     toolId,

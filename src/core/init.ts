@@ -64,6 +64,7 @@ import {
   formatIdeRestart,
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
+import { pruneEmptyParents } from './released-output-sweep.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
@@ -923,8 +924,6 @@ export class InitCommand {
     createdTools: typeof tools;
     refreshedTools: typeof tools;
     failedTools: Array<{ name: string; error: Error }>;
-    commandsSkipped: string[];
-    skillsInvocableCommandSkips: string[];
     removedCommandCount: number;
     leftCommandFiles: { kept: string[]; unchecked: string[] };
     removedSkillCount: number;
@@ -932,8 +931,6 @@ export class InitCommand {
     const createdTools: typeof tools = [];
     const refreshedTools: typeof tools = [];
     const failedTools: Array<{ name: string; error: Error }> = [];
-    const commandsSkipped: string[] = [];
-    const skillsInvocableCommandSkips: string[] = [];
     let removedCommandCount = 0;
     const leftCommandFiles = { kept: [] as string[], unchecked: [] as string[] };
     let removedSkillCount = 0;
@@ -945,7 +942,6 @@ export class InitCommand {
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
     // Get skill and command templates filtered by profile workflows
-    const deliveryIncludesCommands = delivery !== 'skills';
     const skillTemplates = getSkillTemplates(workflows);
     const commandContents = getCommandContents(workflows);
 
@@ -1038,18 +1034,14 @@ export class InitCommand {
               await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
             }
           }
-        } else if (deliveryIncludesCommands) {
-          if (resolveCommandSurfaceCapability(tool.value) === 'skills-invocable') {
-            skillsInvocableCommandSkips.push(tool.value);
-          } else {
-            commandsSkipped.push(tool.value);
-          }
         }
         if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
           const reconciled = await reconcileCommandFiles(projectPath, tool.value, workflows);
           removedCommandCount += reconciled.removed.length;
           leftCommandFiles.kept.push(...reconciled.kept);
           leftCommandFiles.unchecked.push(...reconciled.unchecked);
+          // The folders those files sat in, once nothing else is left in them.
+          await pruneEmptyParents(projectPath, reconciled.removed.map((rel) => FileSystemUtils.toPosixPath(rel)));
         }
         if (tool.value === 'github-copilot' && writeCopilotCloud) {
           await writeCopilotCloudFiles(projectPath);
@@ -1086,8 +1078,6 @@ export class InitCommand {
       createdTools,
       refreshedTools,
       failedTools,
-      commandsSkipped,
-      skillsInvocableCommandSkips,
       removedCommandCount,
       leftCommandFiles,
       removedSkillCount,
@@ -1197,8 +1187,6 @@ export class InitCommand {
       createdTools: typeof tools;
       refreshedTools: typeof tools;
       failedTools: Array<{ name: string; error: Error }>;
-      commandsSkipped: string[];
-      skillsInvocableCommandSkips: string[];
       removedCommandCount: number;
       leftCommandFiles: { kept: string[]; unchecked: string[] };
       removedSkillCount: number;
@@ -1301,14 +1289,8 @@ export class InitCommand {
     }
 
     // Show skipped commands
-    if (results.commandsSkipped.length > 0) {
-      console.log(chalk.dim(`Commands skipped for: ${results.commandsSkipped.join(', ')} (no adapter)`));
-    }
-    if (results.skillsInvocableCommandSkips.length > 0) {
-      console.log(chalk.dim(`Commands skipped for: ${results.skillsInvocableCommandSkips.join(', ')} (uses skills)`));
-    }
     if (results.removedCommandCount > 0) {
-      console.log(chalk.dim(`Removed: ${results.removedCommandCount} command files (delivery: skills)`));
+      console.log(chalk.dim(`Removed: ${results.removedCommandCount} command ${results.removedCommandCount === 1 ? 'file' : 'files'} (OpenSpec 2.0 installs skills only)`));
     }
     for (const [headline, ...detail] of formatKeptCommandFiles(results.leftCommandFiles)) {
       console.log(chalk.yellow(headline));

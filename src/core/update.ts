@@ -78,7 +78,6 @@ import {
   resolveCommandSurfaceCapability,
   resolveCommandInvocation,
   shouldGenerateCommandsForTool,
-  formatCommandDeprecationNotice,
   shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
   shouldRemoveSkillsForTool,
@@ -386,7 +385,6 @@ export class UpdateCommand {
       this.detectNewTools(resolvedProjectPath, configuredTools);
       this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
-      this.displayCommandDeprecation(configuredTools, delivery);
       this.stopIfUpdateFailed(legacyUpgradeFailures);
       return;
     }
@@ -407,13 +405,11 @@ export class UpdateCommand {
     this.log();
 
     // 9. Determine what to generate based on delivery
-    const deliveryIncludesCommands = delivery !== 'skills';
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
     const updatedTools: string[] = [];
     const updatedToolIds: string[] = [];
     const failedTools: ToolFailure[] = [...legacyUpgradeFailures];
-    const skillsInvocableCommandSkips: string[] = [];
     const zeroArtifactTools: string[] = [];
     let removedCommandCount = 0;
     const leftCommandFiles = { kept: [] as string[], unchecked: [] as string[] };
@@ -514,8 +510,6 @@ export class UpdateCommand {
               toolWorkflows
             );
           }
-        } else if (deliveryIncludesCommands && resolveCommandSurfaceCapability(tool.value) === 'skills-invocable') {
-          skillsInvocableCommandSkips.push(tool.value);
         }
 
         // Delete command files if delivery is skills-only
@@ -527,6 +521,10 @@ export class UpdateCommand {
           removedCommandCount += reconciled.removed.length;
           leftCommandFiles.kept.push(...reconciled.kept);
           leftCommandFiles.unchecked.push(...reconciled.unchecked);
+          // The folders those files sat in, once nothing else is left in them.
+          if (!this.dryRun) {
+            await pruneEmptyParents(resolvedProjectPath, reconciled.removed.map((rel) => FileSystemUtils.toPosixPath(rel)));
+          }
         }
 
         spinner.succeed(`Updated ${tool.name}`);
@@ -574,11 +572,8 @@ export class UpdateCommand {
     if (failedTools.length > 0) {
       this.log(chalk.red(`✗ Failed: ${failedTools.map(f => `${f.name} (${f.error})`).join(', ')}`));
     }
-    if (skillsInvocableCommandSkips.length > 0) {
-      this.log(chalk.dim(`Commands skipped for: ${skillsInvocableCommandSkips.join(', ')} (uses skills)`));
-    }
     if (removedCommandCount > 0) {
-      this.log(chalk.dim(`Removed: ${removedCommandCount} command files (delivery: skills)`));
+      this.log(chalk.dim(`Removed: ${removedCommandCount} command ${removedCommandCount === 1 ? 'file' : 'files'} (OpenSpec 2.0 installs skills only)`));
     }
     for (const [headline, ...detail] of formatKeptCommandFiles(leftCommandFiles)) {
       this.log(chalk.yellow(headline));
@@ -663,7 +658,6 @@ export class UpdateCommand {
     // 14. Display the profile notes
     this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile, delivery);
     this.displaySetupNotes(configuredAndNewTools);
-    this.displayCommandDeprecation(configuredAndNewTools, delivery);
 
     // 15. List affected tools
     if (updatedTools.length > 0) {
@@ -877,9 +871,7 @@ export class UpdateCommand {
    * Skill freshness was decided solely by the `generatedBy:` line, so a body
    * edited after generation — a "helpful" PR touching `.claude/skills/**`, a
    * dotfile sync, another agent — left `update` reporting the install healthy.
-   * Command files never had that gap: `areCommandFilesUpToDate` content-
-   * compares them, and the same comparison belongs on the higher-authority
-   * surface. A missing skill file is left to the profile-sync check, which
+   * A missing skill file is left to the profile-sync check, which
    * already knows what a partial install means.
    */
   private findToolsWithDriftedSkills(
@@ -1054,23 +1046,6 @@ export class UpdateCommand {
       if (tool?.setupNote) {
         this.log(chalk.yellow(`Setup required for ${tool.name}: ${tool.setupNote}`));
       }
-    }
-  }
-
-  /**
-   * Announces that generated command files are deprecated, on every run while
-   * delivery gives a configured tool command files, whether or not this run
-   * rewrote them. `update` is run on upgrade, so this reaches users
-   * before 2.0 removes command files, without nagging day to day.
-   */
-  private displayCommandDeprecation(toolIds: string[], delivery: Delivery): void {
-    const [headline, ...detail] = formatCommandDeprecationNotice(toolIds, delivery);
-    if (!headline) return;
-
-    this.log();
-    this.log(chalk.yellow(headline));
-    for (const line of detail) {
-      this.log(chalk.dim(line));
     }
   }
 

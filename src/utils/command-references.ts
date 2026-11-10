@@ -11,10 +11,7 @@ import type { CommandSurfaceCapability } from '../core/command-surface.js';
 import type { CommandInvocation } from '../core/command-generation/invocation.js';
 // Value import of a pure, dependency-free helper: invocation.ts imports only
 // `path` and a type, so this does not close the cycle the note above guards.
-import {
-  formatCommandInvocation,
-  needsInvocationRewrite,
-} from '../core/command-generation/invocation.js';
+import { formatCommandInvocation } from '../core/command-generation/invocation.js';
 
 /**
  * Rewrites the canonical `/opsx:<command>` references that command bodies and
@@ -177,55 +174,24 @@ export function getSkillReferenceTransformer(toolId: string): (text: string) => 
 /**
  * Selects the command-reference transformer for a skill generation target.
  *
- * Skill references are used whenever the tool ends up without `/opsx:*`
- * commands — because delivery is skills-only, because the tool has no command
- * surface at all (capability 'none', e.g. Kimi Code or Mistral Vibe), or
- * because the tool invokes skills directly and OpenSpec generates no command
- * files for it (capability 'skills-invocable', e.g. Codex or Warp) — so those skills
- * never point at commands that were not generated.
- *
- * When commands are generated, the spelling follows the tool's invocation: a
- * `flat` adapter names the command by filename (`.cursor/commands/opsx-apply.md`
- * → `/opsx-apply`), a `namespaced` adapter puts it in an `opsx/` directory
- * (`.claude/commands/opsx/apply.md` → `/opsx:apply`), and a non-slash prefix
- * wraps it further (`.amazonq/prompts/opsx-apply.md` → `@opsx-apply`). Passing
- * the invocation in keeps this module free of a hand-maintained tool list —
- * the list drifted and left 16 tools advertising commands their palettes never
- * registered (#727, #1307).
- *
- * Devin is the one tool that takes skill references even though its commands
- * are generated: only Devin Desktop reads `.devin/workflows/`, so a workflow
- * reference is dead text for anyone on Devin Local, while the `/openspec-*`
- * skills work on both agents. Under commands-only delivery there are no Devin
- * skills to point at, so it falls through to the invocation rewrite below and
- * gets the `/opsx-<id>` form its workflow filenames register.
+ * OpenSpec 2.0 generates no command files, so every skill refers to the other
+ * workflows as skills, in the spelling the tool invokes skills with (Codex's
+ * `$openspec-*`, a slash name elsewhere). A skill never points at an `/opsx:*`
+ * command that does not exist.
  *
  * @param toolId - The AI tool identifier (e.g. 'claude', 'opencode', 'pi')
- * @param delivery - The configured delivery mode
- * @param capability - The tool's command surface capability
- * @param invocation - How the tool's generated commands are invoked, from
- *        resolveCommandInvocation(); undefined for tools with no command
- *        adapter. Required rather than optional so a caller that forgets it
- *        fails to compile instead of silently getting the canonical form.
- * @returns The transformer to pass to generateSkillContent, or undefined when
- *          the tool already answers to the canonical `/opsx:<id>`
+ * @param _delivery - The `delivery` setting, which no longer changes anything
+ * @param _capability - The tool's command surface capability, likewise
+ * @param _invocation - How the tool's commands were invoked, likewise
+ * @returns The transformer to pass to generateSkillContent
  */
 export function getTransformerForTool(
   toolId: string,
-  delivery: 'both' | 'skills' | 'commands',
-  capability: CommandSurfaceCapability,
-  invocation: CommandInvocation | undefined
+  _delivery: 'both' | 'skills' | 'commands',
+  _capability: CommandSurfaceCapability,
+  _invocation: CommandInvocation | undefined
 ): ((text: string) => string) | undefined {
-  if (delivery === 'skills' || capability !== 'adapter-backed') {
-    return toolId === 'codex'
-      ? transformToCodexCompatibleSkillReferences
-      : getSkillReferenceTransformer(toolId);
-  }
-  if (toolId === 'devin' && delivery === 'both') {
-    return getSkillReferenceTransformer(toolId);
-  }
-  if (invocation !== undefined && needsInvocationRewrite(invocation)) {
-    return (text: string) => transformCommandInvocations(text, invocation);
-  }
-  return undefined;
+  return toolId === 'codex'
+    ? transformToCodexCompatibleSkillReferences
+    : getSkillReferenceTransformer(toolId);
 }

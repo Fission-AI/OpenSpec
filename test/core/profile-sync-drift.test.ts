@@ -88,14 +88,16 @@ describe('profile sync drift detection', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('detects drift for skills-only delivery when generated commands still exist', () => {
+  it('detects drift when generated commands still exist, under every delivery setting', () => {
+    // They are removal work for update: 2.0 generates no command files.
     setupCoreSkills(tempDir);
     for (const workflow of CORE_WORKFLOWS) {
       writeGeneratedCommand(tempDir, workflow);
     }
 
-    const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'skills');
-    expect(hasDrift).toBe(true);
+    for (const delivery of ['both', 'skills', 'commands'] as const) {
+      expect(hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, delivery), delivery).toBe(true);
+    }
   });
 
   it('does not report drift for skills-only delivery when only kept command files remain', () => {
@@ -108,27 +110,14 @@ describe('profile sync drift detection', () => {
     expect(hasDrift).toBe(false);
   });
 
-  it('detects drift for commands-only delivery when skills still exist', () => {
-    setupCoreCommands(tempDir);
+  it('ignores the delivery setting: current skills and edited command files are no drift', () => {
+    // OpenSpec 2.0 installs skills only, whatever `delivery` says. Command
+    // files the user edited are kept, so they are not work for update either.
     setupCoreSkills(tempDir);
-
-    const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'commands');
-    expect(hasDrift).toBe(true);
-  });
-
-  it('does not remove global MiniMax Code skills for commands-only delivery', () => {
-    const skillPath = path.join(
-      tempDir,
-      'home',
-      '.minimax',
-      'skills',
-      'openspec-explore',
-      'SKILL.md'
-    );
-    fs.mkdirSync(path.dirname(skillPath), { recursive: true });
-    fs.writeFileSync(skillPath, 'name: openspec-explore\n');
-
-    expect(hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'commands')).toBe(false);
+    setupCoreCommands(tempDir);
+    for (const delivery of ['both', 'skills', 'commands'] as const) {
+      expect(hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, delivery), delivery).toBe(false);
+    }
   });
 
   it('detects drift when required profile workflow files are missing', () => {
