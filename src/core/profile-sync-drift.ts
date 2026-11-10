@@ -120,17 +120,19 @@ export function hasToolProfileOrDeliveryDrift(
     if (ownSkillFolderNeedsWork(projectPath, tool, linked, view)) return true;
   }
 
+  // A skill the user keeps in the shared folder is theirs: OpenSpec neither
+  // installs nor removes it.
+  const kept = shared ? readKeptSharedSkills(projectPath, view) : new Set<string>();
   for (const workflow of knownDesiredWorkflows) {
     const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+    if (kept.has(dirName)) continue;
     const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
     if (!view.exists(skillFile)) {
       return true;
     }
   }
 
-  // Deselecting workflows in a profile should trigger sync. A skill the
-  // user keeps in the shared folder is theirs and stays.
-  const kept = shared ? readKeptSharedSkills(projectPath, view) : new Set<string>();
+  // Deselecting workflows in a profile should trigger sync.
   for (const workflow of ALL_WORKFLOWS) {
     if (desiredWorkflowSet.has(workflow)) continue;
     const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
@@ -176,9 +178,12 @@ function getInstalledWorkflowsForTool(projectPath: string, toolId: string): Work
 
   const installed = new Set<WorkflowId>();
   const skillsDir = resolveToolSkillsDir(projectPath, tool);
+  // A skill kept as the user's in the shared folder is not OpenSpec's to sync.
+  const kept = usesSharedSkills(tool) ? readKeptSharedSkills(projectPath) : new Set<string>();
 
   for (const workflow of ALL_WORKFLOWS) {
     const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+    if (kept.has(dirName)) continue;
     const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
     if (fs.existsSync(skillFile)) {
       installed.add(workflow);

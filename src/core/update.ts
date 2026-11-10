@@ -77,7 +77,9 @@ import {
 } from './command-surface.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
 import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
-import { installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
+import { formatKeptSkills, installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
+import { classifySkillFile } from './shared/skill-links.js';
+import { everySkillRendering } from './shared/skill-generation.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import {
   realFileOps,
@@ -157,6 +159,8 @@ export function scanInstalledWorkflows(
 export class UpdateCommand {
   private readonly force: boolean;
   private readonly dryRun: boolean;
+  /** Skill folders of deselected workflows kept because the user changed them. */
+  private keptDeselectedSkills: string[] = [];
   private recorder: UpdatePlanRecorder | null = null;
   private ops: UpdateFileOps = realFileOps;
 
@@ -411,6 +415,7 @@ export class UpdateCommand {
     const leftCommandFiles = { kept: [] as string[], unchecked: [] as string[] };
     let removedSkillCount = 0;
     let removedDeselectedSkillCount = 0;
+    this.keptDeselectedSkills = [];
 
     // Every tool's project skills are one shared copy in `.agents/skills/`:
     // written once for all set-up tools, before any tool's former-root move
@@ -459,11 +464,18 @@ export class UpdateCommand {
             FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await this.ops.writeFile(skillFile, skillContent, tool.value);
           }
+          const ownTransformer = getTransformerForTool(
+            tool.value,
+            delivery,
+            resolveCommandSurfaceCapability(tool.value),
+            resolveCommandInvocation(tool.value)
+          );
           removedDeselectedSkillCount += await this.removeUnselectedSkillDirs(
             skillsRoot,
             skillsDir,
             toolWorkflows,
-            tool.value
+            tool.value,
+            (dirName) => everySkillRendering(dirName, OPENSPEC_VERSION, ownTransformer)
           );
         }
 
@@ -538,6 +550,16 @@ export class UpdateCommand {
     }
     if (removedSkillCount > 0) {
       this.log(chalk.dim(`Removed: ${removedSkillCount} skill directories`));
+    }
+    if (this.keptDeselectedSkills.length > 0) {
+      const count = this.keptDeselectedSkills.length;
+      this.log(
+        chalk.yellow(
+          `Kept ${count} skill folder${count === 1 ? '' : 's'} of workflows you no longer use, ` +
+            `because ${count === 1 ? 'it differs' : 'they differ'} from what OpenSpec wrote: ` +
+            `${this.keptDeselectedSkills.join(', ')}. Delete ${count === 1 ? 'it' : 'them'} when you're done.`
+        )
+      );
     }
     if (removedDeselectedSkillCount > 0) {
       this.log(chalk.dim(`Removed: ${removedDeselectedSkillCount} skill directories (deselected workflows)`));
@@ -645,15 +667,7 @@ export class UpdateCommand {
           )
         );
       }
-      if (result.kept.length > 0) {
-        this.log(
-          chalk.yellow(
-            `Kept ${result.kept.length} skill folder${result.kept.length === 1 ? '' : 's'} with your own changes: ` +
-              `${result.kept.join(', ')}. Nothing was overwritten. Compare each with .agents/skills ` +
-              'and delete yours once you have kept what you need.'
-          )
-        );
-      }
+      for (const line of formatKeptSkills(result.kept)) this.log(chalk.yellow(line));
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1108,7 +1122,8 @@ export class UpdateCommand {
     skillsRoot: string,
     skillsDir: string,
     desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][],
-    toolId: string
+    toolId: string,
+    generatedTexts: (dirName: string) => string[]
   ): Promise<number> {
     const desiredSet = new Set(desiredWorkflows);
     let removed = 0;
@@ -1121,8 +1136,23 @@ export class UpdateCommand {
       const skillDir = path.join(skillsDir, dirName);
       if (!this.view.exists(skillDir)) continue;
       FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
+      // Only OpenSpec's own SKILL.md goes. An edited one, a link, or a file
+      // where the folder should be is the user's, and so is anything beside
+      // SKILL.md.
+      const skillFile = classifySkillFile(skillDir, generatedTexts(dirName), this.view);
+      if (skillFile === 'user' || !this.view.isDirectory(skillDir)) {
+        this.keptDeselectedSkills.push(skillDir);
+        continue;
+      }
       try {
-        await this.ops.removeDirectory(skillDir, toolId);
+        if (skillFile !== 'missing') await this.ops.removeFile(path.join(skillDir, 'SKILL.md'), toolId);
+        if (!this.dryRun) {
+          try {
+            fs.rmdirSync(skillDir);
+          } catch {
+            // The user's other files are still in it.
+          }
+        }
         removed++;
       } catch {
         // Ignore errors

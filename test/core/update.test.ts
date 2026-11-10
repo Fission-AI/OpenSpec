@@ -223,7 +223,7 @@ describe('UpdateCommand', () => {
       expect(await fs.readFile(path.join(sharedDir, 'openspec-propose', 'ref.md'), 'utf-8')).toBe('my notes');
       expect(await fs.readFile(path.join(sharedDir, '.openspec-target'), 'utf-8')).toBe('claude own-files\nkeep openspec-propose\n');
       expect(consoleSpy.mock.calls.flat().map(String).some((entry) =>
-        entry.includes('Kept 1 skill folder') && entry.includes('.agents/skills/openspec-propose')
+        entry.includes('Kept 1 skill in .agents/skills as your own') && entry.includes('.agents/skills/openspec-propose')
       )).toBe(true);
       // OpenSpec's other skills are written as usual.
       expect(await fs.readFile(path.join(sharedDir, 'openspec-explore', 'SKILL.md'), 'utf-8')).toContain('name: openspec-explore');

@@ -68,6 +68,8 @@ Move anything worth keeping into the skill, then delete by hand.
 
 Your tool may still show a kept file as a command. Delete it once you've moved what you need.
 
+A project set up before 1.0 has older files (`.claude/commands/openspec/`, for example). `update` asks before removing those; with `--force` it removes them without asking, edited or not, so back them up first.
+
 ## Skill folders you edited
 
 The same goes for an old skill copy in a tool's own folder: if you edited it, `update` keeps it. A tool that reads both its own folder and `.agents/skills/` may then load that skill twice. Delete the kept folder once you've moved what you need.

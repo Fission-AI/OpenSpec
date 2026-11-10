@@ -15,7 +15,7 @@ import type { UpdateFileOps } from '../update-plan.js';
 import { transformToSharedSkillReferences } from '../../utils/command-references.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import { formatSkillToolList, hasSkillToolList, readKeptSharedSkills, skillToolListPath } from '../shared-skill-target.js';
-import { generateSkillContent, getSkillTemplates } from './skill-generation.js';
+import { everySkillRendering, generateSkillContent, getSkillTemplates } from './skill-generation.js';
 import { classifySkillFile, classifySkillLinkSpot } from './skill-links.js';
 import { resolveFormerOwnSkillsDir, resolveSharedSkillsDir, resolveSkillLinkDir, usesSharedSkills } from './skill-paths.js';
 
@@ -115,9 +115,16 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   const previouslyKept = readKeptSharedSkills(projectPath, view);
   // The previous shared text is OpenSpec's only once the folder is, and never
   // for a skill kept as the user's.
+  const renderings = new Map<string, string[]>();
+  const generatedTexts = (skillName: string): string[] => {
+    if (!renderings.has(skillName)) {
+      renderings.set(skillName, everySkillRendering(skillName, input.version, transformToSharedSkillReferences));
+    }
+    return renderings.get(skillName)!;
+  };
   const oursFor = (skillName: string) =>
     [
-      contents.get(skillName),
+      ...generatedTexts(skillName),
       sharedIsOurs && !previouslyKept.has(skillName) ? previous.get(skillName) : undefined,
     ].filter((text): text is string => text !== undefined);
   const keptShared = new Set<string>();
@@ -133,6 +140,12 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       keepAsUsers(skillName);
       continue;
     }
+    // A file where a skill's folder goes (such as a link git checked out as
+    // text) is the user's too: kept, and nothing is written beneath it.
+    if (view.exists(skillDir) && !view.isDirectory(skillDir)) {
+      keepAsUsers(skillName);
+      continue;
+    }
     if (!view.exists(path.join(skillDir, 'SKILL.md'))) continue;
     if (previouslyKept.has(skillName)) {
       keptShared.add(skillName);
@@ -141,18 +154,6 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     }
   }
   const sharedSpotIsUsers = (skillName: string): boolean => keptShared.has(skillName);
-  // A skill's text depends on which workflows are installed beside it, so a
-  // skill this run drops is recognized against the set that was installed
-  // before: the skills the shared folder held (with and without those kept as
-  // the user's).
-  const workflowsHeld = (skip: ReadonlySet<string>) =>
-    getSkillTemplates()
-      .filter(({ dirName }) => previous.has(dirName) && !skip.has(dirName))
-      .map(({ workflowId }) => workflowId);
-  const renderedBefore = [
-    sharedSkillContents(input.version, workflowsHeld(new Set())),
-    sharedSkillContents(input.version, workflowsHeld(keptShared)),
-  ];
 
   // 1. The one shared copy, and the list of tools set up here.
   for (const dirName of wanted) {
@@ -169,11 +170,10 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     // A deselected skill goes; any other file the user keeps beside its
     // SKILL.md stays, and so does a SKILL.md the user edited (it is theirs
     // from now on, recorded as kept).
-    // Judged against OpenSpec's text alone, never against what the file held
-    // before this run (which it always equals).
-    const generated = [contents.get(skillName), ...renderedBefore.map((texts) => texts.get(skillName))].filter(
-      (text): text is string => text !== undefined
-    );
+    // Judged against OpenSpec's text alone (this version's, whatever
+    // workflows were installed beside it), never against what the file held
+    // before this run, which it always equals.
+    const generated = generatedTexts(skillName);
     if (
       view.isDirectory(skillDir) &&
       view.exists(path.join(skillDir, 'SKILL.md')) &&
@@ -183,7 +183,11 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       continue;
     }
     const spot = classifySkillLinkSpot(skillDir, skillDir, generated, view);
-    if (spot === 'user' && view.isDirectory(skillDir)) {
+    if (spot === 'user' && !view.isDirectory(skillDir)) {
+      keepAsUsers(skillName);
+      continue;
+    }
+    if (spot === 'user') {
       if (view.exists(path.join(skillDir, 'SKILL.md'))) {
         await ops.removeFile(path.join(skillDir, 'SKILL.md'), 'openspec');
         result.removedSkillCount += 1;
@@ -263,6 +267,8 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       // Not wanted here: a tool that reads `.agents/skills` would load an old
       // copy twice, and a deselected skill's link points at nothing.
       if (spot === 'link' && !linkDir) continue; // someone else's link; not ours to remove
+      // A link to a skill kept as the user's points at their skill, not ours.
+      if (spot === 'link' && sharedSpotIsUsers(skillName)) continue;
       await ops.removeDirectory(spotPath, tool.value);
       if (spot === 'released') result.replacedOldCopyCount += 1;
     }
@@ -287,16 +293,58 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
  * other. Then a tool's own skills folder is the shared one, and settling it
  * would remove the very copy every tool reads.
  */
+/** What init and update print for skill folders they kept as the user's. */
+export function formatKeptSkills(kept: readonly string[]): string[] {
+  const inShared = kept.filter((rel) => rel.startsWith('.agents/skills/'));
+  const elsewhere = kept.filter((rel) => !rel.startsWith('.agents/skills/'));
+  const lines: string[] = [];
+  if (elsewhere.length > 0) {
+    lines.push(
+      `Kept ${elsewhere.length} skill folder${elsewhere.length === 1 ? '' : 's'} with your own changes: ` +
+        `${elsewhere.join(', ')}. Nothing was overwritten. Compare each with .agents/skills ` +
+        'and delete yours once you have kept what you need.'
+    );
+  }
+  if (inShared.length > 0) {
+    lines.push(
+      `Kept ${inShared.length} skill${inShared.length === 1 ? '' : 's'} in .agents/skills as your own: ` +
+        `${inShared.join(', ')}. OpenSpec won't update or remove ${inShared.length === 1 ? 'it' : 'them'}; ` +
+        'delete one to have OpenSpec install its own again.'
+    );
+  }
+  return lines;
+}
+
 export function isSameFolderTree(a: string, b: string): boolean {
-  let realA: string;
-  let realB: string;
+  return isWithinFolder(a, b) || isWithinFolder(b, a);
+}
+
+/**
+ * Whether `inner` is `outer` or inside it, compared by file identity rather
+ * than path text, so letter case and other spellings of one folder can't hide
+ * it.
+ */
+function isWithinFolder(inner: string, outer: string): boolean {
+  let outerStat: fs.BigIntStats;
+  let current: string;
   try {
-    realA = fs.realpathSync(a);
-    realB = fs.realpathSync(b);
+    // Bigint: Windows file ids are 64-bit.
+    outerStat = fs.statSync(outer, { bigint: true });
+    current = fs.realpathSync.native(inner);
   } catch {
     return false;
   }
-  return realA === realB || realA.startsWith(realB + path.sep) || realB.startsWith(realA + path.sep);
+  for (;;) {
+    try {
+      const stat = fs.statSync(current, { bigint: true });
+      if (stat.ino === outerStat.ino && stat.dev === outerStat.dev) return true;
+    } catch {
+      return false;
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return false;
+    current = parent;
+  }
 }
 
 function removeIfEmpty(dir: string): void {
@@ -327,6 +375,7 @@ export function ownSkillFolderNeedsWork(
   if (!ownDir) return false;
   const sharedDir = resolveSharedSkillsDir(projectPath);
   if (isSameFolderTree(ownDir, sharedDir)) return false;
+  const kept = readKeptSharedSkills(projectPath, view);
   for (const skillName of OPENSPEC_SKILL_NAMES) {
     let sharedContent = '';
     try {
@@ -340,6 +389,8 @@ export function ownSkillFolderNeedsWork(
       if (!linkDir && (skillFile === 'copy' || skillFile === 'released')) return true;
       continue;
     }
+    // A link to a skill kept as the user's stays, wanted or not.
+    if (spot === 'link' && kept.has(skillName)) continue;
     const wanted = linkDir !== undefined && linkedSkillNames.has(skillName);
     if (wanted ? spot === 'missing' || spot === 'released' : spot !== 'missing' && !(spot === 'link' && !linkDir)) {
       return true;

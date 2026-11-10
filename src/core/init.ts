@@ -71,7 +71,7 @@ import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
-import { installSharedSkills } from './shared/shared-skill-install.js';
+import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-install.js';
 import { realFileOps } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
 import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
@@ -953,15 +953,7 @@ export class InitCommand {
       });
       if (shared.writtenSkillCount === 0) removedSkillCount += shared.removedSkillCount;
       ownFolderErrors = shared.toolFailures;
-      if (shared.kept.length > 0) {
-        console.log(
-          chalk.yellow(
-            `Kept ${shared.kept.length} skill folder${shared.kept.length === 1 ? '' : 's'} with your own changes: ` +
-              `${shared.kept.join(', ')}. Nothing was overwritten. Compare each with .agents/skills ` +
-              'and delete yours once you have kept what you need.'
-          )
-        );
-      }
+      for (const line of formatKeptSkills(shared.kept)) console.log(chalk.yellow(line));
     } catch (error) {
       // Every tool sharing the folder fails with this.
       const message = error instanceof Error ? error.message : String(error);

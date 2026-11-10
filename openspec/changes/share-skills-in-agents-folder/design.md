@@ -58,12 +58,14 @@ A retired tool leaves the tool list, so nothing sets it up or counts it as confi
 
 Every removal compares a file with what OpenSpec wrote (this version, or any release) and keeps anything else, listing it. This holds for:
 
-- a skill the new profile drops: an edited `.agents/skills/<skill>/SKILL.md` is kept and recorded as `keep <skill>`;
+- a skill the new profile drops: an edited `.agents/skills/<skill>/SKILL.md` is kept and recorded as `keep <skill>`, and so is an edited one in MiniMax's `~/.minimax/skills`. "Edited" means it differs from every text this version writes for that skill (a skill's text varies with the workflows installed beside it, so all of them are checked) and from every release;
+- a file where a skill's folder goes (such as a link git checked out as text) is kept, and nothing is written beneath it;
+- a tool's link to a kept skill stays, even when the profile drops that skill;
 - global Codex prompts (`~/.codex/prompts/opsx-*.md`): only released text is removed, even under `--force`;
 - an unlisted `.agents/skills` folder: a tool is inferred from it only when its skills are released text;
-- links: a link the user made (a tool's `skills/` folder linked to `.agents/skills`, or `.agents/skills/<skill>` linked elsewhere) is never written or deleted through. A link git checked out as a text file is recognized and replaced with a copy.
+- links: a link the user made (a tool's `skills/` folder linked to `.agents/skills`, or `.agents/skills/<skill>` linked elsewhere) is never written or deleted through. Folders are compared by file identity, so another letter case can't disguise `.agents`. A link git checked out as a text file in a tool's folder is recognized and replaced with a copy.
 
-Accepted: a skill OpenSpec still installs is refreshed in place in `.agents/skills`, as 1.x refreshed each tool's copy.
+Accepted, as in 1.x: a skill OpenSpec still installs is refreshed in place; `update --force` on a pre-1.0 project removes its legacy files after warning to back them up.
 
 ## Risks
 
