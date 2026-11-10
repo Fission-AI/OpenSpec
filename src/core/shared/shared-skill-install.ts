@@ -451,7 +451,9 @@ export function ownSkillFolderNeedsWork(
     }
     // Judged as the install judges it: against the shared copy and every text
     // this version writes for the skill.
-    const ours = [sharedContent, ...sharedSkillTexts(skillName)];
+    // A kept skill's shared text is the user's, never OpenSpec's (as in the
+    // install's own check).
+    const ours = kept.has(skillName) ? [...sharedSkillTexts(skillName)] : [sharedContent, ...sharedSkillTexts(skillName)];
     const spotPath = path.join(ownDir, skillName);
     const spot = classifySkillLinkSpot(spotPath, path.join(sharedDir, skillName), ours, view);
     if (spot === 'user') {

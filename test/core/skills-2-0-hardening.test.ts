@@ -557,6 +557,20 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     await settles();
   });
 
+  it('settles when an old tool folder holds an exact copy of a skill kept as the user’s', async () => {
+    const mine = '---\nname: openspec-explore\ndescription: mine\n---\nmy own explore\n';
+    for (const dir of ['.agents', '.cursor']) {
+      await fs.mkdir(p(dir, 'skills', 'openspec-explore'), { recursive: true });
+      await fs.writeFile(p(dir, 'skills', 'openspec-explore', 'SKILL.md'), mine);
+    }
+
+    await new InitCommand({ tools: 'cursor', force: true }).execute(project);
+    await new UpdateCommand().execute(project);
+
+    expect(await read('.cursor/skills/openspec-explore/SKILL.md')).toBe(mine);
+    await settles();
+  });
+
   it('keeps a fallback copy equal to the shared copy (where links can’t be made)', async () => {
     await new InitCommand({ tools: 'claude', force: true }).execute(project);
     const spot = p('.claude', 'skills', 'openspec-explore');
