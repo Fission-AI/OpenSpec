@@ -17,14 +17,20 @@ const { version: OPENSPEC_VERSION } = require('../../../package.json') as { vers
 
 /** Every text this version writes for `dirName` in `toolId`'s own folder. */
 export function ownSkillTexts(toolId: string, dirName: string, version: string = OPENSPEC_VERSION): string[] {
+  const key = `${version}\0${toolId}\0${dirName}`;
+  const cached = ownTextCache.get(key);
+  if (cached) return cached;
   const transformer = getTransformerForTool(
     toolId,
     'skills',
     resolveCommandSurfaceCapability(toolId),
     resolveCommandInvocation(toolId)
   );
-  return everySkillRendering(dirName, version, transformer);
+  const texts = everySkillRendering(dirName, version, transformer);
+  ownTextCache.set(key, texts);
+  return texts;
 }
+const ownTextCache = new Map<string, string[]>();
 
 /** Every text this version writes for `dirName` in the shared `.agents/skills`. */
 export function sharedSkillTexts(dirName: string, version: string = OPENSPEC_VERSION): string[] {

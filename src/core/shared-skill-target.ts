@@ -82,9 +82,13 @@ export function readKeptSharedSkills(projectPath: string, view: FileView = DISK_
  * Codex trees users moved there by hand.
  */
 function inferPreListTool(projectPath: string, view: FileView): string | undefined {
+  // Asked for every tool on every check: leave early, before any path
+  // check, when there is nothing to read.
+  if (!view.exists(path.join(projectPath, SHARED_SKILLS_ROOT, 'skills'))) return undefined;
   let foundGenericReference = false;
   for (const skillName of OPENSPEC_SKILL_NAMES) {
     const skillFile = path.join(projectPath, SHARED_SKILLS_ROOT, 'skills', skillName, 'SKILL.md');
+    if (!view.exists(skillFile)) continue;
     try {
       FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);
       const content = view.read(skillFile);

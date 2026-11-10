@@ -103,6 +103,13 @@ export function everySkillRendering(
   generatedByVersion: string,
   transformInstructions?: (instructions: string) => string
 ): string[] {
+  // Pure and asked for many times per run (every tool, every skill): cached
+  // per transformer, version and skill.
+  const byTransformer = renderingCache.get(transformInstructions ?? NO_TRANSFORM) ?? new Map<string, string[]>();
+  renderingCache.set(transformInstructions ?? NO_TRANSFORM, byTransformer);
+  const key = `${generatedByVersion}\0${dirName}`;
+  const cached = byTransformer.get(key);
+  if (cached) return cached;
   const entry = allSkillTemplates().find((candidate) => candidate.dirName === dirName);
   if (!entry) return [];
   const named = [
@@ -119,8 +126,12 @@ export function everySkillRendering(
       )
     );
   }
+  byTransformer.set(key, texts);
   return texts;
 }
+
+const NO_TRANSFORM = (text: string) => text;
+const renderingCache = new WeakMap<(text: string) => string, Map<string, string[]>>();
 
 function allSkillTemplates(): SkillTemplateEntry[] {
   return [
