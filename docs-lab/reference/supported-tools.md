@@ -23,6 +23,14 @@ my-project/
 
 Cursor and Codex read `.agents/skills/` themselves, so they need nothing else.
 
+`.openspec-target` is how `openspec update` knows what is OpenSpec's. Each line is one of:
+
+| Line | Meaning |
+|---|---|
+| `<tool>` | A tool set up in this project, such as `cursor`. |
+| `<tool> own-files` | OpenSpec gave the tool links in its own folder, such as `claude own-files`. Delete that folder and `update` removes the tool. |
+| `keep <skill>` | Your own skill, such as `keep openspec-mine`. It was there before OpenSpec used the folder, so OpenSpec never touches it. |
+
 - **Links**: Claude Code, Continue, ForgeCode, Kiro, CodeBuddy, EasyCode, iFlow, CodeArts, Lingma, GigaCode, Veai, Rovo Dev, Code Studio, and Hermes Agent.
 - **No link**: every other tool reads `.agents/skills/` directly, so it never loads a skill twice.
 - **Where a link can't be made**: OpenSpec writes a plain copy instead, and refreshes it on `openspec update`.
@@ -105,7 +113,7 @@ mklink /J .mytool\skills .agents\skills
 
 Replace `.mytool` with your tool's folder. If the tool already has a `skills/` folder of its own, link each skill instead: `ln -s ../../.agents/skills/openspec-propose .mytool/skills/openspec-propose`.
 
-**Committing links**: Git stores links as links. A teammate on Windows needs `git config core.symlinks true` (and permission to create links) before cloning, or they check out as small text files. A junction made with `mklink /J` is not committed as a link; recreate it on each machine.
+**Committing links**: Git stores links as links. A teammate on Windows should run `git config --global core.symlinks true` (or clone with `git clone -c core.symlinks=true <url>`) and enable Developer Mode so links can be created. Otherwise each link checks out as a small text file, which `openspec update` replaces with a plain copy of the skill. A junction made with `mklink /J` is not committed as a link; recreate it on each machine.
 
 ## Per-tool notes
 

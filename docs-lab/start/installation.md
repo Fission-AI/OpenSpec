@@ -215,7 +215,7 @@ In your terminal, in each project where you ran init:
 openspec update
 ```
 
-When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update) says so and can install it for you; that upgrade is once per machine. Every run refreshes the project's generated skills and commands, which never update on their own. A current project prints `✓ All 2 tool(s) up to date (v1.7.0)`.
+When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update) says so and can install it for you; that upgrade is once per machine. Every run refreshes the project's generated skills, which never update on their own. A current project prints `✓ All 2 tool(s) up to date (v1.7.0)`.
 
 
 > [!WARNING]
@@ -244,7 +244,7 @@ On Homebrew: `brew uninstall openspec`. On Deno: `deno uninstall --global opensp
 
 **3. Delete what's left, or keep it.**
 
-- Generated agent files: `openspec-*` skills and `opsx` commands under directories like `.claude/` or `.agents/`, per project. [Supported tools](../reference/supported-tools.md) lists each tool's paths; MiniMax Code keeps skills in `~/.minimax/skills`.
+- Generated agent files, per project: the `openspec-*` skills and `.openspec-target` in `.agents/skills/`, and the `openspec-*` links in tool folders like `.claude/skills/`. [Supported tools](../reference/supported-tools.md) lists which tools get links; MiniMax Code keeps skills in `~/.minimax/skills`.
 - Leftovers from older versions: marker blocks in `CLAUDE.md` or `AGENTS.md` (delete the block, keep the file) and `opsx-*.md` prompts in `~/.codex/prompts`.
 - The `openspec/` folder: pause first. `specs/` and `changes/archive/` are your record of the system, plain Markdown that reads fine without OpenSpec.
 - Per-machine state: settings and the telemetry id in `~/.config/openspec/`; schema overrides, store registrations, and the standalone install's built-in schemas (`binary-schemas/`) in `~/.local/share/openspec/` (Windows: `%APPDATA%\openspec`, `%LOCALAPPDATA%\openspec`). Registrations are pointers; the store repos they point to are untouched.

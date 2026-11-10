@@ -375,10 +375,9 @@ export function configListCommand(options: { json?: boolean }): void {
 
     // Annotate profile settings
     const profileSource = rawConfig.profile !== undefined ? '(explicit)' : '(default)';
-    const deliverySource = rawConfig.delivery !== undefined ? '(explicit)' : '(default)';
     console.log(`\nProfile settings:`);
     console.log(`  profile: ${config.profile} ${profileSource}`);
-    console.log(`  delivery: ${config.delivery} ${deliverySource}`);
+    console.log(`  delivery: ${config.delivery} (retired in 2.0, ignored)`);
     if (config.profile === 'core') {
       console.log(`  workflows: ${CORE_WORKFLOWS.join(', ')} (from core profile)`);
     } else if (config.workflows && config.workflows.length > 0) {
@@ -456,7 +455,7 @@ export function configSetCommand(key: string, value: string, options: { string?:
 
 /** What `delivery` means now that every tool gets skills only. */
 export const DELIVERY_RETIRED_NOTE =
-  'Note: delivery no longer changes anything. OpenSpec 2.0 installs skills only; run `openspec update` to apply.';
+  'Note: delivery no longer changes anything; OpenSpec 2.0 installs skills only.';
 
 export function configUnsetCommand(key: string): void {
   if (refuseUnreadableConfig()) {

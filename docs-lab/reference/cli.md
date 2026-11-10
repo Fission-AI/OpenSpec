@@ -112,7 +112,7 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 
 **Output**
 
-Each selected tool gets OpenSpec's skills and commands in its own directory:
+OpenSpec writes its skills once, to `.agents/skills/`. Tools that need it get links in their own folder:
 
 ```
 ▌ OpenSpec structure created
@@ -286,7 +286,7 @@ openspec config list --json   # raw config as JSON
 
 **Output**
 
-Each setting, then a profile summary that marks values as explicit or default:
+Each setting, then a profile summary. It marks the profile as explicit or default and flags `delivery` as retired:
 
 ```
 featureFlags: {}
@@ -295,7 +295,7 @@ delivery: skills
 
 Profile settings:
   profile: core (default)
-  delivery: skills (default)
+  delivery: skills (retired in 2.0, ignored)
   workflows: propose, explore, apply, update, sync, archive (from core profile)
 ```
 
@@ -355,7 +355,7 @@ Set featureFlags.workspaces = true
 
 ```
 Set delivery = "skills"
-Note: delivery no longer changes anything. OpenSpec 2.0 installs skills only; run `openspec update` to apply.
+Note: delivery no longer changes anything; OpenSpec 2.0 installs skills only.
 ```
 
 Unknown keys and invalid values fail with exit 1 before anything is saved:

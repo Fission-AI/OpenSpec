@@ -91,10 +91,11 @@ describe('welcome screen', () => {
 
     const output = writtenOutput();
 
-    expect(output).toContain('/opsx:propose');
-    expect(output).toContain('/opsx:apply');
-    expect(output).not.toContain('/opsx:new');
-    expect(output).not.toContain('/opsx:continue');
+    expect(output).toContain('openspec-propose');
+    expect(output).toContain('openspec-apply-change');
+    expect(output).not.toContain('openspec-new-change');
+    expect(output).not.toContain('openspec-continue-change');
+    expect(output).not.toContain('/opsx:');
   });
 
   it('advertises expanded commands when a custom profile installs them', async () => {
@@ -105,9 +106,9 @@ describe('welcome screen', () => {
 
     const output = writtenOutput();
 
-    expect(output).toContain('/opsx:new');
-    expect(output).toContain('/opsx:continue');
-    expect(output).not.toContain('/opsx:propose');
+    expect(output).toContain('openspec-new-change');
+    expect(output).toContain('openspec-continue-change');
+    expect(output).not.toContain('openspec-propose');
   });
 
   it('omits the quick start block when no onboarding workflow is installed', async () => {
@@ -122,19 +123,18 @@ describe('welcome screen', () => {
     expect(output).not.toContain('Quick start after setup:');
   });
 
-  it('does not promise opsx commands in the setup summary', async () => {
+  it('does not promise commands in the setup summary', async () => {
     const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
     renderStatically();
 
-    // This screen runs before tool selection, and skills-only tools (Codex,
-    // Kimi Code, ...) correctly receive no command files, so the summary must
-    // not state that opsx slash commands are part of every setup.
+    // OpenSpec 2.0 installs skills only, so the summary must not promise
+    // command files of any kind.
     await showWelcomeScreen(['archive']);
 
     const output = writtenOutput();
 
     expect(output).toContain('Agent Skills for AI tools');
-    expect(output).toContain('Workflow commands, if supported');
+    expect(output).not.toContain('Workflow commands');
     expect(output).not.toContain('opsx slash commands');
   });
 
@@ -142,14 +142,14 @@ describe('welcome screen', () => {
     const { showWelcomeScreen } = await import('../../src/ui/welcome-screen.js');
     renderStatically();
 
-    // The quick start shows canonical names, but this screen renders one
-    // prompt before tools are picked — an Amazon Q user types @opsx-propose
+    // The quick start shows skill names, but this screen renders one prompt
+    // before tools are picked — a Claude Code user types /openspec-propose
     // and a Codex user $openspec-propose, neither of which is shown here.
     await showWelcomeScreen(['propose']);
 
     const output = writtenOutput();
 
-    expect(output).toContain('/opsx:propose');
+    expect(output).toContain('openspec-propose');
     expect(output).toContain('spelling varies by tool');
   });
 
@@ -168,7 +168,7 @@ describe('welcome screen', () => {
 
     // The animated path moves the cursor up a fixed count of logical lines, so a
     // line that wraps at the narrowest animating terminal (MIN_WIDTH = 60) makes
-    // each frame redraw lower than the last. Worst case is every command shown.
+    // each frame redraw lower than the last. Worst case is every skill shown.
     await showWelcomeScreen(ALL_WORKFLOWS);
 
     const rendered = writtenOutput().replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');

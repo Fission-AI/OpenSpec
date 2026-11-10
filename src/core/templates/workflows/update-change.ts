@@ -156,7 +156,7 @@ After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
 - Any file created under a glob artifact that was already partially populated
 - ${CONTINUE_DEFERRED}
-- Where the change stands and the recommended next command
+- Where the change stands and the recommended next skill
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
@@ -256,7 +256,7 @@ After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
 - Any file created under a glob artifact that was already partially populated
 - ${CONTINUE_DEFERRED}
-- Where the change stands and the recommended next command
+- Where the change stands and the recommended next skill
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.

@@ -57,7 +57,7 @@ Running init creates two things in your project:
 - An `openspec/` folder at the repo root
 - Workflow files: skills in the shared `.agents/skills/` folder, with links from a tool's own folder where it needs them (`.claude/skills/`, for example)
 
-Commit all of it like the rest of your source. Init changes nothing else in your repo (if it finds leftovers from an older OpenSpec version, it asks before cleaning them up).
+Commit all of it like the rest of your source. Init changes nothing else in your repo. Init removes command files earlier versions generated and keeps any you edited; for pre-1.0 leftovers it asks first.
 
 ### The `openspec/` folder
 
@@ -109,7 +109,7 @@ Answering yes to "Apply changes to this project now?" applies it on the spot. Ot
 
 #### Claude Code doesn't show the workflows
 
-Claude Code loads OpenSpec skills from `.claude/skills/openspec-*`, links to `.agents/skills/openspec-*/SKILL.md`. If they are missing, refresh the project. In your terminal:
+Claude Code loads OpenSpec skills from `.claude/skills/openspec-*`, which link to `.agents/skills/openspec-*`. If they are missing, refresh the project. In your terminal:
 
 ```bash
 openspec update

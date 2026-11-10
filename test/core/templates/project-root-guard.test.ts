@@ -108,10 +108,10 @@ describe('project root guard', () => {
     expect(autoSelected).not.toContain('--store <id>');
   });
 
-  it('asks when the user named OpenSpec, this skill, or its command', () => {
+  it('asks when the user named OpenSpec or this skill, or invoked it by name', () => {
     const explicit = branch('**Explicit OpenSpec request**');
 
-    expect(explicit).toContain('named OpenSpec, named this skill, or ran its slash command');
+    expect(explicit).toContain('named OpenSpec, named this skill, or invoked this skill by name');
     expect(explicit).toContain('Stop before writing and ask how to proceed');
     expect(explicit).toContain('`openspec init`');
     expect(explicit).toContain('`--store <id>`');

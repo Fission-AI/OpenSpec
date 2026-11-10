@@ -36,5 +36,5 @@ OpenSpec reuses words that mean something else in git, CI, and agent tooling. Ea
 | **Template** | The starting content a schema gives each artifact. | [Schemas](../customize/schemas.md) |
 | **Update** | As a skill (`openspec-update-change`): revise a change proposal's planning artifacts. As a CLI command (`openspec update`): refresh OpenSpec's installed files. | [Update a change](skills.md#openspec-update-change), [CLI](cli.md) |
 | **Verify** | Check the implementation matches a change proposal's artifacts before archiving. Skill: `openspec-verify-change`. | [Skills](skills.md) |
-| **Workflow** | A named OpenSpec action (propose, apply, archive, ...), installed into your AI tool as a skill or command. | [Set up your project](../start/setup.md) |
+| **Workflow** | A named OpenSpec action (propose, apply, archive, ...), installed into your AI tool as a skill. | [Set up your project](../start/setup.md) |
 | **Workset** | A personal, local group of folders opened together in one tool. Not a store, and nothing is shared. | [Worksets (beta)](../multi-repo/worksets.md) |

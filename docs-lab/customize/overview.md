@@ -8,7 +8,7 @@ OpenSpec supports multiple customization options. This page shows what each one 
 
 | Option | What it changes | Use it when |
 |---|---|---|
-| [Profiles](profiles.md) | Which workflows are installed, and whether as skills, commands, or both | You want additional workflows and working patterns, or to remove workflows you don't need |
+| [Profiles](profiles.md) | Which workflows are installed | You want additional workflows and working patterns, or to remove workflows you don't need |
 | [Project configuration](project-config.md) | The instructions injected into every workflow run: context, rules, and operation guidance (`config.yaml`) | You want changes planned your way, like tasks always including Playwright tests |
 | [Schemas](schemas.md) | What OpenSpec produces: the artifacts, their order, and their templates | Changes should produce different planning files, sections, or formats |
 

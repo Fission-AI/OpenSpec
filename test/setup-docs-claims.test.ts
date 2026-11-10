@@ -52,7 +52,7 @@ describe('setup documentation', () => {
     expect(claude?.skillsDir).toBeDefined();
     // Claude's skills are links in its own folder to the one shared copy.
     expect(SKILL_LINKED_TOOL_IDS.has('claude')).toBe(true);
-    expect(SETUP).toContain(`\`${claude?.skillsDir}/skills/openspec-*\`, links to \`${SHARED_SKILLS_ROOT}/skills/openspec-*/SKILL.md\``);
+    expect(SETUP).toContain(`\`${claude?.skillsDir}/skills/openspec-*\`, which link to \`${SHARED_SKILLS_ROOT}/skills/openspec-*\``);
     // 2.0 installs skills only: the recovery is a plain update, never a
     // command path or a delivery switch.
     expect(SETUP).not.toContain(`\`${claudeCommandPath}\``);

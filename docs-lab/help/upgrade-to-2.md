@@ -11,7 +11,7 @@
 | Where skills live | A copy in each tool's own folder | One copy in `.agents/skills/`, with links for tools that need them |
 | Command files (`/opsx:propose`) | Installed beside the skills | Gone. Use the skills, which do the same work |
 | The `delivery` setting | Skills, commands, or both | Retired: everything is skills |
-| Amazon Q Developer | Prompt files | Retired: it can't load skills. `update` removes its OpenSpec files; use Kiro |
+| Amazon Q Developer | Prompt files and skills | Retired: it can't load skills. `update` removes its OpenSpec files; use Kiro |
 
 [Supported tools](../reference/supported-tools.md#where-skills-go) shows the new layout and which tools get links.
 
@@ -31,7 +31,7 @@
 - writes each skill once to `.agents/skills/`, and links it from a tool's own folder where the tool needs that (`.claude/skills/`, for example);
 - removes the copies earlier versions wrote into each tool's folder, and the command files they generated;
 - keeps any of those files you edited, and lists them;
-- never touches files outside the project, even through a linked folder.
+- never follows a link out of the project. Outside the project it only writes your global config and, for MiniMax Code, `~/.minimax/skills/`.
 
 Running it again changes nothing.
 
@@ -68,9 +68,13 @@ Move anything worth keeping into the skill, then delete by hand.
 
 Your tool may still show a kept file as a command. Delete it once you've moved what you need.
 
+## Skill folders you edited
+
+The same goes for an old skill copy in a tool's own folder: if you edited it, `update` keeps it. A tool that reads both its own folder and `.agents/skills/` may then load that skill twice. Delete the kept folder once you've moved what you need.
+
 ## Windows and committed links
 
-The links are committed like any file. A teammate on Windows needs `git config core.symlinks true` (and permission to create links) before cloning; otherwise each link checks out as a small text file. `openspec update` replaces those with plain copies of the skills, so the tools still work.
+The links are committed like any file. A teammate on Windows should run `git config --global core.symlinks true` (or clone with `git clone -c core.symlinks=true <url>`) and enable Developer Mode so links can be created. Otherwise each link checks out as a small text file, which `openspec update` replaces with a plain copy of the skill.
 
 ## A tool that OpenSpec doesn't link
 
@@ -78,8 +82,25 @@ Most tools read `.agents/skills/` directly. If yours reads only its own folder, 
 
 ## Staying on 1.x for now
 
-Nobody has to upgrade yet. 1.x keeps working as it is. On npm, pin it with:
+Nobody has to upgrade yet. 1.x keeps working as it is. Pin it the way you installed it.
+
+On npm:
 
 ```bash
 npm install -g @fission-ai/openspec@1
 ```
+
+With the standalone install, name the release ([Install options](../start/installation.md#install-options)):
+
+```bash
+curl -fsSL https://openspec.dev/cli/install.sh | OPENSPEC_VERSION=v1.17.0 sh
+```
+
+On Windows (PowerShell):
+
+```powershell
+$env:OPENSPEC_VERSION = 'v1.17.0'
+irm https://openspec.dev/cli/install.ps1 | iex
+```
+
+When `openspec update` offers to upgrade the CLI, decline. To stop the offer, set `OPENSPEC_NO_UPDATE_CHECK=1`.
