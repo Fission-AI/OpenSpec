@@ -11,7 +11,7 @@ The CLI keeps its machine-level settings at `~/.config/openspec/config.json` on 
 | Key | Type | Required | Effect |
 | --- | --- | --- | --- |
 | `profile` | string: `core` or `custom` | No | Picks the workflow set `openspec init` installs |
-| `delivery` | string: `both`, `skills`, or `commands` | No | Whether init installs skills, slash commands, or both |
+| `delivery` | string: `both`, `skills`, or `commands` | No | Retired in 2.0: read, but no longer changes anything |
 | `workflows` | list of strings | No | The workflow list a `custom` profile installs |
 | `featureFlags` | map: flag → boolean | No | Boolean feature toggles |
 | `defaultStore` | string | No | Machine-level fallback store for root resolution |
@@ -24,7 +24,7 @@ Which workflow set `openspec init` installs. Defaults to `core`: propose, explor
 
 ### delivery
 
-Whether init installs workflows as skills, as slash commands, or both. Defaults to `both`. Commands are deprecated and go away in OpenSpec 2.0, which installs skills only ([#2022](https://github.com/Fission-AI/OpenSpec/issues/2022)).
+Retired in OpenSpec 2.0, which installs skills only. The value is still accepted and read, so older configs stay valid, but it no longer changes what `init` and `update` install. Defaults to `skills`. In 1.x it chose between skills, slash commands, or both ([Upgrade to 2.0](../../help/upgrade-to-2.md)).
 
 ### workflows
 
@@ -87,7 +87,6 @@ A filled-in config.json:
 ```json
 {
   "profile": "core",
-  "delivery": "both",
   "featureFlags": {},
   "telemetry": {
     "anonymousId": "5f8a2c1e-4b6d-4f9a-9c3d-7e1b2a8d4c6f",

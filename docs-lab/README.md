@@ -115,7 +115,7 @@ the page or rewriting the goal in both places, never letting them drift.
 | Page | Goal |
 |---|---|
 | [Overview](customize/overview.md) | Your options for customizing OpenSpec. |
-| [Profiles](customize/profiles.md) | Choose which workflows are installed, and whether they install as skills, commands, or both. |
+| [Profiles](customize/profiles.md) | Choose which workflows are installed. |
 | [Project configuration](customize/project-config.md) | Make the workflows plan changes the way you want with a few lines in config.yaml. |
 | [Schemas](customize/schemas.md) | Change what OpenSpec produces: the artifacts, their order, and their templates. |
 
@@ -153,6 +153,7 @@ the page or rewriting the goal in both places, never letting them drift.
 |---|---|
 | [FAQ](help/faq.md) | Short answers to the questions that don't need a page. |
 | [Troubleshooting](help/troubleshooting.md) | When OpenSpec doesn't do what you expected: symptoms and their fixes. |
+| [Upgrade to 2.0](help/upgrade-to-2.md) | What changes in 2.0, and how to move a project over. |
 
 ### Legacy: land the old workflow safely (held back from the site until drafted, see Open TODOs)
 

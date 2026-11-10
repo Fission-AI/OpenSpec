@@ -121,13 +121,11 @@ Each selected tool gets OpenSpec's skills and commands in its own directory:
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills and 6 commands in .claude/
+6 skills in .agents/skills/ (linked from .claude/skills/)
 Config: openspec/config.yaml (schema: spec-driven)
 
 Getting started:
-  Start your first change: /opsx:propose "your idea"
-
-Restart your IDE for the new commands to take effect.
+  Start your first change: /openspec-propose "your idea"
 ```
 
 `--tools none` creates only `openspec/config.yaml`. On an already-initialized project, init rewrites the installed files in place and the summary reads `Refreshed: Claude Code` with `Config: openspec/config.yaml (exists)`.
@@ -246,7 +244,7 @@ Views and changes global configuration.
 
 ```bash
 openspec config list                  # see current settings
-openspec config set delivery skills   # change one value
+openspec config set profile core      # change one value
 openspec config profile               # interactive workflow picker
 ```
 
@@ -259,7 +257,7 @@ openspec config profile               # interactive workflow picker
 | `unset <key>` | Remove a key so its default applies. |
 | `reset` | Reset all configuration to defaults. |
 | `edit` | Open the config file in `$EDITOR`. |
-| `profile [preset]` | Configure delivery mode and workflows. |
+| `profile [preset]` | Configure which workflows are installed. |
 
 Config is global to your machine, stored as JSON where `config path` points: `$XDG_CONFIG_HOME/openspec/config.json` if set, else `~/.config/openspec/config.json` (macOS, Linux) or `%APPDATA%\openspec\config.json` (Windows). Every subcommand accepts `--scope <scope>`, but only `global` works today. Any other scope exits 1 with `Error: Project-local config is not yet implemented`.
 
@@ -293,18 +291,18 @@ Each setting, then a profile summary that marks values as explicit or default:
 ```
 featureFlags: {}
 profile: core
-delivery: both
+delivery: skills
 
 Profile settings:
   profile: core (default)
-  delivery: both (default)
+  delivery: skills (default)
   workflows: propose, explore, apply, update, sync, archive (from core profile)
 ```
 
 ### openspec config get
 
 ```bash
-openspec config get delivery
+openspec config get profile
 ```
 
 **Arguments**
@@ -318,7 +316,7 @@ openspec config get delivery
 The bare value, ready for scripts. Objects print as compact JSON:
 
 ```
-both
+core
 ```
 
 **Exit codes**
@@ -329,7 +327,7 @@ both
 ### openspec config set
 
 ```bash
-openspec config set delivery skills
+openspec config set profile core
 openspec config set featureFlags.workspaces true
 ```
 
@@ -353,6 +351,13 @@ openspec config set featureFlags.workspaces true
 Set featureFlags.workspaces = true
 ```
 
+`delivery` is still accepted, so older scripts keep working, but it no longer changes anything ([Upgrade to 2.0](../help/upgrade-to-2.md)):
+
+```
+Set delivery = "skills"
+Note: delivery no longer changes anything. OpenSpec 2.0 installs skills only; run `openspec update` to apply.
+```
+
 Unknown keys and invalid values fail with exit 1 before anything is saved:
 
 ```
@@ -362,7 +367,7 @@ Pass --allow-unknown to bypass this check.
 ```
 
 ```
-Error: Invalid configuration - delivery: Invalid option: expected one of "both"|"skills"|"commands"
+Error: Invalid configuration - profile: Invalid option: expected one of "core"|"custom"
 ```
 
 If the config file exists but does not hold a JSON object, whether because it is not valid JSON at all or because its root is something else such as `null` or an array, `config set`, `config unset` and `config profile` exit 1 and leave the file unchanged. Fix it with `openspec config edit`, or replace it with `openspec config reset --all`:
@@ -377,13 +382,13 @@ Until it is fixed, telemetry and the background update check in `openspec update
 ### openspec config unset
 
 ```bash
-openspec config unset delivery
+openspec config unset profile
 ```
 
 Removes the key so the default applies again. Keys with built-in defaults always count as set, so this reports success even if you never set them:
 
 ```
-Unset delivery (reverted to default)
+Unset profile (reverted to default)
 ```
 
 A key with no value at all prints `Key "featureFlags.nothere" was not set`. Both cases exit 0. A config file that cannot be parsed exits 1 instead, as for `config set`.
@@ -445,9 +450,9 @@ openspec config profile core   # apply the core preset directly
 
 | Argument | What it is |
 |---|---|
-| `preset` | Optional preset name. Only `core` exists. It selects the core workflows and keeps your delivery setting. |
+| `preset` | Optional preset name. Only `core` exists. It selects the core workflows. |
 
-With no preset, an interactive picker shows your current delivery and workflows, lets you change either or both (delivery: both, skills only, or commands only; workflows: a checkbox list), prints the diff, and inside an OpenSpec project offers to run `openspec update` for you. Outside a terminal it exits 1:
+With no preset, an interactive picker shows your current workflows, lets you change them (a checkbox list), prints the diff, and inside an OpenSpec project offers to run `openspec update` for you. Outside a terminal it exits 1:
 
 ```
 Interactive mode required. Use `openspec config profile core` or set config via environment/flags.

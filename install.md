@@ -74,9 +74,9 @@ Then run: `openspec init --tools <ids>`, adding the path when it isn't the curre
 
 ## 5. Report
 
-Don't assume what should exist; relay what init actually printed: how many skills and/or commands it created and where, the config file line, any "Setup required" note, and what to restart or reload. Some tools are skills-only and correctly create zero command files, so missing commands is not a failure on its own. If init said nothing was generated, relay the fix it suggested instead of retrying.
+Don't assume what should exist; relay what init actually printed: how many skills it created and where, the config file line, any "Setup required" note, and what to restart or reload. OpenSpec installs skills only, so zero command files is expected, not a failure.
 
-Finish by telling the user how to invoke OpenSpec in their tool, taking the exact spelling from the files init created rather than from its summary line: the punctuation differs per tool (`/opsx:propose` in some, `/opsx-propose` in others, `@opsx-propose` in Amazon Q), and tools that get skills instead of commands are invoked by skill name (`/openspec-propose`, or `$openspec-propose` in Codex, or `/skill:openspec-propose` in Kimi Code).
+Finish by telling the user how to invoke OpenSpec in their tool, using the "Getting started" line init printed: skills are invoked by name (`/openspec-propose` in most tools, `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code), or the user can simply ask for the work.
 
 EXECUTE NOW: Complete the TODO list above to achieve: the OpenSpec CLI installed, this project initialized, and the user told exactly how to invoke OpenSpec in their AI coding tool.
 

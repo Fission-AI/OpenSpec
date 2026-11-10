@@ -23,11 +23,10 @@ OpenSpec Setup Complete
 
 Created: Claude Code
 6 skills in .agents/skills/ (linked from .claude/skills/)
-6 commands in .claude/
 Config: openspec/config.yaml (schema: spec-driven)
 ```
 
-Restart your IDE for the new commands to take effect.
+If your tool runs in an IDE, restart it so it picks up the new skills.
 
 Re-running init is safe:
 
@@ -56,7 +55,7 @@ Review `config.yaml`, then delete `project.md` when ready.
 Running init creates two things in your project:
 
 - An `openspec/` folder at the repo root
-- Workflow files: skills in the shared `.agents/skills/` folder, and commands in your AI tool's folder (`.claude/`, `.cursor/`, etc.)
+- Workflow files: skills in the shared `.agents/skills/` folder, with links from a tool's own folder where it needs them (`.claude/skills/`, for example)
 
 Commit all of it like the rest of your source. Init changes nothing else in your repo (if it finds leftovers from an older OpenSpec version, it asks before cleaning them up).
 
@@ -74,7 +73,7 @@ openspec/
 
 [Project config](../customize/project-config.md) covers `config.yaml`.
 
-### The workflow files (skills and commands)
+### The workflow files (skills)
 
 These are the OpenSpec workflows, the actions you'll use as you work. Here they are as installed skills, in the shared `.agents/skills/` folder:
 
@@ -94,60 +93,25 @@ This is the default set plus two optional workflows. [Profiles](../customize/pro
 
 Each skill is written once, here, however many tools you set up. A tool that doesn't read `.agents/skills/` (Claude Code, Kiro, and a few others) gets a link to each skill in its own folder, such as `.claude/skills/openspec-propose`. [Supported tools](../reference/supported-tools.md#where-skills-go) shows the layout and which tools get links.
 
-By default each workflow installs in two forms:
+Each workflow is a **skill**: instructions your agent picks up when you ask for the work, or that you invoke by name (`/openspec-apply-change` in Claude Code, `$openspec-apply-change` in Codex). [Supported tools](../reference/supported-tools.md#support-matrix) shows the spelling for each tool.
 
-- **Skill** (`openspec-apply-change`): instructions your agent picks up on its own when you ask for the work.
-- **Command** (`/opsx:apply` in Claude Code): a typed entry point for the same workflow, under a shorter name.
-
-The two are functionally identical. A workflow's skill and its command carry the same instructions.
-
-Why two: commands came first, and every tool spells them its own way. Skills are the newer standard shared across tools, but not every tool can invoke a skill directly, so commands stay as those tools' entry point.
-
-Some tools install in skill form only. Where the tool runs skills directly, init skips commands and says so (`Commands skipped for: codex (uses skills)`).
-
-Commands are deprecated and go away in OpenSpec 2.0; skills stay. [Profiles](../customize/profiles.md#delivery-skills-commands-or-both) shows how to switch now.
+OpenSpec 1.x also wrote a command file per workflow (`/opsx:apply`). OpenSpec 2.0 installs skills only; [Upgrade to 2.0](../help/upgrade-to-2.md) covers what changes.
 
 #### Change what gets installed
 
-The interactive picker changes the delivery form and the workflow set ([Profiles](../customize/profiles.md)). In your terminal:
+The interactive picker changes the workflow set ([Profiles](../customize/profiles.md)). In your terminal:
 
 ```bash
 openspec config profile
 ```
 
-Here's switching to skills only:
-
-```
-Current profile settings
-  Delivery: both
-
-? What do you want to configure? Delivery only
-? Delivery mode (how workflows are installed): Skills only
-
-Config changes:
-  delivery: both -> skills
-? Apply changes to this project now? (Y/n) y
-```
-
-Answering yes applies it to the current project on the spot. Other projects pick it up on their next `openspec update`. The setting is global, per machine.
+Answering yes to "Apply changes to this project now?" applies it on the spot. Other projects pick it up on their next `openspec update`. The setting is global, per machine.
 
 #### Claude Code doesn't show the workflows
 
-Claude Code loads OpenSpec workflows from one or both of these project paths, based on your delivery setting:
-
-- **Skills**: `.claude/skills/openspec-*`, links to `.agents/skills/openspec-*/SKILL.md`
-- **Commands**: `.claude/commands/opsx/<id>.md`
-
-If the files are missing, refresh the project. In your terminal:
+Claude Code loads OpenSpec skills from `.claude/skills/openspec-*`, links to `.agents/skills/openspec-*/SKILL.md`. If they are missing, refresh the project. In your terminal:
 
 ```bash
-openspec update
-```
-
-If the command files exist but `/opsx:` shows no OpenSpec commands, update Claude Code and restart it. If commands still don't load, enable skills too. In your terminal:
-
-```bash
-openspec config set delivery both
 openspec update
 ```
 
