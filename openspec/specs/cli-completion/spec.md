@@ -84,9 +84,16 @@ The completion system SHALL automatically detect the user's current shell enviro
 
 #### Scenario: Detecting PowerShell from environment
 
-- **WHEN** `$PSModulePath` environment variable is present
+- **WHEN** not on Windows and `$PSModulePath` environment variable is present
+- **OR WHEN** on Windows and `$PSModulePath` contains a per-user `WindowsPowerShell\Modules` or `PowerShell\Modules` folder outside Program Files (the folder a running PowerShell adds at startup)
 - **THEN** detect shell as `powershell`
 - **AND** proceed with PowerShell-specific completion logic
+
+#### Scenario: Detecting cmd.exe on Windows
+
+- **WHEN** on Windows, `$PSModulePath` holds only machine-wide or Program Files entries, and `%COMSPEC%` points to `cmd.exe`
+- **THEN** detect shell as `cmd.exe`, which is unsupported
+- **AND** do NOT treat the machine-wide `$PSModulePath` as proof of PowerShell, because Windows sets it for every process
 
 #### Scenario: Unsupported shell detection
 
