@@ -1,0 +1,5 @@
+---
+"@fission-ai/openspec": minor
+---
+
+New, opt-in `openspec-beta` skills, installed with `npx skills add Fission-AI/OpenSpec -g -y` and removed with the one `npx skills remove` command they carry in `references/install.md`. One `openspec-beta` router skill says what OpenSpec is, the principles every skill follows, and when to read each skill's steps (`references/<skill>.md`) or a short guide (sizing a change, naming capabilities, decisions to raise, writing a requirement, how specs change); a short `openspec-beta-<skill>` skill keeps autocomplete (`/openspec-beta-propose`). The skills drive the CLI as it is: nothing in the `openspec` CLI changes, `openspec init` and `openspec update` write byte for byte what they wrote before, and an existing project sees nothing new until someone opts in. The `skills/` folder that `npx skills add` installs now holds the beta set instead of today's names, so a previous `npx skills add` leaves its copies in place; `skills/README.md` has the command that removes them.

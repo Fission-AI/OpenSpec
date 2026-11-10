@@ -85,6 +85,7 @@ export const sections = [
     pages: [
       { source: 'customize/overview.md', slug: 'customize' },
       { source: 'customize/profiles.md', slug: 'profiles' },
+      { source: 'customize/skills-beta.md', slug: 'skills-beta' },
       { source: 'customize/project-config.md', slug: 'project-config' },
       { source: 'customize/schemas.md', slug: 'customize-schemas' },
     ],

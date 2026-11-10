@@ -1,0 +1,124 @@
+/**
+ * The router's guides: how to do the work well, whichever skill is running.
+ * A skill's steps say what to do in order; a guide holds the judgment a step
+ * leaves to you. Each guide covers one topic and states nothing the skills
+ * or the schema already say.
+ */
+
+export interface OpenSpecGuide {
+  path: string;
+  content: string;
+}
+
+const CHANGES = `# Sizing a change
+
+A change is one outcome a reviewer can accept or reject in one sitting, and that can ship on its own.
+
+**Start from what exists.** Read the related specs and code before planning. If the code already does part of the request, plan only the gap. If it does all of it, the change may be a spec update alone, or nothing at all.
+
+**Split it when the parts:**
+- could ship, or be rolled back, on their own (a refactor and the feature built on it);
+- need different reviewers (a public API change and an internal cleanup);
+- invite a yes to one part and a no to another.
+
+**Keep it together when** one part is useless without the other.
+
+When you split, say so before writing anything: name each change, what it delivers, and the order. Plan the first one; list the rest so the user can start them next. Never widen a change past the request; name what you left out instead.
+
+**Name the change for its outcome**, in kebab-case and starting with a verb: \`add-due-dates\`, \`fix-duplicate-archive\`, \`remove-legacy-export\`.
+`;
+
+const CAPABILITIES = `# Naming capabilities
+
+A capability is one area of behavior the system keeps, with one spec at \`openspec/specs/<capability>/spec.md\`. Changes come and go; capabilities stay.
+
+**Reuse before you create.** Run \`openspec list --specs\` and read the specs that look related. If one already covers the area, change it under its exact path, even if you would have named it differently.
+
+**Name the behavior, not the work.**
+
+| Good | Not | Why not |
+|---|---|---|
+| \`task-due-dates\` | \`add-due-dates\` | names the work, which is over once the change is archived |
+| \`user-auth\` | \`login-endpoint-v2\` | names the code and a version |
+| \`billing/invoices\` | \`misc\`, \`core\`, \`improvements\` | catch-alls with no boundary |
+
+**Pick a boundary that can grow.** A good capability is one a person would look up by name ("how do invoices work?"), and it owns requirements that change for the same reasons. Too broad, and every change touches it. Too narrow, and readers hunt across folders for one behavior.
+
+Use kebab-case. Nest (\`billing/invoices\`) only where the project already nests.
+`;
+
+const DECISIONS = `# Decisions to raise
+
+Decide the small things yourself and say what you chose. Raise a decision when a wrong guess would be costly to undo, or would change what others rely on:
+
+- **Breaking behavior**: an output, error, flag, data shape, or default that users or tests depend on.
+- **Data**: migrations, deletion, retention, anything that cannot be rolled back.
+- **Security and privacy**: who can see or do what, secrets, personal data.
+- **Public surface**: a new API, CLI flag, file format, or config key that others will build on.
+- **Scope**: anything the user did not ask for, or a request that reads two ways.
+- **Dependencies and cost**: a new service, library, or ongoing expense.
+
+**How to raise one:**
+- If the request already answers it, follow the request. If the user is there to answer, ask before writing the artifact it would change.
+- Give two or three options in a line each, with your recommendation and its trade-off. Put related questions in one message.
+- Prefer the option that keeps existing behavior, data shapes, and tests working. When something must break, mark it **BREAKING** in the proposal and say why it is needed.
+- When you must go on without an answer, pick the option that keeps today's behavior, and mark it as an assumption where a reviewer will see it.
+- Record the answer where it belongs: the choice and its reason in the design (or the proposal when there is no design), the behavior it leads to in the specs.
+- In the design, each decision is a \`### D1\`, \`### D2\`, ... heading with at most two sentences: the choice, and why. Edge cases, error messages and test notes go in the specs and tasks, not the decision. Keep a decision's ID when you reword or reorder it, never reuse a removed one, and list an alternative only if someone raised it. Tasks and risks cite it as \`[D1](./design.md#d1)\`.
+`;
+
+const SPECS = `# Writing a requirement
+
+A requirement is one promise someone relies on, named after that promise, in a sentence or two. Its cases, failures included, are its scenarios.
+
+**Who reads it:** a reviewer deciding yes or no, a test named after a scenario, and the next agent to change it. So a requirement has to stand on its own, and be changeable on its own.
+
+**The spec is an outline.** Read the requirement headings top to bottom and they say what the capability promises. A heading that does not name something the system does for someone is a section, not a requirement.
+
+**One promise each.** One SHALL in the statement. A second "and SHALL ..." is a second promise: give it its own requirement, or make it a scenario if it is a case rather than a promise.
+
+**Where new behavior goes.** Ask whether it is a new promise or a change to an existing one: ADDED for a new promise, MODIFIED for a changed one. Appending a clause to a requirement that promises something else is neither, and it is how requirements grow.
+
+**Scenarios cover the failures too.** Start with the main success path, then add a scenario for each way the behavior can fail or surprise a reader: invalid input, a missing item, a refused action, a boundary value. A tester should be able to write one test per scenario, so use concrete values (a specific date, an exact message), not "a valid value". Describe how the requested behavior fails; do not add validation, errors, or limits the request did not ask for.
+
+**Never leave one more crowded than you found it.** A MODIFIED block carries the whole requirement, so a new clause is easy to add and the rest comes along. If the new behavior is a separate promise, give it its own requirement instead of widening this one. Splitting a requirement you are already editing is welcome; reshaping ones you are not touching is not.
+
+**Not in a requirement:** file or symbol names, framework settings, component responsibilities, test procedures, or code-structure rules. Those belong in the design, the tasks, or the project's config.
+`;
+
+const DELTAS = `# How specs change
+
+The main specs (\`openspec/specs/\`) say what the system does today. A change never edits them directly. It carries delta specs, at \`specs/<capability>/spec.md\` inside the change, that say what will be different:
+
+| Section | Means | Carries |
+|---|---|---|
+| \`## ADDED Requirements\` | new behavior | the full requirement and its scenarios |
+| \`## MODIFIED Requirements\` | changed behavior | the whole requirement as it will read, with every scenario that still holds |
+| \`## REMOVED Requirements\` | behavior that goes away | the name, a **Reason**, and a **Migration** |
+| \`## RENAMED Requirements\` | a new name, same behavior | \`FROM:\` and \`TO:\` lines |
+
+The deltas merge into the main specs at archive, where \`openspec archive\` merges and validates them for you. To merge them yourself, follow \`references/sync.md\`.
+
+## Stable IDs
+
+You write a stable ID in square brackets as the first word of each new requirement and scenario heading: \`### Requirement: [AUTH-3] Users sign in\`, \`#### Scenario: [AUTH-3.1] Correct password\`. The brackets are what make it an ID; the CLI only reads it. Use the next unused number in that spec, keep an ID when you reword or move a heading, never drop one, and never reuse a removed one. A heading with an ID can be reworded in a MODIFIED block with no RENAMED entry: the merge matches on the ID. A heading without one can gain it in a MODIFIED block, including a bare prefix like \`NAV-5 Users sign in\` becoming \`[NAV-5] Users sign in\`. Cite IDs, not names, in tasks, tests and code.
+
+## How requirements get lost
+
+- **A partial MODIFIED.** The merge replaces the whole requirement with the delta's block, so whatever the block leaves out is deleted. Copy the existing requirement whole from the main spec, then edit it. For a separate new behavior, use ADDED.
+- **A rename written as REMOVED plus ADDED.** Scenarios get dropped on the way, and readers lose the link between the old name and the new. Use RENAMED, plus MODIFIED if the behavior changes too.
+- **A repeated requirement.** A new requirement that restates a promise the spec already makes ("paid invoices are emailed" beside an existing "Sending a receipt") leaves two places to keep in step. Extend the existing requirement with MODIFIED instead, and add a new one only for behavior nothing covers yet.
+- **A near-duplicate capability.** \`user-authentication\` next to \`user-auth\` splits one behavior across two specs. Reuse the exact existing path.
+- **Editing a main spec while a change is open.** The merge finds requirements by ID, then by name, so a renamed or reworded main spec no longer matches the delta. Edit the delta instead; edit a main spec directly only to fix its Purpose.
+- **Emptying a spec.** A spec cannot be left without requirements. Retiring a capability takes \`retire_capabilities: true\` in the change's \`.openspec.yaml\`.
+
+After writing deltas, run \`openspec validate "<change>"\`. It catches a MODIFIED block that drops a scenario the main spec still has, or drops a scenario's ID.
+`;
+
+export const OPENSPEC_GUIDES: readonly OpenSpecGuide[] = [
+  { path: 'references/changes.md', content: CHANGES },
+  { path: 'references/capabilities.md', content: CAPABILITIES },
+  { path: 'references/decisions.md', content: DECISIONS },
+  { path: 'references/specs.md', content: SPECS },
+  { path: 'references/deltas.md', content: DELTAS },
+];

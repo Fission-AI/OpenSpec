@@ -7,6 +7,9 @@ description: >-
   publishing, and polish GitHub release notes. Also use when asked whether an
   open release PR is complete, what the next release step is, or to continue a
   release paused for human approval.
+# Repo-maintainer skill: hidden from `npx skills add` (skills CLI discovery).
+metadata:
+  internal: true
 ---
 
 # Release OpenSpec
