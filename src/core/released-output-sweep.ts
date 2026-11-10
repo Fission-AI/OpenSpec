@@ -121,21 +121,40 @@ function folderOwners(): Map<string, Set<string>> {
 }
 
 /**
- * Files under a former root that the root migration manages: it moves them
- * when a tool still needs them, and asks first where the old root may still
- * be live. While any is still there, the sweep leaves that whole root alone.
+ * Files under a former root that the root migration manages, each with the
+ * path its replacement has now: it moves them when a tool still needs them,
+ * and asks first where the old root may still be live.
  */
-function migrationManagedPaths(toolId: string, root: string): string[] {
+function migrationManagedPaths(toolId: string, root: string): { former: string; current: string }[] {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
-  const paths = Object.values(WORKFLOW_TO_SKILL_DIR).map((dir) => `${root}/skills/${dir}/SKILL.md`);
+  if (!tool?.skillsDir) return [];
+  const paths = Object.values(WORKFLOW_TO_SKILL_DIR).map((dir) => ({
+    former: `${root}/skills/${dir}/SKILL.md`,
+    current: `${tool.skillsDir}/skills/${dir}/SKILL.md`,
+  }));
   const adapter = CommandAdapterRegistry.get(toolId);
-  if (adapter && tool?.skillsDir) {
+  if (adapter) {
     for (const commandId of COMMAND_IDS) {
-      const legacy = legacyCommandPath(adapter.getFilePath(commandId), tool.skillsDir, root);
-      if (legacy) paths.push(toPosix(legacy));
+      const current = adapter.getFilePath(commandId);
+      const former = legacyCommandPath(current, tool.skillsDir, root);
+      if (former) paths.push({ former: toPosix(former), current: toPosix(current) });
     }
   }
   return paths;
+}
+
+/**
+ * Whether a former root is only ever cleaned up once its replacement is
+ * written (Codex's `.codex`, Antigravity's `.agent`). There the root migration
+ * acts on a file only when the replacement exists: it drops an untouched copy
+ * and keeps an edited one. A file with no replacement belongs to a workflow or
+ * a delivery the project no longer installs, and the migration never touches
+ * it, so it is not waiting on anything.
+ */
+function replacedBeforeCleanup(toolId: string, root: string): boolean {
+  return (LEGACY_TOOL_ROOTS[toolId] ?? []).some(
+    (legacy) => legacy.root === root && legacy.timing === 'after-generation'
+  );
 }
 
 /**
@@ -143,7 +162,9 @@ function migrationManagedPaths(toolId: string, root: string): string[] {
  * release no longer writes, that nobody has edited since, and whose tool
  * already has its replacement. Every tool that owns the file's top-level
  * folder must have current OpenSpec output in the project; a former root is
- * left alone while the root migration still has files to move there. A path
+ * left alone while the root migration still has files to move there. That
+ * includes a former-root file for a workflow or delivery the project no longer
+ * installs, which nothing else would ever remove. A path
  * that passes through a link anywhere is never reported, so removing what
  * this returns can only ever remove that literal file. `view` is the tree as
  * this update has it so far, so a dry run sees what it has already planned.
@@ -167,12 +188,17 @@ export async function findStaleReleasedFiles(
     }
     return hasReplacement.get(toolId)!;
   };
+  // While the root migration still has a file to move, or kept an edited one,
+  // the sweep leaves that whole root alone.
   const migrationPending = (folder: string) =>
-    AI_TOOLS.some(
-      (tool) =>
-        formerRoots(tool.value).includes(folder) &&
-        migrationManagedPaths(tool.value, folder).some(exists)
-    );
+    AI_TOOLS.some((tool) => {
+      if (!formerRoots(tool.value).includes(folder)) return false;
+      const needsReplacement = replacedBeforeCleanup(tool.value, folder);
+      return migrationManagedPaths(tool.value, folder).some(
+        ({ former, current: replacement }) =>
+          exists(former) && (!needsReplacement || exists(replacement))
+      );
+    });
 
   const root = FileSystemUtils.canonicalizeExistingPath(projectPath);
   const stale: string[] = [];

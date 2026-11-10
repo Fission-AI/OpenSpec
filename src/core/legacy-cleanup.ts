@@ -367,6 +367,10 @@ export async function detectLegacySlashCommands(
       if (!(await FileSystemUtils.directoryExists(dirPath))) {
         continue;
       }
+      // A folder reached through a link may be another project's: not ours.
+      if (!(await reachesWithoutLink(projectPath, pattern.path))) {
+        continue;
+      }
       const entries = await readLegacyCommandDir(dirPath, pattern.managedFileNames ?? []);
       if (!entries) {
         continue;
@@ -483,6 +487,30 @@ async function isGeneratedLegacyCommand(filePath: string): Promise<boolean> {
 }
 
 /**
+ * Whether a project-relative path is reached from the project root with no
+ * link on the way, the path itself included. Legacy cleanup finds, judges and
+ * deletes files by joining folder names, so a linked folder anywhere along the
+ * path (`.clinerules/workflows` pointing at another project) would otherwise
+ * lead it to files outside the project. Starts from the project's real
+ * location, so a project opened through a link of its own is still checked
+ * from where it actually lives. A missing component ends the walk: there is
+ * nothing beyond it to reach.
+ */
+export async function reachesWithoutLink(projectPath: string, relativePath: string): Promise<boolean> {
+  let current = FileSystemUtils.canonicalizeExistingPath(projectPath);
+  for (const segment of relativePath.split(/[\\/]+/).filter(Boolean)) {
+    if (segment === '..' || segment === '.') return false;
+    current = path.join(current, segment);
+    try {
+      if ((await fs.lstat(current)).isSymbolicLink()) return false;
+    } catch {
+      return true;
+    }
+  }
+  return true;
+}
+
+/**
  * Reads a regular file without following a link, or returns undefined.
  * Judges the opened handle, not the path, so the file checked is the file
  * read. O_NOFOLLOW refuses a link and O_NONBLOCK keeps a FIFO from hanging;
@@ -567,13 +595,20 @@ async function findLegacySlashCommandFiles(
   if (!(await FileSystemUtils.directoryExists(dirPath))) {
     return foundFiles;
   }
+  // A folder reached through a link may be another project's: not ours.
+  if (!(await reachesWithoutLink(projectPath, dirPart))) {
+    return foundFiles;
+  }
 
   try {
-    const entries = await fs.readdir(dirPath);
+    const entries = await fs.readdir(dirPath, { withFileTypes: true });
 
     const regex = globToRegex(filePart);
 
-    for (const entry of entries) {
+    for (const dirent of entries) {
+      const entry = dirent.name;
+      // Only a regular file can be OpenSpec's; a link is the user's.
+      if (!dirent.isFile()) continue;
       if (regex.test(entry)) {
         // Use forward slashes for consistency in relative paths (cross-platform)
         const normalizedDir = dirPart.replace(/\\/g, '/');
@@ -606,7 +641,9 @@ export async function detectLegacyStructureFiles(
 
   // Check for openspec/AGENTS.md
   const openspecAgentsPath = FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md');
-  hasOpenspecAgents = await FileSystemUtils.fileExists(openspecAgentsPath);
+  hasOpenspecAgents =
+    (await FileSystemUtils.fileExists(openspecAgentsPath)) &&
+    (await reachesWithoutLink(projectPath, 'openspec/AGENTS.md'));
 
   // Check for openspec/project.md (for migration messaging, not deleted)
   const projectMdPath = FileSystemUtils.joinPath(projectPath, 'openspec', 'project.md');
@@ -746,6 +783,12 @@ export async function cleanupLegacyArtifacts(
   // when it holds nothing else, but a file the user added since is still kept.
   for (const dirPath of detection.slashCommandDirs) {
     const fullPath = FileSystemUtils.joinPath(projectPath, dirPath);
+    // Checked again here, not only at detection: nothing is ever deleted
+    // through a link, whoever built the detection.
+    if (!(await reachesWithoutLink(projectPath, dirPath))) {
+      result.keptFiles!.push(dirPath);
+      continue;
+    }
     try {
       const managedFileNames = legacyManagedFileNamesForDir(dirPath);
       const entries = await readLegacyCommandDir(fullPath, managedFileNames);
@@ -775,6 +818,10 @@ export async function cleanupLegacyArtifacts(
   const partlyCleanedDirs = new Set<string>();
   for (const filePath of detection.slashCommandFiles) {
     const fullPath = FileSystemUtils.joinPath(projectPath, filePath);
+    if (!(await reachesWithoutLink(projectPath, filePath))) {
+      result.keptFiles!.push(filePath);
+      continue;
+    }
     try {
       const commandDir = legacyCommandDirForFile(filePath);
       if (commandDir) {
@@ -827,7 +874,9 @@ export async function cleanupLegacyArtifacts(
   // Delete openspec/AGENTS.md (this is inside openspec/, it's OpenSpec-managed)
   if (detection.hasOpenspecAgents) {
     const agentsPath = FileSystemUtils.joinPath(projectPath, 'openspec', 'AGENTS.md');
-    if (await FileSystemUtils.fileExists(agentsPath)) {
+    if (!(await reachesWithoutLink(projectPath, 'openspec/AGENTS.md'))) {
+      result.keptFiles!.push('openspec/AGENTS.md');
+    } else if (await FileSystemUtils.fileExists(agentsPath)) {
       try {
         await ops.removeFile(agentsPath);
         result.deletedFiles.push('openspec/AGENTS.md');
@@ -973,6 +1022,7 @@ export async function legacyCleanupDeletesOnlyReleasedOutput(
   }
 
   for (const file of files) {
+    if (!(await reachesWithoutLink(projectPath, path.relative(projectPath, file)))) return false;
     const content = await readRegularFileNoFollow(file);
     if (content === undefined || !isReleasedGeneratedContent(content)) return false;
   }

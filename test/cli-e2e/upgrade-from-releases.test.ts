@@ -190,6 +190,73 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     expect(leftoversInFormerRoots(box.project)).toEqual([]);
   }, 600_000);
 
+  // Projects are rarely one release old: they were made by one release,
+  // updated by others, and had their settings changed on the way.
+  it('cleans old folders after the workflows and delivery changed in between', async () => {
+    // 1.0.0 installs ten workflows as skills and commands, in .agent/ and
+    // .codex/ among others. The project then moves to the core profile and
+    // skills only, and a later release updates it.
+    const box = await initWith('1.0.0', 'history-settings');
+    await fs.writeFile(
+      path.join(box.home, '.config', 'openspec', 'config.json'),
+      JSON.stringify({ profile: 'core', delivery: 'skills' })
+    );
+    const middle = run(releaseBin('1.16.0'), ['update', '--force'], box);
+    expect(middle.status, middle.output).toBe(0);
+    // What 1.16 leaves: old-folder copies of workflows and commands the
+    // project no longer installs, which have no replacement to wait for.
+    expect(leftoversInFormerRoots(box.project).length).toBeGreaterThan(0);
+
+    const result = run(currentBin, ['update'], box);
+    expect(result.status, result.output).toBe(0);
+    expect(await findStaleReleasedFiles(box.project)).toEqual([]);
+    expect(leftoversInFormerRoots(box.project)).toEqual([]);
+
+    const before = snapshot(box.project);
+    expect(run(currentBin, ['update'], box).output).toContain('up to date');
+    expect(snapshot(box.project)).toEqual(before);
+  }, 600_000);
+
+  it('recognizes files a later release wrote for the workflows the project started with', async () => {
+    // A 1.0.0 project keeps its ten workflows as a custom profile. 1.13
+    // rewrites every file for that set, whose text differs from what 1.13
+    // writes for its own default set. Nobody edited them, so switching to
+    // skills only must remove every command file and call none of them edited.
+    const box = await initWith('1.0.0', 'history-workflows');
+    const middle = run(releaseBin('1.13.2'), ['update', '--force'], box);
+    expect(middle.status, middle.output).toBe(0);
+    const config = path.join(box.home, '.config', 'openspec', 'config.json');
+    const saved = JSON.parse(await fs.readFile(config, 'utf8'));
+    expect(saved.profile).toBe('custom');
+    expect(saved.workflows).toHaveLength(10);
+    await fs.writeFile(config, JSON.stringify({ ...saved, delivery: 'skills' }));
+
+    const result = run(currentBin, ['update'], box);
+    expect(result.status, result.output).toBe(0);
+    expect(result.output).not.toMatch(/Kept \d+ command files?/);
+    const commands = listFiles(box.project).filter((rel) => /(^|\/)opsx[-/:][^/]+$/.test(rel));
+    expect(commands).toEqual([]);
+  }, 600_000);
+
+  // A folder inside a tool folder can be a link to somewhere else (shared
+  // workflows, another project). Nothing reached through it is the project's.
+  it.each([
+    ['without --force', []],
+    ['with --force', ['--force']],
+  ])('never deletes files outside the project through a linked folder (%s)', async (_label, flags) => {
+    const box = await initWith('0.23.0', `linked-${flags.length}`, 'cline', { delivery: 'skills' });
+    const workflows = path.join(box.project, '.clinerules', 'workflows');
+    const sibling = path.join(tempRoot, `linked-${flags.length}`, 'sibling');
+    await fs.rename(workflows, sibling);
+    await fs.symlink(sibling, workflows, process.platform === 'win32' ? 'junction' : 'dir');
+    const before = snapshot(sibling);
+    expect(Object.keys(before).length).toBeGreaterThan(0);
+
+    const result = run(currentBin, ['update', ...flags], box);
+    expect(result.status, result.output).toBe(0);
+    expect(snapshot(sibling)).toEqual(before);
+  }, 600_000);
+
   it('keeps every file the user edited', async () => {
     const box = await initWith('1.0.0', 'edited');
     const edited = [

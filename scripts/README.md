@@ -116,5 +116,6 @@ pnpm build
 
 It installs each release from npm into the cache folder, runs
 `init --tools all` in throwaway projects with a throwaway HOME (once per
-profile and delivery the release supports), and rewrites the list. Releases
+profile, former default workflow set and delivery the release supports), and
+rewrites the list. Releases
 before 0.12 have no non-interactive `init` and are skipped.
