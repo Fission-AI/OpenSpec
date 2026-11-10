@@ -795,9 +795,18 @@ metadata:
 
     it('should not restore legacy Codex workflows excluded by the active profile', async () => {
       // (An edited copy of an excluded workflow is kept: see the sweep tests.)
-      await new InitCommand({ tools: 'codex', force: true }).execute(testDir);
-      await fs.rename(path.join(testDir, '.agents'), path.join(testDir, '.codex'));
-      await fs.rm(path.join(testDir, '.codex', 'skills', '.openspec-target'));
+      // A pre-2.0 Codex project: the core skills exactly as a release wrote
+      // them, in Codex's former folder.
+      for (const name of [
+        'openspec-propose',
+        'openspec-explore',
+        'openspec-apply-change',
+        'openspec-update-change',
+        'openspec-sync-specs',
+        'openspec-archive-change',
+      ]) {
+        await writeReleasedSkill(path.join(testDir, '.codex', 'skills'), name);
+      }
       setMockConfig({
         featureFlags: {},
         profile: 'custom',

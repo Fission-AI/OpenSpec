@@ -139,6 +139,7 @@ describe('stale released output', () => {
       await write(oldSkill, await codexPrompt());
       // Codex is set up, without the `new` workflow.
       await write('.agents/skills/openspec-propose/SKILL.md', 'current');
+      await write('.agents/skills/.openspec-target', 'codex\n');
       expect(await findStaleReleasedFiles(project)).toContain(oldSkill);
     });
 
@@ -146,6 +147,7 @@ describe('stale released output', () => {
       await write(oldCommand, await codexPrompt());
       // Antigravity is set up with skills and no command files.
       await write('.agents/skills/openspec-new-change/SKILL.md', 'current');
+      await write('.agents/skills/.openspec-target', 'antigravity\n');
       expect(await findStaleReleasedFiles(project)).toContain(oldCommand);
     });
 
@@ -154,6 +156,7 @@ describe('stale released output', () => {
       await write(oldSkill, await codexPrompt());
       await write(edited, (await codexPrompt()) + '\nMy own note.\n');
       await write('.agents/skills/openspec-propose/SKILL.md', 'current');
+      await write('.agents/skills/.openspec-target', 'codex\n');
       const stale = await findStaleReleasedFiles(project);
       expect(stale).toContain(oldSkill);
       expect(stale).not.toContain(edited);
