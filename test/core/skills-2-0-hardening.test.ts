@@ -336,6 +336,79 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     // OpenSpec's own, untouched SKILL.md of a dropped workflow still goes.
     expect(await fs.access(path.join(minimax, 'openspec-explore', 'SKILL.md')).then(() => true, () => false)).toBe(false);
     expect(await fs.access(path.join(minimax, 'openspec-update-change')).then(() => true, () => false)).toBe(false);
+    await settles();
+  });
+
+  it('saves an edited MiniMax skill before refreshing it when its workflow comes back', async () => {
+    await new InitCommand({ tools: 'minimax-code', force: true }).execute(project);
+    const skill = path.join(root, 'home', '.minimax', 'skills', 'openspec-explore', 'SKILL.md');
+    await fs.appendFile(skill, '\nMY EDIT\n');
+    const edited = readFileSync(skill, 'utf8');
+    await setProfile({ profile: 'custom', workflows: ['propose', 'apply', 'archive'] });
+    await new UpdateCommand().execute(project);
+    expect(readFileSync(skill, 'utf8')).toBe(edited);
+    await setProfile({ profile: 'core' });
+
+    await new UpdateCommand().execute(project);
+
+    expect(readFileSync(`${skill}.bak`, 'utf8')).toBe(edited);
+    expect(readFileSync(skill, 'utf8')).not.toContain('MY EDIT');
+    await settles();
+  });
+
+  it('never writes through, or fails on, the user’s link in MiniMax’s skills folder', async () => {
+    await new InitCommand({ tools: 'minimax-code', force: true }).execute(project);
+    const minimax = path.join(root, 'home', '.minimax', 'skills');
+    for (const [skill, team] of [['openspec-explore', 'explore'], ['openspec-propose', 'propose']]) {
+      const target = path.join(root, 'team', team);
+      await fs.mkdir(target, { recursive: true });
+      await fs.writeFile(path.join(target, 'SKILL.md'), `team ${team}\n`);
+      await fs.rm(path.join(minimax, skill), { recursive: true });
+      await fs.symlink(target, path.join(minimax, skill), linkType);
+    }
+    // explore is dropped, propose stays wanted.
+    await setProfile({ profile: 'custom', workflows: ['propose', 'apply', 'archive'] });
+
+    await new UpdateCommand().execute(project);
+
+    expect(readFileSync(path.join(root, 'team', 'explore', 'SKILL.md'), 'utf8')).toBe('team explore\n');
+    expect(readFileSync(path.join(root, 'team', 'propose', 'SKILL.md'), 'utf8')).toBe('team propose\n');
+    expect(lstatSync(path.join(minimax, 'openspec-explore')).isSymbolicLink()).toBe(true);
+  });
+
+  it('init saves an edited MiniMax skill before refreshing it, and never writes through a link', async () => {
+    await new InitCommand({ tools: 'minimax-code', force: true }).execute(project);
+    const minimax = path.join(root, 'home', '.minimax', 'skills');
+    await fs.appendFile(path.join(minimax, 'openspec-explore', 'SKILL.md'), '\nMY EDIT\n');
+    const edited = readFileSync(path.join(minimax, 'openspec-explore', 'SKILL.md'), 'utf8');
+    const team = path.join(root, 'team', 'propose');
+    await fs.mkdir(team, { recursive: true });
+    await fs.writeFile(path.join(team, 'SKILL.md'), 'team propose\n');
+    await fs.rm(path.join(minimax, 'openspec-propose'), { recursive: true });
+    await fs.symlink(team, path.join(minimax, 'openspec-propose'), linkType);
+
+    await new InitCommand({ tools: 'minimax-code', force: true }).execute(project);
+
+    expect(readFileSync(path.join(minimax, 'openspec-explore', 'SKILL.md.bak'), 'utf8')).toBe(edited);
+    expect(readFileSync(path.join(team, 'SKILL.md'), 'utf8')).toBe('team propose\n');
+  });
+
+  it('installs OpenSpec’s skill again once the user deletes the one kept as theirs', async () => {
+    await new InitCommand({ tools: 'claude,codex', force: true }).execute(project);
+    await fs.appendFile(p('.agents', 'skills', 'openspec-explore', 'SKILL.md'), '\nmy edit\n');
+    await setProfile({ profile: 'custom', workflows: ['propose', 'apply', 'update', 'archive'] });
+    await new UpdateCommand().execute(project);
+    expect(await read('.agents/skills/.openspec-target')).toContain('keep openspec-explore');
+    await setProfile({ profile: 'core' });
+    await new UpdateCommand().execute(project);
+    await fs.rm(p('.agents', 'skills', 'openspec-explore'), { recursive: true });
+
+    await new UpdateCommand().execute(project);
+
+    expect(await read('.agents/skills/openspec-explore/SKILL.md')).not.toContain('my edit');
+    expect(await read('.claude/skills/openspec-explore/SKILL.md')).toContain('name: openspec-explore');
+    expect(await read('.agents/skills/.openspec-target')).not.toContain('keep');
+    await settles();
   });
 
   it('records a project set up with exactly the core workflows as the core profile, without delivery', async () => {

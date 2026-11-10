@@ -485,9 +485,9 @@ Outside content
           process.platform === 'win32' ? 'junction' : 'dir'
         );
 
-        await expect(updateCommand.execute(testDir)).rejects.toThrow(
-          'OpenSpec update failed for: MiniMax Code'
-        );
+        // A link the user made is theirs: kept, and nothing is written through it.
+
+        await updateCommand.execute(testDir);
 
         expect(await fs.readFile(skillFile, 'utf-8')).toBe(oldSkillContent);
       } finally {
@@ -525,9 +525,9 @@ Outside content
           process.platform === 'win32' ? 'junction' : 'dir'
         );
 
-        await expect(updateCommand.execute(testDir)).rejects.toThrow(
-          'OpenSpec update failed for: MiniMax Code'
-        );
+        // A link the user made is theirs: kept, and nothing is written through it.
+
+        await updateCommand.execute(testDir);
 
         expect(await fs.readFile(skillFile, 'utf-8')).toBe(oldSkillContent);
       } finally {

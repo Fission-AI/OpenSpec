@@ -9,6 +9,7 @@ import { classifyCommandFiles } from './shared/command-reconcile.js';
 import { shouldReconcileCommandFilesForTool } from './command-surface.js';
 import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
 import { ownSkillFolderNeedsWork } from './shared/shared-skill-install.js';
+import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
@@ -125,7 +126,8 @@ export function hasToolProfileOrDeliveryDrift(
   const kept = shared ? readKeptSharedSkills(projectPath, view) : new Set<string>();
   for (const workflow of knownDesiredWorkflows) {
     const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-    if (kept.has(dirName)) continue;
+    // Once the user deletes a kept skill, OpenSpec installs its own again.
+    if (kept.has(dirName) && view.exists(path.join(skillsDir, dirName))) continue;
     const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
     if (!view.exists(skillFile)) {
       return true;
@@ -137,9 +139,10 @@ export function hasToolProfileOrDeliveryDrift(
     if (desiredWorkflowSet.has(workflow)) continue;
     const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
     const skillDir = path.join(skillsDir, dirName);
-    if (view.exists(path.join(skillDir, 'SKILL.md')) && !kept.has(dirName)) {
-      return true;
-    }
+    if (!view.exists(path.join(skillDir, 'SKILL.md')) || kept.has(dirName)) continue;
+    // In a tool's own folder (MiniMax), only OpenSpec's own SKILL.md goes.
+    if (!shared && classifyOwnSkill(skillDir, toolId, dirName, view) !== 'ours') continue;
+    return true;
   }
 
   if (shouldReconcileCommandFilesForTool(toolId) && adapter) {
@@ -178,13 +181,17 @@ function getInstalledWorkflowsForTool(projectPath: string, toolId: string): Work
 
   const installed = new Set<WorkflowId>();
   const skillsDir = resolveToolSkillsDir(projectPath, tool);
-  // A skill kept as the user's in the shared folder is not OpenSpec's to sync.
-  const kept = usesSharedSkills(tool) ? readKeptSharedSkills(projectPath) : new Set<string>();
+  // A skill kept as the user's is not OpenSpec's to sync.
+  const shared = usesSharedSkills(tool);
+  const kept = shared ? readKeptSharedSkills(projectPath) : new Set<string>();
 
   for (const workflow of ALL_WORKFLOWS) {
     const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
     if (kept.has(dirName)) continue;
     const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+    if (!shared && fs.existsSync(skillFile) && classifyOwnSkill(path.dirname(skillFile), toolId, dirName, DISK_VIEW) !== 'ours') {
+      continue;
+    }
     if (fs.existsSync(skillFile)) {
       installed.add(workflow);
     }

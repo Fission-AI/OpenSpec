@@ -334,6 +334,19 @@ function isWithinFolder(inner: string, outer: string): boolean {
   } catch {
     return false;
   }
+  if (outerStat.ino === 0n) {
+    // Some file systems (network shares on Windows) report no file ids:
+    // compare real paths instead, ignoring case where the platform does.
+    let outerReal: string;
+    try {
+      outerReal = fs.realpathSync.native(outer);
+    } catch {
+      return false;
+    }
+    const fold = (p: string) => (process.platform === 'linux' ? p : p.toLowerCase());
+    const [i, o] = [fold(current), fold(outerReal)];
+    return i === o || i.startsWith(o.endsWith(path.sep) ? o : o + path.sep);
+  }
   for (;;) {
     try {
       const stat = fs.statSync(current, { bigint: true });
@@ -390,7 +403,7 @@ export function ownSkillFolderNeedsWork(
       continue;
     }
     // A link to a skill kept as the user's stays, wanted or not.
-    if (spot === 'link' && kept.has(skillName)) continue;
+    if (spot === 'link' && kept.has(skillName) && view.exists(path.join(sharedDir, skillName))) continue;
     const wanted = linkDir !== undefined && linkedSkillNames.has(skillName);
     if (wanted ? spot === 'missing' || spot === 'released' : spot !== 'missing' && !(spot === 'link' && !linkDir)) {
       return true;

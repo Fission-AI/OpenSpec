@@ -65,7 +65,9 @@ Every removal compares a file with what OpenSpec wrote (this version, or any rel
 - an unlisted `.agents/skills` folder: a tool is inferred from it only when its skills are released text;
 - links: a link the user made (a tool's `skills/` folder linked to `.agents/skills`, or `.agents/skills/<skill>` linked elsewhere) is never written or deleted through. Folders are compared by file identity, so another letter case can't disguise `.agents`. A link git checked out as a text file in a tool's folder is recognized and replaced with a copy.
 
-Accepted, as in 1.x: a skill OpenSpec still installs is refreshed in place; `update --force` on a pre-1.0 project removes its legacy files after warning to back them up.
+In MiniMax's `~/.minimax/skills` (shared by every project on the machine, so it has no list) an edited skill OpenSpec still installs is refreshed, with the user's copy saved first as `SKILL.md.bak`; a link or a file at a skill's spot is never written through.
+
+Accepted, as in 1.x: a skill OpenSpec still installs in `.agents/skills` is refreshed in place; `update --force` on a pre-1.0 project removes its legacy files after warning to back them up.
 
 ## Risks
 

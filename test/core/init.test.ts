@@ -495,14 +495,13 @@ describe('InitCommand', () => {
       );
 
       const initCommand = new InitCommand({ tools: 'minimax-code', force: true });
-      await expect(initCommand.execute(testDir)).rejects.toThrow(
-        'OpenSpec setup failed for: MiniMax Code'
-      );
+      // A link the user made is theirs: kept, and nothing is written through it.
+      await initCommand.execute(testDir);
 
       expect(await fs.readdir(outsideDir)).toEqual([]);
       expect((await fs.lstat(linkedSkillDir)).isSymbolicLink()).toBe(true);
       expect(vi.mocked(console.log).mock.calls.flat().join('\n')).toContain(
-        'OpenSpec Setup Incomplete'
+        'Kept 1 skill folder that is yours'
       );
     });
 

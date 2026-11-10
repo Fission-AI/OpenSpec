@@ -74,6 +74,7 @@ import { usesSharedSkills } from './shared/skill-paths.js';
 import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-install.js';
 import { realFileOps } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
+import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
@@ -976,6 +977,8 @@ export class InitCommand {
       for (const line of detail) console.log(chalk.dim(line));
     }
 
+    const keptOwnSkills: string[] = [];
+    const savedOwnSkills: string[] = [];
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
@@ -998,6 +1001,24 @@ export class InitCommand {
               resolveCommandInvocation(tool.value)
             );
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+
+            if (fs.existsSync(skillDir) || DISK_VIEW.linkTarget?.(skillDir) !== undefined) {
+              const spot = classifyOwnSkill(skillDir, tool.value, dirName, DISK_VIEW, OPENSPEC_VERSION);
+              // Never written through: the user's link, or their file where
+              // the folder goes.
+              if (spot === 'link' || (spot === 'user' && !DISK_VIEW.isDirectory(skillDir))) {
+                keptOwnSkills.push(skillDir);
+                continue;
+              }
+              // Refreshed in place, but an edited SKILL.md is saved beside it first.
+              if (spot === 'user') {
+                let backup = `${skillFile}.bak`;
+                for (let n = 1; fs.existsSync(backup); n += 1) backup = `${skillFile}.bak${n}`;
+                FileSystemUtils.assertPathWithin(tool.skillsRoot, backup);
+                await FileSystemUtils.writeFile(backup, fs.readFileSync(skillFile, 'utf-8'));
+                savedOwnSkills.push(backup);
+              }
+            }
 
             // Write the skill file
             FileSystemUtils.assertPathWithin(tool.skillsRoot, skillFile);
@@ -1027,6 +1048,23 @@ export class InitCommand {
         spinner.fail(`Failed for ${tool.name}`);
         failedTools.push({ name: tool.name, error: error as Error });
       }
+    }
+    if (keptOwnSkills.length > 0) {
+      console.log(
+        chalk.yellow(
+          `Kept ${keptOwnSkills.length} skill folder${keptOwnSkills.length === 1 ? '' : 's'} that ` +
+            `${keptOwnSkills.length === 1 ? 'is' : 'are'} yours (a link, or a file): ${keptOwnSkills.join(', ')}. ` +
+            'Nothing was written there.'
+        )
+      );
+    }
+    if (savedOwnSkills.length > 0) {
+      console.log(
+        chalk.yellow(
+          `Refreshed ${savedOwnSkills.length} skill${savedOwnSkills.length === 1 ? '' : 's'} you had edited; ` +
+            `your ${savedOwnSkills.length === 1 ? 'copy is' : 'copies are'} saved as ${savedOwnSkills.join(', ')}.`
+        )
+      );
     }
 
     for (const tool of [...createdTools, ...refreshedTools]) {
