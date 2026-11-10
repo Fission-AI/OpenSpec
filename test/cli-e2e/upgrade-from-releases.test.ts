@@ -257,6 +257,32 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     expect(snapshot(sibling)).toEqual(before);
   }, 600_000);
 
+  it('moves a commands-only project to skills, keeping the command the user edited', async () => {
+    // The 2.0 move in one case: a 1.x project that used commands only, with
+    // one command customized. Update sets it up with skills, removes the
+    // generated commands, and keeps the edited one byte for byte.
+    const box = await initWith('1.16.0', 'commands-to-skills', 'claude,cursor', {
+      profile: 'core',
+      delivery: 'commands',
+    });
+    const edited = path.join(box.project, '.claude', 'commands', 'opsx', 'apply.md');
+    const editedText = `${await fs.readFile(edited, 'utf8')}\nOur team step.\n`;
+    await fs.writeFile(edited, editedText);
+
+    const result = run(currentBin, ['update'], box);
+    expect(result.status, result.output).toBe(0);
+    expect(result.output).toMatch(/Kept 1 command file/);
+    expect(await fs.readFile(edited, 'utf8')).toBe(editedText);
+    const commands = listFiles(box.project).filter((rel) => /(^|\/)opsx[-/:][^/]+$/.test(rel));
+    expect(commands).toEqual(['.claude/commands/opsx/apply.md']);
+    expect(existsSync(path.join(box.project, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    expect(existsSync(path.join(box.project, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+
+    const before = snapshot(box.project);
+    expect(run(currentBin, ['update'], box).output).toContain('up to date');
+    expect(snapshot(box.project)).toEqual(before);
+  }, 600_000);
+
   it('keeps every file the user edited', async () => {
     const box = await initWith('1.0.0', 'edited');
     const edited = [
@@ -300,7 +326,8 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
 
   it('moves a commands-only tool whose only files are in its former folder', async () => {
     // Commands-only Antigravity: its only OpenSpec files are old commands in
-    // .agent/, which update used to report as "no configured tools".
+    // .agent/, which update used to report as "no configured tools". It must
+    // still be found, and set up with skills.
     const box = await initWith('1.10.0', 'commands-only', 'antigravity', {
       profile: 'core',
       delivery: 'commands',
@@ -310,8 +337,11 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
 
     const result = run(currentBin, ['update'], box);
     expect(result.status, result.output).toBe(0);
+    // 2.0 installs skills only: Antigravity gets them in the shared folder,
+    // and its old commands are removed rather than moved.
+    expect(existsSync(path.join(box.project, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
     for (const name of old) {
-      expect(existsSync(path.join(box.project, '.agents', 'workflows', name)), name).toBe(true);
+      expect(existsSync(path.join(box.project, '.agents', 'workflows', name)), name).toBe(false);
     }
     expect(leftoversInFormerRoots(box.project)).toEqual([]);
     expect(run(currentBin, ['update'], box).output).toContain('up to date');
