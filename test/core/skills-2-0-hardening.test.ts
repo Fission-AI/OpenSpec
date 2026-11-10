@@ -488,6 +488,43 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     await settles();
   });
 
+  it('reports, never touches, and settles with old copies in a tool folder linked outside', async () => {
+    const dotfiles = path.join(root, 'dotfiles', 'cursor-skills');
+    for (const skill of SKILLS) {
+      await fs.mkdir(path.join(dotfiles, skill), { recursive: true });
+      await fs.copyFile(
+        path.join(FIXTURES, 'v1.16.0-claude-skills', 'openspec-propose', 'SKILL.md'),
+        path.join(dotfiles, skill, 'SKILL.md')
+      );
+    }
+    await fs.mkdir(p('.cursor'), { recursive: true });
+    await fs.symlink(dotfiles, p('.cursor', 'skills'), linkType);
+
+    await new InitCommand({ tools: 'cursor', force: true }).execute(project);
+
+    expect(logs.join('\n')).toContain('.cursor/skills');
+    expect((await fs.readdir(dotfiles)).sort()).toEqual([...SKILLS].sort());
+    await settles();
+  });
+
+  it('links Claude to a shared skill the user replaced, even over an equal copy', async () => {
+    await new InitCommand({ tools: 'claude', force: true }).execute(project);
+    const spot = p('.claude', 'skills', 'openspec-explore');
+    await fs.rm(spot);
+    await fs.mkdir(spot);
+    await fs.copyFile(p('.agents', 'skills', 'openspec-explore', 'SKILL.md'), path.join(spot, 'SKILL.md'));
+    const team = path.join(project, 'team', 'explore');
+    await fs.mkdir(team, { recursive: true });
+    await fs.writeFile(path.join(team, 'SKILL.md'), 'TEAM VERSION\n');
+    await fs.rm(p('.agents', 'skills', 'openspec-explore'), { recursive: true });
+    await fs.symlink(path.join('..', '..', 'team', 'explore'), p('.agents', 'skills', 'openspec-explore'), linkType);
+
+    await new UpdateCommand().execute(project);
+
+    expect(await read('.claude/skills/openspec-explore/SKILL.md')).toBe('TEAM VERSION\n');
+    await settles();
+  });
+
   it('keeps a fallback copy equal to the shared copy (where links can’t be made)', async () => {
     await new InitCommand({ tools: 'claude', force: true }).execute(project);
     const spot = p('.claude', 'skills', 'openspec-explore');

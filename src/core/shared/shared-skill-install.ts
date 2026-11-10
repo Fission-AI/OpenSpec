@@ -240,14 +240,20 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     // The folder itself must stay in the project: one linked elsewhere is
     // refused, as every other write is. A single skill's link is the user's
     // business and is classified (and kept) below.
-    if (!linkDir) {
+    if (!linkDir && !ownFolderInProject(projectPath, ownDir)) {
       // A tool that reads `.agents/skills` needs nothing here; an old folder
-      // linked out of the project is left alone, not a failure.
+      // linked out of the project is left alone, not a failure. Old OpenSpec
+      // skills in it are reported, since the tool may load them twice.
+      let names: string[] = [];
       try {
-        FileSystemUtils.assertPathWithin(projectPath, ownDir);
+        names = view.listDirectory ? view.listDirectory(ownDir) : fs.readdirSync(ownDir);
       } catch {
-        return;
+        names = [];
       }
+      if (names.some((name) => (OPENSPEC_SKILL_NAMES as readonly string[]).includes(name))) {
+        result.kept.push(relative(ownDir));
+      }
+      return;
     }
     FileSystemUtils.assertPathWithin(projectPath, ownDir);
     const linksWanted = linkDir !== undefined;
@@ -276,7 +282,13 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
         // A link already in place stays, and so does a fallback copy equal to
         // the shared copy (made where links can't be). An old copy becomes a
         // link.
-        if (spot === 'copy' && readOr(path.join(spotPath, 'SKILL.md')) === contents.get(skillName)) continue;
+        if (
+          spot === 'copy' &&
+          !sharedSpotIsUsers(skillName) &&
+          readOr(path.join(spotPath, 'SKILL.md')) === contents.get(skillName)
+        ) {
+          continue;
+        }
         if (spot !== 'link') {
           await ops.linkSkill(spotPath, path.join(sharedDir, skillName), tool.value);
           if (spot === 'released') result.replacedOldCopyCount += 1;
@@ -312,6 +324,16 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
  * other. Then a tool's own skills folder is the shared one, and settling it
  * would remove the very copy every tool reads.
  */
+/** Whether a tool's own skills folder stays inside the project through links. */
+function ownFolderInProject(projectPath: string, ownDir: string): boolean {
+  try {
+    FileSystemUtils.assertPathWithin(projectPath, ownDir);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** What init and update print for skill folders they kept as the user's. */
 export function formatKeptSkills(kept: readonly string[]): string[] {
   const inShared = kept.filter((rel) => rel.startsWith('.agents/skills/'));
@@ -407,6 +429,8 @@ export function ownSkillFolderNeedsWork(
   if (!ownDir) return false;
   const sharedDir = resolveSharedSkillsDir(projectPath);
   if (isSameFolderTree(ownDir, sharedDir)) return false;
+  // An old folder linked out of the project is left alone (and reported).
+  if (!linkDir && !ownFolderInProject(projectPath, ownDir)) return false;
   const kept = readKeptSharedSkills(projectPath, view);
   for (const skillName of OPENSPEC_SKILL_NAMES) {
     let sharedContent = '';
