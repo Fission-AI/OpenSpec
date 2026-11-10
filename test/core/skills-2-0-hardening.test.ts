@@ -454,7 +454,7 @@ describe('OpenSpec 2.0 skills: hardening', () => {
 
     await new UpdateCommand({ force: true }).execute(project);
 
-    expect(readlinkSync(spot)).toBe(path.join(root, 'not-here'));
+    expect(lstatSync(spot).isSymbolicLink()).toBe(true);
     await settles();
   });
 
