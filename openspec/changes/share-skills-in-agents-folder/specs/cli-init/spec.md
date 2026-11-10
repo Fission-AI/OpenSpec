@@ -15,3 +15,22 @@ Init SHALL write each selected workflow's skill once, to `.agents/skills/`, with
 
 - **WHEN** tools with different delivery needs are selected
 - **THEN** the shared copy SHALL hold every workflow any selected tool needs as a skill
+
+### Requirement: Init installs skills only
+
+Init SHALL generate no command files for any tool, whatever the `delivery` setting, and its summary and getting-started hints SHALL name skills, never `/opsx:` commands. Command files a re-run finds are handled as update handles them: generated ones removed, edited ones kept and listed.
+
+#### Scenario: Any delivery setting
+
+- **GIVEN** the global `delivery` setting is `both`, `skills` or `commands`
+- **WHEN** the user runs `openspec init --tools claude,cursor`
+- **THEN** skills SHALL be installed and no command file SHALL be written
+- **AND** the hint SHALL read `/openspec-propose`
+
+## REMOVED Requirements
+
+### Requirement: Slash Command Generation
+
+**Reason**: OpenSpec 2.0 installs skills only.
+
+**Migration**: Each `/opsx:<id>` command has a skill with the same instructions; see the table in `docs-lab/help/upgrade-to-2.md`.

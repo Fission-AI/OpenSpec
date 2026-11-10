@@ -44,7 +44,12 @@ The shared copy exists when any listed tool needs skills under the current deliv
 
 Each tool's old `<skillsDir>/skills/openspec-*` folders are a skills-only former location, moved after the shared copy is written: untouched copies (equal to current, or to any released version) go; edited ones stay and are reported. Commands are never touched by this move. For linked tools the link goes where the old copy was, once it is gone.
 
+### D7. Skills only, behind one switch
+
+The four delivery helpers in `command-surface.ts` decide every command write and removal, so 2.0 changes them alone: no command files for any tool, skills for every tool, and generated command files reconciled away (edited ones kept). The `delivery` value is still read but no longer consulted. The command adapters stay, because cleanup needs their paths and output to recognize old files; the now-unreachable command-writing branches are left for a follow-up that only deletes code.
+
 ## Risks
 
 - **Committed links on Windows.** With git's `core.symlinks` off, a teammate on Windows checks links out as text files. `update` sees a non-link and replaces it with a copy. The docs say so.
+- **Muscle memory.** People who type `/opsx:propose` must switch to the skill. The upgrade guide maps every command to its skill, and edited command files are kept, so a custom command keeps working until the user moves it.
 - **Edited old copies** next to the shared copy are loaded twice by tools that read both, until the user deletes them; `update` reports each one.
