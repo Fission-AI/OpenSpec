@@ -170,8 +170,10 @@ describe('shell-detection', () => {
       expect(result.shell).toBe('fish');
     });
 
-    it('should detect PowerShell from PSModulePath environment variable', () => {
-      process.env.PSModulePath = 'C:\\Program Files\\PowerShell\\Modules';
+    it('should detect PowerShell (pwsh) off Windows from PSModulePath alone', () => {
+      // Pin the platform: on Windows PSModulePath alone is not enough (#2226).
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+      process.env.PSModulePath = '/home/dev/.local/share/powershell/Modules:/opt/microsoft/powershell/7/Modules';
       const result = detectShell();
       expect(result.shell).toBe('powershell');
       expect(result.detected).toBe('powershell');
