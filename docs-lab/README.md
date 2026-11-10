@@ -153,7 +153,7 @@ the page or rewriting the goal in both places, never letting them drift.
 |---|---|
 | [FAQ](help/faq.md) | Short answers to the questions that don't need a page. |
 | [Troubleshooting](help/troubleshooting.md) | When OpenSpec doesn't do what you expected: symptoms and their fixes. |
-| [Upgrade to 2.0](help/upgrade-to-2.md) | What changes in 2.0, and how to move a project over. |
+| [Upgrade to 2.0](help/upgrade-to-2.md) (published now, under Start, ahead of the rest of Help) | What changes in 2.0, and how to move a project over. |
 
 ### Legacy: land the old workflow safely (held back from the site until drafted, see Open TODOs)
 
