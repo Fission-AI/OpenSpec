@@ -8,10 +8,28 @@ vi.mock('node:child_process', () => ({
 
 const mockedExecFileSync = vi.mocked(execFileSync);
 
+// PSModulePath as Windows sets it machine-wide: every process inherits it,
+// cmd.exe included, so on its own it says nothing about the running shell.
+const PROGRAM_FILES_VARS = ['ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432'];
+
+const MACHINE_PSMODULEPATH =
+  'C:\\Program Files\\WindowsPowerShell\\Modules;C:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0\\Modules';
+
+// What a running Windows PowerShell 5.1 hands its children: it prepends the
+// per-user modules folder at startup.
+const WINDOWS_POWERSHELL_SESSION_PSMODULEPATH =
+  'C:\\Users\\dev\\Documents\\WindowsPowerShell\\Modules;' + MACHINE_PSMODULEPATH;
+
+// What a running PowerShell 7 hands its children.
+const POWERSHELL_7_SESSION_PSMODULEPATH =
+  'C:\\Users\\dev\\Documents\\PowerShell\\Modules;C:\\Program Files\\PowerShell\\Modules;' +
+  'c:\\program files\\powershell\\7\\Modules;' + MACHINE_PSMODULEPATH;
+
 describe('shell-detection', () => {
   let originalShell: string | undefined;
   let originalPSModulePath: string | undefined;
   let originalComspec: string | undefined;
+  let originalProgramFiles: Record<string, string | undefined>;
   let originalPlatform: NodeJS.Platform;
 
   beforeEach(() => {
@@ -19,12 +37,19 @@ describe('shell-detection', () => {
     originalShell = process.env.SHELL;
     originalPSModulePath = process.env.PSModulePath;
     originalComspec = process.env.COMSPEC;
+    originalProgramFiles = Object.fromEntries(
+      PROGRAM_FILES_VARS.map((name) => [name, process.env[name]])
+    );
     originalPlatform = process.platform;
 
     // Clear environment for clean testing
     delete process.env.SHELL;
     delete process.env.PSModulePath;
     delete process.env.COMSPEC;
+    // Pin the Windows install folders so tests behave the same on every host.
+    process.env.ProgramFiles = 'C:\\Program Files';
+    process.env['ProgramFiles(x86)'] = 'C:\\Program Files (x86)';
+    delete process.env.ProgramW6432;
 
     // Default: parent process is not a shell (e.g. the test runner), so
     // detection falls through to environment-based logic.
@@ -48,6 +73,13 @@ describe('shell-detection', () => {
       process.env.COMSPEC = originalComspec;
     } else {
       delete process.env.COMSPEC;
+    }
+    for (const [name, value] of Object.entries(originalProgramFiles)) {
+      if (value !== undefined) {
+        process.env[name] = value;
+      } else {
+        delete process.env[name];
+      }
     }
     Object.defineProperty(process, 'platform', {
       value: originalPlatform,
@@ -138,8 +170,10 @@ describe('shell-detection', () => {
       expect(result.shell).toBe('fish');
     });
 
-    it('should detect PowerShell from PSModulePath environment variable', () => {
-      process.env.PSModulePath = 'C:\\Program Files\\PowerShell\\Modules';
+    it('should detect PowerShell (pwsh) off Windows from PSModulePath alone', () => {
+      // Pin the platform: on Windows PSModulePath alone is not enough (#2226).
+      Object.defineProperty(process, 'platform', { value: 'linux' });
+      process.env.PSModulePath = '/home/dev/.local/share/powershell/Modules:/opt/microsoft/powershell/7/Modules';
       const result = detectShell();
       expect(result.shell).toBe('powershell');
       expect(result.detected).toBe('powershell');
@@ -149,7 +183,7 @@ describe('shell-detection', () => {
       Object.defineProperty(process, 'platform', {
         value: 'win32',
       });
-      process.env.PSModulePath = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Modules';
+      process.env.PSModulePath = WINDOWS_POWERSHELL_SESSION_PSMODULEPATH;
       const result = detectShell();
       expect(result.shell).toBe('powershell');
       expect(result.detected).toBe('powershell');
@@ -185,6 +219,55 @@ describe('shell-detection', () => {
       const result = detectShell();
       expect(result.shell).toBeUndefined();
       expect(result.detected).toBeUndefined();
+    });
+  });
+
+  describe('Windows: cmd.exe vs PowerShell (#2226)', () => {
+    beforeEach(() => {
+      Object.defineProperty(process, 'platform', { value: 'win32' });
+      process.env.COMSPEC = 'C:\\WINDOWS\\system32\\cmd.exe';
+    });
+
+    it('detects cmd.exe when PSModulePath is only the machine-wide default', () => {
+      process.env.PSModulePath = MACHINE_PSMODULEPATH;
+      const result = detectShell();
+      expect(result.shell).toBeUndefined();
+      expect(result.detected).toBe('cmd.exe');
+    });
+
+    it('detects cmd.exe when installers added Program Files module folders machine-wide', () => {
+      process.env.PSModulePath =
+        MACHINE_PSMODULEPATH +
+        ';C:\\Program Files (x86)\\Microsoft SQL Server\\150\\Tools\\PowerShell\\Modules\\' +
+        ';C:\\Program Files\\Contoso\\PowerShell\\Modules';
+      const result = detectShell();
+      expect(result.shell).toBeUndefined();
+      expect(result.detected).toBe('cmd.exe');
+    });
+
+    it('detects Windows PowerShell 5.1 from the per-user modules folder it adds', () => {
+      process.env.PSModulePath = WINDOWS_POWERSHELL_SESSION_PSMODULEPATH;
+      expect(detectShell()).toEqual({ shell: 'powershell', detected: 'powershell' });
+    });
+
+    it('detects PowerShell 7 from the per-user modules folder it adds', () => {
+      process.env.PSModulePath = POWERSHELL_7_SESSION_PSMODULEPATH;
+      expect(detectShell()).toEqual({ shell: 'powershell', detected: 'powershell' });
+    });
+
+    it('detects PowerShell when Documents is redirected (OneDrive, another drive)', () => {
+      process.env.PSModulePath =
+        'C:\\Users\\dev\\OneDrive - Contoso\\Documents\\WindowsPowerShell\\Modules\;' + MACHINE_PSMODULEPATH;
+      expect(detectShell().shell).toBe('powershell');
+
+      process.env.PSModulePath = 'D:\\MyDocs\\PowerShell\\Modules;' + MACHINE_PSMODULEPATH;
+      expect(detectShell().shell).toBe('powershell');
+    });
+
+    it('still reports nothing when neither signal is present', () => {
+      delete process.env.COMSPEC;
+      process.env.PSModulePath = MACHINE_PSMODULEPATH;
+      expect(detectShell()).toEqual({ shell: undefined, detected: undefined });
     });
   });
 
@@ -243,7 +326,7 @@ describe('shell-detection', () => {
 
     it('should not shell out to ps on Windows', () => {
       Object.defineProperty(process, 'platform', { value: 'win32' });
-      process.env.PSModulePath = 'C:\\Program Files\\PowerShell\\Modules';
+      process.env.PSModulePath = WINDOWS_POWERSHELL_SESSION_PSMODULEPATH;
       const result = detectShell();
       expect(result.shell).toBe('powershell');
       expect(mockedExecFileSync).not.toHaveBeenCalled();

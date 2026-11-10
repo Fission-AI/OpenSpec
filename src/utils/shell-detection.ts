@@ -41,7 +41,7 @@ function matchSupportedShell(name: string): SupportedShell | undefined {
  * @returns The supported shell running as the parent process, or undefined
  */
 function detectShellFromParentProcess(): SupportedShell | undefined {
-  // `ps` is POSIX-only; Windows shells are handled via PSModulePath/COMSPEC.
+  // `ps` is POSIX-only; Windows shells are handled by isInsidePowerShellOnWindows/COMSPEC.
   if (process.platform === 'win32') {
     return undefined;
   }
@@ -67,6 +67,44 @@ function detectShellFromParentProcess(): SupportedShell | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Whether a running PowerShell launched us on Windows.
+ *
+ * PSModulePath alone proves nothing here: Windows sets it machine-wide, so
+ * every process (cmd.exe included) inherits it. What only a running PowerShell
+ * adds is the per-user modules folder, `<Documents>\WindowsPowerShell\Modules`
+ * (5.1) or `<Documents>\PowerShell\Modules` (7+), which it prepends at startup.
+ * Documents can be redirected (OneDrive, another drive), so match the folder
+ * shape and rule out Program Files, where the machine-wide and
+ * installer-added module folders live.
+ *
+ * Known limit: a cmd.exe started from PowerShell inherits that entry and is
+ * reported as PowerShell.
+ */
+function isInsidePowerShellOnWindows(): boolean {
+  const psModulePath = process.env.PSModulePath;
+  if (!psModulePath) {
+    return false;
+  }
+
+  const normalize = (dir: string) => dir.trim().toLowerCase().replace(/\//g, '\\').replace(/\\+$/, '');
+  const programFilesDirs = [
+    process.env.ProgramFiles,
+    process.env['ProgramFiles(x86)'],
+    process.env.ProgramW6432,
+  ]
+    .filter((dir): dir is string => Boolean(dir))
+    .map((dir) => normalize(dir) + '\\');
+
+  return psModulePath.split(';').some((entry) => {
+    const dir = normalize(entry);
+    return (
+      /\\(windows)?powershell\\modules$/.test(dir) &&
+      !programFilesDirs.some((programFiles) => dir.startsWith(programFiles))
+    );
+  });
 }
 
 /**
@@ -98,20 +136,23 @@ export function detectShell(): ShellDetectionResult {
     return { shell: undefined, detected: detectedName };
   }
 
-  // Check for PowerShell on Windows
-  // PSModulePath is a reliable PowerShell-specific environment variable
-  if (process.env.PSModulePath || process.platform === 'win32') {
-    const comspec = process.env.COMSPEC?.toLowerCase();
-
-    // If PSModulePath exists, we're definitely in PowerShell
-    if (process.env.PSModulePath) {
+  if (process.platform === 'win32') {
+    if (isInsidePowerShellOnWindows()) {
       return { shell: 'powershell', detected: 'powershell' };
     }
 
-    // On Windows without PSModulePath, we might be in cmd.exe
-    if (comspec?.includes('cmd.exe')) {
+    // Not PowerShell, so most likely cmd.exe (the default COMSPEC).
+    if (process.env.COMSPEC?.toLowerCase().includes('cmd.exe')) {
       return { shell: undefined, detected: 'cmd.exe' };
     }
+
+    return { shell: undefined, detected: undefined };
+  }
+
+  // Off Windows PSModulePath is not set system-wide, so its presence alone
+  // means PowerShell (pwsh) launched us.
+  if (process.env.PSModulePath) {
+    return { shell: 'powershell', detected: 'powershell' };
   }
 
   return { shell: undefined, detected: undefined };
