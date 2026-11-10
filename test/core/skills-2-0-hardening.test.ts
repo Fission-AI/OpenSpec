@@ -599,6 +599,33 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     await settles();
   });
 
+  it('init for one tool also cleans up the generated commands of a tool already set up', async () => {
+    await new InitCommand({ tools: 'claude', force: true }).execute(project);
+    await fs.mkdir(p('.claude', 'commands', 'opsx'), { recursive: true });
+    await fs.copyFile(
+      path.join(FIXTURES, 'v1.0.0-claude-command-opsx-explore.md'),
+      p('.claude', 'commands', 'opsx', 'explore.md')
+    );
+
+    await new InitCommand({ tools: 'cursor', force: true }).execute(project);
+
+    expect(await exists('.claude/commands/opsx/explore.md')).toBe(false);
+    await settles();
+  });
+
+  it.skipIf(process.platform === 'win32')('init for one tool reports a failure in another set-up tool’s skills folder', async () => {
+    await new InitCommand({ tools: 'claude', force: true }).execute(project);
+    // Claude needs a link it can't write: its skills folder is read-only.
+    await fs.rm(p('.claude', 'skills', 'openspec-explore'));
+    await fs.chmod(p('.claude', 'skills'), 0o555);
+    try {
+      await expect(new InitCommand({ tools: 'cursor', force: true }).execute(project)).rejects.toThrow('Claude Code');
+      expect(await exists('.agents/skills/openspec-propose/SKILL.md')).toBe(true);
+    } finally {
+      await fs.chmod(p('.claude', 'skills'), 0o755);
+    }
+  });
+
   it('records a project set up with exactly the core workflows as the core profile, without delivery', async () => {
     await fs.rm(path.join(root, 'home', '.config', 'openspec', 'config.json'));
     await new InitCommand({ tools: 'claude', force: true }).execute(project);

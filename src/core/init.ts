@@ -1051,6 +1051,24 @@ export class InitCommand {
         failedTools.push({ name: tool.name, error: error as Error });
       }
     }
+    // Tools already set up here, though not selected now, shared the install
+    // above: report their folder failures and remove their generated command
+    // files too (edited ones kept), as update would.
+    const selectedIds = new Set(tools.map((tool) => tool.value));
+    for (const other of AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value) && !selectedIds.has(tool.value))) {
+      const failure = ownFolderErrors.get(other.value);
+      if (failure) failedTools.push({ name: other.name, error: failure });
+      if (!shouldReconcileCommandFilesForTool(other.value)) continue;
+      try {
+        const reconciled = await reconcileCommandFiles(projectPath, other.value, workflows);
+        removedCommandCount += reconciled.removed.length;
+        leftCommandFiles.kept.push(...reconciled.kept);
+        leftCommandFiles.unchecked.push(...reconciled.unchecked);
+        await pruneEmptyParents(projectPath, reconciled.removed.map((rel) => FileSystemUtils.toPosixPath(rel)));
+      } catch (error) {
+        failedTools.push({ name: other.name, error: error as Error });
+      }
+    }
     if (keptOwnSkills.length > 0) {
       console.log(
         chalk.yellow(
