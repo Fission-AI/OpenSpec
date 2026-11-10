@@ -14,14 +14,9 @@ import { FileSystemUtils } from '../utils/file-system.js';
 import { getSkillReferenceTransformer, getTransformerForTool, transformToSharedSkillReferences, transformToSkillReferences } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
-  generateCommands,
-  CommandAdapterRegistry,
-} from './command-generation/index.js';
-import {
   getToolSkillStatus,
   getToolVersionStatus,
   getSkillTemplates,
-  getCommandContents,
   generateSkillContent,
   getToolsWithSkillsDir,
   hasGlobalSkillTarget,
@@ -77,10 +72,7 @@ import {
 import {
   resolveCommandSurfaceCapability,
   resolveCommandInvocation,
-  shouldGenerateCommandsForTool,
-  shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
-  shouldRemoveSkillsForTool,
 } from './command-surface.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
 import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
@@ -326,7 +318,6 @@ export class UpdateCommand {
     const toolStatuses = configuredTools.map((toolId) =>
       getToolVersionStatus(resolvedProjectPath, toolId, OPENSPEC_VERSION, {
         workflows: legacyWorkflowOverrides[toolId] ?? desiredWorkflows,
-        delivery,
         view: this.view,
       })
     );
@@ -383,7 +374,7 @@ export class UpdateCommand {
 
       // Still check for new tool directories and extra workflows
       this.detectNewTools(resolvedProjectPath, configuredTools);
-      this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
+      this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile);
       this.displaySetupNotes(configuredTools);
       this.stopIfUpdateFailed(legacyUpgradeFailures);
       return;
@@ -410,11 +401,9 @@ export class UpdateCommand {
     const updatedTools: string[] = [];
     const updatedToolIds: string[] = [];
     const failedTools: ToolFailure[] = [...legacyUpgradeFailures];
-    const zeroArtifactTools: string[] = [];
     let removedCommandCount = 0;
     const leftCommandFiles = { kept: [] as string[], unchecked: [] as string[] };
     let removedSkillCount = 0;
-    let removedDeselectedCommandCount = 0;
     let removedDeselectedSkillCount = 0;
 
     // Every tool's project skills are one shared copy in `.agents/skills/`:
@@ -424,7 +413,6 @@ export class UpdateCommand {
       resolvedProjectPath,
       configuredAndNewTools,
       toolsToUpdate,
-      delivery,
       (toolId) => legacyWorkflowOverrides[toolId] ?? desiredWorkflows
     );
     if (sharedInstall.writtenSkillCount === 0) {
@@ -442,18 +430,15 @@ export class UpdateCommand {
       try {
         const skillsDir = resolveToolSkillsDir(resolvedProjectPath, tool);
         const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : resolvedProjectPath;
-        const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
-        const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         // Shared-folder skills were written once above.
         const writesSkills = !usesSharedSkills(tool);
         const toolWorkflows = legacyWorkflowOverrides[tool.value] ?? desiredWorkflows;
         const ownFolderError = sharedInstall.toolFailures.get(tool.value);
         if (ownFolderError) throw ownFolderError;
         const skillTemplates = getSkillTemplates(toolWorkflows);
-        const commandContents = getCommandContents(toolWorkflows);
 
         // Generate skill files if delivery includes skills
-        if (shouldGenerateSkills && writesSkills) {
+        if (writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
@@ -476,44 +461,8 @@ export class UpdateCommand {
           );
         }
 
-        // Delete skill directories if delivery is commands-only
-        if (shouldRemoveSkillsForTool(tool.value, delivery) && !hasGlobalSkillTarget(tool)) {
-          if (writesSkills) {
-            removedSkillCount += await this.removeSkillDirs(skillsRoot, skillsDir, tool.value);
-          }
-          // A tool with no command adapter now has zero OpenSpec artifacts;
-          // say so like init does, rather than deleting its skills silently
-          // and letting tool detection re-suggest an init that would also
-          // generate nothing under this delivery setting.
-          if (!shouldGenerateCommandsForTool(tool.value, delivery)) {
-            zeroArtifactTools.push(tool.name);
-          }
-        }
-
-        // Generate commands if delivery includes commands
-        if (shouldGenerateCommands) {
-          const adapter = CommandAdapterRegistry.get(tool.value);
-          if (adapter) {
-            const generatedCommands = generateCommands(commandContents, adapter);
-
-            for (const cmd of generatedCommands) {
-              const commandFile = FileSystemUtils.resolveProjectArtifactPath(
-                resolvedProjectPath,
-                cmd.path
-              );
-              await this.ops.writeFile(commandFile, cmd.fileContent, tool.value);
-            }
-
-            removedDeselectedCommandCount += await this.removeUnselectedCommandFiles(
-              resolvedProjectPath,
-              toolId,
-              toolWorkflows
-            );
-          }
-        }
-
         // Delete command files if delivery is skills-only
-        if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
+        if (shouldReconcileCommandFilesForTool(tool.value)) {
           const reconciled = await reconcileCommandFiles(resolvedProjectPath, toolId, toolWorkflows, {
             view: this.view,
             remove: (fullPath) => this.ops.removeFile(fullPath, toolId),
@@ -582,47 +531,20 @@ export class UpdateCommand {
       }
     }
     if (removedSkillCount > 0) {
-      this.log(chalk.dim(`Removed: ${removedSkillCount} skill directories (delivery: commands)`));
-    }
-    if (zeroArtifactTools.length > 0) {
-      const names = zeroArtifactTools.join(', ');
-      this.log(
-        chalk.yellow(
-          `No skills or commands remain for ${names}: delivery is set to 'commands' but ` +
-            `${zeroArtifactTools.length === 1 ? 'it supports' : 'they support'} only skills. ` +
-            `Run 'openspec config set delivery both' to generate skills.`
-        )
-      );
-    }
-    if (removedDeselectedCommandCount > 0) {
-      this.log(chalk.dim(`Removed: ${removedDeselectedCommandCount} command files (deselected workflows)`));
+      this.log(chalk.dim(`Removed: ${removedSkillCount} skill directories`));
     }
     if (removedDeselectedSkillCount > 0) {
       this.log(chalk.dim(`Removed: ${removedDeselectedSkillCount} skill directories (deselected workflows)`));
     }
 
     // 12. Show onboarding message for newly configured tools from legacy upgrade.
-    // Command tools get the command name their files answer to, skill-only
-    // tools their documented skill invocation, and disagreements fall back to
-    // naming the skill.
+    // Each tool gets its documented skill invocation, and disagreements fall
+    // back to naming the skill.
     if (newlyConfiguredTools.length > 0) {
       const referenceFor = (command: string): string => {
         const neutralForm = `the ${transformToSkillReferences(command).slice(1)} skill`;
         const forms = new Set(
-          newlyConfiguredTools.map((toolId) => {
-            if (shouldGenerateCommandsForTool(toolId, delivery)) {
-              // Name the command the tool's files actually answer to:
-              // /opsx-<id> where the filename is the command name.
-              const transformer = getTransformerForTool(
-                toolId,
-                delivery,
-                resolveCommandSurfaceCapability(toolId),
-                resolveCommandInvocation(toolId)
-              );
-              return transformer ? transformer(command) : command;
-            }
-            return getSkillReferenceTransformer(toolId)(command);
-          })
+          newlyConfiguredTools.map((toolId) => getSkillReferenceTransformer(toolId)(command))
         );
         return forms.size === 1 ? [...forms][0] : neutralForm;
       };
@@ -656,7 +578,7 @@ export class UpdateCommand {
     this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
 
     // 14. Display the profile notes
-    this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile, delivery);
+    this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile);
     this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
@@ -685,7 +607,6 @@ export class UpdateCommand {
     projectPath: string,
     setUpToolIds: readonly string[],
     toolsToRefresh: readonly string[],
-    delivery: Delivery,
     workflowsFor: (toolId: string) => readonly string[]
   ): Promise<SharedSkillInstallResult> {
     const toolOptions = (ids: readonly string[]) =>
@@ -704,7 +625,6 @@ export class UpdateCommand {
       const result = await installSharedSkills({
         projectPath,
         tools: toolOptions(setUpToolIds),
-        delivery,
         version: OPENSPEC_VERSION,
         workflowsFor,
         ops: this.ops,
@@ -883,7 +803,6 @@ export class UpdateCommand {
     return toolIds.filter((toolId) => {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
       if (!tool || !toolSupportsSkills(tool)) return false;
-      if (!shouldGenerateSkillsForTool(tool.value, delivery)) return false;
       if (!getToolSkillStatus(projectPath, tool.value, this.view).configured) return false;
       // The shared copy is a tool's own only once it is listed; until then its
       // skills are in its own folder and the update moves them (config sync).
@@ -1083,8 +1002,7 @@ export class UpdateCommand {
     projectPath: string,
     configuredTools: string[],
     desiredWorkflows: readonly string[] | undefined,
-    profile: Profile,
-    delivery: Delivery
+    profile: Profile
   ): void {
     const printedExtraNote = this.displayExtraWorkflowsNote(
       projectPath,
@@ -1095,7 +1013,6 @@ export class UpdateCommand {
     this.displayOptionalWorkflowsNote(
       configuredTools,
       desiredWorkflows,
-      delivery,
       printedExtraNote || printedMissingCoreNote
     );
   }
@@ -1153,25 +1070,18 @@ export class UpdateCommand {
    * appeared — learns nothing (#1076). This covers that gap.
    *
    * Silent when another note already pointed at the same command, and when no
-   * configured tool can receive a workflow surface under the active delivery:
-   * adding workflows would write nothing there.
+   * tool is configured: adding workflows would write nothing there.
    */
   private displayOptionalWorkflowsNote(
     configuredTools: string[],
     workflows: readonly string[] | undefined,
-    delivery: Delivery,
     alreadyPointedAtProfileConfig: boolean
   ): void {
     if (alreadyPointedAtProfileConfig || !workflows) {
       return;
     }
 
-    const anyToolHasASurface = configuredTools.some(
-      (toolId) =>
-        shouldGenerateSkillsForTool(toolId, delivery) ||
-        shouldGenerateCommandsForTool(toolId, delivery)
-    );
-    if (!anyToolHasASurface) {
+    if (configuredTools.length === 0) {
       return;
     }
 
@@ -1182,31 +1092,6 @@ export class UpdateCommand {
     for (const line of note) {
       this.log(chalk.dim(line));
     }
-  }
-
-  /**
-   * Removes skill directories for workflows when delivery changed to commands-only.
-   * Returns the number of directories removed.
-   */
-  private async removeSkillDirs(skillsRoot: string, skillsDir: string, toolId: string): Promise<number> {
-    let removed = 0;
-
-    for (const workflow of ALL_WORKFLOWS) {
-      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-      if (!dirName) continue;
-
-      const skillDir = path.join(skillsDir, dirName);
-      if (!this.view.exists(skillDir)) continue;
-      FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
-      try {
-        await this.ops.removeDirectory(skillDir, toolId);
-        removed++;
-      } catch {
-        // Ignore errors
-      }
-    }
-
-    return removed;
   }
 
   /**
@@ -1233,40 +1118,6 @@ export class UpdateCommand {
       try {
         await this.ops.removeDirectory(skillDir, toolId);
         removed++;
-      } catch {
-        // Ignore errors
-      }
-    }
-
-    return removed;
-  }
-
-  /**
-   * Removes command files for workflows that are no longer selected in the active profile.
-   * Returns the number of files removed.
-   */
-  private async removeUnselectedCommandFiles(
-    projectPath: string,
-    toolId: string,
-    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][]
-  ): Promise<number> {
-    let removed = 0;
-
-    const adapter = CommandAdapterRegistry.get(toolId);
-    if (!adapter) return 0;
-
-    const desiredSet = new Set(desiredWorkflows);
-
-    for (const workflow of ALL_WORKFLOWS) {
-      if (desiredSet.has(workflow)) continue;
-      const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmdPath);
-
-      try {
-        if (this.view.exists(fullPath)) {
-          await this.ops.removeFile(fullPath, toolId);
-          removed++;
-        }
       } catch {
         // Ignore errors
       }
@@ -1667,7 +1518,6 @@ export class UpdateCommand {
       projectPath,
       [...new Set([...configuredTools, ...selectedTools])],
       selectedTools,
-      delivery,
       workflowsForLegacyTool
     );
 
@@ -1680,8 +1530,6 @@ export class UpdateCommand {
       try {
         const skillsDir = resolveToolSkillsDir(projectPath, tool);
         const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
-        const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
-        const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
         // Shared-folder skills were written once above.
         const writesSkills = !usesSharedSkills(tool);
         const ownFolderError = sharedInstall.toolFailures.get(tool.value);
@@ -1691,10 +1539,9 @@ export class UpdateCommand {
           workflowOverrides[tool.value] = inferredCodexWorkflows;
         }
         const skillTemplates = getSkillTemplates(toolWorkflows);
-        const commandContents = getCommandContents(toolWorkflows);
 
         // Create skill files when delivery includes skills
-        if (shouldGenerateSkills && writesSkills) {
+        if (writesSkills) {
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(skillsDir, dirName);
             const skillFile = path.join(skillDir, 'SKILL.md');
@@ -1708,22 +1555,6 @@ export class UpdateCommand {
             const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
             FileSystemUtils.assertPathWithin(skillsRoot, skillFile);
             await this.ops.writeFile(skillFile, skillContent, tool.value);
-          }
-        }
-
-        // Create commands when delivery includes commands
-        if (shouldGenerateCommands) {
-          const adapter = CommandAdapterRegistry.get(tool.value);
-          if (adapter) {
-            const generatedCommands = generateCommands(commandContents, adapter);
-
-            for (const cmd of generatedCommands) {
-              const commandFile = FileSystemUtils.resolveProjectArtifactPath(
-                projectPath,
-                cmd.path
-              );
-              await this.ops.writeFile(commandFile, cmd.fileContent, tool.value);
-            }
           }
         }
 

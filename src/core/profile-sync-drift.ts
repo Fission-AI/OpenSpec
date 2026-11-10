@@ -6,19 +6,13 @@ import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { getConfiguredTools } from './shared/index.js';
 import { classifyCommandFiles } from './shared/command-reconcile.js';
-import {
-  shouldGenerateCommandsForTool,
-  shouldGenerateSkillsForTool,
-  shouldReconcileCommandFilesForTool,
-  shouldRemoveSkillsForTool,
-} from './command-surface.js';
-import { isToolListed, readKeptSharedSkills, readSkillToolList } from './shared-skill-target.js';
+import { shouldReconcileCommandFilesForTool } from './command-surface.js';
+import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
 import { ownSkillFolderNeedsWork } from './shared/shared-skill-install.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
 import {
-  hasGlobalSkillTarget,
   resolveToolSkillsDir,
   toolSupportsSkills,
   usesSharedSkills,
@@ -73,7 +67,7 @@ export function hasToolProfileOrDeliveryDrift(
   projectPath: string,
   toolId: string,
   desiredWorkflows: readonly string[],
-  delivery: Delivery,
+  _delivery: Delivery,
   view: FileView = DISK_VIEW
 ): boolean {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -83,8 +77,6 @@ export function hasToolProfileOrDeliveryDrift(
   const desiredWorkflowSet = new Set<WorkflowId>(knownDesiredWorkflows);
   const skillsDir = resolveToolSkillsDir(projectPath, tool);
   const adapter = CommandAdapterRegistry.get(toolId);
-  const shouldGenerateSkills = shouldGenerateSkillsForTool(toolId, delivery);
-  const shouldGenerateCommands = shouldGenerateCommandsForTool(toolId, delivery);
 
   const shared = usesSharedSkills(tool);
   const listed = shared && isToolListed(projectPath, toolId, view);
@@ -121,74 +113,34 @@ export function hasToolProfileOrDeliveryDrift(
   if (shared) {
     // The shared copy is common to every set-up tool, so only this tool's own
     // part is checked here: being listed, and its own skills folder.
-    if (shouldGenerateSkills && !listed) return true;
+    if (!listed) return true;
     const linked = new Set<string>(
-      shouldGenerateSkills ? knownDesiredWorkflows.map((workflow) => WORKFLOW_TO_SKILL_DIR[workflow]) : []
+      knownDesiredWorkflows.map((workflow) => WORKFLOW_TO_SKILL_DIR[workflow])
     );
     if (ownSkillFolderNeedsWork(projectPath, tool, linked, view)) return true;
-    // Skills no listed tool needs any more (all moved to commands-only).
-    if (
-      !shouldGenerateSkills &&
-      !readSkillToolList(projectPath, view).some((id) => shouldGenerateSkillsForTool(id, delivery)) &&
-      ALL_WORKFLOWS.some((workflow) => {
-        const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-        return view.exists(path.join(skillsDir, dirName, 'SKILL.md')) &&
-          !readKeptSharedSkills(projectPath, view).has(dirName);
-      })
-    ) {
+  }
+
+  for (const workflow of knownDesiredWorkflows) {
+    const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+    const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+    if (!view.exists(skillFile)) {
       return true;
     }
   }
 
-  if (shouldGenerateSkills) {
-    for (const workflow of knownDesiredWorkflows) {
-      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-      const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
-      if (!view.exists(skillFile)) {
-        return true;
-      }
-    }
-
-    // Deselecting workflows in a profile should trigger sync. A skill the
-    // user keeps in the shared folder is theirs and stays.
-    const kept = shared ? readKeptSharedSkills(projectPath, view) : new Set<string>();
-    for (const workflow of ALL_WORKFLOWS) {
-      if (desiredWorkflowSet.has(workflow)) continue;
-      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-      const skillDir = path.join(skillsDir, dirName);
-      if (view.exists(path.join(skillDir, 'SKILL.md')) && !kept.has(dirName)) {
-        return true;
-      }
-    }
-  } else if (shouldRemoveSkillsForTool(toolId, delivery) && !hasGlobalSkillTarget(tool) && !shared) {
-    for (const workflow of ALL_WORKFLOWS) {
-      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-      const skillDir = path.join(skillsDir, dirName);
-      if (view.exists(skillDir)) {
-        return true;
-      }
+  // Deselecting workflows in a profile should trigger sync. A skill the
+  // user keeps in the shared folder is theirs and stays.
+  const kept = shared ? readKeptSharedSkills(projectPath, view) : new Set<string>();
+  for (const workflow of ALL_WORKFLOWS) {
+    if (desiredWorkflowSet.has(workflow)) continue;
+    const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+    const skillDir = path.join(skillsDir, dirName);
+    if (view.exists(path.join(skillDir, 'SKILL.md')) && !kept.has(dirName)) {
+      return true;
     }
   }
 
-  if (shouldGenerateCommands && adapter) {
-    for (const workflow of knownDesiredWorkflows) {
-      const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-      if (!view.exists(fullPath)) {
-        return true;
-      }
-    }
-
-    // Deselecting workflows in a profile should trigger sync.
-    for (const workflow of ALL_WORKFLOWS) {
-      if (desiredWorkflowSet.has(workflow)) continue;
-      const cmdPath = adapter.getFilePath(workflow);
-      const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-      if (view.exists(fullPath)) {
-        return true;
-      }
-    }
-  } else if (shouldReconcileCommandFilesForTool(toolId, delivery) && adapter) {
+  if (shouldReconcileCommandFilesForTool(toolId) && adapter) {
     // Only generated output is drift. Files cleanup keeps (edits, older
     // versions, unreadable entries) stay on disk by design; counting them would
     // re-sync on every update.
@@ -218,37 +170,18 @@ export function getToolsNeedingProfileSync(
   );
 }
 
-function getInstalledWorkflowsForTool(
-  projectPath: string,
-  toolId: string,
-  options: { includeSkills: boolean; includeCommands: boolean }
-): WorkflowId[] {
+function getInstalledWorkflowsForTool(projectPath: string, toolId: string): WorkflowId[] {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
   if (!tool || !toolSupportsSkills(tool)) return [];
 
   const installed = new Set<WorkflowId>();
   const skillsDir = resolveToolSkillsDir(projectPath, tool);
 
-  if (options.includeSkills) {
-    for (const workflow of ALL_WORKFLOWS) {
-      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-      const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
-      if (fs.existsSync(skillFile)) {
-        installed.add(workflow);
-      }
-    }
-  }
-
-  if (options.includeCommands) {
-    const adapter = CommandAdapterRegistry.get(toolId);
-    if (adapter) {
-      for (const workflow of ALL_WORKFLOWS) {
-        const cmdPath = adapter.getFilePath(workflow);
-        const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectPath, cmdPath);
-        if (fs.existsSync(fullPath)) {
-          installed.add(workflow);
-        }
-      }
+  for (const workflow of ALL_WORKFLOWS) {
+    const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+    const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
+    if (fs.existsSync(skillFile)) {
+      installed.add(workflow);
     }
   }
 
@@ -271,9 +204,7 @@ export function hasProjectConfigDrift(
   const desiredSet = new Set(toKnownWorkflows(desiredWorkflows));
 
   for (const toolId of configuredTools) {
-    const includeSkills = shouldGenerateSkillsForTool(toolId, delivery);
-    const includeCommands = shouldGenerateCommandsForTool(toolId, delivery);
-    const installed = getInstalledWorkflowsForTool(projectPath, toolId, { includeSkills, includeCommands });
+    const installed = getInstalledWorkflowsForTool(projectPath, toolId);
     if (installed.some((workflow) => !desiredSet.has(workflow))) {
       return true;
     }

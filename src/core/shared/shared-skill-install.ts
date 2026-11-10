@@ -10,9 +10,6 @@
 import path from 'path';
 import * as fs from 'fs';
 import { OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
-import { shouldGenerateCommandsForTool, shouldGenerateSkillsForTool } from '../command-surface.js';
-import { CommandAdapterRegistry } from '../command-generation/index.js';
-import type { Delivery } from '../global-config.js';
 import type { FileView } from '../file-view.js';
 import type { UpdateFileOps } from '../update-plan.js';
 import { transformToSharedSkillReferences } from '../../utils/command-references.js';
@@ -40,7 +37,6 @@ export interface SharedSkillInstallInput {
   projectPath: string;
   /** Every tool set up in the project; tools that keep their own folder are ignored. */
   tools: readonly AIToolOption[];
-  delivery: Delivery;
   /** The OpenSpec version stamped into each skill. */
   version: string;
   /** The workflows a tool should have, from its profile (or a legacy override). */
@@ -77,7 +73,7 @@ const toPosix = (p: string) => p.split(path.sep).join('/');
  * former-root migration (which needs the shared copy in place).
  */
 export async function installSharedSkills(input: SharedSkillInstallInput): Promise<SharedSkillInstallResult> {
-  const { projectPath, delivery, ops, view } = input;
+  const { projectPath, ops, view } = input;
   const tools = input.tools.filter(usesSharedSkills);
   const result: SharedSkillInstallResult = {
     writtenSkillCount: 0,
@@ -89,8 +85,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   if (tools.length === 0) return result;
 
   const sharedDir = resolveSharedSkillsDir(projectPath);
-  const skillTools = tools.filter((tool) => shouldGenerateSkillsForTool(tool.value, delivery));
-  const workflows = [...new Set(skillTools.flatMap((tool) => [...input.workflowsFor(tool.value)]))];
+  const workflows = [...new Set(tools.flatMap((tool) => [...input.workflowsFor(tool.value)]))];
   // Wanted skills as written now; any other skill as a full install renders it,
   // only to recognize a copy of it.
   const contents = new Map([
@@ -167,19 +162,15 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   const listPath = skillToolListPath(projectPath);
   // Kept as long as it records a skill of the user's in the shared folder.
   if (wanted.size > 0 || keptShared.size > 0) {
-    // Tools that get files of their own this run: commands, or links.
+    // Tools that get files of their own this run: links.
     const withOwnFiles = new Set(
       tools
-        .filter((tool) =>
-          (shouldGenerateCommandsForTool(tool.value, delivery) && CommandAdapterRegistry.get(tool.value) !== undefined) ||
-          (resolveSkillLinkDir(projectPath, tool) !== undefined && skillTools.includes(tool))
-        )
+        .filter((tool) => resolveSkillLinkDir(projectPath, tool) !== undefined)
         .map((tool) => tool.value)
     );
     await ops.writeFile(listPath, formatSkillToolList(tools.map((tool) => tool.value), keptShared, withOwnFiles), 'openspec');
   } else if (view.exists(listPath)) {
-    // No tool needs skills (commands-only delivery): each tool's command files
-    // already show it is set up.
+    // No workflows selected and nothing of the user's to record.
     await ops.removeFile(listPath, 'openspec');
   }
 
@@ -201,7 +192,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     // refused, as every other write is. A single skill's link is the user's
     // business and is classified (and kept) below.
     FileSystemUtils.assertPathWithin(projectPath, ownDir);
-    const linksWanted = linkDir !== undefined && skillTools.includes(tool);
+    const linksWanted = linkDir !== undefined;
     for (const skillName of OPENSPEC_SKILL_NAMES) {
       const spotPath = path.join(ownDir, skillName);
       const spot = classifySkillLinkSpot(spotPath, path.join(sharedDir, skillName), oursFor(skillName), view);

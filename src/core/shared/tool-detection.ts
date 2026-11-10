@@ -7,10 +7,8 @@
 import path from 'path';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES } from '../config.js';
 import { CommandAdapterRegistry } from '../command-generation/index.js';
-import { getGlobalConfig, type Delivery } from '../global-config.js';
 import { hasLegacySkills, isToolListed, readKeptSharedSkills, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
 import {
-  shouldGenerateSkillsForTool,
   resolveCommandSurfaceCapability,
 } from '../command-surface.js';
 import {
@@ -25,7 +23,6 @@ import {
 } from './skill-paths.js';
 import { DISK_VIEW, type FileView } from '../file-view.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
-import { isReleasedGeneratedContent } from './generated-fingerprint.js';
 
 /**
  * Names of skill directories created by openspec init.
@@ -262,8 +259,6 @@ export function getToolVersionStatus(
     workflows?: readonly string[];
     /** The tree to read; the disk unless an update is planning. */
     view?: FileView;
-    /** Effective delivery; read from the global config when omitted. */
-    delivery?: Delivery;
   }
 ): ToolVersionStatus {
   const view = options?.view ?? DISK_VIEW;
@@ -282,36 +277,16 @@ export function getToolVersionStatus(
   let generatedByVersion: string | null = null;
   let foundSkill = false;
 
-  // 1. Find the first skill file that exists and read its version. When the
-  //    tool gets no skills under the current delivery, a copy the user keeps
-  //    in its own folder says nothing about what is installed (only a link or
-  //    untouched release output does); reading it would make every update
-  //    think the tool is out of date.
-  const ownDir = usesSharedSkills(tool) ? resolveFormerOwnSkillsDir(projectRoot, tool) : undefined;
-  let usesSkills = true;
-  try {
-    usesSkills = shouldGenerateSkillsForTool(toolId, options?.delivery ?? getGlobalConfig().delivery ?? 'both');
-  } catch {
-    usesSkills = true;
-  }
-  const sharedDir = resolveSharedSkillsDir(projectRoot);
+  // 1. Find the first skill file that exists and read its version.
   const keptShared = usesSharedSkills(tool) ? readKeptSharedSkills(projectRoot, view) : new Set<string>();
-  const speaksForVersion = (skillsDir: string, skillFile: string): boolean => {
-    // A skill the user keeps in the shared folder is theirs, not a version,
-    // whether read there or through a tool's link to it.
-    if (keptShared.has(path.basename(path.dirname(skillFile)))) return false;
-    if (skillsDir === sharedDir || skillsDir !== ownDir || usesSkills) return true;
-    if (view.linkTarget?.(path.dirname(skillFile)) !== undefined) return true;
-    try {
-      return isReleasedGeneratedContent(view.read(skillFile));
-    } catch {
-      return false;
-    }
-  };
+  // A skill the user keeps in the shared folder is theirs, not a version,
+  // whether read there or through a tool's link to it.
+  const speaksForVersion = (skillFile: string): boolean =>
+    !keptShared.has(path.basename(path.dirname(skillFile)));
   for (const skillName of SKILL_NAMES) {
     for (const skillsDir of skillsDirs) {
       const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-      if (view.exists(skillFile) && speaksForVersion(skillsDir, skillFile)) {
+      if (view.exists(skillFile) && speaksForVersion(skillFile)) {
         generatedByVersion = extractGeneratedByVersion(skillFile, view);
         foundSkill = true;
         break;

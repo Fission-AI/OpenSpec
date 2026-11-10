@@ -1,6 +1,5 @@
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { getInvocationForAdapter, type CommandInvocation } from './command-generation/invocation.js';
-import type { Delivery } from './global-config.js';
 
 export type CommandSurfaceCapability = 'adapter-backed' | 'skills-invocable' | 'none';
 
@@ -31,25 +30,10 @@ export function resolveCommandSurfaceCapability(toolId: string): CommandSurfaceC
  * every tool and every `delivery` setting, which older configs may still
  * hold; it is read but no longer changes what is installed. The command
  * adapters stay, so cleanup can find the files earlier releases wrote.
- */
-export function shouldGenerateSkillsForTool(_toolId: string, _delivery: Delivery): boolean {
-  return true;
-}
-
-/** Skills are never removed for a delivery setting: they are all there is. */
-export function shouldRemoveSkillsForTool(_toolId: string, _delivery: Delivery): boolean {
-  return false;
-}
-
-/** No tool gets command files in 2.0. */
-export function shouldGenerateCommandsForTool(_toolId: string, _delivery: Delivery): boolean {
-  return false;
-}
-
-/**
+ *
  * Every tool that had command files has the ones OpenSpec generated removed.
  * Edited ones are kept and listed (see `reconcileCommandFiles`).
  */
-export function shouldReconcileCommandFilesForTool(toolId: string, _delivery: Delivery): boolean {
+export function shouldReconcileCommandFilesForTool(toolId: string): boolean {
   return resolveCommandSurfaceCapability(toolId) === 'adapter-backed';
 }

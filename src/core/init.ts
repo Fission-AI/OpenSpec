@@ -34,10 +34,6 @@ import { PALETTE } from './styles/palette.js';
 import { isInteractive } from '../utils/interactive.js';
 import { serializeConfig } from './config-prompts.js';
 import {
-  generateCommands,
-  CommandAdapterRegistry,
-} from './command-generation/index.js';
-import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
   formatCleanupSummary,
@@ -55,7 +51,6 @@ import {
   getConfiguredTools,
   getToolStates,
   getSkillTemplates,
-  getCommandContents,
   generateSkillContent,
   hasGlobalSkillTarget,
   resolveToolSkillsDir,
@@ -66,7 +61,7 @@ import {
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import { pruneEmptyParents } from './released-output-sweep.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
-import { getProfileWorkflows, CORE_WORKFLOWS, ALL_WORKFLOWS } from './profiles.js';
+import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
@@ -77,10 +72,7 @@ import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptIn
 import {
   resolveCommandSurfaceCapability,
   resolveCommandInvocation,
-  shouldGenerateCommandsForTool,
-  shouldGenerateSkillsForTool,
   shouldReconcileCommandFilesForTool,
-  shouldRemoveSkillsForTool,
 } from './command-surface.js';
 import {
   writeCopilotCloudFiles,
@@ -112,21 +104,6 @@ function formatLanguageContext(language: string): string {
 const PROGRESS_SPINNER = {
   interval: 80,
   frames: ['░░░', '▒░░', '▒▒░', '▒▒▒', '▓▒▒', '▓▓▒', '▓▓▓', '▒▓▓', '░▒▓'],
-};
-
-const WORKFLOW_TO_SKILL_DIR: Record<string, string> = {
-  'explore': 'openspec-explore',
-  'new': 'openspec-new-change',
-  'continue': 'openspec-continue-change',
-  'apply': 'openspec-apply-change',
-  'update': 'openspec-update-change',
-  'ff': 'openspec-ff-change',
-  'sync': 'openspec-sync-specs',
-  'archive': 'openspec-archive-change',
-  'bulk-archive': 'openspec-bulk-archive-change',
-  'verify': 'openspec-verify-change',
-  'onboard': 'openspec-onboard',
-  'propose': 'openspec-propose',
 };
 
 // -----------------------------------------------------------------------------
@@ -941,9 +918,8 @@ export class InitCommand {
     const delivery: Delivery = globalConfig.delivery ?? 'both';
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
-    // Get skill and command templates filtered by profile workflows
+    // Get skill templates filtered by profile workflows
     const skillTemplates = getSkillTemplates(workflows);
-    const commandContents = getCommandContents(workflows);
 
     // Every tool's project skills are one shared copy in `.agents/skills/`,
     // written once for the selected tools and every tool already set up here
@@ -956,7 +932,6 @@ export class InitCommand {
       const shared = await installSharedSkills({
         projectPath,
         tools: AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value)),
-        delivery,
         version: OPENSPEC_VERSION,
         workflowsFor: () => workflows,
         ops: realFileOps,
@@ -991,11 +966,8 @@ export class InitCommand {
       try {
         const ownFolderError = ownFolderErrors.get(tool.value);
         if (ownFolderError) throw ownFolderError;
-        const shouldGenerateSkills = shouldGenerateSkillsForTool(tool.value, delivery);
-        const shouldGenerateCommands = shouldGenerateCommandsForTool(tool.value, delivery);
-
-        // Generate skill files if the selected delivery and tool capability allow skills
-        if (shouldGenerateSkills && tool.writesSkills) {
+        // Generate skill files if the tool writes its own skills
+        if (tool.writesSkills) {
           // Create skill directories and SKILL.md files
           for (const { template, dirName } of skillTemplates) {
             const skillDir = path.join(tool.skillsPath, dirName);
@@ -1015,27 +987,7 @@ export class InitCommand {
             await FileSystemUtils.writeFile(skillFile, skillContent);
           }
         }
-        if (
-          shouldRemoveSkillsForTool(tool.value, delivery) &&
-          tool.writesSkills &&
-          !tool.isGlobalSkillTarget
-        ) {
-          removedSkillCount += await this.removeSkillDirs(tool.skillsRoot, tool.skillsPath);
-        }
-
-        // Generate commands if delivery includes commands
-        if (shouldGenerateCommands) {
-          const adapter = CommandAdapterRegistry.get(tool.value);
-          if (adapter) {
-            const generatedCommands = generateCommands(commandContents, adapter);
-
-            for (const cmd of generatedCommands) {
-              const commandFile = FileSystemUtils.resolveProjectArtifactPath(projectPath, cmd.path);
-              await FileSystemUtils.writeFile(commandFile, cmd.fileContent);
-            }
-          }
-        }
-        if (shouldReconcileCommandFilesForTool(tool.value, delivery)) {
+        if (shouldReconcileCommandFilesForTool(tool.value)) {
           const reconciled = await reconcileCommandFiles(projectPath, tool.value, workflows);
           removedCommandCount += reconciled.removed.length;
           leftCommandFiles.kept.push(...reconciled.kept);
@@ -1221,15 +1173,12 @@ export class InitCommand {
     if (successfulTools.length > 0) {
       const globalConfig = getGlobalConfig();
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
-      const delivery: Delivery = globalConfig.delivery ?? 'both';
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
       const usesGlobalSkillTarget = successfulTools.some((tool) => tool.isGlobalSkillTarget);
 
       if (!usesGlobalSkillTarget) {
-        // Skills sit in one shared folder, linked into the tools that need it;
-        // commands sit in each tool's own folder.
-        const skillTools = successfulTools.filter((tool) => shouldGenerateSkillsForTool(tool.value, delivery));
-        const commandTools = successfulTools.filter((tool) => shouldGenerateCommandsForTool(tool.value, delivery));
+        // Skills sit in one shared folder, linked into the tools that need it.
+        const skillTools = successfulTools;
         const toolOption = (id: string) => AI_TOOLS.find((candidate) => candidate.value === id);
         const skillDirs = [...new Set(skillTools.map((tool) => {
           const option = toolOption(tool.value);
@@ -1243,42 +1192,12 @@ export class InitCommand {
           const links = linkedFrom.length > 0 ? ` (linked from ${linkedFrom.join(', ')})` : '';
           console.log(`${getSkillTemplates(workflows).length} skills in ${skillDirs.join(', ')}${links}`);
         }
-        const commandDirs = [...new Set(commandTools.map((tool) => tool.skillsDir).filter(Boolean))];
-        if (commandTools.length > 0 && commandDirs.length > 0) {
-          console.log(`${getCommandContents(workflows).length} commands in ${commandDirs.map((dir) => `${dir}/`).join(', ')}`);
-        }
       } else {
-        const skillTools = successfulTools.filter((tool) =>
-          shouldGenerateSkillsForTool(tool.value, delivery)
-        );
+        const skillTools = successfulTools;
         const skillCount = skillTools.length * getSkillTemplates(workflows).length;
         if (skillCount > 0) {
           const skillDirs = [...new Set(skillTools.map((tool) => tool.skillsPath))];
           console.log(`${skillCount} skills in ${skillDirs.join(', ')}`);
-        }
-
-        const commandContents = getCommandContents(workflows);
-        const commandTools = successfulTools.filter((tool) =>
-          shouldGenerateCommandsForTool(tool.value, delivery)
-        );
-        const commandCount = commandTools.length * commandContents.length;
-        if (commandCount > 0) {
-          const commandDirs = [
-            ...new Set(
-              commandTools.flatMap((tool) => {
-                const adapter = CommandAdapterRegistry.get(tool.value);
-                if (!adapter) return [];
-                return commandContents.map((command) => {
-                  const commandPath = adapter.getFilePath(command.id);
-                  const absolutePath = path.isAbsolute(commandPath)
-                    ? commandPath
-                    : path.join(projectPath, commandPath);
-                  return path.dirname(absolutePath);
-                });
-              })
-            ),
-          ];
-          console.log(`${commandCount} commands in ${commandDirs.join(', ')}`);
         }
       }
     }
@@ -1299,7 +1218,7 @@ export class InitCommand {
       }
     }
     if (results.removedSkillCount > 0) {
-      console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories (delivery: commands)`));
+      console.log(chalk.dim(`Removed: ${results.removedSkillCount} skill directories`));
     }
 
     // GitHub Copilot cloud files are opt-in — report what is actually on disk:
@@ -1355,43 +1274,25 @@ export class InitCommand {
     // When no tool got /opsx:* commands, point at the skill instead of a
     // command that does not exist.
     const activeDelivery: Delivery = getGlobalConfig().delivery ?? 'both';
-    const commandsGenerated = successfulTools.some((tool) => shouldGenerateCommandsForTool(tool.value, activeDelivery));
-    const skillsGenerated = successfulTools.some((tool) => shouldGenerateSkillsForTool(tool.value, activeDelivery));
-    // Each hint line must be a usable instruction for the tool it serves.
-    // Tools that generated commands are told the command name their files
-    // answer to (/opsx:* when namespaced under opsx/, /opsx-* when the
-    // filename is the command); tools that only got skills are told their
-    // documented skill invocation (Kimi Code: /skill:openspec-*; Codex CLI:
-    // $openspec-*; others: /openspec-*). Tools that got no artifacts are
-    // covered by the configuration correction instead. When the selection
-    // disagrees, print one line per distinct instruction, labeled with the
-    // tools it applies to.
+    // Each hint line must be a usable instruction for the tool it serves:
+    // its documented skill invocation (Kimi Code: /skill:openspec-*; Codex
+    // CLI: $openspec-*; others: /openspec-*). When the selection disagrees,
+    // print one line per distinct instruction, labeled with the tools it
+    // applies to.
     const startHintLines = (command: string): string[] => {
       const hintToTools = new Map<string, string[]>();
       for (const tool of successfulTools) {
         let hint: string;
-        if (shouldGenerateCommandsForTool(tool.value, activeDelivery)) {
-          const transformer = getTransformerForTool(
-            tool.value,
-            activeDelivery,
-            resolveCommandSurfaceCapability(tool.value),
-            resolveCommandInvocation(tool.value)
-          );
-          hint = `Start your first change: ${transformer ? transformer(command) : command} "your idea"`;
-        } else if (shouldGenerateSkillsForTool(tool.value, activeDelivery)) {
-          const skillReference = getSkillReferenceTransformer(tool.value)(command);
-          // Tools with no slash surface (e.g. Rovo Dev) reference skills as
-          // prose ("the openspec-propose skill"); phrase the hint so it reads
-          // as an instruction rather than a dead command with an argument.
-          if (usesNaturalLanguageSkillReferences(tool.value)) {
-            hint = `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`;
-          } else if (tool.value === 'codex') {
-            hint = `Start your first change: ${skillReference} "your idea" (Codex CLI or IDE); in the Codex desktop app, select ${skillReference.slice(1)} from Skills in the sidebar`;
-          } else {
-            hint = `Start your first change: ${skillReference} "your idea"`;
-          }
+        const skillReference = getSkillReferenceTransformer(tool.value)(command);
+        // Tools with no slash surface (e.g. Rovo Dev) reference skills as
+        // prose ("the openspec-propose skill"); phrase the hint so it reads
+        // as an instruction rather than a dead command with an argument.
+        if (usesNaturalLanguageSkillReferences(tool.value)) {
+          hint = `Start your first change: ask ${tool.name} to use ${skillReference} with "your idea"`;
+        } else if (tool.value === 'codex') {
+          hint = `Start your first change: ${skillReference} "your idea" (Codex CLI or IDE); in the Codex desktop app, select ${skillReference.slice(1)} from Skills in the sidebar`;
         } else {
-          continue;
+          hint = `Start your first change: ${skillReference} "your idea"`;
         }
         hintToTools.set(hint, [...(hintToTools.get(hint) ?? []), tool.name]);
       }
@@ -1411,31 +1312,8 @@ export class InitCommand {
       }
     };
     console.log();
-    // delivery=commands with tools that only support skills: those tools get
-    // no artifacts at all, so print a per-tool configuration correction
-    // rather than leave them with a dead (or missing) instruction — even
-    // when other selected tools did get commands or skills.
-    const zeroArtifactTools = successfulTools.filter(
-      (tool) =>
-        !shouldGenerateSkillsForTool(tool.value, activeDelivery) &&
-        !shouldGenerateCommandsForTool(tool.value, activeDelivery)
-    );
-    if (zeroArtifactTools.length > 0) {
-      const names = zeroArtifactTools.map((tool) => tool.name).join(', ');
-      console.log(
-        chalk.yellow(
-          `No skills or commands were generated for ${names}: delivery is set to 'commands' but ` +
-            `${zeroArtifactTools.length === 1 ? 'it supports' : 'they support'} only skills. ` +
-            `Run 'openspec config set delivery both' to generate skills.`
-        )
-      );
-    }
     let advertisedAnInvocation = true;
-    if (successfulTools.length > 0 && !commandsGenerated && !skillsGenerated) {
-      // Nothing was generated for any tool: the correction above is the
-      // whole story, so don't advertise an invocation that doesn't exist.
-      advertisedAnInvocation = false;
-    } else if (activeWorkflows.includes('propose')) {
+    if (activeWorkflows.includes('propose')) {
       printStartHints('/opsx:propose');
     } else if (activeWorkflows.includes('new')) {
       printStartHints('/opsx:new');
@@ -1451,7 +1329,7 @@ export class InitCommand {
     // a workflow surface at all (no tools selected, or none that could take
     // one) — there, adding workflows writes nothing, so naming them would
     // point at the wrong problem.
-    if (advertisedAnInvocation && (commandsGenerated || skillsGenerated)) {
+    if (advertisedAnInvocation && successfulTools.length > 0) {
       const optionalWorkflowsNote = formatOptionalWorkflowsNote(activeWorkflows);
       if (optionalWorkflowsNote) {
         console.log();
@@ -1488,27 +1366,6 @@ export class InitCommand {
       color: 'gray',
       spinner: PROGRESS_SPINNER,
     }).start();
-  }
-
-  private async removeSkillDirs(skillsRoot: string, skillsDir: string): Promise<number> {
-    let removed = 0;
-
-    for (const workflow of ALL_WORKFLOWS) {
-      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
-      if (!dirName) continue;
-
-      const skillDir = path.join(skillsDir, dirName);
-      if (!fs.existsSync(skillDir)) continue;
-      FileSystemUtils.assertPathWithin(skillsRoot, skillDir);
-      try {
-        await fs.promises.rm(skillDir, { recursive: true, force: true });
-        removed++;
-      } catch {
-        // Ignore errors
-      }
-    }
-
-    return removed;
   }
 
 }
