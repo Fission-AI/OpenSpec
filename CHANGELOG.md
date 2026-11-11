@@ -1,5 +1,23 @@
 # @fission-ai/openspec
 
+## 2.0.0
+
+### Major Changes
+
+- [#2223](https://github.com/Fission-AI/OpenSpec/pull/2223) [`d97d7e2`](https://github.com/Fission-AI/OpenSpec/commit/d97d7e2dfdf5919b0017da220158ede1be464660) Thanks [@clay-good](https://github.com/clay-good)! - OpenSpec 2.0 installs skills only, in one shared folder. Run `openspec update` in each project to move it over. Old command files and old skill copies you edited are kept. An edit inside a skill OpenSpec installs in `.agents/skills/` is replaced, as in 1.x, so save those first. See [Upgrade to 2.0](https://openspec.dev/docs/upgrade-to-2).
+  
+  - **Skills only.** OpenSpec no longer writes `/opsx:*` command files. Each command has a skill with the same instructions. For example, `/opsx:propose` becomes `openspec-propose`, which you invoke as `/openspec-propose` (`$openspec-propose` in Codex). `openspec update` removes the command files earlier versions generated, and keeps and lists any you edited.
+  - **One shared copy.** Skills are written once, to `.agents/skills/`, instead of a copy per tool. Claude Code, Continue, ForgeCode, Kiro, CodeBuddy, EasyCode, iFlow, CodeArts, Lingma, GigaCode, Veai, Rovo Dev, Code Studio and Hermes Agent get a link to each skill in their own `skills/` folder (a plain copy where a link can't be made). MiniMax Code is the exception: its skills go to `~/.minimax/skills/`. Old per-tool copies are removed, or kept and reported if you edited them.
+  - **`delivery` is retired.** It is still accepted, so older configs and scripts keep working, but it no longer changes anything.
+  - **Amazon Q Developer is retired.** It can't load skills. `openspec update` removes the files OpenSpec wrote in `.amazonq/` (keeping any you edited), and `--tools amazon-q` now points you to Kiro.
+  - **Windows.** To check out committed links, run `git config --global core.symlinks true` (or clone with `git clone -c core.symlinks=true <url>`) and enable Developer Mode so links can be created. Otherwise each link checks out as a small text file, which `openspec update` replaces with a plain copy of the skill.
+
+### Patch Changes
+
+- [#2229](https://github.com/Fission-AI/OpenSpec/pull/2229) [`5cd4f7f`](https://github.com/Fission-AI/OpenSpec/commit/5cd4f7f27050a9cf2ad0edeab87cc250caaa1852) Thanks [@clay-good](https://github.com/clay-good)! - On Windows, `openspec completion install` run from cmd.exe no longer edits your PowerShell profiles. OpenSpec now tells cmd.exe and PowerShell apart, says cmd.exe isn't supported, and stops suggesting the completion tip there.
+
+- [#2228](https://github.com/Fission-AI/OpenSpec/pull/2228) [`a959be7`](https://github.com/Fission-AI/OpenSpec/commit/a959be77cf045ea3156dc5089c9e2f1d6ce9ce70) Thanks [@clay-good](https://github.com/clay-good)! - Read a task that wraps onto several lines in tasks.md as one task. `openspec instructions apply` used to cut a wrapped task off at its first line break; it now returns the full text, including lines continued with a trailing `\`.
+
 ## 1.17.0
 
 ### Minor Changes
