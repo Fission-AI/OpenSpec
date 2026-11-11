@@ -1,3 +1,4 @@
+import { resolveChangeDir } from '../utils/change-directory.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
@@ -90,7 +91,7 @@ export function resolveCurrentPlanningHomeSync(
 }
 
 export function getChangeDir(planningHome: PlanningHome, changeName: string): string {
-  return FileSystemUtils.joinPath(planningHome.changesDir, changeName);
+  return resolveChangeDir(planningHome.changesDir, changeName);
 }
 
 export function formatChangeLocation(planningHome: PlanningHome, changeName: string): string {

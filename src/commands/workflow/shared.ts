@@ -1,3 +1,4 @@
+import { activeChangeNames, resolveChangeDir } from '../../utils/change-directory.js';
 /**
  * Shared Types and Utilities for Artifact Workflow Commands
  *
@@ -156,16 +157,7 @@ export async function getAvailableChanges(
   projectRoot: string,
   changesDir = path.join(projectRoot, 'openspec', 'changes')
 ): Promise<string[]> {
-  const changesPath = changesDir;
-  try {
-    const entries = await fs.promises.readdir(changesPath, { withFileTypes: true });
-    return entries
-      .filter((e) => e.isDirectory() && e.name !== 'archive' && !e.name.startsWith('.'))
-      .map((e) => e.name);
-  } catch (error: unknown) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return [];
-    throw error;
-  }
+  return activeChangeNames(changesDir);
 }
 
 /**
@@ -227,7 +219,7 @@ export async function validateChangeExists(
   }
 
   // Check directory existence directly
-  const changePath = path.join(changesDir, changeName);
+  const changePath = resolveChangeDir(changesDir, changeName);
   const exists = fs.existsSync(changePath) && fs.statSync(changePath).isDirectory();
 
   if (!exists) {

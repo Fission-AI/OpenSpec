@@ -14,6 +14,7 @@ Archive multiple completed changes in a single operation.
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
 **Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, `view`). Once selected, treat `--store <id>` as sticky for the rest of the workflow. Every unscoped example of those commands below is shorthand: before running it, append the flag. For example, run `openspec status --change "<name>" --json --store "<id>"`, not the unscoped form shown below. Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+When the user approves a finished plan in chat or invokes apply, check status first: if required planning artifacts are missing, report them and leave the change in place. Otherwise move its `changeRoot` into `<planningHome.changesDir>/approved/<name>` if not already there, creating `approved/` first if it is missing. Stop and ask the user instead when `approved/` is itself an older change (with its own proposal, design, tasks, metadata, or delta specs) or when the change's entry under `proposed/` is a symlink, since moving `changeRoot` would relocate the linked directory. After the move, refresh status and instructions before any requested implementation. That approval is the confirmation for this move and covers no other write; never archive a proposed change.
 
 **Project check:** These steps expect a project that already uses OpenSpec. Before the first step that writes anything (`new change`, `archive`, `sync specs`, or authoring an artifact file), confirm the project has a root: run `openspec list --json` (with `--store <id>` when a store is selected, since the store is then the root) and read `root`. A root object means the project is set up. `"root": null` means it is not - there is no `openspec/` directory here, and a write such as `openspec new change` would create one as a side effect. The command also exits non-zero, which is that answer rather than a broken CLI, so read the JSON instead of retrying or working around it.
 
@@ -109,6 +110,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - A blocked change is never synced or moved: show it as `Blocked` in the step 6 table, leave it out of conflict resolution (resolve its conflicts using only the other changes), and record it as Failed in step 8d
       - Checking here, before any main spec is written, matches `openspec archive`: a collision found after sync would leave main specs rewritten for an archive that never happened
 
+   e. **Approval** - If a change's `changeRoot` is under `<planningHome.changesDir>/proposed/`, mark it `Blocked` with `Change is still proposed; approve it first` and handle it like any other blocked change above
+
 4. **Detect spec conflicts**
 
    Build a map keyed by `<capability-path>`, the exact path relative to `specs/`:
@@ -182,7 +185,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    so match what the user picked rather than the wording above:
    - "Cancel" — stop, do not archive. Report that nothing was archived and skip the remaining steps.
    - The archive-everything option — proceed with every selected change that is not `Blocked`
-   - The ready-only option — proceed with only the changes the step 6 table marks `Ready` or `Ready*`, and record the rest as Skipped in step 8d, except `Blocked` changes, which stay Failed with `Archive directory already exists`. If a `Ready*` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
+   - The ready-only option — proceed with only the changes the step 6 table marks `Ready` or `Ready*`, and record the rest as Skipped in step 8d, except `Blocked` changes, which stay Failed with their recorded blocking reason. If a `Ready*` change's conflict partner is skipped, re-derive that conflict's resolution using only the changes being archived.
    - Anything else — ask again rather than archiving
 
    Before step 8 writes the first main spec or moves any change, fetch every

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
+import os from 'os';
 import { Validator } from '../../src/core/validation/validator.js';
 
 const PROPOSAL = `# Test Change
@@ -208,6 +209,44 @@ describe('Validator skip_specs handling', () => {
 
     expect(report.valid).toBe(true);
     expect(report.issues.some(i => i.level === 'ERROR')).toBe(false);
+  });
+
+  it('honors a project-local schema for an approved change behind a linked changes directory', async () => {
+    // Root discovery canonicalizes symlinks, so it cannot find the project
+    // from inside an external changes directory; the stage level must still
+    // map the change back to the project that owns its schemas.
+    const external = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-linked-changes-'));
+    try {
+      const changeName = 'refactor';
+      await fs.mkdir(path.join(external, 'approved', changeName), { recursive: true });
+      await fs.mkdir(path.join(testDir, 'openspec'), { recursive: true });
+      await fs.symlink(external, path.join(testDir, 'openspec', 'changes'), process.platform === 'win32' ? 'junction' : 'dir');
+      const schemaDir = path.join(testDir, 'openspec', 'schemas', 'custom-flow');
+      await fs.mkdir(schemaDir, { recursive: true });
+      await fs.writeFile(
+        path.join(schemaDir, 'schema.yaml'),
+        [
+          'name: custom-flow',
+          'version: 1',
+          'description: loadable project-local schema',
+          'artifacts:',
+          '  - id: specs',
+          '    generates: "specs/**/*.md"',
+          '    description: delta specs',
+          '    template: specs.md',
+          '    requires: []',
+        ].join('\n')
+      );
+      const changeDir = path.join(testDir, 'openspec', 'changes', 'approved', changeName);
+      await fs.writeFile(path.join(changeDir, '.openspec.yaml'), 'schema: custom-flow\nskip_specs: true\n');
+
+      const report = await new Validator().validateChangeDeltaSpecs(changeDir);
+
+      expect(report.issues.filter(i => i.level === 'ERROR')).toEqual([]);
+      expect(report.valid).toBe(true);
+    } finally {
+      await fs.rm(external, { recursive: true, force: true });
+    }
   });
 
   it('does not honor skip_specs when the schema exists but does not parse', async () => {
