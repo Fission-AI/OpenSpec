@@ -301,6 +301,32 @@ ${tracked ? '  tracks: checklist.md\n' : ''}`
     expect(listProgress).toEqual({ total: 2, completed: 1 });
   });
 
+  it('lists a wrapped task with its full text, located on its checkbox line (#2227)', async () => {
+    writeTasks(
+      [
+        '# Tasks',
+        '## 1. Repro',
+        '- [ ] 1.1 Implement the widget factory so it accepts a null config and',
+        '      returns a default widget instead of throwing',
+        '- [ ] 1.2 Second task \\',
+        '      with a backslash break',
+        '',
+      ].join('\n')
+    );
+
+    const instructions = await generateApplyInstructions(tempDir, 'my-change');
+
+    expect(instructions.tasks.map(({ description, line }) => ({ description, line }))).toEqual([
+      {
+        description:
+          '1.1 Implement the widget factory so it accepts a null config and returns a default widget instead of throwing',
+        line: 3,
+      },
+      { description: '1.2 Second task with a backslash break', line: 5 },
+    ]);
+    expect(instructions.progress).toEqual({ total: 2, complete: 0, remaining: 2 });
+  });
+
   it('lists a task written with an unrecognised marker as remaining work (#1761)', async () => {
     // Before the fix the apply parser dropped the line, so the agent was told
     // every task was complete and the change was ready to archive.

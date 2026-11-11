@@ -51,7 +51,7 @@ import {
   type ApplyInstructions,
   type ArchiveInstructions,
 } from './shared.js';
-import { parseTaskLines, type ParsedTask } from '../../utils/task-progress.js';
+import { parseLocatedTaskLines, type ParsedTask } from '../../utils/task-progress.js';
 import { METADATA_FILENAME } from '../../utils/change-metadata.js';
 
 // -----------------------------------------------------------------------------
@@ -362,14 +362,7 @@ interface LocatedTask extends ParsedTask {
 
 /** Adds one-based source locations to parsed tasks without changing task parsing. */
 function parseLocatedTasks(content: string, sourcePath: string): LocatedTask[] {
-  const tasks: LocatedTask[] = [];
-
-  for (const [index, line] of content.split('\n').entries()) {
-    const [task] = parseTaskLines(line);
-    if (task) tasks.push({ ...task, sourcePath, line: index + 1 });
-  }
-
-  return tasks;
+  return parseLocatedTaskLines(content).map((task) => ({ ...task, sourcePath }));
 }
 
 /**
