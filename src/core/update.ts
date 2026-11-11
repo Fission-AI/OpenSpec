@@ -55,6 +55,16 @@ import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.j
 import { formatOptionalWorkflowsNote, getOnboardingCommands } from './onboarding-commands.js';
 import { getAvailableTools } from './available-tools.js';
 import {
+  betaReplacedMessage,
+  betaReplacesTool,
+  findOldNpxSkills,
+  getBetaReplacedTools,
+  getOtherBetaProjects,
+  oldNpxSkillsMessage,
+  ownSkillDirs,
+  setBetaReplacedTools,
+} from './beta-skills.js';
+import {
   WORKFLOW_TO_SKILL_DIR,
   getConfiguredToolsForProfileSync,
   getToolsNeedingProfileSync,
@@ -285,14 +295,23 @@ export class UpdateCommand {
       delivery
     );
     const {
-      newlyConfiguredTools,
+      newlyConfiguredTools: legacyConfiguredTools,
       workflowOverrides: legacyWorkflowOverrides,
       deferredGlobalCleanup,
       failedTools: legacyUpgradeFailures = [],
     } = legacyUpgrade;
 
-    // 5. Find configured tools
-    const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);
+    // 5. Find configured tools. A tool that can see the installed openspec-beta
+    //    skills drops out (its per-project ones are removed), and one the beta
+    //    replaced before but no longer covers comes back in to be regenerated.
+    const beta = await this.applyBetaSkills(
+      resolvedProjectPath,
+      getConfiguredToolsForProfileSync(resolvedProjectPath, this.view)
+    );
+    const configuredTools = beta.configuredTools;
+    // A tool the legacy upgrade just set up but the beta covers has had its
+    // per-project files removed above, so it gets no per-project hints either.
+    const newlyConfiguredTools = legacyConfiguredTools.filter((toolId) => !beta.replaced.includes(toolId));
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
@@ -316,7 +335,9 @@ export class UpdateCommand {
         }
         return;
       }
-      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, [...configuredAndNewTools, ...beta.replaced]);
+      // Every tool here now uses the beta skills: that is the result, not a misconfiguration.
+      if (beta.replaced.length > 0) return;
       this.log(chalk.yellow('No configured tools found.'));
       this.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -362,6 +383,7 @@ export class UpdateCommand {
       ...toolsNeedingVersionUpdate,
       ...toolsNeedingConfigSync,
       ...toolsWithDriftedSkills,
+      ...beta.restored,
     ]);
     const toolsUpToDate = toolStatuses.filter((s) => !toolsToUpdateSet.has(s.toolId));
 
@@ -381,10 +403,11 @@ export class UpdateCommand {
       );
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
-      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, [...configuredAndNewTools, ...beta.replaced]);
 
-      // Still check for new tool directories and extra workflows
-      this.detectNewTools(resolvedProjectPath, configuredTools);
+      // Still check for new tool directories and extra workflows. A tool using
+      // the beta skills is set up, not new: suggesting init for it would mislead.
+      this.detectNewTools(resolvedProjectPath, [...configuredTools, ...beta.replaced]);
       this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile, delivery);
       this.displaySetupNotes(configuredTools);
       this.displayCommandDeprecation(configuredTools, delivery);
@@ -563,6 +586,13 @@ export class UpdateCommand {
       await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
     }
 
+    // A tool the beta no longer covers stays recorded until it is written back,
+    // so a failed regeneration is retried by the next update.
+    if (beta.restored.length > 0 && !this.dryRun) {
+      const stillMissing = beta.restored.filter((toolId) => !updatedToolIds.includes(toolId));
+      this.recordBetaReplacedTools(resolvedProjectPath, [...beta.replaced, ...stillMissing]);
+    }
+
     // 11. Summary
     this.log();
     if (updatedTools.length > 0) {
@@ -652,10 +682,10 @@ export class UpdateCommand {
       this.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
 
-    await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+    await this.syncCopilotCloudFiles(resolvedProjectPath, [...configuredAndNewTools, ...beta.replaced]);
 
     // 13. Detect new tool directories not currently configured
-    this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
+    this.detectNewTools(resolvedProjectPath, [...configuredAndNewTools, ...beta.replaced]);
 
     // 14. Display the profile notes
     this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile, delivery);
@@ -1136,6 +1166,94 @@ export class UpdateCommand {
     }
     for (const line of note) {
       this.log(chalk.dim(line));
+    }
+  }
+
+  /**
+   * Applies the installed openspec-beta skills to this project's tools. A tool
+   * that can see the beta loses its per-project OpenSpec skills and commands,
+   * so its agent loads one set; a tool the beta replaced before but no longer
+   * covers is handed back to be regenerated. See beta-skills.ts.
+   */
+  private async applyBetaSkills(
+    projectPath: string,
+    detected: string[]
+  ): Promise<{ configuredTools: string[]; replaced: string[]; restored: string[] }> {
+    const recorded = getBetaReplacedTools(projectPath);
+    const replaced: string[] = [];
+    const restored: string[] = [];
+    for (const toolId of new Set([...detected, ...recorded])) {
+      const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
+      if (!tool || !toolSupportsSkills(tool)) continue;
+      if (betaReplacesTool(projectPath, tool)) {
+        replaced.push(toolId);
+      } else if (recorded.includes(toolId)) {
+        // Includes a tool still detected through a shared folder's marker
+        // (Codex in .agents), so it is named and stays recorded until rewritten.
+        restored.push(toolId);
+      }
+    }
+    // Record before removing anything: files removed without a record could
+    // never come back. If the record can't be saved, keep today's skills.
+    if (!this.dryRun && !this.recordBetaReplacedTools(projectPath, [...replaced, ...restored])) {
+      replaced.length = 0;
+    }
+    for (const toolId of replaced) {
+      const tool = AI_TOOLS.find((candidate) => candidate.value === toolId);
+      if (!detected.includes(toolId) || !tool || !toolSupportsSkills(tool)) continue;
+      // A tool whose skills live in the home folder (MiniMax Code) is
+      // rooted there, exactly as the generation loop below writes it.
+      // Only OpenSpec's own folders go: see ownSkillDirs.
+      const skillsDir = resolveToolSkillsDir(projectPath, tool);
+      const skillsRoot = hasGlobalSkillTarget(tool) ? skillsDir : projectPath;
+      for (const dir of ownSkillDirs(skillsDir, this.view)) {
+        FileSystemUtils.assertPathWithin(skillsRoot, dir);
+        await this.ops.removeDirectory(dir, toolId);
+      }
+      await this.removeCommandFiles(projectPath, toolId);
+    }
+    if (replaced.length > 0) {
+      const names = replaced.map((id) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id);
+      this.log(chalk.dim(betaReplacedMessage(names)));
+      const oldNpxSkills = findOldNpxSkills();
+      if (oldNpxSkills.length > 0) this.log(chalk.yellow(oldNpxSkillsMessage(oldNpxSkills)));
+    }
+    // Opting out restores one project per update; name the rest so none is
+    // left with neither skill set.
+    if (restored.length > 0) {
+      const names = restored.map((id) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id);
+      this.log(chalk.dim(`The OpenSpec beta skills are gone, so OpenSpec's per-project skills come back for ${names.join(', ')}.`));
+      const others = getOtherBetaProjects(projectPath);
+      if (others.length > 0) {
+        this.log(chalk.dim(`To bring back the per-project OpenSpec skills elsewhere, run \`openspec update\` in: ${others.join(', ')}`));
+      }
+      // Old copies duplicate the restored skills, and a link one of them left
+      // in a tool's own folder blocks writing that skill back.
+      const oldNpxSkills = findOldNpxSkills();
+      if (oldNpxSkills.length > 0) this.log(chalk.yellow(oldNpxSkillsMessage(oldNpxSkills)));
+    }
+    return {
+      configuredTools: [...new Set([...detected.filter((id) => !replaced.includes(id)), ...restored])],
+      replaced,
+      restored,
+    };
+  }
+
+  /**
+   * Best effort: an unreadable global config must not fail an otherwise good
+   * update. Returns false when the record could not be saved.
+   */
+  private recordBetaReplacedTools(projectPath: string, toolIds: string[]): boolean {
+    try {
+      setBetaReplacedTools(projectPath, toolIds);
+      return true;
+    } catch (error) {
+      this.log(
+        chalk.yellow(
+          `Could not record which tools use the OpenSpec beta skills, so OpenSpec's per-project skills stay: ${(error as Error).message}`
+        )
+      );
+      return false;
     }
   }
 
