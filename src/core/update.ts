@@ -698,6 +698,14 @@ export class UpdateCommand {
         );
       }
       for (const line of formatKeptSkills(result.kept, result.linkedOutside, result.refreshedEdited)) this.log(chalk.yellow(line));
+      // A dry run is the last chance to save them.
+      if (result.refreshedEdited.length > 0) {
+        this.recorder?.addNote(
+          'edited-skills',
+          `Update will replace your edits in ${result.refreshedEdited.join(', ')} and keep no copy. ` +
+            'OpenSpec refreshes the skills it installs on every update. Save your text first, and keep lasting changes in a skill of your own under another name.'
+        );
+      }
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

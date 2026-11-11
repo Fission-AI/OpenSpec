@@ -93,6 +93,8 @@ MiniMax Code keeps its skills in `~/.minimax/skills/`. When `update` refreshes a
 Replaced your edits in 1 skill OpenSpec installs: .agents/skills/openspec-propose/SKILL.md. OpenSpec refreshes this skill on every update and keeps no copy. Recover your text from git, and keep lasting changes in a skill of your own under another name.
 ```
 
+To see which skills are affected before anything changes, run `openspec update --dry-run`. It prints a note naming them.
+
 To keep a customization across updates, put it somewhere `update` doesn't write:
 
 - **Project instructions**: `context` and `rules` in `openspec/config.yaml` give the agent your instructions without editing a skill ([Project config](../customize/project-config.md)).

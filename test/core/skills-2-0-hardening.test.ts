@@ -679,6 +679,13 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     await new InitCommand({ tools: 'codex,claude', force: true }).execute(project);
     await fs.appendFile(p('.agents', 'skills', 'openspec-propose', 'SKILL.md'), '\nMY EDIT\n');
 
+    // A dry run warns before anything is replaced.
+    const plan = await new UpdateCommand({ force: true, dryRun: true }).plan(project);
+    expect(plan.notes.find((note) => note.code === 'edited-skills')?.message).toContain(
+      '.agents/skills/openspec-propose/SKILL.md'
+    );
+    expect(await read('.agents/skills/openspec-propose/SKILL.md')).toContain('MY EDIT');
+
     logs = [];
     await new UpdateCommand({ force: true }).execute(project);
 
