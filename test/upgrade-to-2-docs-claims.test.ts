@@ -26,7 +26,10 @@ describe('OpenSpec 2.0 documentation', () => {
     expect(UPGRADE).toContain('> [!WARNING]');
     const [notice] = formatKeptSkills([], [], ['.agents/skills/openspec-propose/SKILL.md']);
     expect(UPGRADE).toContain(notice);
-    expect(read('.changeset', 'share-skills-in-agents-folder.md')).not.toMatch(/Nothing you edited is deleted/i);
+    // The release note is a changeset until the release, then part of CHANGELOG.md.
+    const changeset = path.join(REPO_ROOT, '.changeset', 'share-skills-in-agents-folder.md');
+    const releaseNote = fs.existsSync(changeset) ? fs.readFileSync(changeset, 'utf-8') : read('CHANGELOG.md');
+    expect(releaseNote).not.toMatch(/Nothing you edited is deleted/i);
   });
 
   it('shows the note the CLI prints for the retired delivery setting', () => {
