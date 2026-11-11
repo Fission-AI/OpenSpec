@@ -165,4 +165,4 @@ We're working on a schema registry, public and private, so schemas can be instal
 
 ### Use OpenSpec with Superpowers
 
-For the Superpowers integration, see [superpowers-bridge](../community/index.md#review-and-execution).
+For the Superpowers integration, see [superpowers-bridge](../community/index.md#custom-schema-examples).
