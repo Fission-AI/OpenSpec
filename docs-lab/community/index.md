@@ -3,7 +3,7 @@
 > Explore custom schemas and projects built by the OpenSpec community.
 
 - [Custom schema examples](#custom-schema-examples): workflows you can adapt to your project.
-- [Community projects](#community-projects): tools, integrations, and hosted services.
+- [Community projects](#community-projects): open-source tools and extensions.
 
 These projects are maintained independently. A listing does not imply OpenSpec support or endorsement. Use each project's documentation and issue tracker for setup and help.
 
@@ -38,35 +38,13 @@ These schemas live in their maintainers' repositories and are released separatel
 - **[openspec-guard](https://github.com/guillaume-flambard/spec-guard)**: A CLI and GitHub Action that reports which spec scenarios have Vitest or Jest coverage. It does not run the tests.
 - **[rightcommit](https://github.com/rightcommit/rightcommit/blob/main/ADD-OPENSPEC.md)**: A self-hosted, Apache-2.0 orchestrator with a guide to running OpenSpec's propose, apply, and archive skills through Claude Code, Codex, or Pi. An optional human review step sits before implementation. Requires a local account and your own agent API keys or authorized provider access.
 
-### Hosted services
-
-#### MySpec
-
-[MySpec](https://myspec.dev) guides spec interviews and exports four-file bundles or OpenSpec-compatible changes. Its MCP server and [Claude Code plugins](https://github.com/myspecs/claude-plugins) let agents read specs and implement changes task by task.
-
-- **Access:** cloud beta with a required account and a free tier. No credit card required.
-- **Data:** submitted content goes to third-party AI providers. The service is not designed for sensitive data.
-
-#### Entalpa
-
-[Entalpa](https://entalpa.com/en/openspec) imports up to 300 requirements from a public GitHub repository's specs. It adds inferred stakeholders, stories, and open questions, and can export an OpenSpec spec tree. It does not write to the repository.
-
-- **Access:** importing and reading need no account. Saving or editing requires one. AI features use paid credits.
-- **Data:** imported content goes to third-party AI providers.
-
-#### OpenSpec Review and Compact
-
-SkillGild's [OpenSpec Review](https://skillgild.dev/skills/openspec-review) shares a change for review by link, previews the archived spec, and flags requirements touched by other open changes. Anyone holding the link can approve, request changes, or comment without an account. [OpenSpec Compact](https://skillgild.dev/skills/openspec-compact) finds similar requirements and repeated scenarios, then writes a cleanup change.
-
-- **Access:** requires the SkillGild CLI and a free account, with 25 runs per month per skill. Supports Claude Code, Codex, Cursor, Gemini CLI, and MCP clients.
-- **Data:** both send specs to SkillGild's servers, which run closed-source code without AI model calls. Review also sends the proposal, design, and tasks, and retains the change for 30 days.
-
 ## Add a schema or project
 
-[Open an issue](https://github.com/Fission-AI/OpenSpec/issues/new/choose) with the name, a direct repository or project link, and a short description of how it supports OpenSpec. For a schema, include its maintainer and what the workflow changes. Maintainers review and add entries here.
+[Open an issue](https://github.com/Fission-AI/OpenSpec/issues/new/choose) with the name, a public source repository link, and a short description of how it supports OpenSpec. For a schema, include its maintainer and what the workflow changes. Maintainers review and add entries here.
 
 - Describe what people can use. Leave out promotional claims, referral links, and tracking links.
-- Disclose required accounts, paid features, and where hosted services send user data.
-- Hosted or paid services must add a capability beyond OpenSpec's own skills or commands and offer a free way to try it.
+- Include an open-source license and a documented OpenSpec integration or example.
+- The OpenSpec functionality must work without requiring the project's proprietary hosted service.
+- Disclose any required coding-agent accounts or credentials.
 
 Use the same issue process to correct or update a listing.

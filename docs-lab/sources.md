@@ -20,7 +20,7 @@ and the redirect list at cutover. The target structure is the page index in
 | editing-changes.md | `guides/change-course.md` |
 | team-workflow.md | `guides/teams.md` |
 | examples.md | parked: `guides/examples.md` skeleton kept off the index and sync config until real archived changes exist (see README TODOs) |
-| community.md | `community/index.md` (projects, hosted services, and submission guidance) |
+| community.md | `community/index.md` (open-source projects and submission guidance) |
 | customization.md | `customize/project-config.md` + `customize/schemas.md` + `customize/overview.md` (decision ladder) · schema.yaml fields to `reference/schemas/schema-yaml.md` · community catalog to `community/index.md` |
 | multi-language.md | `customize/project-config.md` §context, the "Another language" note |
 | stores-beta/user-guide.md | `multi-repo/stores.md` · worksets section to `multi-repo/worksets.md` |
