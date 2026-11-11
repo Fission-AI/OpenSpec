@@ -10,6 +10,7 @@ import { getConfiguredTools } from '../../src/core/shared/tool-detection.js';
 import { detectLegacyArtifacts } from '../../src/core/legacy-cleanup.js';
 import { hasProjectConfigDrift } from '../../src/core/profile-sync-drift.js';
 import { CORE_WORKFLOWS } from '../../src/core/profiles.js';
+import { releasedCodexPrompt } from '../helpers/released-codex-prompt.js';
 
 vi.mock('../../src/utils/interactive.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../src/utils/interactive.js')>();
@@ -633,6 +634,45 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     } finally {
       await fs.chmod(p('.claude', 'skills'), 0o755);
     }
+  });
+
+  it('init --tools none touches no tool already set up', async () => {
+    await new InitCommand({ tools: 'claude', force: true }).execute(project);
+    await fs.mkdir(p('.claude', 'commands', 'opsx'), { recursive: true });
+    await fs.copyFile(
+      path.join(FIXTURES, 'v1.0.0-claude-command-opsx-explore.md'),
+      p('.claude', 'commands', 'opsx', 'explore.md')
+    );
+    const before = readlinkSync(p('.claude', 'skills', 'openspec-explore'));
+
+    await new InitCommand({ tools: 'none', force: true }).execute(project);
+
+    expect(await exists('.claude/commands/opsx/explore.md')).toBe(true);
+    expect(readlinkSync(p('.claude', 'skills', 'openspec-explore'))).toBe(before);
+  });
+
+  it('lists an edited Codex prompt it keeps while removing the untouched ones', async () => {
+    await new InitCommand({ tools: 'codex', force: true }).execute(project);
+    const prompts = path.join(root, 'home', '.codex', 'prompts');
+    await fs.mkdir(prompts, { recursive: true });
+    await fs.writeFile(path.join(prompts, 'opsx-explore.md'), releasedCodexPrompt('opsx-explore.md'));
+    await fs.writeFile(path.join(prompts, 'opsx-apply.md'), `${releasedCodexPrompt('opsx-apply.md')}\nMY EDIT\n`);
+
+    logs = [];
+    await new UpdateCommand({ force: true }).execute(project);
+
+    expect(await fs.access(path.join(prompts, 'opsx-explore.md')).then(() => true, () => false)).toBe(false);
+    expect(readFileSync(path.join(prompts, 'opsx-apply.md'), 'utf8')).toContain('MY EDIT');
+    expect(logs.join('\n')).toContain('Kept 1 prompt file in your home folder');
+    expect(logs.join('\n')).toContain(path.join(prompts, 'opsx-apply.md'));
+  });
+
+  it('never adds the retired delivery key when saving the config', async () => {
+    const { configSetCommand } = await import('../../src/commands/config.js');
+    configSetCommand('profile', 'custom', {});
+    const saved = JSON.parse(readFileSync(path.join(root, 'home', '.config', 'openspec', 'config.json'), 'utf8'));
+    expect(saved.profile).toBe('custom');
+    expect('delivery' in saved).toBe(false);
   });
 
   it('records a project set up with exactly the core workflows as the core profile, without delivery', async () => {

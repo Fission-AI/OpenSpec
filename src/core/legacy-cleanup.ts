@@ -574,6 +574,30 @@ async function detectLegacyGlobalPromptFiles(): Promise<LegacyGlobalPromptMatch[
 }
 
 /**
+ * Home-folder prompts with OpenSpec's file names whose text no release wrote:
+ * edited, so kept. Listed when update cleans up the others.
+ */
+export async function findEditedLegacyGlobalPrompts(): Promise<string[]> {
+  const edited: string[] = [];
+  for (const pattern of Object.values(LEGACY_GLOBAL_SLASH_COMMAND_PATHS)) {
+    const promptDir = pattern.resolvePromptDir();
+    try {
+      const entries = await fs.readdir(promptDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile() || !pattern.managedFileNames.includes(entry.name)) continue;
+        const fullPath = path.join(promptDir, entry.name);
+        if (!getManagedGlobalLegacyPromptMetadata(fullPath)) continue;
+        const content = await readRegularFileNoFollow(fullPath);
+        if (content !== undefined && !isReleasedGeneratedContent(content)) edited.push(fullPath);
+      }
+    } catch {
+      // Directory does not exist or cannot be read.
+    }
+  }
+  return edited;
+}
+
+/**
  * Finds legacy slash command files matching a glob pattern.
  *
  * @param projectPath - The root path of the project

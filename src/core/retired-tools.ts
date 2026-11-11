@@ -84,11 +84,13 @@ export async function cleanUpRetiredTools(
 }
 
 /** What `init` and `update` print after cleaning up a retired tool. */
-export function formatRetiredToolCleanup(result: RetiredToolCleanup): string[] {
+export function formatRetiredToolCleanup(result: RetiredToolCleanup, successorSetUp = false): string[] {
   const { tool, removed, kept } = result;
-  const lines = [
-    `${tool.name} is no longer supported: ${tool.reason}. Set up ${tool.successorName} instead: openspec init --tools ${tool.successor}`,
-  ];
+  // No advice to set up the successor when it is already (or being) set up.
+  const advice = successorSetUp
+    ? ''
+    : ` Set up ${tool.successorName} instead: openspec init --tools ${tool.successor}`;
+  const lines = [`${tool.name} is no longer supported: ${tool.reason}.${advice}`];
   if (removed.length > 0) {
     lines.push(
       `  Removed ${removed.length} OpenSpec ${removed.length === 1 ? 'file' : 'files'} from ${tool.folder}/.`

@@ -1,7 +1,8 @@
 /**
  * Command File Reconciliation
  *
- * Removing generated command files when delivery becomes skills-only.
+ * Removing the command files earlier versions generated (OpenSpec 2.0
+ * installs skills only), keeping any the user edited.
  */
 
 import * as fs from 'fs';

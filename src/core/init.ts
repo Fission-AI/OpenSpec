@@ -900,8 +900,8 @@ export class InitCommand {
   // ═══════════════════════════════════════════════════════════
 
   /**
-   * Generates skill files and slash commands for each selected tool,
-   * honoring the configured delivery mode (skills, commands, or both).
+   * Generates skill files for each selected tool (skills only: no command
+   * files), and removes the command files earlier versions generated.
    *
    * @param projectPath - Absolute path to the project root
    * @param tools - Selected tools with their skill directory metadata
@@ -938,9 +938,11 @@ export class InitCommand {
     // Every tool's project skills are one shared copy in `.agents/skills/`,
     // written once for the selected tools and every tool already set up here
     // (so re-running init for one tool keeps the others listed).
-    const sharedToolIds = [
-      ...new Set([...tools.map((tool) => tool.value), ...getConfiguredTools(projectPath)]),
-    ];
+    // `--tools none` sets up no tool and touches none already set up.
+    const sharedToolIds =
+      tools.length === 0
+        ? []
+        : [...new Set([...tools.map((tool) => tool.value), ...getConfiguredTools(projectPath)])];
     let ownFolderErrors = new Map<string, Error>();
     try {
       const shared = await installSharedSkills({
@@ -954,6 +956,14 @@ export class InitCommand {
       });
       if (shared.writtenSkillCount === 0) removedSkillCount += shared.removedSkillCount;
       ownFolderErrors = shared.toolFailures;
+      if (shared.replacedOldCopyCount > 0) {
+        console.log(
+          chalk.dim(
+            `Replaced ${shared.replacedOldCopyCount} unchanged skill cop${shared.replacedOldCopyCount === 1 ? 'y' : 'ies'} ` +
+              'in tool folders with the one shared copy in .agents/skills.'
+          )
+        );
+      }
       for (const line of formatKeptSkills(shared.kept, shared.linkedOutside)) console.log(chalk.yellow(line));
     } catch (error) {
       // Every tool sharing the folder fails with this.
@@ -972,7 +982,7 @@ export class InitCommand {
       remove: (fullPath) => fs.promises.unlink(fullPath),
       prune: true,
     })) {
-      const [headline, ...detail] = formatRetiredToolCleanup(retired);
+      const [headline, ...detail] = formatRetiredToolCleanup(retired, sharedToolIds.includes(retired.tool.successor));
       console.log(chalk.yellow(headline));
       for (const line of detail) console.log(chalk.dim(line));
     }

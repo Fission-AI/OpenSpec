@@ -33,6 +33,7 @@ import {
   formatDeferredGlobalPromptSummary,
   formatCleanupSummary,
   formatDetectionSummary,
+  findEditedLegacyGlobalPrompts,
   getLegacyGlobalPromptMatches,
   getLegacyWorkflowIdsForTool,
   getToolsFromLegacyArtifacts,
@@ -294,7 +295,11 @@ export class UpdateCommand {
       remove: (fullPath) => this.ops.removeFile(fullPath, 'openspec'),
       prune: !this.dryRun,
     })) {
-      const [headline, ...detail] = formatRetiredToolCleanup(retired);
+      // Said when something was removed (or on --force); a project whose only
+      // retired-tool files are edited ones isn't told again on every run.
+      if (retired.removed.length === 0 && !this.force) continue;
+      const successorSetUp = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view).includes(retired.tool.successor);
+      const [headline, ...detail] = formatRetiredToolCleanup(retired, successorSetUp);
       this.log(chalk.yellow(headline));
       for (const line of detail) this.log(chalk.dim(line));
     }
@@ -406,7 +411,7 @@ export class UpdateCommand {
     }
     this.log();
 
-    // 9. Determine what to generate based on delivery
+    // 9. (Skills only: there is no command delivery to decide.)
     // 10. Update tools (all if force, otherwise only those needing update)
     const toolsToUpdate = this.force ? configuredTools : [...toolsToUpdateSet];
     const updatedTools: string[] = [];
@@ -570,7 +575,7 @@ export class UpdateCommand {
         chalk.yellow(
           `Kept ${count} skill folder${count === 1 ? '' : 's'} that ${count === 1 ? 'differs' : 'differ'} ` +
             `from what OpenSpec writes (edited, or a link): ${this.keptOwnSkills.join(', ')}. ` +
-            `Nothing was written there; delete ${count === 1 ? 'it' : 'them'} to have OpenSpec install its own.`
+            `Nothing was written there. Delete ${count === 1 ? 'it' : 'them'} when you no longer need ${count === 1 ? 'it' : 'them'}.`
         )
       );
     }
@@ -1461,6 +1466,21 @@ export class UpdateCommand {
 
     const blockedMatches = getLegacyGlobalPromptMatches(detection)
       .filter((prompt) => !removableMatches.some((match) => match.path === prompt.path));
+
+    if (removableMatches.length > 0) {
+      const edited = await findEditedLegacyGlobalPrompts();
+      if (edited.length > 0) {
+        this.log(
+          chalk.yellow(
+            `Kept ${edited.length} prompt ${edited.length === 1 ? 'file' : 'files'} in your home folder that ` +
+              `${edited.length === 1 ? 'differs' : 'differ'} from what OpenSpec generated (likely edited):`
+          )
+        );
+        for (const file of edited) this.log(chalk.dim(`  ${file}`));
+        this.log(chalk.dim('Move anything worth keeping into the skill, then delete by hand.'));
+        this.log();
+      }
+    }
 
     if (blockedMatches.length > 0) {
       this.log(chalk.yellow('Preserved deferred global prompts without replacement skills:'));

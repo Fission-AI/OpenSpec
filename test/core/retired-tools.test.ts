@@ -73,6 +73,8 @@ describe('retired tools', () => {
     expect(result.kept).toEqual([]);
     expect(await exists('.amazonq')).toBe(false);
     expect(formatRetiredToolCleanup(result)[0]).toContain('openspec init --tools kiro');
+    // Already set up: no advice to set it up.
+    expect(formatRetiredToolCleanup(result, true)[0]).not.toContain('Set up Kiro');
   });
 
   it('keeps edited files and the user’s own files, and says so', async () => {

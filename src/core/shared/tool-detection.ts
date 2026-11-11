@@ -75,9 +75,8 @@ export interface ToolVersionStatus {
   /** Whether the tool has any skills or commands configured */
   configured: boolean;
   /**
-   * The generatedBy version recorded in the tool's skill files. For a tool that
-   * has commands but no skills, the current version when the command files match
-   * what would be generated now. Null when neither says the files are current.
+   * The generatedBy version recorded in the tool's skill files. Null when no
+   * skill says the files are current (a commands-only install never is).
    */
   generatedByVersion: string | null;
   /** Whether the tool needs updating (version mismatch or missing) */
@@ -272,8 +271,8 @@ export function extractGeneratedByVersion(
 }
 
 /**
- * Gets version status for a tool by reading its skill files, falling back to a
- * command-content fingerprint for installs that have commands but no skills.
+ * Gets version status for a tool by reading its skill files. Command files
+ * never make a tool current: OpenSpec 2.0 installs skills only.
  */
 export function getToolVersionStatus(
   projectRoot: string,

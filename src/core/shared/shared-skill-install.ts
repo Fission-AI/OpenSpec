@@ -323,11 +323,6 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   return result;
 }
 
-/**
- * Whether two folders are, through links, the same folder or one inside the
- * other. Then a tool's own skills folder is the shared one, and settling it
- * would remove the very copy every tool reads.
- */
 /** Whether a tool's own skills folder stays inside the project through links. */
 function ownFolderInProject(projectPath: string, ownDir: string): boolean {
   try {
@@ -366,6 +361,11 @@ export function formatKeptSkills(kept: readonly string[], linkedOutside: readonl
   return lines;
 }
 
+/**
+ * Whether two folders are, through links, the same folder or one inside the
+ * other. Then a tool's own skills folder is the shared one, and settling it
+ * would remove the very copy every tool reads.
+ */
 export function isSameFolderTree(a: string, b: string): boolean {
   return isWithinFolder(a, b) || isWithinFolder(b, a);
 }
