@@ -2,9 +2,9 @@
 
 > Which AI coding tools OpenSpec supports, and how to invoke each one's skills.
 
-Every tool in the matrix runs the same OpenSpec workflows, installed as skills. OpenSpec
-2.0 installs skills only: the command files earlier versions wrote are removed on the
-next `openspec update`, and any you edited are kept ([Upgrade to 2.0](../help/upgrade-to-2.md)).
+Every tool in the matrix runs the same OpenSpec workflows, installed as skills. Earlier
+versions also wrote command files. [Upgrade to 2.0](../help/upgrade-to-2.md) covers what
+happens to them.
 
 ## Where skills go
 
@@ -126,11 +126,6 @@ retiring it in favor of Kiro. `openspec init --tools amazon-q` stops with that
 message. In a project set up for it, `openspec update` removes the prompts and skills
 OpenSpec wrote in `.amazonq/`, and keeps and lists any you edited. Set up Kiro
 instead: `openspec init --tools kiro`.
-
-### Amp
-
-- **Project skills**: Amp reads OpenSpec skills from `.agents/skills/`.
-- **Shared folder**: Amp reads the same `.agents/skills/` copy as every other tool.
 
 ### Antigravity
 

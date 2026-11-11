@@ -66,7 +66,7 @@ Work out where `openspec/` should go, and lead with your best guess rather than 
 
 init creates `openspec/` wherever you point it and won't warn you when that's wrong. If the folder is a home directory, a temp directory, or holds no project at all, stop and ask where the project is.
 
-Then work out which AI coding tools the user works with, and again lead with an inference instead of an open question: you are probably running inside one of them, so name it and ask what else they use, suggesting a few common options (Claude Code, Cursor, Copilot, Codex). Say what the answer changes: each tool named reads the shared skills in `.agents/skills/` (some get links in their own folder), and re-running init later adds more, so a short list now costs nothing. Map each tool to an id from `openspec init --help` (Copilot is `github-copilot`, Zoo Code is `roocode`). `--tools` takes a comma-separated list, so name all of them.
+Then work out which AI coding tools the user works with, and again lead with an inference instead of an open question: you are probably running inside one of them, so name it and ask what else they use, suggesting a few common options (Claude Code, Cursor, Copilot, Codex). Say what the answer changes: each tool named reads the shared skills in `.agents/skills/` (some through links in their own folder; MiniMax Code uses `~/.minimax/skills/` instead), and re-running init later adds more, so a short list now costs nothing. Map each tool to an id from `openspec init --help` (Copilot is `github-copilot`, Zoo Code is `roocode`). `--tools` takes a comma-separated list, so name all of them.
 
 `openspec init --tools <ids>` deletes leftovers from older OpenSpec versions automatically, without asking, including `opsx-*.md` prompt files in the home directory (Codex keeps them in `~/.codex/prompts`). Before running it, look for those: `.../commands/openspec/` folders, OpenSpec marker blocks in files like CLAUDE.md or AGENTS.md, and home-directory `opsx-*.md` prompts. List whatever you find, say plainly that init will delete these, and wait for a go-ahead; if you find nothing, say so and carry on without asking. An existing `openspec/` folder is not a problem: init refreshes it and leaves specs and changes alone.
 
@@ -76,7 +76,7 @@ Then run: `openspec init --tools <ids>`, adding the path when it isn't the curre
 
 Don't assume what should exist; relay what init actually printed: how many skills it created and where, the config file line, any "Setup required" note, and what to restart or reload. OpenSpec installs skills only, so zero command files is expected, not a failure.
 
-Finish by telling the user how to invoke OpenSpec in their tool, using the "Getting started" line init printed: skills are invoked by name (`/openspec-propose` in most tools, `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code), or the user can simply ask for the work.
+Finish by telling the user how to invoke OpenSpec in their tool, using the "Getting started" line init printed: skills are invoked by name (`/openspec-propose` in most tools, `$openspec-propose` in Codex, `/skill:openspec-propose` in Kimi Code), or the user can ask for the work in plain words.
 
 EXECUTE NOW: Complete the TODO list above to achieve: the OpenSpec CLI installed, this project initialized, and the user told exactly how to invoke OpenSpec in their AI coding tool.
 

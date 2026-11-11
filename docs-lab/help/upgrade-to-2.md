@@ -17,6 +17,8 @@ To upgrade, update the CLI, then run `openspec update` in each project. Your ski
 
 ## Upgrade a project
 
+Commit your work first, so you can go back to it. `git stash` can't hold the upgrade itself, because git can't stash a folder that became a link.
+
 **1. Update the CLI** the way you installed it ([Updating](../start/installation.md#updating)).
 
 **2. Run update in each project.** In your terminal:
@@ -29,15 +31,14 @@ openspec update
 
 Running `update` again changes nothing.
 
-Commit your work before you upgrade, so you can go back to it. `git stash` can't hold the upgrade itself, because git can't stash a folder that became a link.
-
 ## What update does
 
 - **Skills**: written once to `.agents/skills/`, with a link from a tool's own folder where the tool needs one (`.claude/skills/`, for example).
 - **Old skill copies**: the copies earlier versions wrote into each tool's folder are removed.
 - **Command files**: the command files earlier versions generated are removed.
 - **Files you edited**: kept and listed, never removed. The next sections show what to do with them.
-- **Links**: never followed out of the project. Outside the project, `update` writes only your global config and, for MiniMax Code, `~/.minimax/skills/`.
+- **Links**: never followed out of the project.
+- **Outside the project**: `update` changes only your global config, `~/.minimax/skills/` for MiniMax Code, and old OpenSpec prompts in `~/.codex/prompts/`. It removes those prompts only with `--force` or after you confirm.
 
 ## Old commands and their skills
 
@@ -72,7 +73,7 @@ Move anything worth keeping into the skill, then delete by hand.
 
 Your tool may still show a kept file as a command. Delete it once you've moved what you need.
 
-A project set up before 1.0 has older files, such as `.claude/commands/openspec/`. `update` asks before removing those. With `--force` it removes them without asking, edited or not, so back them up first.
+A project set up before 1.0 has older files, such as `.claude/commands/openspec/`. When they're unchanged from an earlier release, `update` removes them without asking. Otherwise it asks first, and a non-interactive run leaves them alone. With `--force` it removes them without asking, edited or not, so back them up first.
 
 ## Skill folders you edited
 

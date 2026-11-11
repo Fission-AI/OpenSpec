@@ -147,7 +147,7 @@ Now talk to your AI:
 
 Both are in the default profile. If you want the expanded workflow (`openspec-new-change`, `openspec-continue-change`, `openspec-ff-change`, `openspec-verify-change`, `openspec-bulk-archive-change`, `openspec-onboard`), select it with `openspec config profile` and apply with `openspec update`.
 
-These are skills: most tools invoke them as `/openspec-propose`, Codex as `$openspec-propose`, and you can always just ask for the work. `openspec init` prints the right form for the tools you picked — see [Supported Tools](https://openspec.dev/docs/supported-tools). Coming from 1.x and its `/opsx:*` commands? See [Upgrade to 2.0](https://openspec.dev/docs/upgrade-to-2).
+These are skills. Most tools invoke them as `/openspec-propose` and Codex as `$openspec-propose`, or you can ask for the work in plain words. `openspec init` prints the right form for the tools you picked — see [Supported Tools](https://openspec.dev/docs/supported-tools). Coming from 1.x and its `/opsx:*` commands? See [Upgrade to 2.0](https://openspec.dev/docs/upgrade-to-2).
 
 > [!NOTE]
 > Not sure if your tool is supported? [View the full list](https://openspec.dev/docs/supported-tools) – we support 30+ tools and growing.

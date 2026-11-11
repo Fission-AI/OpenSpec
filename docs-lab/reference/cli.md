@@ -112,7 +112,7 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 
 **Output**
 
-OpenSpec writes its skills once, to `.agents/skills/`. Tools that need it get links in their own folder:
+OpenSpec writes its skills once, to `.agents/skills/`. Tools that need them get links in their own folder:
 
 ```
 ▌ OpenSpec structure created
@@ -223,9 +223,9 @@ Updating 1 tool(s): claude (1.6.0 → 1.7.0)
 
 ✓ Updated: Claude Code (v1.7.0)
 Tools: Claude Code
-
-Restart your IDE for changes to take effect.
 ```
+
+An update that touches an IDE-based tool, such as Cursor or Kiro, ends with `Restart your IDE to refresh skills.`
 
 In a directory without OpenSpec, update refuses:
 

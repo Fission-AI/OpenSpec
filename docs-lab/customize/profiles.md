@@ -42,7 +42,9 @@ The picker lists all twelve workflows as checkboxes, with the installed ones che
 
 ## Delivery (retired in 2.0)
 
-OpenSpec 2.0 installs skills only, so the `delivery` setting no longer changes anything. An existing value is kept, and `openspec config set delivery <value>` still works but only prints a note. In 1.x, delivery chose between skills, commands, or both; [Upgrade to 2.0](../help/upgrade-to-2.md) covers what happens to command files.
+OpenSpec 2.0 installs skills only, so the `delivery` setting no longer changes anything. An existing value is kept. `openspec config set delivery <value>` still saves the value, and prints a note that it has no effect.
+
+In 1.x, delivery chose between skills, commands, or both. [Upgrade to 2.0](../help/upgrade-to-2.md) covers what happens to command files.
 
 ## Switching profiles
 
