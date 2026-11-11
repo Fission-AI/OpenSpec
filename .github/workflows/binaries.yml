@@ -28,10 +28,35 @@ env:
   REF: ${{ github.event.release.tag_name || inputs.tag || github.sha }}
 
 jobs:
+  # A pull request that changes documentation only skips the binaries.
+  # Keep this list identical to the one in ci.yml (test/ci-docs-only.test.ts checks).
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.code.outputs.code || 'true' }}
+    steps:
+      - name: Check for changes outside documentation
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: code
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!docs-lab/**'
+              - '!website/**'
+              - '!assets/**'
+              - '!*.md'
+
   build:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
