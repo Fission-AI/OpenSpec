@@ -183,7 +183,7 @@ jobs:
         run: >-
           pnpm exec vitest run
           test/apply-docs-claims.test.ts
-          test/delivery-deprecation-docs-claims.test.ts
+          test/upgrade-to-2-docs-claims.test.ts
           test/explore-docs-claims.test.ts
           test/init-store-docs-claims.test.ts
           test/setup-docs-claims.test.ts
