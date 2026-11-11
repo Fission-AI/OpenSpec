@@ -163,6 +163,7 @@ export class UpdateCommand {
   private keptOwnSkills: string[] = [];
   /** Backups of edited own-folder skills refreshed this run. */
   private savedOwnSkills: string[] = [];
+  private editedGlobalPromptsReported = false;
   private recorder: UpdatePlanRecorder | null = null;
   private ops: UpdateFileOps = realFileOps;
 
@@ -674,6 +675,7 @@ export class UpdateCommand {
       replacedOldCopyCount: 0,
       kept: [],
       linkedOutside: [],
+      refreshedEdited: [],
       toolFailures: new Map(),
     };
     if (!toolOptions(toolsToRefresh).some(usesSharedSkills)) return empty;
@@ -695,7 +697,7 @@ export class UpdateCommand {
           )
         );
       }
-      for (const line of formatKeptSkills(result.kept, result.linkedOutside)) this.log(chalk.yellow(line));
+      for (const line of formatKeptSkills(result.kept, result.linkedOutside, result.refreshedEdited)) this.log(chalk.yellow(line));
       return result;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1292,6 +1294,10 @@ export class UpdateCommand {
     // Detect legacy artifacts
     const detection = await detectLegacyArtifacts(projectPath);
 
+    // Edited prompts are never part of the cleanup, so they are reported on
+    // their own: on every --force run, even when nothing is left to remove.
+    if (this.force) await this.reportEditedGlobalPrompts();
+
     if (!detection.hasLegacyArtifacts) {
       return { newlyConfiguredTools: [], workflowOverrides: {} }; // No legacy artifacts found
     }
@@ -1467,20 +1473,7 @@ export class UpdateCommand {
     const blockedMatches = getLegacyGlobalPromptMatches(detection)
       .filter((prompt) => !removableMatches.some((match) => match.path === prompt.path));
 
-    if (removableMatches.length > 0) {
-      const edited = await findEditedLegacyGlobalPrompts();
-      if (edited.length > 0) {
-        this.log(
-          chalk.yellow(
-            `Kept ${edited.length} prompt ${edited.length === 1 ? 'file' : 'files'} in your home folder that ` +
-              `${edited.length === 1 ? 'differs' : 'differ'} from what OpenSpec generated (likely edited):`
-          )
-        );
-        for (const file of edited) this.log(chalk.dim(`  ${file}`));
-        this.log(chalk.dim('Move anything worth keeping into the skill, then delete by hand.'));
-        this.log();
-      }
-    }
+    if (removableMatches.length > 0) await this.reportEditedGlobalPrompts();
 
     if (blockedMatches.length > 0) {
       this.log(chalk.yellow('Preserved deferred global prompts without replacement skills:'));
@@ -1489,6 +1482,26 @@ export class UpdateCommand {
       }
       this.log();
     }
+  }
+
+  /**
+   * Lists home-folder prompts with OpenSpec's file names that the user
+   * edited: kept by every cleanup, so said once per run.
+   */
+  private async reportEditedGlobalPrompts(): Promise<void> {
+    if (this.editedGlobalPromptsReported) return;
+    this.editedGlobalPromptsReported = true;
+    const edited = await findEditedLegacyGlobalPrompts();
+    if (edited.length === 0) return;
+    this.log(
+      chalk.yellow(
+        `Kept ${edited.length} prompt ${edited.length === 1 ? 'file' : 'files'} in your home folder that ` +
+          `${edited.length === 1 ? 'differs' : 'differ'} from what OpenSpec generated (likely edited):`
+      )
+    );
+    for (const file of edited) this.log(chalk.dim(`  ${file}`));
+    this.log(chalk.dim('Move anything worth keeping into the skill, then delete by hand.'));
+    this.log();
   }
 
   /**

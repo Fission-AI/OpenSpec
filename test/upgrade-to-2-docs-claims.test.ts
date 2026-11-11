@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { WORKFLOW_TO_SKILL_DIR } from '../src/core/profile-sync-drift.js';
 import { DELIVERY_RETIRED_NOTE } from '../src/commands/config.js';
 import { ALL_WORKFLOWS } from '../src/core/profiles.js';
+import { formatKeptSkills } from '../src/core/shared/shared-skill-install.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (...segments: string[]) => fs.readFileSync(path.join(REPO_ROOT, ...segments), 'utf-8');
@@ -17,6 +18,15 @@ describe('OpenSpec 2.0 documentation', () => {
     for (const workflow of ALL_WORKFLOWS) {
       expect(UPGRADE, workflow).toContain(`| \`/opsx:${workflow}\` | \`${WORKFLOW_TO_SKILL_DIR[workflow]}\` |`);
     }
+  });
+
+  it('warns that an edit inside a skill OpenSpec installs is replaced, quoting the real notice', () => {
+    // The guide must not promise that every edit is kept (#2223 review).
+    expect(UPGRADE).not.toMatch(/never removed/i);
+    expect(UPGRADE).toContain('> [!WARNING]');
+    const [notice] = formatKeptSkills([], [], ['.agents/skills/openspec-propose/SKILL.md']);
+    expect(UPGRADE).toContain(notice);
+    expect(read('.changeset', 'share-skills-in-agents-folder.md')).not.toMatch(/Nothing you edited is deleted/i);
   });
 
   it('shows the note the CLI prints for the retired delivery setting', () => {

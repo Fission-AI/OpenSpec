@@ -2,7 +2,7 @@
 "@fission-ai/openspec": major
 ---
 
-OpenSpec 2.0 installs skills only, in one shared folder. Run `openspec update` in each project to move it over. Nothing you edited is deleted. See [Upgrade to 2.0](https://openspec.dev/docs/upgrade-to-2).
+OpenSpec 2.0 installs skills only, in one shared folder. Run `openspec update` in each project to move it over. Old command files and old skill copies you edited are kept. An edit inside a skill OpenSpec installs in `.agents/skills/` is replaced, as in 1.x, so save those first. See [Upgrade to 2.0](https://openspec.dev/docs/upgrade-to-2).
 
 - **Skills only.** OpenSpec no longer writes `/opsx:*` command files. Each command has a skill with the same instructions. For example, `/opsx:propose` becomes `openspec-propose`, which you invoke as `/openspec-propose` (`$openspec-propose` in Codex). `openspec update` removes the command files earlier versions generated, and keeps and lists any you edited.
 - **One shared copy.** Skills are written once, to `.agents/skills/`, instead of a copy per tool. Claude Code, Continue, ForgeCode, Kiro, CodeBuddy, EasyCode, iFlow, CodeArts, Lingma, GigaCode, Veai, Rovo Dev, Code Studio and Hermes Agent get a link to each skill in their own `skills/` folder (a plain copy where a link can't be made). Old per-tool copies are removed, or kept and reported if you edited them.

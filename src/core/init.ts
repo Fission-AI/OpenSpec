@@ -964,7 +964,7 @@ export class InitCommand {
           )
         );
       }
-      for (const line of formatKeptSkills(shared.kept, shared.linkedOutside)) console.log(chalk.yellow(line));
+      for (const line of formatKeptSkills(shared.kept, shared.linkedOutside, shared.refreshedEdited)) console.log(chalk.yellow(line));
     } catch (error) {
       // Every tool sharing the folder fails with this.
       const message = error instanceof Error ? error.message : String(error);

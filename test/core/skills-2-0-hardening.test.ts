@@ -675,6 +675,54 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     expect('delivery' in saved).toBe(false);
   });
 
+  it('says which edited skills it replaced when refreshing the skills it installs', async () => {
+    await new InitCommand({ tools: 'codex,claude', force: true }).execute(project);
+    await fs.appendFile(p('.agents', 'skills', 'openspec-propose', 'SKILL.md'), '\nMY EDIT\n');
+
+    logs = [];
+    await new UpdateCommand({ force: true }).execute(project);
+
+    // Refreshed in place, as in 1.x: the edit is gone, and update says so.
+    expect(await read('.agents/skills/openspec-propose/SKILL.md')).not.toContain('MY EDIT');
+    const out = logs.join('\n');
+    expect(out).toContain('Replaced your edits in 1 skill OpenSpec installs: .agents/skills/openspec-propose/SKILL.md');
+
+    // Untouched skills are never reported.
+    logs = [];
+    await new UpdateCommand({ force: true }).execute(project);
+    expect(logs.join('\n')).not.toContain('Replaced your edits');
+  });
+
+  it('init says so too when it replaces an edited skill', async () => {
+    await new InitCommand({ tools: 'cursor', force: true }).execute(project);
+    await fs.appendFile(p('.agents', 'skills', 'openspec-explore', 'SKILL.md'), '\nMY EDIT\n');
+
+    logs = [];
+    await new InitCommand({ tools: 'cursor', force: true }).execute(project);
+
+    expect(logs.join('\n')).toContain('Replaced your edits in 1 skill OpenSpec installs: .agents/skills/openspec-explore/SKILL.md');
+  });
+
+  it('lists an edited Codex prompt under --force even when no untouched prompt is left', async () => {
+    await new InitCommand({ tools: 'codex', force: true }).execute(project);
+    const prompts = path.join(root, 'home', '.codex', 'prompts');
+    await fs.mkdir(prompts, { recursive: true });
+    await fs.writeFile(path.join(prompts, 'opsx-apply.md'), `${releasedCodexPrompt('opsx-apply.md')}\nMY EDIT\n`);
+
+    logs = [];
+    await new UpdateCommand({ force: true }).execute(project);
+    const forced = logs.join('\n');
+    expect(forced).toContain('Kept 1 prompt file in your home folder');
+    expect(forced).toContain(path.join(prompts, 'opsx-apply.md'));
+    expect(forced.match(/Kept 1 prompt file in your home folder/g)).toHaveLength(1);
+    expect(readFileSync(path.join(prompts, 'opsx-apply.md'), 'utf8')).toContain('MY EDIT');
+
+    // A plain update stays quiet about another project's prompts.
+    logs = [];
+    await new UpdateCommand().execute(project);
+    expect(logs.join('\n')).not.toContain('prompt file in your home folder');
+  });
+
   it('records a project set up with exactly the core workflows as the core profile, without delivery', async () => {
     await fs.rm(path.join(root, 'home', '.config', 'openspec', 'config.json'));
     await new InitCommand({ tools: 'claude', force: true }).execute(project);

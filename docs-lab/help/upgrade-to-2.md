@@ -2,7 +2,10 @@
 
 > What changes in OpenSpec 2.0, and how to move a project over.
 
-To upgrade, update the CLI, then run `openspec update` in each project. Your skills move into one shared folder, the old command files go, and files you edited are kept.
+To upgrade, update the CLI, then run `openspec update` in each project. Your skills move into one shared folder and the old command files go. Old command files and old skill copies you edited are kept.
+
+> [!WARNING]
+> `update` replaces an edit you made inside a skill OpenSpec installs in `.agents/skills/`, and keeps no copy. Save those edits first: [Skills you customized](#skills-you-customized).
 
 ## What changes
 
@@ -17,7 +20,7 @@ To upgrade, update the CLI, then run `openspec update` in each project. Your ski
 
 ## Upgrade a project
 
-Commit your work first, so you can go back to it. `git stash` can't hold the upgrade itself, because git can't stash a folder that became a link.
+Commit your work first, so you can go back to it. That commit is also the only copy of any edit you made inside a skill in `.agents/skills/`. `git stash` can't hold the upgrade itself, because git can't stash a folder that became a link.
 
 **1. Update the CLI** the way you installed it ([Updating](../start/installation.md#updating)).
 
@@ -36,7 +39,8 @@ Running `update` again changes nothing.
 - **Skills**: written once to `.agents/skills/`, with a link from a tool's own folder where the tool needs one (`.claude/skills/`, for example).
 - **Old skill copies**: the copies earlier versions wrote into each tool's folder are removed.
 - **Command files**: the command files earlier versions generated are removed.
-- **Files you edited**: kept and listed, never removed. The next sections show what to do with them.
+- **Old files you edited**: an edited command file, or an edited skill copy in a tool's own folder, is kept and listed. The next sections show what to do with them.
+- **Skills OpenSpec installs**: refreshed in place, as every 1.x update did. An edit inside one is replaced. `update` names each skill where that happened.
 - **Links**: never followed out of the project.
 - **Outside the project**: `update` changes only your global config, `~/.minimax/skills/` for MiniMax Code, and old OpenSpec prompts in `~/.codex/prompts/`. It removes those prompts only with `--force` or after you confirm.
 
@@ -80,6 +84,19 @@ A project set up before 1.0 has older files, such as `.claude/commands/openspec/
 `update` also keeps an old skill copy you edited in a tool's own folder. A tool that reads both its own folder and `.agents/skills/` may then load that skill twice. Delete the kept folder once you've moved what you need.
 
 MiniMax Code keeps its skills in `~/.minimax/skills/`. When `update` refreshes a skill you edited there, it first saves your copy beside it as `SKILL.md.bak`.
+
+## Skills you customized
+
+`update` rewrites every skill OpenSpec installs in `.agents/skills/`, such as `.agents/skills/openspec-propose/SKILL.md`. It did the same in 1.x. If you edited one, your edit is replaced and no backup is made. `update` tells you which skills this happened to:
+
+```
+Replaced your edits in 1 skill OpenSpec installs: .agents/skills/openspec-propose/SKILL.md. OpenSpec refreshes this skill on every update and keeps no copy. Recover your text from git, and keep lasting changes in a skill of your own under another name.
+```
+
+To keep a customization across updates, put it somewhere `update` doesn't write:
+
+- **Project instructions**: `context` and `rules` in `openspec/config.yaml` give the agent your instructions without editing a skill ([Project config](../customize/project-config.md)).
+- **A skill of your own**: a skill under a name that doesn't start with `openspec-`, such as `.agents/skills/team-propose/`. `update` never touches it.
 
 ## Set up Windows for committed links
 

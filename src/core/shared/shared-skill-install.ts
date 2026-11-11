@@ -61,6 +61,11 @@ export interface SharedSkillInstallResult {
   /** Tools' old skills folders that link out of the project and still hold OpenSpec skills. */
   linkedOutside: string[];
   /**
+   * Shared skills refreshed this run whose text was neither this version's
+   * nor a release's: the user had edited them, and the edit was replaced.
+   */
+  refreshedEdited: string[];
+  /**
    * Tools whose own skills folder could not be brought up to date (for
    * example it is a link out of the project). The shared copy is still
    * written; only these tools fail.
@@ -84,6 +89,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     replacedOldCopyCount: 0,
     kept: [],
     linkedOutside: [],
+    refreshedEdited: [],
     toolFailures: new Map(),
   };
   if (tools.length === 0) return result;
@@ -171,6 +177,11 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     if (sharedSpotIsUsers(dirName)) continue;
     const skillFile = path.join(sharedDir, dirName, 'SKILL.md');
     FileSystemUtils.assertPathWithin(projectPath, skillFile);
+    // A skill OpenSpec installs is refreshed in place, as in 1.x. When the
+    // text being replaced is the user's edit, say so: it is not kept.
+    if (classifySkillFile(path.join(sharedDir, dirName), generatedTexts(dirName), view) === 'user') {
+      result.refreshedEdited.push(relative(skillFile));
+    }
     await ops.writeFile(skillFile, contents.get(dirName)!, 'openspec');
     result.writtenSkillCount += 1;
   }
@@ -334,7 +345,11 @@ function ownFolderInProject(projectPath: string, ownDir: string): boolean {
 }
 
 /** What init and update print for skill folders they kept as the user's. */
-export function formatKeptSkills(kept: readonly string[], linkedOutside: readonly string[] = []): string[] {
+export function formatKeptSkills(
+  kept: readonly string[],
+  linkedOutside: readonly string[] = [],
+  refreshedEdited: readonly string[] = []
+): string[] {
   const inShared = kept.filter((rel) => rel.startsWith('.agents/skills/'));
   const elsewhere = kept.filter((rel) => !rel.startsWith('.agents/skills/'));
   const lines: string[] = [];
@@ -350,6 +365,14 @@ export function formatKeptSkills(kept: readonly string[], linkedOutside: readonl
       `Kept ${inShared.length} skill${inShared.length === 1 ? '' : 's'} in .agents/skills as your own: ` +
         `${inShared.join(', ')}. OpenSpec won't update or remove ${inShared.length === 1 ? 'it' : 'them'}; ` +
         'delete one to have OpenSpec install its own again.'
+    );
+  }
+  if (refreshedEdited.length > 0) {
+    const one = refreshedEdited.length === 1;
+    lines.push(
+      `Replaced your edits in ${refreshedEdited.length} skill${one ? '' : 's'} OpenSpec installs: ` +
+        `${refreshedEdited.join(', ')}. OpenSpec refreshes ${one ? 'this skill' : 'these skills'} on every update ` +
+        'and keeps no copy. Recover your text from git, and keep lasting changes in a skill of your own under another name.'
     );
   }
   for (const folder of linkedOutside) {
