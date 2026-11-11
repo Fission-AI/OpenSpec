@@ -112,7 +112,7 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 
 **Output**
 
-OpenSpec writes its skills once, to `.agents/skills/`. Tools that need them get links in their own folder:
+OpenSpec writes its skills once, to `.agents/skills/`. Tools that need them get links in their own folder. MiniMax Code instead gets its own copy in `~/.minimax/skills/`:
 
 ```
 ▌ OpenSpec structure created

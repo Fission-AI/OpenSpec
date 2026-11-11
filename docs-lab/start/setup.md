@@ -59,7 +59,7 @@ Running init creates two things in your project:
 
 Commit all of it like the rest of your source.
 
-Init also removes the command files earlier versions generated, and keeps any you edited. A project set up before 1.0 also has older leftovers: folders like `.claude/commands/openspec/`, and OpenSpec marker blocks in files like `CLAUDE.md` and `AGENTS.md`. An interactive init asks before removing them. With `--tools` or in a non-interactive run, init removes them without asking, including any edits inside those blocks, so back them up first.
+Init also removes the command files earlier versions generated, and keeps any you edited. A project set up before 1.0 also has older leftovers: folders like `.claude/commands/openspec/`, and OpenSpec marker blocks in files like `CLAUDE.md` and `AGENTS.md`. An interactive init asks before removing them. With `--force`, with `--tools`, or in a non-interactive run, init removes them without asking, including any edits inside those blocks, so back them up first.
 
 ### The `openspec/` folder
 
@@ -93,7 +93,7 @@ These are the OpenSpec workflows, the actions you'll use as you work. Here they 
 
 This is the default set plus two optional workflows. [Profiles](../customize/profiles.md) lists all twelve.
 
-Each skill is written once, here, no matter how many tools you set up. A tool that doesn't read `.agents/skills/` (Claude Code, Kiro, and others) gets a link to each skill in its own folder, such as `.claude/skills/openspec-propose`. [Supported tools](../reference/supported-tools.md#where-skills-go) shows the layout and which tools get links.
+Each skill is written once, here, no matter how many tools you set up. A tool that doesn't read `.agents/skills/` (Claude Code, Kiro, and others) gets a link to each skill in its own folder, such as `.claude/skills/openspec-propose`. MiniMax Code is the one exception: its skills go to `~/.minimax/skills/` in your home folder. [Supported tools](../reference/supported-tools.md#where-skills-go) shows the layout and which tools get links.
 
 Each workflow is a **skill**: instructions your agent picks up when you ask for the work, or that you invoke by name (`/openspec-apply-change` in Claude Code, `$openspec-apply-change` in Codex). [Supported tools](../reference/supported-tools.md#support-matrix) shows the spelling for each tool.
 
