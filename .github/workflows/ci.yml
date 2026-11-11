@@ -23,6 +23,9 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       nix: ${{ steps.filter.outputs.nix }}
+      # 'false' when a pull request or merge group changes documentation only.
+      # Pushes to main and manual runs always test the CLI.
+      code: ${{ steps.code.outputs.code || 'true' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -47,11 +50,30 @@ jobs:
               - 'src/commands/completion.ts'
               - 'src/core/completions/**'
 
+      # A file counts as code unless it matches one of these documentation
+      # paths. Keep this list identical to the one in binaries.yml
+      # (test/ci-docs-only.test.ts checks).
+      - name: Check for changes outside documentation
+        if: github.event_name == 'pull_request' || github.event_name == 'merge_group'
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        id: code
+        with:
+          predicate-quantifier: every
+          filters: |
+            code:
+              - '**'
+              - '!docs/**'
+              - '!docs-lab/**'
+              - '!website/**'
+              - '!assets/**'
+              - '!*.md'
+
   test_matrix:
     name: Test (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
-    if: github.event_name == 'pull_request' || github.event_name == 'merge_group' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -127,14 +149,72 @@ jobs:
           path: coverage/
           retention-days: 7
 
+  # Documentation-only changes skip the CLI tests above and run just the tests
+  # that read the docs. Name a new docs-reading test here
+  # (test/ci-docs-only.test.ts checks).
+  docs:
+    name: Docs checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.code == 'false'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.12.0'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build project
+        run: pnpm run build
+
+      - name: Run docs tests
+        run: >-
+          pnpm exec vitest run
+          test/apply-docs-claims.test.ts
+          test/delivery-deprecation-docs-claims.test.ts
+          test/explore-docs-claims.test.ts
+          test/init-store-docs-claims.test.ts
+          test/setup-docs-claims.test.ts
+          test/skills-docs-claims.test.ts
+          test/vocabulary-sweep.test.ts
+          test/website-preview.test.ts
+          test/pnpm-workspace-config.test.ts
+          test/ci-docs-only.test.ts
+          test/core/templates/propose.test.ts
+          test/core/templates/schema-docs-instruction-parity.test.ts
+
   test_pr_required:
     name: Test
     runs-on: ubuntu-latest
-    needs: [test_matrix]
+    needs: [changes, test_matrix, docs]
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     steps:
-      - name: Verify matrix tests passed
+      - name: Verify tests passed
         run: |
+          if [[ "${{ needs.changes.result }}" != "success" ]]; then
+            echo "Change detection failed"
+            exit 1
+          fi
+          if [[ "${{ needs.changes.outputs.code }}" == "false" ]]; then
+            if [[ "${{ needs.docs.result }}" != "success" ]]; then
+              echo "Docs checks failed"
+              exit 1
+            fi
+            echo "Documentation-only change: CLI tests skipped, docs checks passed"
+            exit 0
+          fi
           if [[ "${{ needs.test_matrix.result }}" != "success" ]]; then
             echo "Matrix test job failed"
             exit 1
@@ -144,6 +224,8 @@ jobs:
   lint:
     name: Lint & Type Check
     runs-on: ubuntu-latest
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -188,6 +270,8 @@ jobs:
     name: Upgrade from releases (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -398,11 +482,23 @@ jobs:
   required-checks-pr:
     name: All checks passed
     runs-on: ubuntu-latest
-    needs: [test_matrix, lint, nix-flake-validate]
+    needs: [changes, test_matrix, lint, nix-flake-validate, docs]
     if: always() && (github.event_name == 'pull_request' || github.event_name == 'merge_group')
     steps:
       - name: Verify all checks passed
         run: |
+          if [[ "${{ needs.changes.result }}" != "success" ]]; then
+            echo "Change detection failed"
+            exit 1
+          fi
+          if [[ "${{ needs.changes.outputs.code }}" == "false" ]]; then
+            if [[ "${{ needs.docs.result }}" != "success" ]]; then
+              echo "Docs checks failed"
+              exit 1
+            fi
+            echo "Documentation-only change: CLI tests, lint and binaries skipped, docs checks passed"
+            exit 0
+          fi
           if [[ "${{ needs.test_matrix.result }}" != "success" ]]; then
             echo "Matrix test job failed"
             exit 1
