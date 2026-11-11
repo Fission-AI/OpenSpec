@@ -4,13 +4,9 @@ import { ALL_WORKFLOWS, getProfileWorkflows } from '../../../src/core/profiles.j
 import {
   resolveCommandInvocation,
   resolveCommandSurfaceCapability,
-  shouldGenerateCommandsForTool,
-  shouldGenerateSkillsForTool,
 } from '../../../src/core/command-surface.js';
-import { CommandAdapterRegistry, generateCommands } from '../../../src/core/command-generation/index.js';
 import {
   generateSkillContent,
-  getCommandContents,
   getSkillTemplates,
 } from '../../../src/core/shared/skill-generation.js';
 import { toolSupportsSkills } from '../../../src/core/shared/skill-paths.js';
@@ -49,25 +45,15 @@ describe('workflow reference guard', () => {
 
 describe.each(profiles)('$name workflow handoffs', ({ workflows }) => {
   for (const delivery of ['skills', 'commands', 'both'] as const) {
-    const tools = AI_TOOLS.filter(tool => toolSupportsSkills(tool) && (
-      shouldGenerateSkillsForTool(tool.value, delivery) || shouldGenerateCommandsForTool(tool.value, delivery)
-    ));
+    const tools = AI_TOOLS.filter(tool => toolSupportsSkills(tool));
     it.each(tools)(`only references installed workflows for $value (${delivery})`, (tool) => {
-      if (shouldGenerateSkillsForTool(tool.value, delivery)) {
-        const transformer = getTransformerForTool(
-          tool.value, delivery,
-          resolveCommandSurfaceCapability(tool.value),
-          resolveCommandInvocation(tool.value),
-        );
-        for (const { template, workflowId } of getSkillTemplates(workflows)) {
-          expectInstalledReferences(generateSkillContent(template, 'TEST', transformer), workflows, workflowId);
-        }
-      }
-      if (shouldGenerateCommandsForTool(tool.value, delivery)) {
-        const adapter = CommandAdapterRegistry.get(tool.value)!;
-        for (const command of generateCommands(getCommandContents(workflows), adapter)) {
-          expectInstalledReferences(command.fileContent, workflows, command.path);
-        }
+      const transformer = getTransformerForTool(
+        tool.value, delivery,
+        resolveCommandSurfaceCapability(tool.value),
+        resolveCommandInvocation(tool.value),
+      );
+      for (const { template, workflowId } of getSkillTemplates(workflows)) {
+        expectInstalledReferences(generateSkillContent(template, 'TEST', transformer), workflows, workflowId);
       }
     });
   }

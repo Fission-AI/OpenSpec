@@ -1,8 +1,8 @@
 # Profiles
 
-> Choose which workflows are installed, and whether they install as skills, commands, or both.
+> Choose which workflows are installed.
 
-A profile is your preference for which OpenSpec workflows (the [skills and commands](../start/setup.md#the-workflow-files-skills-and-commands) in your AI tool) are installed across your machine. The default profile is `core`. Include or exclude workflows and your selection is saved as the `custom` profile.
+A profile is your preference for which OpenSpec workflows (the [skills](../start/setup.md#the-workflow-files-skills) in your AI tool) are installed across your machine. The default profile is `core`. Include or exclude workflows and your selection is saved as the `custom` profile.
 
 ## The core set
 
@@ -38,40 +38,13 @@ To change the set, run the interactive picker:
 openspec config profile
 ```
 
-The picker asks what to configure ([delivery](#delivery-skills-commands-or-both), workflows, or both), then lists all twelve workflows as checkboxes, with the installed ones checked. Any selection that isn't exactly the core six is saved as the `custom` profile, so you can also uncheck core workflows you don't use.
+The picker lists all twelve workflows as checkboxes, with the installed ones checked. Any selection that isn't exactly the core six is saved as the `custom` profile, so you can also uncheck core workflows you don't use.
 
-## Delivery: skills, commands, or both
+## Delivery (retired in 2.0)
 
-Delivery is a profile setting that lets you choose to have only skills or only commands installed. The default is `both`. [Set up your project](../start/setup.md#the-workflow-files-skills-and-commands) explains the two forms and why both exist. The field's exact contract is in [CLI settings (config.json)](../reference/configuration/config-json.md#delivery).
+OpenSpec 2.0 installs skills only, so the `delivery` setting no longer changes anything. An existing value is kept. `openspec config set delivery <value>` still saves the value, and prints a note that it has no effect.
 
-> [!IMPORTANT]
-> Command files are deprecated and go away in OpenSpec 2.0, whatever your delivery setting. Your OpenSpec skills stay and do the same work: ask for the work, or invoke the skill by name (`/openspec-propose` instead of `/opsx:propose` in Claude Code). Until then, `openspec update` reminds you on every run while a configured tool gets command files.
->
-> To switch now, set `delivery` to `skills` and run `openspec update`. It removes only the command files OpenSpec generated; any you edited are kept and listed, so you can move what you need into a skill. The setting applies to every project on your machine, so run `openspec update` in each one. The plan is tracked in [#2022](https://github.com/Fission-AI/OpenSpec/issues/2022).
-
-Two ways to change it:
-
-**Interactively**: run `openspec config profile` and choose "Delivery only". Here's switching to skills only:
-
-```
-Current profile settings
-  Delivery: both
-
-? What do you want to configure? Delivery only
-? Delivery mode (how workflows are installed): Skills only
-
-Config changes:
-  delivery: both -> skills
-? Apply changes to this project now? (Y/n) y
-```
-
-**Directly**: one command, no prompts:
-
-```bash
-openspec config set delivery skills   # or: both, commands
-```
-
-Delivery never changes the profile name. `core` and `custom` describe the workflow set only, and switching back to `core` keeps your delivery setting.
+In 1.x, delivery chose between skills, commands, or both. [Upgrade to 2.0](../help/upgrade-to-2.md) covers what happens to command files.
 
 ## Switching profiles
 
@@ -81,7 +54,7 @@ Switching is two steps: change the profile on your machine, then update each pro
 
    ```bash
    openspec config profile        # interactive
-   openspec config profile core   # reset to the core six (keeps delivery)
+   openspec config profile core   # reset to the core six
    ```
 
 2. Run the update in each project you work in:

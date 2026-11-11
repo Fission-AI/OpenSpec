@@ -11,11 +11,23 @@ import { CORE_WORKFLOWS } from '../../src/core/profiles.js';
 import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
 import { getCommandContents } from '../../src/core/shared/index.js';
 
+/**
+ * Claude's skill as 2.0 writes it: the one shared copy in .agents/skills, a
+ * link to it from .claude/skills, and Claude listed as set up.
+ */
 function writeSkill(projectDir: string, workflowId: string): void {
   const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId as keyof typeof WORKFLOW_TO_SKILL_DIR];
-  const skillPath = path.join(projectDir, '.claude', 'skills', skillDirName, 'SKILL.md');
-  fs.mkdirSync(path.dirname(skillPath), { recursive: true });
-  fs.writeFileSync(skillPath, `name: ${skillDirName}\n`);
+  const sharedDir = path.join(projectDir, '.agents', 'skills', skillDirName);
+  fs.mkdirSync(sharedDir, { recursive: true });
+  fs.writeFileSync(path.join(sharedDir, 'SKILL.md'), `name: ${skillDirName}\n`);
+  fs.writeFileSync(path.join(projectDir, '.agents', 'skills', '.openspec-target'), 'claude\n');
+  const linkPath = path.join(projectDir, '.claude', 'skills', skillDirName);
+  fs.mkdirSync(path.dirname(linkPath), { recursive: true });
+  fs.symlinkSync(
+    process.platform === 'win32' ? sharedDir : path.join('..', '..', '.agents', 'skills', skillDirName),
+    linkPath,
+    process.platform === 'win32' ? 'junction' : 'dir'
+  );
 }
 
 function writeCommand(projectDir: string, workflowId: string): void {
@@ -76,14 +88,16 @@ describe('profile sync drift detection', () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  it('detects drift for skills-only delivery when generated commands still exist', () => {
+  it('detects drift when generated commands still exist, under every delivery setting', () => {
+    // They are removal work for update: 2.0 generates no command files.
     setupCoreSkills(tempDir);
     for (const workflow of CORE_WORKFLOWS) {
       writeGeneratedCommand(tempDir, workflow);
     }
 
-    const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'skills');
-    expect(hasDrift).toBe(true);
+    for (const delivery of ['both', 'skills', 'commands'] as const) {
+      expect(hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, delivery), delivery).toBe(true);
+    }
   });
 
   it('does not report drift for skills-only delivery when only kept command files remain', () => {
@@ -96,27 +110,14 @@ describe('profile sync drift detection', () => {
     expect(hasDrift).toBe(false);
   });
 
-  it('detects drift for commands-only delivery when skills still exist', () => {
-    setupCoreCommands(tempDir);
+  it('ignores the delivery setting: current skills and edited command files are no drift', () => {
+    // OpenSpec 2.0 installs skills only, whatever `delivery` says. Command
+    // files the user edited are kept, so they are not work for update either.
     setupCoreSkills(tempDir);
-
-    const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'commands');
-    expect(hasDrift).toBe(true);
-  });
-
-  it('does not remove global MiniMax Code skills for commands-only delivery', () => {
-    const skillPath = path.join(
-      tempDir,
-      'home',
-      '.minimax',
-      'skills',
-      'openspec-explore',
-      'SKILL.md'
-    );
-    fs.mkdirSync(path.dirname(skillPath), { recursive: true });
-    fs.writeFileSync(skillPath, 'name: openspec-explore\n');
-
-    expect(hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'commands')).toBe(false);
+    setupCoreCommands(tempDir);
+    for (const delivery of ['both', 'skills', 'commands'] as const) {
+      expect(hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, delivery), delivery).toBe(false);
+    }
   });
 
   it('detects drift when required profile workflow files are missing', () => {
@@ -142,6 +143,30 @@ describe('profile sync drift detection', () => {
 
     const hasDrift = hasProjectConfigDrift(tempDir, CORE_WORKFLOWS, 'both');
     expect(hasDrift).toBe(true);
+  });
+
+  describe('a tool own skills folder from before 2.0', () => {
+    const released = () =>
+      fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'released-output', 'v1.0.0-codex-prompt-opsx-new.md'), 'utf-8');
+    const setUp = (oldCopy: string) => {
+      const shared = path.join(tempDir, '.agents', 'skills', 'openspec-explore');
+      fs.mkdirSync(shared, { recursive: true });
+      fs.writeFileSync(path.join(shared, 'SKILL.md'), 'current shared copy\n');
+      fs.writeFileSync(path.join(tempDir, '.agents', 'skills', '.openspec-target'), 'cursor\n');
+      const old = path.join(tempDir, '.cursor', 'skills', 'openspec-explore');
+      fs.mkdirSync(old, { recursive: true });
+      fs.writeFileSync(path.join(old, 'SKILL.md'), oldCopy);
+    };
+
+    it('flags an untouched copy an earlier release left, which Cursor would load twice', () => {
+      setUp(released());
+      expect(hasToolProfileOrDeliveryDrift(tempDir, 'cursor', ['explore'], 'skills')).toBe(true);
+    });
+
+    it('does not flag a copy the user edited, so keeping it does not make every update run', () => {
+      setUp(released() + '\nMy own note.\n');
+      expect(hasToolProfileOrDeliveryDrift(tempDir, 'cursor', ['explore'], 'skills')).toBe(false);
+    });
   });
 
   it('does not report legacy Codex drift when both roots resolve to the same files', () => {

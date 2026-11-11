@@ -18,7 +18,8 @@ once the prose lands. -->
 If it has a row in the [support matrix](../reference/supported-tools.md), yes.
 Pick its id at init. If it isn't listed but reads the shared `.agents/skills/`
 folder, pick **Other / Universal** (`--tools agents`), covered by the support
-matrix's Other / Universal section. If neither, request it in the
-[OpenSpec repo](https://github.com/Fission-AI/OpenSpec/issues).
+matrix's Other / Universal section. If it reads only its own folder, point that
+folder at `.agents/skills/` with one link
+([Link another tool](../reference/supported-tools.md#link-another-tool)).
 
 ## Where did the old /openspec:* commands go?

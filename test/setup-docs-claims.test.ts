@@ -3,7 +3,8 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { claudeAdapter } from '../src/core/command-generation/adapters/claude.js';
-import { AI_TOOLS } from '../src/core/config.js';
+import { AI_TOOLS, SKILL_LINKED_TOOL_IDS } from '../src/core/config.js';
+import { SHARED_SKILLS_ROOT } from '../src/core/shared/skill-paths.js';
 import { formatProjectMdMigrationHint } from '../src/core/legacy-cleanup.js';
 import { CORE_WORKFLOWS } from '../src/core/profiles.js';
 
@@ -49,9 +50,13 @@ describe('setup documentation', () => {
     const claudeCommandPath = claudeAdapter.getFilePath('<id>').split(path.sep).join('/');
 
     expect(claude?.skillsDir).toBeDefined();
-    expect(SETUP).toContain(`\`${claude?.skillsDir}/skills/openspec-*/SKILL.md\``);
-    expect(SETUP).toContain(`\`${claudeCommandPath}\``);
-    expect(SETUP).toContain('openspec config set delivery both');
+    // Claude's skills are links in its own folder to the one shared copy.
+    expect(SKILL_LINKED_TOOL_IDS.has('claude')).toBe(true);
+    expect(SETUP).toContain(`\`${claude?.skillsDir}/skills/openspec-*\`, which link to \`${SHARED_SKILLS_ROOT}/skills/openspec-*\``);
+    // 2.0 installs skills only: the recovery is a plain update, never a
+    // command path or a delivery switch.
+    expect(SETUP).not.toContain(`\`${claudeCommandPath}\``);
+    expect(SETUP).not.toContain('openspec config set delivery');
     expect(SETUP).toContain('openspec update');
     expect(SETUP).toContain('`/openspec-propose`');
   });

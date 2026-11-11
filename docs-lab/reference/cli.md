@@ -112,7 +112,7 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 
 **Output**
 
-Each selected tool gets OpenSpec's skills and commands in its own directory:
+OpenSpec writes its skills once, to `.agents/skills/`. Tools that need them get links in their own folder. MiniMax Code instead gets its own copy in `~/.minimax/skills/`:
 
 ```
 ▌ OpenSpec structure created
@@ -121,13 +121,11 @@ Each selected tool gets OpenSpec's skills and commands in its own directory:
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills and 6 commands in .claude/
+6 skills in .agents/skills/ (linked from .claude/skills/)
 Config: openspec/config.yaml (schema: spec-driven)
 
 Getting started:
-  Start your first change: /opsx:propose "your idea"
-
-Restart your IDE for the new commands to take effect.
+  Start your first change: /openspec-propose "your idea"
 ```
 
 `--tools none` creates only `openspec/config.yaml`. On an already-initialized project, init rewrites the installed files in place and the summary reads `Refreshed: Claude Code` with `Config: openspec/config.yaml (exists)`.
@@ -178,7 +176,7 @@ openspec update --dry-run
 
 ```
 2 file(s) would change:
-  update  .claude/skills/openspec-propose/SKILL.md  (claude)
+  update  .agents/skills/openspec-propose/SKILL.md  (openspec)
   add     ~/.config/openspec/config.json  (openspec)
 ```
 
@@ -187,7 +185,7 @@ openspec update --dry-run
 ```json
 {
   "changes": [
-    { "path": ".claude/skills/openspec-propose/SKILL.md", "action": "update", "tool": "claude" },
+    { "path": ".agents/skills/openspec-propose/SKILL.md", "action": "update", "tool": "openspec" },
     { "path": "~/.config/openspec/config.json", "action": "add", "tool": "openspec" }
   ],
   "notes": [],
@@ -199,8 +197,8 @@ openspec update --dry-run
 |---|---|
 | `changes[].path` | Project-relative path. A file outside the project, such as a global skill or the global config, is shown from your home directory as `~/...`, or as an absolute path when it is outside home too. |
 | `changes[].action` | `add`, `update`, or `delete`. A file whose new bytes match the old ones is not listed. |
-| `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to OpenSpec itself rather than one tool, the global config and legacy-artifact cleanup, are `openspec`. |
-| `notes[]` | `{ code, message }` for a step a terminal user would be asked about. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. Empty for an ordinary refresh. |
+| `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to no one tool are `openspec`: the shared skills in `.agents/skills/`, the global config, and legacy-artifact cleanup. |
+| `notes[]` | `{ code, message }` for a step a terminal user would be asked about or warned of. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. `edited-skills`: update will replace an edit you made inside a skill it installs, and the message names the files. Empty for an ordinary refresh. |
 | `failures[]` | `{ tool, error }` for each tool the real update would fail on, including a write it cannot make: a directory where a file belongs, a file where a directory belongs, or a file or folder without write permission. For that tool, `changes` stops where the real update stops; the other tools are still planned. Failures the disk only reports while writing, such as running out of space, cannot be foreseen. |
 
 A failure before planning, such as no OpenSpec directory, still prints exactly one JSON document: the empty plan plus a `status` array with `severity`, `code` (`update_error`), and `message`. The exit code is 1.
@@ -225,9 +223,9 @@ Updating 1 tool(s): claude (1.6.0 → 1.7.0)
 
 ✓ Updated: Claude Code (v1.7.0)
 Tools: Claude Code
-
-Restart your IDE for changes to take effect.
 ```
+
+An update that touches an IDE-based tool, such as Cursor or Kiro, ends with `Restart your IDE to refresh skills.`
 
 In a directory without OpenSpec, update refuses:
 
@@ -246,7 +244,7 @@ Views and changes global configuration.
 
 ```bash
 openspec config list                  # see current settings
-openspec config set delivery skills   # change one value
+openspec config set profile core      # change one value
 openspec config profile               # interactive workflow picker
 ```
 
@@ -259,7 +257,7 @@ openspec config profile               # interactive workflow picker
 | `unset <key>` | Remove a key so its default applies. |
 | `reset` | Reset all configuration to defaults. |
 | `edit` | Open the config file in `$EDITOR`. |
-| `profile [preset]` | Configure delivery mode and workflows. |
+| `profile [preset]` | Configure which workflows are installed. |
 
 Config is global to your machine, stored as JSON where `config path` points: `$XDG_CONFIG_HOME/openspec/config.json` if set, else `~/.config/openspec/config.json` (macOS, Linux) or `%APPDATA%\openspec\config.json` (Windows). Every subcommand accepts `--scope <scope>`, but only `global` works today. Any other scope exits 1 with `Error: Project-local config is not yet implemented`.
 
@@ -288,23 +286,23 @@ openspec config list --json   # raw config as JSON
 
 **Output**
 
-Each setting, then a profile summary that marks values as explicit or default:
+Each setting, then a profile summary. It marks the profile as explicit or default and flags `delivery` as retired:
 
 ```
 featureFlags: {}
 profile: core
-delivery: both
+delivery: skills
 
 Profile settings:
   profile: core (default)
-  delivery: both (default)
+  delivery: skills (retired in 2.0, ignored)
   workflows: propose, explore, apply, update, sync, archive (from core profile)
 ```
 
 ### openspec config get
 
 ```bash
-openspec config get delivery
+openspec config get profile
 ```
 
 **Arguments**
@@ -318,7 +316,7 @@ openspec config get delivery
 The bare value, ready for scripts. Objects print as compact JSON:
 
 ```
-both
+core
 ```
 
 **Exit codes**
@@ -329,7 +327,7 @@ both
 ### openspec config set
 
 ```bash
-openspec config set delivery skills
+openspec config set profile core
 openspec config set featureFlags.workspaces true
 ```
 
@@ -353,6 +351,13 @@ openspec config set featureFlags.workspaces true
 Set featureFlags.workspaces = true
 ```
 
+`delivery` is still accepted, so older scripts keep working, but it no longer changes anything ([Upgrade to 2.0](../help/upgrade-to-2.md)):
+
+```
+Set delivery = "skills"
+Note: delivery no longer changes anything; OpenSpec 2.0 installs skills only.
+```
+
 Unknown keys and invalid values fail with exit 1 before anything is saved:
 
 ```
@@ -362,7 +367,7 @@ Pass --allow-unknown to bypass this check.
 ```
 
 ```
-Error: Invalid configuration - delivery: Invalid option: expected one of "both"|"skills"|"commands"
+Error: Invalid configuration - profile: Invalid option: expected one of "core"|"custom"
 ```
 
 If the config file exists but does not hold a JSON object, whether because it is not valid JSON at all or because its root is something else such as `null` or an array, `config set`, `config unset` and `config profile` exit 1 and leave the file unchanged. Fix it with `openspec config edit`, or replace it with `openspec config reset --all`:
@@ -377,13 +382,13 @@ Until it is fixed, telemetry and the background update check in `openspec update
 ### openspec config unset
 
 ```bash
-openspec config unset delivery
+openspec config unset profile
 ```
 
 Removes the key so the default applies again. Keys with built-in defaults always count as set, so this reports success even if you never set them:
 
 ```
-Unset delivery (reverted to default)
+Unset profile (reverted to default)
 ```
 
 A key with no value at all prints `Key "featureFlags.nothere" was not set`. Both cases exit 0. A config file that cannot be parsed exits 1 instead, as for `config set`.
@@ -445,9 +450,9 @@ openspec config profile core   # apply the core preset directly
 
 | Argument | What it is |
 |---|---|
-| `preset` | Optional preset name. Only `core` exists. It selects the core workflows and keeps your delivery setting. |
+| `preset` | Optional preset name. Only `core` exists. It selects the core workflows. |
 
-With no preset, an interactive picker shows your current delivery and workflows, lets you change either or both (delivery: both, skills only, or commands only; workflows: a checkbox list), prints the diff, and inside an OpenSpec project offers to run `openspec update` for you. Outside a terminal it exits 1:
+With no preset, an interactive picker shows your current workflows, lets you change them (a checkbox list), prints the diff, and inside an OpenSpec project offers to run `openspec update` for you. Outside a terminal it exits 1:
 
 ```
 Interactive mode required. Use `openspec config profile core` or set config via environment/flags.

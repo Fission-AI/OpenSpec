@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync, spawnSync } from 'child_process';
 import { createHash } from 'crypto';
-import { promises as fs, existsSync, readdirSync, readFileSync } from 'fs';
+import { promises as fs, existsSync, readdirSync, readFileSync, readlinkSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -89,11 +89,29 @@ function listFiles(root: string): string[] {
 
 function snapshot(root: string): Record<string, string> {
   return Object.fromEntries(
-    listFiles(root).map((rel) => [
-      rel,
-      createHash('sha256').update(readFileSync(path.join(root, rel))).digest('hex'),
-    ])
+    [
+      ...listFiles(root).map((rel) => [
+        rel,
+        createHash('sha256').update(readFileSync(path.join(root, rel))).digest('hex'),
+      ]),
+      // Links too, recorded by where they point and never followed, so a link
+      // made anywhere shows up.
+      ...listLinks(root).map((rel) => [rel, `link:${readlinkSync(path.join(root, rel))}`]),
+    ]
   );
+}
+
+function listLinks(root: string): string[] {
+  const out: string[] = [];
+  const walk = (dir: string) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) out.push(path.relative(root, full).split(path.sep).join('/'));
+      else if (entry.isDirectory()) walk(full);
+    }
+  };
+  walk(root);
+  return out;
 }
 
 /** OpenSpec skills and commands still under a tool's former root. */
@@ -157,6 +175,19 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
       (rel) => rel.includes('/') && !rel.startsWith('openspec/') && !current.has(rel)
     );
     expect(oldLayout).toEqual([]);
+    // Each linked tool reaches the one shared copy: a link, or where links
+    // can't be made, an identical copy.
+    const shared = path.join(box.project, '.agents', 'skills');
+    for (const dir of ['.claude', '.kiro', '.continue']) {
+      const skillsDir = path.join(box.project, dir, 'skills');
+      if (!existsSync(skillsDir)) continue;
+      for (const name of readdirSync(skillsDir)) {
+        const spot = path.join(skillsDir, name);
+        expect(readFileSync(path.join(spot, 'SKILL.md'), 'utf8'), `${dir}/${name}`).toBe(
+          readFileSync(path.join(shared, name, 'SKILL.md'), 'utf8')
+        );
+      }
+    }
 
     const before = snapshot(box.project);
     const second = run(currentBin, ['update'], box);
@@ -244,6 +275,32 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     expect(snapshot(sibling)).toEqual(before);
   }, 600_000);
 
+  it('moves a commands-only project to skills, keeping the command the user edited', async () => {
+    // The 2.0 move in one case: a 1.x project that used commands only, with
+    // one command customized. Update sets it up with skills, removes the
+    // generated commands, and keeps the edited one byte for byte.
+    const box = await initWith('1.16.0', 'commands-to-skills', 'claude,cursor', {
+      profile: 'core',
+      delivery: 'commands',
+    });
+    const edited = path.join(box.project, '.claude', 'commands', 'opsx', 'apply.md');
+    const editedText = `${await fs.readFile(edited, 'utf8')}\nOur team step.\n`;
+    await fs.writeFile(edited, editedText);
+
+    const result = run(currentBin, ['update'], box);
+    expect(result.status, result.output).toBe(0);
+    expect(result.output).toMatch(/Kept 1 command file/);
+    expect(await fs.readFile(edited, 'utf8')).toBe(editedText);
+    const commands = listFiles(box.project).filter((rel) => /(^|\/)opsx[-/:][^/]+$/.test(rel));
+    expect(commands).toEqual(['.claude/commands/opsx/apply.md']);
+    expect(existsSync(path.join(box.project, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    expect(existsSync(path.join(box.project, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+
+    const before = snapshot(box.project);
+    expect(run(currentBin, ['update'], box).output).toContain('up to date');
+    expect(snapshot(box.project)).toEqual(before);
+  }, 600_000);
+
   it('keeps every file the user edited', async () => {
     const box = await initWith('1.0.0', 'edited');
     const edited = [
@@ -287,7 +344,8 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
 
   it('moves a commands-only tool whose only files are in its former folder', async () => {
     // Commands-only Antigravity: its only OpenSpec files are old commands in
-    // .agent/, which update used to report as "no configured tools".
+    // .agent/, which update used to report as "no configured tools". It must
+    // still be found, and set up with skills.
     const box = await initWith('1.10.0', 'commands-only', 'antigravity', {
       profile: 'core',
       delivery: 'commands',
@@ -297,8 +355,11 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
 
     const result = run(currentBin, ['update'], box);
     expect(result.status, result.output).toBe(0);
+    // 2.0 installs skills only: Antigravity gets them in the shared folder,
+    // and its old commands are removed rather than moved.
+    expect(existsSync(path.join(box.project, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
     for (const name of old) {
-      expect(existsSync(path.join(box.project, '.agents', 'workflows', name)), name).toBe(true);
+      expect(existsSync(path.join(box.project, '.agents', 'workflows', name)), name).toBe(false);
     }
     expect(leftoversInFormerRoots(box.project)).toEqual([]);
     expect(run(currentBin, ['update'], box).output).toContain('up to date');
@@ -313,7 +374,15 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     const result = run(currentBin, ['update'], box);
     expect(result.status).not.toBe(0);
     expect(result.output).toContain('Failed to set up Claude Code');
-    expect(snapshot(box.project)).toEqual(before);
+    // Every file from before is still there, unchanged. (The shared copy in
+    // .agents/skills may be written before Claude's own folder fails.)
+    const after = snapshot(box.project);
+    for (const [rel, hash] of Object.entries(before)) {
+      expect(after[rel], rel).toBe(hash);
+    }
+    // Nothing new outside the shared copy.
+    const added = Object.keys(after).filter((rel) => !(rel in before));
+    expect(added.filter((rel) => !rel.startsWith('.agents/skills/'))).toEqual([]);
   }, 600_000);
 
   it('never sets up a tool or cleans up because of prompts in the home folder', async () => {

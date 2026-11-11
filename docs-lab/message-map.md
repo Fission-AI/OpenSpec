@@ -17,7 +17,7 @@ maintain.
 | How should a user install the CLI, update it, uninstall it? | [Start › Installation](start/installation.md) | Answered |
 | How can a user hand install and setup to their AI assistant? | [Start › Installation](start/installation.md), the install.md prompt | Answered |
 | How should a user add OpenSpec to their repo? | [Start › Set up your project](start/setup.md) | Answered |
-| How do the workflows get into a user's tool, and why skills and commands both? | [Start › Set up your project](start/setup.md) | Answered |
+| How do the workflows get into a user's tool? | [Start › Set up your project](start/setup.md) | Answered |
 | How do we teach the loop: propose, review, apply, archive? | [Start › Quickstart](start/quickstart.md) | Answered |
 | How should a user run their first change end to end? | [Start › Quickstart](start/quickstart.md) | Answered |
 | How does a user know which prompts go in the AI chat and which commands in the terminal? | [Start › Quickstart](start/quickstart.md) inline with each step, then [Help › FAQ](help/faq.md) | Answered |
@@ -38,7 +38,7 @@ maintain.
 | How do we explain what's customizable in OpenSpec? | [Customize › Overview](customize/overview.md) | Answered |
 | How does a user pick the right customization level, and when should they escalate from config to schemas? | [Customize › Overview](customize/overview.md), the "Not sure which to use?" section | Answered |
 | How should a user choose which workflows are installed? | [Customize › Profiles](customize/profiles.md) | Answered |
-| How does a user switch to skills only or commands only? | [Customize › Profiles](customize/profiles.md), Delivery section; [Start › Set up your project](start/setup.md) owns why both forms exist | Answered |
+| What happened to the `delivery` setting? | [Customize › Profiles](customize/profiles.md), Delivery section; [Help › Upgrade to 2.0](help/upgrade-to-2.md) | Answered |
 | How does a user make the workflows plan changes their way: context, rules, and guidance? | [Customize › Project configuration](customize/project-config.md) | Answered |
 | How does a user get artifacts written in a language other than English? | [Customize › Project configuration](customize/project-config.md), the context section's "Another language" note | Answered |
 | How should a user change what OpenSpec produces? | [Customize › Schemas](customize/schemas.md), with the fork walkthrough in "Creating your own custom schema" | Answered |

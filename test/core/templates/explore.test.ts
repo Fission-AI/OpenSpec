@@ -434,7 +434,7 @@ describe('explore templates', () => {
       );
       expect(transition, label).toContain('Capture the artifact(s) the user requested');
       expect(transition, label).toContain(
-        'without asking them to invoke another workflow command'
+        'without asking them to invoke another workflow.'
       );
       expect(transition, label).toContain(
         'process the requested artifacts in dependency order'
@@ -621,7 +621,7 @@ describe('explore handoff to the propose workflow (#869)', () => {
   it('names the propose workflow where discovery ends', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        '**Flow into a proposal**: "Ready to start? Run `/opsx:propose` and this becomes a change."'
+        '**Flow into a proposal**: "Ready to start? Use the `/opsx:propose` skill and this becomes a change."'
       );
       expect(body, label).not.toContain('I can create a change proposal');
     }

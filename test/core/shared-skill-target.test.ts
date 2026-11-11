@@ -1,142 +1,100 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import {
-  resolveSharedSkillWriters,
-  sharedSkillRootOwnedByOther,
-  sharedSkillRootOwner,
-} from '../../src/core/shared-skill-target.js';
 import { AI_TOOLS } from '../../src/core/config.js';
+import {
+  formatSkillToolList,
+  hasOwnFolderSkills,
+  isToolListed,
+  readSkillToolList,
+  skillToolListPath,
+} from '../../src/core/shared-skill-target.js';
+import type { FileView } from '../../src/core/file-view.js';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
 
-/**
- * `.agents` is shared by the vendor-neutral `agents` target and Codex. When a
- * legacy Codex install is detected only from global `~/.codex/prompts`, the
- * update path must not rewrite an existing `agents`-owned `.agents` tree. This
- * guards the predicate that decides that.
- */
-describe('sharedSkillRootOwnedByOther', () => {
-  let projectPath: string;
+const RELEASED = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/released-output');
+const released = (dir: string) => readFileSync(path.join(RELEASED, dir, 'openspec-propose/SKILL.md'), 'utf8');
 
-  const writeAgentsSkill = async (marker?: string) => {
-    const skillsRoot = path.join(projectPath, '.agents', 'skills');
-    const skillDir = path.join(skillsRoot, 'openspec-propose');
-    await fs.mkdir(skillDir, { recursive: true });
-    // Generic invocation syntax => inferred owner is `agents` (not `$openspec-`).
-    await fs.writeFile(
-      path.join(skillDir, 'SKILL.md'),
-      '# openspec-propose\n\nRun /openspec-propose to start.\n'
-    );
-    if (marker !== undefined) {
-      await fs.writeFile(path.join(skillsRoot, '.openspec-target'), `${marker}\n`);
-    }
-  };
+const tool = (id: string) => AI_TOOLS.find((t) => t.value === id)!;
+
+describe('the list of tools set up in a project', () => {
+  let project: string;
 
   beforeEach(async () => {
-    projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-shared-target-'));
+    project = await fs.realpath(await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-tool-list-')));
   });
 
   afterEach(async () => {
-    await fs.rm(projectPath, { recursive: true, force: true });
+    await fs.rm(project, { recursive: true, force: true });
   });
 
-  it('reports the .agents root as owned by another tool when agents holds it (marker + generic tree)', async () => {
-    await writeAgentsSkill('agents');
-    // Codex, inferred only from global prompts, must not clobber this tree.
-    expect(sharedSkillRootOwnedByOther(projectPath, 'codex')).toBe(true);
-    // The owner itself is never "owned by another".
-    expect(sharedSkillRootOwnedByOther(projectPath, 'agents')).toBe(false);
+  async function write(rel: string, content: string) {
+    const file = path.join(project, rel);
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    await fs.writeFile(file, content);
+  }
+
+  it('lives in .agents/skills and lists one sorted id per line', () => {
+    expect(skillToolListPath(project)).toBe(path.join(project, '.agents', 'skills', '.openspec-target'));
+    expect(formatSkillToolList(['kiro', 'claude', 'cursor', 'claude'])).toBe('claude\ncursor\nkiro\n');
   });
 
-  it('infers agents ownership from a generic tree even without a marker', async () => {
-    await writeAgentsSkill(); // no marker; content is generic `/openspec-`
-    expect(sharedSkillRootOwnedByOther(projectPath, 'codex')).toBe(true);
+  it('reads every listed tool and ignores ids it does not know', async () => {
+    await write('.agents/skills/.openspec-target', 'claude\r\ncursor\n\nnot-a-tool\n');
+    expect(readSkillToolList(project)).toEqual(['claude', 'cursor']);
+    expect(isToolListed(project, 'cursor')).toBe(true);
+    expect(isToolListed(project, 'codex')).toBe(false);
   });
 
-  it('does NOT block Codex when the marker names Codex', async () => {
-    await writeAgentsSkill('codex');
-    expect(sharedSkillRootOwnedByOther(projectPath, 'codex')).toBe(false);
+  it('reads the single id a release before 2.0 wrote', async () => {
+    await write('.agents/skills/.openspec-target', 'codex\n');
+    expect(readSkillToolList(project)).toEqual(['codex']);
   });
 
-  it('does NOT block a first-time legacy upgrade with no .agents tree yet', async () => {
-    // Codex-only user with global prompts and no `.agents`: nothing to clobber.
-    expect(sharedSkillRootOwnedByOther(projectPath, 'codex')).toBe(false);
-    expect(sharedSkillRootOwnedByOther(projectPath, 'agents')).toBe(false);
+  it('infers the tool an unlisted folder from before the list was written for', async () => {
+    await write('.agents/skills/openspec-propose/SKILL.md', released('v1.9.0-codex-agents-skills'));
+    expect(readSkillToolList(project)).toEqual(['codex']);
+    await write('.agents/skills/openspec-propose/SKILL.md', released('v1.9.0-agents-skills'));
+    expect(readSkillToolList(project)).toEqual(['agents']);
   });
 
-  it('returns false for a tool that does not share its skills root', async () => {
-    await writeAgentsSkill('agents');
-    // Claude writes to its own `.claude` root, never `.agents`.
-    expect(sharedSkillRootOwnedByOther(projectPath, 'claude')).toBe(false);
+  it('never infers a tool from a skill OpenSpec did not write', async () => {
+    await write('.agents/skills/openspec-explore/SKILL.md', 'Run `$openspec-propose`.');
+    expect(readSkillToolList(project)).toEqual([]);
   });
 
-  it('treats an existing tree with no marker and no inferable syntax as agents-owned', async () => {
-    // Neither `$openspec-` nor `/openspec-` in the content and no marker:
-    // ownership can't be inferred, so reconciliation keeps the established
-    // `agents` target rather than letting Codex claim the existing tree.
-    const skillDir = path.join(projectPath, '.agents', 'skills', 'openspec-propose');
-    await fs.mkdir(skillDir, { recursive: true });
-    await fs.writeFile(path.join(skillDir, 'SKILL.md'), '# openspec-propose\n\nNo invocation syntax here.\n');
-    expect(sharedSkillRootOwnedByOther(projectPath, 'codex')).toBe(true);
-    // The established `agents` target is the resolved owner of the ambiguous tree.
-    expect(sharedSkillRootOwner(projectPath, 'codex')).toBe('agents');
+  it('lists nothing for a project without one, and never guesses from the shared wording', async () => {
+    expect(readSkillToolList(project)).toEqual([]);
+    await write('.agents/skills/openspec-explore/SKILL.md', 'Run `openspec-propose`.');
+    expect(readSkillToolList(project)).toEqual([]);
   });
 
-  it('names the owning tool via sharedSkillRootOwner', async () => {
-    await writeAgentsSkill('agents');
-    expect(sharedSkillRootOwner(projectPath, 'codex')).toBe('agents');
-    // The owner is never "owned by another"; an unclaimed root has no owner.
-    expect(sharedSkillRootOwner(projectPath, 'agents')).toBeUndefined();
-  });
-});
-
-describe('resolveSharedSkillWriters', () => {
-  const tools = (...ids: string[]) =>
-    ids.map((id) => AI_TOOLS.find((tool) => tool.value === id)!);
-
-  it.each([
-    ['antigravity', 'codex'],
-    ['codex', 'antigravity'],
-  ])('chooses Codex independently of explicit order: %s, %s', (first, second) => {
-    expect(
-      resolveSharedSkillWriters('/project-that-does-not-exist', tools(first, second))
-    ).toEqual(new Set(['codex']));
-  });
-
-  it('prefers an existing generic owner over an adapter-backed writer', async () => {
-    const projectPath = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-shared-writer-'));
-    try {
-      const skillsRoot = path.join(projectPath, '.agents', 'skills');
-      await fs.mkdir(skillsRoot, { recursive: true });
-      await fs.writeFile(path.join(skillsRoot, '.openspec-target'), 'agents\n');
-      expect(resolveSharedSkillWriters(projectPath, tools('antigravity', 'agents'))).toEqual(
-        new Set(['agents'])
-      );
-    } finally {
-      await fs.rm(projectPath, { recursive: true, force: true });
-    }
-  });
-
-  it('reads ownership through the view it is given, not the disk', () => {
-    // update --dry-run passes the tree as planned: a marker written earlier in
-    // the run exists only there, and must still decide the owner.
-    const projectPath = path.join(os.tmpdir(), 'openspec-shared-writer-view-missing');
-    const marker = path.join(projectPath, '.agents', 'skills', '.openspec-target');
-    const view = {
-      exists: (filePath: string) => filePath === marker,
-      read: (filePath: string) => {
-        if (filePath === marker) return 'agents\n';
-        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-      },
+  it('reads through the view it is given, not the disk', async () => {
+    const view: FileView = {
+      exists: (p) => p === skillToolListPath(project),
+      read: () => 'kiro\n',
+      isDirectory: () => false,
     };
+    expect(readSkillToolList(project, view)).toEqual(['kiro']);
+    expect(readSkillToolList(project)).toEqual([]);
+  });
 
-    // On disk there is nothing, so Codex is the fresh owner...
-    expect(resolveSharedSkillWriters(projectPath, tools('codex', 'agents'))).toEqual(
-      new Set(['codex'])
+  it('sees skills in a tool own folder: a pre-2.0 copy or its links', async () => {
+    expect(hasOwnFolderSkills(project, tool('cursor'))).toBe(false);
+    await write('.cursor/skills/openspec-explore/SKILL.md', 'old copy');
+    expect(hasOwnFolderSkills(project, tool('cursor'))).toBe(true);
+
+    await write('.agents/skills/openspec-explore/SKILL.md', 'shared');
+    await fs.mkdir(path.join(project, '.claude', 'skills'), { recursive: true });
+    await fs.symlink(
+      path.join('..', '..', '.agents', 'skills', 'openspec-explore'),
+      path.join(project, '.claude', 'skills', 'openspec-explore'),
+      'dir'
     );
-    // ...but the planned marker names `agents`.
-    expect(resolveSharedSkillWriters(projectPath, tools('codex', 'agents'), view)).toEqual(
-      new Set(['agents'])
-    );
+    expect(hasOwnFolderSkills(project, tool('claude'))).toBe(true);
+    // Codex's own folder is the shared one: it has no separate former copy.
+    expect(hasOwnFolderSkills(project, tool('codex'))).toBe(false);
   });
 });

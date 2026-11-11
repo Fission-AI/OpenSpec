@@ -46,10 +46,12 @@ describe('openspec update --dry-run --json over a pipe', () => {
     const result = await runCLI(['update', '--dry-run', '--json'], { cwd: project, env });
 
     expect(result.exitCode).toBe(0);
+    // The edit went through Claude's link into the one shared copy, which
+    // belongs to every tool.
     expect(JSON.parse(result.stdout).changes).toContainEqual({
-      path: '.claude/skills/openspec-propose/SKILL.md',
+      path: '.agents/skills/openspec-propose/SKILL.md',
       action: 'update',
-      tool: 'claude',
+      tool: 'openspec',
     });
     expect(await fs.readFile(skill, 'utf-8')).toBe('hand-edited\n');
   });

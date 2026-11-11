@@ -393,118 +393,51 @@ Content here
       expect(status.needsUpdate).toBe(false);
     });
 
+    // A 1.x project set to commands-only delivery holds command files and no
+    // skills. OpenSpec 2.0 installs skills only, so such a tool is set up but
+    // never current: update must install its skills and remove the commands.
     // Command paths vary in shape across adapters: a nested directory with a
-    // per-tool extension (gemini writes TOML), a flat opsx-* file, and — for
-    // cline — a directory that is not the tool's skillsDir at all.
-    it.each([
-      ['gemini', path.join('.gemini', 'commands', 'opsx', 'explore.toml')],
-      ['easycode', path.join('.easycode', 'commands', 'opsx', 'explore.toml')],
-      ['cursor', path.join('.cursor', 'commands', 'opsx-explore.md')],
-      ['cline', path.join('.clinerules', 'workflows', 'opsx-explore.md')],
-    ])('should fingerprint commands-only %s installs', async (toolId, explorePath) => {
-      const { InitCommand } = await import('../../../src/core/init.js');
-      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
-      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
+    // per-tool extension (gemini writes TOML), a flat opsx-* file, and, for
+    // cline, a directory that is not the tool's skillsDir at all.
+    it.each(['gemini', 'easycode', 'cursor', 'cline'])(
+      'treats a commands-only %s install as set up and needing an update',
+      async (toolId) => {
+        const { CommandAdapterRegistry, generateCommands } = await import(
+          '../../../src/core/command-generation/index.js'
+        );
+        const { getCommandContents } = await import('../../../src/core/shared/skill-generation.js');
+        const coreWorkflows = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'];
+        const adapter = CommandAdapterRegistry.get(toolId)!;
+        for (const cmd of generateCommands(getCommandContents(coreWorkflows), adapter)) {
+          const file = path.join(testDir, cmd.path);
+          await fs.mkdir(path.dirname(file), { recursive: true });
+          await fs.writeFile(file, cmd.fileContent);
+        }
 
-      const initCommand = new InitCommand({ tools: toolId, force: true });
-      await initCommand.execute(testDir);
-
-      const { version } = await import('../../../package.json');
-      const coreWorkflows = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'];
-
-      // cline's commands live outside its skillsDir (.cline), so a commands-only
-      // install leaves that directory absent entirely.
-      expect(getConfiguredTools(testDir)).toContain(toolId);
-
-      const fresh = getToolVersionStatus(testDir, toolId, version, { workflows: coreWorkflows });
-      expect(fresh.configured).toBe(true);
-      expect(fresh.generatedByVersion).toBe(version);
-      expect(fresh.needsUpdate).toBe(false);
-
-      await fs.writeFile(path.join(testDir, explorePath), 'stale content');
-
-      const drifted = getToolVersionStatus(testDir, toolId, version, { workflows: coreWorkflows });
-      expect(drifted.generatedByVersion).toBeNull();
-      expect(drifted.needsUpdate).toBe(true);
-    });
-
-    it('should fingerprint a custom profile against its own workflow subset', async () => {
-      const { InitCommand } = await import('../../../src/core/init.js');
-      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
-      const customWorkflows = ['explore', 'apply'];
-      saveGlobalConfig({
-        featureFlags: {},
-        profile: 'custom',
-        delivery: 'commands',
-        workflows: customWorkflows,
-      });
-
-      const initCommand = new InitCommand({ tools: 'claude', force: true });
-      await initCommand.execute(testDir);
-
-      const { version } = await import('../../../package.json');
-      const status = getToolVersionStatus(testDir, 'claude', version, {
-        workflows: customWorkflows,
-      });
-
-      expect(status.configured).toBe(true);
-      expect(status.generatedByVersion).toBe(version);
-      expect(status.needsUpdate).toBe(false);
-
-      // The core set is a superset of this profile, so comparing against it must
-      // report drift — the fingerprint has to use the workflows actually selected.
-      const againstCore = getToolVersionStatus(testDir, 'claude', version, {
-        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
-      });
-      expect(againstCore.needsUpdate).toBe(true);
-    });
-
-    it('should treat CRLF line endings and a BOM as up to date, not as drift', async () => {
-      const { InitCommand } = await import('../../../src/core/init.js');
-      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
-      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
-
-      const initCommand = new InitCommand({ tools: 'claude', force: true });
-      await initCommand.execute(testDir);
-
-      // A Windows clone with core.autocrlf re-materializes committed command
-      // files with CRLF endings; that is a checkout artifact, not content drift.
-      const commandsDir = path.join(testDir, '.claude', 'commands', 'opsx');
-      for (const entry of await fs.readdir(commandsDir)) {
-        const file = path.join(commandsDir, entry);
-        const content = await fs.readFile(file, 'utf-8');
-        await fs.writeFile(file, '\ufeff' + content.replace(/\r?\n/g, '\r\n'));
+        const { version } = await import('../../../package.json');
+        expect(getConfiguredTools(testDir)).toContain(toolId);
+        const status = getToolVersionStatus(testDir, toolId, version, { workflows: coreWorkflows });
+        expect(status.configured).toBe(true);
+        expect(status.generatedByVersion).toBeNull();
+        expect(status.needsUpdate).toBe(true);
       }
+    );
+
+    it('does not rewrite current skills because command files sit beside them', async () => {
+      // Leftover command files are removal work, found by the profile-drift
+      // check; they never make the skills look out of date.
+      const { InitCommand } = await import('../../../src/core/init.js');
+      await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
+      const strayFile = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
+      await fs.mkdir(path.dirname(strayFile), { recursive: true });
+      await fs.writeFile(strayFile, 'a command file from 1.x');
 
       const { version } = await import('../../../package.json');
       const status = getToolVersionStatus(testDir, 'claude', version, {
         workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
       });
-
       expect(status.generatedByVersion).toBe(version);
       expect(status.needsUpdate).toBe(false);
-    });
-
-    it('should detect needsUpdate when a deselected workflow left a command file behind', async () => {
-      const { InitCommand } = await import('../../../src/core/init.js');
-      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
-      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
-
-      const initCommand = new InitCommand({ tools: 'claude', force: true });
-      await initCommand.execute(testDir);
-
-      // A workflow that is no longer selected still has a command file on disk
-      const strayFile = path.join(testDir, '.claude', 'commands', 'opsx', 'verify.md');
-      await fs.writeFile(strayFile, 'stray command from a previous profile');
-
-      const { version } = await import('../../../package.json');
-      const status = getToolVersionStatus(testDir, 'claude', version, {
-        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
-      });
-
-      expect(status.configured).toBe(true);
-      expect(status.generatedByVersion).toBeNull();
-      expect(status.needsUpdate).toBe(true);
     });
 
     it('should not let matching command files mask an unreadable skill version', async () => {
@@ -519,28 +452,6 @@ Content here
       // while every command file still matches the current generated content.
       const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
       await fs.writeFile(skillFile, 'truncated skill file');
-
-      const { version } = await import('../../../package.json');
-      const status = getToolVersionStatus(testDir, 'claude', version, {
-        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'],
-      });
-
-      expect(status.configured).toBe(true);
-      expect(status.generatedByVersion).toBeNull();
-      expect(status.needsUpdate).toBe(true);
-    });
-
-    it('should detect needsUpdate when command file content differs in commands-only setup', async () => {
-      const { InitCommand } = await import('../../../src/core/init.js');
-      const { saveGlobalConfig } = await import('../../../src/core/global-config.js');
-      saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
-
-      const initCommand = new InitCommand({ tools: 'claude', force: true });
-      await initCommand.execute(testDir);
-
-      // Modify one command file
-      const cmdFile = path.join(testDir, '.claude', 'commands', 'opsx', 'explore.md');
-      await fs.writeFile(cmdFile, 'outdated content');
 
       const { version } = await import('../../../package.json');
       const status = getToolVersionStatus(testDir, 'claude', version, {

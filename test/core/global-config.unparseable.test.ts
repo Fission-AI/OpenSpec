@@ -106,7 +106,7 @@ describe('an unparseable global config', () => {
       const { getGlobalConfig } = await import('../../src/core/global-config.js');
       fs.writeFileSync(configPath, content);
 
-      expect(getGlobalConfig()).toEqual({ featureFlags: {}, profile: 'core', delivery: 'both' });
+      expect(getGlobalConfig()).toEqual({ featureFlags: {}, profile: 'core', delivery: 'skills' });
     },
   );
 

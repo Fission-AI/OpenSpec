@@ -1639,17 +1639,15 @@ operations:
       expect(result.exitCode).toBe(0);
       const output = normalizePaths(getOutput(result));
       expect(output).toContain('Cursor');
-      expect(output).toContain('.cursor/');
+      expect(output).toContain('.agents/skills/');
 
-      // Verify skill files were created
-      const skillFile = path.join(tempDir, '.cursor', 'skills', 'openspec-explore', 'SKILL.md');
+      // Cursor reads the one shared copy of the skills.
+      const skillFile = path.join(tempDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
       const stat = await fs.stat(skillFile);
       expect(stat.isFile()).toBe(true);
 
-      // Verify commands were created with Cursor format
-      const commandFile = path.join(tempDir, '.cursor', 'commands', 'opsx-explore.md');
-      const content = await fs.readFile(commandFile, 'utf-8');
-      expect(content).toContain('name: "/opsx-explore"');
+      // 2.0 installs skills only: no command files.
+      await expect(fs.access(path.join(tempDir, '.cursor', 'commands'))).rejects.toThrow();
     });
 
     it('creates skills for the retired windsurf id, under Devin Desktop', async () => {
@@ -1659,10 +1657,13 @@ operations:
       expect(result.exitCode).toBe(0);
       const output = normalizePaths(getOutput(result));
       expect(output).toContain('Devin Desktop');
-      expect(output).toContain('.devin/');
+      expect(output).toContain('.agents/skills/');
+      // 2.0 installs skills only: no workflow files.
+      await expect(fs.access(path.join(tempDir, '.devin', 'workflows'))).rejects.toThrow();
 
       // Verify skill files were created
-      const skillFile = path.join(tempDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md');
+      // Devin Desktop reads the one shared copy of the skills.
+      const skillFile = path.join(tempDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
       const stat = await fs.stat(skillFile);
       expect(stat.isFile()).toBe(true);
     });

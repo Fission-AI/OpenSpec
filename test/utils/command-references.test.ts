@@ -273,53 +273,23 @@ describe('getTransformerForTool', () => {
     }
   });
 
-  it('selects hyphen commands for every flat-invocation tool when commands are generated', () => {
-    // These tools invoke commands by filename (/opsx-<id>), so skills must
-    // reference the hyphen form their command files actually answer to.
-    for (const toolId of ['bob', 'cursor', 'github-copilot', 'oh-my-pi', 'opencode', 'pi', 'qwen'] as const) {
-      for (const delivery of ['both', 'commands'] as const) {
-        const transformer = getTransformerForTool(toolId, delivery, 'adapter-backed', FLAT_SLASH);
-        expect(transformer?.('/opsx:apply'), `${toolId} ${delivery}`).toBe('/opsx-apply');
+  it('points every tool at skills under every delivery setting (2.0 has no command files)', () => {
+    // Tools that had commands in 1.x, across every invocation style they used.
+    const tools = [
+      ['claude', NAMESPACED_SLASH],
+      ['cursor', FLAT_SLASH],
+      ['devin', FLAT_SLASH],
+      ['qwen', FLAT_SLASH],
+      ['amazon-q', FLAT_AT],
+    ] as const;
+    for (const [toolId, invocation] of tools) {
+      for (const delivery of ['both', 'skills', 'commands'] as const) {
+        const transformer = getTransformerForTool(toolId, delivery, 'adapter-backed', invocation);
+        const text = transformer ? transformer('Run /opsx:apply next') : 'Run /opsx:apply next';
+        expect(text, `${toolId} ${delivery}`).not.toMatch(/[/@]opsx[:-]/);
+        expect(text, `${toolId} ${delivery}`).toContain('openspec-apply-change');
       }
-      // ...but must not fall back to hyphen commands when no commands are generated
-      expect(getTransformerForTool(toolId, 'skills', 'adapter-backed', FLAT_SLASH)).toBe(transformToSkillReferences);
     }
-  });
-
-  it('selects skill references for devin whenever skills are generated', () => {
-    // The Devin Local agent has no workflows, so Devin skill bodies and the
-    // getting-started hint must name `/openspec-*` skills, which both Devin
-    // agents accept. Workflow bodies get the hyphen form from the generator,
-    // like every other flat-invocation tool.
-    expect(getTransformerForTool('devin', 'both', 'adapter-backed', FLAT_SLASH)).toBe(
-      transformToSkillReferences
-    );
-    expect(getTransformerForTool('devin', 'skills', 'adapter-backed', FLAT_SLASH)).toBe(
-      transformToSkillReferences
-    );
-    // Under commands-only delivery no Devin skills exist to point at, so the
-    // hint falls back to the workflow name Devin registers.
-    const commandsOnly = getTransformerForTool('devin', 'commands', 'adapter-backed', FLAT_SLASH);
-    expect(commandsOnly?.('/opsx:propose')).toBe('/opsx-propose');
-  });
-
-  it("selects Amazon Q's @-prefixed prompt form when commands are generated", () => {
-    // Amazon Q loads .amazonq/prompts/opsx-<id>.md into its prompt library,
-    // which is invoked with @ — it registers no slash command at all.
-    for (const delivery of ['both', 'commands'] as const) {
-      const transformer = getTransformerForTool('amazon-q', delivery, 'adapter-backed', FLAT_AT);
-      expect(transformer?.('/opsx:apply'), delivery).toBe('@opsx-apply');
-      expect(transformer?.('Run /opsx:archive next'), delivery).toBe('Run @opsx-archive next');
-    }
-    // Skills-only delivery generates no prompt files, so point at the skill.
-    expect(getTransformerForTool('amazon-q', 'skills', 'adapter-backed', FLAT_AT)).toBe(
-      transformToSkillReferences
-    );
-  });
-
-  it('selects no transformer for namespaced tools when commands are generated', () => {
-    expect(getTransformerForTool('claude', 'both', 'adapter-backed', NAMESPACED_SLASH)).toBeUndefined();
-    expect(getTransformerForTool('claude', 'commands', 'adapter-backed', NAMESPACED_SLASH)).toBeUndefined();
   });
 
   it('selects shared-tree-safe Codex skill references in every delivery mode', () => {

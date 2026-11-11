@@ -7,10 +7,6 @@
  */
 
 import { AI_TOOLS } from '../config.js';
-import {
-  shouldGenerateCommandsForTool,
-  shouldGenerateSkillsForTool,
-} from '../command-surface.js';
 import type { Delivery } from '../global-config.js';
 
 /** The surface a restart hint names. Absent when no hint is due. */
@@ -23,28 +19,17 @@ function isIdeResident(toolId: string): boolean {
 }
 
 /**
- * Both conditions stay coupled to the SAME tool: its surfaces are loaded by a
- * long-running editor process (a CLI picks them up immediately, so a restart
- * line would be wrong for it — see #1067), and it supports a generated surface
- * under the active delivery. A CLI tool's commands must not determine the hint
- * for an IDE tool that only supports skills. Commands take precedence when
- * both surfaces are supported under the active delivery.
+ * A restart is due only for a tool whose skills are loaded by a long-running
+ * editor process (a CLI picks them up immediately, so a restart line would be
+ * wrong for it — see #1067). `delivery` no longer changes the answer: 2.0
+ * installs skills only.
  */
 export function resolveIdeRestartSurface(
   toolIds: readonly string[],
-  delivery: Delivery
+  _delivery: Delivery
 ): IdeRestartSurface | null {
   const ideTools = [...new Set(toolIds)].filter(isIdeResident);
-
-  if (ideTools.some((toolId) => shouldGenerateCommandsForTool(toolId, delivery))) {
-    return 'commands';
-  }
-
-  if (ideTools.some((toolId) => shouldGenerateSkillsForTool(toolId, delivery))) {
-    return 'skills';
-  }
-
-  return null;
+  return ideTools.length > 0 ? 'skills' : null;
 }
 
 /**

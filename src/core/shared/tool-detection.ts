@@ -5,28 +5,24 @@
  */
 
 import path from 'path';
-import { AI_TOOLS, OPENSPEC_SKILL_NAMES } from '../config.js';
-import { CommandAdapterRegistry, generateCommands } from '../command-generation/index.js';
-import { getCommandContents } from './skill-generation.js';
-import { getGlobalConfig, type Delivery } from '../global-config.js';
-import { getProfileWorkflows, ALL_WORKFLOWS } from '../profiles.js';
+import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
+import { CommandAdapterRegistry } from '../command-generation/index.js';
+import { hasLegacySkills, isToolListed, readKeptSharedSkills, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
 import {
-  isSharedSkillTargetActive,
-  hasLegacySkills,
-  readSharedSkillTarget,
-  reconcileSharedSkillTargets,
-} from '../shared-skill-target.js';
-import {
-  shouldGenerateCommandsForTool,
-  shouldGenerateSkillsForTool,
   resolveCommandSurfaceCapability,
 } from '../command-surface.js';
 import {
   getSkillCapableTools,
+  resolveFormerOwnSkillsDir,
+  resolveSharedSkillsDir,
+  resolveSkillLinkDir,
   resolveToolSkillsDir,
   toolSupportsSkills,
+  usesSharedSkills,
+  type SkillCapableTool,
 } from './skill-paths.js';
 import { DISK_VIEW, type FileView } from '../file-view.js';
+import { classifySkillLinkSpot, isCheckedOutLink } from './skill-links.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
 /**
@@ -79,9 +75,8 @@ export interface ToolVersionStatus {
   /** Whether the tool has any skills or commands configured */
   configured: boolean;
   /**
-   * The generatedBy version recorded in the tool's skill files. For a tool that
-   * has commands but no skills, the current version when the command files match
-   * what would be generated now. Null when neither says the files are current.
+   * The generatedBy version recorded in the tool's skill files. Null when no
+   * skill says the files are current (a commands-only install never is).
    */
   generatedByVersion: string | null;
   /** Whether the tool needs updating (version mismatch or missing) */
@@ -96,6 +91,62 @@ export function getToolsWithSkillsDir(): string[] {
 }
 
 /**
+ * Whether a tool listed in `.agents/skills/.openspec-target` is still set up.
+ * A tool OpenSpec gave files of its own (commands, or links) is listed with
+ * `own-files` and stays set up only while some remain: deleting its folder
+ * removes it. A tool with none (a skills-only tool that reads the shared
+ * folder) has only the list to record it.
+ */
+export function isListedToolPresent(projectRoot: string, toolId: string, view: FileView = DISK_VIEW): boolean {
+  const tool = AI_TOOLS.find((t) => t.value === toolId);
+  if (!tool || !usesSharedSkills(tool) || !isToolListed(projectRoot, toolId, view)) return false;
+  if (!readListedToolsWithOwnFiles(projectRoot, view).has(toolId)) return true;
+  if (toolHasAnyConfiguredCommand(projectRoot, toolId, view)) return true;
+  const linkDir = resolveSkillLinkDir(projectRoot, tool);
+  return (
+    (linkDir !== undefined && OPENSPEC_SKILL_NAMES.some((name) => view.exists(path.join(linkDir, name, 'SKILL.md')))) ||
+    hasSkillLinks(projectRoot, tool, view)
+  );
+}
+
+/**
+ * Whether a linked tool's own folder still holds OpenSpec's links to the
+ * shared copy, even ones that point nowhere now (`.agents/` deleted, or
+ * gitignored in this clone), or what git checks a link out as without link
+ * support (a small file holding its target). Either way the tool is set up,
+ * and update rebuilds what the links need.
+ */
+export function hasSkillLinks(projectRoot: string, tool: AIToolOption, view: FileView = DISK_VIEW): boolean {
+  const linkDir = resolveSkillLinkDir(projectRoot, tool);
+  if (!linkDir) return false;
+  const sharedDir = resolveSharedSkillsDir(projectRoot);
+  return OPENSPEC_SKILL_NAMES.some((name) => {
+    const spot = path.join(linkDir, name);
+    const target = path.join(sharedDir, name);
+    const linked = view.linkTarget?.(spot);
+    if (linked !== undefined) return classifySkillLinkSpot(spot, target, [], view) === 'link';
+    return view.exists(spot) && !view.isDirectory(spot) && isCheckedOutLink(spot, target, view);
+  });
+}
+
+/**
+ * Where a tool's OpenSpec skills can be found, most current first. A tool that
+ * shares `.agents/skills` owns what is there only when it is listed as set up;
+ * its own folder holds a pre-2.0 copy or, for a linked tool, its links; then
+ * any former root.
+ */
+function skillDirsForTool(projectRoot: string, tool: SkillCapableTool, view: FileView): string[] {
+  const legacy = (tool.legacySkillsDirs ?? []).map((root) => path.join(projectRoot, root, 'skills'));
+  if (!usesSharedSkills(tool)) return [resolveToolSkillsDir(projectRoot, tool), ...legacy];
+  const own = resolveFormerOwnSkillsDir(projectRoot, tool);
+  return [
+    ...(isListedToolPresent(projectRoot, tool.value, view) ? [resolveSharedSkillsDir(projectRoot)] : []),
+    ...(own ? [own] : []),
+    ...legacy,
+  ];
+}
+
+/**
  * Checks which skill files exist for a tool.
  */
 export function getToolSkillStatus(
@@ -107,16 +158,7 @@ export function getToolSkillStatus(
   if (!tool || !toolSupportsSkills(tool)) {
     return { configured: false, fullyConfigured: false, skillCount: 0 };
   }
-  if (tool.skillsDir && !isSharedSkillTargetActive(projectRoot, toolId, view)) {
-    return { configured: false, fullyConfigured: false, skillCount: 0 };
-  }
-
-  const skillsDirs = [
-    resolveToolSkillsDir(projectRoot, tool),
-    ...(tool.legacySkillsDirs ?? []).map((root) =>
-      path.join(projectRoot, root, 'skills')
-    ),
-  ];
+  const skillsDirs = skillDirsForTool(projectRoot, tool, view);
   let skillCount = 0;
 
   for (const skillName of SKILL_NAMES) {
@@ -166,78 +208,6 @@ export function normalizeCommandContent(content: string): string {
 }
 
 /**
- * Checks whether command files for a tool on disk match current generated command contents.
- *
- * Command files carry no version stamp, so content equality is the only available
- * "is this current?" signal for a commands-only install.
- */
-export function areCommandFilesUpToDate(
-  projectRoot: string,
-  toolId: string,
-  options?: {
-    workflows?: readonly string[];
-    /** The tree to read; the disk unless an update is planning. */
-    view?: FileView;
-  }
-): boolean {
-  const adapter = CommandAdapterRegistry.get(toolId);
-  if (!adapter) return false;
-  const view = options?.view ?? DISK_VIEW;
-
-  let workflows: readonly string[];
-  if (options?.workflows) {
-    workflows = options.workflows;
-  } else {
-    try {
-      const globalCfg = getGlobalConfig();
-      const profile = globalCfg.profile ?? 'core';
-      workflows = getProfileWorkflows(profile, globalCfg.workflows);
-    } catch {
-      workflows = ALL_WORKFLOWS;
-    }
-  }
-
-  const knownWorkflows = workflows.filter((w): w is (typeof ALL_WORKFLOWS)[number] =>
-    (ALL_WORKFLOWS as readonly string[]).includes(w)
-  );
-
-  const commandContents = getCommandContents(knownWorkflows);
-  const generatedCommands = generateCommands(commandContents, adapter);
-
-  if (generatedCommands.length === 0) {
-    return false;
-  }
-
-  for (const cmd of generatedCommands) {
-    const cmdPath = path.isAbsolute(cmd.path) ? cmd.path : path.join(projectRoot, cmd.path);
-    if (!view.exists(cmdPath)) {
-      return false;
-    }
-    try {
-      const existingContent = view.read(cmdPath);
-      if (normalizeCommandContent(existingContent) !== normalizeCommandContent(cmd.fileContent)) {
-        return false;
-      }
-    } catch {
-      return false;
-    }
-  }
-
-  // Also check no extra command files exist for deselected workflows
-  const desiredWorkflowSet = new Set(knownWorkflows);
-  for (const workflow of ALL_WORKFLOWS) {
-    if (desiredWorkflowSet.has(workflow)) continue;
-    const cmdPath = adapter.getFilePath(workflow);
-    const fullPath = path.isAbsolute(cmdPath) ? cmdPath : path.join(projectRoot, cmdPath);
-    if (view.exists(fullPath)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
  * Gets the skill status for all tools with skillsDir configured.
  */
 export function getToolStates(projectRoot: string): Map<string, ToolSkillStatus> {
@@ -246,27 +216,11 @@ export function getToolStates(projectRoot: string): Map<string, ToolSkillStatus>
 
   for (const tool of tools) {
     const skillStatus = getToolSkillStatus(projectRoot, tool.value);
-    const markerConfigured =
-      Boolean(tool.skillsDir) &&
-      readSharedSkillTarget(projectRoot, tool.skillsDir!) === tool.value;
+    // A listed tool is set up even when its delivery writes no skills.
     states.set(
       tool.value,
-      markerConfigured
-        ? { ...skillStatus, configured: true }
-        : skillStatus
+      isListedToolPresent(projectRoot, tool.value) ? { ...skillStatus, configured: true } : skillStatus
     );
-  }
-
-  const configuredTools = tools.filter(
-    (tool) => tool.skillsDir && states.get(tool.value)?.configured
-  );
-  const activeSharedTargets = new Set(
-    reconcileSharedSkillTargets(projectRoot, configuredTools).map((tool) => tool.value)
-  );
-  for (const tool of configuredTools) {
-    if (!activeSharedTargets.has(tool.value)) {
-      states.set(tool.value, { configured: false, fullyConfigured: false, skillCount: 0 });
-    }
   }
 
   return states;
@@ -317,8 +271,8 @@ export function extractGeneratedByVersion(
 }
 
 /**
- * Gets version status for a tool by reading its skill files, falling back to a
- * command-content fingerprint for installs that have commands but no skills.
+ * Gets version status for a tool by reading its skill files. Command files
+ * never make a tool current: OpenSpec 2.0 installs skills only.
  */
 export function getToolVersionStatus(
   projectRoot: string,
@@ -328,8 +282,6 @@ export function getToolVersionStatus(
     workflows?: readonly string[];
     /** The tree to read; the disk unless an update is planning. */
     view?: FileView;
-    /** Effective delivery; read from the global config when omitted. */
-    delivery?: Delivery;
   }
 ): ToolVersionStatus {
   const view = options?.view ?? DISK_VIEW;
@@ -344,20 +296,34 @@ export function getToolVersionStatus(
     };
   }
 
-  const skillsDirs = [
-    resolveToolSkillsDir(projectRoot, tool),
-    ...(tool.legacySkillsDirs ?? []).map((root) =>
-      path.join(projectRoot, root, 'skills')
-    ),
-  ];
+  const skillsDirs = skillDirsForTool(projectRoot, tool, view);
   let generatedByVersion: string | null = null;
   let foundSkill = false;
 
-  // 1. Find the first skill file that exists and read its version
+  // 1. Find the first skill file that exists and read its version.
+  const keptShared = usesSharedSkills(tool) ? readKeptSharedSkills(projectRoot, view) : new Set<string>();
+  // A skill the user keeps in the shared folder is theirs, not a version,
+  // whether read there or through a tool's link to it.
+  // In a tool's own folder (MiniMax), OpenSpec never makes links: a link at a
+  // skill's spot is the user's and is never written, so it isn't a version
+  // either.
+  const ownFolder = !usesSharedSkills(tool);
+  let usersOwnSkill = false;
+  const speaksForVersion = (skillFile: string): boolean => {
+    if (keptShared.has(path.basename(path.dirname(skillFile)))) return false;
+    if (
+      ownFolder &&
+      (view.linkTarget?.(path.dirname(skillFile)) !== undefined || view.linkTarget?.(skillFile) !== undefined)
+    ) {
+      usersOwnSkill = true;
+      return false;
+    }
+    return true;
+  };
   for (const skillName of SKILL_NAMES) {
     for (const skillsDir of skillsDirs) {
       const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-      if (view.exists(skillFile)) {
+      if (view.exists(skillFile) && speaksForVersion(skillFile)) {
         generatedByVersion = extractGeneratedByVersion(skillFile, view);
         foundSkill = true;
         break;
@@ -366,61 +332,27 @@ export function getToolVersionStatus(
     if (foundSkill) break;
   }
 
-  const skillConfigured = getToolSkillStatus(projectRoot, toolId, view).configured;
+  // Configured from any of its skills; current only from those found above.
   const commandConfigured = toolHasAnyConfiguredCommand(projectRoot, toolId, view);
-  const markerConfigured =
-    Boolean(tool.skillsDir) &&
-    readSharedSkillTarget(projectRoot, tool.skillsDir!, view) === toolId;
-  const configured = skillConfigured || commandConfigured || markerConfigured;
-
-  // 2. Commands-only installs have no skill file to read a version from, so fall
-  //    back to comparing the generated command content. Deliberately skipped when
-  //    skill files exist: an unreadable version there must still force a rewrite.
-  if (!skillConfigured && commandConfigured && areCommandFilesUpToDate(projectRoot, toolId, options)) {
+  const markerConfigured = isListedToolPresent(projectRoot, toolId, view) || hasSkillLinks(projectRoot, tool, view);
+  const configured =
+    getToolSkillStatus(projectRoot, toolId, view).configured || commandConfigured || markerConfigured;
+  // Every skill of the tool's present is the user's own (kept): there is no
+  // OpenSpec skill to date, and nothing for update to write. Missing skills
+  // are profile drift's to find.
+  if (!foundSkill && usersOwnSkill) {
+    generatedByVersion = currentVersion;
+  } else if (!foundSkill && keptShared.size > 0 && isListedToolPresent(projectRoot, toolId, view)) {
     generatedByVersion = currentVersion;
   }
-  if (!skillConfigured && !commandConfigured && markerConfigured) {
-    const delivery = options?.delivery ?? getGlobalConfig().delivery ?? 'both';
-    if (
-      !shouldGenerateSkillsForTool(toolId, delivery) &&
-      !shouldGenerateCommandsForTool(toolId, delivery)
-    ) {
-      generatedByVersion = currentVersion;
-    }
-  }
 
-  // 3. A version marker in a skill file only proves the SKILL files came from
-  //    this CLI. It says nothing about the command files written beside them,
-  //    which a user may have hand-edited or a partial write may have truncated.
-  //    Without this, `update` answered "all tools up to date" while a damaged
-  //    command file sat on disk, repairable only by knowing to pass --force.
-  //    The content comparison already exists; it was simply never consulted
-  //    once a skill file supplied a version.
-  //
-  //    Scoped to tools that have BOTH, so the commands-only path above keeps
-  //    its exact behaviour, and skipped when the delivery mode generates no
-  //    commands for this tool - there would be nothing to compare against, and
-  //    `areCommandFilesUpToDate` reports an empty command set as "not current".
-  let commandsDrifted = false;
-  if (skillConfigured && commandConfigured) {
-    let generatesCommands = true;
-    try {
-      generatesCommands = shouldGenerateCommandsForTool(
-        toolId,
-        options?.delivery ?? getGlobalConfig().delivery ?? 'both'
-      );
-    } catch {
-      generatesCommands = true;
-    }
-    commandsDrifted =
-      generatesCommands && !areCommandFilesUpToDate(projectRoot, toolId, options);
-  }
-
+  // 2. OpenSpec 2.0 installs skills only, so command files never make a tool
+  //    current: a commands-only install from 1.x has no skills and always
+  //    needs an update, which installs them and removes the generated commands.
+  //    Leftover command files beside current skills are removal work found by
+  //    profile drift, not a reason to rewrite the skills.
   const needsUpdate =
-    configured &&
-    (generatedByVersion === null ||
-      generatedByVersion !== currentVersion ||
-      commandsDrifted);
+    configured && (generatedByVersion === null || generatedByVersion !== currentVersion);
 
   return {
     toolId,
@@ -462,7 +394,7 @@ function hasLegacyCommands(projectRoot: string, toolId: string, view: FileView):
  * Gets all configured tools in the project (configured via skills or commands).
  */
 export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VIEW): string[] {
-  const configured = AI_TOOLS
+  return AI_TOOLS
     .filter((t) => {
       if (!toolSupportsSkills(t)) return false;
       return (
@@ -472,28 +404,10 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
           resolveCommandSurfaceCapability(t.value) === 'adapter-backed' &&
           (hasLegacySkills(projectRoot, t, view) || hasLegacyCommands(projectRoot, t.value, view))
         ) ||
-        (Boolean(t.skillsDir) &&
-          readSharedSkillTarget(projectRoot, t.skillsDir!, view) === t.value)
+        isListedToolPresent(projectRoot, t.value, view) ||
+        hasSkillLinks(projectRoot, t, view)
       );
-    });
-  const activeProjectTools = new Set(
-    reconcileSharedSkillTargets(
-      projectRoot,
-      configured.filter((tool) => tool.skillsDir),
-      view
-    ).map((tool) => tool.value)
-  );
-  return configured
-    .filter(
-      (tool) =>
-        tool.globalSkillsDir ||
-        toolHasAnyConfiguredCommand(projectRoot, tool.value, view) ||
-        (
-          resolveCommandSurfaceCapability(tool.value) === 'adapter-backed' &&
-          (hasLegacySkills(projectRoot, tool, view) || hasLegacyCommands(projectRoot, tool.value, view))
-        ) ||
-        activeProjectTools.has(tool.value)
-    )
+    })
     .map((tool) => tool.value);
 }
 

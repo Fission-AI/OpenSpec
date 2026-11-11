@@ -7,9 +7,9 @@
 
 import path from 'path';
 import { AI_TOOLS, type AIToolOption } from './config.js';
-import { reconcileSharedSkillTargets } from './shared-skill-target.js';
-import { SKILL_NAMES } from './shared/tool-detection.js';
-import { resolveToolSkillsDir, toolSupportsSkills } from './shared/skill-paths.js';
+import { readSkillToolList } from './shared-skill-target.js';
+import { SKILL_NAMES, isListedToolPresent } from './shared/tool-detection.js';
+import { SHARED_SKILLS_ROOT, resolveToolSkillsDir, toolSupportsSkills, usesSharedSkills } from './shared/skill-paths.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 
 /**
@@ -19,9 +19,16 @@ import { DISK_VIEW, type FileView } from './file-view.js';
  * For tools with `detectionPaths`, checks those specific paths (files or
  * directories). Otherwise checks the project's `skillsDir`, or managed skill
  * files in the user's home directory for a global skill target.
+ *
+ * Every tool's skills live in `.agents/skills/`, so nothing under `.agents`
+ * is evidence of a tool whose own folder is `.agents` (Amp, Codex, Zed, GSD,
+ * the `agents` target): those count only when listed as set up, or when a path
+ * of their own exists (`.amp`, `.codex/skills`, `.agents/workflows`).
  */
 export function getAvailableTools(projectPath: string, view: FileView = DISK_VIEW): AIToolOption[] {
-  const available = AI_TOOLS.filter((tool) => {
+  const isSharedPath = (p: string) => p === SHARED_SKILLS_ROOT || p.startsWith(`${SHARED_SKILLS_ROOT}/skills`);
+  const listed = readSkillToolList(projectPath, view);
+  return AI_TOOLS.filter((tool) => {
     if (!toolSupportsSkills(tool)) return false;
 
     if (tool.globalSkillsDir) {
@@ -33,31 +40,23 @@ export function getAvailableTools(projectPath: string, view: FileView = DISK_VIE
 
     if (!tool.skillsDir) return false;
 
-    if (tool.detectionPaths && tool.detectionPaths.length > 0) {
+    const hasOwnPath = tool.detectionPaths && tool.detectionPaths.length > 0
       // Presence, not type — detection paths can be files or directories
-      return tool.detectionPaths.some((p) => view.exists(path.join(projectPath, p)));
-    }
-
-    return view.isDirectory(path.join(projectPath, tool.skillsDir));
+      ? tool.detectionPaths
+        .filter((p) => tool.skillsDir !== SHARED_SKILLS_ROOT || !isSharedPath(p))
+        .some((p) => {
+          if (!view.exists(path.join(projectPath, p))) return false;
+          // When the project lists its tools and leaves this one out, a
+          // skills folder of its own counts only with an OpenSpec skill in
+          // it: the user's own skills there say nothing about OpenSpec.
+          if (p.endsWith('/skills') && listed.length > 0 && !listed.includes(tool.value)) {
+            return SKILL_NAMES.some((skillName) => view.exists(path.join(projectPath, p, skillName, 'SKILL.md')));
+          }
+          return true;
+        })
+      : tool.skillsDir !== SHARED_SKILLS_ROOT && view.isDirectory(path.join(projectPath, tool.skillsDir));
+    // A tool listed as set up is present even with no folder of its own
+    // (a skills-only Cursor reads `.agents/skills` and has no `.cursor`).
+    return hasOwnPath || (usesSharedSkills(tool) && listed.includes(tool.value) && isListedToolPresent(projectPath, tool.value, view));
   });
-  const activeProjectTools = new Set(
-    reconcileSharedSkillTargets(
-      projectPath,
-      available.filter((tool) => tool.skillsDir),
-      view
-    ).map((tool) => tool.value)
-  );
-  const hasIndependentDetectionPath = (tool: AIToolOption): boolean =>
-    (tool.detectionPaths ?? []).some((detectionPath) => {
-      // Skill roots still go through managed-content reconciliation below;
-      // their mere existence is not an independent tool signal.
-      if (detectionPath.endsWith('/skills')) return false;
-      return view.exists(path.join(projectPath, detectionPath));
-    });
-  return available.filter(
-    (tool) =>
-      tool.globalSkillsDir ||
-      hasIndependentDetectionPath(tool) ||
-      activeProjectTools.has(tool.value)
-  );
 }

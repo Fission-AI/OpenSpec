@@ -25,13 +25,16 @@ function getWelcomeText(workflows: readonly string[]): string[] {
   const quickStart: string[] = [];
 
   if (onboardingCommands.length > 0) {
-    const commandWidth = Math.max(...onboardingCommands.map((c) => c.command.length));
     quickStart.push(chalk.white('Quick start after setup:'));
-    for (const { command, description } of onboardingCommands) {
-      quickStart.push(`  ${chalk.yellow(command.padEnd(commandWidth + 1))} ${chalk.dim(description)}`);
+    // Skill names are too long to share a line with the description inside
+    // the 60-column animation budget, so each description sits beneath its
+    // skill.
+    for (const { skill, description } of onboardingCommands) {
+      quickStart.push(`  ${chalk.yellow(skill)}`);
+      quickStart.push(`    ${chalk.dim(description)}`);
     }
-    // These are the canonical names. How each tool spells them differs
-    // (/opsx-propose, @opsx-propose, $openspec-propose ...) and cannot be known
+    // These are the skill names. How each tool invokes a skill differs
+    // (/openspec-propose, $openspec-propose ...) and cannot be known
     // until tools are picked, one prompt later — so flag it rather than let the
     // canonical form read as the literal thing to type. "Getting started"
     // prints the real spelling once the selection is known.
@@ -44,11 +47,9 @@ function getWelcomeText(workflows: readonly string[]): string[] {
     chalk.dim('A lightweight spec-driven framework'),
     '',
     chalk.white('This setup will configure:'),
+    // OpenSpec 2.0 installs skills only. The exact spelling per tool is
+    // printed in "Getting started".
     chalk.dim('  • Agent Skills for AI tools'),
-    // Not "opsx slash commands": this screen runs before tool selection, and
-    // skills-only tools (Codex, Kimi Code, ...) correctly get no command files
-    // at all. The exact spelling per tool is printed in "Getting started".
-    chalk.dim('  • Workflow commands, if supported'),
     '',
     ...quickStart,
     chalk.cyan('Press Enter to select tools...'),

@@ -151,7 +151,7 @@ Validate after every hand-edit. A broken schema otherwise surfaces in the middle
 
 ## A fork is a snapshot
 
-`openspec update` refreshes the installed skills and commands, and it never touches `openspec/schemas/`. Your fork keeps working exactly as you left it, which also means it stops receiving improvements when the built-in schema evolves. To pick those up later, fork the built-in again under a new name and port the differences across.
+`openspec update` refreshes the installed skills, and it never touches `openspec/schemas/`. Your fork keeps working exactly as you left it, which also means it stops receiving improvements when the built-in schema evolves. To pick those up later, fork the built-in again under a new name and port the differences across.
 
 ## Sharing schemas
 

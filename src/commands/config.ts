@@ -147,7 +147,7 @@ function reportEditorFailure(editor: string, outcome: EditorOutcome): void {
   }
 }
 
-type ProfileAction = 'both' | 'delivery' | 'workflows' | 'keep';
+type ProfileAction = 'workflows' | 'keep';
 
 /**
  * A config file that exists but cannot be parsed is still the user's file:
@@ -375,10 +375,9 @@ export function configListCommand(options: { json?: boolean }): void {
 
     // Annotate profile settings
     const profileSource = rawConfig.profile !== undefined ? '(explicit)' : '(default)';
-    const deliverySource = rawConfig.delivery !== undefined ? '(explicit)' : '(default)';
     console.log(`\nProfile settings:`);
     console.log(`  profile: ${config.profile} ${profileSource}`);
-    console.log(`  delivery: ${config.delivery} ${deliverySource}`);
+    console.log(`  delivery: ${config.delivery} (retired in 2.0, ignored)`);
     if (config.profile === 'core') {
       console.log(`  workflows: ${CORE_WORKFLOWS.join(', ')} (from core profile)`);
     } else if (config.workflows && config.workflows.length > 0) {
@@ -447,7 +446,16 @@ export function configSetCommand(key: string, value: string, options: { string?:
   const displayValue =
     typeof coercedValue === 'string' ? `"${coercedValue}"` : String(coercedValue);
   console.log(`Set ${key} = ${displayValue}`);
+  if (key === 'delivery') {
+    // Still accepted, so `config set delivery skills && openspec update` from
+    // the 1.x notice keeps working.
+    console.log(DELIVERY_RETIRED_NOTE);
+  }
 }
+
+/** What `delivery` means now that every tool gets skills only. */
+export const DELIVERY_RETIRED_NOTE =
+  'Note: delivery no longer changes anything; OpenSpec 2.0 installs skills only.';
 
 export function configUnsetCommand(key: string): void {
   if (refuseUnreadableConfig()) {
@@ -587,25 +595,13 @@ export async function configProfileCommand(preset?: string): Promise<void> {
     const currentState = resolveCurrentProfileState(config);
 
     console.log(chalk.bold('\nCurrent profile settings'));
-    console.log(`  Delivery: ${currentState.delivery}`);
     console.log(`  Workflows: ${formatWorkflowSummary(currentState.workflows, currentState.profile)}`);
-    console.log(chalk.dim('  Delivery = where workflows are installed (skills, commands, or both)'));
     console.log(chalk.dim('  Workflows = which actions are available (propose, explore, apply, etc.)'));
     console.log();
 
     const action = await select<ProfileAction>({
       message: 'What do you want to configure?',
       choices: [
-        {
-          value: 'both',
-          name: 'Delivery and workflows',
-          description: 'Update install mode and available actions together',
-        },
-        {
-          value: 'delivery',
-          name: 'Delivery only',
-          description: 'Change where workflows are installed',
-        },
         {
           value: 'workflows',
           name: 'Workflows only',
@@ -632,38 +628,7 @@ export async function configProfileCommand(preset?: string): Promise<void> {
     };
     let workflowSelectionChanged = false;
 
-    if (action === 'both' || action === 'delivery') {
-      const deliveryChoices: { value: Delivery; name: string; description: string }[] = [
-        {
-          value: 'both' as Delivery,
-          name: 'Both (skills + commands)',
-          description: 'Install workflows as both skills and slash commands',
-        },
-        {
-          value: 'skills' as Delivery,
-          name: 'Skills only',
-          description: 'Install workflows only as skills',
-        },
-        {
-          value: 'commands' as Delivery,
-          name: 'Commands only',
-          description: 'Install workflows only as slash commands',
-        },
-      ];
-      for (const choice of deliveryChoices) {
-        if (choice.value === currentState.delivery) {
-          choice.name += ' [current]';
-        }
-      }
-
-      nextState.delivery = await select<Delivery>({
-        message: 'Delivery mode (how workflows are installed):',
-        choices: deliveryChoices,
-        default: currentState.delivery,
-      });
-    }
-
-    if (action === 'both' || action === 'workflows') {
+    if (action === 'workflows') {
       const formatWorkflowChoice = (workflow: string) => {
         const metadata = WORKFLOW_PROMPT_META[workflow] ?? {
           name: workflow,

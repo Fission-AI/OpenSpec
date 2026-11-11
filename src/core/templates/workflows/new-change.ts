@@ -15,7 +15,7 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  */
 const FIRST_ARTIFACT_PROMPT = optionalWorkflow(
   'continue',
-  'Run `/opsx:continue` or just describe what this change is about and I\'ll draft it.',
+  'Use the `/opsx:continue` skill or just describe what this change is about and I\'ll draft it.',
   'Just describe what this change is about and I\'ll draft it.'
 );
 

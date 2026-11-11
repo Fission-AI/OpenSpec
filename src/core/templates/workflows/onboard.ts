@@ -22,9 +22,9 @@ const EXPLORE_MODE_NOTE = optionalWorkflow(
 );
 
 /**
- * The command-reference tables. Every row is dropped along with its line when
+ * The skill-reference tables. Every row is dropped along with its line when
  * the profile does not install that workflow, so the table lists exactly the
- * commands the reader can run — and stays a valid table either way.
+ * skills the reader can use — and stays a valid table either way.
  */
 const COMMAND_REFERENCE_ROWS = [
   onlyWithWorkflow('propose', ' | `/opsx:propose` | Create a change and generate all artifacts |'),
@@ -38,7 +38,7 @@ const COMMAND_REFERENCE_ROWS = [
 ].join('\n');
 
 const QUICK_REFERENCE_ROWS = [
-  onlyWithWorkflow('propose', ' | `/opsx:propose <name>`  | Create a change and generate all artifacts |'),
+  onlyWithWorkflow('propose', ' | `/opsx:propose <idea>`  | Create a change and generate all artifacts |'),
   onlyWithWorkflow('explore', ' | `/opsx:explore`         | Think through problems (no code changes)   |'),
   onlyWithWorkflow('apply', ' | `/opsx:apply <name>`    | Implement tasks                            |'),
   onlyWithWorkflow('archive', ' | `/opsx:archive <name>`  | Archive when done                          |'),
@@ -558,11 +558,11 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ---
 
-## Command Reference
+## Skill Reference
 
-**The commands you have installed:**
+**The skills you have installed:**
 
- | Command          | What it does                               |
+ | Skill            | What it does                               |
  |------------------|--------------------------------------------|
 ${COMMAND_REFERENCE_ROWS}
 
@@ -592,16 +592,16 @@ The work won't be lost. Come back whenever you're ready.
 
 Exit gracefully without pressure.
 
-### User just wants command reference
+### User just wants skill reference
 
-If the user says they just want to see the commands or skip the tutorial:
+If the user says they just want to see the skills or skip the tutorial:
 
 \`\`\`
 ## OpenSpec Quick Reference
 
-**The commands you have installed:**
+**The skills you have installed:**
 
- | Command                  | What it does                               |
+ | Skill                    | What it does                               |
  |--------------------------|--------------------------------------------|
 ${QUICK_REFERENCE_ROWS}
 

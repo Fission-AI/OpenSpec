@@ -12,7 +12,8 @@ import path from 'path';
 import * as fs from 'fs';
 import os from 'os';
 import { FileSystemUtils } from '../utils/file-system.js';
-import type { FileView } from './file-view.js';
+import { DISK_VIEW, type FileView } from './file-view.js';
+import { createSkillLink, skillLinkText } from './shared/skill-links.js';
 
 export type UpdatePlanAction = 'add' | 'update' | 'delete';
 
@@ -32,7 +33,7 @@ export interface UpdatePlanChange {
  * about, which the plan lists as a non-interactive run makes it. Stable
  * identifiers, for a caller that branches on them.
  */
-export type UpdatePlanNoteCode = 'legacy-tool-directories' | 'legacy-artifacts';
+export type UpdatePlanNoteCode = 'legacy-tool-directories' | 'legacy-artifacts' | 'edited-skills';
 
 export interface UpdatePlanNote {
   code: UpdatePlanNoteCode;
@@ -65,6 +66,12 @@ export interface UpdateFileOps {
   removeDirectory(dirPath: string, tool: string): Promise<void>;
   /** Removes a directory already known to be empty. */
   removeEmptyDirectory(dirPath: string): Promise<void>;
+  /**
+   * Links a skill folder into a tool's own `skills/` folder (a plain copy
+   * where a link can't be made). The caller has checked the spot is not the
+   * user's.
+   */
+  linkSkill(linkPath: string, targetDir: string, tool: string): Promise<void>;
 }
 
 export const realFileOps: UpdateFileOps = {
@@ -80,6 +87,9 @@ export const realFileOps: UpdateFileOps = {
   async removeEmptyDirectory(dirPath) {
     await fs.promises.rmdir(dirPath);
   },
+  async linkSkill(linkPath, targetDir) {
+    createSkillLink(linkPath, targetDir);
+  },
 };
 
 export class UpdatePlanRecorder implements UpdateFileOps {
@@ -94,6 +104,8 @@ export class UpdatePlanRecorder implements UpdateFileOps {
   private readonly staged = new Map<string, string | null | typeof STAGED_DIRECTORY>();
   /** Every file path the plan has touched, with the tool that touched it last. */
   private readonly touched = new Map<string, string>();
+  /** Links the plan makes: absolute link path to the absolute folder it points at. */
+  private readonly links = new Map<string, string>();
 
   constructor(private readonly projectPath: string) {}
 
@@ -114,8 +126,54 @@ export class UpdatePlanRecorder implements UpdateFileOps {
     this.staged.set(path.resolve(dirPath), null);
   }
 
+  async linkSkill(linkPath: string, targetDir: string, tool: string): Promise<void> {
+    const to = path.resolve(linkPath);
+    const from = path.resolve(targetDir);
+    let existing: fs.Stats | undefined;
+    try {
+      existing = fs.lstatSync(to);
+    } catch {
+      existing = undefined;
+    }
+    if (existing?.isSymbolicLink() && !this.links.has(to) && this.stagedEntry(to) === undefined) {
+      if (path.resolve(path.dirname(to), fs.readlinkSync(to)) === from) return; // already this link
+      this.stage(to, null, tool);
+    } else if (this.entryKind(to).kind !== 'missing') {
+      // A copy where the link goes: everything in it goes, as the real link
+      // replaces it.
+      for (const filePath of this.filesUnder(to)) this.stage(filePath, null, tool);
+      this.staged.set(to, null);
+    }
+    this.probeCreatableIn(path.dirname(to));
+    this.links.set(to, from);
+    this.touched.set(to, tool);
+  }
+
+  /**
+   * A path under a link the plan makes, as the folder it points at. Reads and
+   * checks follow the planned link the way they would follow the real one.
+   */
+  private throughLinks(target: string): string {
+    for (let current = target; ; current = path.dirname(current)) {
+      const linked = this.links.get(current);
+      if (linked !== undefined) {
+        return this.throughLinks(path.join(linked, path.relative(current, target)));
+      }
+      if (path.dirname(current) === current) return target;
+    }
+  }
+
+  /** The text of the link the real update makes: relative to the real folder it sits in. */
+  private linkText(linkPath: string): string {
+    return skillLinkText(linkPath, this.links.get(linkPath)!);
+  }
+
   async removeDirectory(dirPath: string, tool: string): Promise<void> {
     const target = path.resolve(dirPath);
+    if (this.links.delete(target)) {
+      this.stage(target, null, tool);
+      return;
+    }
     // A symlinked skills directory - what a dotfile manager leaves behind - is
     // removed as the link itself: `fs.rm` with `recursive` unlinks it and never
     // touches the tree it points at, so the link is the one entry that goes.
@@ -169,11 +227,43 @@ export class UpdatePlanRecorder implements UpdateFileOps {
    * plan has not touched answers exactly as the disk does.
    */
   readonly view: FileView = {
-    exists: (filePath: string): boolean => this.entryKind(path.resolve(filePath)).kind !== 'missing',
+    exists: (filePath: string): boolean =>
+      this.entryKind(this.throughLinks(path.resolve(filePath))).kind !== 'missing',
     isDirectory: (filePath: string): boolean =>
-      this.entryKind(path.resolve(filePath)).kind === 'directory',
-    read: (filePath: string): string => {
+      this.entryKind(this.throughLinks(path.resolve(filePath))).kind === 'directory',
+    listDirectory: (dirPath: string): string[] => {
+      const directory = this.throughLinks(path.resolve(dirPath));
+      const names = new Set<string>();
+      const prefix = directory + path.sep;
+      for (const filePath of this.filesUnder(directory)) {
+        names.add(path.relative(directory, filePath).split(path.sep)[0]);
+      }
+      // Entries on disk that hold no file (an empty folder, a dangling link)
+      // are listed too, as a real listing would, unless the plan removes them.
+      try {
+        for (const name of fs.readdirSync(directory)) {
+          if (this.stagedEntry(path.join(directory, name)) !== null) names.add(name);
+        }
+      } catch {
+        // Not a folder on disk (yet).
+      }
+      for (const key of [...this.staged.keys(), ...this.links.keys()]) {
+        if (key.startsWith(prefix) && this.stagedEntry(key) !== null) {
+          names.add(path.relative(directory, key).split(path.sep)[0]);
+        }
+      }
+      return [...names];
+    },
+    linkTarget: (filePath: string): string | undefined => {
       const target = path.resolve(filePath);
+      const planned = this.links.get(target);
+      if (planned !== undefined) return planned;
+      // Planned away, or replaced: whatever link was on disk is gone.
+      if (this.stagedEntry(target) !== undefined) return undefined;
+      return DISK_VIEW.linkTarget!(target);
+    },
+    read: (filePath: string): string => {
+      const target = this.throughLinks(path.resolve(filePath));
       const staged = this.stagedEntry(target);
       if (staged === undefined) return fs.readFileSync(target, 'utf-8');
       if (staged === null) throw errnoError('ENOENT', 'no such file or directory', 'open', target);
@@ -202,7 +292,9 @@ export class UpdatePlanRecorder implements UpdateFileOps {
     const byPath = new Map<string, UpdatePlanChange>();
     for (const [filePath, tool] of this.touched) {
       const before = originalEntry(filePath);
-      const after = this.stagedEntry(filePath);
+      const after = this.links.has(filePath)
+        ? `symlink:${this.linkText(filePath)}`
+        : this.stagedEntry(filePath);
       if (after === undefined || after === STAGED_DIRECTORY) continue;
       let action: UpdatePlanAction | undefined;
       if (after === null) {
@@ -420,7 +512,7 @@ function listFilesRecursively(dirPath: string): string[] {
 export function formatUpdatePlan(plan: UpdatePlan): string {
   const lines: string[] = [];
   if (plan.changes.length === 0) {
-    lines.push('No changes: skills and commands are up to date.');
+    lines.push('No changes: skills are up to date.');
   } else {
     lines.push(`${plan.changes.length} file(s) would change:`);
     const width = Math.max(...plan.changes.map((change) => change.action.length));

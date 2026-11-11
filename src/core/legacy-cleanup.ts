@@ -9,7 +9,7 @@ import { promises as fs, constants as fsConstants } from 'fs';
 import type { FileHandle } from 'fs/promises';
 import chalk from 'chalk';
 import { FileSystemUtils, removeMarkerBlock as removeMarkerBlockUtil } from '../utils/file-system.js';
-import { OPENSPEC_MARKERS } from './config.js';
+import { OPENSPEC_MARKERS, findRetiredTool } from './config.js';
 import { hasReleasedOpenSpecBlock, isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
 import { ALL_WORKFLOWS, type WorkflowId } from './profiles.js';
 
@@ -556,7 +556,11 @@ async function detectLegacyGlobalPromptFiles(): Promise<LegacyGlobalPromptMatch[
         if (entry.isFile() && pattern.managedFileNames.includes(entry.name)) {
           const fullPath = path.join(promptDir, entry.name);
           const match = getManagedGlobalLegacyPromptMetadata(fullPath);
-          if (match) {
+          // Shared by every project on the machine: only a prompt exactly as
+          // a release wrote it is OpenSpec's to remove. One the user edited is
+          // theirs, and is neither offered for cleanup nor removed by --force.
+          const content = match ? await readRegularFileNoFollow(fullPath) : undefined;
+          if (match && content !== undefined && isReleasedGeneratedContent(content)) {
             foundFiles.push(match);
           }
         }
@@ -567,6 +571,30 @@ async function detectLegacyGlobalPromptFiles(): Promise<LegacyGlobalPromptMatch[
   }
 
   return foundFiles;
+}
+
+/**
+ * Home-folder prompts with OpenSpec's file names whose text no release wrote:
+ * edited, so kept. Listed when update cleans up the others.
+ */
+export async function findEditedLegacyGlobalPrompts(): Promise<string[]> {
+  const edited: string[] = [];
+  for (const pattern of Object.values(LEGACY_GLOBAL_SLASH_COMMAND_PATHS)) {
+    const promptDir = pattern.resolvePromptDir();
+    try {
+      const entries = await fs.readdir(promptDir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (!entry.isFile() || !pattern.managedFileNames.includes(entry.name)) continue;
+        const fullPath = path.join(promptDir, entry.name);
+        if (!getManagedGlobalLegacyPromptMetadata(fullPath)) continue;
+        const content = await readRegularFileNoFollow(fullPath);
+        if (content !== undefined && !isReleasedGeneratedContent(content)) edited.push(fullPath);
+      }
+    } catch {
+      // Directory does not exist or cannot be read.
+    }
+  }
+  return edited;
 }
 
 /**
@@ -922,7 +950,7 @@ export function formatCleanupSummary(result: CleanupResult): string {
     }
 
     for (const dir of result.deletedDirs) {
-      lines.push(`  ✓ Removed ${dir}/ (replaced by OpenSpec skills and commands)`);
+      lines.push(`  ✓ Removed ${dir}/ (replaced by OpenSpec skills)`);
     }
 
     for (const entry of keptFiles) {
@@ -1150,7 +1178,9 @@ export function getToolsFromLegacyArtifacts(detection: LegacyDetectionResult): s
     tools.add(prompt.toolId);
   }
 
-  return Array.from(tools);
+  // A retired tool's old files are still cleaned up, but the tool is not set
+  // up again (src/core/retired-tools.ts).
+  return Array.from(tools).filter((toolId) => !findRetiredTool(toolId));
 }
 
 /** The tool that owns a repo-local legacy slash-command directory, if any. */

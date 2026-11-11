@@ -9,7 +9,7 @@
  */
 import path from 'path';
 import { promises as fs } from 'fs';
-import { AI_TOOLS } from './config.js';
+import { AI_TOOLS, SKILL_LINKED_TOOL_IDS } from './config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
@@ -19,20 +19,36 @@ import { RELEASED_GENERATED_PATHS } from './shared/released-generated-fingerprin
 import { LEGACY_TOOL_ROOTS, legacyCommandPath } from './migration.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
+import { isToolListed } from './shared-skill-target.js';
+import { SHARED_SKILLS_ROOT, usesSharedSkills } from './shared/skill-paths.js';
 
 const SHARED_TARGET_MARKER = '.openspec-target';
 
 const toPosix = (p: string) => p.split(path.sep).join('/').replace(/\\/g, '/');
 const topFolder = (rel: string) => rel.split('/')[0];
 
-/** Project-relative paths the current release can write for one tool. */
-function currentPathsForTool(toolId: string): string[] {
+/**
+ * Project-relative paths the current release writes for one tool and no other:
+ * its links (or its own skills, for a tool that keeps its own folder) and its
+ * commands. The shared copy in `.agents/skills/` belongs to every tool, so it
+ * is not evidence that any one of them is set up.
+ */
+function toolSpecificPathsForTool(toolId: string): string[] {
   const tool = AI_TOOLS.find((t) => t.value === toolId);
   if (!tool) return [];
   const paths: string[] = [];
-  if (tool.skillsDir && !tool.globalSkillsDir) {
+  const ownSkillsRoot = !tool.skillsDir || tool.globalSkillsDir
+    ? undefined
+    : !usesSharedSkills(tool)
+      ? tool.skillsDir
+      : SKILL_LINKED_TOOL_IDS.has(tool.value) && tool.skillsDir !== SHARED_SKILLS_ROOT
+        ? tool.skillsDir
+        : undefined;
+  if (ownSkillsRoot) {
     for (const workflow of ALL_WORKFLOWS) {
-      paths.push(`${tool.skillsDir}/skills/${WORKFLOW_TO_SKILL_DIR[workflow]}/SKILL.md`);
+      const skillDir = `${ownSkillsRoot}/skills/${WORKFLOW_TO_SKILL_DIR[workflow]}`;
+      // A link, or the plain copy made where a link can't be.
+      paths.push(skillDir, `${skillDir}/SKILL.md`);
     }
   }
   const adapter = CommandAdapterRegistry.get(tool.value);
@@ -40,6 +56,19 @@ function currentPathsForTool(toolId: string): string[] {
     for (const commandId of COMMAND_IDS) {
       const file = adapter.getFilePath(commandId);
       if (!path.isAbsolute(file)) paths.push(toPosix(file));
+    }
+  }
+  return paths;
+}
+
+/** Project-relative paths the current release can write for one tool. */
+function currentPathsForTool(toolId: string): string[] {
+  const tool = AI_TOOLS.find((t) => t.value === toolId);
+  if (!tool) return [];
+  const paths = toolSpecificPathsForTool(toolId);
+  if (usesSharedSkills(tool)) {
+    for (const workflow of ALL_WORKFLOWS) {
+      paths.push(`${SHARED_SKILLS_ROOT}/skills/${WORKFLOW_TO_SKILL_DIR[workflow]}/SKILL.md`);
     }
   }
   return paths;
@@ -53,7 +82,11 @@ export function currentGeneratablePaths(): Set<string> {
   const paths = new Set<string>();
   for (const tool of AI_TOOLS) {
     for (const p of currentPathsForTool(tool.value)) paths.add(p);
-    if (tool.skillsDir && !tool.globalSkillsDir) {
+  }
+  paths.add(`${SHARED_SKILLS_ROOT}/skills/${SHARED_TARGET_MARKER}`);
+  for (const tool of AI_TOOLS) {
+    // Releases before 2.0 kept this file in every shared skills root.
+    if (tool.skillsDir && !tool.globalSkillsDir && !usesSharedSkills(tool)) {
       paths.add(`${tool.skillsDir}/skills/${SHARED_TARGET_MARKER}`);
     }
   }
@@ -82,7 +115,7 @@ function folderOwners(): Map<string, Set<string>> {
   for (const tool of AI_TOOLS) {
     add(tool.skillsDir, tool.value);
     for (const root of formerRoots(tool.value)) add(root, tool.value);
-    for (const p of currentPathsForTool(tool.value)) add(topFolder(p), tool.value);
+    for (const p of toolSpecificPathsForTool(tool.value)) add(topFolder(p), tool.value);
   }
   return owners;
 }
@@ -146,7 +179,12 @@ export async function findStaleReleasedFiles(
   const hasReplacement = new Map<string, boolean>();
   const replaced = (toolId: string) => {
     if (!hasReplacement.has(toolId)) {
-      hasReplacement.set(toolId, currentPathsForTool(toolId).some(exists));
+      // Its own current files, or being listed as set up (a skills-only tool
+      // that reads `.agents/skills` has nothing else of its own).
+      hasReplacement.set(
+        toolId,
+        toolSpecificPathsForTool(toolId).some(exists) || isToolListed(projectPath, toolId, view)
+      );
     }
     return hasReplacement.get(toolId)!;
   };

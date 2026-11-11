@@ -14,7 +14,10 @@ import { ALL_WORKFLOWS, type WorkflowId } from './profiles.js';
 
 export type OnboardingCommand = {
   workflow: WorkflowId;
+  /** The 1.x command spelling, which update.ts maps to each tool's skill form. */
   command: string;
+  /** The skill's name, shown before tools are picked. */
+  skill: string;
   description: string;
 };
 
@@ -32,10 +35,10 @@ export const DESCRIPTION_BUDGET = 17;
  * then implement.
  */
 const ONBOARDING_COMMANDS: readonly OnboardingCommand[] = [
-  { workflow: 'propose', command: '/opsx:propose', description: 'Start a change' },
-  { workflow: 'new', command: '/opsx:new', description: 'Scaffold a change' },
-  { workflow: 'continue', command: '/opsx:continue', description: 'Next artifact' },
-  { workflow: 'apply', command: '/opsx:apply', description: 'Implement tasks' },
+  { workflow: 'propose', command: '/opsx:propose', skill: 'openspec-propose', description: 'Start a change' },
+  { workflow: 'new', command: '/opsx:new', skill: 'openspec-new-change', description: 'Scaffold a change' },
+  { workflow: 'continue', command: '/opsx:continue', skill: 'openspec-continue-change', description: 'Next artifact' },
+  { workflow: 'apply', command: '/opsx:apply', skill: 'openspec-apply-change', description: 'Implement tasks' },
 ];
 
 /**

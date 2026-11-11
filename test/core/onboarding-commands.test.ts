@@ -15,6 +15,12 @@ describe('getOnboardingCommands', () => {
     expect(commands).not.toContain('/opsx:continue');
   });
 
+  it('names the skill for each hint', () => {
+    const skills = getOnboardingCommands(CORE_WORKFLOWS).map((c) => c.skill);
+
+    expect(skills).toEqual(['openspec-propose', 'openspec-apply-change']);
+  });
+
   it('includes expanded commands when a custom profile installs them', () => {
     const commands = getOnboardingCommands(['new', 'continue', 'apply']).map((c) => c.command);
 

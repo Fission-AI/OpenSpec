@@ -19,8 +19,8 @@ One `"root": null` is not about setup: when a `status` error message starts with
 
 Otherwise, with no root, what happens next depends on how this workflow was reached:
 
-- **Auto-selected**: you chose this workflow yourself, without the user naming OpenSpec, naming this skill, or running its slash command. Stop using OpenSpec and answer the request normally, as you would with no OpenSpec installed. Do not ask them to set anything up and do not mention OpenSpec setup.
-- **Explicit OpenSpec request**: the user named OpenSpec, named this skill, or ran its slash command. Stop before writing and ask how to proceed: set this project up (`openspec init`), target a store they already have (`--store <id>`), or continue without OpenSpec for this request. Wait for their answer.
+- **Auto-selected**: you chose this workflow yourself, without the user naming OpenSpec, naming this skill, or invoking this skill by name. Stop using OpenSpec and answer the request normally, as you would with no OpenSpec installed. Do not ask them to set anything up and do not mention OpenSpec setup.
+- **Explicit OpenSpec request**: the user named OpenSpec, named this skill, or invoked this skill by name. Stop before writing and ask how to proceed: set this project up (`openspec init`), target a store they already have (`--store <id>`), or continue without OpenSpec for this request. Wait for their answer.
 
 In both branches, never create the root as a side effect: do not run `openspec init` until the user asks for it, do not hand-create `openspec/` files, and do not let a command create it.
 
@@ -494,11 +494,11 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ---
 
-## Command Reference
+## Skill Reference
 
-**The commands you have installed:**
+**The skills you have installed:**
 
- | Command          | What it does                               |
+ | Skill            | What it does                               |
  |------------------|--------------------------------------------|
  | `/openspec-propose` | Create a change and generate all artifacts |
  | `/openspec-explore` | Think through problems before/during work  |
@@ -536,18 +536,18 @@ The work won't be lost. Come back whenever you're ready.
 
 Exit gracefully without pressure.
 
-### User just wants command reference
+### User just wants skill reference
 
-If the user says they just want to see the commands or skip the tutorial:
+If the user says they just want to see the skills or skip the tutorial:
 
 ```
 ## OpenSpec Quick Reference
 
-**The commands you have installed:**
+**The skills you have installed:**
 
- | Command                  | What it does                               |
+ | Skill                    | What it does                               |
  |--------------------------|--------------------------------------------|
- | `/openspec-propose <name>`  | Create a change and generate all artifacts |
+ | `/openspec-propose <idea>`  | Create a change and generate all artifacts |
  | `/openspec-explore`         | Think through problems (no code changes)   |
  | `/openspec-apply-change <name>`    | Implement tasks                            |
  | `/openspec-archive-change <name>`  | Archive when done                          |

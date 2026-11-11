@@ -2,7 +2,14 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
 import { getAvailableTools } from '../../src/core/available-tools.js';
+
+// What release 1.9.0 wrote to `.agents/skills`, for Codex and for the plain target.
+const RELEASED = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/released-output');
+const CODEX_SKILL = readFileSync(path.join(RELEASED, 'v1.9.0-codex-agents-skills/openspec-propose/SKILL.md'), 'utf8');
+const AGENTS_SKILL = readFileSync(path.join(RELEASED, 'v1.9.0-agents-skills/openspec-propose/SKILL.md'), 'utf8');
 
 describe('available-tools', () => {
   let testDir: string;
@@ -153,15 +160,17 @@ describe('available-tools', () => {
       expect(tools.every((tool) => tool.skillsDir || tool.globalSkillsDir)).toBe(true);
     });
 
-    it('should detect the shared agents target from .agents/skills', async () => {
+    it('should not detect any tool from .agents/skills alone, where every tool keeps its skills', async () => {
       await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
 
-      const tools = getAvailableTools(testDir);
-      const toolValues = tools.map((t) => t.value);
-      expect(toolValues).toContain('agents');
-      expect(toolValues).not.toContain('codex');
-      expect(toolValues).not.toContain('zed');
-      expect(toolValues).not.toContain('antigravity');
+      expect(getAvailableTools(testDir)).toEqual([]);
+    });
+
+    it('should detect the tools listed as set up in .agents/skills', async () => {
+      await fs.mkdir(path.join(testDir, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(testDir, '.agents', 'skills', '.openspec-target'), 'agents\ncursor\n');
+
+      expect(getAvailableTools(testDir).map((t) => t.value).sort()).toEqual(['agents', 'cursor']);
     });
 
     it('should detect Antigravity from its legacy .agent directory', async () => {
@@ -285,7 +294,7 @@ describe('available-tools', () => {
         'SKILL.md'
       );
       await fs.mkdir(path.dirname(skillFile), { recursive: true });
-      await fs.writeFile(skillFile, 'Next: $openspec-apply-change');
+      await fs.writeFile(skillFile, CODEX_SKILL);
 
       const tools = getAvailableTools(testDir);
       expect(tools.map((tool) => tool.value)).toEqual(['codex']);
@@ -297,7 +306,7 @@ describe('available-tools', () => {
         const skillsDir = path.join(testDir, '.agents', 'skills');
         const skillFile = path.join(skillsDir, 'openspec-propose', 'SKILL.md');
         await fs.mkdir(path.dirname(skillFile), { recursive: true });
-        await fs.writeFile(skillFile, 'Next: /openspec-apply-change');
+        await fs.writeFile(skillFile, AGENTS_SKILL);
         await fs.writeFile(path.join(skillsDir, '.openspec-target'), `${marker}\n`);
 
         const tools = getAvailableTools(testDir);
@@ -322,11 +331,13 @@ describe('available-tools', () => {
       );
       await fs.mkdir(path.dirname(agentsSkill), { recursive: true });
       await fs.mkdir(path.dirname(codexSkill), { recursive: true });
-      await fs.writeFile(agentsSkill, 'Next: /openspec-apply-change');
-      await fs.writeFile(codexSkill, 'Next: $openspec-apply-change');
+      await fs.writeFile(agentsSkill, AGENTS_SKILL);
+      await fs.writeFile(codexSkill, CODEX_SKILL);
 
+      // Releases that wrote both trees did so because both targets were
+      // chosen; they now share one copy, so both stay.
       const tools = getAvailableTools(testDir);
-      expect(tools.map((tool) => tool.value)).toEqual(['codex']);
+      expect(tools.map((tool) => tool.value)).toEqual(['codex', 'agents']);
     });
 
     it('should detect valid legacy Codex skills beside an escaped managed link', async () => {

@@ -11,9 +11,9 @@ OpenSpec reuses words that mean something else in git, CI, and agent tooling. Ea
 | **Artifact** | A planning document inside a change proposal: `proposal.md`, delta specs, `design.md`, `tasks.md`. Not a build output. | [Artifacts](schemas/spec-driven/index.md#artifacts) |
 | **Capability** | One behavior area of your system. Each has one spec at `openspec/specs/<capability>/spec.md`. | [Capabilities](schemas/spec-driven/index.md#proposalmd) |
 | **Change proposal** | One unit of work: a folder under `openspec/changes/<name>/` holding its planning artifacts. Often shortened to "change". Not a git commit. | [Propose](../start/quickstart.md#step-2-propose) |
-| **Command** | A typed entry point for a workflow. Spelling varies per tool (`/opsx:propose`, `/opsx-propose`). The docs name workflows by skill instead. | [Supported tools](supported-tools.md) |
+| **Command** | In OpenSpec 1.x, a typed entry point for a workflow (`/opsx:propose`, `/opsx-propose`). OpenSpec 2.0 installs skills only. | [Supported tools](supported-tools.md) |
 | **Continue** | Create the next planning artifact for an existing change proposal. Skill: `openspec-continue-change`. | [Skills](skills.md) |
-| **Delivery** | How workflows are installed: as skills, commands, or both. | [Set up your project](../start/setup.md) |
+| **Delivery** | In 1.x, how workflows were installed: as skills, commands, or both. Retired in 2.0. | [Upgrade to 2.0](../help/upgrade-to-2.md) |
 | **Delta spec** | A spec inside a change proposal listing only what changes, under `ADDED`, `MODIFIED`, `REMOVED`, and `RENAMED` headers. | [Delta specs](schemas/spec-driven/index.md#delta-specs-specmd) |
 | **Explore** | Think an idea through with the agent before proposing. Writes no code. Skill: `openspec-explore`. | [Explore an idea](skills.md#openspec-explore) |
 | **Fast-forward** | Create a change proposal with every planning artifact in one pass, ready to implement. Skill: `openspec-ff-change`. Not a git fast-forward. | [Skills](skills.md) |
@@ -21,7 +21,7 @@ OpenSpec reuses words that mean something else in git, CI, and agent tooling. Ea
 | **Loop** | The cycle a change proposal moves through: explore, propose, review, apply, archive. | [Quickstart](../start/quickstart.md) |
 | **Main specs** | The `openspec/specs/` tree: the current, agreed behavior of your system. Archiving merges deltas into it. A capability with no spec yet gets one from its `ADDED` requirements. | [Archive](../start/quickstart.md#step-5-archive) |
 | **OpenSpec root** | The `openspec/` tree a command resolves to and operates on: your repo's, or a store's. | [Stores](../multi-repo/stores.md#where-artifacts-get-created-when-using-stores) |
-| **OPSX** | The current OpenSpec workflow system, and the command prefix it installs (`/opsx:`). |  |
+| **OPSX** | The current OpenSpec workflow system. Its 1.x commands used the `/opsx:` prefix. |  |
 | **Profile** | Which workflows init installs: `core` or `custom`. | [Profiles](../customize/profiles.md) |
 | **Propose** | Create a change proposal and generate all its planning artifacts in one step. Skill: `openspec-propose`. | [Quickstart](../start/quickstart.md) |
 | **Registry** | The machine-level list of registered stores, in `registry.yaml`. Not a package registry. | [CLI](cli.md#openspec-store) |
@@ -36,5 +36,5 @@ OpenSpec reuses words that mean something else in git, CI, and agent tooling. Ea
 | **Template** | The starting content a schema gives each artifact. | [Schemas](../customize/schemas.md) |
 | **Update** | As a skill (`openspec-update-change`): revise a change proposal's planning artifacts. As a CLI command (`openspec update`): refresh OpenSpec's installed files. | [Update a change](skills.md#openspec-update-change), [CLI](cli.md) |
 | **Verify** | Check the implementation matches a change proposal's artifacts before archiving. Skill: `openspec-verify-change`. | [Skills](skills.md) |
-| **Workflow** | A named OpenSpec action (propose, apply, archive, ...), installed into your AI tool as a skill or command. | [Set up your project](../start/setup.md) |
+| **Workflow** | A named OpenSpec action (propose, apply, archive, ...), installed into your AI tool as a skill. | [Set up your project](../start/setup.md) |
 | **Workset** | A personal, local group of folders opened together in one tool. Not a store, and nothing is shared. | [Worksets (beta)](../multi-repo/worksets.md) |

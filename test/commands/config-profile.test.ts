@@ -99,28 +99,34 @@ describe('config profile interactive flow', () => {
       'openspec-sync-specs',
       'openspec-archive-change',
     ];
+    // As 2.0 writes them: one shared copy, Claude's links to it, Claude listed.
     for (const dirName of coreSkillDirs) {
-      const skillPath = path.join(projectDir, '.claude', 'skills', dirName, 'SKILL.md');
-      fs.mkdirSync(path.dirname(skillPath), { recursive: true });
-      fs.writeFileSync(skillPath, `name: ${dirName}\n`, 'utf-8');
+      const sharedDir = path.join(projectDir, '.agents', 'skills', dirName);
+      fs.mkdirSync(sharedDir, { recursive: true });
+      fs.writeFileSync(path.join(sharedDir, 'SKILL.md'), `name: ${dirName}\n`, 'utf-8');
+      const linkPath = path.join(projectDir, '.claude', 'skills', dirName);
+      fs.mkdirSync(path.dirname(linkPath), { recursive: true });
+      fs.symlinkSync(
+        process.platform === 'win32' ? sharedDir : path.join('..', '..', '.agents', 'skills', dirName),
+        linkPath,
+        process.platform === 'win32' ? 'junction' : 'dir'
+      );
     }
+    fs.writeFileSync(path.join(projectDir, '.agents', 'skills', '.openspec-target'), 'claude own-files\n', 'utf-8');
 
-    const coreCommands = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'];
-    for (const commandId of coreCommands) {
-      const commandPath = path.join(projectDir, '.claude', 'commands', 'opsx', `${commandId}.md`);
-      fs.mkdirSync(path.dirname(commandPath), { recursive: true });
-      fs.writeFileSync(commandPath, `# ${commandId}\n`, 'utf-8');
-    }
   }
 
   function addExtraVerifyWorkflowArtifacts(projectDir: string): void {
-    const verifySkillPath = path.join(projectDir, '.claude', 'skills', 'openspec-verify-change', 'SKILL.md');
-    fs.mkdirSync(path.dirname(verifySkillPath), { recursive: true });
-    fs.writeFileSync(verifySkillPath, 'name: openspec-verify-change\n', 'utf-8');
-
-    const verifyCommandPath = path.join(projectDir, '.claude', 'commands', 'opsx', 'verify.md');
-    fs.mkdirSync(path.dirname(verifyCommandPath), { recursive: true });
-    fs.writeFileSync(verifyCommandPath, '# verify\n', 'utf-8');
+    // As 2.0 writes it: the shared copy and Claude's link to it.
+    const dirName = 'openspec-verify-change';
+    const sharedDir = path.join(projectDir, '.agents', 'skills', dirName);
+    fs.mkdirSync(sharedDir, { recursive: true });
+    fs.writeFileSync(path.join(sharedDir, 'SKILL.md'), `name: ${dirName}\n`, 'utf-8');
+    fs.symlinkSync(
+      process.platform === 'win32' ? sharedDir : path.join('..', '..', '.agents', 'skills', dirName),
+      path.join(projectDir, '.claude', 'skills', dirName),
+      process.platform === 'win32' ? 'junction' : 'dir'
+    );
   }
 
   beforeEach(() => {
@@ -134,6 +140,12 @@ describe('config profile interactive flow', () => {
     originalExitCode = process.exitCode;
 
     process.env.XDG_CONFIG_HOME = tempDir;
+    // Never the real home: Codex prompts there would count as a tool here.
+    process.env.CODEX_HOME = path.join(tempDir, 'codex-home');
+    // Nor for global-skill tools (MiniMax Code's ~/.minimax/skills): an
+    // in-process update would detect and rewrite them.
+    process.env.HOME = path.join(tempDir, 'home');
+    process.env.USERPROFILE = path.join(tempDir, 'home');
     process.chdir(tempDir);
     (process.stdout as NodeJS.WriteStream & { isTTY?: boolean }).isTTY = true;
     process.exitCode = undefined;
@@ -155,21 +167,6 @@ describe('config profile interactive flow', () => {
     vi.clearAllMocks();
   });
 
-  it('delivery-only action should not invoke workflow checkbox prompt', async () => {
-    const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
-    const { select, checkbox } = await getPromptMocks();
-
-    saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
-    select.mockResolvedValueOnce('delivery');
-    select.mockResolvedValueOnce('skills');
-
-    await runConfigCommand(['profile']);
-
-    expect(checkbox).not.toHaveBeenCalled();
-    expect(select).toHaveBeenCalledTimes(2);
-    expect(getGlobalConfig().delivery).toBe('skills');
-  });
-
   it('action picker should use configure wording and describe each path', async () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
@@ -181,11 +178,9 @@ describe('config profile interactive flow', () => {
 
     const firstCall = select.mock.calls[0][0];
     expect(firstCall.message).toBe('What do you want to configure?');
+    // OpenSpec 2.0 installs skills only, so there is no delivery to configure.
+    expect(firstCall.choices.map((choice: { value: string }) => choice.value)).toEqual(['workflows', 'keep']);
     expect(firstCall.choices).toEqual(expect.arrayContaining([
-      expect.objectContaining({
-        value: 'delivery',
-        description: 'Change where workflows are installed',
-      }),
       expect.objectContaining({
         value: 'workflows',
         description: 'Change which workflow actions are available',
@@ -225,23 +220,6 @@ describe('config profile interactive flow', () => {
     expect(getGlobalConfig().workflows).toEqual(['propose', 'explore']);
   });
 
-  it('delivery picker should mark current option inline', async () => {
-    const { saveGlobalConfig } = await import('../../src/core/global-config.js');
-    const { select } = await getPromptMocks();
-
-    saveGlobalConfig({ featureFlags: {}, profile: 'custom', delivery: 'commands', workflows: ['explore'] });
-    select.mockResolvedValueOnce('delivery');
-    select.mockResolvedValueOnce('commands');
-
-    await runConfigCommand(['profile']);
-
-    expect(select).toHaveBeenCalledTimes(2);
-    const secondCall = select.mock.calls[1][0];
-    expect(secondCall.choices).toEqual(expect.arrayContaining([
-      expect.objectContaining({ value: 'commands', name: 'Commands only [current]' }),
-    ]));
-  });
-
   it('workflow picker should use friendly names with descriptions', async () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select, checkbox } = await getPromptMocks();
@@ -270,15 +248,15 @@ describe('config profile interactive flow', () => {
 
   it('selecting current values only should be a no-op and should not ask apply', async () => {
     const { saveGlobalConfig, getGlobalConfigPath } = await import('../../src/core/global-config.js');
-    const { select, confirm } = await getPromptMocks();
+    const { select, checkbox, confirm } = await getPromptMocks();
 
     saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
     const configPath = getGlobalConfigPath();
     const beforeContent = fs.readFileSync(configPath, 'utf-8');
 
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
-    select.mockResolvedValueOnce('delivery');
-    select.mockResolvedValueOnce('both');
+    select.mockResolvedValueOnce('workflows');
+    checkbox.mockResolvedValueOnce(['propose', 'explore', 'apply', 'update', 'sync', 'archive']);
 
     await runConfigCommand(['profile']);
 
@@ -312,41 +290,6 @@ describe('config profile interactive flow', () => {
     expect(consoleLogSpy).toHaveBeenCalledWith('No config changes.');
   });
 
-  it.each(['delivery', 'both'] as const)(
-    'should preserve raw custom workflows during a %s change',
-    async (action) => {
-      const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
-      const { select, checkbox } = await getPromptMocks();
-
-      saveGlobalConfig({
-        featureFlags: {},
-        profile: 'custom',
-        delivery: 'both',
-        workflows: ['propose', 'explore', 'apply', 'update', 'archive'],
-      });
-      select.mockResolvedValueOnce(action);
-      select.mockResolvedValueOnce('skills');
-      if (action === 'both') {
-        checkbox.mockResolvedValueOnce([
-          'propose',
-          'explore',
-          'apply',
-          'update',
-          'sync',
-          'archive',
-        ]);
-      }
-
-      await runConfigCommand(['profile']);
-
-      expect(getGlobalConfig()).toMatchObject({
-        profile: 'custom',
-        delivery: 'skills',
-        workflows: ['propose', 'explore', 'apply', 'update', 'archive'],
-      });
-    }
-  );
-
   it('keep action should warn when project files drift from global config', async () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { select } = await getPromptMocks();
@@ -377,12 +320,12 @@ describe('config profile interactive flow', () => {
 
   it('effective no-op after prompts should warn when project files drift', async () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
-    const { select, confirm } = await getPromptMocks();
+    const { select, checkbox, confirm } = await getPromptMocks();
 
     saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
     setupDriftedProjectArtifacts(tempDir);
-    select.mockResolvedValueOnce('delivery');
-    select.mockResolvedValueOnce('both');
+    select.mockResolvedValueOnce('workflows');
+    checkbox.mockResolvedValueOnce(['propose', 'explore', 'apply', 'update', 'sync', 'archive']);
 
     await runConfigCommand(['profile']);
 
@@ -408,18 +351,18 @@ describe('config profile interactive flow', () => {
 
   it('changed config should save and ask apply when inside project', async () => {
     const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
-    const { select, confirm } = await getPromptMocks();
+    const { select, checkbox, confirm } = await getPromptMocks();
 
     saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
 
-    select.mockResolvedValueOnce('delivery');
-    select.mockResolvedValueOnce('skills');
+    select.mockResolvedValueOnce('workflows');
+    checkbox.mockResolvedValueOnce(['propose', 'explore', 'apply']);
     confirm.mockResolvedValueOnce(false);
 
     await runConfigCommand(['profile']);
 
-    expect(getGlobalConfig().delivery).toBe('skills');
+    expect(getGlobalConfig().workflows).toEqual(['propose', 'explore', 'apply']);
     expect(confirm).toHaveBeenCalledWith({
       message: 'Apply changes to this project now?',
       default: true,
@@ -428,7 +371,7 @@ describe('config profile interactive flow', () => {
 
   it('confirmed project apply should update in process without resolving openspec from PATH', async () => {
     const { saveGlobalConfig, getGlobalConfig } = await import('../../src/core/global-config.js');
-    const { select, confirm } = await getPromptMocks();
+    const { select, checkbox, confirm } = await getPromptMocks();
 
     saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
@@ -436,13 +379,13 @@ describe('config profile interactive flow', () => {
     fs.mkdirSync(emptyBinDir);
     vi.stubEnv('PATH', emptyBinDir);
 
-    select.mockResolvedValueOnce('delivery');
-    select.mockResolvedValueOnce('skills');
+    select.mockResolvedValueOnce('workflows');
+    checkbox.mockResolvedValueOnce(['propose', 'explore', 'apply']);
     confirm.mockResolvedValueOnce(true);
 
     await runConfigCommand(['profile']);
 
-    expect(getGlobalConfig().delivery).toBe('skills');
+    expect(getGlobalConfig().workflows).toEqual(['propose', 'explore', 'apply']);
     expect(process.exitCode).toBeUndefined();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
     expect(consoleLogSpy).toHaveBeenCalledWith('No configured tools found.');
@@ -452,15 +395,15 @@ describe('config profile interactive flow', () => {
   it('confirmed project apply should report the update failure reason', async () => {
     const { saveGlobalConfig } = await import('../../src/core/global-config.js');
     const { UpdateCommand } = await import('../../src/core/update.js');
-    const { select, confirm } = await getPromptMocks();
+    const { select, checkbox, confirm } = await getPromptMocks();
 
     saveGlobalConfig({ featureFlags: {}, profile: 'core', delivery: 'both', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive'] });
     fs.mkdirSync(path.join(tempDir, 'openspec'), { recursive: true });
     const executeSpy = vi.spyOn(UpdateCommand.prototype, 'execute')
       .mockRejectedValueOnce(new Error('permission denied'));
 
-    select.mockResolvedValueOnce('delivery');
-    select.mockResolvedValueOnce('skills');
+    select.mockResolvedValueOnce('workflows');
+    checkbox.mockResolvedValueOnce(['propose', 'explore', 'apply']);
     confirm.mockResolvedValueOnce(true);
 
     try {
