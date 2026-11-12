@@ -152,7 +152,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "The artifacts are ready for review. When you are ready, use the `/openspec-apply-change` skill or ask me to apply this change."
+- Prompt: "The artifacts are ready for review. When you are ready, use the `openspec-apply-change` skill or ask me to apply this change."
 
 **Artifact Creation Guidelines**
 
