@@ -415,6 +415,19 @@ describe('a project using the machine-wide skills', () => {
     expect(await projectSkills()).toEqual([]);
   });
 
+  it("switches when the global install matches the profile, even if the project still has an old extra skill", async () => {
+    await fs.writeFile(path.join(home, '.config', 'openspec', 'config.json'), JSON.stringify({ profile: 'custom', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'onboard'] }));
+    await new UpdateCommand().execute(project);
+    expect(await exists(p('.agents', 'skills', 'openspec-onboard', 'SKILL.md'))).toBe(true);
+    // Back to core; the global install is made with it.
+    await fs.writeFile(path.join(home, '.config', 'openspec', 'config.json'), JSON.stringify({ profile: 'core' }));
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    const command = new UpdateCommand({ useGlobalSkills: true });
+    await command.execute(project);
+    expect(command.globalSkillsFailed).toBe(false);
+    expect(await projectSkills()).toEqual([]);
+  });
+
   it('goes back to project skills with skills: project', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     await new UpdateCommand({ useGlobalSkills: true }).execute(project);

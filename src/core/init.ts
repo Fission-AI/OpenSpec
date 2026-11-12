@@ -75,7 +75,7 @@ import { isCoveredByGlobalSkills, readGlobalSkillTools, supportsGlobalSkills } f
 import { readProjectSkillsMode } from './project-skills-mode.js';
 import { formatGlobalSkillRecord, formatSkillToolList, readGlobalSkillRecord, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-install.js';
-import { realFileOps } from './update-plan.js';
+import { atomicFileOps, realFileOps } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
 import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
@@ -1070,7 +1070,7 @@ export class InitCommand {
     const sharedIds = AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value) && usesSharedSkills(tool)).map((tool) => tool.value);
     const writeRecord = async (keptNow: readonly string[] = []) => {
       if (usesGlobalSkills && sharedIds.length > 0 && listInProject) {
-        await realFileOps.writeFile(
+        await atomicFileOps.writeFile(
           skillToolListPath(projectPath),
           formatGlobalSkillRecord(sharedIds, [...readKeptSharedSkills(projectPath), ...keptNow]),
           'openspec'

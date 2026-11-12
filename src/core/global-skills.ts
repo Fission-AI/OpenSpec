@@ -18,7 +18,7 @@ import { formatSkillToolList, hasSkillToolList, readKeptSharedSkills, readSkillT
 import { installSharedSkills, type SharedSkillInstallResult, type SkillLayout } from './shared/shared-skill-install.js';
 import { readNpxSkillsLock, resolveHomeDir, resolveHomeSharedSkillsDir, resolveHomeSkillsReach } from './shared/home-skill-paths.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
-import { realFileOps, UpdatePlanRecorder, type UpdatePlan } from './update-plan.js';
+import { atomicFileOps, UpdatePlanRecorder, type UpdatePlan } from './update-plan.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -341,7 +341,7 @@ async function runGlobalSkillsLocked(
       'Your profile has no workflows, so there are no skills to install, and nothing was changed. Choose some with: openspec config profile'
     );
   }
-  const ops = recorder ?? realFileOps;
+  const ops = recorder ?? atomicFileOps;
   const listPath = skillToolListPath(home);
   const markerPath = globalMarkerPath(home);
   // Marked before anything is written, so an interrupted first install is
@@ -374,7 +374,7 @@ async function runGlobalSkillsLocked(
     unlinkTools: wanted.length > 0 ? options(unlinking) : [],
     version: OPENSPEC_VERSION,
     workflowsFor: (toolId) => (wanted.includes(toolId) ? workflows : []),
-    ops: recorder ?? realFileOps,
+    ops: recorder ?? atomicFileOps,
     view,
     writesToDisk: !input.dryRun,
     layout: homeSkillLayout(home, env),

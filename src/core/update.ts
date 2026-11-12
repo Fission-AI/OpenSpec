@@ -85,6 +85,7 @@ import { planProjectSkillsMode, readProjectSkillsMode, type ProjectSkillsMode } 
 import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import {
+  atomicFileOps,
   realFileOps,
   UpdatePlanRecorder,
   type UpdateFileOps,
@@ -337,7 +338,7 @@ export class UpdateCommand {
     // 5a. A project can use each person's machine-wide skills instead of its
     //     own. Then the shared-folder tools are settled here, and the rest of
     //     the update only sees the tools that keep their own files.
-    if (await this.settleGlobalSkills(resolvedProjectPath, configuredAndNewTools)) {
+    if (await this.settleGlobalSkills(resolvedProjectPath, configuredAndNewTools, desiredWorkflows)) {
       const keepsOwnFiles = (toolId: string) => {
         const tool = AI_TOOLS.find((t) => t.value === toolId);
         return tool !== undefined && !usesSharedSkills(tool);
@@ -705,7 +706,11 @@ export class UpdateCommand {
    * removed (edited ones are kept and listed), and nothing is ever written to
    * the home folder: a person without the global skills is told how to add them.
    */
-  private async settleGlobalSkills(projectPath: string, toolIds: readonly string[]): Promise<boolean> {
+  private async settleGlobalSkills(
+    projectPath: string,
+    toolIds: readonly string[],
+    workflows: readonly string[]
+  ): Promise<boolean> {
     // A switched project's tools are on record only as `global <tool>` lines.
     const sharedTools = [...new Set([...toolIds, ...readGlobalSkillRecord(projectPath, this.view)])]
       .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
@@ -745,22 +750,18 @@ export class UpdateCommand {
         }
         return false;
       }
-      // The global install must hold every OpenSpec skill the project has
-      // now, or switching would take some away (an older profile there).
-      const kept = readKeptSharedSkills(projectPath, this.view);
+      // The global install must hold every skill the profile wants, or
+      // switching would take some away (it was made with an older profile).
       const globalDir = resolveHomeSharedSkillsDir();
-      const lacking = OPENSPEC_SKILL_NAMES.filter(
-        (skillName) =>
-          !kept.has(skillName) &&
-          this.view.exists(path.join(sharedDir, skillName, 'SKILL.md')) &&
-          !this.view.exists(path.join(globalDir, skillName, 'SKILL.md'))
-      );
+      const lacking = getSkillTemplates(workflows)
+        .map(({ dirName }) => dirName)
+        .filter((skillName) => !this.view.exists(path.join(globalDir, skillName, 'SKILL.md')));
       if (globalTools.length > 0 && missing.length === 0 && lacking.length > 0) {
         if (this.useGlobalSkills) {
           this.globalSkillsFailed = true;
           this.log(
             chalk.yellow(
-              `Not switched: your global skills don't include ${lacking.join(', ')}, which this project has. ` +
+              `Not switched: your global skills don't include ${lacking.join(', ')}, which your profile has. ` +
                 'Run openspec update --global to bring them up to your profile, then try again.'
             )
           );
@@ -864,7 +865,8 @@ export class UpdateCommand {
       } catch {
         current = undefined;
       }
-      if (current !== record) await this.ops.writeFile(listPath, record, 'openspec');
+      // Whole or not at all: a cut-short write would lose the tool record.
+      if (current !== record) await (this.recorder ?? atomicFileOps).writeFile(listPath, record, 'openspec');
     };
     await writeRecord();
     const result = await installSharedSkills({
@@ -974,7 +976,8 @@ export class UpdateCommand {
       this.recorder?.addFailure('openspec', message);
       return false;
     }
-    await this.ops.writeFile(planned.path, planned.content, 'openspec');
+    // Whole or not at all: a cut-short write would lose the rest of the file.
+    await (this.recorder ?? atomicFileOps).writeFile(planned.path, planned.content, 'openspec');
     return true;
   }
 

@@ -92,6 +92,27 @@ export const realFileOps: UpdateFileOps = {
   },
 };
 
+/**
+ * `realFileOps`, but a file is written whole or not at all: a temporary file
+ * beside it, then a rename. For OpenSpec's own records (a tool list, a config
+ * it saves), where a write cut short would lose what they record.
+ */
+export const atomicFileOps: UpdateFileOps = {
+  ...realFileOps,
+  async writeFile(filePath, content) {
+    const dir = path.dirname(filePath);
+    await fs.promises.mkdir(dir, { recursive: true });
+    const temp = path.join(dir, `.${path.basename(filePath)}.${process.pid}.tmp`);
+    try {
+      await fs.promises.writeFile(temp, content, 'utf-8');
+      await fs.promises.rename(temp, filePath);
+    } catch (error) {
+      await fs.promises.rm(temp, { force: true });
+      throw error;
+    }
+  },
+};
+
 export class UpdatePlanRecorder implements UpdateFileOps {
   private readonly notes: UpdatePlanNote[] = [];
   private readonly failures: UpdatePlanFailure[] = [];

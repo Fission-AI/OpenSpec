@@ -81,6 +81,12 @@ describe('global skills (--global)', () => {
     expect(readGlobalSkillTools(home).sort()).toEqual(['claude', 'cursor']);
   });
 
+  it('writes its files whole, leaving no temporary files behind', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    expect((await tree(h('.agents'))).filter((f) => f.includes('.tmp'))).toEqual([]);
+    expect(await fs.readFile(h('.agents', 'skills', '.openspec-target'), 'utf8')).toBe('claude own-files\ncodex\n');
+  });
+
   it('never touches the folder it runs in', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     expect(await tree(cwd)).toEqual([]);
