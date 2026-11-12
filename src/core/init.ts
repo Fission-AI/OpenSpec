@@ -175,6 +175,36 @@ export class InitCommand {
     this.copilotCloudOption = options.copilotCloud;
   }
 
+  /**
+   * `openspec init --global`: installs the skills once for this machine, in
+   * `~/.agents/skills/`. Reads and writes no project.
+   */
+  async executeGlobal(): Promise<void> {
+    const { formatGlobalSkillsResult, readGlobalSkillTools, runGlobalSkills, supportsGlobalSkills } = await import(
+      './global-skills.js'
+    );
+    const asked = this.resolveToolsArg();
+    let toolIds: string[];
+    if (asked === null) {
+      toolIds = readGlobalSkillTools();
+      if (toolIds.length === 0) {
+        throw new Error(
+          'Name the tools to set up for this machine, for example: openspec init --global --tools claude,codex'
+        );
+      }
+    } else {
+      // "all" means every tool that can be set up for a machine; a tool named
+      // on its own that can't is reported.
+      toolIds = this.toolsArg?.trim().toLowerCase() === 'all' ? asked.filter((id) => supportsGlobalSkills(id)) : asked;
+    }
+    const result = await runGlobalSkills({ toolIds });
+    const { lines, warnings, errors } = formatGlobalSkillsResult(result);
+    for (const line of lines) console.log(errors.length === 0 ? chalk.green(line) : line);
+    for (const line of warnings) console.log(chalk.yellow(line));
+    for (const line of errors) console.log(chalk.red(line));
+    if (errors.length > 0) process.exitCode = 1;
+  }
+
   async execute(targetPath: string): Promise<void> {
     const projectPath = FileSystemUtils.canonicalizeExistingPath(targetPath);
     const openspecDir = OPENSPEC_DIR_NAME;

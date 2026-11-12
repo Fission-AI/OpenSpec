@@ -131,4 +131,84 @@ export function displayHomePath(p: string, home: string = resolveHomeDir()): str
   return `~/${rel.split(path.sep).join('/')}`;
 }
 
+/** A path the installer reports relative to the home folder, as the user sees it. */
+function displayRelative(rel: string, home: string): string {
+  return displayHomePath(path.resolve(home, rel), home);
+}
+
+const toolName = (id: string) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id;
+
+/** What `init --global` and `update --global` print. */
+export function formatGlobalSkillsResult(
+  result: GlobalSkillsResult,
+  options: { home?: string; env?: NodeJS.ProcessEnv } = {}
+): { lines: string[]; warnings: string[]; errors: string[] } {
+  const env = options.env ?? process.env;
+  const home = options.home ?? resolveHomeDir(env);
+  const lines: string[] = [];
+  const warnings: string[] = [];
+  const errors: string[] = [];
+  const working = result.tools.filter((id) => !result.install.toolFailures.has(id));
+  const shared = displayHomePath(resolveHomeSharedSkillsDir(home), home);
+
+  if (result.tools.length === 0) {
+    lines.push(
+      result.wasInstalled
+        ? `Removed OpenSpec's skills from this machine (${shared}).`
+        : 'Nothing is set up for this machine.'
+    );
+  } else {
+    lines.push(`OpenSpec skills for this machine are in ${shared} (v${OPENSPEC_VERSION}).`);
+    const linked: string[] = [];
+    const reading: string[] = [];
+    for (const id of working) {
+      const reach = resolveHomeSkillsReach(id, { home, env });
+      if (reach.kind === 'link') linked.push(`${toolName(id)} (${displayHomePath(reach.dir, home)})`);
+      else reading.push(toolName(id));
+    }
+    if (linked.length > 0) lines.push(`Linked for ${linked.join(', ')}.`);
+    if (reading.length > 0) lines.push(`Read directly by ${reading.join(', ')}.`);
+  }
+  if (result.tools.length > 0 && result.dropped.length > 0) {
+    lines.push(`No longer set up for this machine: ${result.dropped.map(toolName).join(', ')}.`);
+  }
+  for (const id of result.refused) {
+    warnings.push(
+      `${toolName(id)} has no machine-wide skills folder OpenSpec knows of. Set it up per project instead: openspec init --tools ${id}`
+    );
+  }
+  for (const [id, error] of result.install.toolFailures) {
+    errors.push(`${toolName(id)} was not set up: ${error.message}`);
+  }
+  const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
+  const keptShared = result.install.kept.filter((rel) => rel.startsWith('.agents/skills/'));
+  const keptElsewhere = result.install.kept.filter((rel) => !rel.startsWith('.agents/skills/'));
+  const show = (rels: readonly string[]) => rels.map((rel) => displayRelative(rel, home)).join(', ');
+  if (keptShared.length > 0) {
+    warnings.push(
+      `Kept ${keptShared.length} ${plural(keptShared.length, 'skill', 'skills')} in ${shared} as your own: ${show(keptShared)}. ` +
+        `OpenSpec won't update or remove ${plural(keptShared.length, 'it', 'them')}; delete one to have OpenSpec install its own.`
+    );
+  }
+  if (keptElsewhere.length > 0) {
+    warnings.push(
+      `Kept ${keptElsewhere.length} ${plural(keptElsewhere.length, 'skill folder', 'skill folders')} with your own changes: ` +
+        `${show(keptElsewhere)}. Nothing was overwritten.`
+    );
+  }
+  const edited = result.install.refreshedEdited;
+  if (edited.length > 0) {
+    warnings.push(
+      `Replaced your edits in ${edited.length} ${plural(edited.length, 'skill', 'skills')} OpenSpec installs: ${show(edited)}. ` +
+        'OpenSpec refreshes these on every update and keeps no copy. Keep lasting changes in a skill of your own under another name.'
+    );
+  }
+  return { lines, warnings, errors };
+}
+
+/** A dry-run plan with paths as the user sees them. */
+export function homePlan(plan: UpdatePlan, home: string = resolveHomeDir()): UpdatePlan {
+  return { ...plan, changes: plan.changes.map((change) => ({ ...change, path: displayRelative(change.path, home) })) };
+}
+
 export { resolveHomeSharedSkillsDir };

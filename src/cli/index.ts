@@ -268,8 +268,23 @@ program
   .option('--no-animation', 'Show a static welcome screen instead of the animated one')
   .option('--copilot-cloud', 'Set up GitHub Copilot cloud coding-agent files without prompting')
   .option('--no-copilot-cloud', 'Skip GitHub Copilot cloud coding-agent files without prompting')
-  .action(async (targetPath = '.', options?: { tools?: string; language?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean }) => {
+  .option('--global', 'Install the skills once for this machine, in ~/.agents/skills, instead of in a project')
+  .action(async (targetPath = '.', options?: { tools?: string; language?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean; global?: boolean }) => {
     try {
+      if (options?.global) {
+        const projectOnly = [
+          targetPath !== '.' && 'a path',
+          options.language !== undefined && '--language',
+          options.profile !== undefined && '--profile',
+          options.copilotCloud !== undefined && '--copilot-cloud',
+        ].filter(Boolean);
+        if (projectOnly.length > 0) {
+          throw new Error(`--global sets up this machine, not a project, so it doesn't take ${projectOnly.join(', ')}.`);
+        }
+        const { InitCommand } = await import('../core/init.js');
+        await new InitCommand({ tools: options.tools }).executeGlobal();
+        return;
+      }
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
 
@@ -332,15 +347,43 @@ program
   .option('--force', 'Force update even when tools are up to date')
   .option('--dry-run', 'Report what the update would change without writing anything')
   .option('--json', 'With --dry-run, print the planned changes as JSON')
+  .option('--global', 'Refresh the skills installed for this machine (openspec init --global)')
   .action(
     async (
       targetPath = '.',
-      options?: { force?: boolean; dryRun?: boolean; json?: boolean }
+      options?: { force?: boolean; dryRun?: boolean; json?: boolean; global?: boolean }
     ) => {
     try {
       if (options?.json && !options?.dryRun) {
         console.error('--json is only available with --dry-run.');
         process.exitCode = 1;
+        return;
+      }
+
+      if (options?.global) {
+        if (targetPath !== '.') {
+          throw new Error("--global refreshes this machine's skills, not a project, so it doesn't take a path.");
+        }
+        const [{ formatGlobalSkillsResult, homePlan, readGlobalSkillTools, runGlobalSkills }, { formatUpdatePlan }] =
+          await Promise.all([import('../core/global-skills.js'), import('../core/update-plan.js')]);
+        if (readGlobalSkillTools().length === 0) {
+          const message = 'Nothing is set up for this machine yet. Run: openspec init --global --tools <ids>';
+          if (options.json) console.log(JSON.stringify({ changes: [], notes: [{ code: 'not-installed', message }], failures: [] }, null, 2));
+          else console.log(message);
+          return;
+        }
+        const result = await runGlobalSkills({ dryRun: options.dryRun });
+        if (options.dryRun) {
+          const plan = homePlan(result.plan!);
+          console.log(options.json ? JSON.stringify(plan, null, 2) : formatUpdatePlan(plan));
+          return;
+        }
+        const { default: chalk } = await import('chalk');
+        const { lines, warnings, errors } = formatGlobalSkillsResult(result);
+        for (const line of lines) console.log(line);
+        for (const line of warnings) console.log(chalk.yellow(line));
+        for (const line of errors) console.log(chalk.red(line));
+        if (errors.length > 0) process.exitCode = 1;
         return;
       }
 
