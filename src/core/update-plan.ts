@@ -113,6 +113,47 @@ export const atomicFileOps: UpdateFileOps = {
   },
 };
 
+/** A temporary file `atomicFileOps` writes beside `<name>`: `.<name>.<pid>.tmp`. */
+const ATOMIC_TEMP = /^\..+\.\d+\.tmp$/;
+
+/**
+ * Removes temporary files a killed `atomicFileOps` write left in a folder and
+ * the folders directly in it. Only safe while no other run can be writing
+ * there (the global install holds its lock).
+ */
+export function sweepAtomicTemps(dir: string): void {
+  const sweep = (folder: string, depth: number) => {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(folder, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(folder, entry.name);
+      if (entry.isFile() && ATOMIC_TEMP.test(entry.name)) fs.rmSync(full, { force: true });
+      else if (depth > 0 && entry.isDirectory() && !entry.isSymbolicLink()) sweep(full, depth - 1);
+    }
+  };
+  sweep(dir, 1);
+}
+
+/** Removes temporary files a killed `atomicFileOps` write of this one file left. */
+export function sweepAtomicTempsFor(filePath: string): void {
+  const prefix = `.${path.basename(filePath)}.`;
+  let names: string[];
+  try {
+    names = fs.readdirSync(path.dirname(filePath));
+  } catch {
+    return;
+  }
+  for (const name of names) {
+    if (name.startsWith(prefix) && /^\d+\.tmp$/.test(name.slice(prefix.length))) {
+      fs.rmSync(path.join(path.dirname(filePath), name), { force: true });
+    }
+  }
+}
+
 export class UpdatePlanRecorder implements UpdateFileOps {
   private readonly notes: UpdatePlanNote[] = [];
   private readonly failures: UpdatePlanFailure[] = [];

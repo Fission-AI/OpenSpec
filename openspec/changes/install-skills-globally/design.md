@@ -49,6 +49,16 @@ With `skills: global`, `init` and `update` write no project skills. If this mach
 
 A 2.0 CLI ignores `skills: global` (unknown keys are allowed). A switched project records its tools as `global <tool>` lines in `.agents/skills/.openspec-target`; 2.0 reads the first word of a line as a tool id, so its `update` finds no tools and writes nothing, while 2.1 still knows them (a teammate is told the exact `--tools`, and `skills: project` brings the skills back). 2.0's `init --tools` writes the project skills back. That is duplication, not loss, and Claude Code runs the personal copy over the project one. The docs ask teams to update their CLI before switching a shared repo.
 
+### D7. Interrupted and failing runs
+
+The home folder has no git to recover from, so every run must leave a state the next run can finish:
+
+- **One run at a time**: `~/.agents/.openspec-global.lock`, taken over after 10 minutes.
+- **Marked first**: `.openspec-global` is written before anything else, so a cut-short first install is finished by the next one.
+- **Recorded ahead**: links still to remove are written to the list as `unlink <tool>` before the work starts, and cleared once gone. They are never set up again.
+- **Whole writes**: every file the global install writes, and a switch's record and `config.yaml`, go to a temporary file and are renamed into place.
+- **Refused, not guessed**: an unreadable global config or a profile with no workflows stops the run before anything changes.
+
 ## Risks
 
 | Risk | Mitigation |

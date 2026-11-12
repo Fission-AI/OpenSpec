@@ -87,6 +87,7 @@ import { DISK_VIEW, type FileView } from './file-view.js';
 import {
   atomicFileOps,
   realFileOps,
+  sweepAtomicTempsFor,
   UpdatePlanRecorder,
   type UpdateFileOps,
   type UpdatePlan,
@@ -866,6 +867,7 @@ export class UpdateCommand {
         current = undefined;
       }
       // Whole or not at all: a cut-short write would lose the tool record.
+      if (!this.dryRun) sweepAtomicTempsFor(listPath);
       if (current !== record) await (this.recorder ?? atomicFileOps).writeFile(listPath, record, 'openspec');
     };
     await writeRecord();
@@ -977,6 +979,7 @@ export class UpdateCommand {
       return false;
     }
     // Whole or not at all: a cut-short write would lose the rest of the file.
+    if (!this.dryRun) sweepAtomicTempsFor(planned.path);
     await (this.recorder ?? atomicFileOps).writeFile(planned.path, planned.content, 'openspec');
     return true;
   }

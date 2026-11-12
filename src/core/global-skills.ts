@@ -18,7 +18,7 @@ import { formatSkillToolList, hasSkillToolList, readKeptSharedSkills, readSkillT
 import { installSharedSkills, type SharedSkillInstallResult, type SkillLayout } from './shared/shared-skill-install.js';
 import { readNpxSkillsLock, resolveHomeDir, resolveHomeSharedSkillsDir, resolveHomeSkillsReach } from './shared/home-skill-paths.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
-import { atomicFileOps, UpdatePlanRecorder, type UpdatePlan } from './update-plan.js';
+import { atomicFileOps, sweepAtomicTemps, UpdatePlanRecorder, type UpdatePlan } from './update-plan.js';
 
 const require = createRequire(import.meta.url);
 const { version: OPENSPEC_VERSION } = require('../../package.json');
@@ -242,6 +242,9 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   }
   let removedInstall = false;
   try {
+    // A run killed mid-write leaves its temporary files; under the lock no
+    // other run is writing, so they go.
+    sweepAtomicTemps(sharedDir);
     const result = await runGlobalSkillsLocked(input, home, env);
     removedInstall = result.tools.length === 0 && result.wasInstalled;
     return result;
@@ -577,7 +580,9 @@ export function formatGlobalSkillsResult(
   }
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   const isNpx = (rel: string) => result.leftToNpx.includes(path.basename(rel));
-  if (result.leftToNpx.length > 0) {
+  // The hand-back advice is for an install; a removal leaves npx's skills
+  // to npx without comment.
+  if (result.leftToNpx.length > 0 && !removing) {
     const names = result.leftToNpx.join(' ');
     warnings.push(
       `Left ${result.leftToNpx.length} ${plural(result.leftToNpx.length, 'skill', 'skills')} to npx skills, which installed ` +
