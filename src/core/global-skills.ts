@@ -11,6 +11,7 @@ import path from 'path';
 import { createRequire } from 'module';
 import { AI_TOOLS, type AIToolOption } from './config.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 import { getGlobalConfig } from './global-config.js';
 import { getProfileWorkflows } from './profiles.js';
 import { hasSkillToolList, readSkillToolList, skillToolListPath } from './shared-skill-target.js';
@@ -67,6 +68,11 @@ function globalMarkerPath(home: string): string {
   return path.join(resolveHomeSharedSkillsDir(home), GLOBAL_MARKER);
 }
 
+/** Whether this home folder holds a `--global` install. */
+export function hasGlobalSkillInstall(home: string = resolveHomeDir(), view: FileView = DISK_VIEW): boolean {
+  return view.exists(globalMarkerPath(home));
+}
+
 /** The tools set up for this machine with `openspec init --global`. */
 export function readGlobalSkillTools(home: string = resolveHomeDir(), view: FileView = DISK_VIEW): string[] {
   if (!view.exists(globalMarkerPath(home))) return [];
@@ -95,6 +101,20 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   const home = input.home ?? resolveHomeDir(env);
   const recorder = input.dryRun ? new UpdatePlanRecorder(home) : undefined;
   const view = recorder?.view ?? DISK_VIEW;
+  // `~/.agents` or `~/.agents/skills` linked somewhere else (a dotfiles
+  // repository) is never written or removed through, not even OpenSpec's
+  // own records in it.
+  const sharedDir = resolveHomeSharedSkillsDir(home);
+  if (view.exists(sharedDir) || view.linkTarget?.(sharedDir) !== undefined || view.linkTarget?.(path.dirname(sharedDir)) !== undefined) {
+    try {
+      FileSystemUtils.assertPathWithin(home, sharedDir);
+    } catch {
+      throw new Error(
+        `${displayHomePath(sharedDir, home)} links outside your home folder, ` +
+          'and OpenSpec writes machine-wide skills only inside it. Nothing was changed.'
+      );
+    }
+  }
   const before = readGlobalSkillTools(home, view);
   // A home folder that was set up as a project holds that project's skills
   // here. Taking them over would change what that project's tools load.
@@ -163,7 +183,7 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
       recorder.addNote(
         'edited-skills',
         `Update will replace your edits in ${install.refreshedEdited.map((rel) => displayHomePath(path.join(home, rel), home)).join(', ')}, ` +
-          'saving a copy of each beside it as SKILL.md.bak.'
+          'saving a copy of each beside it first (SKILL.md.bak).'
       );
     }
     for (const [toolId, error] of install.toolFailures) recorder.addFailure(toolId, error.message);
@@ -290,7 +310,7 @@ export function formatGlobalSkillsResult(
   if (edited.length > 0) {
     warnings.push(
       `Replaced your edits in ${edited.length} ${plural(edited.length, 'skill', 'skills')} OpenSpec installs: ${show(edited)}. ` +
-        `${(result.install.backedUp?.length ?? 0) > 0 ? 'Your text is saved beside each as SKILL.md.bak. ' : ''}` +
+        `${(result.install.backedUp?.length ?? 0) > 0 ? `Your text is saved in ${show(result.install.backedUp!)}. ` : ''}` +
         'OpenSpec refreshes these on every update; keep lasting changes in a skill of your own under another name.'
     );
   }

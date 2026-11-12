@@ -139,6 +139,12 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   if (tools.length === 0) return result;
 
   const sharedDir = resolveSharedSkillsDir(projectPath);
+  // Every step below writes or removes under the shared folder, so it must
+  // not lead out of the root through a link (a removal included, not only a
+  // write). Missing is fine: it is created inside the root.
+  if (view.exists(sharedDir) || view.linkTarget?.(sharedDir) !== undefined || view.linkTarget?.(path.dirname(sharedDir)) !== undefined) {
+    FileSystemUtils.assertPathWithin(projectPath, sharedDir);
+  }
   const workflows = [...new Set(tools.flatMap((tool) => [...input.workflowsFor(tool.value)]))];
   // Wanted skills as written now; any other skill as a full install renders it,
   // only to recognize a copy of it.

@@ -238,6 +238,47 @@ describe('a project using the machine-wide skills', () => {
     expect(readSkillToolList(project)).toEqual([]);
   });
 
+  it("never switches through a .agents link out of the project", async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    const team = path.join(root, 'team');
+    await fs.rename(p('.agents'), team);
+    await fs.symlink(team, p('.agents'), process.platform === 'win32' ? 'junction' : 'dir');
+    const before = await tree(team);
+    // The rest of the update then fails for Claude Code, as 2.0 does here.
+    await expect(new UpdateCommand({ useGlobalSkills: true }).execute(project)).rejects.toThrow(/Claude Code/);
+    expect(said('Not switched')).toBe(true);
+    expect(await tree(team)).toEqual(before);
+    expect(await config()).not.toMatch(/^skills:/m);
+  });
+
+  it('never saves the choice through a config.yaml link', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    const outside = path.join(root, 'team-config.yaml');
+    await fs.rename(p('openspec', 'config.yaml'), outside);
+    await fs.symlink(outside, p('openspec', 'config.yaml'));
+    const text = await fs.readFile(outside, 'utf8');
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    expect(await fs.readFile(outside, 'utf8')).toBe(text);
+    expect(await projectSkills()).toHaveLength(CORE_SKILLS.length);
+  });
+
+  it("doesn't offer the switch when a tool can't use machine-wide skills", async () => {
+    await new InitCommand({ tools: 'claude,codex,atomcode', animation: false }).execute(project);
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    Object.assign(prompt, { interactive: true });
+    await new UpdateCommand().execute(project);
+    expect(prompt.asked).toBe(0);
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    expect(said("AtomCode can't use machine-wide skills")).toBe(true);
+    expect(await projectSkills()).toHaveLength(CORE_SKILLS.length);
+  });
+
+  it('refuses to make a home folder holding the global install a project', async () => {
+    await runGlobalSkills({ toolIds: ['codex'] });
+    await fs.mkdir(path.join(home, 'openspec'), { recursive: true });
+    await expect(new InitCommand({ tools: 'cursor', animation: false }).execute(home)).rejects.toThrow(/can't also be a project/);
+  });
+
   it('goes back to project skills with skills: project', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     await new UpdateCommand({ useGlobalSkills: true }).execute(project);

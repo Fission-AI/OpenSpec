@@ -260,6 +260,17 @@ describe('global skills (--global)', () => {
     expect(await tree(elsewhere)).toEqual([]);
   });
 
+  it("never removes OpenSpec's records through a ~/.agents link", async () => {
+    await runGlobalSkills({ toolIds: ['codex'] });
+    const elsewhere = path.join(root, 'dotfiles', 'agents');
+    await fs.mkdir(path.dirname(elsewhere), { recursive: true });
+    await fs.rename(h('.agents'), elsewhere);
+    await fs.symlink(elsewhere, h('.agents'), process.platform === 'win32' ? 'junction' : 'dir');
+    const before = await tree(elsewhere);
+    await expect(runGlobalSkills({ toolIds: [] })).rejects.toThrow(/links outside your home folder/);
+    expect(await tree(elsewhere)).toEqual(before);
+  });
+
   it('removes the global install with no tools, keeping an edited skill', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     const edited = h('.agents', 'skills', 'openspec-explore', 'SKILL.md');

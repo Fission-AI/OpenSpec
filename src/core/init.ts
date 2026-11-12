@@ -71,7 +71,7 @@ import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
-import { readGlobalSkillTools } from './global-skills.js';
+import { readGlobalSkillTools, supportsGlobalSkills } from './global-skills.js';
 import { readProjectSkillsMode } from './project-skills-mode.js';
 import { formatGlobalSkillRecord, formatSkillToolList, readGlobalSkillRecord, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-install.js';
@@ -213,7 +213,18 @@ export class InitCommand {
     const shared = AI_TOOLS.filter((tool) => toolIds.includes(tool.value) && usesSharedSkills(tool));
     if (shared.length === 0) return;
     const installed = readGlobalSkillTools();
-    const missing = shared.filter((tool) => !installed.includes(tool.value));
+    const unsupported = shared.filter((tool) => !supportsGlobalSkills(tool.value));
+    if (unsupported.length > 0) {
+      console.log(
+        chalk.yellow(
+          `${unsupported.map((tool) => tool.name).join(', ')} can't use machine-wide skills, so with skills: global ` +
+            `${unsupported.length === 1 ? 'it gets' : 'they get'} no OpenSpec skills. To give this project its own skills, ` +
+            'set "skills: project" in openspec/config.yaml and run openspec update.'
+        )
+      );
+    }
+    const missing = shared.filter((tool) => !installed.includes(tool.value) && !unsupported.includes(tool));
+    if (missing.length === 0 && unsupported.length === shared.length) return;
     if (installed.length > 0 && missing.length === 0) {
       console.log(chalk.green("✓ This project uses this machine's global skills (~/.agents/skills); none are written here."));
       return;
@@ -230,6 +241,23 @@ export class InitCommand {
 
   async execute(targetPath: string): Promise<void> {
     const projectPath = FileSystemUtils.canonicalizeExistingPath(targetPath);
+    // A project in the home folder would share `~/.agents/skills` with the
+    // machine-wide install, and each would rewrite the other's list.
+    {
+      const { hasGlobalSkillInstall } = await import('./global-skills.js');
+      const { resolveHomeDir } = await import('./shared/home-skill-paths.js');
+      let home: string | undefined;
+      try {
+        home = FileSystemUtils.canonicalizeExistingPath(resolveHomeDir());
+      } catch {
+        home = undefined;
+      }
+      if (home !== undefined && home === projectPath && hasGlobalSkillInstall()) {
+        throw new Error(
+          'Your home folder holds the machine-wide skills (openspec init --global), so it can\'t also be a project. Set up the project in a folder of its own.'
+        );
+      }
+    }
     const openspecDir = OPENSPEC_DIR_NAME;
     const openspecPath = path.join(projectPath, openspecDir);
 
@@ -1004,9 +1032,16 @@ export class InitCommand {
     // Its tools are on record as `global <tool>` lines; back to plain lines
     // once the project keeps its own skills again.
     const recorded = readGlobalSkillRecord(projectPath);
+    // The record is written only where it stays inside the project.
+    let listInProject = true;
+    try {
+      FileSystemUtils.assertPathWithin(projectPath, skillToolListPath(projectPath));
+    } catch {
+      listInProject = false;
+    }
     if (usesGlobalSkills) {
       if (tools.length > 0) for (const id of recorded) if (!sharedToolIds.includes(id)) sharedToolIds.push(id);
-    } else if (recorded.length > 0) {
+    } else if (recorded.length > 0 && listInProject) {
       await realFileOps.writeFile(
         skillToolListPath(projectPath),
         formatSkillToolList(recorded, readKeptSharedSkills(projectPath)),
@@ -1027,7 +1062,7 @@ export class InitCommand {
       // With global skills the project keeps only the record of its tools, as
       // update leaves it, so a teammate is told what to install.
       const sharedIds = AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value) && usesSharedSkills(tool)).map((tool) => tool.value);
-      if (usesGlobalSkills && sharedIds.length > 0) {
+      if (usesGlobalSkills && sharedIds.length > 0 && listInProject) {
         await realFileOps.writeFile(
           skillToolListPath(projectPath),
           formatGlobalSkillRecord(sharedIds, readKeptSharedSkills(projectPath)),

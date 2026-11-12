@@ -10,6 +10,7 @@ import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import { OPENSPEC_DIR_NAME } from './config.js';
 import type { FileView } from './file-view.js';
 import { resolveConfigFilePath } from './project-config.js';
+import { FileSystemUtils } from '../utils/file-system.js';
 
 export type ProjectSkillsMode = 'global' | 'project';
 
@@ -42,6 +43,13 @@ export function planProjectSkillsMode(
   view: FileView
 ): { path: string; content: string } | undefined {
   const configPath = resolveConfigFilePath(projectPath) ?? path.join(projectPath, OPENSPEC_DIR_NAME, 'config.yaml');
+  // Never written through a link, nor outside the project.
+  if (view.linkTarget?.(configPath) !== undefined) return undefined;
+  try {
+    FileSystemUtils.assertPathWithin(projectPath, configPath);
+  } catch {
+    return undefined;
+  }
   let existing = '';
   try {
     existing = view.read(configPath);
