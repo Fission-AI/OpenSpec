@@ -89,7 +89,9 @@ export function assertHomeSkillsInHome(home: string = resolveHomeDir(), view: Fi
 
 /** Whether the home folder is itself an OpenSpec project. */
 function homeIsProject(home: string, view: FileView): boolean {
-  return ['config.yaml', 'project.md', 'specs', 'changes'].some((entry) => view.exists(path.join(home, 'openspec', entry)));
+  // Only OpenSpec's own files: `specs/` or `changes/` alone are common names
+  // in any repository cloned to `~/openspec`.
+  return ['config.yaml', 'project.md'].some((entry) => view.exists(path.join(home, 'openspec', entry)));
 }
 
 /**
@@ -106,7 +108,7 @@ export function assertNotGlobalHome(projectPath: string, home: string = resolveH
   if (canonicalHome === projectPath && hasGlobalSkillInstall(home)) {
     throw new Error(
       "Your home folder holds the machine-wide skills (openspec init --global), so it can't also be a project. " +
-        'Set up the project in a folder of its own.'
+        'Set up the project in a folder of its own, or remove the machine-wide skills first: openspec init --global --tools none'
     );
   }
 }
@@ -139,7 +141,9 @@ export function homeSkillLayout(home: string, env: NodeJS.ProcessEnv = process.e
     boundFor: (tool) => {
       const reach = resolveHomeSkillsReach(tool.value, { home, env });
       if (reach.kind !== 'link') return home;
-      const rel = path.relative(home, reach.base);
+      // Compared as real paths, so a home reached through a link (`/home` ->
+      // `/var/home`) or a folder named through one can't slip past.
+      const rel = path.relative(realPathOf(home), realPathOf(path.dirname(reach.base)));
       return rel.startsWith('..') || path.isAbsolute(rel) ? reach.base : home;
     },
   };
@@ -162,9 +166,11 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
     );
   }
   const asked = input.toolIds ?? before;
-  if (asked.length > 0 && homeIsProject(home, view)) {
+  // A new install only: one already here keeps being refreshed (the project
+  // side refuses to touch it), and `--tools none` still removes it.
+  if (before.length === 0 && asked.length > 0 && homeIsProject(home, view)) {
     throw new Error(
-      'Your home folder is an OpenSpec project (it has an openspec/ folder), so machine-wide skills would share its ' +
+      'Your home folder is an OpenSpec project (it has openspec/config.yaml), so machine-wide skills would share its ' +
         '.agents/skills. Set up that project in a folder of its own first.'
     );
   }
@@ -256,6 +262,19 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
       .map((rel) => rel.slice('.agents/skills/'.length))
       .filter((name) => npxSkills.has(name)),
   };
+}
+
+/** A path with its existing part resolved through links; the rest as written. */
+function realPathOf(p: string): string {
+  const rest: string[] = [];
+  for (let current = path.resolve(p); ; current = path.dirname(current)) {
+    try {
+      return path.join(fs.realpathSync.native(current), ...rest.reverse());
+    } catch {
+      if (path.dirname(current) === current) return path.resolve(p);
+      rest.push(path.basename(current));
+    }
+  }
 }
 
 function removeIfEmpty(dir: string): void {
@@ -363,7 +382,14 @@ export function formatGlobalSkillsResult(
 function friendlyToolError(toolId: string, error: Error, home: string, env: NodeJS.ProcessEnv): string {
   const reach = resolveHomeSkillsReach(toolId, { home, env });
   if (reach.kind === 'link' && error.message.includes('outside the allowed directory')) {
-    return `${displayHomePath(reach.dir, home)} links outside your home folder, so OpenSpec doesn't write into it.`;
+    // Name the folder that is the link: the tool's folder or its skills folder.
+    let linked = reach.dir;
+    try {
+      if (fs.lstatSync(reach.base).isSymbolicLink()) linked = reach.base;
+    } catch {
+      // Missing: the skills folder is the one to name.
+    }
+    return `${displayHomePath(linked, home)} links outside your home folder, so OpenSpec doesn't write into it.`;
   }
   return error.message;
 }

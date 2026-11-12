@@ -278,13 +278,42 @@ describe('global skills (--global)', () => {
     expect(await exists(h('.agents'))).toBe(false);
   });
 
+  it('accepts a repository cloned to ~/openspec that is not an OpenSpec project', async () => {
+    await fs.mkdir(h('openspec', 'specs'), { recursive: true });
+    await fs.mkdir(h('openspec', 'changes'), { recursive: true });
+    const result = await runGlobalSkills({ toolIds: ['codex'] });
+    expect(result.tools).toEqual(['codex']);
+  });
+
+  it('keeps refreshing an install whose home later became a project', async () => {
+    await runGlobalSkills({ toolIds: ['codex'] });
+    await fs.mkdir(h('openspec'), { recursive: true });
+    await fs.writeFile(h('openspec', 'config.yaml'), 'schema: spec-driven\n');
+    expect((await runGlobalSkills({})).tools).toEqual(['codex']);
+    await runGlobalSkills({ toolIds: [] });
+    expect(readGlobalSkillTools(home)).toEqual([]);
+  });
+
+  it('compares real paths, so a home reached through a link still refuses a linked tool folder', async () => {
+    const realHome = home;
+    const linkHome = path.join(root, 'linkhome');
+    await fs.symlink(realHome, linkHome, process.platform === 'win32' ? 'junction' : 'dir');
+    const dotfiles = path.join(root, 'dotfiles', 'claude');
+    await fs.mkdir(dotfiles, { recursive: true });
+    await fs.symlink(dotfiles, h('.claude'), process.platform === 'win32' ? 'junction' : 'dir');
+    process.env.CLAUDE_CONFIG_DIR = path.join(linkHome, '.claude');
+    const result = await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    expect([...result.install.toolFailures.keys()]).toEqual(['claude']);
+    expect(await tree(path.join(root, 'dotfiles'))).toEqual([]);
+  });
+
   it("refuses a tool home folder linked to a dotfiles repository, and says why", async () => {
     const dotfiles = path.join(root, 'dotfiles', 'claude');
     await fs.mkdir(dotfiles, { recursive: true });
     await fs.symlink(dotfiles, h('.claude'), process.platform === 'win32' ? 'junction' : 'dir');
     const result = await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     const { formatGlobalSkillsResult } = await import('../../src/core/global-skills.js');
-    expect(formatGlobalSkillsResult(result).errors.join('\n')).toMatch(/links outside your home folder/);
+    expect(formatGlobalSkillsResult(result).errors.join('\n')).toMatch(/~\/\.claude links outside your home folder/);
     expect(await tree(path.join(root, 'dotfiles'))).toEqual([]);
   });
 
