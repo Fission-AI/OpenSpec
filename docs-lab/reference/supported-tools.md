@@ -37,19 +37,7 @@ Cursor and Codex read `.agents/skills/` themselves, so they need nothing else.
 
 To add a tool that isn't listed, see [Link another tool](#link-another-tool).
 
-## Install for this machine
-
-`openspec init --global` writes one copy of each skill to `~/.agents/skills/`, the same layout `npx skills add -g` uses. Each tool reaches it one of three ways:
-
-| How | Tools |
-|---|---|
-| Reads `~/.agents/skills/` | Amp, Cline, Codex, Cursor, Factory Droid, Gemini CLI, GitHub Copilot, Kilo Code, Kimi Code, OpenCode, Pi, Warp, Zed Agent, Other / Universal |
-| A link in its home folder | Claude Code (`~/.claude/skills/`, or `$CLAUDE_CONFIG_DIR/skills/`), Antigravity (`~/.gemini/config/skills/`), Auggie (`~/.augment/skills/`), IBM Bob, Command Code (`~/.commandcode/skills/`), CodeArts (`~/.codeartsdoer/skills/`), CodeBuddy, Code Studio, Continue, Crush (`~/.config/crush/skills/`), ForgeCode (`~/.forge/skills/`), Grok Build, Hermes Agent, iFlow, Junie, Kiro, Lingma, Mistral Vibe, Qoder, Qwen Code, Rovo Dev, Zoo Code (`~/.roo/skills/`), Trae, ZCode |
-| Per project only | AtomCode, CoStrict, DeepSeek Harness, Devin Desktop, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft, Veai |
-
-A tool without a folder shown uses `~/.<its project folder>/skills/`, such as `~/.kiro/skills/`. MiniMax Code keeps its skills in `~/.minimax/skills/` either way.
-
-OpenSpec writes only inside your home folder. If `~/.agents`, or a tool's folder such as `~/.claude`, links somewhere else (a dotfiles repository, for example), that folder is left alone and the output says so. A home folder that is itself an OpenSpec project can't hold the global install.
+With `openspec init --scope global` the same layout sits in your home folder: one copy in `~/.agents/skills/`, and links such as `~/.claude/skills/openspec-propose`. The [`skills`](https://github.com/vercel-labs/skills) package places them, so there is no `.openspec-target` file there. These tools have no machine-wide folder it knows, so they keep their skills in each project: AtomCode, CoStrict, DeepSeek Harness, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft Code Assistant, and Veai.
 
 ## Support matrix
 

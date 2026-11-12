@@ -182,34 +182,3 @@ export function hasOwnFolderSkills(
   const ownDir = resolveFormerOwnSkillsDir(projectPath, tool);
   return ownDir !== undefined && hasOpenSpecSkillIn(projectPath, ownDir, view);
 }
-
-/**
- * A project that uses each person's machine-wide skills keeps no skills, only
- * a record of its tools: `global <tool>` lines. Releases before the switch
- * existed read the first word of a line as a tool id, so they see no tool here
- * and write nothing back.
- */
-export function formatGlobalSkillRecord(toolIds: Iterable<string>, keptSkills: Iterable<string> = []): string {
-  return [
-    ...[...new Set(toolIds)].sort().map((id) => `global ${id}`),
-    ...[...new Set(keptSkills)].sort().map((name) => `keep ${name}`),
-  ].map((line) => `${line}\n`).join('');
-}
-
-/** The tools a `global <tool>` record names. */
-export function readGlobalSkillRecord(projectPath: string, view: FileView = DISK_VIEW): string[] {
-  const listPath = skillToolListPath(projectPath);
-  try {
-    FileSystemUtils.assertProjectArtifactPath(projectPath, listPath);
-    if (!view.exists(listPath)) return [];
-    const known = new Set(AI_TOOLS.map((tool) => tool.value));
-    return view
-      .read(listPath)
-      .split(/\r?\n/)
-      .map((line) => line.trim().split(/\s+/))
-      .filter((tokens) => tokens[0] === 'global' && known.has(tokens[1]))
-      .map((tokens) => tokens[1]);
-  } catch {
-    return [];
-  }
-}

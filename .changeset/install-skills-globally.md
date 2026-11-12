@@ -2,6 +2,8 @@
 "@fission-ai/openspec": minor
 ---
 
-Install the skills once for every project on your machine. `openspec init --global --tools claude,codex` writes one copy to `~/.agents/skills/` and links it into the home folder of each tool that needs one, the same layout `npx skills add -g` uses. `openspec update --global` refreshes them after a CLI upgrade. No project is read or changed.
+Install the skills once for every project on your machine. `openspec init --scope global --tools claude,codex` puts one copy in `~/.agents/skills/` and leaves the project with only its `openspec/` folder. After that, plain `openspec init` uses the global skills for new projects, and plain `openspec update` refreshes them from any folder.
 
-A project that still has its own skills asks once, on its next `openspec update`, whether to switch to the global ones. Yes removes its copies of OpenSpec's skills (edited ones are kept) and saves `skills: global` in `openspec/config.yaml`; no saves `skills: project`. Outside a terminal, `update` only suggests `--use-global-skills`. Skills that `npx skills` installed globally are left to it.
+At a terminal, your first `openspec init` asks where the skills should go and remembers the answer. Scripted runs are never asked and work as before. A project that already has its own skills keeps them until you run `openspec init --scope global` there.
+
+The global install is done by Vercel's `skills` package, the one behind `npx skills`, so the layout and lock file are the ones that tool uses. OpenSpec still writes the skill text, so it follows your workflow profile.

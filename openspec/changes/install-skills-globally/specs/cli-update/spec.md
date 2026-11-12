@@ -1,50 +1,36 @@
 ## ADDED Requirements
 
-### Requirement: Update refreshes this machine's skills with --global
+### Requirement: Update refreshes the skills installed for this machine
 
-`openspec update --global` SHALL bring `~/.agents/skills/` and the tools' home links to the current version and global profile, for the tools listed in `~/.agents/skills/.openspec-target`, under the same rules a project update follows. With `--dry-run` it SHALL write nothing and list what it would change. It SHALL NOT read or write the current folder.
+When the global skills are installed, `openspec update` SHALL reinstall them at the CLI's version and the current profile, with no flag. It SHALL do so from any folder, including one that is not an OpenSpec project. It SHALL remove a global skill the profile no longer includes only when OpenSpec installed it. Without the global skills, update SHALL behave as in 2.0.
 
-#### Scenario: After a CLI upgrade
+#### Scenario: A project that uses the global skills
 
-- **GIVEN** a global install from an earlier version
-- **WHEN** the user runs `openspec update --global`
-- **THEN** each installed skill SHALL hold this version's text
-- **AND** a skill the user edited SHALL be named as replaced
+- **WHEN** the user runs `openspec update` in a project with no skills of its own
+- **THEN** the global skills SHALL be refreshed
+- **AND** update SHALL NOT report that no tools are configured
 
-#### Scenario: Nothing installed globally
+#### Scenario: Outside a project
 
-- **WHEN** the user runs `openspec update --global` with no global install
-- **THEN** update SHALL write nothing and name `openspec init --global`
+- **GIVEN** the global skills are installed
+- **WHEN** the user runs `openspec update` in a folder with no `openspec/`
+- **THEN** the global skills SHALL be refreshed and update SHALL exit 0
 
-### Requirement: Update offers to switch a project to global skills
+#### Scenario: A project with its own skills
 
-When a project has its own OpenSpec skills, has no `skills` setting, and this machine's global install covers every tool set up in the project, interactive `openspec update` SHALL ask once whether to use the global skills. Non-interactive runs SHALL NOT switch and SHALL print one line naming `--use-global-skills`.
+- **GIVEN** the global skills are installed
+- **WHEN** the user runs `openspec update` in a project with its own skills
+- **THEN** both SHALL be updated
+- **AND** update SHALL say a tool may list each skill twice and name `openspec init --scope global`
 
-#### Scenario: The user accepts
+#### Scenario: Someone else's skill with an OpenSpec name
 
-- **WHEN** the user answers yes
-- **THEN** update SHALL remove the project's unedited OpenSpec skills and links
-- **AND** SHALL keep and list each edited one
-- **AND** SHALL save `skills: global` in `openspec/config.yaml`
-
-#### Scenario: The user declines
-
-- **WHEN** the user answers no
-- **THEN** the project's skills SHALL be refreshed as before
-- **AND** update SHALL save `skills: project` and not ask again
+- **GIVEN** `~/.agents/skills/openspec-verify-change` exists and OpenSpec did not install it
+- **WHEN** update runs with a profile that doesn't include verify
+- **THEN** that folder SHALL be left alone
 
 #### Scenario: Dry run
 
-- **WHEN** the user runs `openspec update --use-global-skills --dry-run`
-- **THEN** update SHALL list the skills it would remove and write nothing
-
-### Requirement: Update respects a project's global skills setting
-
-When `openspec/config.yaml` sets `skills: global`, `openspec update` SHALL write no project skills, SHALL never write to the home folder, and SHALL name `openspec init --global` when this machine's global install doesn't cover the project's tools.
-
-#### Scenario: Teammate without a global install
-
-- **GIVEN** a project with `skills: global` and no global install on this machine
-- **WHEN** the user runs `openspec update`
-- **THEN** no project skill SHALL be written
-- **AND** the output SHALL name `openspec init --global`
+- **WHEN** the user runs `openspec update --dry-run`
+- **THEN** the plan SHALL note that the global skills would be refreshed
+- **AND** nothing in the home folder SHALL change

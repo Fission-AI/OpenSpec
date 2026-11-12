@@ -68,7 +68,7 @@ Three fields shape what the agent receives. Each field's exact contract (types, 
 | `rules` | Extra instructions for one artifact | Only that artifact's creation |
 | `operations` | Guidance for how a workflow step is carried out | Only `apply` and `archive` |
 
-config.yaml's other fields (`schema`, `store`, `references`) select which schema and which OpenSpec root a project uses, and `skills` says whether the project uses your machine-wide skills. The contract page covers them.
+config.yaml's other fields (`schema`, `store`, `references`) select which schema and which OpenSpec root a project uses. The contract page covers them.
 
 The last column is exact, so a field reaches only the steps listed there. In particular, `verify` never receives `rules`. It checks the implementation against the artifacts as written.
 

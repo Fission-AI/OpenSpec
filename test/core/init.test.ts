@@ -12,14 +12,16 @@ import { getCommandContents } from '../../src/core/shared/skill-generation.js';
 import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
 import { releasedCodexPrompt } from '../helpers/released-codex-prompt.js';
 
-const { confirmMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
+const { confirmMock, selectMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
   confirmMock: vi.fn(),
+  selectMock: vi.fn(),
   showWelcomeScreenMock: vi.fn().mockResolvedValue(undefined),
   searchableMultiSelectMock: vi.fn(),
 }));
 
 vi.mock('@inquirer/prompts', () => ({
   confirm: confirmMock,
+  select: selectMock,
 }));
 
 vi.mock('../../src/ui/welcome-screen.js', () => ({
@@ -49,6 +51,9 @@ describe('InitCommand', () => {
     vi.spyOn(console, 'log').mockImplementation(() => { });
     confirmMock.mockReset();
     confirmMock.mockResolvedValue(true);
+    // The one-time "where should skills go" question: these tests cover project installs.
+    selectMock.mockReset();
+    selectMock.mockResolvedValue('project');
     showWelcomeScreenMock.mockClear();
     searchableMultiSelectMock.mockReset();
   });
@@ -1837,6 +1842,9 @@ describe('InitCommand - profile and detection features', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
     confirmMock.mockReset();
     confirmMock.mockResolvedValue(true);
+    // The one-time "where should skills go" question: these tests cover project installs.
+    selectMock.mockReset();
+    selectMock.mockResolvedValue('project');
     showWelcomeScreenMock.mockClear();
     searchableMultiSelectMock.mockReset();
   });
@@ -2160,6 +2168,46 @@ describe('InitCommand - profile and detection features', () => {
     expect(await directoryExists(path.join(testDir, '.github', 'prompts'))).toBe(false);
     const config = await fs.readFile(path.join(testDir, 'openspec', 'config.yaml'), 'utf8');
     expect(config).toContain('cloudAgent: false');
+  });
+
+  it('interactive init asks once where the skills go and remembers the answer', async () => {
+    searchableMultiSelectMock.mockResolvedValue(['claude']);
+
+    const first = new InitCommand({});
+    vi.spyOn(first as any, 'canPromptInteractively').mockReturnValue(true);
+    await first.execute(testDir);
+
+    expect(selectMock).toHaveBeenCalledTimes(1);
+    expect(selectMock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Where should OpenSpec install its skills?', default: 'global' })
+    );
+    const saved = JSON.parse(await fs.readFile(path.join(configTempDir, 'openspec', 'config.json'), 'utf8'));
+    expect(saved.skillsScope).toBe('project');
+    expect(await fileExists(path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md'))).toBe(true);
+
+    const nextProject = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-init-next-'));
+    try {
+      const second = new InitCommand({});
+      vi.spyOn(second as any, 'canPromptInteractively').mockReturnValue(true);
+      await second.execute(nextProject);
+
+      expect(selectMock).toHaveBeenCalledTimes(1);
+      expect(await fileExists(path.join(nextProject, '.agents', 'skills', 'openspec-explore', 'SKILL.md'))).toBe(true);
+    } finally {
+      await fs.rm(nextProject, { recursive: true, force: true });
+    }
+  });
+
+  it('never asks a scripted init, or a project that already has its own skills', async () => {
+    await new InitCommand({ tools: 'claude' }).execute(testDir);
+    expect(selectMock).not.toHaveBeenCalled();
+
+    searchableMultiSelectMock.mockResolvedValue(['claude']);
+    const again = new InitCommand({});
+    vi.spyOn(again as any, 'canPromptInteractively').mockReturnValue(true);
+    await again.execute(testDir);
+
+    expect(selectMock).not.toHaveBeenCalled();
   });
 
   it('re-init with --no-copilot-cloud removes previously generated managed cloud files', async () => {

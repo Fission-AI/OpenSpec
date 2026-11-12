@@ -109,7 +109,9 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 | `--force` | Remove files from older OpenSpec layouts without asking. Interactive runs otherwise confirm the cleanup first. |
 | `--profile <profile>` | Override the global config profile for this run: `core` (the standard workflow set) or `custom` (the workflows saved in global config). |
 | `--no-animation` | Show a static welcome screen instead of the animated one. |
-| `--global` | Install the skills once for this machine, in `~/.agents/skills/`, instead of in a project. Takes `--tools` (or reuses the tools already set up this way); `--tools none` removes them. Reads and writes no project, so it rejects a path, `--language`, `--profile`, and `--copilot-cloud`. See [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project). |
+| `--scope <scope>` | Where the skills go: `global` installs them once for this machine, in `~/.agents/skills/`; `project` installs them in the project. In a project that has its own skills, `--scope global` removes them. See [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project). |
+
+Without `--scope`, a project that has its own skills keeps them. A project without any uses the choice saved as [`skillsScope`](configuration/config-json.md#skillsscope), then the global skills if this machine has them. Otherwise an interactive init asks once, and a non-interactive one installs in the project.
 
 **Output**
 
@@ -146,7 +148,7 @@ openspec update --force     # rewrite files even when they're current
 openspec update --dry-run   # list what an update would change, and change nothing
 ```
 
-update finds the tools init configured and compares their generated files against the CLI's version. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
+update finds the tools init configured and compares their generated files against the CLI's version. If the skills are also [installed for this machine](../start/setup.md#install-the-skills-once-for-every-project), it refreshes those too, and then it runs from any folder, not only a project. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
 
 **Arguments**
 
@@ -161,8 +163,6 @@ update finds the tools init configured and compares their generated files agains
 | `--force` | Rewrite every configured tool's files even when they're up to date. |
 | `--dry-run` | Report every file the update would add, change, or delete, and write nothing. No CLI upgrade check, no prompts. Combine with `--force` to preview a forced update. |
 | `--json` | With `--dry-run`, print the plan as JSON. Without `--dry-run` it exits 1. |
-| `--global` | Refresh the skills installed with `openspec init --global`, and write nothing in the project. Works with `--dry-run` and `--json`. |
-| `--use-global-skills` | Switch this project to this machine's global skills without asking: remove its copies of OpenSpec's skills (edited ones are kept) and save `skills: global` in `openspec/config.yaml`. |
 
 **Previewing an update**
 
@@ -201,7 +201,7 @@ openspec update --dry-run
 | `changes[].path` | Project-relative path. A file outside the project, such as a global skill or the global config, is shown from your home directory as `~/...`, or as an absolute path when it is outside home too. |
 | `changes[].action` | `add`, `update`, or `delete`. A file whose new bytes match the old ones is not listed. |
 | `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to no one tool are `openspec`: the shared skills in `.agents/skills/`, the global config, and legacy-artifact cleanup. |
-| `notes[]` | `{ code, message }` for a step a terminal user would be asked about or warned of. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. `edited-skills`: update will replace an edit you made inside a skill it installs, and the message names the files. `global-skills`: the project has its own skills and this machine has them installed globally; an interactive update asks whether to switch. Empty for an ordinary refresh. |
+| `notes[]` | `{ code, message }` for a step a terminal user would be asked about or warned of. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. `edited-skills`: update will replace an edit you made inside a skill it installs, and the message names the files. Empty for an ordinary refresh. |
 | `failures[]` | `{ tool, error }` for each tool the real update would fail on, including a write it cannot make: a directory where a file belongs, a file where a directory belongs, or a file or folder without write permission. For that tool, `changes` stops where the real update stops; the other tools are still planned. Failures the disk only reports while writing, such as running out of space, cannot be foreseen. |
 
 A failure before planning, such as no OpenSpec directory, still prints exactly one JSON document: the empty plan plus a `status` array with `severity`, `code` (`update_error`), and `message`. The exit code is 1.

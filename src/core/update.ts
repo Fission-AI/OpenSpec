@@ -12,7 +12,7 @@ import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { getSkillReferenceTransformer, getTransformerForTool, transformToSharedSkillReferences, transformToSkillReferences } from '../utils/command-references.js';
-import { AI_TOOLS, OPENSPEC_DIR_NAME, OPENSPEC_SKILL_NAMES } from './config.js';
+import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   getToolSkillStatus,
   getToolVersionStatus,
@@ -76,18 +76,13 @@ import {
   resolveCommandInvocation,
   shouldReconcileCommandFilesForTool,
 } from './command-surface.js';
-import { resolveSharedSkillsDir, usesSharedSkills } from './shared/skill-paths.js';
-import { formatGlobalSkillRecord, formatSkillToolList, isToolListed, readGlobalSkillRecord, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
+import { usesSharedSkills } from './shared/skill-paths.js';
+import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
-import { assertNotGlobalHome, isCoveredByGlobalSkills, readGlobalSkillTools, supportsGlobalSkills } from './global-skills.js';
-import { resolveHomeSharedSkillsDir } from './shared/home-skill-paths.js';
-import { planProjectSkillsMode, readProjectSkillsMode, type ProjectSkillsMode } from './project-skills-mode.js';
 import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import {
-  atomicFileOps,
   realFileOps,
-  sweepAtomicTempsFor,
   UpdatePlanRecorder,
   type UpdateFileOps,
   type UpdatePlan,
@@ -142,11 +137,6 @@ export interface UpdateCommandOptions {
    * callers use that instead of passing this directly.
    */
   dryRun?: boolean;
-  /**
-   * Switch this project to the machine-wide skills (`openspec init --global`)
-   * without asking: `--use-global-skills`.
-   */
-  useGlobalSkills?: boolean;
 }
 
 /**
@@ -175,16 +165,13 @@ export class UpdateCommand {
   private savedOwnSkills: string[] = [];
   private editedGlobalPromptsReported = false;
   private recorder: UpdatePlanRecorder | null = null;
+  /** Whether OpenSpec's skills are installed for this machine. */
+  private hasGlobalSkills = false;
   private ops: UpdateFileOps = realFileOps;
-
-  private readonly useGlobalSkills: boolean;
-  /** Set when `--use-global-skills` didn't switch, or a switch left something undone. */
-  globalSkillsFailed = false;
 
   constructor(options: UpdateCommandOptions = {}) {
     this.force = options.force ?? false;
     this.dryRun = options.dryRun ?? false;
-    this.useGlobalSkills = options.useGlobalSkills ?? false;
   }
 
   /**
@@ -227,6 +214,61 @@ export class UpdateCommand {
    */
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
+    const { duplicateSkillsNote, readGlobalSkills } = await import('./global-skills.js');
+    let globalSkillCount = 0;
+    try {
+      globalSkillCount = (await readGlobalSkills()).skills.length;
+    } catch {
+      // No readable global install: update the project as before.
+    }
+    this.hasGlobalSkills = globalSkillCount > 0;
+
+    // With the global skills installed, update works from anywhere; a project is optional.
+    const hasProject = await FileSystemUtils.directoryExists(path.join(resolvedProjectPath, OPENSPEC_DIR_NAME));
+    if (hasProject || !this.hasGlobalSkills) {
+      await this.updateProject(projectPath);
+    }
+    if (!this.hasGlobalSkills) return;
+
+    if (this.dryRun) {
+      const recorder = this.recorder ?? (this.recorder = new UpdatePlanRecorder(resolvedProjectPath));
+      recorder.addNote(
+        'global-skills',
+        `Update will also refresh the ${globalSkillCount} OpenSpec skills installed for this machine in ~/.agents/skills.`
+      );
+      return;
+    }
+    await this.refreshGlobalSkills();
+    const note = hasProject ? await duplicateSkillsNote(resolvedProjectPath) : undefined;
+    if (note) this.log(chalk.dim(note));
+  }
+
+  /** Reinstall the skills kept for this machine, at this CLI's version and the current profile. */
+  private async refreshGlobalSkills(): Promise<void> {
+    const { describeSkillsError, installGlobalSkills } = await import('./global-skills.js');
+    const globalConfig = getGlobalConfig();
+    const workflows = getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows).filter((workflow) =>
+      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+    );
+    let failures: string[];
+    try {
+      const result = await installGlobalSkills({ workflows, version: OPENSPEC_VERSION });
+      failures = result.failures;
+      if (failures.length === 0) {
+        this.log(
+          chalk.green(`✓ Updated the ${result.skills.length} skills for this machine in ~/.agents/skills (v${OPENSPEC_VERSION})`)
+        );
+      }
+    } catch (error) {
+      failures = [describeSkillsError(error)];
+    }
+    if (failures.length > 0) {
+      throw new Error(`Could not update the skills for this machine: ${failures.join('; ')}`);
+    }
+  }
+
+  private async updateProject(projectPath: string): Promise<void> {
+    const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);
     this.legacyCleanupSkipped = false;
 
@@ -239,9 +281,6 @@ export class UpdateCommand {
     if (!await FileSystemUtils.directoryExists(openspecPath)) {
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
     }
-    // A project in the home folder would take the machine-wide skills in
-    // `~/.agents/skills` for its own copy.
-    assertNotGlobalHome(FileSystemUtils.canonicalizeExistingPath(resolvedProjectPath));
 
     // 2. Migrate OpenSpec-managed skills left in renamed tool directories
     // (e.g. .kimi -> .kimi-code) so they stay detected and get refreshed,
@@ -300,8 +339,8 @@ export class UpdateCommand {
       desiredWorkflows,
       delivery
     );
-    let { newlyConfiguredTools } = legacyUpgrade;
     const {
+      newlyConfiguredTools,
       workflowOverrides: legacyWorkflowOverrides,
       deferredGlobalCleanup,
       failedTools: legacyUpgradeFailures = [],
@@ -323,39 +362,9 @@ export class UpdateCommand {
       for (const line of detail) this.log(chalk.dim(line));
     }
 
-    // 5. Find configured tools. A project switched back from the machine-wide
-    //    skills (`skills: project`) gets its tool record back as plain tools.
-    await this.restoreProjectToolRecord(resolvedProjectPath);
-    let configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);
-    let configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
-    // Every set-up tool, including those whose skills come from the
-    // machine-wide install: Copilot's cloud files, new-tool detection and
-    // profile notes concern the project's tools, not where skills live.
-    // A switched project's shared-folder tools are on record as `global <tool>`.
-    const recordedGlobal = readGlobalSkillRecord(resolvedProjectPath, this.view);
-    const everyConfiguredTool = [...new Set([...configuredTools, ...recordedGlobal])];
-    const everyTool = [...new Set([...configuredAndNewTools, ...recordedGlobal])];
-
-    // 5a. A project can use each person's machine-wide skills instead of its
-    //     own. Then the shared-folder tools are settled here, and the rest of
-    //     the update only sees the tools that keep their own files.
-    if (await this.settleGlobalSkills(resolvedProjectPath, configuredAndNewTools, desiredWorkflows)) {
-      const keepsOwnFiles = (toolId: string) => {
-        const tool = AI_TOOLS.find((t) => t.value === toolId);
-        return tool !== undefined && !usesSharedSkills(tool);
-      };
-      configuredTools = configuredTools.filter(keepsOwnFiles);
-      newlyConfiguredTools = newlyConfiguredTools.filter(keepsOwnFiles);
-      configuredAndNewTools = configuredAndNewTools.filter(keepsOwnFiles);
-      if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
-        if (deferredGlobalCleanup) {
-          await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
-        }
-        await this.syncCopilotCloudFiles(resolvedProjectPath, everyTool);
-        this.stopIfUpdateFailed(legacyUpgradeFailures);
-        return;
-      }
-    }
+    // 5. Find configured tools
+    const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);
+    const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
       if (deferredGlobalCleanup) {
@@ -378,7 +387,8 @@ export class UpdateCommand {
         }
         return;
       }
-      await this.syncCopilotCloudFiles(resolvedProjectPath, everyTool);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+      if (this.hasGlobalSkills) return;
       this.log(chalk.yellow('No configured tools found.'));
       this.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -435,11 +445,11 @@ export class UpdateCommand {
       );
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
-      await this.syncCopilotCloudFiles(resolvedProjectPath, everyTool);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
       // Still check for new tool directories and extra workflows
-      this.detectNewTools(resolvedProjectPath, everyConfiguredTool);
-      this.displayProfileNotes(resolvedProjectPath, everyConfiguredTool, desiredWorkflows, profile);
+      this.detectNewTools(resolvedProjectPath, configuredTools);
+      this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile);
       this.displaySetupNotes(configuredTools);
       this.stopIfUpdateFailed(legacyUpgradeFailures);
       return;
@@ -676,13 +686,13 @@ export class UpdateCommand {
       this.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
 
-    await this.syncCopilotCloudFiles(resolvedProjectPath, everyTool);
+    await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
 
     // 13. Detect new tool directories not currently configured
-    this.detectNewTools(resolvedProjectPath, everyTool);
+    this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
 
     // 14. Display the profile notes
-    this.displayProfileNotes(resolvedProjectPath, everyTool, desiredWorkflows, profile);
+    this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile);
     this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
@@ -698,290 +708,6 @@ export class UpdateCommand {
       this.log(chalk.dim(restartHint));
     }
     this.stopIfUpdateFailed(failedTools);
-  }
-
-  /**
-   * Whether this project uses the machine-wide skills (`openspec init
-   * --global`) for its shared-folder tools, after asking when that's new.
-   * When it does, the project's own unedited OpenSpec skills and links are
-   * removed (edited ones are kept and listed), and nothing is ever written to
-   * the home folder: a person without the global skills is told how to add them.
-   */
-  private async settleGlobalSkills(
-    projectPath: string,
-    toolIds: readonly string[],
-    workflows: readonly string[]
-  ): Promise<boolean> {
-    // A switched project's tools are on record only as `global <tool>` lines.
-    const sharedTools = [...new Set([...toolIds, ...readGlobalSkillRecord(projectPath, this.view)])]
-      .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
-      .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined && usesSharedSkills(tool));
-    const mode = readProjectSkillsMode(projectPath);
-    if (mode === 'project' && !this.useGlobalSkills) return false;
-    const globalTools = readGlobalSkillTools();
-    // A tool with no machine-wide skills folder can't use a global install.
-    const unsupported = sharedTools.filter((tool) => !supportsGlobalSkills(tool.value));
-    const missing = sharedTools.filter((tool) => !isCoveredByGlobalSkills(tool.value, globalTools) && !unsupported.includes(tool));
-    const names = (tools: readonly { name: string }[]) => tools.map((tool) => tool.name).join(', ');
-    const initGlobal = `openspec init --global --tools ${[...new Set([...globalTools, ...missing.map((t) => t.value)])].join(',') || '<ids>'}`;
-    // The project's `.agents/skills` must stay inside it: one linked
-    // elsewhere (a team's shared folder) is never removed or written through.
-    const sharedDir = resolveSharedSkillsDir(projectPath);
-    let sharedDirInProject = true;
-    try {
-      if (this.view.exists(sharedDir) || this.view.linkTarget?.(sharedDir) !== undefined || this.view.linkTarget?.(path.dirname(sharedDir)) !== undefined) {
-        FileSystemUtils.assertPathWithin(projectPath, sharedDir);
-      }
-    } catch {
-      sharedDirInProject = false;
-    }
-
-    if (mode !== 'global') {
-      if (sharedTools.length === 0) return false;
-      if (!sharedDirInProject || unsupported.length > 0) {
-        if (this.useGlobalSkills) {
-          this.globalSkillsFailed = true;
-          this.log(
-            chalk.yellow(
-              !sharedDirInProject
-                ? 'Not switched: .agents/skills links outside this project, so OpenSpec leaves it alone.'
-                : `Not switched: ${names(unsupported)} can't use machine-wide skills, so this project keeps its own.`
-            )
-          );
-        }
-        return false;
-      }
-      // The global install must hold every skill the profile wants, or
-      // switching would take some away (it was made with an older profile).
-      const globalDir = resolveHomeSharedSkillsDir();
-      const lacking = getSkillTemplates(workflows)
-        .map(({ dirName }) => dirName)
-        .filter((skillName) => !this.view.exists(path.join(globalDir, skillName, 'SKILL.md')));
-      if (globalTools.length > 0 && missing.length === 0 && lacking.length > 0) {
-        if (this.useGlobalSkills) {
-          this.globalSkillsFailed = true;
-          this.log(
-            chalk.yellow(
-              `Not switched: your global skills don't include ${lacking.join(', ')}, which your profile has. ` +
-                'Run openspec update --global to bring them up to your profile, then try again.'
-            )
-          );
-        }
-        return false;
-      }
-      if (this.useGlobalSkills) {
-        if (globalTools.length === 0 || missing.length > 0) {
-          this.globalSkillsFailed = true;
-          this.log(
-            chalk.yellow(
-              globalTools.length === 0
-                ? `Not switched: this machine has no OpenSpec skills installed globally. Run: ${initGlobal}`
-                : `Not switched: this machine's global skills don't cover ${names(missing)}. Run: ${initGlobal}`
-            )
-          );
-          return false;
-        }
-      } else {
-        const hasOwnSkills = OPENSPEC_SKILL_NAMES.some((skillName) =>
-          this.view.exists(path.join(resolveSharedSkillsDir(projectPath), skillName, 'SKILL.md'))
-        );
-        if (globalTools.length === 0 || missing.length > 0 || !hasOwnSkills) return false;
-        const offer =
-          'This project has its own OpenSpec skills, and this machine has them installed globally, so your tools may load both.';
-        if (this.dryRun) {
-          this.recorder?.addNote(
-            'global-skills',
-            `${offer} An interactive update asks whether to switch; "openspec update --use-global-skills --dry-run" lists what switching removes.`
-          );
-          return false;
-        }
-        if (!isInteractive()) {
-          this.log(chalk.dim(`${offer} To use the global ones here, run: openspec update --use-global-skills`));
-          return false;
-        }
-        const { confirm } = await import('@inquirer/prompts');
-        let accepted: boolean;
-        try {
-          accepted = await confirm({
-            message:
-              `${offer} Switch this project to your global skills? Its unedited copies in .agents/skills are removed ` +
-              '(edited ones are kept), and "skills: global" is saved in openspec/config.yaml.',
-            default: true,
-          });
-        } catch (error) {
-          // Ctrl-C at the question: nothing has been changed.
-          if (error instanceof Error && error.name === 'ExitPromptError') {
-            throw new Error('Canceled. The project was not switched.');
-          }
-          throw error;
-        }
-        if (!accepted) {
-          if (await this.saveProjectSkillsMode(projectPath, 'project')) {
-            this.log(chalk.dim('Kept this project\'s own skills, and saved "skills: project" in openspec/config.yaml.'));
-          }
-          return false;
-        }
-      }
-      // Saved first: a switch that can't be recorded isn't made at all, or
-      // the next update would find neither copy of the skills.
-      if (!(await this.saveProjectSkillsMode(projectPath, 'global'))) {
-        if (this.useGlobalSkills) this.globalSkillsFailed = true;
-        return false;
-      }
-    }
-
-    if (unsupported.length > 0) {
-      this.log(
-        chalk.yellow(
-          `${names(unsupported)} can't use machine-wide skills, so with skills: global ${unsupported.length === 1 ? 'it gets' : 'they get'} no OpenSpec skills. ` +
-            'To give this project its own skills again, set "skills: project" in openspec/config.yaml and run openspec update.'
-        )
-      );
-    }
-    if (!sharedDirInProject) {
-      this.log(chalk.yellow('.agents/skills links outside this project, so OpenSpec leaves it alone.'));
-      return true;
-    }
-    // The deselect path: no workflows wanted, so OpenSpec's own copies and
-    // links go and anything the user changed stays.
-    // The project's tools are recorded as `global <tool>` lines, which
-    // releases before the switch don't read as tools, so they leave the project
-    // alone instead of writing its skills back. Written before anything is
-    // removed, and again after, so an interrupted switch never loses them.
-    const listPath = skillToolListPath(projectPath);
-    // Nothing to record or remove for a project whose tools all keep their
-    // own files (MiniMax Code).
-    if (sharedTools.length === 0) return true;
-    // Skills kept as the user's are recorded too, so they are never taken
-    // for OpenSpec's again: not on the next update, nor on the way back.
-    const keptNow = new Set<string>();
-    const writeRecord = async () => {
-      const record = formatGlobalSkillRecord(
-        sharedTools.map((tool) => tool.value),
-        [...readKeptSharedSkills(projectPath, this.view), ...keptNow]
-      );
-      let current: string | undefined;
-      try {
-        current = this.view.read(listPath);
-      } catch {
-        current = undefined;
-      }
-      // Whole or not at all: a cut-short write would lose the tool record.
-      if (!this.dryRun) sweepAtomicTempsFor(listPath);
-      if (current !== record) await (this.recorder ?? atomicFileOps).writeFile(listPath, record, 'openspec');
-    };
-    await writeRecord();
-    const result = await installSharedSkills({
-      projectPath,
-      tools: sharedTools,
-      version: OPENSPEC_VERSION,
-      workflowsFor: () => [],
-      ops: this.ops,
-      view: this.view,
-      writesToDisk: !this.dryRun,
-      writeList: false,
-    });
-    for (const rel of result.kept) {
-      if (rel.startsWith('.agents/skills/')) keptNow.add(path.basename(rel));
-    }
-    // A tool whose links couldn't be removed keeps them until the next update.
-    for (const [toolId, error] of result.toolFailures) {
-      const name = AI_TOOLS.find((tool) => tool.value === toolId)?.name ?? toolId;
-      this.log(chalk.red(`✗ Couldn't remove ${name}'s project copies of OpenSpec's skills: ${error.message}. Fix that, then run openspec update again.`));
-      this.globalSkillsFailed = true;
-    }
-    // Command files and old per-tool copies an earlier release generated go
-    // too, as they would in a project update; edited ones are kept and listed.
-    let removedCommands = 0;
-    const keptCommands: string[] = [];
-    for (const tool of sharedTools) {
-      if (!shouldReconcileCommandFilesForTool(tool.value)) continue;
-      const reconciled = await reconcileCommandFiles(projectPath, tool.value, [], {
-        view: this.view,
-        remove: (fullPath) => this.ops.removeFile(fullPath, tool.value),
-      });
-      removedCommands += reconciled.removed.length;
-      keptCommands.push(...reconciled.kept);
-      if (!this.dryRun) {
-        await pruneEmptyParents(projectPath, reconciled.removed.map((rel) => FileSystemUtils.toPosixPath(rel)));
-      }
-    }
-    // The project's tools stay on record, without any skills: a teammate is
-    // told exactly what to install, `init` still finds the tools, and
-    // `skills: project` brings the project's own skills back.
-    await writeRecord();
-    if (result.kept.length > 0) {
-      this.log(
-        chalk.yellow(
-          `Kept ${result.kept.length} skill folder${result.kept.length === 1 ? '' : 's'} with your own changes: ${result.kept.join(', ')}. ` +
-            "Your tools may load these beside your global skills; delete them once you've moved what you need."
-        )
-      );
-    }
-    if (keptCommands.length > 0) {
-      for (const block of formatKeptCommandFiles({ kept: keptCommands, unchecked: [] })) {
-        for (const line of block) this.log(chalk.yellow(line));
-      }
-    }
-    const removed = result.removedSkillCount + result.replacedOldCopyCount;
-    if (removed + removedCommands > 0) {
-      const parts = [
-        removed > 0 ? `${removed} project cop${removed === 1 ? 'y' : 'ies'} of OpenSpec's skills` : '',
-        removedCommands > 0 ? `${removedCommands} command file${removedCommands === 1 ? '' : 's'}` : '',
-      ].filter(Boolean);
-      this.log(chalk.green(`✓ Using this machine's skills in ~/.agents/skills: removed ${parts.join(' and ')}.`));
-    }
-    if ((globalTools.length === 0 && sharedTools.length > unsupported.length) || missing.length > 0) {
-      this.log(
-        chalk.yellow(
-          "This project uses each person's machine-wide OpenSpec skills (skills: global in openspec/config.yaml), " +
-            `and this machine doesn't have them${missing.length > 0 && globalTools.length > 0 ? ` for ${names(missing)}` : ''}. Run: ${initGlobal}`
-        )
-      );
-    } else if (removed + removedCommands === 0) {
-      this.log(chalk.green("✓ Skills come from this machine's global install (~/.agents/skills). Run \"openspec update --global\" to refresh them."));
-    }
-    return true;
-  }
-
-  /**
-   * Turns a `global <tool>` record back into plain tool lines once the project
-   * no longer uses the machine-wide skills, so this update installs its own.
-   */
-  private async restoreProjectToolRecord(projectPath: string): Promise<void> {
-    // A switch this run makes writes the record again; one it refuses must
-    // still find the tools.
-    if (readProjectSkillsMode(projectPath) === 'global') return;
-    const recorded = readGlobalSkillRecord(projectPath, this.view);
-    if (recorded.length === 0) return;
-    try {
-      FileSystemUtils.assertPathWithin(projectPath, skillToolListPath(projectPath));
-    } catch {
-      return; // never through a link out of the project
-    }
-    await this.ops.writeFile(
-      skillToolListPath(projectPath),
-      formatSkillToolList(recorded, readKeptSharedSkills(projectPath, this.view)),
-      'openspec'
-    );
-  }
-
-  /**
-   * Saves `skills: <mode>` in openspec/config.yaml, keeping the rest of the
-   * file as it is. False, with a message, when the file can't be edited safely.
-   */
-  private async saveProjectSkillsMode(projectPath: string, mode: ProjectSkillsMode): Promise<boolean> {
-    const planned = planProjectSkillsMode(projectPath, mode, this.view);
-    if (!planned) {
-      const message = `couldn't save "skills: ${mode}": openspec/config.yaml is a link or isn't YAML OpenSpec can edit safely. Fix it, then run update again.`;
-      this.log(chalk.yellow(`Not switched: ${message}`));
-      this.recorder?.addFailure('openspec', message);
-      return false;
-    }
-    // Whole or not at all: a cut-short write would lose the rest of the file.
-    if (!this.dryRun) sweepAtomicTempsFor(planned.path);
-    await (this.recorder ?? atomicFileOps).writeFile(planned.path, planned.content, 'openspec');
-    return true;
   }
 
   /**

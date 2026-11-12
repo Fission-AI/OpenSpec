@@ -268,23 +268,9 @@ program
   .option('--no-animation', 'Show a static welcome screen instead of the animated one')
   .option('--copilot-cloud', 'Set up GitHub Copilot cloud coding-agent files without prompting')
   .option('--no-copilot-cloud', 'Skip GitHub Copilot cloud coding-agent files without prompting')
-  .option('--global', 'Install the skills once for this machine, in ~/.agents/skills, instead of in a project')
-  .action(async (targetPath = '.', options?: { tools?: string; language?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean; global?: boolean }) => {
+  .option('--scope <scope>', 'Where the skills go: global (this machine, for every project) or project')
+  .action(async (targetPath = '.', options?: { tools?: string; language?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean; scope?: string }) => {
     try {
-      if (options?.global) {
-        const projectOnly = [
-          targetPath !== '.' && 'a path',
-          options.language !== undefined && '--language',
-          options.profile !== undefined && '--profile',
-          options.copilotCloud !== undefined && '--copilot-cloud',
-        ].filter(Boolean);
-        if (projectOnly.length > 0) {
-          throw new Error(`--global sets up this machine, not a project, so it doesn't take ${projectOnly.join(', ')}.`);
-        }
-        const { InitCommand } = await import('../core/init.js');
-        await new InitCommand({ tools: options.tools }).executeGlobal();
-        return;
-      }
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
 
@@ -312,6 +298,7 @@ program
         profile: options?.profile,
         animation: options?.animation,
         copilotCloud: options?.copilotCloud,
+        scope: options?.scope,
       });
       await initCommand.execute(targetPath);
     } catch (error) {
@@ -347,56 +334,15 @@ program
   .option('--force', 'Force update even when tools are up to date')
   .option('--dry-run', 'Report what the update would change without writing anything')
   .option('--json', 'With --dry-run, print the planned changes as JSON')
-  .option('--global', 'Refresh the skills installed for this machine (openspec init --global)')
-  .option('--use-global-skills', "Switch this project to this machine's global skills without asking")
   .action(
     async (
       targetPath = '.',
-      options?: { force?: boolean; dryRun?: boolean; json?: boolean; global?: boolean; useGlobalSkills?: boolean }
+      options?: { force?: boolean; dryRun?: boolean; json?: boolean }
     ) => {
     try {
       if (options?.json && !options?.dryRun) {
         console.error('--json is only available with --dry-run.');
         process.exitCode = 1;
-        return;
-      }
-
-      if (options?.global) {
-        if (targetPath !== '.') {
-          throw new Error("--global refreshes this machine's skills, not a project, so it doesn't take a path.");
-        }
-        const [
-          { assertHomeSkillsInHome, formatGlobalSkillsResult, hasGlobalSkillInstall, homePlan, readGlobalSkillTools, readPendingUnlinks, runGlobalSkills },
-          { formatUpdatePlan },
-        ] = await Promise.all([import('../core/global-skills.js'), import('../core/update-plan.js')]);
-        assertHomeSkillsInHome();
-        // Links a failed removal left are still OpenSpec's to finish removing.
-        if (readGlobalSkillTools().length === 0 && readPendingUnlinks().length === 0) {
-          // The marker without a tool list: an install that was cut short.
-          const interrupted = hasGlobalSkillInstall();
-          const message = interrupted
-            ? "An earlier openspec init --global didn't finish. Run it again: openspec init --global --tools <ids>"
-            : 'Nothing is set up for this machine yet. Run: openspec init --global --tools <ids>';
-          if (options.json) {
-            console.log(JSON.stringify({ changes: [], notes: [{ code: interrupted ? 'interrupted' : 'not-installed', message }], failures: [] }, null, 2));
-          } else {
-            console.log(message);
-          }
-          if (interrupted) process.exitCode = 1;
-          return;
-        }
-        const result = await runGlobalSkills({ dryRun: options.dryRun });
-        if (options.dryRun) {
-          const plan = homePlan(result.plan!);
-          console.log(options.json ? JSON.stringify(plan, null, 2) : formatUpdatePlan(plan));
-          return;
-        }
-        const { default: chalk } = await import('chalk');
-        const { lines, warnings, errors } = formatGlobalSkillsResult(result);
-        for (const line of lines) console.log(line);
-        for (const line of warnings) console.log(chalk.yellow(line));
-        for (const line of errors) console.log(chalk.red(line));
-        if (errors.length > 0) process.exitCode = 1;
         return;
       }
 
@@ -410,7 +356,6 @@ program
         const plan = await new UpdateCommand({
           force: options?.force,
           dryRun: true,
-          useGlobalSkills: options?.useGlobalSkills,
         }).plan(targetPath);
         console.log(options?.json ? JSON.stringify(plan, null, 2) : formatUpdatePlan(plan));
         return;
@@ -477,10 +422,8 @@ program
         declined = true;
       }
 
-      const updateCommand = new UpdateCommand({ force: options?.force, useGlobalSkills: options?.useGlobalSkills });
+      const updateCommand = new UpdateCommand({ force: options?.force });
       await updateCommand.execute(targetPath);
-      // A switch that was asked for and not made, or left unfinished, is a failure to script.
-      if (updateCommand.globalSkillsFailed) process.exitCode = 1;
 
       if (declined) {
         // The headline was printed before the prompt; only the manual route is

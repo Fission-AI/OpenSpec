@@ -1,24 +1,24 @@
-## 1. Home layout
+## 1. The `skills` package
 
-- [x] 1.1 Table of each tool's home skills folder from the skills CLI 1.8.1, with env overrides; pinned by a test
-- [x] 1.2 The 2.0 installer takes a layout (shared folder, link folder per tool, root that bounds every write); the project layout is byte-for-byte unchanged
+- [x] 1.1 Add `skills` and check it bundles into the standalone binary and runs on Node 22.12
+- [x] 1.2 `global-skills.ts`: write the skill text, install it, read what is installed, remove what the profile dropped
+- [x] 1.3 Map OpenSpec tool ids to the package's agent ids
 
-## 2. `--global`
+## 2. Init
 
-- [x] 2.1 `openspec init --global [--tools]`: global profile's workflows into `~/.agents/skills/`, links per D2, refuse tools with no home folder
-- [x] 2.2 `openspec update --global [--dry-run]`: refresh the tools listed in `~/.agents/skills/.openspec-target`
-- [x] 2.3 Neither touches the current folder, project or not
+- [x] 2.1 `--scope global|project`
+- [x] 2.2 Pick the scope from the project, the saved answer, or the global install, and ask once at a terminal
+- [x] 2.3 Set up a project that uses the global skills: `openspec/` only
+- [x] 2.4 Move a project to the global skills, stopping on edited skills
 
-## 3. Switching a project
+## 3. Update
 
-- [x] 3.1 `skills: global | project` in `openspec/config.yaml`
-- [x] 3.2 Interactive `update` asks once when a global install covers the project's tools; yes removes unedited project skills and links and saves `global`, no saves `project`
-- [x] 3.3 Non-interactive note and `--use-global-skills`; dry run lists what would go
-- [x] 3.4 With `skills: global`, `init` and `update` write no project skills and name `openspec init --global` when it's missing
+- [x] 3.1 Refresh the global skills on every `openspec update`, from any folder
+- [x] 3.2 Show the refresh in `--dry-run`
+- [x] 3.3 Point out a project that has both copies
 
 ## 4. Proof and docs
 
-- [x] 4.1 Tests: every 2.0 project command unchanged without `--global`; global install, refresh, edited and `npx skills` copies kept, linked home folders refused, switch and decline
-- [x] 4.2 Real `npx skills` side by side: no path collision, nothing of theirs removed
-- [x] 4.3 Upgrade matrix and release upgrades still pass
-- [x] 4.4 docs-lab: setup, supported tools, CLI reference, project config; changeset (minor)
+- [x] 4.1 Tests that run the real CLI in a throwaway home
+- [x] 4.2 Project installs compared with 2.0, case by case
+- [x] 4.3 Docs: setup, CLI reference, global config, supported tools

@@ -1,69 +1,69 @@
-## Layout
+## How it fits together
 
-The same layout `npx skills add -g` writes (skills CLI 1.8.1), so the two tools never fight over a path:
-
-```text
-~/.agents/skills/openspec-propose/SKILL.md     the one real copy
-~/.agents/skills/.openspec-target              tools set up for this machine, as in a project
-~/.claude/skills/openspec-propose -> ../../.agents/skills/openspec-propose
 ```
+openspec init --scope global --tools claude,codex
+        │
+        ├─ OpenSpec writes the skill text ──▶ <data dir>/openspec/skills/<skill>/SKILL.md
+        │
+        └─ skills.installSkills(that folder, { scope: 'global', agents })
+                 ├─ ~/.agents/skills/<skill>/SKILL.md      one real copy
+                 ├─ ~/.claude/skills/<skill>               link, for tools that need one
+                 └─ ~/.agents/.skill-lock.json             the package's own record
+```
+
+`src/core/global-skills.ts` is the only file that imports `skills`. It holds one table (OpenSpec tool id to the package's agent id) and no paths.
 
 ## Decisions
 
-### D1. `--global` on the commands people already know
+### D1. Use the `skills` package through its API
 
-`openspec init --global` installs, `openspec update --global` refreshes. No new command (a separate `install` command read as "install the CLI") and no persisted scope setting (the earlier design needed migration rules and made every command consult it). Neither needs a project, and neither reads or writes one.
+`installSkills`, `listSkills` and `removeSkills` cover install, state and cleanup. We call them in-process, not `npx skills` as a subprocess, so there is no second runtime to find. The package bundles into the standalone binary and runs without Node (checked with `bun build --compile`). It runs on Node 22.12, the oldest version OpenSpec supports, though its own `engines` field asks for 22.20.
 
-### D2. Which tools, and where
+Its telemetry is turned off on every call.
 
-Each tool's home folder comes from the skills CLI's own table, so a skill installed either way lands in the same place:
+### D2. OpenSpec writes the text; the package installs it from a local folder
 
-| Group | Tools | What `--global` writes |
-|---|---|---|
-| Reads `~/.agents/skills/` | Amp, Cline, Codex, Cursor, Factory Droid, Gemini CLI, GitHub Copilot, Kilo Code, Kimi Code, OpenCode, Pi, Warp, Zed, the vendor-neutral target | Nothing more |
-| Own home folder | Claude Code (`$CLAUDE_CONFIG_DIR` or `~/.claude`), Antigravity, Auggie, IBM Bob, Command Code, CodeArts, CodeBuddy, Code Studio, Continue, Crush, ForgeCode, Grok Build, Hermes Agent, iFlow, Junie, Kiro, Lingma, Mistral Vibe, Qoder, Qwen Code, Rovo Dev, Zoo Code, Trae, ZCode | One link per skill in its folder |
-| No known home folder | AtomCode, CoStrict, DeepSeek Harness, Devin Desktop, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft, Veai | Refused with a note to set it up per project |
+The published `skills/` folder in this repository is not what the CLI installs. It is one rendering for every profile, with `/openspec-propose` style references. The CLI writes tool-neutral references and drops mentions of workflows the profile doesn't install. Installing from the repository would change the text people get and bring back references to skills they don't have.
 
-MiniMax Code already keeps its skills per machine and is unchanged.
+So the CLI generates the skills with the code a project install already uses, into `<data dir>/openspec/skills/`, and installs from there. This also means no git, no network, and no release tag that has to exist before the CLI works.
 
-### D3. The same safety rules as a project
+The cost: the lock file records a local path, so `npx skills update` can't refresh these skills. `openspec update` does. Pointing at the repository later is a change to one function, once its skills match what the CLI writes.
 
-The global install reuses the 2.0 installer with a home layout instead of a project one, so every rule from the 2.0 design (D9) holds: only text OpenSpec wrote is replaced or removed; an `openspec-*` skill that was in `~/.agents/skills/` before OpenSpec used the folder (from `npx skills`, or written by hand) is the user's and is kept; nothing is written through a link; a link spot holding anything else is kept and reported. Every path written must resolve inside the folder it belongs to, so a home folder linked elsewhere (a dotfiles repo) fails that tool, with a message, and never writes outside it.
+### D3. Reinstalling is the update
 
-### D4. Workflows come from the global profile
+The API has no update call. `openspec update` writes the current text and installs it again, which replaces what is there. A skill the profile no longer wants is removed with `removeSkills`, and only if the lock file says OpenSpec installed it.
 
-Skills are rendered from the global profile's workflows, with the same shared wording a project uses. A skill's text depends only on the version and the workflow set, never on a project, so one copy serves every project.
+Edits to an installed skill are replaced without a backup. That is the package's behavior and we follow it.
 
-### D5. Switching a project, once, and saving it
+### D4. Scope is read from disk, with one saved answer
 
-A project with its own OpenSpec skills and a global install covering its tools holds two copies. Interactive `update` asks once: "Switch this project to your global skills?" On yes:
+| Situation | Scope |
+|---|---|
+| `--scope` given | That one |
+| Project has its own OpenSpec skills or commands | Project |
+| `skillsScope` saved in the global config | That one |
+| The global skills are installed | Global |
+| At a terminal | Ask once, save the answer |
+| Scripted, nothing saved | Project, as in 2.0 |
 
-1. The project's OpenSpec skills and links are removed under the same rule as deselecting a workflow: unedited ones go, edited ones are kept and listed.
-2. `skills: global` is saved in `openspec/config.yaml`.
+A project doesn't record that it uses the global skills. Having none of its own is the record, so there is nothing for a teammate's CLI to misread, and a 2.0 CLI sees such a project as one with no tools set up.
 
-On no, the project keeps its skills and `skills: project` is saved, so the question isn't asked again; `--use-global-skills` still switches it later. Non-interactive runs never switch and save nothing; they print one line naming `--use-global-skills`. The removals show in `git status`, so they are reviewed and committed like any change, and `--dry-run` lists them first.
+Scripted runs default to the project because `openspec init --tools …` is in CI files and agent instructions today, and those expect project files.
 
-With `skills: global`, `init` and `update` write no project skills. If this machine has no global install covering the project's tools, they say so and name `openspec init --global`; they never install globally on their own.
+### D5. `--tools` adds to the global install
 
-### D6. Older CLIs and teammates
+The global tool list belongs to the machine, and `init` runs once per project. If `--tools codex` replaced the list, setting up a second project would silently unlink the first project's tool. So `--tools` adds, and existing tools are refreshed. Removing a tool is `npx skills remove --global --agent <id>`.
 
-A 2.0 CLI ignores `skills: global` (unknown keys are allowed). A switched project records its tools as `global <tool>` lines in `.agents/skills/.openspec-target`; 2.0 reads the first word of a line as a tool id, so its `update` finds no tools and writes nothing, while 2.1 still knows them (a teammate is told the exact `--tools`, and `skills: project` brings the skills back). 2.0's `init --tools` writes the project skills back. That is duplication, not loss, and Claude Code runs the personal copy over the project one. The docs ask teams to update their CLI before switching a shared repo.
+### D6. Moving a project to the global skills
 
-### D7. Interrupted and failing runs
+`openspec init --scope global` in a project with its own skills removes them with 2.0's installer, asked for no workflows. It first runs that as a dry run. If any skill has the user's changes, init stops and names it, and nothing is removed. Only that project changes.
 
-The home folder has no git to recover from, so every run must leave a state the next run can finish:
+### D7. Tools the package doesn't know
 
-- **One run at a time**: `~/.agents/.openspec-global.lock`, taken over after 10 minutes.
-- **Marked first**: `.openspec-global` is written before anything else, so a cut-short first install is finished by the next one.
-- **Recorded ahead**: links still to remove are written to the list as `unlink <tool>` before the work starts, and cleared once gone. They are never set up again.
-- **Whole writes**: every file the global install writes, and a switch's record and `config.yaml`, go to a temporary file and are renamed into place.
-- **Refused, not guessed**: an unreadable global config or a profile with no workflows stops the run before anything changes.
+Nine tools have no agent id in the package: AtomCode, CoStrict, DeepSeek Harness, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft Code Assistant and Veai. Init says so and sets up the rest. Those tools keep project skills.
 
 ## Risks
 
-| Risk | Mitigation |
-|---|---|
-| One person's machine setting changes a shared repo | The switch is asked, saved in a committed file, and reviewed |
-| A teammate loses skills after the switch | `update` tells them the one command to run |
-| A tool's home folder is wrong | Paths come from the skills CLI's table; unknown tools are refused, not guessed |
-| Global install overwrites someone's `npx skills` copy | Kept as the user's, the same rule a project uses |
+- **A project install is still 2.0's installer.** Moving it to the `skills` package means re-proving every upgrade path from 1.x, so it is a separate change. Until then two installers exist: ours for projects, the package for the machine.
+- **Both copies present.** A project with its own skills on a machine with the global ones may show each skill twice. `openspec update` says so and names the command that fixes it.
+- **Yarn 1 on Node 22.12 to 22.19** refuses a dependency whose `engines` it doesn't meet. npm and pnpm only warn.

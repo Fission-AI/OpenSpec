@@ -1,36 +1,63 @@
 ## ADDED Requirements
 
-### Requirement: Init installs skills for this machine with --global
+### Requirement: Init installs skills for this machine
 
-`openspec init --global` SHALL write the global profile's skills once to `~/.agents/skills/` and link them into the home skills folder of each selected tool that doesn't read that folder, using the layout `npx skills add -g` uses. It SHALL NOT read or write the current folder.
+With the global scope, `openspec init` SHALL install the skills once for this machine through the `skills` package, and SHALL give the project its `openspec/` folder and no skill files. The skills SHALL be the text a project install writes for the same profile. Tools named with `--tools` SHALL be added to the tools already set up, never removed.
 
-#### Scenario: Claude Code and Cursor
+#### Scenario: First global install
 
-- **WHEN** a user runs `openspec init --global --tools claude,cursor`
-- **THEN** `~/.agents/skills/openspec-propose/SKILL.md` SHALL be the only real copy of that skill
-- **AND** `~/.claude/skills/openspec-propose` SHALL link to it
-- **AND** nothing SHALL be written to `~/.cursor/skills/`
-- **AND** nothing SHALL be written in the current folder
+- **WHEN** the user runs `openspec init --scope global --tools claude,codex` in a new project
+- **THEN** `~/.agents/skills/` SHALL hold one copy of each skill in the profile
+- **AND** Claude Code SHALL reach each skill from `~/.claude/skills/`
+- **AND** the project SHALL contain only `openspec/`
 
-#### Scenario: A tool with no known home folder
+#### Scenario: A tool is added later
 
-- **WHEN** a user runs `openspec init --global --tools easycode`
-- **THEN** init SHALL write nothing for EasyCode and say it is set up per project
+- **GIVEN** the global skills are set up for Claude Code
+- **WHEN** the user runs `openspec init --scope global --tools qwen`
+- **THEN** both Claude Code and Qwen Code SHALL have the skills
 
-#### Scenario: A skill already there from npx skills
+#### Scenario: A tool without a machine-wide folder
 
-- **GIVEN** `~/.agents/skills/openspec-propose/` holds text OpenSpec did not write
-- **WHEN** a user runs `openspec init --global`
-- **THEN** that folder SHALL be kept, recorded as the user's, and named in the output
+- **WHEN** the user runs `openspec init --scope global --tools claude,oh-my-pi`
+- **THEN** init SHALL set up Claude Code
+- **AND** SHALL say Oh My Pi can't use the global skills and how to give it project skills
 
-### Requirement: Init respects a project's global skills setting
+### Requirement: Init chooses where skills go
 
-When `openspec/config.yaml` sets `skills: global`, `openspec init` SHALL write no project skills. If this machine has no global install covering the selected tools, init SHALL say so and name `openspec init --global`.
+Init SHALL use the first of these that applies: the `--scope` flag; the project, when it already has OpenSpec skills of its own; the saved `skillsScope`; the global scope, when the global skills are installed; the answer to a question asked once at a terminal and then saved; the project.
 
-#### Scenario: Teammate without a global install
+#### Scenario: Scripted init on a machine with nothing saved
 
-- **GIVEN** a project with `skills: global`
-- **AND** no `~/.agents/skills/.openspec-target`
-- **WHEN** the user runs `openspec init --tools claude`
-- **THEN** no file SHALL be written under `.agents/skills/` or `.claude/skills/`
-- **AND** the output SHALL name `openspec init --global`
+- **WHEN** `openspec init --tools claude` runs with no saved choice and no global skills
+- **THEN** the skills SHALL be written to the project, as in 2.0
+- **AND** nothing SHALL be written to the home folder
+
+#### Scenario: The next project after a global install
+
+- **GIVEN** the global skills are installed
+- **WHEN** the user runs `openspec init --tools claude` in a new project
+- **THEN** the project SHALL get only `openspec/`
+
+#### Scenario: A project with its own skills
+
+- **GIVEN** a project set up by 2.0
+- **WHEN** the user runs `openspec init` there
+- **THEN** it SHALL keep its own skills, whatever is saved or installed
+
+### Requirement: Init moves a project to the global skills
+
+`openspec init --scope global` in a project with its own OpenSpec skills SHALL remove them and install the global ones. If any of them has the user's changes, init SHALL stop before removing anything and name them.
+
+#### Scenario: Unedited project skills
+
+- **WHEN** the user runs `openspec init --scope global` in a project 2.0 set up
+- **THEN** the project's OpenSpec skills and links SHALL be removed
+- **AND** the global skills SHALL be installed
+
+#### Scenario: An edited project skill
+
+- **GIVEN** the user changed `.agents/skills/openspec-explore/SKILL.md`
+- **WHEN** they run `openspec init --scope global`
+- **THEN** init SHALL exit 1 and name that skill
+- **AND** no file SHALL be removed

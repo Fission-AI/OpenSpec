@@ -119,44 +119,35 @@ openspec update
 
 Restart Claude Code, then run `/openspec-propose` in its chat. If only some workflows are missing, [change your profile](../customize/profiles.md#expanding-the-set-optional-workflows).
 
-## Install the skills once for every project
+### Install the skills once for every project
 
-To use the same skills in every project on your machine, install them in your home folder. In your terminal:
-
-```bash
-openspec init --global --tools claude,codex
-```
-
-This writes one copy of each skill to `~/.agents/skills/` and links it into the home folder of each tool that needs one, such as `~/.claude/skills/`. It's the same layout `npx skills add -g` uses. No project is read or changed.
-
-After you upgrade the CLI, refresh them:
+By default each project gets its own copy of the skills. If you use OpenSpec in many projects, you can keep one copy for the whole machine instead. In your terminal:
 
 ```bash
-openspec update --global
+openspec init --scope global --tools claude,codex
 ```
 
-- **Workflows**: the ones in your [profile](../customize/profiles.md), as for a project.
-- **Tools**: [Supported tools](../reference/supported-tools.md#install-for-this-machine) lists where each tool's skills go. A tool with no known home folder is set up per project instead.
-- **Edits**: if you edited a skill in `~/.agents/skills/`, `update --global` saves your text beside it as `SKILL.md.bak` before refreshing it.
-- **Remove**: `openspec init --global --tools none` removes OpenSpec's skills and links. A skill you edited is kept.
-- **npx skills**: a skill `npx skills` installed in `~/.agents/skills/` is left to it.
-- **Interrupted**: if a run stops partway (a crash, Ctrl-C), run the same command again to finish it. If it says another run is in progress and none is, delete the lock file it names.
+The project gets its `openspec/` folder and nothing else. The skills go to `~/.agents/skills/` in your home folder, with a link for each tool that reads its own folder, such as `~/.claude/skills/`.
 
-### Projects that have their own skills
+- **The next project**: plain `openspec init` uses the global skills, so there is nothing to install again.
+- **Asked once**: at a terminal, your first `openspec init` asks where the skills should go and remembers the answer. Scripts and agents that pass `--tools` are never asked, and stay in the project unless the global skills are already installed.
+- **Updating**: `openspec update` refreshes the global skills from any folder. In a project with its own skills it refreshes both.
+- **Another tool**: run `openspec init --scope global --tools <id>` again. It adds the tool and keeps the ones you have.
+- **One project with its own skills**: `openspec init --scope project` installs them there, whatever the machine uses.
+- **Edits**: a refresh replaces the installed skills, so keep changes of your own in a skill under another name.
 
-A project set up before keeps its skills in `.agents/skills/`, so your tools may see both copies. The next `openspec update` in that project asks:
+OpenSpec hands the install to [`skills`](https://github.com/vercel-labs/skills), the package behind `npx skills`, so the layout and the lock file (`~/.agents/.skill-lock.json`) are the ones that tool uses. To remove the global skills, run `npx skills remove --global` and pick the `openspec-` ones.
 
+#### Move an existing project to the global skills
+
+In a project that already has its own skills, in your terminal:
+
+```bash
+openspec init --scope global
 ```
-Switch this project to your global skills?
-```
 
-- **Yes**: removes the project's copies of OpenSpec's skills and links, keeps any you edited, and saves `skills: global` in `openspec/config.yaml`.
-- **No**: keeps the project's skills and saves `skills: project`, so it doesn't ask again.
+This removes the project's copies and installs the global ones. Only that project changes. If you edited one of its skills, init stops before removing anything and names it. Commit the removal like any other change. A teammate who doesn't have the global skills yet runs `openspec init --scope global --tools <id>` once.
 
-Commit the result like any other change. `.agents/skills/.openspec-target` stays, as the record of the project's tools. Outside a terminal, update only prints the suggestion. To switch without the question, run `openspec update --use-global-skills`; add `--dry-run` to see what it removes first.
-
-To go back, change the line to `skills: project` and run `openspec update`. It installs the project's skills again.
-
-A teammate who pulls a project with `skills: global` and hasn't installed the skills globally is told the command to run. OpenSpec never writes to anyone's home folder unless they run `--global`. Ask your team to update the CLI before you switch a shared project. OpenSpec 2.0 doesn't know `skills: global`: its `update` reports no configured tools, and its `init` writes the project's skills back.
+Nine tools have no machine-wide folder OpenSpec can install to, so they keep their skills in each project. [Supported tools](../reference/supported-tools.md#where-skills-go) lists them.
 
 Setup is done. The [Quickstart](quickstart.md) takes your first change from here.
