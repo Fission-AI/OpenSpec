@@ -153,6 +153,6 @@ Switch this project to your global skills?
 
 Commit the result like any other change. Outside a terminal, update only prints the suggestion. To switch without the question, run `openspec update --use-global-skills`; add `--dry-run` to see what it removes first.
 
-A teammate who pulls a project with `skills: global` and hasn't installed the skills globally is told the command to run. OpenSpec never writes to anyone's home folder unless they run `--global`. Ask your team to update the CLI before you switch a shared project: OpenSpec 2.0 doesn't know `skills: global` and writes the project's skills back.
+A teammate who pulls a project with `skills: global` and hasn't installed the skills globally is told the command to run. OpenSpec never writes to anyone's home folder unless they run `--global`. Ask your team to update the CLI before you switch a shared project. OpenSpec 2.0 doesn't know `skills: global`: its `update` reports no configured tools, and its `init` writes the project's skills back.
 
 Setup is done. The [Quickstart](quickstart.md) takes your first change from here.

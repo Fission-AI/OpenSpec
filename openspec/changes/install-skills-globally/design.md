@@ -47,7 +47,7 @@ With `skills: global`, `init` and `update` write no project skills. If this mach
 
 ### D6. Older CLIs and teammates
 
-A 2.0 CLI ignores `skills: global` (unknown keys are allowed) and writes the project skills back. That is duplication, not loss, and Claude Code runs the personal copy over the project one. The upgrade note asks teams to update their CLI before switching a shared repo.
+A 2.0 CLI ignores `skills: global` (unknown keys are allowed). Its `update` finds no tools in a switched project and writes nothing; its `init` writes the project skills back. That is duplication, not loss, and Claude Code runs the personal copy over the project one. The docs ask teams to update their CLI before switching a shared repo.
 
 ## Risks
 
