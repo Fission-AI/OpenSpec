@@ -186,7 +186,7 @@ describe('a project using the machine-wide skills', () => {
   });
 
   it("doesn't offer when the global install misses one of the project's tools", async () => {
-    await runGlobalSkills({ toolIds: ['claude'] });
+    await runGlobalSkills({ toolIds: ['codex'] });
     Object.assign(prompt, { interactive: true });
     await new UpdateCommand().execute(project);
     expect(prompt.asked).toBe(0);
@@ -290,7 +290,7 @@ describe('a project using the machine-wide skills', () => {
   });
 
   it('marks a --use-global-skills run that did not switch', async () => {
-    await runGlobalSkills({ toolIds: ['claude'] });
+    await runGlobalSkills({ toolIds: ['codex'] });
     const command = new UpdateCommand({ useGlobalSkills: true });
     await command.execute(project);
     expect(command.globalSkillsFailed).toBe(true);
@@ -386,6 +386,16 @@ describe('a project using the machine-wide skills', () => {
     expect((await tree(path.join(mixed, '.github'))).filter((f) => !f.startsWith('skills/'))).toEqual(cloud);
     expect(said('Detected new tool')).toBe(false);
     expect(said('Copilot cloud agent file')).toBe(false);
+  });
+
+  it('counts a tool that reads ~/.agents/skills itself as covered by the global install', async () => {
+    const cur = path.join(root, 'cursor-project');
+    await fs.mkdir(cur, { recursive: true });
+    await new InitCommand({ tools: 'cursor', animation: false }).execute(cur);
+    await runGlobalSkills({ toolIds: ['claude'] });
+    logs = [];
+    await new UpdateCommand().execute(cur);
+    expect(said('openspec update --use-global-skills')).toBe(true);
   });
 
   it('goes back to project skills with skills: project', async () => {

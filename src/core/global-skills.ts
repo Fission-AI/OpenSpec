@@ -132,6 +132,16 @@ export function readPendingUnlinks(home: string = resolveHomeDir(), view: FileVi
   }
 }
 
+/**
+ * Whether a project tool gets skills from this machine's global install:
+ * set up with `--global`, or a tool that reads `~/.agents/skills` itself
+ * while there is a global install there.
+ */
+export function isCoveredByGlobalSkills(toolId: string, globalTools: readonly string[]): boolean {
+  if (globalTools.includes(toolId)) return true;
+  return globalTools.length > 0 && resolveHomeSkillsReach(toolId).kind === 'shared';
+}
+
 /** Whether this home folder holds a `--global` install. */
 export function hasGlobalSkillInstall(home: string = resolveHomeDir(), view: FileView = DISK_VIEW): boolean {
   return view.exists(globalMarkerPath(home));
@@ -176,16 +186,34 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   const home = input.home ?? resolveHomeDir(env);
   if (input.dryRun) return runGlobalSkillsLocked(input, home, env);
   assertHomeSkillsInHome(home);
+  // Removing when nothing is installed changes nothing: no lock, no folder.
+  if (
+    input.toolIds?.length === 0 &&
+    !fs.existsSync(globalMarkerPath(home)) &&
+    !fs.existsSync(skillToolListPath(home))
+  ) {
+    return runGlobalSkillsLocked(input, home, env);
+  }
   // One `--global` run at a time: two at once could each read a skill the
   // other is writing and take it for an edit.
   const lockPath = path.join(home, '.agents', '.openspec-global.lock');
-  fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+  const cannotWrite = (error: unknown) =>
+    new Error(
+      `Couldn't write in ${displayHomePath(path.dirname(lockPath), home)} ` +
+        `(${(error as NodeJS.ErrnoException).code ?? String(error)}). Nothing was changed.`
+    );
+  try {
+    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+  } catch (error) {
+    throw cannotWrite(error);
+  }
   for (let attempt = 0; ; attempt += 1) {
     try {
       fs.closeSync(fs.openSync(lockPath, 'wx'));
       break;
     } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || attempt > 0) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw cannotWrite(error);
+      if (attempt > 0) {
         throw new Error(
           `Another openspec --global run is in progress (${displayHomePath(lockPath, home)}). ` +
             'Wait for it to finish; if none is running, delete that file and try again.'
@@ -323,6 +351,9 @@ async function runGlobalSkillsLocked(
     view,
     writesToDisk: !input.dryRun,
     layout: homeSkillLayout(home, env),
+    // A removal keeps the list until every link is gone (removed below), so
+    // a run killed partway still knows which tools' links to finish.
+    writeList: wanted.length > 0 ? undefined : false,
     // A skill `npx skills` installed here is its to update and remove;
     // writing over it would only start a tug of war between the two.
     keepSkills: npxSkills,

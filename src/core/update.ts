@@ -79,7 +79,7 @@ import {
 import { resolveSharedSkillsDir, usesSharedSkills } from './shared/skill-paths.js';
 import { formatGlobalSkillRecord, formatSkillToolList, isToolListed, readGlobalSkillRecord, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
-import { assertNotGlobalHome, readGlobalSkillTools, supportsGlobalSkills } from './global-skills.js';
+import { assertNotGlobalHome, isCoveredByGlobalSkills, readGlobalSkillTools, supportsGlobalSkills } from './global-skills.js';
 import { planProjectSkillsMode, readProjectSkillsMode, type ProjectSkillsMode } from './project-skills-mode.js';
 import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
@@ -714,7 +714,7 @@ export class UpdateCommand {
     const globalTools = readGlobalSkillTools();
     // A tool with no machine-wide skills folder can't use a global install.
     const unsupported = sharedTools.filter((tool) => !supportsGlobalSkills(tool.value));
-    const missing = sharedTools.filter((tool) => !globalTools.includes(tool.value) && !unsupported.includes(tool));
+    const missing = sharedTools.filter((tool) => !isCoveredByGlobalSkills(tool.value, globalTools) && !unsupported.includes(tool));
     const names = (tools: readonly { name: string }[]) => tools.map((tool) => tool.name).join(', ');
     const initGlobal = `openspec init --global --tools ${[...new Set([...globalTools, ...missing.map((t) => t.value)])].join(',') || '<ids>'}`;
     // The project's `.agents/skills` must stay inside it: one linked

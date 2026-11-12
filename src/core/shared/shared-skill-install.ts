@@ -240,7 +240,9 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     FileSystemUtils.assertPathWithin(projectPath, skillFile);
     // A skill OpenSpec installs is refreshed in place, as in 1.x. When the
     // text being replaced is the user's edit, say so: it is not kept.
-    if (classifySkillFile(path.join(sharedDir, dirName), generatedTexts(dirName), view) === 'user') {
+    // An empty SKILL.md (a write cut short) holds nothing of the user's.
+    const emptied = input.backupEdited === true && readOr(skillFile)?.trim() === '';
+    if (!emptied && classifySkillFile(path.join(sharedDir, dirName), generatedTexts(dirName), view) === 'user') {
       result.refreshedEdited.push(relative(skillFile));
       const edited = readOr(skillFile);
       if (input.backupEdited && edited !== undefined) {

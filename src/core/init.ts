@@ -71,7 +71,7 @@ import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
-import { readGlobalSkillTools, supportsGlobalSkills } from './global-skills.js';
+import { isCoveredByGlobalSkills, readGlobalSkillTools, supportsGlobalSkills } from './global-skills.js';
 import { readProjectSkillsMode } from './project-skills-mode.js';
 import { formatGlobalSkillRecord, formatSkillToolList, readGlobalSkillRecord, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-install.js';
@@ -213,7 +213,7 @@ export class InitCommand {
     const installed = readGlobalSkillTools();
     return toolIds.filter((id) => {
       const tool = AI_TOOLS.find((candidate) => candidate.value === id);
-      return tool !== undefined && usesSharedSkills(tool) && !installed.includes(id);
+      return tool !== undefined && usesSharedSkills(tool) && !isCoveredByGlobalSkills(id, installed);
     });
   }
 
@@ -237,7 +237,7 @@ export class InitCommand {
         )
       );
     }
-    const missing = shared.filter((tool) => !installed.includes(tool.value) && !unsupported.includes(tool));
+    const missing = shared.filter((tool) => !isCoveredByGlobalSkills(tool.value, installed) && !unsupported.includes(tool));
     if (missing.length === 0 && unsupported.length === shared.length) return;
     if (installed.length > 0 && missing.length === 0) {
       console.log(chalk.green("✓ This project uses this machine's global skills (~/.agents/skills); none are written here."));

@@ -365,14 +365,24 @@ program
         if (targetPath !== '.') {
           throw new Error("--global refreshes this machine's skills, not a project, so it doesn't take a path.");
         }
-        const [{ assertHomeSkillsInHome, formatGlobalSkillsResult, homePlan, readGlobalSkillTools, readPendingUnlinks, runGlobalSkills }, { formatUpdatePlan }] =
-          await Promise.all([import('../core/global-skills.js'), import('../core/update-plan.js')]);
+        const [
+          { assertHomeSkillsInHome, formatGlobalSkillsResult, hasGlobalSkillInstall, homePlan, readGlobalSkillTools, readPendingUnlinks, runGlobalSkills },
+          { formatUpdatePlan },
+        ] = await Promise.all([import('../core/global-skills.js'), import('../core/update-plan.js')]);
         assertHomeSkillsInHome();
         // Links a failed removal left are still OpenSpec's to finish removing.
         if (readGlobalSkillTools().length === 0 && readPendingUnlinks().length === 0) {
-          const message = 'Nothing is set up for this machine yet. Run: openspec init --global --tools <ids>';
-          if (options.json) console.log(JSON.stringify({ changes: [], notes: [{ code: 'not-installed', message }], failures: [] }, null, 2));
-          else console.log(message);
+          // The marker without a tool list: an install that was cut short.
+          const interrupted = hasGlobalSkillInstall();
+          const message = interrupted
+            ? "An earlier openspec init --global didn't finish. Run it again: openspec init --global --tools <ids>"
+            : 'Nothing is set up for this machine yet. Run: openspec init --global --tools <ids>';
+          if (options.json) {
+            console.log(JSON.stringify({ changes: [], notes: [{ code: interrupted ? 'interrupted' : 'not-installed', message }], failures: [] }, null, 2));
+          } else {
+            console.log(message);
+          }
+          if (interrupted) process.exitCode = 1;
           return;
         }
         const result = await runGlobalSkills({ dryRun: options.dryRun });

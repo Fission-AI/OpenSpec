@@ -412,6 +412,36 @@ describe('global skills (--global)', () => {
     expect(await exists(h('.agents', 'skills', '.openspec-global'))).toBe(false);
   });
 
+  it('finishes a removal killed after the skills went but before the links did', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    for (const entry of await fs.readdir(h('.agents', 'skills'))) {
+      if (entry.startsWith('openspec-')) await fs.rm(h('.agents', 'skills', entry), { recursive: true });
+    }
+    // The list is still there, so the next removal knows Claude Code's links.
+    await runGlobalSkills({ toolIds: [] });
+    expect(await exists(h('.claude', 'skills', 'openspec-propose'))).toBe(false);
+    expect(await exists(h('.agents'))).toBe(false);
+  });
+
+  it("says a folder can't be written instead of claiming another run is in progress", async () => {
+    if (process.platform === 'win32') return;
+    await fs.mkdir(h('.agents'), { recursive: true });
+    await fs.chmod(h('.agents'), 0o555);
+    try {
+      await expect(runGlobalSkills({ toolIds: ['codex'] })).rejects.toThrow(/Couldn't write in ~\/\.agents/);
+    } finally {
+      await fs.chmod(h('.agents'), 0o755);
+    }
+  });
+
+  it("doesn't take an empty SKILL.md (a write cut short) for the user's edit", async () => {
+    await runGlobalSkills({ toolIds: ['codex'] });
+    await fs.writeFile(h('.agents', 'skills', 'openspec-propose', 'SKILL.md'), '');
+    const result = await runGlobalSkills({});
+    expect(result.install.refreshedEdited).toEqual([]);
+    expect(await exists(h('.agents', 'skills', 'openspec-propose', 'SKILL.md.bak'))).toBe(false);
+  });
+
   it('refuses a profile with no workflows, and changes nothing', async () => {
     await runGlobalSkills({ toolIds: ['codex'] });
     const before = await tree(home);
