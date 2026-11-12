@@ -41,6 +41,10 @@ export interface GlobalSkillsResult {
   refused: string[];
   /** Tools whose links this run removed (or tried to): dropped now, or left from a failed removal. */
   unlinking: string[];
+  /** Tools whose folder now links outside home: nothing of OpenSpec's to remove there. */
+  leftOutside: string[];
+  /** A run that only finished removing links an earlier removal left. */
+  finishing: boolean;
   /** Tools the run removed from the global install. */
   dropped: string[];
   install: SharedSkillInstallResult;
@@ -202,8 +206,14 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
       `Couldn't write in ${displayHomePath(path.dirname(lockPath), home)} ` +
         `(${(error as NodeJS.ErrnoException).code ?? String(error)}). Nothing was changed.`
     );
+  // Folders this run creates are tidied if it ends with nothing installed;
+  // ones that were already there are the user's and stay.
+  const agentsDir = path.dirname(lockPath);
+  const sharedDir = resolveHomeSharedSkillsDir(home);
+  const hadAgents = fs.existsSync(agentsDir);
+  const hadShared = fs.existsSync(sharedDir);
   try {
-    fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+    fs.mkdirSync(agentsDir, { recursive: true });
   } catch (error) {
     throw cannotWrite(error);
   }
@@ -230,14 +240,18 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
       }
     }
   }
+  let removedInstall = false;
   try {
-    return await runGlobalSkillsLocked(input, home, env);
+    const result = await runGlobalSkillsLocked(input, home, env);
+    removedInstall = result.tools.length === 0 && result.wasInstalled;
+    return result;
   } finally {
     fs.rmSync(lockPath, { force: true });
-    // A removal empties the folders; the lock was the last thing in them.
+    // A removal empties the folders (the lock was the last thing in them),
+    // and a refused run leaves none it created.
     if (!fs.existsSync(globalMarkerPath(home))) {
-      removeIfEmpty(resolveHomeSharedSkillsDir(home));
-      removeIfEmpty(path.join(home, '.agents'));
+      if (!hadShared || removedInstall) removeIfEmpty(sharedDir);
+      if (!hadAgents || removedInstall) removeIfEmpty(agentsDir);
     }
   }
 }
@@ -292,18 +306,9 @@ async function runGlobalSkillsLocked(
   const unlinking = [...new Set([...dropped, ...readPendingUnlinks(home, view)])].filter((id) => !wanted.includes(id));
   // An interrupted first install leaves the marker and skills without the
   // list: a removal then clears OpenSpec's skills by their text.
-  // Its links are found by where they point: each tool's home folder is
-  // checked, and only links to OpenSpec's shared copy go.
-  const orphaned =
-    wanted.length === 0 && unlinking.length === 0 && view.exists(globalMarkerPath(home))
-      ? [
-          'agents',
-          ...AI_TOOLS.map((tool) => tool.value).filter((id) => {
-            const reach = resolveHomeSkillsReach(id, { home, env });
-            return reach.kind === 'link' && view.exists(reach.dir);
-          }),
-        ]
-      : [];
+  // No tool folder is touched then: the list is always written before any
+  // link, so such a run never made one.
+  const orphaned = wanted.length === 0 && unlinking.length === 0 && view.exists(globalMarkerPath(home)) ? ['agents'] : [];
 
   const npxSkills = readNpxSkillsLock({ home, env });
   // The workflows come from the global config. One that can't be read would
@@ -406,7 +411,13 @@ async function runGlobalSkillsLocked(
   }
   // Tools whose links couldn't be removed stay on record as `unlink <tool>`,
   // so the next run finishes the job (nothing else would ever find them).
-  const unfinished = unlinking.filter((id) => install.toolFailures.has(id));
+  // A tool folder that now links outside home holds nothing OpenSpec can
+  // reach (it never writes through such a link), so there is nothing left to
+  // remove there: its record is done.
+  const outsideHome = (id: string) => install.toolFailures.get(id)?.message.includes('outside the allowed directory') === true;
+  const unfinished = unlinking.filter((id) => install.toolFailures.has(id) && !outsideHome(id));
+  const leftOutside = unlinking.filter((id) => install.toolFailures.has(id) && outsideHome(id));
+  for (const id of leftOutside) install.toolFailures.delete(id);
   if (wanted.length > 0) {
     if (unlinking.length > 0) {
       let list = '';
@@ -452,6 +463,8 @@ async function runGlobalSkillsLocked(
     install,
     plan: recorder?.getPlan(),
     unlinking,
+    finishing: before.length === 0 && unlinking.length > 0,
+    leftOutside,
     wasInstalled: before.length > 0 || unlinking.length > 0 || orphaned.length > 0,
     // Kept in `~/.agents/skills` or in a tool's folder (the skills CLI's copy
     // mode writes a real folder there): either way it is npx's, not an edit.
@@ -518,7 +531,9 @@ export function formatGlobalSkillsResult(
         ? 'Nothing is set up for this machine.'
         : unfinished.length > 0
           ? `Removed OpenSpec's skills from this machine (${shared}), except the links for ${unfinished.join(', ')}.`
-          : `Removed OpenSpec's skills from this machine (${shared}).`
+          : result.finishing
+            ? 'Finished removing the links an earlier removal left.'
+            : `Removed OpenSpec's skills from this machine (${shared}).`
     );
   } else {
     lines.push(`OpenSpec skills for this machine are in ${shared} (v${OPENSPEC_VERSION}).`);
@@ -536,6 +551,11 @@ export function formatGlobalSkillsResult(
     lines.push(
       `No longer set up for this machine: ${result.dropped.filter((id) => !result.install.toolFailures.has(id)).map(toolName).join(', ')}.`
     );
+  }
+  for (const id of result.leftOutside) {
+    const reach = resolveHomeSkillsReach(id, { home, env });
+    const folder = reach.kind === 'link' ? displayHomePath(reach.dir, home) : toolName(id);
+    warnings.push(`Left ${folder} alone: it now links outside your home folder, so OpenSpec has nothing to remove there.`);
   }
   for (const id of result.refused) {
     if (AI_TOOLS.find((tool) => tool.value === id)?.globalSkillsDir) {

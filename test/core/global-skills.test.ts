@@ -464,15 +464,45 @@ describe('global skills (--global)', () => {
     expect(await exists(h('.agents', 'skills', 'openspec-propose'))).toBe(false);
   });
 
-  it('removes the links too when the list is gone, finding them by where they point', async () => {
-    await runGlobalSkills({ toolIds: ['claude', 'kiro'] });
-    const mine = h('.claude', 'skills', 'my-skill');
-    await fs.mkdir(mine, { recursive: true });
+  it("clears OpenSpec's skills when the list is gone, and never touches a tool's own folder", async () => {
+    await runGlobalSkills({ toolIds: ['codex'] });
+    // A tool the user never set up, with a real copy of OpenSpec's text.
+    const qwen = h('.qwen', 'skills', 'openspec-propose');
+    await fs.mkdir(qwen, { recursive: true });
+    await fs.copyFile(h('.agents', 'skills', 'openspec-propose', 'SKILL.md'), path.join(qwen, 'SKILL.md'));
     await fs.rm(h('.agents', 'skills', '.openspec-target'));
-    await runGlobalSkills({ toolIds: [] });
-    expect(await exists(h('.claude', 'skills', 'openspec-propose'))).toBe(false);
-    expect(await exists(h('.kiro', 'skills', 'openspec-propose'))).toBe(false);
-    expect(await exists(mine)).toBe(true);
+    const result = await runGlobalSkills({ toolIds: [] });
+    expect(result.install.toolFailures.size).toBe(0);
+    expect(await exists(h('.agents', 'skills', 'openspec-propose'))).toBe(false);
+    expect(await exists(path.join(qwen, 'SKILL.md'))).toBe(true);
+  });
+
+  it("clears a pending removal whose folder now links outside home, with nothing of OpenSpec's there", async () => {
+    if (process.platform === 'win32') return;
+    await runGlobalSkills({ toolIds: ['claude', 'kiro'] });
+    await fs.chmod(h('.kiro', 'skills'), 0o555);
+    try {
+      await runGlobalSkills({ toolIds: ['claude'] });
+    } finally {
+      await fs.chmod(h('.kiro', 'skills'), 0o755);
+    }
+    expect(readPendingUnlinks(home)).toEqual(['kiro']);
+    // The user points ~/.kiro/skills at a folder of their own elsewhere.
+    await fs.rm(h('.kiro', 'skills'), { recursive: true });
+    const elsewhere = path.join(root, 'kiro-skills');
+    await fs.mkdir(elsewhere, { recursive: true });
+    await fs.symlink(elsewhere, h('.kiro', 'skills'), 'dir');
+    const result = await runGlobalSkills({});
+    expect(result.install.toolFailures.size).toBe(0);
+    expect(result.leftOutside).toEqual(['kiro']);
+    expect(readPendingUnlinks(home)).toEqual([]);
+  });
+
+  it("keeps folders that were already there when a run is refused", async () => {
+    await fs.mkdir(h('.agents', 'skills'), { recursive: true });
+    await fs.writeFile(h('.config', 'openspec', 'config.json'), '{ not json');
+    await expect(runGlobalSkills({ toolIds: ['claude'] })).rejects.toThrow(/Nothing was changed/);
+    expect(await exists(h('.agents', 'skills'))).toBe(true);
   });
 
   it('leaves an empty ~/.agents alone when nothing was installed', async () => {
