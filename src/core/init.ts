@@ -183,9 +183,9 @@ export class InitCommand {
    * `~/.agents/skills/`. Reads and writes no project.
    */
   async executeGlobal(): Promise<void> {
-    const { formatGlobalSkillsResult, readGlobalSkillTools, runGlobalSkills, supportsGlobalSkills } = await import(
-      './global-skills.js'
-    );
+    const { assertHomeSkillsInHome, formatGlobalSkillsResult, readGlobalSkillTools, runGlobalSkills, supportsGlobalSkills } =
+      await import('./global-skills.js');
+    assertHomeSkillsInHome();
     const asked = this.resolveToolsArg();
     let toolIds: string[];
     if (asked === null) {
@@ -242,22 +242,8 @@ export class InitCommand {
   async execute(targetPath: string): Promise<void> {
     const projectPath = FileSystemUtils.canonicalizeExistingPath(targetPath);
     // A project in the home folder would share `~/.agents/skills` with the
-    // machine-wide install, and each would rewrite the other's list.
-    {
-      const { hasGlobalSkillInstall } = await import('./global-skills.js');
-      const { resolveHomeDir } = await import('./shared/home-skill-paths.js');
-      let home: string | undefined;
-      try {
-        home = FileSystemUtils.canonicalizeExistingPath(resolveHomeDir());
-      } catch {
-        home = undefined;
-      }
-      if (home !== undefined && home === projectPath && hasGlobalSkillInstall()) {
-        throw new Error(
-          'Your home folder holds the machine-wide skills (openspec init --global), so it can\'t also be a project. Set up the project in a folder of its own.'
-        );
-      }
-    }
+    // machine-wide install, and each would take the other's skills.
+    (await import('./global-skills.js')).assertNotGlobalHome(projectPath);
     const openspecDir = OPENSPEC_DIR_NAME;
     const openspecPath = path.join(projectPath, openspecDir);
 

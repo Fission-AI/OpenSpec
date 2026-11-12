@@ -49,6 +49,8 @@ To add a tool that isn't listed, see [Link another tool](#link-another-tool).
 
 A tool without a folder shown uses `~/.<its project folder>/skills/`, such as `~/.kiro/skills/`. MiniMax Code keeps its skills in `~/.minimax/skills/` either way.
 
+OpenSpec writes only inside your home folder. If `~/.agents`, or a tool's folder such as `~/.claude`, links somewhere else (a dotfiles repository, for example), that folder is left alone and the output says so. A home folder that is itself an OpenSpec project can't hold the global install.
+
 ## Support matrix
 
 Invocations are shown for the apply workflow. Every workflow follows the same shape.

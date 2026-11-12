@@ -365,8 +365,9 @@ program
         if (targetPath !== '.') {
           throw new Error("--global refreshes this machine's skills, not a project, so it doesn't take a path.");
         }
-        const [{ formatGlobalSkillsResult, homePlan, readGlobalSkillTools, runGlobalSkills }, { formatUpdatePlan }] =
+        const [{ assertHomeSkillsInHome, formatGlobalSkillsResult, homePlan, readGlobalSkillTools, runGlobalSkills }, { formatUpdatePlan }] =
           await Promise.all([import('../core/global-skills.js'), import('../core/update-plan.js')]);
+        assertHomeSkillsInHome();
         if (readGlobalSkillTools().length === 0) {
           const message = 'Nothing is set up for this machine yet. Run: openspec init --global --tools <ids>';
           if (options.json) console.log(JSON.stringify({ changes: [], notes: [{ code: 'not-installed', message }], failures: [] }, null, 2));
@@ -467,6 +468,8 @@ program
 
       const updateCommand = new UpdateCommand({ force: options?.force, useGlobalSkills: options?.useGlobalSkills });
       await updateCommand.execute(targetPath);
+      // A switch that was asked for and not made is a failure to script.
+      if (updateCommand.switchRefused) process.exitCode = 1;
 
       if (declined) {
         // The headline was printed before the prompt; only the manual route is

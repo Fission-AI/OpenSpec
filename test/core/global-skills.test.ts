@@ -271,6 +271,23 @@ describe('global skills (--global)', () => {
     expect(await tree(elsewhere)).toEqual(before);
   });
 
+  it('refuses a home folder that is an OpenSpec project', async () => {
+    await fs.mkdir(h('openspec'), { recursive: true });
+    await fs.writeFile(h('openspec', 'config.yaml'), 'schema: spec-driven\n');
+    await expect(runGlobalSkills({ toolIds: ['claude'] })).rejects.toThrow(/home folder is an OpenSpec project/);
+    expect(await exists(h('.agents'))).toBe(false);
+  });
+
+  it("refuses a tool home folder linked to a dotfiles repository, and says why", async () => {
+    const dotfiles = path.join(root, 'dotfiles', 'claude');
+    await fs.mkdir(dotfiles, { recursive: true });
+    await fs.symlink(dotfiles, h('.claude'), process.platform === 'win32' ? 'junction' : 'dir');
+    const result = await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    const { formatGlobalSkillsResult } = await import('../../src/core/global-skills.js');
+    expect(formatGlobalSkillsResult(result).errors.join('\n')).toMatch(/links outside your home folder/);
+    expect(await tree(path.join(root, 'dotfiles'))).toEqual([]);
+  });
+
   it('removes the global install with no tools, keeping an edited skill', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     const edited = h('.agents', 'skills', 'openspec-explore', 'SKILL.md');

@@ -68,6 +68,49 @@ function globalMarkerPath(home: string): string {
   return path.join(resolveHomeSharedSkillsDir(home), GLOBAL_MARKER);
 }
 
+/**
+ * `~/.agents` or `~/.agents/skills` linked somewhere else (a dotfiles
+ * repository) is never written or removed through, not even OpenSpec's own
+ * records in it.
+ */
+export function assertHomeSkillsInHome(home: string = resolveHomeDir(), view: FileView = DISK_VIEW): void {
+  const sharedDir = resolveHomeSharedSkillsDir(home);
+  if (view.exists(sharedDir) || view.linkTarget?.(sharedDir) !== undefined || view.linkTarget?.(path.dirname(sharedDir)) !== undefined) {
+    try {
+      FileSystemUtils.assertPathWithin(home, sharedDir);
+    } catch {
+      throw new Error(
+        `${displayHomePath(sharedDir, home)} links outside your home folder, ` +
+          'and OpenSpec writes machine-wide skills only inside it. Nothing was changed.'
+      );
+    }
+  }
+}
+
+/** Whether the home folder is itself an OpenSpec project. */
+function homeIsProject(home: string, view: FileView): boolean {
+  return ['config.yaml', 'project.md', 'specs', 'changes'].some((entry) => view.exists(path.join(home, 'openspec', entry)));
+}
+
+/**
+ * A project in the home folder would share `~/.agents/skills` with the
+ * machine-wide install, and each would take the other's skills for its own.
+ */
+export function assertNotGlobalHome(projectPath: string, home: string = resolveHomeDir()): void {
+  let canonicalHome: string;
+  try {
+    canonicalHome = FileSystemUtils.canonicalizeExistingPath(home);
+  } catch {
+    return;
+  }
+  if (canonicalHome === projectPath && hasGlobalSkillInstall(home)) {
+    throw new Error(
+      "Your home folder holds the machine-wide skills (openspec init --global), so it can't also be a project. " +
+        'Set up the project in a folder of its own.'
+    );
+  }
+}
+
 /** Whether this home folder holds a `--global` install. */
 export function hasGlobalSkillInstall(home: string = resolveHomeDir(), view: FileView = DISK_VIEW): boolean {
   return view.exists(globalMarkerPath(home));
@@ -89,9 +132,15 @@ export function homeSkillLayout(home: string, env: NodeJS.ProcessEnv = process.e
     // Earlier releases never wrote a tool's home folder (MiniMax aside, which
     // is not a shared-folder tool), so there are no old copies to move.
     formerOwnDirFor: () => undefined,
+    // A tool folder inside the home folder must resolve inside it, so one
+    // linked to a dotfiles repository is refused like `~/.agents` is. One set
+    // outside home on purpose (CLAUDE_CONFIG_DIR=/work/claude) is bounded by
+    // itself.
     boundFor: (tool) => {
       const reach = resolveHomeSkillsReach(tool.value, { home, env });
-      return reach.kind === 'link' ? reach.base : home;
+      if (reach.kind !== 'link') return home;
+      const rel = path.relative(home, reach.base);
+      return rel.startsWith('..') || path.isAbsolute(rel) ? reach.base : home;
     },
   };
 }
@@ -101,20 +150,7 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   const home = input.home ?? resolveHomeDir(env);
   const recorder = input.dryRun ? new UpdatePlanRecorder(home) : undefined;
   const view = recorder?.view ?? DISK_VIEW;
-  // `~/.agents` or `~/.agents/skills` linked somewhere else (a dotfiles
-  // repository) is never written or removed through, not even OpenSpec's
-  // own records in it.
-  const sharedDir = resolveHomeSharedSkillsDir(home);
-  if (view.exists(sharedDir) || view.linkTarget?.(sharedDir) !== undefined || view.linkTarget?.(path.dirname(sharedDir)) !== undefined) {
-    try {
-      FileSystemUtils.assertPathWithin(home, sharedDir);
-    } catch {
-      throw new Error(
-        `${displayHomePath(sharedDir, home)} links outside your home folder, ` +
-          'and OpenSpec writes machine-wide skills only inside it. Nothing was changed.'
-      );
-    }
-  }
+  assertHomeSkillsInHome(home, view);
   const before = readGlobalSkillTools(home, view);
   // A home folder that was set up as a project holds that project's skills
   // here. Taking them over would change what that project's tools load.
@@ -126,6 +162,12 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
     );
   }
   const asked = input.toolIds ?? before;
+  if (asked.length > 0 && homeIsProject(home, view)) {
+    throw new Error(
+      'Your home folder is an OpenSpec project (it has an openspec/ folder), so machine-wide skills would share its ' +
+        '.agents/skills. Set up that project in a folder of its own first.'
+    );
+  }
   const refused = asked.filter((id) => !supportsGlobalSkills(id, { home, env }));
   const wanted = asked.filter((id) => !refused.includes(id));
   // Naming only tools that can't be set up for a machine is a mistake, not a
@@ -186,7 +228,7 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
           'saving a copy of each beside it first (SKILL.md.bak).'
       );
     }
-    for (const [toolId, error] of install.toolFailures) recorder.addFailure(toolId, error.message);
+    for (const [toolId, error] of install.toolFailures) recorder.addFailure(toolId, friendlyToolError(toolId, error, home, env));
   }
   const ops = recorder ?? realFileOps;
   const listPath = skillToolListPath(home);
@@ -279,7 +321,7 @@ export function formatGlobalSkillsResult(
     );
   }
   for (const [id, error] of result.install.toolFailures) {
-    errors.push(`${toolName(id)} was not set up: ${error.message}`);
+    errors.push(`${toolName(id)} was not set up: ${friendlyToolError(id, error, home, env)}`);
   }
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   const npxRel = new Set(result.leftToNpx.map((name) => `.agents/skills/${name}`));
@@ -315,6 +357,15 @@ export function formatGlobalSkillsResult(
     );
   }
   return { lines, warnings, errors };
+}
+
+/** A tool failure as the user can act on it. */
+function friendlyToolError(toolId: string, error: Error, home: string, env: NodeJS.ProcessEnv): string {
+  const reach = resolveHomeSkillsReach(toolId, { home, env });
+  if (reach.kind === 'link' && error.message.includes('outside the allowed directory')) {
+    return `${displayHomePath(reach.dir, home)} links outside your home folder, so OpenSpec doesn't write into it.`;
+  }
+  return error.message;
 }
 
 /** A dry-run plan with paths as the user sees them. */

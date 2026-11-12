@@ -279,6 +279,23 @@ describe('a project using the machine-wide skills', () => {
     await expect(new InitCommand({ tools: 'cursor', animation: false }).execute(home)).rejects.toThrow(/can't also be a project/);
   });
 
+  it("refuses to update a project in the home folder that holds the global install", async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    // A project made in the home folder some other way (an older release).
+    await fs.mkdir(path.join(home, 'openspec'), { recursive: true });
+    await fs.writeFile(path.join(home, 'openspec', 'config.yaml'), 'schema: spec-driven\n');
+    const before = await tree(path.join(home, '.agents'));
+    await expect(new UpdateCommand({ useGlobalSkills: true }).execute(home)).rejects.toThrow(/can't also be a project/);
+    expect(await tree(path.join(home, '.agents'))).toEqual(before);
+  });
+
+  it('marks a --use-global-skills run that did not switch', async () => {
+    await runGlobalSkills({ toolIds: ['claude'] });
+    const command = new UpdateCommand({ useGlobalSkills: true });
+    await command.execute(project);
+    expect(command.switchRefused).toBe(true);
+  });
+
   it('goes back to project skills with skills: project', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     await new UpdateCommand({ useGlobalSkills: true }).execute(project);

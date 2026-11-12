@@ -79,7 +79,7 @@ import {
 import { resolveSharedSkillsDir, usesSharedSkills } from './shared/skill-paths.js';
 import { formatGlobalSkillRecord, formatSkillToolList, isToolListed, readGlobalSkillRecord, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
-import { readGlobalSkillTools, supportsGlobalSkills } from './global-skills.js';
+import { assertNotGlobalHome, readGlobalSkillTools, supportsGlobalSkills } from './global-skills.js';
 import { planProjectSkillsMode, readProjectSkillsMode, type ProjectSkillsMode } from './project-skills-mode.js';
 import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
@@ -175,6 +175,8 @@ export class UpdateCommand {
   private ops: UpdateFileOps = realFileOps;
 
   private readonly useGlobalSkills: boolean;
+  /** Set when `--use-global-skills` was asked for and the project wasn't switched. */
+  switchRefused = false;
 
   constructor(options: UpdateCommandOptions = {}) {
     this.force = options.force ?? false;
@@ -234,6 +236,9 @@ export class UpdateCommand {
     if (!await FileSystemUtils.directoryExists(openspecPath)) {
       throw new Error(`No OpenSpec directory found. Run 'openspec init' first.`);
     }
+    // A project in the home folder would take the machine-wide skills in
+    // `~/.agents/skills` for its own copy.
+    assertNotGlobalHome(FileSystemUtils.canonicalizeExistingPath(resolvedProjectPath));
 
     // 2. Migrate OpenSpec-managed skills left in renamed tool directories
     // (e.g. .kimi -> .kimi-code) so they stay detected and get refreshed,
@@ -722,6 +727,7 @@ export class UpdateCommand {
       if (sharedTools.length === 0) return false;
       if (!sharedDirInProject || unsupported.length > 0) {
         if (this.useGlobalSkills) {
+          this.switchRefused = true;
           this.log(
             chalk.yellow(
               !sharedDirInProject
@@ -734,6 +740,7 @@ export class UpdateCommand {
       }
       if (this.useGlobalSkills) {
         if (globalTools.length === 0 || missing.length > 0) {
+          this.switchRefused = true;
           this.log(
             chalk.yellow(
               globalTools.length === 0
@@ -777,7 +784,10 @@ export class UpdateCommand {
       }
       // Saved first: a switch that can't be recorded isn't made at all, or
       // the next update would find neither copy of the skills.
-      if (!(await this.saveProjectSkillsMode(projectPath, 'global'))) return false;
+      if (!(await this.saveProjectSkillsMode(projectPath, 'global'))) {
+        if (this.useGlobalSkills) this.switchRefused = true;
+        return false;
+      }
     }
 
     if (unsupported.length > 0) {
