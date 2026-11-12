@@ -21,8 +21,8 @@ Each tool's home folder comes from the skills CLI's own table, so a skill instal
 | Group | Tools | What `--global` writes |
 |---|---|---|
 | Reads `~/.agents/skills/` | Amp, Cline, Codex, Cursor, Factory Droid, Gemini CLI, GitHub Copilot, Kilo Code, Kimi Code, OpenCode, Pi, Warp, Zed, the vendor-neutral target | Nothing more |
-| Own home folder | Claude Code (`$CLAUDE_CONFIG_DIR` or `~/.claude`), Antigravity, Auggie, IBM Bob, Command Code, CodeArts, CodeBuddy, Code Studio, Continue, Crush, Devin Desktop, ForgeCode, Grok Build, Hermes Agent, iFlow, Junie, Kiro, Lingma, Mistral Vibe, Qoder, Qwen Code, Rovo Dev, Zoo Code, Trae, ZCode | One link per skill in its folder |
-| No known home folder | AtomCode, CoStrict, DeepSeek Harness, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft, Veai | Refused with a note to set it up per project |
+| Own home folder | Claude Code (`$CLAUDE_CONFIG_DIR` or `~/.claude`), Antigravity, Auggie, IBM Bob, Command Code, CodeArts, CodeBuddy, Code Studio, Continue, Crush, ForgeCode, Grok Build, Hermes Agent, iFlow, Junie, Kiro, Lingma, Mistral Vibe, Qoder, Qwen Code, Rovo Dev, Zoo Code, Trae, ZCode | One link per skill in its folder |
+| No known home folder | AtomCode, CoStrict, DeepSeek Harness, Devin Desktop, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft, Veai | Refused with a note to set it up per project |
 
 MiniMax Code already keeps its skills per machine and is unchanged.
 

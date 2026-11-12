@@ -179,6 +179,12 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   // Naming only tools that can't be set up for a machine is a mistake, not a
   // request to remove everything (that is `--tools none`).
   if (asked.length > 0 && wanted.length === 0) {
+    if (refused.every((id) => AI_TOOLS.find((tool) => tool.value === id)?.globalSkillsDir)) {
+      throw new Error(
+        `${refused.map((id) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id).join(', ')} already keeps its OpenSpec skills ` +
+          `for the whole machine, so nothing was changed. Set it up with openspec init --tools ${refused.join(',')} in any project.`
+      );
+    }
     const names = refused.map((id) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id).join(', ');
     throw new Error(
       `${names} ${refused.length === 1 ? 'has' : 'have'} no machine-wide skills folder OpenSpec knows of, so nothing was changed. ` +
@@ -257,10 +263,11 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
     install,
     plan: recorder?.getPlan(),
     wasInstalled: before.length > 0,
-    leftToNpx: install.kept
-      .filter((rel) => rel.startsWith('.agents/skills/'))
-      .map((rel) => rel.slice('.agents/skills/'.length))
-      .filter((name) => npxSkills.has(name)),
+    // Kept in `~/.agents/skills` or in a tool's folder (the skills CLI's copy
+    // mode writes a real folder there): either way it is npx's, not an edit.
+    leftToNpx: [
+      ...new Set(install.kept.map((rel) => path.basename(rel)).filter((name) => npxSkills.has(name))),
+    ],
   };
 }
 
@@ -335,6 +342,12 @@ export function formatGlobalSkillsResult(
     lines.push(`No longer set up for this machine: ${result.dropped.map(toolName).join(', ')}.`);
   }
   for (const id of result.refused) {
+    if (AI_TOOLS.find((tool) => tool.value === id)?.globalSkillsDir) {
+      warnings.push(
+        `${toolName(id)} already keeps its OpenSpec skills for the whole machine; set it up with openspec init --tools ${id} in any project.`
+      );
+      continue;
+    }
     warnings.push(
       `${toolName(id)} has no machine-wide skills folder OpenSpec knows of. Set it up per project instead: openspec init --tools ${id}`
     );
@@ -343,7 +356,7 @@ export function formatGlobalSkillsResult(
     errors.push(`${toolName(id)} was not set up: ${friendlyToolError(id, error, home, env)}`);
   }
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
-  const npxRel = new Set(result.leftToNpx.map((name) => `.agents/skills/${name}`));
+  const isNpx = (rel: string) => result.leftToNpx.includes(path.basename(rel));
   if (result.leftToNpx.length > 0) {
     const names = result.leftToNpx.join(' ');
     warnings.push(
@@ -352,8 +365,8 @@ export function formatGlobalSkillsResult(
         `To have OpenSpec manage ${plural(result.leftToNpx.length, 'it', 'them')} instead, run: npx skills remove -g ${names}, then openspec update --global`
     );
   }
-  const keptShared = result.install.kept.filter((rel) => rel.startsWith('.agents/skills/') && !npxRel.has(rel));
-  const keptElsewhere = result.install.kept.filter((rel) => !rel.startsWith('.agents/skills/'));
+  const keptShared = result.install.kept.filter((rel) => rel.startsWith('.agents/skills/') && !isNpx(rel));
+  const keptElsewhere = result.install.kept.filter((rel) => !rel.startsWith('.agents/skills/') && !isNpx(rel));
   const show = (rels: readonly string[]) => rels.map((rel) => displayRelative(rel, home)).join(', ');
   if (keptShared.length > 0) {
     warnings.push(

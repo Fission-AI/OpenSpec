@@ -4,6 +4,12 @@
  * gets a link in its own home skills folder. Every folder here is the one the
  * skills CLI (`npx skills add -g`, version 1.8.1) uses, so a skill installed
  * either way lands in the same place and the two never fight over a path.
+ * One deliberate difference: a folder setting from the environment that
+ * starts with `~/` is expanded, and a relative one is ignored, where the
+ * skills CLI would resolve both against the current folder.
+ *
+ * Devin Desktop is left out: the skills CLI's `devin` is Devin for Terminal,
+ * and where Devin Desktop reads machine-wide skills isn't known.
  */
 import * as fs from 'node:fs';
 import os from 'node:os';
@@ -40,8 +46,6 @@ function envFolder(e: HomeEnv, name: string): string | undefined {
 const fromEnv = (name: string, fallback: string): LinkBase => (e) =>
   envFolder(e, name) ?? path.join(e.home, fallback);
 const inHome = (folder: string): LinkBase => (e) => path.join(e.home, folder);
-const inConfig = (folder: string): LinkBase => (e) =>
-  path.join(envFolder(e, 'XDG_CONFIG_HOME') ?? path.join(e.home, '.config'), folder);
 
 /**
  * Each tool's home skills folder is `<base>/skills`. Tools absent here (and
@@ -57,8 +61,8 @@ const LINKED: Readonly<Record<string, LinkBase>> = {
   codebuddy: inHome('.codebuddy'),
   codestudio: inHome('.codestudio'),
   continue: inHome('.continue'),
-  crush: inConfig('crush'),
-  devin: inConfig('devin'),
+  // The skills CLI uses ~/.config/crush whatever XDG_CONFIG_HOME says.
+  crush: inHome('.config/crush'),
   forgecode: inHome('.forge'),
   grok: fromEnv('GROK_HOME', '.grok'),
   hermes: fromEnv('HERMES_HOME', '.hermes'),
@@ -127,7 +131,9 @@ export function readNpxSkillsLock(options: { home?: string; env?: NodeJS.Process
   const state = env.XDG_STATE_HOME?.trim();
   const lockPath = state ? path.join(state, 'skills', '.skill-lock.json') : path.join(home, '.agents', '.skill-lock.json');
   try {
-    const parsed = JSON.parse(fs.readFileSync(lockPath, 'utf-8')) as { skills?: unknown };
+    const parsed = JSON.parse(fs.readFileSync(lockPath, 'utf-8')) as { version?: unknown; skills?: unknown };
+    // The skills CLI ignores a lock older than its format version 3.
+    if (typeof parsed.version !== 'number' || parsed.version < 3) return new Set();
     if (!parsed.skills || typeof parsed.skills !== 'object' || Array.isArray(parsed.skills)) return new Set();
     return new Set(Object.keys(parsed.skills));
   } catch {

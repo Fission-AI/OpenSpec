@@ -2,7 +2,7 @@
 
 ### Requirement: Each tool's home skills folder
 
-The system SHALL know, for each tool with project skills, whether a global install reaches it through `~/.agents/skills/`, through a link in its own home skills folder, or not at all. Home folders SHALL match the skills CLI's table (version 1.8.1), including its environment overrides (`CLAUDE_CONFIG_DIR`, `XDG_CONFIG_HOME`, `HERMES_HOME`, `GROK_HOME`, `VIBE_HOME`).
+The system SHALL know, for each tool with project skills, whether a global install reaches it through `~/.agents/skills/`, through a link in its own home skills folder, or not at all. Home folders SHALL match the skills CLI's table (version 1.8.1), including its environment overrides (`CLAUDE_CONFIG_DIR`, `HERMES_HOME`, `GROK_HOME`, `VIBE_HOME`). An override that starts with `~/` SHALL be expanded, and a relative one SHALL be ignored. A tool whose home folder isn't known SHALL be refused.
 
 #### Scenario: Claude Code with a custom config folder
 

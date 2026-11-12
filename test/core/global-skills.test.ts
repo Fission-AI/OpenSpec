@@ -146,6 +146,34 @@ describe('global skills (--global)', () => {
     expect(await fs.readFile(h('.agents', 'skills', 'openspec-propose', 'SKILL.md'), 'utf8')).not.toBe(npxText);
   });
 
+  it("calls a copy npx skills put in a tool's folder npx's, not the user's edit", async () => {
+    // npx skills' copy mode: a real folder in ~/.claude/skills, and a lock entry.
+    const npxCopy = h('.claude', 'skills', 'openspec-propose', 'SKILL.md');
+    await fs.mkdir(path.dirname(npxCopy), { recursive: true });
+    await fs.writeFile(npxCopy, '---\nname: openspec-propose\n---\nnpx copy.\n');
+    await fs.mkdir(h('.agents'), { recursive: true });
+    await fs.writeFile(h('.agents', '.skill-lock.json'), JSON.stringify({ version: 3, skills: { 'openspec-propose': {} } }));
+    const result = await runGlobalSkills({ toolIds: ['claude'] });
+    expect(result.leftToNpx).toEqual(['openspec-propose']);
+    const { formatGlobalSkillsResult } = await import('../../src/core/global-skills.js');
+    expect(formatGlobalSkillsResult(result).warnings.join('\n')).not.toMatch(/your own changes/);
+    expect(await fs.readFile(npxCopy, 'utf8')).toContain('npx copy.');
+  });
+
+  it('ignores an npx skills lock older than its format version 3', async () => {
+    const theirs = h('.agents', 'skills', 'openspec-propose', 'SKILL.md');
+    await fs.mkdir(path.dirname(theirs), { recursive: true });
+    await fs.writeFile(theirs, 'Hand-written.\n');
+    await fs.writeFile(h('.agents', '.skill-lock.json'), JSON.stringify({ version: 2, skills: { 'openspec-propose': {} } }));
+    const result = await runGlobalSkills({ toolIds: ['codex'] });
+    expect(result.leftToNpx).toEqual([]);
+    expect(result.install.kept).toContain('.agents/skills/openspec-propose');
+  });
+
+  it('explains that MiniMax Code already keeps its skills for the machine', async () => {
+    await expect(runGlobalSkills({ toolIds: ['minimax-code'] })).rejects.toThrow(/already keeps its OpenSpec skills for the whole machine/);
+  });
+
   it("keeps a skill of the user's in a tool's home folder", async () => {
     const mine = h('.claude', 'skills', 'openspec-propose', 'SKILL.md');
     await fs.mkdir(path.dirname(mine), { recursive: true });
