@@ -14,7 +14,7 @@ import { getGlobalConfig } from './global-config.js';
 import { getProfileWorkflows } from './profiles.js';
 import { hasSkillToolList, readSkillToolList, skillToolListPath } from './shared-skill-target.js';
 import { installSharedSkills, type SharedSkillInstallResult, type SkillLayout } from './shared/shared-skill-install.js';
-import { resolveHomeDir, resolveHomeSharedSkillsDir, resolveHomeSkillsReach } from './shared/home-skill-paths.js';
+import { readNpxSkillsLock, resolveHomeDir, resolveHomeSharedSkillsDir, resolveHomeSkillsReach } from './shared/home-skill-paths.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
 import { realFileOps, UpdatePlanRecorder, type UpdatePlan } from './update-plan.js';
 
@@ -44,6 +44,8 @@ export interface GlobalSkillsResult {
   plan?: UpdatePlan;
   /** Whether anything was installed before this run. */
   wasInstalled: boolean;
+  /** Skills newly left to `npx skills`, which installed them here. */
+  leftToNpx: string[];
 }
 
 /** Whether a tool can be set up for this machine. */
@@ -85,6 +87,7 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   const wanted = asked.filter((id) => !refused.includes(id));
   const dropped = before.filter((id) => !wanted.includes(id));
 
+  const npxSkills = readNpxSkillsLock({ home, env });
   const globalConfig = getGlobalConfig();
   const workflows = getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows);
   const toOption = (id: string) => AI_TOOLS.find((tool) => tool.value === id);
@@ -103,6 +106,9 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
     view,
     writesToDisk: !input.dryRun,
     layout: homeSkillLayout(home, env),
+    // A skill `npx skills` installed here is its to update and remove;
+    // writing over it would only start a tug of war between the two.
+    keepSkills: npxSkills,
   });
   // A skill the user edited stays after a removal, and the installer keeps the
   // tool list to record it. With no tool left the list must go, or the next
@@ -120,6 +126,10 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
     install,
     plan: recorder?.getPlan(),
     wasInstalled: before.length > 0,
+    leftToNpx: install.kept
+      .filter((rel) => rel.startsWith('.agents/skills/'))
+      .map((rel) => rel.slice('.agents/skills/'.length))
+      .filter((name) => npxSkills.has(name)),
   };
 }
 
@@ -181,7 +191,16 @@ export function formatGlobalSkillsResult(
     errors.push(`${toolName(id)} was not set up: ${error.message}`);
   }
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
-  const keptShared = result.install.kept.filter((rel) => rel.startsWith('.agents/skills/'));
+  const npxRel = new Set(result.leftToNpx.map((name) => `.agents/skills/${name}`));
+  if (result.leftToNpx.length > 0) {
+    const names = result.leftToNpx.join(' ');
+    warnings.push(
+      `Left ${result.leftToNpx.length} ${plural(result.leftToNpx.length, 'skill', 'skills')} to npx skills, which installed ` +
+        `${plural(result.leftToNpx.length, 'it', 'them')} here: ${result.leftToNpx.join(', ')}. ` +
+        `To have OpenSpec manage ${plural(result.leftToNpx.length, 'it', 'them')} instead, run: npx skills remove -g ${names}, then openspec update --global`
+    );
+  }
+  const keptShared = result.install.kept.filter((rel) => rel.startsWith('.agents/skills/') && !npxRel.has(rel));
   const keptElsewhere = result.install.kept.filter((rel) => !rel.startsWith('.agents/skills/'));
   const show = (rels: readonly string[]) => rels.map((rel) => displayRelative(rel, home)).join(', ');
   if (keptShared.length > 0) {

@@ -55,6 +55,11 @@ export interface SharedSkillInstallInput {
    * removed.
    */
   unlinkTools?: readonly AIToolOption[];
+  /**
+   * Skills another installer manages here (such as `npx skills`): kept as
+   * the user's, never written over or removed, while their folder exists.
+   */
+  keepSkills?: ReadonlySet<string>;
 }
 
 /**
@@ -189,6 +194,10 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       continue;
     }
     if (!view.exists(path.join(skillDir, 'SKILL.md'))) continue;
+    if (input.keepSkills?.has(skillName)) {
+      keepAsUsers(skillName);
+      continue;
+    }
     if (previouslyKept.has(skillName)) {
       keptShared.add(skillName);
     } else if (!sharedIsOurs && classifySkillFile(skillDir, oursFor(skillName), view) === 'user') {

@@ -124,6 +124,28 @@ describe('global skills (--global)', () => {
     expect(plan.changes).toEqual([]);
   });
 
+  it('leaves skills npx skills installed to it, and says how to hand them over', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    // npx skills add -g writes over the same folders and records them in its lock.
+    const npxText = '---\nname: openspec-propose\ndescription: from npx skills\n---\nnpx.\n';
+    await fs.writeFile(h('.agents', 'skills', 'openspec-propose', 'SKILL.md'), npxText);
+    await fs.writeFile(
+      h('.agents', '.skill-lock.json'),
+      JSON.stringify({ version: 3, skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec' } } })
+    );
+    const result = await runGlobalSkills({});
+    expect(await fs.readFile(h('.agents', 'skills', 'openspec-propose', 'SKILL.md'), 'utf8')).toBe(npxText);
+    expect(result.leftToNpx).toEqual(['openspec-propose']);
+    expect(result.install.refreshedEdited).toEqual([]);
+    // Settles, and once npx skills removes it, OpenSpec installs its own again.
+    expect((await runGlobalSkills({ dryRun: true })).plan!.changes).toEqual([]);
+    await fs.rm(h('.agents', 'skills', 'openspec-propose'), { recursive: true });
+    await fs.writeFile(h('.agents', '.skill-lock.json'), JSON.stringify({ version: 3, skills: {} }));
+    await runGlobalSkills({});
+    expect(await fs.readFile(h('.agents', 'skills', 'openspec-propose', 'SKILL.md'), 'utf8')).toContain('openspec');
+    expect(await fs.readFile(h('.agents', 'skills', 'openspec-propose', 'SKILL.md'), 'utf8')).not.toBe(npxText);
+  });
+
   it("keeps a skill of the user's in a tool's home folder", async () => {
     const mine = h('.claude', 'skills', 'openspec-propose', 'SKILL.md');
     await fs.mkdir(path.dirname(mine), { recursive: true });

@@ -5,6 +5,7 @@
  * skills CLI (`npx skills add -g`, version 1.8.1) uses, so a skill installed
  * either way lands in the same place and the two never fight over a path.
  */
+import * as fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -101,4 +102,23 @@ export function resolveHomeSkillsReach(
   if (!base) return { kind: 'none' };
   const dir = base({ home, env });
   return { kind: 'link', dir: path.join(dir, 'skills'), base: dir };
+}
+
+/**
+ * Skill names the skills CLI records as installed for this machine, from its
+ * lock file (`$XDG_STATE_HOME/skills/.skill-lock.json`, else
+ * `~/.agents/.skill-lock.json`). Empty when it isn't there or can't be read.
+ */
+export function readNpxSkillsLock(options: { home?: string; env?: NodeJS.ProcessEnv } = {}): Set<string> {
+  const env = options.env ?? process.env;
+  const home = options.home ?? resolveHomeDir(env);
+  const state = env.XDG_STATE_HOME?.trim();
+  const lockPath = state ? path.join(state, 'skills', '.skill-lock.json') : path.join(home, '.agents', '.skill-lock.json');
+  try {
+    const parsed = JSON.parse(fs.readFileSync(lockPath, 'utf-8')) as { skills?: unknown };
+    if (!parsed.skills || typeof parsed.skills !== 'object' || Array.isArray(parsed.skills)) return new Set();
+    return new Set(Object.keys(parsed.skills));
+  } catch {
+    return new Set();
+  }
 }
