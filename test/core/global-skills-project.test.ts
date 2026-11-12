@@ -102,6 +102,24 @@ describe('a project using the machine-wide skills', () => {
     expect(said('installed globally')).toBe(false);
   });
 
+  it("doesn't mistake a home folder set up as a project for a global install", async () => {
+    await fs.mkdir(path.join(home, '.agents', 'skills', 'openspec-propose'), { recursive: true });
+    await fs.writeFile(path.join(home, '.agents', 'skills', 'openspec-propose', 'SKILL.md'), 'x\n');
+    await fs.writeFile(path.join(home, '.agents', 'skills', '.openspec-target'), 'claude own-files\ncodex\n');
+    Object.assign(prompt, { interactive: true });
+    await new UpdateCommand().execute(project);
+    expect(prompt.asked).toBe(0);
+    expect(said('installed globally')).toBe(false);
+  });
+
+  it("doesn't repeat the warnings of a broken config.yaml", async () => {
+    await fs.writeFile(p('openspec', 'config.yaml'), 'schema: [not, a, string]\n');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { readProjectSkillsMode } = await import('../../src/core/project-skills-mode.js');
+    expect(readProjectSkillsMode(project)).toBeUndefined();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   it('only suggests the switch when not at a terminal', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     const before = await tree(project);

@@ -192,6 +192,23 @@ describe('global skills (--global)', () => {
     expect(readGlobalSkillTools(home)).toEqual(['kiro']);
   });
 
+  it("refuses a home folder that was set up as a project, and doesn't count it as a global install", async () => {
+    // What running a project `init` in the home folder leaves behind.
+    await fs.mkdir(h('.agents', 'skills', 'openspec-propose'), { recursive: true });
+    await fs.writeFile(h('.agents', 'skills', 'openspec-propose', 'SKILL.md'), 'Project skill.\n');
+    await fs.writeFile(h('.agents', 'skills', '.openspec-target'), 'claude own-files\n');
+    expect(readGlobalSkillTools(home)).toEqual([]);
+    await expect(runGlobalSkills({ toolIds: ['claude'] })).rejects.toThrow(/home folder was set up/);
+    expect(await fs.readFile(h('.agents', 'skills', 'openspec-propose', 'SKILL.md'), 'utf8')).toBe('Project skill.\n');
+  });
+
+  it('leaves no trace once removed', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await runGlobalSkills({ toolIds: [] });
+    expect(await tree(home)).toEqual(['.config/openspec/config.json']);
+    expect(await exists(h('.agents'))).toBe(false);
+  });
+
   it('removes the global install with no tools, keeping an edited skill', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     const edited = h('.agents', 'skills', 'openspec-explore', 'SKILL.md');

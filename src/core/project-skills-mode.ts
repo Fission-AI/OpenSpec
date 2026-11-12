@@ -5,15 +5,30 @@
  * document model and everything else in it survives.
  */
 import path from 'path';
-import { isMap, parseDocument } from 'yaml';
+import { readFileSync } from 'fs';
+import { isMap, parse as parseYaml, parseDocument } from 'yaml';
 import { OPENSPEC_DIR_NAME } from './config.js';
 import type { FileView } from './file-view.js';
-import { readProjectConfig, resolveConfigFilePath } from './project-config.js';
+import { resolveConfigFilePath } from './project-config.js';
 
 export type ProjectSkillsMode = 'global' | 'project';
 
+/**
+ * The project's `skills:` setting, read quietly: init and update run this on
+ * every project, and must not repeat warnings about the rest of a config they
+ * would otherwise never print (the commands that use those fields still do).
+ */
 export function readProjectSkillsMode(projectPath: string): ProjectSkillsMode | undefined {
-  return readProjectConfig(projectPath)?.skills;
+  const configPath = resolveConfigFilePath(projectPath);
+  if (!configPath) return undefined;
+  try {
+    const raw = parseYaml(readFileSync(configPath, 'utf-8')) as unknown;
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+    const value = (raw as Record<string, unknown>).skills;
+    return value === 'global' || value === 'project' ? value : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**

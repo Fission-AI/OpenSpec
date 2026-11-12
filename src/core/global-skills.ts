@@ -6,6 +6,7 @@
  * OpenSpec wrote is replaced or removed, and nothing is written through a link
  * or outside the folder it belongs to.
  */
+import * as fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';
 import { AI_TOOLS, type AIToolOption } from './config.js';
@@ -54,8 +55,21 @@ export function supportsGlobalSkills(toolId: string, options: { home?: string; e
   return Boolean(tool && usesSharedSkills(tool) && resolveHomeSkillsReach(toolId, options).kind !== 'none');
 }
 
-/** The tools set up for this machine, from `~/.agents/skills/.openspec-target`. */
+/**
+ * Marks `~/.agents/skills/` as a `--global` install. The tool list alone
+ * can't: running a project `init` in the home folder leaves the same list.
+ */
+const GLOBAL_MARKER = '.openspec-global';
+const GLOBAL_MARKER_TEXT =
+  'Installed by `openspec init --global`. Refresh with `openspec update --global`; remove with `openspec init --global --tools none`.\n';
+
+function globalMarkerPath(home: string): string {
+  return path.join(resolveHomeSharedSkillsDir(home), GLOBAL_MARKER);
+}
+
+/** The tools set up for this machine with `openspec init --global`. */
 export function readGlobalSkillTools(home: string = resolveHomeDir(), view: FileView = DISK_VIEW): string[] {
+  if (!view.exists(globalMarkerPath(home))) return [];
   return hasSkillToolList(home, view) ? readSkillToolList(home, view) : [];
 }
 
@@ -82,6 +96,15 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   const recorder = input.dryRun ? new UpdatePlanRecorder(home) : undefined;
   const view = recorder?.view ?? DISK_VIEW;
   const before = readGlobalSkillTools(home, view);
+  // A home folder that was set up as a project holds that project's skills
+  // here. Taking them over would change what that project's tools load.
+  if (before.length === 0 && hasSkillToolList(home, view)) {
+    throw new Error(
+      `${displayHomePath(resolveHomeSharedSkillsDir(home), home)} already holds a project's OpenSpec skills: ` +
+        'your home folder was set up with `openspec init`. Set up that project somewhere else, ' +
+        `or delete ${displayHomePath(skillToolListPath(home), home)}, then run openspec init --global again.`
+    );
+  }
   const asked = input.toolIds ?? before;
   const refused = asked.filter((id) => !supportsGlobalSkills(id, { home, env }));
   const wanted = asked.filter((id) => !refused.includes(id));
@@ -114,9 +137,18 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   // tool list to record it. With no tool left the list must go, or the next
   // `update --global` would set them up again; the edited skill is still
   // recognized as the user's by its text.
+  const ops = recorder ?? realFileOps;
   const listPath = skillToolListPath(home);
-  if (wanted.length === 0 && view.exists(listPath)) {
-    await (recorder ?? realFileOps).removeFile(listPath, 'openspec');
+  const markerPath = globalMarkerPath(home);
+  if (wanted.length === 0) {
+    if (view.exists(listPath)) await ops.removeFile(listPath, 'openspec');
+    if (view.exists(markerPath)) await ops.removeFile(markerPath, 'openspec');
+    if (!input.dryRun) {
+      removeIfEmpty(resolveHomeSharedSkillsDir(home));
+      removeIfEmpty(path.dirname(resolveHomeSharedSkillsDir(home)));
+    }
+  } else if (!view.exists(markerPath)) {
+    await ops.writeFile(markerPath, GLOBAL_MARKER_TEXT, 'openspec');
   }
 
   return {
@@ -131,6 +163,14 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
       .map((rel) => rel.slice('.agents/skills/'.length))
       .filter((name) => npxSkills.has(name)),
   };
+}
+
+function removeIfEmpty(dir: string): void {
+  try {
+    if (fs.lstatSync(dir).isDirectory() && fs.readdirSync(dir).length === 0) fs.rmdirSync(dir);
+  } catch {
+    // Missing or not removable: nothing to tidy.
+  }
 }
 
 /** `~/.agents/skills` as the user sees it, for messages. */
