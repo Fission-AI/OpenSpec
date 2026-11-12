@@ -47,6 +47,31 @@ export interface SharedSkillInstallInput {
   view: FileView;
   /** Whether this run writes to disk (false for a dry run). */
   writesToDisk: boolean;
+  /** Where each tool's own skills go; a project's layout when omitted. */
+  layout?: SkillLayout;
+}
+
+/**
+ * Where the installer puts things. The shared copy is always
+ * `<projectPath>/.agents/skills/`; a layout says which tools get links and
+ * where, and which folder each tool's writes must stay inside.
+ */
+export interface SkillLayout {
+  /** The tool's own skills folder when it gets links, else undefined. */
+  linkDirFor(tool: AIToolOption): string | undefined;
+  /** Where earlier releases wrote this tool's skills, when not the shared folder. */
+  formerOwnDirFor(tool: AIToolOption): string | undefined;
+  /** The folder every write for this tool must resolve inside. */
+  boundFor(tool: AIToolOption): string;
+}
+
+/** A project's layout: links and old copies under the project itself. */
+export function projectSkillLayout(projectPath: string): SkillLayout {
+  return {
+    linkDirFor: (tool) => resolveSkillLinkDir(projectPath, tool),
+    formerOwnDirFor: (tool) => resolveFormerOwnSkillsDir(projectPath, tool),
+    boundFor: () => projectPath,
+  };
 }
 
 export interface SharedSkillInstallResult {
@@ -82,6 +107,7 @@ const toPosix = (p: string) => p.split(path.sep).join('/');
  */
 export async function installSharedSkills(input: SharedSkillInstallInput): Promise<SharedSkillInstallResult> {
   const { projectPath, ops, view } = input;
+  const layout = input.layout ?? projectSkillLayout(projectPath);
   const tools = input.tools.filter(usesSharedSkills);
   const result: SharedSkillInstallResult = {
     writtenSkillCount: 0,
@@ -226,7 +252,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     // Tools that get files of their own this run: links.
     const withOwnFiles = new Set(
       tools
-        .filter((tool) => resolveSkillLinkDir(projectPath, tool) !== undefined)
+        .filter((tool) => layout.linkDirFor(tool) !== undefined)
         .map((tool) => tool.value)
     );
     await ops.writeFile(listPath, formatSkillToolList(tools.map((tool) => tool.value), keptShared, withOwnFiles), 'openspec');
@@ -238,8 +264,8 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   // 2. Each tool's own skills folder: links for the tools that need them, and
   //    old copies out of the way everywhere else.
   for (const tool of tools) {
-    const linkDir = resolveSkillLinkDir(projectPath, tool);
-    const ownDir = linkDir ?? resolveFormerOwnSkillsDir(projectPath, tool);
+    const linkDir = layout.linkDirFor(tool);
+    const ownDir = linkDir ?? layout.formerOwnDirFor(tool);
     if (!ownDir) continue;
     // A tool whose own skills folder is the shared one (a link the user made
     // in 1.x to share skills) already reads the shared copy through it.
@@ -255,7 +281,8 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     // The folder itself must stay in the project: one linked elsewhere is
     // refused, as every other write is. A single skill's link is the user's
     // business and is classified (and kept) below.
-    if (!linkDir && !ownFolderInProject(projectPath, ownDir)) {
+    const bound = layout.boundFor(tool);
+    if (!linkDir && !ownFolderInProject(bound, ownDir)) {
       // A tool that reads `.agents/skills` needs nothing here; an old folder
       // linked out of the project is left alone, not a failure. Old OpenSpec
       // skills in it are reported, since the tool may load them twice.
@@ -270,7 +297,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       }
       return;
     }
-    FileSystemUtils.assertPathWithin(projectPath, ownDir);
+    FileSystemUtils.assertPathWithin(bound, ownDir);
     const linksWanted = linkDir !== undefined;
     for (const skillName of OPENSPEC_SKILL_NAMES) {
       const spotPath = path.join(ownDir, skillName);
@@ -321,9 +348,10 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     if (input.writesToDisk) {
       removeIfEmpty(ownDir);
       // The tool's folder too (`.cline/` once `.cline/skills/` is gone), when
-      // OpenSpec's skills were all it held. Never the project itself.
+      // OpenSpec's skills were all it held. Never the folder that bounds it
+      // (the project, or a tool's home folder such as `~/.claude`).
       const toolDir = path.dirname(ownDir);
-      if (path.resolve(toolDir) !== path.resolve(projectPath)) removeIfEmpty(toolDir);
+      if (path.resolve(toolDir) !== path.resolve(bound)) removeIfEmpty(toolDir);
     }
   }
 
