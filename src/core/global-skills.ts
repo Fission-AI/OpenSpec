@@ -108,6 +108,15 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   const asked = input.toolIds ?? before;
   const refused = asked.filter((id) => !supportsGlobalSkills(id, { home, env }));
   const wanted = asked.filter((id) => !refused.includes(id));
+  // Naming only tools that can't be set up for a machine is a mistake, not a
+  // request to remove everything (that is `--tools none`).
+  if (asked.length > 0 && wanted.length === 0) {
+    const names = refused.map((id) => AI_TOOLS.find((tool) => tool.value === id)?.name ?? id).join(', ');
+    throw new Error(
+      `${names} ${refused.length === 1 ? 'has' : 'have'} no machine-wide skills folder OpenSpec knows of, so nothing was changed. ` +
+        `Set ${refused.length === 1 ? 'it' : 'them'} up per project instead: openspec init --tools ${refused.join(',')}`
+    );
+  }
   const dropped = before.filter((id) => !wanted.includes(id));
 
   const npxSkills = readNpxSkillsLock({ home, env });
@@ -120,6 +129,8 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   // dropped tools are passed with no workflows, so the installer's deselect
   // path removes the skills, their links and the list (edited skills stay).
   const install = await installSharedSkills({
+    // The home folder isn't in git: an edit replaced here would be gone.
+    backupEdited: true,
     projectPath: home,
     tools: options(wanted.length > 0 ? wanted : dropped),
     unlinkTools: wanted.length > 0 ? options(dropped) : [],
@@ -132,11 +143,31 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
     // A skill `npx skills` installed here is its to update and remove;
     // writing over it would only start a tug of war between the two.
     keepSkills: npxSkills,
+  }).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!message.includes('outside the allowed directory')) throw error;
+    // `~/.agents` or `~/.agents/skills` links somewhere else, such as a
+    // dotfiles repository: nothing is written through it.
+    throw new Error(
+      `${displayHomePath(resolveHomeSharedSkillsDir(home), home)} links outside your home folder, ` +
+        'and OpenSpec writes machine-wide skills only inside it. Nothing was changed.'
+    );
   });
   // A skill the user edited stays after a removal, and the installer keeps the
   // tool list to record it. With no tool left the list must go, or the next
   // `update --global` would set them up again; the edited skill is still
   // recognized as the user's by its text.
+  // The plan says what the real run would also report.
+  if (recorder) {
+    if (install.refreshedEdited.length > 0) {
+      recorder.addNote(
+        'edited-skills',
+        `Update will replace your edits in ${install.refreshedEdited.map((rel) => displayHomePath(path.join(home, rel), home)).join(', ')}, ` +
+          'saving a copy of each beside it as SKILL.md.bak.'
+      );
+    }
+    for (const [toolId, error] of install.toolFailures) recorder.addFailure(toolId, error.message);
+  }
   const ops = recorder ?? realFileOps;
   const listPath = skillToolListPath(home);
   const markerPath = globalMarkerPath(home);
@@ -259,7 +290,8 @@ export function formatGlobalSkillsResult(
   if (edited.length > 0) {
     warnings.push(
       `Replaced your edits in ${edited.length} ${plural(edited.length, 'skill', 'skills')} OpenSpec installs: ${show(edited)}. ` +
-        'OpenSpec refreshes these on every update and keeps no copy. Keep lasting changes in a skill of your own under another name.'
+        `${(result.install.backedUp?.length ?? 0) > 0 ? 'Your text is saved beside each as SKILL.md.bak. ' : ''}` +
+        'OpenSpec refreshes these on every update; keep lasting changes in a skill of your own under another name.'
     );
   }
   return { lines, warnings, errors };

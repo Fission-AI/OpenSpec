@@ -45,4 +45,15 @@ describe('home skills folders', () => {
     const hermes = reach('hermes', { HERMES_HOME: '  ' });
     expect(hermes.kind === 'link' && hermes.dir).toBe(path.join(home, '.hermes', 'skills'));
   });
+
+  it('never resolves a tool folder against the current folder', () => {
+    const dir = (toolId: string, env: NodeJS.ProcessEnv) => {
+      const r = reach(toolId, env);
+      return r.kind === 'link' ? r.dir : r.kind;
+    };
+    expect(dir('claude', { CLAUDE_CONFIG_DIR: 'claude-rel' })).toBe(path.join(home, '.claude', 'skills'));
+    expect(dir('claude', { CLAUDE_CONFIG_DIR: '~/.claude-work' })).toBe(path.join(home, '.claude-work', 'skills'));
+    expect(dir('crush', { XDG_CONFIG_HOME: 'cfg' })).toBe(path.join(home, '.config', 'crush', 'skills'));
+    expect(dir('grok', { GROK_HOME: './g' })).toBe(path.join(home, '.grok', 'skills'));
+  });
 });

@@ -207,7 +207,7 @@ describe('a project using the machine-wide skills', () => {
     const before = await tree(project);
     logs = [];
     await new UpdateCommand().execute(project);
-    expect(said('openspec init --global')).toBe(true);
+    expect(said('openspec init --global --tools claude,codex')).toBe(true);
     expect(await tree(project)).toEqual(before);
     expect(await tree(teammate)).toEqual([]);
     logs = [];
@@ -216,6 +216,27 @@ describe('a project using the machine-wide skills', () => {
     expect(await projectSkills()).toEqual([]);
     expect(await exists(p('.claude', 'skills', 'openspec-propose'))).toBe(false);
     expect(await tree(teammate)).toEqual([]);
+  });
+
+  it("doesn't switch when config.yaml can't be saved", async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await fs.writeFile(p('openspec', 'config.yaml'), '- a\n- b\n');
+    const before = await tree(project);
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    expect(said('Not switched')).toBe(true);
+    expect(await tree(project)).toEqual(before);
+    const plan = await new UpdateCommand({ dryRun: true, useGlobalSkills: true }).plan(project);
+    expect(plan.failures.map((f) => f.tool)).toContain('openspec');
+  });
+
+  it('goes back to project skills with skills: project', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    const yaml = (await config()).replace(/^skills: global$/m, 'skills: project');
+    await fs.writeFile(p('openspec', 'config.yaml'), yaml);
+    await new UpdateCommand().execute(project);
+    expect(await projectSkills()).toHaveLength(CORE_SKILLS.length);
+    expect(await exists(p('.claude', 'skills', 'openspec-propose'))).toBe(true);
   });
 
   it('settles once switched: the next update writes nothing', async () => {

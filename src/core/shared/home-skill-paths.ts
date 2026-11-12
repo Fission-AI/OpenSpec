@@ -25,11 +25,23 @@ interface HomeEnv {
 
 type LinkBase = (e: HomeEnv) => string;
 
+/**
+ * An environment folder setting, as a path OpenSpec can trust: `~/` expands
+ * to the home folder, and anything still relative is ignored, since it would
+ * resolve against whatever folder the command runs in.
+ */
+function envFolder(e: HomeEnv, name: string): string | undefined {
+  const raw = e.env[name]?.trim();
+  if (!raw) return undefined;
+  const expanded = raw === '~' ? e.home : /^~[\\/]/.test(raw) ? path.join(e.home, raw.slice(2)) : raw;
+  return path.isAbsolute(expanded) ? expanded : undefined;
+}
+
 const fromEnv = (name: string, fallback: string): LinkBase => (e) =>
-  e.env[name]?.trim() || path.join(e.home, fallback);
+  envFolder(e, name) ?? path.join(e.home, fallback);
 const inHome = (folder: string): LinkBase => (e) => path.join(e.home, folder);
 const inConfig = (folder: string): LinkBase => (e) =>
-  path.join(e.env.XDG_CONFIG_HOME?.trim() || path.join(e.home, '.config'), folder);
+  path.join(envFolder(e, 'XDG_CONFIG_HOME') ?? path.join(e.home, '.config'), folder);
 
 /**
  * Each tool's home skills folder is `<base>/skills`. Tools absent here (and

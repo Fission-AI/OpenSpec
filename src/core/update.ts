@@ -77,7 +77,7 @@ import {
   shouldReconcileCommandFilesForTool,
 } from './command-surface.js';
 import { resolveSharedSkillsDir, usesSharedSkills } from './shared/skill-paths.js';
-import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
+import { formatSkillToolList, isToolListed, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
 import { readGlobalSkillTools } from './global-skills.js';
 import { planProjectSkillsMode, readProjectSkillsMode, type ProjectSkillsMode } from './project-skills-mode.js';
@@ -741,12 +741,15 @@ export class UpdateCommand {
           default: true,
         });
         if (!accepted) {
-          await this.saveProjectSkillsMode(projectPath, 'project');
-          this.log(chalk.dim('Kept this project\'s own skills, and saved "skills: project" in openspec/config.yaml.'));
+          if (await this.saveProjectSkillsMode(projectPath, 'project')) {
+            this.log(chalk.dim('Kept this project\'s own skills, and saved "skills: project" in openspec/config.yaml.'));
+          }
           return false;
         }
       }
-      await this.saveProjectSkillsMode(projectPath, 'global');
+      // Saved first: a switch that can't be recorded isn't made at all, or
+      // the next update would find neither copy of the skills.
+      if (!(await this.saveProjectSkillsMode(projectPath, 'global'))) return false;
     }
 
     // The deselect path: no workflows wanted, so OpenSpec's own copies and
@@ -760,14 +763,49 @@ export class UpdateCommand {
       view: this.view,
       writesToDisk: !this.dryRun,
     });
-    for (const line of formatKeptSkills(result.kept, result.linkedOutside)) this.log(chalk.yellow(line));
-    if (result.removedSkillCount > 0) {
+    // Command files and old per-tool copies an earlier release generated go
+    // too, as they would in a project update; edited ones are kept and listed.
+    let removedCommands = 0;
+    const keptCommands: string[] = [];
+    for (const tool of sharedTools) {
+      if (!shouldReconcileCommandFilesForTool(tool.value)) continue;
+      const reconciled = await reconcileCommandFiles(projectPath, tool.value, [], {
+        view: this.view,
+        remove: (fullPath) => this.ops.removeFile(fullPath, tool.value),
+      });
+      removedCommands += reconciled.removed.length;
+      keptCommands.push(...reconciled.kept);
+      if (!this.dryRun) {
+        await pruneEmptyParents(projectPath, reconciled.removed.map((rel) => FileSystemUtils.toPosixPath(rel)));
+      }
+    }
+    // The project's tools stay on record, without any skills: a teammate is
+    // told exactly what to install, `init` still finds the tools, and
+    // `skills: project` brings the project's own skills back.
+    const listPath = skillToolListPath(projectPath);
+    if (!this.view.exists(listPath)) {
+      await this.ops.writeFile(listPath, formatSkillToolList(sharedTools.map((tool) => tool.value)), 'openspec');
+    }
+    if (result.kept.length > 0) {
       this.log(
-        chalk.green(
-          `✓ Using this machine's skills in ~/.agents/skills: removed ${result.removedSkillCount} project ` +
-            `cop${result.removedSkillCount === 1 ? 'y' : 'ies'} of OpenSpec's skills.`
+        chalk.yellow(
+          `Kept ${result.kept.length} skill folder${result.kept.length === 1 ? '' : 's'} with your own changes: ${result.kept.join(', ')}. ` +
+            "Your tools may load these beside your global skills; delete them once you've moved what you need."
         )
       );
+    }
+    if (keptCommands.length > 0) {
+      for (const block of formatKeptCommandFiles({ kept: keptCommands, unchecked: [] })) {
+        for (const line of block) this.log(chalk.yellow(line));
+      }
+    }
+    const removed = result.removedSkillCount + result.replacedOldCopyCount;
+    if (removed + removedCommands > 0) {
+      const parts = [
+        removed > 0 ? `${removed} project cop${removed === 1 ? 'y' : 'ies'} of OpenSpec's skills` : '',
+        removedCommands > 0 ? `${removedCommands} command file${removedCommands === 1 ? '' : 's'}` : '',
+      ].filter(Boolean);
+      this.log(chalk.green(`✓ Using this machine's skills in ~/.agents/skills: removed ${parts.join(' and ')}.`));
     }
     if (globalTools.length === 0 || missing.length > 0) {
       this.log(
@@ -776,20 +814,26 @@ export class UpdateCommand {
             `and this machine doesn't have them${missing.length > 0 && globalTools.length > 0 ? ` for ${names(missing)}` : ''}. Run: ${initGlobal}`
         )
       );
-    } else if (result.removedSkillCount === 0) {
+    } else if (removed + removedCommands === 0) {
       this.log(chalk.green("✓ Skills come from this machine's global install (~/.agents/skills). Run \"openspec update --global\" to refresh them."));
     }
     return true;
   }
 
-  /** Saves `skills: <mode>` in openspec/config.yaml, keeping the rest of the file as it is. */
-  private async saveProjectSkillsMode(projectPath: string, mode: ProjectSkillsMode): Promise<void> {
+  /**
+   * Saves `skills: <mode>` in openspec/config.yaml, keeping the rest of the
+   * file as it is. False, with a message, when the file can't be edited safely.
+   */
+  private async saveProjectSkillsMode(projectPath: string, mode: ProjectSkillsMode): Promise<boolean> {
     const planned = planProjectSkillsMode(projectPath, mode, this.view);
     if (!planned) {
-      this.log(chalk.yellow(`Could not save "skills: ${mode}": openspec/config.yaml isn't YAML OpenSpec can edit safely.`));
-      return;
+      const message = `couldn't save "skills: ${mode}": openspec/config.yaml isn't YAML OpenSpec can edit safely. Fix it, then run update again.`;
+      this.log(chalk.yellow(`Not switched: ${message}`));
+      this.recorder?.addFailure('openspec', message);
+      return false;
     }
     await this.ops.writeFile(planned.path, planned.content, 'openspec');
+    return true;
   }
 
   /**

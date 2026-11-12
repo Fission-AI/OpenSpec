@@ -73,6 +73,7 @@ import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
 import { readGlobalSkillTools } from './global-skills.js';
 import { readProjectSkillsMode } from './project-skills-mode.js';
+import { formatSkillToolList, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-install.js';
 import { realFileOps } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
@@ -1011,6 +1012,12 @@ export class InitCommand {
         view: DISK_VIEW,
         writesToDisk: true,
       });
+      // With global skills the project keeps only the record of its tools, as
+      // update leaves it, so a teammate is told what to install.
+      const sharedIds = AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value) && usesSharedSkills(tool)).map((tool) => tool.value);
+      if (usesGlobalSkills && sharedIds.length > 0 && !fs.existsSync(skillToolListPath(projectPath))) {
+        await realFileOps.writeFile(skillToolListPath(projectPath), formatSkillToolList(sharedIds), 'openspec');
+      }
       if (shared.writtenSkillCount === 0) removedSkillCount += shared.removedSkillCount;
       ownFolderErrors = shared.toolFailures;
       if (shared.replacedOldCopyCount > 0) {

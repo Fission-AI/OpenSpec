@@ -60,6 +60,11 @@ export interface SharedSkillInstallInput {
    * the user's, never written over or removed, while their folder exists.
    */
   keepSkills?: ReadonlySet<string>;
+  /**
+   * Save the user's edit beside a shared skill (`SKILL.md.bak`) before
+   * refreshing it. For folders git doesn't keep, such as the home folder.
+   */
+  backupEdited?: boolean;
 }
 
 /**
@@ -101,6 +106,8 @@ export interface SharedSkillInstallResult {
    * nor a release's: the user had edited them, and the edit was replaced.
    */
   refreshedEdited: string[];
+  /** Backups of those edits, when `backupEdited` is set. */
+  backedUp?: string[];
   /**
    * Tools whose own skills folder could not be brought up to date (for
    * example it is a link out of the project). The shared copy is still
@@ -194,7 +201,9 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       continue;
     }
     if (!view.exists(path.join(skillDir, 'SKILL.md'))) continue;
-    if (input.keepSkills?.has(skillName)) {
+    // Only while the text there is not OpenSpec's: another installer may
+    // record a skill it put elsewhere (a tool's own folder) and never here.
+    if (input.keepSkills?.has(skillName) && classifySkillFile(skillDir, generatedTexts(skillName), view) === 'user') {
       keepAsUsers(skillName);
       continue;
     }
@@ -222,6 +231,12 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     // text being replaced is the user's edit, say so: it is not kept.
     if (classifySkillFile(path.join(sharedDir, dirName), generatedTexts(dirName), view) === 'user') {
       result.refreshedEdited.push(relative(skillFile));
+      const edited = readOr(skillFile);
+      if (input.backupEdited && edited !== undefined) {
+        const backup = freeBackupPath(skillFile, view);
+        await ops.writeFile(backup, edited, 'openspec');
+        (result.backedUp ??= []).push(relative(backup));
+      }
     }
     await ops.writeFile(skillFile, contents.get(dirName)!, 'openspec');
     result.writtenSkillCount += 1;
@@ -380,6 +395,14 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     removeIfEmpty(path.dirname(sharedDir));
   }
   return result;
+}
+
+/** `SKILL.md.bak`, or the first `SKILL.md.bak<n>` not yet taken (never through a link). */
+function freeBackupPath(skillFile: string, view: FileView): string {
+  for (let n = 0; ; n += 1) {
+    const candidate = `${skillFile}.bak${n === 0 ? '' : n}`;
+    if (!view.exists(candidate) && view.linkTarget?.(candidate) === undefined) return candidate;
+  }
 }
 
 /** Whether a tool's own skills folder stays inside the project through links. */
