@@ -49,6 +49,12 @@ export interface SharedSkillInstallInput {
   writesToDisk: boolean;
   /** Where each tool's own skills go; a project's layout when omitted. */
   layout?: SkillLayout;
+  /**
+   * Tools no longer set up whose links should go. They are not listed, and
+   * nothing is linked for them; only OpenSpec's links in their folder are
+   * removed.
+   */
+  unlinkTools?: readonly AIToolOption[];
 }
 
 /**
@@ -263,7 +269,8 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
 
   // 2. Each tool's own skills folder: links for the tools that need them, and
   //    old copies out of the way everywhere else.
-  for (const tool of tools) {
+  const unlinking = (input.unlinkTools ?? []).filter(usesSharedSkills);
+  for (const tool of [...tools, ...unlinking]) {
     const linkDir = layout.linkDirFor(tool);
     const ownDir = linkDir ?? layout.formerOwnDirFor(tool);
     if (!ownDir) continue;
@@ -271,13 +278,18 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     // in 1.x to share skills) already reads the shared copy through it.
     if (isSameFolderTree(ownDir, sharedDir)) continue;
     try {
-      await settleOwnSkillsFolder(tool, ownDir, linkDir);
+      await settleOwnSkillsFolder(tool, ownDir, linkDir, linkDir !== undefined && !unlinking.includes(tool));
     } catch (error) {
       result.toolFailures.set(tool.value, error instanceof Error ? error : new Error(String(error)));
     }
   }
 
-  async function settleOwnSkillsFolder(tool: AIToolOption, ownDir: string, linkDir: string | undefined) {
+  async function settleOwnSkillsFolder(
+    tool: AIToolOption,
+    ownDir: string,
+    linkDir: string | undefined,
+    linksWanted: boolean
+  ) {
     // The folder itself must stay in the project: one linked elsewhere is
     // refused, as every other write is. A single skill's link is the user's
     // business and is classified (and kept) below.
@@ -298,7 +310,6 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       return;
     }
     FileSystemUtils.assertPathWithin(bound, ownDir);
-    const linksWanted = linkDir !== undefined;
     for (const skillName of OPENSPEC_SKILL_NAMES) {
       const spotPath = path.join(ownDir, skillName);
       const spot = classifySkillLinkSpot(spotPath, path.join(sharedDir, skillName), oursFor(skillName), view);

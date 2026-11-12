@@ -1,0 +1,134 @@
+/**
+ * The machine-wide (`--global`) install: OpenSpec's skills once in
+ * `~/.agents/skills/`, with a link in the home skills folder of each tool that
+ * doesn't read that folder, the layout `npx skills add -g` writes. It reuses
+ * the project installer with a home layout, so the same rules hold: only text
+ * OpenSpec wrote is replaced or removed, and nothing is written through a link
+ * or outside the folder it belongs to.
+ */
+import path from 'path';
+import { createRequire } from 'module';
+import { AI_TOOLS, type AIToolOption } from './config.js';
+import { DISK_VIEW, type FileView } from './file-view.js';
+import { getGlobalConfig } from './global-config.js';
+import { getProfileWorkflows } from './profiles.js';
+import { hasSkillToolList, readSkillToolList, skillToolListPath } from './shared-skill-target.js';
+import { installSharedSkills, type SharedSkillInstallResult, type SkillLayout } from './shared/shared-skill-install.js';
+import { resolveHomeDir, resolveHomeSharedSkillsDir, resolveHomeSkillsReach } from './shared/home-skill-paths.js';
+import { usesSharedSkills } from './shared/skill-paths.js';
+import { realFileOps, UpdatePlanRecorder, type UpdatePlan } from './update-plan.js';
+
+const require = createRequire(import.meta.url);
+const { version: OPENSPEC_VERSION } = require('../../package.json');
+
+export interface GlobalSkillsInput {
+  /**
+   * The tools to set up for this machine. Omitted: the tools already set up
+   * (`openspec update --global`). Empty: remove the global install.
+   */
+  toolIds?: readonly string[];
+  dryRun?: boolean;
+  home?: string;
+  env?: NodeJS.ProcessEnv;
+}
+
+export interface GlobalSkillsResult {
+  /** Tools set up for this machine after the run. */
+  tools: string[];
+  /** Tools asked for that have no known home skills folder. */
+  refused: string[];
+  /** Tools the run removed from the global install. */
+  dropped: string[];
+  install: SharedSkillInstallResult;
+  /** The planned changes, for a dry run. */
+  plan?: UpdatePlan;
+  /** Whether anything was installed before this run. */
+  wasInstalled: boolean;
+}
+
+/** Whether a tool can be set up for this machine. */
+export function supportsGlobalSkills(toolId: string, options: { home?: string; env?: NodeJS.ProcessEnv } = {}): boolean {
+  const tool = AI_TOOLS.find((t) => t.value === toolId);
+  return Boolean(tool && usesSharedSkills(tool) && resolveHomeSkillsReach(toolId, options).kind !== 'none');
+}
+
+/** The tools set up for this machine, from `~/.agents/skills/.openspec-target`. */
+export function readGlobalSkillTools(home: string = resolveHomeDir(), view: FileView = DISK_VIEW): string[] {
+  return hasSkillToolList(home, view) ? readSkillToolList(home, view) : [];
+}
+
+/** A home layout: links in each tool's home skills folder, nothing else touched. */
+export function homeSkillLayout(home: string, env: NodeJS.ProcessEnv = process.env): SkillLayout {
+  return {
+    linkDirFor: (tool) => {
+      const reach = resolveHomeSkillsReach(tool.value, { home, env });
+      return reach.kind === 'link' ? reach.dir : undefined;
+    },
+    // Earlier releases never wrote a tool's home folder (MiniMax aside, which
+    // is not a shared-folder tool), so there are no old copies to move.
+    formerOwnDirFor: () => undefined,
+    boundFor: (tool) => {
+      const reach = resolveHomeSkillsReach(tool.value, { home, env });
+      return reach.kind === 'link' ? reach.base : home;
+    },
+  };
+}
+
+export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalSkillsResult> {
+  const env = input.env ?? process.env;
+  const home = input.home ?? resolveHomeDir(env);
+  const recorder = input.dryRun ? new UpdatePlanRecorder(home) : undefined;
+  const view = recorder?.view ?? DISK_VIEW;
+  const before = readGlobalSkillTools(home, view);
+  const asked = input.toolIds ?? before;
+  const refused = asked.filter((id) => !supportsGlobalSkills(id, { home, env }));
+  const wanted = asked.filter((id) => !refused.includes(id));
+  const dropped = before.filter((id) => !wanted.includes(id));
+
+  const globalConfig = getGlobalConfig();
+  const workflows = getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows);
+  const toOption = (id: string) => AI_TOOLS.find((tool) => tool.value === id);
+  const options = (ids: readonly string[]) =>
+    ids.map(toOption).filter((t): t is AIToolOption => t !== undefined);
+  // With tools left, a dropped tool only loses its links. With none left, the
+  // dropped tools are passed with no workflows, so the installer's deselect
+  // path removes the skills, their links and the list (edited skills stay).
+  const install = await installSharedSkills({
+    projectPath: home,
+    tools: options(wanted.length > 0 ? wanted : dropped),
+    unlinkTools: wanted.length > 0 ? options(dropped) : [],
+    version: OPENSPEC_VERSION,
+    workflowsFor: (toolId) => (wanted.includes(toolId) ? workflows : []),
+    ops: recorder ?? realFileOps,
+    view,
+    writesToDisk: !input.dryRun,
+    layout: homeSkillLayout(home, env),
+  });
+  // A skill the user edited stays after a removal, and the installer keeps the
+  // tool list to record it. With no tool left the list must go, or the next
+  // `update --global` would set them up again; the edited skill is still
+  // recognized as the user's by its text.
+  const listPath = skillToolListPath(home);
+  if (wanted.length === 0 && view.exists(listPath)) {
+    await (recorder ?? realFileOps).removeFile(listPath, 'openspec');
+  }
+
+  return {
+    tools: wanted,
+    refused,
+    dropped,
+    install,
+    plan: recorder?.getPlan(),
+    wasInstalled: before.length > 0,
+  };
+}
+
+/** `~/.agents/skills` as the user sees it, for messages. */
+export function displayHomePath(p: string, home: string = resolveHomeDir()): string {
+  const rel = path.relative(home, p);
+  if (rel === '') return '~';
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return p;
+  return `~/${rel.split(path.sep).join('/')}`;
+}
+
+export { resolveHomeSharedSkillsDir };
