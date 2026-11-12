@@ -37,7 +37,7 @@ Cursor and Codex read `.agents/skills/` themselves, so they need nothing else.
 
 To add a tool that isn't listed, see [Link another tool](#link-another-tool).
 
-With `openspec init --scope global` the same layout sits in your home folder: one copy in `~/.agents/skills/`, and links such as `~/.claude/skills/openspec-propose`. The [`skills`](https://github.com/vercel-labs/skills) package places them, so there is no `.openspec-target` file there. These tools have no machine-wide folder it knows, so they keep their skills in each project: AtomCode, CoStrict, DeepSeek Harness, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft Code Assistant, and Veai.
+With `openspec init --scope global` the same layout sits in your home folder: one copy in `~/.agents/skills/`, and links such as `~/.claude/skills/openspec-propose`. The [`skills`](https://github.com/vercel-labs/skills) package places them, so there is no `.openspec-target` file there. These tools have no machine-wide folder it knows, so they keep their skills in each project: AtomCode, CoStrict, DeepSeek Harness, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft Code Assistant, and Veai. MiniMax Code is not part of the global install either, because its project install already writes to `~/.minimax/skills/`.
 
 ## Support matrix
 

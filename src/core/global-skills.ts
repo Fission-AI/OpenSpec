@@ -6,7 +6,9 @@
  * and the lock file, so this module holds no paths of its own.
  */
 
+import os from 'os';
 import path from 'path';
+import { realpathSync } from 'fs';
 import { promises as fs } from 'fs';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES } from './config.js';
 import { getGlobalDataDir } from './global-config.js';
@@ -24,6 +26,8 @@ const UNIVERSAL_AGENT = 'universal';
 /**
  * OpenSpec tool id to the id the `skills` package uses. A tool missing here has
  * no machine-wide skills folder the package knows, so it stays per project.
+ * MiniMax Code is left out on purpose: OpenSpec already keeps its skills in the
+ * home folder, and two installers must not share that folder.
  */
 const AGENT_IDS: Readonly<Record<string, string>> = {
   agents: UNIVERSAL_AGENT,
@@ -54,7 +58,6 @@ const AGENT_IDS: Readonly<Record<string, string>> = {
   kimi: 'kimi-code-cli',
   kiro: 'kiro-cli',
   lingma: 'lingma',
-  'minimax-code': 'minimax-code',
   opencode: 'opencode',
   pi: 'pi',
   qoder: 'qoder',
@@ -72,8 +75,24 @@ export function supportsGlobalSkills(toolId: string): boolean {
   return Object.hasOwn(AGENT_IDS, toolId);
 }
 
-/** Whether the project holds OpenSpec skills or commands of its own. */
+/** Whether a path is the home folder, where the global skills live. */
+export function isHomeFolder(projectPath: string): boolean {
+  const real = (target: string): string => {
+    try {
+      return realpathSync.native(target);
+    } catch {
+      return path.resolve(target);
+    }
+  };
+  return real(projectPath) === real(os.homedir());
+}
+
+/**
+ * Whether the project holds OpenSpec skills or commands of its own. The home
+ * folder never does: what sits in its `.agents/skills` is the global install.
+ */
 export function projectHasOwnSkills(projectPath: string): boolean {
+  if (isHomeFolder(projectPath)) return false;
   return getConfiguredTools(projectPath).some(
     (id) => !AI_TOOLS.find((tool) => tool.value === id)?.globalSkillsDir
   );
@@ -97,17 +116,19 @@ export interface GlobalSkills {
   skills: string[];
   /** Agents, by the `skills` package's ids, that have a link to them. */
   agents: string[];
+  /** Skills with an OpenSpec name that something else put there. */
+  foreign: string[];
 }
 
 export async function readGlobalSkills(): Promise<GlobalSkills> {
   const { listSkills } = await import('skills');
   const { skills } = await listSkills({ scope: 'global' });
-  const ours = skills.filter(
-    (skill) => (OPENSPEC_SKILL_NAMES as readonly string[]).includes(skill.name) && isOurSource(skill.source)
-  );
+  const named = skills.filter((skill) => (OPENSPEC_SKILL_NAMES as readonly string[]).includes(skill.name));
+  const ours = named.filter((skill) => isOurSource(skill.source));
   return {
     skills: ours.map((skill) => skill.name),
     agents: [...new Set(ours.flatMap((skill) => [...skill.agents]))],
+    foreign: [...new Set(named.filter((skill) => !isOurSource(skill.source)).map((skill) => skill.name))],
   };
 }
 
@@ -124,6 +145,8 @@ export interface GlobalInstallResult {
   /** Agents the skills are now installed for, by the `skills` package's ids. */
   agents: string[];
   removedSkills: string[];
+  /** Skills left alone because something other than OpenSpec installed them. */
+  leftAlone: string[];
   failures: string[];
 }
 
@@ -134,7 +157,10 @@ export interface GlobalInstallResult {
 export async function installGlobalSkills(input: GlobalInstallInput): Promise<GlobalInstallResult> {
   const { installSkills, removeSkills } = await import('skills');
   const before = await readGlobalSkills();
-  const wanted = getSkillTemplates(input.workflows).map(({ dirName }) => dirName);
+  const inProfile = getSkillTemplates(input.workflows).map(({ dirName }) => dirName);
+  // A skill of the same name that OpenSpec didn't install is someone's own: never replace it.
+  const leftAlone = inProfile.filter((name) => before.foreign.includes(name));
+  const wanted = inProfile.filter((name) => !leftAlone.includes(name));
   const added = (input.toolIds ?? []).filter(supportsGlobalSkills).map((id) => AGENT_IDS[id]);
   const agents = [...new Set([UNIVERSAL_AGENT, ...before.agents, ...added])];
 
@@ -150,16 +176,16 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   // A profile with no workflows installs nothing, and only clears what was there.
   if (wanted.length > 0) {
     const installed = await installSkills(source, { ...options, agents, skills: wanted });
-    failures.push(...installed.failed.map((failure) => `${failure.skill} for ${failure.agent}: ${failure.message}`));
+    failures.push(...installed.failed.map((failure) => failure.message));
   }
 
-  const removedSkills = before.skills.filter((name) => !wanted.includes(name));
+  const removedSkills = before.skills.filter((name) => !inProfile.includes(name));
   if (removedSkills.length > 0) {
     const removed = await removeSkills(removedSkills, options);
-    failures.push(...removed.failed.map((failure) => `${failure.skill}: ${failure.message}`));
+    failures.push(...removed.failed.map((failure) => failure.message));
   }
 
-  return { skills: wanted, agents, removedSkills, failures };
+  return { skills: wanted, agents, removedSkills, leftAlone, failures: [...new Set(failures)] };
 }
 
 /**
@@ -183,4 +209,14 @@ export function describeSkillsError(error: unknown): string {
   if (!(error instanceof Error)) return String(error);
   const fix = (error as { fix?: unknown }).fix;
   return typeof fix === 'string' && fix.length > 0 ? `${error.message} ${fix}` : error.message;
+}
+
+/** What to tell the user about skills a global install did not touch. */
+export function describeLeftAlone(leftAlone: readonly string[]): string | undefined {
+  if (leftAlone.length === 0) return undefined;
+  const one = leftAlone.length === 1;
+  return (
+    `Left ${leftAlone.join(', ')} in your home folder alone: OpenSpec didn't install ${one ? 'it' : 'them'}. ` +
+    `Remove ${one ? 'it' : 'them'} to get OpenSpec's own.`
+  );
 }

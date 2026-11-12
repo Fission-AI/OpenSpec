@@ -12,9 +12,10 @@ import { getCommandContents } from '../../src/core/shared/skill-generation.js';
 import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
 import { releasedCodexPrompt } from '../helpers/released-codex-prompt.js';
 
-const { confirmMock, selectMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
+const { confirmMock, selectMock, installGlobalSkillsMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
   confirmMock: vi.fn(),
   selectMock: vi.fn(),
+  installGlobalSkillsMock: vi.fn(),
   showWelcomeScreenMock: vi.fn().mockResolvedValue(undefined),
   searchableMultiSelectMock: vi.fn(),
 }));
@@ -22,6 +23,13 @@ const { confirmMock, selectMock, showWelcomeScreenMock, searchableMultiSelectMoc
 vi.mock('@inquirer/prompts', () => ({
   confirm: confirmMock,
   select: selectMock,
+}));
+
+// The real install writes to the home folder through the `skills` package, which
+// test/core/global-skills.test.ts covers by running the CLI. Here only the call is checked.
+vi.mock('../../src/core/global-skills.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/core/global-skills.js')>()),
+  installGlobalSkills: installGlobalSkillsMock,
 }));
 
 vi.mock('../../src/ui/welcome-screen.js', () => ({
@@ -54,6 +62,8 @@ describe('InitCommand', () => {
     // The one-time "where should skills go" question: these tests cover project installs.
     selectMock.mockReset();
     selectMock.mockResolvedValue('project');
+    installGlobalSkillsMock.mockReset();
+    installGlobalSkillsMock.mockResolvedValue({ skills: ['openspec-propose'], agents: [], removedSkills: [], leftAlone: [], failures: [] });
     showWelcomeScreenMock.mockClear();
     searchableMultiSelectMock.mockReset();
   });
@@ -1845,6 +1855,8 @@ describe('InitCommand - profile and detection features', () => {
     // The one-time "where should skills go" question: these tests cover project installs.
     selectMock.mockReset();
     selectMock.mockResolvedValue('project');
+    installGlobalSkillsMock.mockReset();
+    installGlobalSkillsMock.mockResolvedValue({ skills: ['openspec-propose'], agents: [], removedSkills: [], leftAlone: [], failures: [] });
     showWelcomeScreenMock.mockClear();
     searchableMultiSelectMock.mockReset();
   });
@@ -2196,6 +2208,30 @@ describe('InitCommand - profile and detection features', () => {
     } finally {
       await fs.rm(nextProject, { recursive: true, force: true });
     }
+  });
+
+  it('interactive init installs for the machine when that is the answer, and writes no project skills', async () => {
+    selectMock.mockResolvedValue('global');
+    searchableMultiSelectMock.mockResolvedValue(['claude']);
+
+    const initCommand = new InitCommand({});
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+    await initCommand.execute(testDir);
+
+    expect(installGlobalSkillsMock).toHaveBeenCalledTimes(1);
+    expect(installGlobalSkillsMock).toHaveBeenCalledWith(expect.objectContaining({ toolIds: ['claude'] }));
+    expect((await fs.readdir(testDir)).sort()).toEqual(['openspec']);
+    const saved = JSON.parse(await fs.readFile(path.join(configTempDir, 'openspec', 'config.json'), 'utf8'));
+    expect(saved.skillsScope).toBe('global');
+  });
+
+  it('reports a failed global install and exits with an error', async () => {
+    installGlobalSkillsMock.mockRejectedValue(new Error('disk is full'));
+
+    await expect(new InitCommand({ tools: 'claude', scope: 'global' }).execute(testDir)).rejects.toThrow(
+      'OpenSpec setup failed for the global skills'
+    );
+    expect(await fileExists(path.join(testDir, '.agents'))).toBe(false);
   });
 
   it('never asks a scripted init, or a project that already has its own skills', async () => {

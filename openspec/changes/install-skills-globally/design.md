@@ -33,7 +33,7 @@ The cost: the lock file records a local path, so `npx skills update` can't refre
 
 The API has no update call. `openspec update` writes the current text and installs it again, which replaces what is there. A skill the profile no longer wants is removed with `removeSkills`, and only if the lock file says OpenSpec installed it.
 
-Edits to an installed skill are replaced without a backup. That is the package's behavior and we follow it.
+Edits to a skill OpenSpec installed are replaced without a backup. That is the package's behavior and we follow it.
 
 ### D4. Scope is read from disk, with one saved answer
 
@@ -60,7 +60,13 @@ The global tool list belongs to the machine, and `init` runs once per project. I
 
 ### D7. Tools the package doesn't know
 
-Nine tools have no agent id in the package: AtomCode, CoStrict, DeepSeek Harness, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft Code Assistant and Veai. Init says so and sets up the rest. Those tools keep project skills.
+Nine tools have no agent id in the package: AtomCode, CoStrict, DeepSeek Harness, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft Code Assistant and Veai. MiniMax Code is left out on purpose, because its project install already writes to `~/.minimax/skills/` and two installers must not share a folder. Init says so and sets up the rest. Those tools keep project skills.
+
+### D8. What a global install never touches
+
+- A skill with an OpenSpec name that the lock file doesn't attribute to OpenSpec. It is skipped and named, not replaced.
+- The home folder as a project. `init` with the global scope refuses to run there, and `update` there only refreshes the global skills.
+- A project's own skills, until the global install has succeeded. A failed install leaves the project as it was.
 
 ## Risks
 

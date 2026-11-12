@@ -1,9 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { promises as fs } from 'fs';
 import { existsSync, readFileSync } from 'fs';
+import { execFileSync } from 'child_process';
 import os from 'os';
 import path from 'path';
-import { runCLI } from '../helpers/run-cli.js';
+import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
+import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
+import { getCommandContents } from '../../src/core/shared/skill-generation.js';
 
 // Every case runs the real CLI in a fresh process with its own throwaway home:
 // the `skills` package settles some folders when it loads, so one process
@@ -145,7 +148,7 @@ describe('skills installed for this machine', () => {
     const result = await cli(await project('app'), 'init', '--scope', 'global', '--tools', 'claude,oh-my-pi');
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("Oh My Pi has no machine-wide skills folder, so it can't use the global skills.");
+    expect(result.stdout).toContain("Oh My Pi isn't covered by the global skills.");
     expect(await globalSkills()).toEqual(CORE_SKILLS);
   });
 
@@ -155,6 +158,29 @@ describe('skills installed for this machine', () => {
     expect(result.exitCode).toBe(1);
     expect(result.stderr).toContain('Add --scope project.');
     expect(await globalSkills()).toEqual([]);
+  });
+
+  it('never treats the home folder as a project of its own', async () => {
+    await cli(await project('app'), 'init', '--scope', 'global', '--tools', 'claude');
+
+    const init = await cli(home, 'init', '--scope', 'global', '--tools', 'claude');
+    expect(init.exitCode).toBe(1);
+    expect(init.stderr).toContain('This is your home folder, where the global skills live.');
+    expect(await globalSkills()).toEqual(CORE_SKILLS);
+
+    await fs.mkdir(path.join(home, 'openspec'), { recursive: true });
+    const update = await cli(home, 'update');
+    expect(update.exitCode).toBe(0);
+    expect(existsSync(path.join(home, '.agents', 'skills', '.openspec-target'))).toBe(false);
+    expect(await globalSkills()).toEqual(CORE_SKILLS);
+  });
+
+  it('leaves MiniMax Code, which already keeps its skills in the home folder, to the project install', async () => {
+    const result = await cli(await project('app'), 'init', '--scope', 'global', '--tools', 'claude,minimax-code');
+
+    expect(result.exitCode).toBe(0);
+    expect(result.stdout).toContain("MiniMax Code isn't covered by the global skills.");
+    expect(existsSync(path.join(home, '.minimax'))).toBe(false);
   });
 
   describe('update', () => {
@@ -210,6 +236,93 @@ describe('skills installed for this machine', () => {
       expect(existsSync(path.join(home, '.claude', 'skills', 'openspec-apply-change'))).toBe(false);
     });
 
+    it('clears the global skills when the profile has no workflows', async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+      const configFile = path.join(home, '.config', 'openspec', 'config.json');
+      const saved = JSON.parse(readFileSync(configFile, 'utf8'));
+      expect(saved.skillsScope).toBe('global');
+      await fs.writeFile(configFile, JSON.stringify({ ...saved, profile: 'custom', workflows: [] }));
+
+      const result = await cli(dir, 'update');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Removed the skills for this machine: your profile has no workflows.');
+      expect(await globalSkills()).toEqual([]);
+
+      // The machine still counts as global: the next init does not fall back to the project.
+      await fs.writeFile(configFile, JSON.stringify({ ...JSON.parse(readFileSync(configFile, 'utf8')), profile: 'core' }));
+      const next = await project('next');
+      await cli(next, 'init', '--tools', 'claude');
+      expect(await entries(next)).toEqual(['openspec']);
+      expect(await globalSkills()).toEqual(CORE_SKILLS);
+    });
+
+    it('leaves OpenSpec skills that came from somewhere else to whoever installed them', async () => {
+      // What `npx skills add -g` from another source leaves: tracked in the lock, with its own source.
+      const theirs = path.join(box, 'their-source', 'openspec-verify-change');
+      await fs.mkdir(theirs, { recursive: true });
+      await fs.writeFile(path.join(theirs, 'SKILL.md'), '---\nname: openspec-verify-change\ndescription: theirs\n---\ntheirs\n');
+      const script =
+        "const { installSkills } = await import('skills');" +
+        "await installSkills(process.argv[1], { scope: 'global', agents: ['universal'], telemetry: false });";
+      execFileSync(process.execPath, ['--input-type=module', '-e', script, path.dirname(theirs)], {
+        cwd: cliProjectRoot,
+        env: { ...process.env, ...env },
+      });
+      expect(await globalSkills()).toEqual(['openspec-verify-change']);
+
+      const dir = await project('app');
+      // No global install of OpenSpec's own: update has nothing to refresh and init stays in the project.
+      await cli(dir, 'init', '--tools', 'claude');
+      expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+
+      await cli(await project('other'), 'init', '--scope', 'global', '--tools', 'claude');
+      await cli(dir, 'update');
+
+      expect(readFileSync(globalSkill('openspec-verify-change'), 'utf8')).toContain('theirs');
+    });
+
+    it('never replaces a skill of the same name that OpenSpec did not install', async () => {
+      const mine = globalSkill('openspec-propose');
+      await fs.mkdir(path.dirname(mine), { recursive: true });
+      await fs.writeFile(mine, '---\nname: openspec-propose\ndescription: mine\n---\nmine\n');
+      await fs.writeFile(path.join(path.dirname(mine), 'notes.md'), 'my notes');
+      const inClaude = path.join(home, '.claude', 'skills', 'openspec-explore');
+      await fs.mkdir(inClaude, { recursive: true });
+      await fs.writeFile(path.join(inClaude, 'SKILL.md'), '---\nname: openspec-explore\ndescription: mine\n---\nmine\n');
+
+      const dir = await project('app');
+      const result = await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("OpenSpec didn't install them");
+      expect(readFileSync(mine, 'utf8')).toContain('mine');
+      expect(readFileSync(path.join(path.dirname(mine), 'notes.md'), 'utf8')).toBe('my notes');
+      expect(readFileSync(path.join(inClaude, 'SKILL.md'), 'utf8')).toContain('mine');
+      expect(existsSync(globalSkill('openspec-apply-change'))).toBe(true);
+
+      await cli(dir, 'update');
+      expect(readFileSync(mine, 'utf8')).toContain('mine');
+    });
+
+    it('still refreshes the global skills when the project update fails', async () => {
+      const own = await project('own');
+      await cli(own, 'init', '--scope', 'project', '--tools', 'claude');
+      await cli(await project('other'), 'init', '--scope', 'global', '--tools', 'claude');
+      const edited = `${readFileSync(globalSkill('openspec-propose'), 'utf8')}\nold\n`;
+      await fs.writeFile(globalSkill('openspec-propose'), edited);
+      // A file where a skill folder belongs makes the project update fail.
+      await fs.rm(path.join(own, '.agents', 'skills', 'openspec-propose'), { recursive: true });
+      await fs.rm(path.join(own, '.agents', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(own, '.agents', 'skills'), 'not a folder');
+
+      const result = await cli(own, 'update', '--force');
+
+      expect(result.exitCode).toBe(1);
+      expect(readFileSync(globalSkill('openspec-propose'), 'utf8')).not.toBe(edited);
+    });
+
     it('updates a project with its own skills too, and points out the double copy', async () => {
       const own = await project('own');
       await cli(own, 'init', '--scope', 'project', '--tools', 'claude');
@@ -236,7 +349,7 @@ describe('skills installed for this machine', () => {
       expect(JSON.parse(result.stdout).notes).toEqual([
         {
           code: 'global-skills',
-          message: 'Update will also refresh the 6 OpenSpec skills installed for this machine in ~/.agents/skills.',
+          message: 'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills.',
         },
       ]);
       expect(readFileSync(globalSkill('openspec-propose'), 'utf8')).toBe(edited);
@@ -270,6 +383,56 @@ describe('skills installed for this machine', () => {
       expect(await entries(dir)).toEqual(['openspec']);
     });
 
+    it('keeps the project skills when the global install fails', async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--tools', 'claude');
+      await fs.mkdir(path.join(home, '.agents'), { recursive: true });
+      await fs.writeFile(path.join(home, '.agents', 'skills'), 'not a folder');
+
+      const result = await cli(dir, 'init', '--scope', 'global');
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stdout).toContain('OpenSpec Setup Incomplete');
+      expect(result.stdout).not.toContain('for every project on this machine');
+      expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+
+      // Once the home folder is fixed, the same command finishes the move.
+      await fs.rm(path.join(home, '.agents', 'skills'));
+      const again = await cli(dir, 'init', '--scope', 'global');
+      expect(again.exitCode).toBe(0);
+      expect(await entries(dir)).toEqual(['openspec']);
+    });
+
+    it('removes the command files 1.x wrote as well', async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--tools', 'claude');
+      const commands = generateCommands(getCommandContents(['propose', 'apply']), CommandAdapterRegistry.get('claude')!);
+      for (const command of commands) {
+        await fs.mkdir(path.dirname(path.join(dir, command.path)), { recursive: true });
+        await fs.writeFile(path.join(dir, command.path), command.fileContent);
+      }
+
+      const result = await cli(dir, 'init', '--scope', 'global');
+
+      expect(result.exitCode).toBe(0);
+      expect(await entries(dir)).toEqual(['openspec']);
+    });
+
+    it('stops before removing anything when a command file was edited', async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--tools', 'claude');
+      const [command] = generateCommands(getCommandContents(['propose']), CommandAdapterRegistry.get('claude')!);
+      await fs.mkdir(path.dirname(path.join(dir, command.path)), { recursive: true });
+      await fs.writeFile(path.join(dir, command.path), `${command.fileContent}\nmy own step\n`);
+
+      const result = await cli(dir, 'init', '--scope', 'global');
+
+      expect(result.exitCode).toBe(1);
+      expect(result.stderr).toContain(command.path.split(path.sep).join('/'));
+      expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+      expect(await globalSkills()).toEqual([]);
+    });
+
     it('stops before removing anything when a project skill was edited', async () => {
       const dir = await project('app');
       await cli(dir, 'init', '--tools', 'claude');
@@ -279,7 +442,7 @@ describe('skills installed for this machine', () => {
       const result = await cli(dir, 'init', '--scope', 'global');
 
       expect(result.exitCode).toBe(1);
-      expect(result.stderr).toContain('These skills have your own changes, so the project keeps its copy: .agents/skills/openspec-explore');
+      expect(result.stderr).toContain('These files have your own changes, so the project keeps its copy: .agents/skills/openspec-explore');
       expect(readFileSync(edited, 'utf8')).toBe('my own notes');
       expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
       expect(await globalSkills()).toEqual([]);

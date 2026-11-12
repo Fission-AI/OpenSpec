@@ -23,6 +23,18 @@ With the global scope, `openspec init` SHALL install the skills once for this ma
 - **THEN** init SHALL set up Claude Code
 - **AND** SHALL say Oh My Pi can't use the global skills and how to give it project skills
 
+#### Scenario: A skill of the same name that OpenSpec didn't install
+
+- **GIVEN** `~/.agents/skills/openspec-propose` exists and the lock file doesn't attribute it to OpenSpec
+- **WHEN** the user runs `openspec init --scope global --tools claude`
+- **THEN** that skill SHALL be left as it is and named in the output
+- **AND** the other skills SHALL be installed
+
+#### Scenario: The home folder
+
+- **WHEN** the user runs `openspec init --scope global` in their home folder
+- **THEN** init SHALL exit 1 and say to run it inside a project
+
 ### Requirement: Init chooses where skills go
 
 Init SHALL use the first of these that applies: the `--scope` flag; the project, when it already has OpenSpec skills of its own; the saved `skillsScope`; the global scope, when the global skills are installed; the answer to a question asked once at a terminal and then saved; the project.
@@ -47,13 +59,19 @@ Init SHALL use the first of these that applies: the `--scope` flag; the project,
 
 ### Requirement: Init moves a project to the global skills
 
-`openspec init --scope global` in a project with its own OpenSpec skills SHALL remove them and install the global ones. If any of them has the user's changes, init SHALL stop before removing anything and name them.
+`openspec init --scope global` in a project with its own OpenSpec skills SHALL remove them and install the global ones. It SHALL also remove the command files 1.x wrote. If any of these files has the user's changes, init SHALL stop before removing anything and name them. The project's files SHALL be removed only after the global install succeeds.
 
 #### Scenario: Unedited project skills
 
 - **WHEN** the user runs `openspec init --scope global` in a project 2.0 set up
 - **THEN** the project's OpenSpec skills and links SHALL be removed
 - **AND** the global skills SHALL be installed
+
+#### Scenario: The global install fails
+
+- **WHEN** the global install fails during `openspec init --scope global` in a project with its own skills
+- **THEN** the project's skills SHALL be left in place
+- **AND** running the command again after fixing the cause SHALL finish the move
 
 #### Scenario: An edited project skill
 

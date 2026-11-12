@@ -214,7 +214,7 @@ export class UpdateCommand {
    */
   async execute(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
-    const { duplicateSkillsNote, readGlobalSkills } = await import('./global-skills.js');
+    const { duplicateSkillsNote, isHomeFolder, readGlobalSkills } = await import('./global-skills.js');
     let globalSkillCount = 0;
     try {
       globalSkillCount = (await readGlobalSkills()).skills.length;
@@ -224,28 +224,41 @@ export class UpdateCommand {
     this.hasGlobalSkills = globalSkillCount > 0;
 
     // With the global skills installed, update works from anywhere; a project is optional.
-    const hasProject = await FileSystemUtils.directoryExists(path.join(resolvedProjectPath, OPENSPEC_DIR_NAME));
-    if (hasProject || !this.hasGlobalSkills) {
+    // The home folder holds the global skills, so it is never updated as a project of its own.
+    const hasProject =
+      (await FileSystemUtils.directoryExists(path.join(resolvedProjectPath, OPENSPEC_DIR_NAME))) &&
+      !(this.hasGlobalSkills && isHomeFolder(resolvedProjectPath));
+    if (!this.hasGlobalSkills) {
       await this.updateProject(projectPath);
+      return;
     }
-    if (!this.hasGlobalSkills) return;
 
+    // A project that fails to update must not keep the global skills from being refreshed.
+    let projectError: unknown;
+    if (hasProject) {
+      try {
+        await this.updateProject(projectPath);
+      } catch (error) {
+        projectError = error;
+      }
+    }
     if (this.dryRun) {
       const recorder = this.recorder ?? (this.recorder = new UpdatePlanRecorder(resolvedProjectPath));
       recorder.addNote(
         'global-skills',
-        `Update will also refresh the ${globalSkillCount} OpenSpec skills installed for this machine in ~/.agents/skills.`
+        'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills.'
       );
-      return;
+    } else {
+      await this.refreshGlobalSkills();
+      const note = hasProject ? await duplicateSkillsNote(resolvedProjectPath) : undefined;
+      if (note) this.log(chalk.dim(note));
     }
-    await this.refreshGlobalSkills();
-    const note = hasProject ? await duplicateSkillsNote(resolvedProjectPath) : undefined;
-    if (note) this.log(chalk.dim(note));
+    if (projectError) throw projectError;
   }
 
   /** Reinstall the skills kept for this machine, at this CLI's version and the current profile. */
   private async refreshGlobalSkills(): Promise<void> {
-    const { describeSkillsError, installGlobalSkills } = await import('./global-skills.js');
+    const { describeLeftAlone, describeSkillsError, installGlobalSkills } = await import('./global-skills.js');
     const globalConfig = getGlobalConfig();
     const workflows = getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows).filter((workflow) =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
@@ -256,9 +269,13 @@ export class UpdateCommand {
       failures = result.failures;
       if (failures.length === 0) {
         this.log(
-          chalk.green(`✓ Updated the ${result.skills.length} skills for this machine in ~/.agents/skills (v${OPENSPEC_VERSION})`)
+          result.skills.length > 0
+            ? chalk.green(`✓ Updated the ${result.skills.length} skills for this machine in ~/.agents/skills (v${OPENSPEC_VERSION})`)
+            : chalk.yellow('Removed the skills for this machine: your profile has no workflows.')
         );
       }
+      const leftAlone = describeLeftAlone(result.leftAlone);
+      if (leftAlone) this.log(chalk.yellow(leftAlone));
     } catch (error) {
       failures = [describeSkillsError(error)];
     }
@@ -1092,6 +1109,8 @@ export class UpdateCommand {
    * Detects new tool directories that aren't currently configured and displays a hint.
    */
   private detectNewTools(projectPath: string, configuredTools: string[]): void {
+    // A project that uses the global skills has no tools of its own to add.
+    if (this.hasGlobalSkills && configuredTools.length === 0) return;
     const availableTools = getAvailableTools(projectPath);
     const configuredSet = new Set(configuredTools);
 

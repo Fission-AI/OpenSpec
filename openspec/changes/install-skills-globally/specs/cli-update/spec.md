@@ -29,6 +29,13 @@ When the global skills are installed, `openspec update` SHALL reinstall them at 
 - **WHEN** update runs with a profile that doesn't include verify
 - **THEN** that folder SHALL be left alone
 
+#### Scenario: The project update fails
+
+- **GIVEN** the global skills are installed
+- **WHEN** `openspec update` fails to update the project's own skills
+- **THEN** the global skills SHALL still be refreshed
+- **AND** update SHALL exit 1
+
 #### Scenario: Dry run
 
 - **WHEN** the user runs `openspec update --dry-run`

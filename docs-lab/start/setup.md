@@ -134,7 +134,8 @@ The project gets its `openspec/` folder and nothing else. The skills go to `~/.a
 - **Updating**: `openspec update` refreshes the global skills from any folder. In a project with its own skills it refreshes both.
 - **Another tool**: run `openspec init --scope global --tools <id>` again. It adds the tool and keeps the ones you have.
 - **One project with its own skills**: `openspec init --scope project` installs them there, whatever the machine uses.
-- **Edits**: a refresh replaces the installed skills, so keep changes of your own in a skill under another name.
+- **Edits**: a refresh replaces the skills OpenSpec installed, so keep changes of your own in a skill under another name. A skill with an OpenSpec name that you put in your home folder yourself is left alone.
+- **Not in your home folder**: run `openspec init` inside a project. The home folder is where the global skills live, so it can't also be a project that uses them.
 
 OpenSpec hands the install to [`skills`](https://github.com/vercel-labs/skills), the package behind `npx skills`, so the layout and the lock file (`~/.agents/.skill-lock.json`) are the ones that tool uses. To remove the global skills, run `npx skills remove --global` and pick the `openspec-` ones.
 
@@ -148,6 +149,6 @@ openspec init --scope global
 
 This removes the project's copies and installs the global ones. Only that project changes. If you edited one of its skills, init stops before removing anything and names it. Commit the removal like any other change. A teammate who doesn't have the global skills yet runs `openspec init --scope global --tools <id>` once.
 
-Nine tools have no machine-wide folder OpenSpec can install to, so they keep their skills in each project. [Supported tools](../reference/supported-tools.md#where-skills-go) lists them.
+Ten tools are not covered by the global skills and keep the setup a project install gives them. [Supported tools](../reference/supported-tools.md#where-skills-go) lists them.
 
 Setup is done. The [Quickstart](quickstart.md) takes your first change from here.
