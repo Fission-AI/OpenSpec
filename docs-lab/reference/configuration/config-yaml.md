@@ -16,6 +16,7 @@ Each OpenSpec project keeps its config file at `openspec/config.yaml`, in the pr
 | `operations` | map: operation → guidance list | No | Advisory guidance for apply and archive work |
 | `store` | string | No | Fallback OpenSpec root when this openspec/ is config-only |
 | `references` | list | No | Stores whose specs are indexed into instructions |
+| `skills` | `global` or `project` | No | Where this project's skills come from |
 
 Invalid fields never fail a command. Each field is validated on its own, and a bad value is dropped with a warning. A file that cannot be read or is not valid YAML is ignored with a warning, except by `openspec validate`, which exits 1 so CI catches it.
 
@@ -68,6 +69,10 @@ references:
   - id: billing-specs
     remote: git@github.com:acme/billing-specs.git
 ```
+
+### skills
+
+`global`: the project uses each person's machine-wide skills (`openspec init --global`), so `init` and `update` write no skills into it. Someone without them is told to run `openspec init --global`. `project`: the project keeps its skills in `.agents/skills/` and `update` doesn't offer the switch. Absent: `project`, and `update` offers the switch when this machine has the skills installed globally. `update` saves this field when you answer its question or pass `--use-global-skills` ([Projects that have their own skills](../../start/setup.md#projects-that-have-their-own-skills)).
 
 ## Example
 
