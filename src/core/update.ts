@@ -175,8 +175,8 @@ export class UpdateCommand {
   private ops: UpdateFileOps = realFileOps;
 
   private readonly useGlobalSkills: boolean;
-  /** Set when `--use-global-skills` was asked for and the project wasn't switched. */
-  switchRefused = false;
+  /** Set when `--use-global-skills` didn't switch, or a switch left something undone. */
+  globalSkillsFailed = false;
 
   constructor(options: UpdateCommandOptions = {}) {
     this.force = options.force ?? false;
@@ -727,7 +727,7 @@ export class UpdateCommand {
       if (sharedTools.length === 0) return false;
       if (!sharedDirInProject || unsupported.length > 0) {
         if (this.useGlobalSkills) {
-          this.switchRefused = true;
+          this.globalSkillsFailed = true;
           this.log(
             chalk.yellow(
               !sharedDirInProject
@@ -740,7 +740,7 @@ export class UpdateCommand {
       }
       if (this.useGlobalSkills) {
         if (globalTools.length === 0 || missing.length > 0) {
-          this.switchRefused = true;
+          this.globalSkillsFailed = true;
           this.log(
             chalk.yellow(
               globalTools.length === 0
@@ -769,12 +769,21 @@ export class UpdateCommand {
           return false;
         }
         const { confirm } = await import('@inquirer/prompts');
-        const accepted = await confirm({
-          message:
-            `${offer} Switch this project to your global skills? Its unedited copies in .agents/skills are removed ` +
-            '(edited ones are kept), and "skills: global" is saved in openspec/config.yaml.',
-          default: true,
-        });
+        let accepted: boolean;
+        try {
+          accepted = await confirm({
+            message:
+              `${offer} Switch this project to your global skills? Its unedited copies in .agents/skills are removed ` +
+              '(edited ones are kept), and "skills: global" is saved in openspec/config.yaml.',
+            default: true,
+          });
+        } catch (error) {
+          // Ctrl-C at the question: nothing has been changed.
+          if (error instanceof Error && error.name === 'ExitPromptError') {
+            throw new Error('Canceled. Nothing was changed.');
+          }
+          throw error;
+        }
         if (!accepted) {
           if (await this.saveProjectSkillsMode(projectPath, 'project')) {
             this.log(chalk.dim('Kept this project\'s own skills, and saved "skills: project" in openspec/config.yaml.'));
@@ -785,7 +794,7 @@ export class UpdateCommand {
       // Saved first: a switch that can't be recorded isn't made at all, or
       // the next update would find neither copy of the skills.
       if (!(await this.saveProjectSkillsMode(projectPath, 'global'))) {
-        if (this.useGlobalSkills) this.switchRefused = true;
+        if (this.useGlobalSkills) this.globalSkillsFailed = true;
         return false;
       }
     }
@@ -804,6 +813,25 @@ export class UpdateCommand {
     }
     // The deselect path: no workflows wanted, so OpenSpec's own copies and
     // links go and anything the user changed stays.
+    // The project's tools are recorded as `global <tool>` lines, which
+    // releases before the switch don't read as tools, so they leave the project
+    // alone instead of writing its skills back. Written before anything is
+    // removed, and again after, so an interrupted switch never loses them.
+    const listPath = skillToolListPath(projectPath);
+    const writeRecord = async () => {
+      const record = formatGlobalSkillRecord(
+        sharedTools.map((tool) => tool.value),
+        readKeptSharedSkills(projectPath, this.view)
+      );
+      let current: string | undefined;
+      try {
+        current = this.view.read(listPath);
+      } catch {
+        current = undefined;
+      }
+      if (current !== record) await this.ops.writeFile(listPath, record, 'openspec');
+    };
+    await writeRecord();
     const result = await installSharedSkills({
       projectPath,
       tools: sharedTools,
@@ -812,7 +840,14 @@ export class UpdateCommand {
       ops: this.ops,
       view: this.view,
       writesToDisk: !this.dryRun,
+      writeList: false,
     });
+    // A tool whose links couldn't be removed keeps them until the next update.
+    for (const [toolId, error] of result.toolFailures) {
+      const name = AI_TOOLS.find((tool) => tool.value === toolId)?.name ?? toolId;
+      this.log(chalk.red(`✗ Couldn't remove ${name}'s project copies of OpenSpec's skills: ${error.message}. Fix that, then run openspec update again.`));
+      this.globalSkillsFailed = true;
+    }
     // Command files and old per-tool copies an earlier release generated go
     // too, as they would in a project update; edited ones are kept and listed.
     let removedCommands = 0;
@@ -832,21 +867,7 @@ export class UpdateCommand {
     // The project's tools stay on record, without any skills: a teammate is
     // told exactly what to install, `init` still finds the tools, and
     // `skills: project` brings the project's own skills back.
-    // Written as `global <tool>` lines, which releases before the switch don't
-    // read as tools, so they leave the project alone instead of writing its
-    // skills back.
-    const listPath = skillToolListPath(projectPath);
-    const record = formatGlobalSkillRecord(
-      sharedTools.map((tool) => tool.value),
-      readKeptSharedSkills(projectPath, this.view)
-    );
-    let current: string | undefined;
-    try {
-      current = this.view.read(listPath);
-    } catch {
-      current = undefined;
-    }
-    if (current !== record) await this.ops.writeFile(listPath, record, 'openspec');
+    await writeRecord();
     if (result.kept.length > 0) {
       this.log(
         chalk.yellow(

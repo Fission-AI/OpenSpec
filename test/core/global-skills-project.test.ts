@@ -293,7 +293,47 @@ describe('a project using the machine-wide skills', () => {
     await runGlobalSkills({ toolIds: ['claude'] });
     const command = new UpdateCommand({ useGlobalSkills: true });
     await command.execute(project);
-    expect(command.switchRefused).toBe(true);
+    expect(command.globalSkillsFailed).toBe(true);
+  });
+
+  it('reports a switch that could not remove some links, and keeps the record', async () => {
+    if (process.platform === 'win32') return;
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await fs.chmod(p('.claude', 'skills'), 0o555);
+    const command = new UpdateCommand({ useGlobalSkills: true });
+    try {
+      await command.execute(project);
+    } finally {
+      await fs.chmod(p('.claude', 'skills'), 0o755);
+    }
+    expect(command.globalSkillsFailed).toBe(true);
+    expect(said("Couldn't remove Claude Code's project copies")).toBe(true);
+    expect(await fs.readFile(p('.agents', 'skills', '.openspec-target'), 'utf8')).toContain('global claude');
+    // The next update finishes the job.
+    await new UpdateCommand().execute(project);
+    expect(await exists(p('.claude', 'skills', 'openspec-propose'))).toBe(false);
+  });
+
+  it("won't set up a tool that can't use machine-wide skills in a switched project", async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    await expect(new InitCommand({ tools: 'easycode', animation: false }).execute(project)).rejects.toThrow(/can't use machine-wide skills/);
+    expect(await fs.readFile(p('.agents', 'skills', '.openspec-target'), 'utf8')).not.toContain('easycode');
+  });
+
+  it("says plainly when a switched project's skills aren't installed on this machine", async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    const teammate = path.join(root, 'teammate2');
+    await fs.mkdir(path.join(teammate, '.config', 'openspec'), { recursive: true });
+    process.env.HOME = teammate;
+    process.env.USERPROFILE = teammate;
+    process.env.XDG_CONFIG_HOME = path.join(teammate, '.config');
+    logs = [];
+    await new InitCommand({ tools: 'claude', animation: false }).execute(project);
+    expect(said('Skills: not installed on this machine yet')).toBe(true);
+    expect(said('Install the skills for this machine first')).toBe(true);
+    expect(said('/openspec-propose')).toBe(false);
   });
 
   it('goes back to project skills with skills: project', async () => {

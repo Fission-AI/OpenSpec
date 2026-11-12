@@ -65,6 +65,11 @@ export interface SharedSkillInstallInput {
    * refreshing it. For folders git doesn't keep, such as the home folder.
    */
   backupEdited?: boolean;
+  /**
+   * Whether to write (or remove) the tool list. False when the caller keeps
+   * its own record there, written before and after this run.
+   */
+  writeList?: boolean;
 }
 
 /**
@@ -284,7 +289,9 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   }
   const listPath = skillToolListPath(projectPath);
   // Kept as long as it records a skill of the user's in the shared folder.
-  if (wanted.size > 0 || keptShared.size > 0) {
+  if (input.writeList === false) {
+    // The caller records the tools itself.
+  } else if (wanted.size > 0 || keptShared.size > 0) {
     // Tools that get files of their own this run: links.
     const withOwnFiles = new Set(
       tools

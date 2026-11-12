@@ -345,6 +345,65 @@ describe('global skills (--global)', () => {
     expect(await tree(path.join(root, 'dotfiles'))).toEqual([]);
   });
 
+  it('recovers from an interrupted first install instead of locking the user out', async () => {
+    // What a kill mid-install leaves: the marker and list, part of the links.
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await fs.rm(h('.claude', 'skills', 'openspec-propose'));
+    await fs.rm(h('.agents', 'skills', 'openspec-explore'), { recursive: true });
+    const result = await runGlobalSkills({});
+    expect(result.tools.sort()).toEqual(['claude', 'codex']);
+    expect(lstatSync(h('.claude', 'skills', 'openspec-propose')).isSymbolicLink()).toBe(true);
+    // A kill before the list was written: the marker alone.
+    await runGlobalSkills({ toolIds: [] });
+    await fs.mkdir(h('.agents', 'skills'), { recursive: true });
+    await fs.writeFile(h('.agents', 'skills', '.openspec-global'), 'x\n');
+    expect((await runGlobalSkills({ toolIds: ['codex'] })).tools).toEqual(['codex']);
+  });
+
+  it('keeps a tool on record when its links could not be removed, so the next removal finishes', async () => {
+    if (process.platform === 'win32') return;
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await fs.chmod(h('.claude', 'skills'), 0o555);
+    try {
+      const result = await runGlobalSkills({ toolIds: [] });
+      expect([...result.install.toolFailures.keys()]).toEqual(['claude']);
+      expect(readGlobalSkillTools(home)).toEqual(['claude']);
+    } finally {
+      await fs.chmod(h('.claude', 'skills'), 0o755);
+    }
+    await runGlobalSkills({ toolIds: [] });
+    expect(readGlobalSkillTools(home)).toEqual([]);
+    expect(await exists(h('.claude', 'skills', 'openspec-propose'))).toBe(false);
+  });
+
+  it('refuses a profile with no workflows, and changes nothing', async () => {
+    await runGlobalSkills({ toolIds: ['codex'] });
+    const before = await tree(home);
+    await fs.writeFile(h('.config', 'openspec', 'config.json'), JSON.stringify({ profile: 'custom', workflows: [] }));
+    await expect(runGlobalSkills({})).rejects.toThrow(/no workflows/);
+    const after = (await tree(home)).filter((f) => f !== '.config/openspec/config.json');
+    expect(after).toEqual(before.filter((f) => f !== '.config/openspec/config.json'));
+  });
+
+  it("refuses when the global config can't be read, instead of falling back to the defaults", async () => {
+    await fs.writeFile(h('.config', 'openspec', 'config.json'), JSON.stringify({ profile: 'custom', workflows: ['propose', 'explore', 'apply', 'archive', 'sync', 'verify'] }));
+    await runGlobalSkills({ toolIds: ['codex'] });
+    await fs.writeFile(h('.config', 'openspec', 'config.json'), '{ not json');
+    await expect(runGlobalSkills({})).rejects.toThrow(/can't be read/);
+    expect(await exists(h('.agents', 'skills', 'openspec-verify-change', 'SKILL.md'))).toBe(true);
+  });
+
+  it('runs one --global at a time, and takes over a lock a crashed run left long ago', async () => {
+    await fs.mkdir(h('.agents'), { recursive: true });
+    const lock = h('.agents', '.openspec-global.lock');
+    await fs.writeFile(lock, '');
+    await expect(runGlobalSkills({ toolIds: ['codex'] })).rejects.toThrow(/in progress/);
+    const old = new Date(Date.now() - 60 * 60 * 1000);
+    await fs.utimes(lock, old, old);
+    expect((await runGlobalSkills({ toolIds: ['codex'] })).tools).toEqual(['codex']);
+    expect(await exists(lock)).toBe(false);
+  });
+
   it('removes the global install with no tools, keeping an edited skill', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     const edited = h('.agents', 'skills', 'openspec-explore', 'SKILL.md');

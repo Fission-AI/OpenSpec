@@ -468,8 +468,8 @@ program
 
       const updateCommand = new UpdateCommand({ force: options?.force, useGlobalSkills: options?.useGlobalSkills });
       await updateCommand.execute(targetPath);
-      // A switch that was asked for and not made is a failure to script.
-      if (updateCommand.switchRefused) process.exitCode = 1;
+      // A switch that was asked for and not made, or left unfinished, is a failure to script.
+      if (updateCommand.globalSkillsFailed) process.exitCode = 1;
 
       if (declined) {
         // The headline was printed before the prompt; only the manual route is

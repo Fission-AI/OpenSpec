@@ -12,9 +12,9 @@ import { createRequire } from 'module';
 import { AI_TOOLS, type AIToolOption } from './config.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { getGlobalConfig } from './global-config.js';
+import { getGlobalConfig, getGlobalConfigPath } from './global-config.js';
 import { getProfileWorkflows } from './profiles.js';
-import { hasSkillToolList, readSkillToolList, skillToolListPath } from './shared-skill-target.js';
+import { formatSkillToolList, hasSkillToolList, readKeptSharedSkills, readSkillToolList, skillToolListPath } from './shared-skill-target.js';
 import { installSharedSkills, type SharedSkillInstallResult, type SkillLayout } from './shared/shared-skill-install.js';
 import { readNpxSkillsLock, resolveHomeDir, resolveHomeSharedSkillsDir, resolveHomeSkillsReach } from './shared/home-skill-paths.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
@@ -149,9 +149,57 @@ export function homeSkillLayout(home: string, env: NodeJS.ProcessEnv = process.e
   };
 }
 
+/** A run older than this left its lock behind (it crashed or was killed). */
+const STALE_LOCK_MS = 10 * 60 * 1000;
+
 export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalSkillsResult> {
   const env = input.env ?? process.env;
   const home = input.home ?? resolveHomeDir(env);
+  if (input.dryRun) return runGlobalSkillsLocked(input, home, env);
+  assertHomeSkillsInHome(home);
+  // One `--global` run at a time: two at once could each read a skill the
+  // other is writing and take it for an edit.
+  const lockPath = path.join(home, '.agents', '.openspec-global.lock');
+  fs.mkdirSync(path.dirname(lockPath), { recursive: true });
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      fs.closeSync(fs.openSync(lockPath, 'wx'));
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || attempt > 0) {
+        throw new Error(
+          `Another openspec --global run is in progress (${displayHomePath(lockPath, home)}). ` +
+            'Wait for it to finish; if none is running, delete that file and try again.'
+        );
+      }
+      try {
+        if (Date.now() - fs.statSync(lockPath).mtimeMs < STALE_LOCK_MS) throw error;
+        fs.rmSync(lockPath, { force: true });
+      } catch {
+        throw new Error(
+          `Another openspec --global run is in progress (${displayHomePath(lockPath, home)}). ` +
+            'Wait for it to finish; if none is running, delete that file and try again.'
+        );
+      }
+    }
+  }
+  try {
+    return await runGlobalSkillsLocked(input, home, env);
+  } finally {
+    fs.rmSync(lockPath, { force: true });
+    // A removal empties the folders; the lock was the last thing in them.
+    if (!fs.existsSync(globalMarkerPath(home))) {
+      removeIfEmpty(resolveHomeSharedSkillsDir(home));
+      removeIfEmpty(path.join(home, '.agents'));
+    }
+  }
+}
+
+async function runGlobalSkillsLocked(
+  input: GlobalSkillsInput,
+  home: string,
+  env: NodeJS.ProcessEnv
+): Promise<GlobalSkillsResult> {
   const recorder = input.dryRun ? new UpdatePlanRecorder(home) : undefined;
   const view = recorder?.view ?? DISK_VIEW;
   assertHomeSkillsInHome(home, view);
@@ -194,8 +242,44 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
   const dropped = before.filter((id) => !wanted.includes(id));
 
   const npxSkills = readNpxSkillsLock({ home, env });
+  // The workflows come from the global config. One that can't be read would
+  // fall back to the defaults and remove every other skill from the machine,
+  // where no git can bring them back: stop instead.
+  if (wanted.length > 0) {
+    const configPath = getGlobalConfigPath();
+    let readable = true;
+    if (fs.existsSync(configPath)) {
+      try {
+        const parsed = JSON.parse(fs.readFileSync(configPath, 'utf-8')) as unknown;
+        readable = parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed);
+      } catch {
+        readable = false;
+      }
+    }
+    if (!readable) {
+      throw new Error(
+        `Your global config (${displayHomePath(configPath, home)}) can't be read, so which workflows to install isn't known. ` +
+          'Nothing was changed. Fix the file, or reset it with: openspec config reset --all --yes'
+      );
+    }
+  }
   const globalConfig = getGlobalConfig();
   const workflows = getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows);
+  // A profile with no workflows has no skills to install; going ahead would
+  // remove an existing install while reporting success.
+  if (wanted.length > 0 && workflows.length === 0) {
+    throw new Error(
+      'Your profile has no workflows, so there are no skills to install, and nothing was changed. Choose some with: openspec config profile'
+    );
+  }
+  const ops = recorder ?? realFileOps;
+  const listPath = skillToolListPath(home);
+  const markerPath = globalMarkerPath(home);
+  // Marked before anything is written, so an interrupted first install is
+  // still recognized as a global one and the next run finishes it.
+  if (wanted.length > 0 && !view.exists(markerPath)) {
+    await ops.writeFile(markerPath, GLOBAL_MARKER_TEXT, 'openspec');
+  }
   const toOption = (id: string) => AI_TOOLS.find((tool) => tool.value === id);
   const options = (ids: readonly string[]) =>
     ids.map(toOption).filter((t): t is AIToolOption => t !== undefined);
@@ -242,18 +326,21 @@ export async function runGlobalSkills(input: GlobalSkillsInput): Promise<GlobalS
     }
     for (const [toolId, error] of install.toolFailures) recorder.addFailure(toolId, friendlyToolError(toolId, error, home, env));
   }
-  const ops = recorder ?? realFileOps;
-  const listPath = skillToolListPath(home);
-  const markerPath = globalMarkerPath(home);
   if (wanted.length === 0) {
-    if (view.exists(listPath)) await ops.removeFile(listPath, 'openspec');
-    if (view.exists(markerPath)) await ops.removeFile(markerPath, 'openspec');
-    if (!input.dryRun) {
-      removeIfEmpty(resolveHomeSharedSkillsDir(home));
-      removeIfEmpty(path.dirname(resolveHomeSharedSkillsDir(home)));
+    const unfinished = [...install.toolFailures.keys()];
+    if (unfinished.length > 0) {
+      // A removal that failed for some tools keeps them on record, so the
+      // next `--tools none` can finish (their links would otherwise be left
+      // with nothing to clean them up).
+      await ops.writeFile(listPath, formatSkillToolList(unfinished, readKeptSharedSkills(home, view)), 'openspec');
+    } else {
+      if (view.exists(listPath)) await ops.removeFile(listPath, 'openspec');
+      if (view.exists(markerPath)) await ops.removeFile(markerPath, 'openspec');
+      if (!input.dryRun) {
+        removeIfEmpty(resolveHomeSharedSkillsDir(home));
+        removeIfEmpty(path.dirname(resolveHomeSharedSkillsDir(home)));
+      }
     }
-  } else if (!view.exists(markerPath)) {
-    await ops.writeFile(markerPath, GLOBAL_MARKER_TEXT, 'openspec');
   }
 
   return {
@@ -320,11 +407,15 @@ export function formatGlobalSkillsResult(
   const working = result.tools.filter((id) => !result.install.toolFailures.has(id));
   const shared = displayHomePath(resolveHomeSharedSkillsDir(home), home);
 
-  if (result.tools.length === 0) {
+  const removing = result.tools.length === 0;
+  if (removing) {
+    const unfinished = [...result.install.toolFailures.keys()].map(toolName);
     lines.push(
-      result.wasInstalled
-        ? `Removed OpenSpec's skills from this machine (${shared}).`
-        : 'Nothing is set up for this machine.'
+      !result.wasInstalled
+        ? 'Nothing is set up for this machine.'
+        : unfinished.length > 0
+          ? `Removed OpenSpec's skills from this machine (${shared}), except the links for ${unfinished.join(', ')}.`
+          : `Removed OpenSpec's skills from this machine (${shared}).`
     );
   } else {
     lines.push(`OpenSpec skills for this machine are in ${shared} (v${OPENSPEC_VERSION}).`);
@@ -353,7 +444,11 @@ export function formatGlobalSkillsResult(
     );
   }
   for (const [id, error] of result.install.toolFailures) {
-    errors.push(`${toolName(id)} was not set up: ${friendlyToolError(id, error, home, env)}`);
+    errors.push(
+      removing
+        ? `Couldn't remove ${toolName(id)}'s links: ${friendlyToolError(id, error, home, env)} Fix that, then run openspec init --global --tools none again.`
+        : `${toolName(id)} was not set up: ${friendlyToolError(id, error, home, env)}`
+    );
   }
   const plural = (n: number, one: string, many: string) => (n === 1 ? one : many);
   const isNpx = (rel: string) => result.leftToNpx.includes(path.basename(rel));
