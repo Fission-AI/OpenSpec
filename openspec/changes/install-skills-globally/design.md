@@ -47,7 +47,7 @@ With `skills: global`, `init` and `update` write no project skills. If this mach
 
 ### D6. Older CLIs and teammates
 
-A 2.0 CLI ignores `skills: global` (unknown keys are allowed). Its `update` finds no tools in a switched project and writes nothing; its `init` writes the project skills back. That is duplication, not loss, and Claude Code runs the personal copy over the project one. The docs ask teams to update their CLI before switching a shared repo.
+A 2.0 CLI ignores `skills: global` (unknown keys are allowed). A switched project records its tools as `global <tool>` lines in `.agents/skills/.openspec-target`; 2.0 reads the first word of a line as a tool id, so its `update` finds no tools and writes nothing, while 2.1 still knows them (a teammate is told the exact `--tools`, and `skills: project` brings the skills back). 2.0's `init --tools` writes the project skills back. That is duplication, not loss, and Claude Code runs the personal copy over the project one. The docs ask teams to update their CLI before switching a shared repo.
 
 ## Risks
 

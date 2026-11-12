@@ -72,7 +72,7 @@ references:
 
 ### skills
 
-`global`: the project uses each person's machine-wide skills (`openspec init --global`), so `init` and `update` write no skills into it. Someone without them is told to run `openspec init --global`. `project`: the project keeps its skills in `.agents/skills/` and `update` doesn't offer the switch. Absent: `project`, and `update` offers the switch when this machine has the skills installed globally. `update` saves this field when you answer its question or pass `--use-global-skills` ([Projects that have their own skills](../../start/setup.md#projects-that-have-their-own-skills)).
+`global`: the project uses each person's machine-wide skills (`openspec init --global`), so `init` and `update` write no skills into it. Someone without them is told to run `openspec init --global`. `project`: the project keeps its skills in `.agents/skills/` and `update` doesn't offer the switch; changing `global` to `project` and running `update` installs them again. Absent: `project`, and `update` offers the switch when this machine has the skills installed globally. `update` saves this field when you answer its question or pass `--use-global-skills` ([Projects that have their own skills](../../start/setup.md#projects-that-have-their-own-skills)).
 
 ## Example
 

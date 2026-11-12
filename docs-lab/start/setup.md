@@ -137,6 +137,7 @@ openspec update --global
 
 - **Workflows**: the ones in your [profile](../customize/profiles.md), as for a project.
 - **Tools**: [Supported tools](../reference/supported-tools.md#install-for-this-machine) lists where each tool's skills go. A tool with no known home folder is set up per project instead.
+- **Edits**: if you edited a skill in `~/.agents/skills/`, `update --global` saves your text beside it as `SKILL.md.bak` before refreshing it.
 - **Remove**: `openspec init --global --tools none` removes OpenSpec's skills and links. A skill you edited is kept.
 - **npx skills**: a skill `npx skills` installed in `~/.agents/skills/` is left to it.
 
@@ -151,7 +152,9 @@ Switch this project to your global skills?
 - **Yes**: removes the project's copies of OpenSpec's skills and links, keeps any you edited, and saves `skills: global` in `openspec/config.yaml`.
 - **No**: keeps the project's skills and saves `skills: project`, so it doesn't ask again.
 
-Commit the result like any other change. Outside a terminal, update only prints the suggestion. To switch without the question, run `openspec update --use-global-skills`; add `--dry-run` to see what it removes first.
+Commit the result like any other change. `.agents/skills/.openspec-target` stays, as the record of the project's tools. Outside a terminal, update only prints the suggestion. To switch without the question, run `openspec update --use-global-skills`; add `--dry-run` to see what it removes first.
+
+To go back, change the line to `skills: project` and run `openspec update`. It installs the project's skills again.
 
 A teammate who pulls a project with `skills: global` and hasn't installed the skills globally is told the command to run. OpenSpec never writes to anyone's home folder unless they run `--global`. Ask your team to update the CLI before you switch a shared project. OpenSpec 2.0 doesn't know `skills: global`: its `update` reports no configured tools, and its `init` writes the project's skills back.
 

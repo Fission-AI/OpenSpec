@@ -77,7 +77,7 @@ import {
   shouldReconcileCommandFilesForTool,
 } from './command-surface.js';
 import { resolveSharedSkillsDir, usesSharedSkills } from './shared/skill-paths.js';
-import { formatSkillToolList, isToolListed, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
+import { formatGlobalSkillRecord, formatSkillToolList, isToolListed, readGlobalSkillRecord, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
 import { readGlobalSkillTools } from './global-skills.js';
 import { planProjectSkillsMode, readProjectSkillsMode, type ProjectSkillsMode } from './project-skills-mode.js';
@@ -315,7 +315,9 @@ export class UpdateCommand {
       for (const line of detail) this.log(chalk.dim(line));
     }
 
-    // 5. Find configured tools
+    // 5. Find configured tools. A project switched back from the machine-wide
+    //    skills (`skills: project`) gets its tool record back as plain tools.
+    await this.restoreProjectToolRecord(resolvedProjectPath);
     let configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);
     let configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
@@ -692,7 +694,8 @@ export class UpdateCommand {
    * the home folder: a person without the global skills is told how to add them.
    */
   private async settleGlobalSkills(projectPath: string, toolIds: readonly string[]): Promise<boolean> {
-    const sharedTools = toolIds
+    // A switched project's tools are on record only as `global <tool>` lines.
+    const sharedTools = [...new Set([...toolIds, ...readGlobalSkillRecord(projectPath, this.view)])]
       .map((toolId) => AI_TOOLS.find((tool) => tool.value === toolId))
       .filter((tool): tool is NonNullable<typeof tool> => tool !== undefined && usesSharedSkills(tool));
     const mode = readProjectSkillsMode(projectPath);
@@ -782,10 +785,21 @@ export class UpdateCommand {
     // The project's tools stay on record, without any skills: a teammate is
     // told exactly what to install, `init` still finds the tools, and
     // `skills: project` brings the project's own skills back.
+    // Written as `global <tool>` lines, which releases before the switch don't
+    // read as tools, so they leave the project alone instead of writing its
+    // skills back.
     const listPath = skillToolListPath(projectPath);
-    if (!this.view.exists(listPath)) {
-      await this.ops.writeFile(listPath, formatSkillToolList(sharedTools.map((tool) => tool.value)), 'openspec');
+    const record = formatGlobalSkillRecord(
+      sharedTools.map((tool) => tool.value),
+      readKeptSharedSkills(projectPath, this.view)
+    );
+    let current: string | undefined;
+    try {
+      current = this.view.read(listPath);
+    } catch {
+      current = undefined;
     }
+    if (current !== record) await this.ops.writeFile(listPath, record, 'openspec');
     if (result.kept.length > 0) {
       this.log(
         chalk.yellow(
@@ -818,6 +832,21 @@ export class UpdateCommand {
       this.log(chalk.green("✓ Skills come from this machine's global install (~/.agents/skills). Run \"openspec update --global\" to refresh them."));
     }
     return true;
+  }
+
+  /**
+   * Turns a `global <tool>` record back into plain tool lines once the project
+   * no longer uses the machine-wide skills, so this update installs its own.
+   */
+  private async restoreProjectToolRecord(projectPath: string): Promise<void> {
+    if (this.useGlobalSkills || readProjectSkillsMode(projectPath) === 'global') return;
+    const recorded = readGlobalSkillRecord(projectPath, this.view);
+    if (recorded.length === 0) return;
+    await this.ops.writeFile(
+      skillToolListPath(projectPath),
+      formatSkillToolList(recorded, readKeptSharedSkills(projectPath, this.view)),
+      'openspec'
+    );
   }
 
   /**

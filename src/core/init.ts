@@ -73,7 +73,7 @@ import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
 import { readGlobalSkillTools } from './global-skills.js';
 import { readProjectSkillsMode } from './project-skills-mode.js';
-import { formatSkillToolList, skillToolListPath } from './shared-skill-target.js';
+import { formatGlobalSkillRecord, formatSkillToolList, readGlobalSkillRecord, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-install.js';
 import { realFileOps } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
@@ -1001,6 +1001,18 @@ export class InitCommand {
     // skills: no project copies are written (any OpenSpec left behind go, and
     // edited ones stay), and the home folder is never written from here.
     const usesGlobalSkills = readProjectSkillsMode(projectPath) === 'global';
+    // Its tools are on record as `global <tool>` lines; back to plain lines
+    // once the project keeps its own skills again.
+    const recorded = readGlobalSkillRecord(projectPath);
+    if (usesGlobalSkills) {
+      if (tools.length > 0) for (const id of recorded) if (!sharedToolIds.includes(id)) sharedToolIds.push(id);
+    } else if (recorded.length > 0) {
+      await realFileOps.writeFile(
+        skillToolListPath(projectPath),
+        formatSkillToolList(recorded, readKeptSharedSkills(projectPath)),
+        'openspec'
+      );
+    }
     if (usesGlobalSkills) this.reportGlobalSkills(sharedToolIds);
     try {
       const shared = await installSharedSkills({
@@ -1015,8 +1027,12 @@ export class InitCommand {
       // With global skills the project keeps only the record of its tools, as
       // update leaves it, so a teammate is told what to install.
       const sharedIds = AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value) && usesSharedSkills(tool)).map((tool) => tool.value);
-      if (usesGlobalSkills && sharedIds.length > 0 && !fs.existsSync(skillToolListPath(projectPath))) {
-        await realFileOps.writeFile(skillToolListPath(projectPath), formatSkillToolList(sharedIds), 'openspec');
+      if (usesGlobalSkills && sharedIds.length > 0) {
+        await realFileOps.writeFile(
+          skillToolListPath(projectPath),
+          formatGlobalSkillRecord(sharedIds, readKeptSharedSkills(projectPath)),
+          'openspec'
+        );
       }
       if (shared.writtenSkillCount === 0) removedSkillCount += shared.removedSkillCount;
       ownFolderErrors = shared.toolFailures;

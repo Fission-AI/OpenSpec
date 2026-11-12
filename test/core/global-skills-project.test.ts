@@ -229,6 +229,15 @@ describe('a project using the machine-wide skills', () => {
     expect(plan.failures.map((f) => f.tool)).toContain('openspec');
   });
 
+  it("records the project's tools in a form OpenSpec 2.0 doesn't read as tools", async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    expect(await fs.readFile(p('.agents', 'skills', '.openspec-target'), 'utf8')).toBe('global claude\nglobal codex\n');
+    // 2.0 reads the first word of each line as a tool id.
+    const { readSkillToolList } = await import('../../src/core/shared-skill-target.js');
+    expect(readSkillToolList(project)).toEqual([]);
+  });
+
   it('goes back to project skills with skills: project', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     await new UpdateCommand({ useGlobalSkills: true }).execute(project);
