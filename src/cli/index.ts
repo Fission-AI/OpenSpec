@@ -348,10 +348,11 @@ program
   .option('--dry-run', 'Report what the update would change without writing anything')
   .option('--json', 'With --dry-run, print the planned changes as JSON')
   .option('--global', 'Refresh the skills installed for this machine (openspec init --global)')
+  .option('--use-global-skills', "Switch this project to this machine's global skills without asking")
   .action(
     async (
       targetPath = '.',
-      options?: { force?: boolean; dryRun?: boolean; json?: boolean; global?: boolean }
+      options?: { force?: boolean; dryRun?: boolean; json?: boolean; global?: boolean; useGlobalSkills?: boolean }
     ) => {
     try {
       if (options?.json && !options?.dryRun) {
@@ -397,6 +398,7 @@ program
         const plan = await new UpdateCommand({
           force: options?.force,
           dryRun: true,
+          useGlobalSkills: options?.useGlobalSkills,
         }).plan(targetPath);
         console.log(options?.json ? JSON.stringify(plan, null, 2) : formatUpdatePlan(plan));
         return;
@@ -463,7 +465,7 @@ program
         declined = true;
       }
 
-      const updateCommand = new UpdateCommand({ force: options?.force });
+      const updateCommand = new UpdateCommand({ force: options?.force, useGlobalSkills: options?.useGlobalSkills });
       await updateCommand.execute(targetPath);
 
       if (declined) {

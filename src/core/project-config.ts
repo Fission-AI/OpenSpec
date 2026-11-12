@@ -76,6 +76,15 @@ export const ProjectConfigSchema = z.object({
     .optional()
     .describe('Store id used as the OpenSpec root when no local planning shape exists'),
 
+  // Optional: where this project's skills come from. `global` uses each
+  // person's machine-wide install (`openspec init --global`) and writes no
+  // project skills; `project` keeps them in `.agents/skills/`. Absent: project,
+  // and `openspec update` may offer the switch.
+  skills: z
+    .enum(['global', 'project'])
+    .optional()
+    .describe("Where this project's skills come from: global or project"),
+
   // Optional: GitHub Copilot integration preferences. `cloudAgent` is the
   // opt-in for generating the Copilot cloud coding-agent files (a GitHub
   // Actions workflow + agent file); absent means "not yet decided".
@@ -421,6 +430,14 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         console.warn(
           `Warning: ignoring invalid store: field in ${configPathForWarnings(projectRoot)} (must be a single store id string).`
         );
+      }
+    }
+
+    if (raw.skills !== undefined) {
+      if (raw.skills === 'global' || raw.skills === 'project') {
+        config.skills = raw.skills;
+      } else {
+        console.warn(`Invalid 'skills' field in config (must be global or project)`);
       }
     }
 

@@ -71,6 +71,8 @@ import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
+import { readGlobalSkillTools } from './global-skills.js';
+import { readProjectSkillsMode } from './project-skills-mode.js';
 import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-install.js';
 import { realFileOps } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
@@ -203,6 +205,26 @@ export class InitCommand {
     for (const line of warnings) console.log(chalk.yellow(line));
     for (const line of errors) console.log(chalk.red(line));
     if (errors.length > 0) process.exitCode = 1;
+  }
+
+  /** What init says in a project that uses the machine-wide skills. */
+  private reportGlobalSkills(toolIds: readonly string[]): void {
+    const shared = AI_TOOLS.filter((tool) => toolIds.includes(tool.value) && usesSharedSkills(tool));
+    if (shared.length === 0) return;
+    const installed = readGlobalSkillTools();
+    const missing = shared.filter((tool) => !installed.includes(tool.value));
+    if (installed.length > 0 && missing.length === 0) {
+      console.log(chalk.green("✓ This project uses this machine's global skills (~/.agents/skills); none are written here."));
+      return;
+    }
+    const ids = [...new Set([...installed, ...missing.map((tool) => tool.value)])].join(',');
+    console.log(
+      chalk.yellow(
+        "This project uses each person's machine-wide OpenSpec skills (skills: global in openspec/config.yaml), " +
+          `and this machine doesn't have them${installed.length > 0 ? ` for ${missing.map((tool) => tool.name).join(', ')}` : ''}. ` +
+          `Run: openspec init --global --tools ${ids}`
+      )
+    );
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -974,12 +996,17 @@ export class InitCommand {
         ? []
         : [...new Set([...tools.map((tool) => tool.value), ...getConfiguredTools(projectPath)])];
     let ownFolderErrors = new Map<string, Error>();
+    // A project set to `skills: global` uses each person's machine-wide
+    // skills: no project copies are written (any OpenSpec left behind go, and
+    // edited ones stay), and the home folder is never written from here.
+    const usesGlobalSkills = readProjectSkillsMode(projectPath) === 'global';
+    if (usesGlobalSkills) this.reportGlobalSkills(sharedToolIds);
     try {
       const shared = await installSharedSkills({
         projectPath,
         tools: AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value)),
         version: OPENSPEC_VERSION,
-        workflowsFor: () => workflows,
+        workflowsFor: () => (usesGlobalSkills ? [] : workflows),
         ops: realFileOps,
         view: DISK_VIEW,
         writesToDisk: true,
@@ -1298,19 +1325,26 @@ export class InitCommand {
       // MiniMax Code reads its own folder in the home directory instead. Each
       // folder holds one copy of every skill, so the count is per folder.
       const toolOption = (id: string) => AI_TOOLS.find((candidate) => candidate.value === id);
-      const skillDirs = [...new Set(successfulTools.map((tool) => {
+      // With `skills: global`, shared-folder tools get no project copies.
+      const usesGlobalSkills = readProjectSkillsMode(projectPath) === 'global';
+      const skillDirs = [...new Set(successfulTools.flatMap((tool) => {
         const option = toolOption(tool.value);
         if (tool.isGlobalSkillTarget && option?.globalSkillsDir) {
-          return `~/${option.globalSkillsDir}/skills/`;
+          return [`~/${option.globalSkillsDir}/skills/`];
         }
-        return option && usesSharedSkills(option) ? '.agents/skills/' : `${tool.skillsDir}/skills/`;
+        if (option && usesSharedSkills(option)) return usesGlobalSkills ? [] : ['.agents/skills/'];
+        return [`${tool.skillsDir}/skills/`];
       }))];
-      const linkedFrom = [...new Set(successfulTools.flatMap((tool) => {
+      const linkedFrom = usesGlobalSkills ? [] : [...new Set(successfulTools.flatMap((tool) => {
         const option = toolOption(tool.value);
         return option && SKILL_LINKED_TOOL_IDS.has(option.value) ? [`${option.skillsDir}/skills/`] : [];
       }))];
       const links = linkedFrom.length > 0 ? ` (linked from ${linkedFrom.join(', ')})` : '';
-      console.log(`${getSkillTemplates(workflows).length} skills in ${skillDirs.join(', ')}${links}`);
+      if (skillDirs.length > 0) {
+        console.log(`${getSkillTemplates(workflows).length} skills in ${skillDirs.join(', ')}${links}`);
+      } else {
+        console.log("Skills: this machine's global install (~/.agents/skills/)");
+      }
     }
 
     // Show failures

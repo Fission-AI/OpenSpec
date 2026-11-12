@@ -40,6 +40,10 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'no-copilot-cloud',
         description: 'Skip generating GitHub Copilot cloud coding-agent files',
       },
+      {
+        name: 'global',
+        description: 'Install the skills once for this machine, in ~/.agents/skills, instead of in a project',
+      },
     ],
   },
   {
@@ -60,6 +64,14 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       {
         name: 'json',
         description: 'With --dry-run, print the planned changes as JSON',
+      },
+      {
+        name: 'global',
+        description: 'Refresh the skills installed for this machine (openspec init --global)',
+      },
+      {
+        name: 'use-global-skills',
+        description: "Switch this project to this machine's global skills without asking",
       },
     ],
   },
