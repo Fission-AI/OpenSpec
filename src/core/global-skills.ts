@@ -39,6 +39,8 @@ export interface GlobalSkillsResult {
   tools: string[];
   /** Tools asked for that have no known home skills folder. */
   refused: string[];
+  /** Tools whose links this run removed (or tried to): dropped now, or left from a failed removal. */
+  unlinking: string[];
   /** Tools the run removed from the global install. */
   dropped: string[];
   install: SharedSkillInstallResult;
@@ -110,6 +112,23 @@ export function assertNotGlobalHome(projectPath: string, home: string = resolveH
       "Your home folder holds the machine-wide skills (openspec init --global), so it can't also be a project. " +
         'Set up the project in a folder of its own, or remove the machine-wide skills first: openspec init --global --tools none'
     );
+  }
+}
+
+/** Tools whose links a failed removal left, recorded as `unlink <tool>` lines. */
+export function readPendingUnlinks(home: string = resolveHomeDir(), view: FileView = DISK_VIEW): string[] {
+  const listPath = skillToolListPath(home);
+  try {
+    if (!view.exists(listPath)) return [];
+    const known = new Set(AI_TOOLS.map((tool) => tool.value));
+    return view
+      .read(listPath)
+      .split(/\r?\n/)
+      .map((line) => line.trim().split(/\s+/))
+      .filter((tokens) => tokens[0] === 'unlink' && known.has(tokens[1]))
+      .map((tokens) => tokens[1]);
+  } catch {
+    return [];
   }
 }
 
@@ -240,6 +259,12 @@ async function runGlobalSkillsLocked(
     );
   }
   const dropped = before.filter((id) => !wanted.includes(id));
+  // Links a failed removal left are retried until they're gone; their tools
+  // are on record as `unlink <tool>`, never as tools set up here.
+  const unlinking = [...new Set([...dropped, ...readPendingUnlinks(home, view)])].filter((id) => !wanted.includes(id));
+  // An interrupted first install leaves the marker and skills without the
+  // list: a removal then clears OpenSpec's skills by their text.
+  const orphaned = wanted.length === 0 && unlinking.length === 0 && view.exists(globalMarkerPath(home)) ? ['agents'] : [];
 
   const npxSkills = readNpxSkillsLock({ home, env });
   // The workflows come from the global config. One that can't be read would
@@ -290,8 +315,8 @@ async function runGlobalSkillsLocked(
     // The home folder isn't in git: an edit replaced here would be gone.
     backupEdited: true,
     projectPath: home,
-    tools: options(wanted.length > 0 ? wanted : dropped),
-    unlinkTools: wanted.length > 0 ? options(dropped) : [],
+    tools: options(wanted.length > 0 ? wanted : [...unlinking, ...orphaned]),
+    unlinkTools: wanted.length > 0 ? options(unlinking) : [],
     version: OPENSPEC_VERSION,
     workflowsFor: (toolId) => (wanted.includes(toolId) ? workflows : []),
     ops: recorder ?? realFileOps,
@@ -326,13 +351,26 @@ async function runGlobalSkillsLocked(
     }
     for (const [toolId, error] of install.toolFailures) recorder.addFailure(toolId, friendlyToolError(toolId, error, home, env));
   }
-  if (wanted.length === 0) {
-    const unfinished = [...install.toolFailures.keys()];
+  // Tools whose links couldn't be removed stay on record as `unlink <tool>`,
+  // so the next run finishes the job (nothing else would ever find them).
+  const unfinished = unlinking.filter((id) => install.toolFailures.has(id));
+  if (wanted.length > 0) {
     if (unfinished.length > 0) {
-      // A removal that failed for some tools keeps them on record, so the
-      // next `--tools none` can finish (their links would otherwise be left
-      // with nothing to clean them up).
-      await ops.writeFile(listPath, formatSkillToolList(unfinished, readKeptSharedSkills(home, view)), 'openspec');
+      let list = '';
+      try {
+        list = view.read(listPath);
+      } catch {
+        list = '';
+      }
+      await ops.writeFile(listPath, list + unfinished.map((id) => `unlink ${id}\n`).join(''), 'openspec');
+    }
+  } else {
+    if (unfinished.length > 0) {
+      await ops.writeFile(
+        listPath,
+        unfinished.map((id) => `unlink ${id}\n`).join('') + formatSkillToolList([], readKeptSharedSkills(home, view)),
+        'openspec'
+      );
     } else {
       if (view.exists(listPath)) await ops.removeFile(listPath, 'openspec');
       if (view.exists(markerPath)) await ops.removeFile(markerPath, 'openspec');
@@ -349,7 +387,8 @@ async function runGlobalSkillsLocked(
     dropped,
     install,
     plan: recorder?.getPlan(),
-    wasInstalled: before.length > 0,
+    unlinking,
+    wasInstalled: before.length > 0 || unlinking.length > 0 || orphaned.length > 0,
     // Kept in `~/.agents/skills` or in a tool's folder (the skills CLI's copy
     // mode writes a real folder there): either way it is npx's, not an edit.
     leftToNpx: [
@@ -429,8 +468,10 @@ export function formatGlobalSkillsResult(
     if (linked.length > 0) lines.push(`Linked for ${linked.join(', ')}.`);
     if (reading.length > 0) lines.push(`Read directly by ${reading.join(', ')}.`);
   }
-  if (result.tools.length > 0 && result.dropped.length > 0) {
-    lines.push(`No longer set up for this machine: ${result.dropped.map(toolName).join(', ')}.`);
+  if (result.tools.length > 0 && result.dropped.some((id) => !result.install.toolFailures.has(id))) {
+    lines.push(
+      `No longer set up for this machine: ${result.dropped.filter((id) => !result.install.toolFailures.has(id)).map(toolName).join(', ')}.`
+    );
   }
   for (const id of result.refused) {
     if (AI_TOOLS.find((tool) => tool.value === id)?.globalSkillsDir) {
@@ -445,8 +486,8 @@ export function formatGlobalSkillsResult(
   }
   for (const [id, error] of result.install.toolFailures) {
     errors.push(
-      removing
-        ? `Couldn't remove ${toolName(id)}'s links: ${friendlyToolError(id, error, home, env)} Fix that, then run openspec init --global --tools none again.`
+      removing || result.unlinking.includes(id)
+        ? `Couldn't remove ${toolName(id)}'s links: ${friendlyToolError(id, error, home, env)} Fix that, then run ${removing ? 'openspec init --global --tools none' : 'openspec update --global'} again.`
         : `${toolName(id)} was not set up: ${friendlyToolError(id, error, home, env)}`
     );
   }

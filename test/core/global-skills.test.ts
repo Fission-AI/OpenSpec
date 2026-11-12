@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { promises as fs, lstatSync, readlinkSync } from 'fs';
 import os from 'os';
 import path from 'path';
-import { runGlobalSkills, readGlobalSkillTools } from '../../src/core/global-skills.js';
+import { runGlobalSkills, readGlobalSkillTools, readPendingUnlinks } from '../../src/core/global-skills.js';
 
 const CORE_SKILLS = [
   'openspec-propose',
@@ -367,13 +367,49 @@ describe('global skills (--global)', () => {
     try {
       const result = await runGlobalSkills({ toolIds: [] });
       expect([...result.install.toolFailures.keys()]).toEqual(['claude']);
-      expect(readGlobalSkillTools(home)).toEqual(['claude']);
+      // On record to finish removing, never as a tool to set up again.
+      expect(readGlobalSkillTools(home)).toEqual([]);
+      expect(readPendingUnlinks(home)).toEqual(['claude']);
+      const refresh = await runGlobalSkills({});
+      expect(refresh.tools).toEqual([]);
+      expect(await exists(h('.agents', 'skills', 'openspec-propose'))).toBe(false);
     } finally {
       await fs.chmod(h('.claude', 'skills'), 0o755);
     }
     await runGlobalSkills({ toolIds: [] });
+    expect(readPendingUnlinks(home)).toEqual([]);
     expect(readGlobalSkillTools(home)).toEqual([]);
     expect(await exists(h('.claude', 'skills', 'openspec-propose'))).toBe(false);
+  });
+
+  it("retries removing a dropped tool's links that couldn't be removed, without setting it up again", async () => {
+    if (process.platform === 'win32') return;
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await fs.chmod(h('.claude', 'skills'), 0o555);
+    try {
+      const result = await runGlobalSkills({ toolIds: ['codex'] });
+      const { formatGlobalSkillsResult } = await import('../../src/core/global-skills.js');
+      const out = formatGlobalSkillsResult(result);
+      expect(out.lines.join('\n')).not.toMatch(/No longer set up/);
+      expect(out.errors.join('\n')).toMatch(/Couldn't remove Claude Code's links/);
+      expect(readGlobalSkillTools(home)).toEqual(['codex']);
+      expect(readPendingUnlinks(home)).toEqual(['claude']);
+    } finally {
+      await fs.chmod(h('.claude', 'skills'), 0o755);
+    }
+    await runGlobalSkills({});
+    expect(readPendingUnlinks(home)).toEqual([]);
+    expect(await exists(h('.claude', 'skills', 'openspec-propose'))).toBe(false);
+    expect(readGlobalSkillTools(home)).toEqual(['codex']);
+  });
+
+  it('clears the skills an interrupted first install left, when asked to remove', async () => {
+    await runGlobalSkills({ toolIds: ['codex'] });
+    // The list never got written.
+    await fs.rm(h('.agents', 'skills', '.openspec-target'));
+    await runGlobalSkills({ toolIds: [] });
+    expect(await exists(h('.agents', 'skills', 'openspec-propose'))).toBe(false);
+    expect(await exists(h('.agents', 'skills', '.openspec-global'))).toBe(false);
   });
 
   it('refuses a profile with no workflows, and changes nothing', async () => {

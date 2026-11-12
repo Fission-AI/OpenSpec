@@ -336,6 +336,58 @@ describe('a project using the machine-wide skills', () => {
     expect(said('/openspec-propose')).toBe(false);
   });
 
+  it('records a skill kept during the switch, so it is reported once and survives the way back', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await fs.appendFile(p('.agents', 'skills', 'openspec-explore', 'SKILL.md'), '\nTeam note.\n');
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    expect(await fs.readFile(p('.agents', 'skills', '.openspec-target'), 'utf8')).toContain('keep openspec-explore');
+    logs = [];
+    await new UpdateCommand().execute(project);
+    expect(said('Kept')).toBe(false);
+    await fs.writeFile(p('openspec', 'config.yaml'), (await config()).replace(/^skills: global$/m, 'skills: project'));
+    await new UpdateCommand().execute(project);
+    expect(await fs.readFile(p('.agents', 'skills', 'openspec-explore', 'SKILL.md'), 'utf8')).toContain('Team note.');
+  });
+
+  it('writes no record for a skills: global project whose tools keep their own files', async () => {
+    const solo = path.join(root, 'solo');
+    await fs.mkdir(solo, { recursive: true });
+    await new InitCommand({ tools: 'minimax-code', animation: false }).execute(solo);
+    await fs.appendFile(path.join(solo, 'openspec', 'config.yaml'), 'skills: global\n');
+    logs = [];
+    await new UpdateCommand().execute(solo);
+    expect(await exists(path.join(solo, '.agents', 'skills', '.openspec-target'))).toBe(false);
+    expect(said("Skills come from this machine's global install")).toBe(false);
+  });
+
+  it('keeps the tool record when a --use-global-skills switch back to global is refused', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    await fs.writeFile(p('openspec', 'config.yaml'), (await config()).replace(/^skills: global$/m, 'skills: project'));
+    // The global install goes away; switching again is refused.
+    await runGlobalSkills({ toolIds: [] });
+    logs = [];
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    expect(said('Not switched')).toBe(true);
+    expect(said('No configured tools found')).toBe(false);
+    expect(await projectSkills()).toHaveLength(CORE_SKILLS.length);
+  });
+
+  it("keeps a switched project's Copilot cloud files when another tool keeps its own skills", async () => {
+    const mixed = path.join(root, 'mixed');
+    await fs.mkdir(mixed, { recursive: true });
+    await new InitCommand({ tools: 'github-copilot,minimax-code', animation: false, copilotCloud: true }).execute(mixed);
+    const cloud = (await tree(path.join(mixed, '.github'))).filter((f) => !f.startsWith('skills/'));
+    expect(cloud.length).toBeGreaterThan(0);
+    await runGlobalSkills({ toolIds: ['github-copilot'] });
+    logs = [];
+    await new UpdateCommand({ useGlobalSkills: true }).execute(mixed);
+    await new UpdateCommand().execute(mixed);
+    expect((await tree(path.join(mixed, '.github'))).filter((f) => !f.startsWith('skills/'))).toEqual(cloud);
+    expect(said('Detected new tool')).toBe(false);
+    expect(said('Copilot cloud agent file')).toBe(false);
+  });
+
   it('goes back to project skills with skills: project', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     await new UpdateCommand({ useGlobalSkills: true }).execute(project);

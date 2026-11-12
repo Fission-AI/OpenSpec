@@ -1068,11 +1068,11 @@ export class InitCommand {
     // update leaves it, so a teammate is told what to install. Written before
     // anything is removed and again after, so an interruption never loses it.
     const sharedIds = AI_TOOLS.filter((tool) => sharedToolIds.includes(tool.value) && usesSharedSkills(tool)).map((tool) => tool.value);
-    const writeRecord = async () => {
+    const writeRecord = async (keptNow: readonly string[] = []) => {
       if (usesGlobalSkills && sharedIds.length > 0 && listInProject) {
         await realFileOps.writeFile(
           skillToolListPath(projectPath),
-          formatGlobalSkillRecord(sharedIds, readKeptSharedSkills(projectPath)),
+          formatGlobalSkillRecord(sharedIds, [...readKeptSharedSkills(projectPath), ...keptNow]),
           'openspec'
         );
       }
@@ -1089,7 +1089,9 @@ export class InitCommand {
         writesToDisk: true,
         writeList: usesGlobalSkills ? false : undefined,
       });
-      await writeRecord();
+      // Skills kept as the user's are recorded, so they are never taken for
+      // OpenSpec's again.
+      await writeRecord(shared.kept.filter((rel) => rel.startsWith('.agents/skills/')).map((rel) => path.basename(rel)));
       if (shared.writtenSkillCount === 0) removedSkillCount += shared.removedSkillCount;
       ownFolderErrors = shared.toolFailures;
       if (shared.replacedOldCopyCount > 0) {

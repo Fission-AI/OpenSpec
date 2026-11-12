@@ -325,12 +325,18 @@ export class UpdateCommand {
     await this.restoreProjectToolRecord(resolvedProjectPath);
     let configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);
     let configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
+    // Every set-up tool, including those whose skills come from the
+    // machine-wide install: Copilot's cloud files, new-tool detection and
+    // profile notes concern the project's tools, not where skills live.
+    // A switched project's shared-folder tools are on record as `global <tool>`.
+    const recordedGlobal = readGlobalSkillRecord(resolvedProjectPath, this.view);
+    const everyConfiguredTool = [...new Set([...configuredTools, ...recordedGlobal])];
+    const everyTool = [...new Set([...configuredAndNewTools, ...recordedGlobal])];
 
     // 5a. A project can use each person's machine-wide skills instead of its
     //     own. Then the shared-folder tools are settled here, and the rest of
     //     the update only sees the tools that keep their own files.
     if (await this.settleGlobalSkills(resolvedProjectPath, configuredAndNewTools)) {
-      const allTools = configuredAndNewTools;
       const keepsOwnFiles = (toolId: string) => {
         const tool = AI_TOOLS.find((t) => t.value === toolId);
         return tool !== undefined && !usesSharedSkills(tool);
@@ -342,7 +348,7 @@ export class UpdateCommand {
         if (deferredGlobalCleanup) {
           await this.performDeferredGlobalPromptCleanup(resolvedProjectPath, deferredGlobalCleanup);
         }
-        await this.syncCopilotCloudFiles(resolvedProjectPath, allTools);
+        await this.syncCopilotCloudFiles(resolvedProjectPath, everyTool);
         this.stopIfUpdateFailed(legacyUpgradeFailures);
         return;
       }
@@ -369,7 +375,7 @@ export class UpdateCommand {
         }
         return;
       }
-      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, everyTool);
       this.log(chalk.yellow('No configured tools found.'));
       this.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -426,11 +432,11 @@ export class UpdateCommand {
       );
       // All tools are up to date
       this.displayUpToDateMessage(toolStatuses);
-      await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+      await this.syncCopilotCloudFiles(resolvedProjectPath, everyTool);
 
       // Still check for new tool directories and extra workflows
-      this.detectNewTools(resolvedProjectPath, configuredTools);
-      this.displayProfileNotes(resolvedProjectPath, configuredTools, desiredWorkflows, profile);
+      this.detectNewTools(resolvedProjectPath, everyConfiguredTool);
+      this.displayProfileNotes(resolvedProjectPath, everyConfiguredTool, desiredWorkflows, profile);
       this.displaySetupNotes(configuredTools);
       this.stopIfUpdateFailed(legacyUpgradeFailures);
       return;
@@ -667,13 +673,13 @@ export class UpdateCommand {
       this.log(`Learn more: ${chalk.cyan('https://github.com/Fission-AI/OpenSpec')}`);
     }
 
-    await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+    await this.syncCopilotCloudFiles(resolvedProjectPath, everyTool);
 
     // 13. Detect new tool directories not currently configured
-    this.detectNewTools(resolvedProjectPath, configuredAndNewTools);
+    this.detectNewTools(resolvedProjectPath, everyTool);
 
     // 14. Display the profile notes
-    this.displayProfileNotes(resolvedProjectPath, configuredAndNewTools, desiredWorkflows, profile);
+    this.displayProfileNotes(resolvedProjectPath, everyTool, desiredWorkflows, profile);
     this.displaySetupNotes(configuredAndNewTools);
 
     // 15. List affected tools
@@ -780,7 +786,7 @@ export class UpdateCommand {
         } catch (error) {
           // Ctrl-C at the question: nothing has been changed.
           if (error instanceof Error && error.name === 'ExitPromptError') {
-            throw new Error('Canceled. Nothing was changed.');
+            throw new Error('Canceled. The project was not switched.');
           }
           throw error;
         }
@@ -818,10 +824,16 @@ export class UpdateCommand {
     // alone instead of writing its skills back. Written before anything is
     // removed, and again after, so an interrupted switch never loses them.
     const listPath = skillToolListPath(projectPath);
+    // Nothing to record or remove for a project whose tools all keep their
+    // own files (MiniMax Code).
+    if (sharedTools.length === 0) return true;
+    // Skills kept as the user's are recorded too, so they are never taken
+    // for OpenSpec's again: not on the next update, nor on the way back.
+    const keptNow = new Set<string>();
     const writeRecord = async () => {
       const record = formatGlobalSkillRecord(
         sharedTools.map((tool) => tool.value),
-        readKeptSharedSkills(projectPath, this.view)
+        [...readKeptSharedSkills(projectPath, this.view), ...keptNow]
       );
       let current: string | undefined;
       try {
@@ -842,6 +854,9 @@ export class UpdateCommand {
       writesToDisk: !this.dryRun,
       writeList: false,
     });
+    for (const rel of result.kept) {
+      if (rel.startsWith('.agents/skills/')) keptNow.add(path.basename(rel));
+    }
     // A tool whose links couldn't be removed keeps them until the next update.
     for (const [toolId, error] of result.toolFailures) {
       const name = AI_TOOLS.find((tool) => tool.value === toolId)?.name ?? toolId;
@@ -907,7 +922,9 @@ export class UpdateCommand {
    * no longer uses the machine-wide skills, so this update installs its own.
    */
   private async restoreProjectToolRecord(projectPath: string): Promise<void> {
-    if (this.useGlobalSkills || readProjectSkillsMode(projectPath) === 'global') return;
+    // A switch this run makes writes the record again; one it refuses must
+    // still find the tools.
+    if (readProjectSkillsMode(projectPath) === 'global') return;
     const recorded = readGlobalSkillRecord(projectPath, this.view);
     if (recorded.length === 0) return;
     try {
