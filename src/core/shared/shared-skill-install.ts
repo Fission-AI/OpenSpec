@@ -70,6 +70,8 @@ export interface SharedSkillInstallInput {
    * its own record there, written before and after this run.
    */
   writeList?: boolean;
+  /** Lines appended to the tool list it writes (the global install's `unlink <tool>` records). */
+  extraListLines?: readonly string[];
 }
 
 /**
@@ -177,6 +179,16 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   // recorded in the list, so later runs keep leaving it alone; deleting it
   // hands the name back to OpenSpec.
   const sharedIsOurs = hasSkillToolList(projectPath, view);
+  // In the home folder (`backupEdited`), an empty SKILL.md is a write cut
+  // short, never something of the user's to keep.
+  const emptiedHere = (skillDir: string): boolean => {
+    if (input.backupEdited !== true) return false;
+    try {
+      return view.read(path.join(skillDir, 'SKILL.md')).trim() === '';
+    } catch {
+      return false;
+    }
+  };
   const previouslyKept = readKeptSharedSkills(projectPath, view);
   // The previous shared text is OpenSpec's only once the folder is, and never
   // for a skill kept as the user's.
@@ -220,7 +232,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     }
     if (previouslyKept.has(skillName)) {
       keptShared.add(skillName);
-    } else if (!sharedIsOurs && classifySkillFile(skillDir, oursFor(skillName), view) === 'user') {
+    } else if (!sharedIsOurs && !emptiedHere(skillDir) && classifySkillFile(skillDir, oursFor(skillName), view) === 'user') {
       keepAsUsers(skillName);
     }
   }
@@ -268,6 +280,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     if (
       view.isDirectory(skillDir) &&
       view.exists(path.join(skillDir, 'SKILL.md')) &&
+      !emptiedHere(skillDir) &&
       classifySkillFile(skillDir, generated, view) === 'user'
     ) {
       keepAsUsers(skillName);
@@ -300,7 +313,12 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
         .filter((tool) => layout.linkDirFor(tool) !== undefined)
         .map((tool) => tool.value)
     );
-    await ops.writeFile(listPath, formatSkillToolList(tools.map((tool) => tool.value), keptShared, withOwnFiles), 'openspec');
+    await ops.writeFile(
+      listPath,
+      formatSkillToolList(tools.map((tool) => tool.value), keptShared, withOwnFiles) +
+        (input.extraListLines ?? []).map((line) => `${line}\n`).join(''),
+      'openspec'
+    );
   } else if (view.exists(listPath)) {
     // No workflows selected and nothing of the user's to record.
     await ops.removeFile(listPath, 'openspec');

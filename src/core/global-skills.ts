@@ -292,7 +292,18 @@ async function runGlobalSkillsLocked(
   const unlinking = [...new Set([...dropped, ...readPendingUnlinks(home, view)])].filter((id) => !wanted.includes(id));
   // An interrupted first install leaves the marker and skills without the
   // list: a removal then clears OpenSpec's skills by their text.
-  const orphaned = wanted.length === 0 && unlinking.length === 0 && view.exists(globalMarkerPath(home)) ? ['agents'] : [];
+  // Its links are found by where they point: each tool's home folder is
+  // checked, and only links to OpenSpec's shared copy go.
+  const orphaned =
+    wanted.length === 0 && unlinking.length === 0 && view.exists(globalMarkerPath(home))
+      ? [
+          'agents',
+          ...AI_TOOLS.map((tool) => tool.value).filter((id) => {
+            const reach = resolveHomeSkillsReach(id, { home, env });
+            return reach.kind === 'link' && view.exists(reach.dir);
+          }),
+        ]
+      : [];
 
   const npxSkills = readNpxSkillsLock({ home, env });
   // The workflows come from the global config. One that can't be read would
@@ -339,7 +350,18 @@ async function runGlobalSkillsLocked(
   // With tools left, a dropped tool only loses its links. With none left, the
   // dropped tools are passed with no workflows, so the installer's deselect
   // path removes the skills, their links and the list (edited skills stay).
+  // Written ahead: a run killed partway still knows which links to finish
+  // removing, and never takes a removal for tools to set up again.
+  const unlinkLines = unlinking.map((id) => `unlink ${id}`);
+  if (wanted.length === 0 && unlinking.length > 0) {
+    await ops.writeFile(
+      listPath,
+      unlinkLines.map((line) => `${line}\n`).join('') + formatSkillToolList([], readKeptSharedSkills(home, view)),
+      'openspec'
+    );
+  }
   const install = await installSharedSkills({
+    extraListLines: wanted.length > 0 ? unlinkLines : [],
     // The home folder isn't in git: an edit replaced here would be gone.
     backupEdited: true,
     projectPath: home,
@@ -386,14 +408,23 @@ async function runGlobalSkillsLocked(
   // so the next run finishes the job (nothing else would ever find them).
   const unfinished = unlinking.filter((id) => install.toolFailures.has(id));
   if (wanted.length > 0) {
-    if (unfinished.length > 0) {
+    if (unlinking.length > 0) {
       let list = '';
       try {
         list = view.read(listPath);
       } catch {
         list = '';
       }
-      await ops.writeFile(listPath, list + unfinished.map((id) => `unlink ${id}\n`).join(''), 'openspec');
+      // The installer wrote every pending `unlink` line; keep only the ones
+      // whose links are still there.
+      const kept = list
+        .split(/\r?\n/)
+        .filter((line) => line.trim() !== '')
+        .filter((line) => {
+          const [first, id] = line.trim().split(/\s+/);
+          return first !== 'unlink' || unfinished.includes(id);
+        });
+      await ops.writeFile(listPath, kept.map((line) => `${line}\n`).join(''), 'openspec');
     }
   } else {
     if (unfinished.length > 0) {
@@ -405,7 +436,9 @@ async function runGlobalSkillsLocked(
     } else {
       if (view.exists(listPath)) await ops.removeFile(listPath, 'openspec');
       if (view.exists(markerPath)) await ops.removeFile(markerPath, 'openspec');
-      if (!input.dryRun) {
+      // Only folders a global install left: never ones that were already
+      // there, empty, before anything was installed.
+      if (!input.dryRun && (before.length > 0 || unlinking.length > 0 || orphaned.length > 0)) {
         removeIfEmpty(resolveHomeSharedSkillsDir(home));
         removeIfEmpty(path.dirname(resolveHomeSharedSkillsDir(home)));
       }

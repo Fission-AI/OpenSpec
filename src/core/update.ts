@@ -80,6 +80,7 @@ import { resolveSharedSkillsDir, usesSharedSkills } from './shared/skill-paths.j
 import { formatGlobalSkillRecord, formatSkillToolList, isToolListed, readGlobalSkillRecord, readKeptSharedSkills, skillToolListPath } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
 import { assertNotGlobalHome, isCoveredByGlobalSkills, readGlobalSkillTools, supportsGlobalSkills } from './global-skills.js';
+import { resolveHomeSharedSkillsDir } from './shared/home-skill-paths.js';
 import { planProjectSkillsMode, readProjectSkillsMode, type ProjectSkillsMode } from './project-skills-mode.js';
 import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
@@ -739,6 +740,28 @@ export class UpdateCommand {
               !sharedDirInProject
                 ? 'Not switched: .agents/skills links outside this project, so OpenSpec leaves it alone.'
                 : `Not switched: ${names(unsupported)} can't use machine-wide skills, so this project keeps its own.`
+            )
+          );
+        }
+        return false;
+      }
+      // The global install must hold every OpenSpec skill the project has
+      // now, or switching would take some away (an older profile there).
+      const kept = readKeptSharedSkills(projectPath, this.view);
+      const globalDir = resolveHomeSharedSkillsDir();
+      const lacking = OPENSPEC_SKILL_NAMES.filter(
+        (skillName) =>
+          !kept.has(skillName) &&
+          this.view.exists(path.join(sharedDir, skillName, 'SKILL.md')) &&
+          !this.view.exists(path.join(globalDir, skillName, 'SKILL.md'))
+      );
+      if (globalTools.length > 0 && missing.length === 0 && lacking.length > 0) {
+        if (this.useGlobalSkills) {
+          this.globalSkillsFailed = true;
+          this.log(
+            chalk.yellow(
+              `Not switched: your global skills don't include ${lacking.join(', ')}, which this project has. ` +
+                'Run openspec update --global to bring them up to your profile, then try again.'
             )
           );
         }

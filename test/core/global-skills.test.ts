@@ -442,6 +442,45 @@ describe('global skills (--global)', () => {
     expect(await exists(h('.agents', 'skills', 'openspec-propose', 'SKILL.md.bak'))).toBe(false);
   });
 
+  it("finishes dropping a tool when a run was killed after the new list but before the links went", async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'kiro'] });
+    // The state step 1 of `--tools claude` leaves: the new list, with the
+    // pending removal recorded ahead, and Kiro's links still there.
+    await fs.writeFile(h('.agents', 'skills', '.openspec-target'), 'claude own-files\nunlink kiro\n');
+    await runGlobalSkills({ toolIds: ['claude'] });
+    expect(await exists(h('.kiro', 'skills', 'openspec-propose'))).toBe(false);
+    expect(await fs.readFile(h('.agents', 'skills', '.openspec-target'), 'utf8')).not.toContain('unlink');
+  });
+
+  it('continues a killed removal instead of putting the install back', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'kiro'] });
+    // What a removal writes before touching anything.
+    await fs.writeFile(h('.agents', 'skills', '.openspec-target'), 'unlink claude\nunlink kiro\n');
+    expect(readGlobalSkillTools(home)).toEqual([]);
+    const result = await runGlobalSkills({});
+    expect(result.tools).toEqual([]);
+    expect(await exists(h('.claude', 'skills', 'openspec-propose'))).toBe(false);
+    expect(await exists(h('.kiro', 'skills', 'openspec-propose'))).toBe(false);
+    expect(await exists(h('.agents', 'skills', 'openspec-propose'))).toBe(false);
+  });
+
+  it('removes the links too when the list is gone, finding them by where they point', async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'kiro'] });
+    const mine = h('.claude', 'skills', 'my-skill');
+    await fs.mkdir(mine, { recursive: true });
+    await fs.rm(h('.agents', 'skills', '.openspec-target'));
+    await runGlobalSkills({ toolIds: [] });
+    expect(await exists(h('.claude', 'skills', 'openspec-propose'))).toBe(false);
+    expect(await exists(h('.kiro', 'skills', 'openspec-propose'))).toBe(false);
+    expect(await exists(mine)).toBe(true);
+  });
+
+  it('leaves an empty ~/.agents alone when nothing was installed', async () => {
+    await fs.mkdir(h('.agents', 'skills'), { recursive: true });
+    await runGlobalSkills({ toolIds: [] });
+    expect(await exists(h('.agents', 'skills'))).toBe(true);
+  });
+
   it('refuses a profile with no workflows, and changes nothing', async () => {
     await runGlobalSkills({ toolIds: ['codex'] });
     const before = await tree(home);

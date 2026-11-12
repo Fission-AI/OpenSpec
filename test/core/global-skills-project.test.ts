@@ -398,6 +398,23 @@ describe('a project using the machine-wide skills', () => {
     expect(said('openspec update --use-global-skills')).toBe(true);
   });
 
+  it("refuses a switch that would take away a skill the global install doesn't have", async () => {
+    await runGlobalSkills({ toolIds: ['claude', 'codex'] });
+    // The project has verify; the global install was made with the core set.
+    await fs.writeFile(path.join(home, '.config', 'openspec', 'config.json'), JSON.stringify({ profile: 'custom', workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'verify'] }));
+    await new UpdateCommand().execute(project);
+    expect(await exists(p('.agents', 'skills', 'openspec-verify-change', 'SKILL.md'))).toBe(true);
+    const command = new UpdateCommand({ useGlobalSkills: true });
+    await command.execute(project);
+    expect(command.globalSkillsFailed).toBe(true);
+    expect(said("don't include openspec-verify-change")).toBe(true);
+    expect(await exists(p('.agents', 'skills', 'openspec-verify-change', 'SKILL.md'))).toBe(true);
+    // After update --global, it switches.
+    await runGlobalSkills({});
+    await new UpdateCommand({ useGlobalSkills: true }).execute(project);
+    expect(await projectSkills()).toEqual([]);
+  });
+
   it('goes back to project skills with skills: project', async () => {
     await runGlobalSkills({ toolIds: ['claude', 'codex'] });
     await new UpdateCommand({ useGlobalSkills: true }).execute(project);
