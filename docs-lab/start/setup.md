@@ -140,6 +140,7 @@ openspec update --global
 - **Edits**: if you edited a skill in `~/.agents/skills/`, `update --global` saves your text beside it as `SKILL.md.bak` before refreshing it.
 - **Remove**: `openspec init --global --tools none` removes OpenSpec's skills and links. A skill you edited is kept.
 - **npx skills**: a skill `npx skills` installed in `~/.agents/skills/` is left to it.
+- **Interrupted**: if a run stops partway (a crash, Ctrl-C), run the same command again to finish it. If it says another run is in progress and none is, delete the lock file it names.
 
 ### Projects that have their own skills
 

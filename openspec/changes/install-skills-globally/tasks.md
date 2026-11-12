@@ -18,7 +18,7 @@
 
 ## 4. Proof and docs
 
-- [ ] 4.1 Tests: every 2.0 project command unchanged without `--global`; global install, refresh, edited and `npx skills` copies kept, linked home folders refused, switch and decline
+- [x] 4.1 Tests: every 2.0 project command unchanged without `--global`; global install, refresh, edited and `npx skills` copies kept, linked home folders refused, switch and decline
 - [x] 4.2 Real `npx skills` side by side: no path collision, nothing of theirs removed
 - [x] 4.3 Upgrade matrix and release upgrades still pass
 - [x] 4.4 docs-lab: setup, supported tools, CLI reference, project config; changeset (minor)
