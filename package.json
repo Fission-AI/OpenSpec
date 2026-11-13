@@ -15,7 +15,7 @@
     "url": "https://github.com/Fission-AI/OpenSpec"
   },
   "license": "MIT",
-  "author": "OpenSpec Contributors",
+  "author": "FISSION AI INC",
   "type": "module",
   "packageManager": "pnpm@10.34.5",
   "publishConfig": {

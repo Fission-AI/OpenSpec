@@ -78,11 +78,27 @@ for (const relativePath of schemaFiles) {
 }
 const hash = createHash('sha256').update(JSON.stringify(files)).digest('hex').slice(0, 16);
 
+// What Windows shows in a file's properties, and what antivirus tools read to
+// tell whose program it is. Left alone they say "Bun" by "Oven", which makes
+// openspec.exe look like a renamed copy of another program (#2243). Bun only
+// writes these when it runs on Windows and skips them elsewhere, so release
+// builds of the Windows assets run on Windows (binaries.yml checks the result).
+const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+const windows = {
+  title: 'OpenSpec',
+  // The legal entity that builds and publishes the file, written as in LICENSE.
+  publisher: 'FISSION AI INC',
+  // Four numbers, as Windows wants; a prerelease suffix has no place in them.
+  version: `${version.split('-')[0]}.0`,
+  description: 'OpenSpec CLI',
+  copyright: 'Copyright (c) 2025 FISSION AI INC',
+};
+
 for (const asset of assets) {
   const outfile = path.join(root, 'dist-bin', `openspec-${asset}${asset.startsWith('windows') ? '.exe' : ''}`);
   const result = await Bun.build({
     entrypoints: [path.join(import.meta.dir, 'entry.mjs')],
-    compile: { target: ASSETS[asset], outfile },
+    compile: { target: ASSETS[asset], outfile, ...(asset.startsWith('windows') && { windows }) },
     // Unminified, a crash names the real function and shows readable code
     // (about 1 MB more), so bug reports from binary users are actionable.
     minify: false,
