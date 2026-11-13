@@ -1,4 +1,4 @@
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { COMMAND_REGISTRY } from '../../core/completions/command-registry.js';
 import { printJson } from '../../commands/shared-output.js';
 import type {
@@ -40,6 +40,7 @@ export function registerStoreCommand(program: Command): void {
     .description('Register an existing local store')
     .option('--id <id>', 'Store id; defaults to metadata or folder name')
     .option('--yes', 'Confirm creating store identity metadata for a healthy OpenSpec root')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
     .option('--json', 'Output as JSON')
     .action(async (inputPath: string | undefined, options: StoreRegisterOptions) => {
       const storeCommand = await loadStoreCommand();
@@ -49,6 +50,7 @@ export function registerStoreCommand(program: Command): void {
   store
     .command('unregister <id>')
     .description('Forget a local store registration without deleting files')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
     .option('--json', 'Output as JSON')
     .action(async (id: string, options: StoreJsonOptions) => {
       const storeCommand = await loadStoreCommand();
@@ -59,6 +61,7 @@ export function registerStoreCommand(program: Command): void {
     .command('remove <id>')
     .description('Forget a local store registration and delete its local folder')
     .option('--yes', 'Confirm local store folder deletion')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
     .option('--json', 'Output as JSON')
     .action(async (id: string, options: StoreRemoveOptions) => {
       const storeCommand = await loadStoreCommand();
@@ -69,6 +72,7 @@ export function registerStoreCommand(program: Command): void {
     .command('list')
     .alias('ls')
     .description('List locally registered stores')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
     .option('--json', 'Output as JSON')
     .action(async (options: StoreJsonOptions) => {
       const storeCommand = await loadStoreCommand();
@@ -78,6 +82,7 @@ export function registerStoreCommand(program: Command): void {
   store
     .command('doctor [id]')
     .description('Check local store registration and metadata')
+    .addOption(new Option('--scope <scope>', 'Registry scope: "project" for project-scoped, default is global').choices(['project', 'global']))
     .option('--json', 'Output as JSON')
     .action(async (id: string | undefined, options: StoreJsonOptions) => {
       const storeCommand = await loadStoreCommand();
