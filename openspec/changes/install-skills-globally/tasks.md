@@ -31,4 +31,5 @@
 
 - [x] 4.1 Tests that run the real CLI in a throwaway home
 - [x] 4.2 Project installs compared with 2.0, case by case
+- [x] 4.2b Recognize skills an earlier `npx skills add` installed, from the history of `skills/`
 - [x] 4.3 Docs: setup, CLI reference, global config, supported tools

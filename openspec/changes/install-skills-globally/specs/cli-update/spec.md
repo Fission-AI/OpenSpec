@@ -44,7 +44,7 @@ When the global skills are installed, `openspec update` SHALL reinstall them at 
 
 ### Requirement: Update names the projects that still have their own skills
 
-`openspec init` and `openspec update` SHALL record the project they run in, in a list kept in the global data folder on this machine. When the global skills are installed, `openspec update` SHALL name the other recorded projects that still have their own OpenSpec skills and give the command that moves one. A list that cannot be read or written SHALL NOT fail the command.
+`openspec init` and `openspec update` SHALL record the project they run in, when it has an `openspec/` folder, in a list kept in the global data folder on this machine. When the global skills are installed, `openspec update` and `openspec init --scope global` SHALL name the other recorded projects that still have their own OpenSpec skills and give the command that moves one. A list that cannot be read or written SHALL NOT fail the command.
 
 #### Scenario: Another project still has its own skills
 

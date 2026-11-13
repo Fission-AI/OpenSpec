@@ -79,12 +79,62 @@ describe('the list of projects that use OpenSpec', () => {
   });
 
   it('never fails the command when the list cannot be written', async () => {
+    const dir = await project('app');
     // A file where the data folder should be: nothing can be created under it.
     await fs.writeFile(path.join(box, 'data'), 'in the way');
 
-    expect(() => rememberProject(path.join(box, 'app'))).not.toThrow();
+    expect(() => rememberProject(dir)).not.toThrow();
     expect(readKnownProjects()).toEqual([]);
     expect(otherProjectsNote(box)).toBeUndefined();
+  });
+
+  it('leaves no draft behind when the list itself cannot be replaced', async () => {
+    const dir = await project('app');
+    // A folder where the list should be: the draft is written, the rename fails.
+    await fs.mkdir(path.join(knownProjectsPath(), 'in-the-way'), { recursive: true });
+
+    expect(() => rememberProject(dir)).not.toThrow();
+    expect(await fs.readdir(path.dirname(knownProjectsPath()))).toEqual(['projects.json']);
+  });
+
+  it('ignores entries that are not paths this CLI could have recorded', async () => {
+    const dir = await project('app');
+    await fs.mkdir(path.dirname(knownProjectsPath()), { recursive: true });
+    const entries = ['', '.', 'relative/app', `${dir}\n forged line`, `${dir}\u001b[2J`, dir, dir];
+    await fs.writeFile(knownProjectsPath(), JSON.stringify({ projects: entries }));
+
+    expect(readKnownProjects()).toEqual([dir]);
+  });
+
+  it('ignores a list far larger than any it would write', async () => {
+    const dir = await project('app');
+    await fs.mkdir(path.dirname(knownProjectsPath()), { recursive: true });
+    await fs.writeFile(knownProjectsPath(), JSON.stringify({ projects: [dir], padding: 'x'.repeat(1024 * 1024) }));
+
+    expect(readKnownProjects()).toEqual([]);
+  });
+
+  it('does not take a file named openspec for a project', async () => {
+    const dir = path.join(box, 'tool');
+    await fs.mkdir(dir);
+    await fs.writeFile(path.join(dir, 'openspec'), 'a binary, say');
+    rememberProject(dir);
+
+    expect(existsSync(knownProjectsPath())).toBe(false);
+  });
+
+  it('looks at no other project when the one it is given is already recorded', async () => {
+    const dir = await project('app');
+    const other = await project('other');
+    rememberProject(dir);
+    rememberProject(other);
+    await fs.rm(other, { recursive: true });
+    const before = readFileSync(knownProjectsPath(), 'utf8');
+
+    rememberProject(dir);
+
+    // The gone project is still listed: nothing was checked or rewritten.
+    expect(readFileSync(knownProjectsPath(), 'utf8')).toBe(before);
   });
 
   it('says nothing when no other project has its own skills', async () => {
@@ -182,13 +232,31 @@ describe('naming the projects that still have their own skills', () => {
     await cli(moved, 'init', '--scope', 'global', '--tools', 'claude');
 
     expect((await cli(moved, 'update')).stdout).toContain(`2 other projects on this machine still have their own`);
-    await cli(own, 'init', '--scope', 'global');
+    expect((await cli(own, 'init', '--scope', 'global')).exitCode).toBe(0);
     await fs.rm(doomed, { recursive: true });
 
     const result = await cli(moved, 'update');
     expect(result.exitCode).toBe(0);
     expect(result.stdout).not.toContain('still ha');
   });
+
+  it('names five and counts the rest, and a dry run says nothing', async () => {
+    const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    for (const name of names) await cli(await project(name), 'init', '--scope', 'project', '--tools', 'claude');
+    const moved = await project('moved');
+    await cli(moved, 'init', '--scope', 'global', '--tools', 'claude');
+
+    const result = await cli(moved, 'update');
+    expect(result.stdout).toContain('7 other projects on this machine still have their own OpenSpec skills:');
+    expect(result.stdout).toContain(`  ${path.join(box, 'e')}\n  and 2 more\n`);
+    expect(result.stdout).not.toContain(path.join(box, 'f'));
+
+    const plan = await cli(moved, 'update', '--dry-run');
+    expect(plan.stdout).not.toContain('still ha');
+    const json = await cli(moved, 'update', '--dry-run', '--json');
+    expect(() => JSON.parse(json.stdout)).not.toThrow();
+    expect(json.stdout).not.toContain('still ha');
+  }, 120000);
 
   it('says nothing on a machine without the global skills', async () => {
     await cli(await project('one'), 'init', '--scope', 'project', '--tools', 'claude');

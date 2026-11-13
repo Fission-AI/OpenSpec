@@ -295,7 +295,14 @@ export class InitCommand {
         deferredLegacyCleanup,
       });
       rememberProject(projectPath);
-      const others = otherProjectsNote(projectPath);
+      // Only a machine that has the global skills has somewhere to move a project to.
+      let hasGlobalSkills = false;
+      try {
+        hasGlobalSkills = (await readGlobalSkills()).skills.length > 0;
+      } catch {
+        // Unreadable: say nothing.
+      }
+      const others = hasGlobalSkills ? otherProjectsNote(projectPath) : undefined;
       if (others) console.log(chalk.dim(others));
       return;
     }

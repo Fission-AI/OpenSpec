@@ -115,6 +115,11 @@ Moving to the global skills is done one project at a time, and nothing told the 
 - **It looks after itself.** A project whose `openspec/` folder is gone drops off. A dry run records nothing.
 - **It stays on the machine.** Paths are never sent anywhere, telemetry included.
 - **It starts empty.** A project is known once a 2.1 CLI has run `init` or `update` in it.
+- **It trusts nothing in the file.** Only absolute paths without control characters are read, a file over 1 MB is ignored, and a project on a drive that isn't mounted is neither named nor dropped.
+
+### D11. Skills installed earlier with `npx skills add` are OpenSpec's
+
+`npx skills add Fission-AI/OpenSpec` installs whatever `skills/` held that day, and that text was never one the CLI generated. It read as the user's own edit: a project kept those skills as "yours" beside the new ones, and the global update warned about edits nobody made. `scripts/capture-released-fingerprints.mjs` now also records every text `skills/` has held, from git history, so these are replaced like any other OpenSpec file.
 
 ## Risks
 

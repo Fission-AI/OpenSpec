@@ -9,12 +9,15 @@
  */
 
 import path from 'path';
-import { existsSync, mkdirSync, readFileSync, realpathSync, renameSync, writeFileSync } from 'fs';
+import { mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'fs';
 import { OPENSPEC_DIR_NAME } from './config.js';
 import { getGlobalDataDir } from './global-config.js';
 import { projectHasOwnSkills } from './global-skills.js';
 
 export const KNOWN_PROJECTS_FILE_NAME = 'projects.json';
+
+/** Far more than any real list; a larger file is not one this CLI wrote. */
+const MAX_LIST_BYTES = 1024 * 1024;
 
 export function knownProjectsPath(): string {
   return path.join(getGlobalDataDir(), KNOWN_PROJECTS_FILE_NAME);
@@ -28,37 +31,72 @@ function canonical(projectPath: string): string {
   }
 }
 
-function isProject(projectPath: string): boolean {
-  return existsSync(path.join(projectPath, OPENSPEC_DIR_NAME));
+/** Whether a folder holds `openspec/`, is gone, or can't be told right now (an unmounted drive, say). */
+function projectState(projectPath: string): 'project' | 'gone' | 'unknown' {
+  try {
+    return statSync(path.join(projectPath, OPENSPEC_DIR_NAME)).isDirectory() ? 'project' : 'gone';
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    return code === 'ENOENT' || code === 'ENOTDIR' ? 'gone' : 'unknown';
+  }
 }
 
-/** The recorded projects that are still there. */
-export function readKnownProjects(): string[] {
+const CONTROL_CHARACTERS = new RegExp('[\\u0000-\\u001f\\u007f-\\u009f]');
+
+function isPlainPath(entry: string): boolean {
+  return path.isAbsolute(entry) && !CONTROL_CHARACTERS.test(entry);
+}
+
+/**
+ * The recorded paths, as written. Only absolute paths without control
+ * characters count: they are printed to the terminal, and nothing else is a
+ * path this CLI recorded.
+ */
+function recordedPaths(): string[] {
   try {
-    const parsed: unknown = JSON.parse(readFileSync(knownProjectsPath(), 'utf8'));
+    const file = knownProjectsPath();
+    if (statSync(file).size > MAX_LIST_BYTES) return [];
+    const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
     const projects = (parsed as { projects?: unknown } | null)?.projects;
     if (!Array.isArray(projects)) return [];
-    return projects.filter((entry): entry is string => typeof entry === 'string' && isProject(entry));
+    return [...new Set(projects.filter((entry): entry is string => typeof entry === 'string' && isPlainPath(entry)))];
   } catch {
     return [];
   }
 }
 
-/** Note that a project uses OpenSpec. Projects that are gone drop off the list. */
+/** The recorded projects that are still there. */
+export function readKnownProjects(): string[] {
+  return recordedPaths().filter((project) => projectState(project) === 'project');
+}
+
+/**
+ * Note that a project uses OpenSpec. Projects that are gone drop off the list
+ * when it is next written. Two runs at once can each miss the other's entry;
+ * the next run in that project records it again.
+ */
 export function rememberProject(projectPath: string): void {
+  let draft: string | undefined;
   try {
     const project = canonical(projectPath);
-    if (!isProject(project)) return;
-    const known = readKnownProjects();
-    if (known.includes(project)) return;
+    if (projectState(project) !== 'project') return;
+    // Already there: nothing to write, and no other project is looked at.
+    const recorded = recordedPaths();
+    if (recorded.includes(project)) return;
 
     const file = knownProjectsPath();
     mkdirSync(path.dirname(file), { recursive: true });
-    const draft = `${file}.${process.pid}.tmp`;
-    writeFileSync(draft, `${JSON.stringify({ projects: [...known, project].sort() }, null, 2)}\n`);
+    const kept = recorded.filter((entry) => projectState(entry) !== 'gone');
+    draft = `${file}.${process.pid}.tmp`;
+    writeFileSync(draft, `${JSON.stringify({ projects: [...kept, project].sort() }, null, 2)}\n`);
     renameSync(draft, file);
   } catch {
     // The list is a convenience: the command that ran is not affected.
+    try {
+      if (draft) rmSync(draft, { force: true });
+    } catch {
+      // Nothing more to do.
+    }
   }
 }
 
@@ -72,7 +110,10 @@ export function otherProjectsNote(currentProjectPath: string): string | undefine
   let others: string[];
   try {
     const current = canonical(currentProjectPath);
-    others = readKnownProjects().filter((project) => project !== current && projectHasOwnSkills(project));
+    // Compared by where each path leads today, so a project recorded under two names is one project.
+    others = [...new Set(readKnownProjects().map(canonical))].filter(
+      (project) => project !== current && isPlainPath(project) && projectHasOwnSkills(project)
+    );
   } catch {
     return undefined;
   }
