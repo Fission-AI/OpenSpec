@@ -475,7 +475,8 @@ export async function readGlobalSkills(): Promise<GlobalSkills> {
   const { getSupportedAgents, listSkills } = await import('skills');
   const { skills } = await listSkills({ scope: 'global' });
   const named = skills.filter((skill) => (OPENSPEC_SKILL_NAMES as readonly string[]).includes(skill.name));
-  const ours = named.filter((skill) => isOurSource(skill.source));
+  // By name, so what is reported reads the same wherever the package's listing order differs.
+  const ours = named.filter((skill) => isOurSource(skill.source)).sort((a, b) => a.name.localeCompare(b.name));
   const supported = getSupportedAgents();
   const agentDirs = new Map(supported.map((agent) => [agent.id, agent.globalSkillsDir]));
   const ownFolder = new Set(supported.filter(keepsOwnGlobalFolder).map((agent) => agent.id));
