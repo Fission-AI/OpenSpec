@@ -86,12 +86,12 @@ const hash = createHash('sha256').update(JSON.stringify(files)).digest('hex').sl
 const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const windows = {
   title: 'OpenSpec',
-  // The legal entity that builds and publishes the file (openspec.dev/legal).
-  publisher: 'Fission AI, Inc.',
+  // The legal entity that builds and publishes the file, written as in LICENSE.
+  publisher: 'FISSION AI INC',
   // Four numbers, as Windows wants; a prerelease suffix has no place in them.
   version: `${version.split('-')[0]}.0`,
   description: 'OpenSpec CLI',
-  copyright: 'Copyright (c) 2026 Fission AI, Inc. MIT License.',
+  copyright: 'Copyright (c) 2025 FISSION AI INC',
 };
 
 for (const asset of assets) {

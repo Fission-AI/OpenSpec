@@ -279,7 +279,7 @@ jobs:
           $info | Format-List ProductName, CompanyName, FileDescription, ProductVersion, FileVersion, LegalCopyright
           $version = ((Get-Content package.json -Raw | ConvertFrom-Json).version -split '-')[0]
           if ($info.ProductName -ne 'OpenSpec') { throw "product name is '$($info.ProductName)', expected OpenSpec" }
-          if ($info.CompanyName -ne 'Fission AI, Inc.') { throw "publisher is '$($info.CompanyName)', expected Fission AI, Inc." }
+          if ($info.CompanyName -ne 'FISSION AI INC') { throw "publisher is '$($info.CompanyName)', expected FISSION AI INC" }
           if ($info.ProductVersion -ne "$version.0") { throw "product version is '$($info.ProductVersion)', expected $version.0" }
           $signature = Get-AuthenticodeSignature $exe
           Write-Host "Signature: $($signature.Status) $($signature.SignerCertificate.Subject)"
