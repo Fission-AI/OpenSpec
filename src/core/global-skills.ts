@@ -12,7 +12,18 @@
 
 import os from 'os';
 import path from 'path';
-import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'fs';
+import {
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'fs';
 import { spawnSync } from 'child_process';
 import { createHash } from 'crypto';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
@@ -137,23 +148,29 @@ function isLink(entry: string): boolean {
 }
 
 /**
- * Whether an entry is a link OpenSpec's install made: one into the shared
- * folder, or one whose target is gone. A link to anywhere else is the user's.
+ * Whether an entry is a link OpenSpec's install made: one to the skill of the
+ * same name in the shared folder. A link to anywhere else is the user's,
+ * whether or not its target exists. A link whose target is gone is judged by
+ * where it says it points.
  */
 function isInstallLink(entry: string): boolean {
   if (!isLink(entry)) return false;
-  let target: string;
+  const expected = path.join(sharedGlobalDir(), path.basename(entry));
   try {
-    target = realpathSync.native(entry);
+    return realpathSync.native(entry) === realpathSync.native(expected);
   } catch {
-    return true;
+    // The target, or the shared skill, is not there: compare the path the link names.
   }
+  let named: string;
   try {
-    const shared = realpathSync.native(sharedGlobalDir());
-    return target === shared || target.startsWith(shared + path.sep);
+    named = path.resolve(path.dirname(entry), readlinkSync(entry));
   } catch {
     return false;
   }
+  if (path.basename(named) !== path.basename(expected)) return false;
+  return (
+    path.dirname(named) === path.dirname(expected) || sameFolder(path.dirname(named), path.dirname(expected))
+  );
 }
 
 const KEPT_ASIDE = /^\.(openspec-[a-z0-9-]+)\.kept-(\d+)$/;
@@ -505,7 +522,7 @@ export async function readGlobalSkills(): Promise<GlobalSkills> {
           return false;
         }
       });
-      return present.length > 0 && present.every(isLink);
+      return present.length > 0 && present.every(isInstallLink);
     }
     return entries.some((entry, index) => {
       if (isInstallLink(entry)) return true;
@@ -681,7 +698,7 @@ async function installGlobalSkillsNow(input: GlobalInstallInput): Promise<Global
   // text is the user's, even when the shared copy is OpenSpec's.
   const agentDirs = new Map(supported.map((agent) => [agent.id, agent.globalSkillsDir]));
   const holdsLinks = (agent: string): boolean =>
-    before.skills.some((name) => isLink(path.join(agentDirs.get(agent) ?? '', name)));
+    before.skills.some((name) => isInstallLink(path.join(agentDirs.get(agent) ?? '', name)));
   const entryIn = (agent: string, name: string): 'missing' | 'ours' | 'theirs' => {
     const entry = path.join(agentDirs.get(agent) ?? '', name);
     try {

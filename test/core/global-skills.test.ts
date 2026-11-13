@@ -940,6 +940,51 @@ describe('skills installed for this machine', () => {
         expect(result.stdout).toContain('Left openspec-explore in your home folder alone');
       });
 
+      it("keeps a link of the user's whose target is missing, on a forced update and when the profile drops the skill", async () => {
+        const configFile = path.join(home, '.config', 'openspec', 'config.json');
+        await fs.mkdir(path.dirname(configFile), { recursive: true });
+        await fs.writeFile(configFile, JSON.stringify({ profile: 'custom', workflows: ['propose', 'explore', 'verify'] }));
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+        // Links into a dotfiles folder that isn't on this machine yet.
+        const mine = (name: string) => path.join(home, 'my-dotfiles', name);
+        for (const name of ['openspec-explore', 'openspec-verify-change']) {
+          await fs.rm(path.join(claude(), name), { recursive: true, force: true });
+          await fs.symlink(mine(name), path.join(claude(), name), 'junction');
+        }
+
+        const plan = await cli(dir, 'update', '--force', '--dry-run');
+        const forced = await cli(dir, 'update', '--force');
+
+        expect(forced.exitCode).toBe(0);
+        expect(await fs.readlink(path.join(claude(), 'openspec-explore'))).toBe(mine('openspec-explore'));
+        expect(plan.stdout).toContain('Update will leave openspec-explore, openspec-verify-change in your home folder alone');
+        expect(forced.stdout).toContain('Left openspec-explore, openspec-verify-change in your home folder alone');
+        // Named on a plain update too, while everything else is current.
+        expect((await cli(dir, 'update')).stdout).toContain('Left openspec-explore, openspec-verify-change in your home folder alone');
+
+        await fs.writeFile(configFile, JSON.stringify({ profile: 'custom', workflows: ['propose', 'explore'] }));
+        const dropped = await cli(dir, 'update');
+
+        expect(dropped.exitCode).toBe(0);
+        expect(await fs.readlink(path.join(claude(), 'openspec-verify-change'))).toBe(mine('openspec-verify-change'));
+        expect(await fs.readlink(path.join(claude(), 'openspec-explore'))).toBe(mine('openspec-explore'));
+      });
+
+      it("puts back the skill behind one of the install's own links when the shared copy was deleted", async () => {
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+        await fs.rm(path.dirname(globalSkill('openspec-explore')), { recursive: true });
+
+        const result = await cli(dir, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).not.toContain('in your home folder alone');
+        expect(readFileSync(path.join(claude(), 'openspec-explore', 'SKILL.md'), 'utf8')).toBe(
+          readFileSync(globalSkill('openspec-explore'), 'utf8')
+        );
+      });
+
       it("keeps MiniMax Code's copy of a skill the profile drops, and a copy in a folder the install never writes to", async () => {
         const configFile = path.join(home, '.config', 'openspec', 'config.json');
         const dir = await project('app');
