@@ -211,6 +211,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, run the `openspec-sync-specs` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (agent-driven either way)
+- When you merge inline because the sync skill is not installed, keep its safeguards. Delete a spec whose last requirement the delta removes only if the change's `.openspec.yaml` declares `retire_capabilities: true`, the spec has no other authored sections, and its path resolves inside the real specs root; otherwise stop before writing. After the merge, run `openspec validate --specs` with the same selected-root flags, and treat a failure as a failed sync: stop and leave `changeRoot` where it is
 - Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving `changeRoot`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - Apply relevant runtime context and report conflicts; operation guidance remains advisory

@@ -81,7 +81,10 @@ Nine tools have no agent id in the package: AtomCode, CoStrict, DeepSeek Harness
 - A skill with an OpenSpec name that the lock file doesn't attribute to OpenSpec. It is skipped and named, not replaced.
 - The home folder as a project. `init` with the global scope refuses to run there, and `update` there only refreshes the global skills.
 - A project's own skills, until the global install has succeeded. A failed install, or one that installs nothing, leaves the project as it was.
-- A project set up for a tool the global skills don't cover. Moving it is refused, because that tool would be left with no skills.
+- A project set up for a tool the global skills don't cover, or with the Copilot cloud files. Moving it is refused, because that tool or the cloud agent would be left with no skills.
+- A project's skills when the machine did not get every one of them. A skill the global install had to leave alone keeps the whole project where it is.
+- A skill of the user's in a tool's own folder. The tool is installed for without that skill.
+- A `skills-lock.json` that links outside the project. It is never passed to the package or rewritten.
 - A real folder in a tool's home skills folder. Only a tool whose entries are links to the shared copy counts as set up, so a folder the user put there is never replaced.
 - A skill that only a tool outside this install holds, such as MiniMax Code's own copies.
 

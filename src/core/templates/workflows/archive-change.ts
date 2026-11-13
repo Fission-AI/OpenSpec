@@ -22,6 +22,13 @@ const SYNC_INLINE_HANDOFF =
 const SYNC_GUARDRAIL =
   'run the `/opsx:sync` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (agent-driven either way)';
 
+/**
+ * What the sync workflow guarantees, for the agent that has to do the merge
+ * itself because that skill is not installed. Shared with bulk archive.
+ */
+export const SYNC_FALLBACK_SAFEGUARDS =
+  '- When you merge inline because the sync skill is not installed, keep its safeguards. Delete a spec whose last requirement the delta removes only if the change\'s `.openspec.yaml` declares `retire_capabilities: true`, the spec has no other authored sections, and its path resolves inside the real specs root; otherwise stop before writing. After the merge, run `openspec validate --specs` with the same selected-root flags, and treat a failure as a failed sync: stop and leave `changeRoot` where it is';
+
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
     name: 'openspec-archive-change',
@@ -219,6 +226,7 @@ ${PROJECT_ROOT_GUARD}
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, run the \`openspec-sync-specs\` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (agent-driven either way)
+${SYNC_FALLBACK_SAFEGUARDS}
 - Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving \`changeRoot\`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - Apply relevant runtime context and report conflicts; operation guidance remains advisory
@@ -478,6 +486,7 @@ Target archive directory already exists.
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
 - If sync is requested, ${SYNC_GUARDRAIL}
+${SYNC_FALLBACK_SAFEGUARDS}
 - Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving \`changeRoot\`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - Apply relevant runtime context and report conflicts; operation guidance remains advisory

@@ -168,6 +168,8 @@ export class UpdateCommand {
   private recorder: UpdatePlanRecorder | null = null;
   /** Whether OpenSpec's skills are installed for this machine. */
   private hasGlobalSkills = false;
+  /** The workflows the project update settled on, for the global refresh that follows it. */
+  private settledWorkflows: readonly string[] | undefined;
   private ops: UpdateFileOps = realFileOps;
 
   constructor(options: UpdateCommandOptions = {}) {
@@ -223,6 +225,7 @@ export class UpdateCommand {
       // No readable global install: update the project as before.
     }
     this.hasGlobalSkills = globalSkillCount > 0;
+    this.settledWorkflows = undefined;
 
     // With the global skills installed, update works from anywhere; a project is optional.
     // The home folder holds the global skills, so it is never updated as a project of its own.
@@ -274,10 +277,14 @@ export class UpdateCommand {
    */
   private async refreshGlobalSkills(): Promise<boolean> {
     const { GitMissingError, describeLeftAlone, describeSkillsError, installGlobalSkills } = await import('./global-skills.js');
+    // The profile the project part of this run settled on, which a dry run
+    // has not saved; outside a project, the saved one.
     const globalConfig = getGlobalConfig();
-    const workflows = getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows).filter((workflow) =>
-      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
-    );
+    const workflows =
+      this.settledWorkflows ??
+      getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows).filter((workflow) =>
+        (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+      );
     let failures: string[];
     let changed = false;
     try {
@@ -287,7 +294,7 @@ export class UpdateCommand {
         force: this.force,
         dryRun: this.dryRun,
       });
-      failures = this.dryRun ? [] : result.failures;
+      failures = result.failures;
       changed = !result.unchanged;
       if (failures.length === 0) {
         const count = result.skills.length;
@@ -307,7 +314,10 @@ export class UpdateCommand {
       failures = [describeSkillsError(error) + hint];
     }
     if (failures.length > 0) {
-      throw new Error(`Could not update the skills for this machine: ${failures.join('; ')}`);
+      const message = `Could not update the skills for this machine: ${failures.join('; ')}`;
+      // A plan reports what would fail; it does not fail itself.
+      if (!this.dryRun) throw new Error(message);
+      this.recorder?.addFailure('global-skills', message);
     }
     return changed;
   }
@@ -377,6 +387,7 @@ export class UpdateCommand {
     const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
     );
+    this.settledWorkflows = desiredWorkflows;
 
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
     const legacyUpgrade = await this.handleLegacyCleanup(

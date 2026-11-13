@@ -323,6 +323,25 @@ export function dropFromProjectLock(projectPath: string, names: readonly string[
   else writeFileSync(lockPath, planned);
 }
 
+/**
+ * Record the text OpenSpec wrote for skills the package already has in a
+ * project's lock file, so its hash matches what is on disk.
+ */
+export function rehashProjectLock(projectPath: string, written: ReadonlyMap<string, string>): void {
+  const lockPath = projectLockPath(projectPath);
+  let text: string;
+  try {
+    text = readFileSync(lockPath, 'utf-8');
+  } catch {
+    return;
+  }
+  const recorded = lockedProjectSkills(text);
+  const known = new Map([...written].filter(([name]) => recorded.has(name)));
+  if (known.size === 0) return;
+  const planned = plannedProjectLock(text, known, []);
+  if (planned !== undefined && planned !== text) writeFileSync(lockPath, planned);
+}
+
 export interface GlobalSkills {
   /** OpenSpec's skills installed for this machine. */
   skills: string[];
@@ -411,8 +430,26 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const inTheWay = before.foreign.filter(
     (skill) => skill.agents.length === 0 || skill.agents.some((agent) => universal.has(agent) || agents.includes(agent))
   );
-  const leftAlone = inProfile.filter((name) => inTheWay.some((skill) => skill.name === name));
-  const wanted = inProfile.filter((name) => !leftAlone.includes(name));
+  const blocked = inProfile.filter((name) => inTheWay.some((skill) => skill.name === name));
+  const wanted = inProfile.filter((name) => !blocked.includes(name));
+  // The package lists a skill once however many folders hold it, so a tool's
+  // own folder is checked directly: a real folder there with someone else's
+  // text is the user's, even when the shared copy is OpenSpec's.
+  const agentDirs = new Map(supported.map((agent) => [agent.id, agent.globalSkillsDir]));
+  const entryIn = (agent: string, name: string): 'missing' | 'ours' | 'theirs' => {
+    const entry = path.join(agentDirs.get(agent) ?? '', name);
+    try {
+      if (lstatSync(entry).isSymbolicLink()) return 'ours';
+    } catch {
+      return 'missing';
+    }
+    return classifySkillFile(entry, sharedSkillTexts(name)) === 'user' ? 'theirs' : 'ours';
+  };
+  const linkedAgents = agents.filter((agent) => !universal.has(agent) && agentDirs.has(agent));
+  const heldBy = new Map(
+    linkedAgents.map((agent) => [agent, wanted.filter((name) => entryIn(agent, name) === 'theirs')] as const)
+  );
+  const leftAlone = [...new Set([...blocked, ...[...heldBy.values()].flat()])];
   const removedSkills = before.skills.filter((name) => !inProfile.includes(name));
   const result = { skills: wanted, agents, removedSkills, leftAlone };
 
@@ -432,7 +469,11 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     const dir = before.paths.get(name);
     return dir !== undefined && classifySkillFile(dir, publishedSkillText(name, input.version)) === 'copy';
   });
-  if (!input.force && current && !newAgent && removedSkills.length === 0) {
+  // Every tool set up must still reach every skill: a deleted link is put back.
+  const linksComplete = linkedAgents.every((agent) =>
+    wanted.every((name) => heldBy.get(agent)!.includes(name) || entryIn(agent, name) === 'ours')
+  );
+  if (!input.force && current && linksComplete && !newAgent && removedSkills.length === 0) {
     return { ...result, unchanged: true, failures: [] };
   }
   if (input.dryRun) return { ...result, unchanged: false, failures: [] };
@@ -441,8 +482,18 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const failures: string[] = [];
   // A profile with no workflows installs nothing, and only clears what was there.
   if (wanted.length > 0) {
-    const installed = await installPublishedSkills(input.version, { scope: 'global', agents, skills: wanted });
-    failures.push(...installed.failed.map((failure) => failure.message));
+    // A tool that holds a skill of its own is installed for separately, without that skill.
+    const withOwn = linkedAgents.filter((agent) => heldBy.get(agent)!.length > 0);
+    const installs: Array<[string[], string[]]> = [[agents.filter((agent) => !withOwn.includes(agent)), wanted]];
+    for (const agent of withOwn) {
+      // With the shared folder, so the tool gets links to the one copy and not a copy of its own.
+      installs.push([[UNIVERSAL_AGENT, agent], wanted.filter((name) => !heldBy.get(agent)!.includes(name))]);
+    }
+    for (const [forAgents, skills] of installs) {
+      if (skills.length === 0) continue;
+      const installed = await installPublishedSkills(input.version, { scope: 'global', agents: forAgents, skills });
+      failures.push(...installed.failed.map((failure) => failure.message));
+    }
   }
   if (removedSkills.length > 0) {
     const removed = await removeSkills(removedSkills, options);

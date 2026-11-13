@@ -167,7 +167,7 @@ In a project that already has its own skills, in your terminal:
 openspec init --scope global
 ```
 
-This removes the project's copies and installs the global ones. Only that project changes. Init stops before removing anything, and says why, if you edited one of its skills or if the project is set up for a tool the global skills don't cover. Commit the removal like any other change. A teammate who doesn't have the global skills yet runs `openspec init --scope global --tools <id>` once.
+This removes the project's copies and installs the global ones. Only that project changes. Init stops before removing anything, and says why, if you edited one of its skills, if the project is set up for a tool the global skills don't cover, or if it has the GitHub Copilot cloud files, which need the skills in the project (`--no-copilot-cloud` turns those off and moves it). The project's tools come along: each one gets the skills on this machine. Commit the removal like any other change. A teammate who doesn't have the global skills yet runs `openspec init --scope global --tools <id>` once.
 
 Ten tools are not covered by the global skills and keep the setup a project install gives them. [Supported tools](../reference/supported-tools.md#where-skills-go) lists them.
 

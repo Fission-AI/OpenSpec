@@ -36,6 +36,8 @@ describe('skills installed for this machine', () => {
       USERPROFILE: home,
       XDG_CONFIG_HOME: path.join(home, '.config'),
       XDG_DATA_HOME: path.join(home, '.local', 'share'),
+      // The `skills` package keeps its global lock file here when this is set.
+      XDG_STATE_HOME: path.join(home, '.local', 'state'),
       LOCALAPPDATA: path.join(home, 'AppData', 'Local'),
       APPDATA: path.join(home, 'AppData', 'Roaming'),
       CODEX_HOME: path.join(home, '.codex'),
@@ -57,6 +59,7 @@ describe('skills installed for this machine', () => {
     return dir;
   };
   const cli = (cwd: string, ...args: string[]) => runCLI(args, { cwd, env, timeoutMs: 60000 });
+  const globalLock = () => path.join(home, '.local', 'state', 'skills', '.skill-lock.json');
   const globalSkill = (name: string) => path.join(home, '.agents', 'skills', name, 'SKILL.md');
   const globalSkills = async (): Promise<string[]> => {
     try {
@@ -141,7 +144,7 @@ describe('skills installed for this machine', () => {
       readFileSync(globalSkill('openspec-propose'), 'utf8')
     );
     // The `skills` package tracks them in its own lock file.
-    const lock = JSON.parse(readFileSync(path.join(home, '.agents', '.skill-lock.json'), 'utf8'));
+    const lock = JSON.parse(readFileSync(globalLock(), 'utf8'));
     expect(Object.keys(lock.skills).sort()).toEqual(CORE_SKILLS);
   });
 
@@ -185,7 +188,7 @@ describe('skills installed for this machine', () => {
 
     expect(result.exitCode).toBe(0);
     expect(await globalSkills()).toEqual(CORE_SKILLS);
-    const lock = JSON.parse(readFileSync(path.join(home, '.agents', '.skill-lock.json'), 'utf8'));
+    const lock = JSON.parse(readFileSync(globalLock(), 'utf8'));
     expect(lock.skills['openspec-propose'].source).toBe('Fission-AI/OpenSpec');
     expect(lock.skills['openspec-propose'].sourceType).toBe('github');
 
@@ -461,7 +464,7 @@ describe('skills installed for this machine', () => {
     it('says the global skills are up to date and fetches nothing when they are', async () => {
       const dir = await project('app');
       await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
-      const lock = path.join(home, '.agents', '.skill-lock.json');
+      const lock = globalLock();
       const before = readFileSync(lock, 'utf8');
 
       const result = await cli(dir, 'update');
@@ -472,6 +475,53 @@ describe('skills installed for this machine', () => {
       // An install would stamp a new time into the lock file.
       expect(readFileSync(lock, 'utf8')).toBe(before);
       expect(JSON.parse(dryRun.stdout).notes).toEqual([]);
+    });
+
+    it('puts back a link that was deleted, even though the text is current', async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+      const link = path.join(home, '.claude', 'skills', 'openspec-explore');
+      await fs.rm(link, { recursive: true, force: true });
+
+      const result = await cli(dir, 'update');
+
+      expect(result.exitCode).toBe(0);
+      expect(existsSync(path.join(link, 'SKILL.md'))).toBe(true);
+    });
+
+    it("leaves a tool's own skill alone when that tool is added later", async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'global', '--tools', 'codex');
+      const mine = path.join(home, '.claude', 'skills', 'openspec-propose');
+      await fs.mkdir(mine, { recursive: true });
+      await fs.writeFile(path.join(mine, 'SKILL.md'), '---\nname: openspec-propose\ndescription: mine\n---\nmine\n');
+
+      const result = await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain("Left openspec-propose in your home folder alone");
+      expect(readFileSync(path.join(mine, 'SKILL.md'), 'utf8')).toContain('mine');
+      // Claude Code still gets the skills it has no copy of.
+      expect(existsSync(path.join(home, '.claude', 'skills', 'openspec-explore', 'SKILL.md'))).toBe(true);
+    });
+
+    it('reports a global install that would fail in a dry run, without failing the plan', async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+      const configFile = path.join(home, '.config', 'openspec', 'config.json');
+      const saved = JSON.parse(readFileSync(configFile, 'utf8'));
+      await fs.writeFile(configFile, JSON.stringify({ ...saved, profile: 'custom', workflows: ['verify'] }));
+      const theirs = globalSkill('openspec-verify-change');
+      await fs.mkdir(path.dirname(theirs), { recursive: true });
+      await fs.writeFile(theirs, '---\nname: openspec-verify-change\ndescription: mine\n---\nmine\n');
+
+      const result = await cli(dir, 'update', '--dry-run', '--json');
+
+      expect(result.exitCode).toBe(0);
+      const plan = JSON.parse(result.stdout);
+      expect(plan.failures).toEqual([
+        expect.objectContaining({ tool: 'global-skills', error: expect.stringContaining('openspec-verify-change') }),
+      ]);
     });
 
     it("never replaces a real folder the user put where a tool's link was", async () => {
@@ -566,15 +616,59 @@ describe('skills installed for this machine', () => {
       expect(await globalSkills()).toEqual([]);
     });
 
-    it('keeps the project skills when nothing ends up installed for the machine', async () => {
+    it("carries the project's tools over even when the run names none", async () => {
       const dir = await project('app');
       await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
 
       const result = await cli(dir, 'init', '--scope', 'global', '--tools', 'none');
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('No skills are installed for this machine, so the project keeps its own.');
+      expect(await entries(dir)).toEqual(['openspec']);
+      expect(existsSync(path.join(home, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    });
+
+    it("links the moved project's tools, even when the machine was set up for another tool", async () => {
+      await cli(await project('first'), 'init', '--scope', 'global', '--tools', 'codex');
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
+
+      const result = await cli(dir, 'init', '--scope', 'global');
+
+      expect(result.exitCode).toBe(0);
+      expect(await entries(dir)).toEqual(['openspec']);
+      expect(existsSync(path.join(home, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    });
+
+    it('keeps the project skills when one of them has no replacement on the machine', async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
+      const theirs = globalSkill('openspec-propose');
+      await fs.mkdir(path.dirname(theirs), { recursive: true });
+      await fs.writeFile(theirs, '---\nname: openspec-propose\ndescription: mine\n---\nmine\n');
+
+      const result = await cli(dir, 'init', '--scope', 'global');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('Not every skill could be installed for this machine, so the project keeps its own.');
       expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+      expect(readFileSync(theirs, 'utf8')).toContain('mine');
+    });
+
+    it('refuses to move a project that has the Copilot cloud files, unless they are turned off', async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'github-copilot', '--copilot-cloud');
+
+      const refused = await cli(dir, 'init', '--scope', 'global');
+      expect(refused.exitCode).toBe(1);
+      expect(refused.stderr).toContain('This project has the GitHub Copilot cloud files set up');
+      expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+      expect(await globalSkills()).toEqual([]);
+
+      const moved = await cli(dir, 'init', '--scope', 'global', '--no-copilot-cloud');
+      expect(moved.exitCode).toBe(0);
+      expect(existsSync(path.join(dir, '.agents'))).toBe(false);
+      expect(existsSync(path.join(dir, '.github', 'workflows', 'copilot-setup-steps.yml'))).toBe(false);
+      expect(await globalSkills()).toEqual(CORE_SKILLS);
     });
 
     it('removes the command files 1.x wrote as well', async () => {

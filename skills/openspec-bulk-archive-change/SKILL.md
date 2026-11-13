@@ -361,6 +361,7 @@ No active changes found. Create a new change to get started.
 - If archive target exists, fail that change but continue with others
 - Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
 - If sync is requested, run the `openspec-sync-specs` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (agent-driven either way) for each change with included delta specs
+- When you merge inline because the sync skill is not installed, keep its safeguards. Delete a spec whose last requirement the delta removes only if the change's `.openspec.yaml` declares `retire_capabilities: true`, the spec has no other authored sections, and its path resolves inside the real specs root; otherwise stop before writing. After the merge, run `openspec validate --specs` with the same selected-root flags, and treat a failure as a failed sync: stop and leave `changeRoot` where it is
 - Carry the per-delta `includedDeltas` and `excludedDeltas` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as `sync skipped` without treating the archive itself as skipped
 - Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` before moving `changeRoot`

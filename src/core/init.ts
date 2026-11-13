@@ -539,25 +539,45 @@ export class InitCommand {
             'so it keeps its own skills. Nothing was changed.'
         );
       }
+      // The GitHub-hosted Copilot agent only sees skills kept in the project.
+      const cloudIsOn =
+        this.copilotCloudOption !== false &&
+        (readCopilotCloudOptIn(projectPath) ?? (await hasExistingManagedCloudFiles(projectPath)));
+      if (cloudIsOn) {
+        throw new Error(
+          'This project has the GitHub Copilot cloud files set up, and that agent only sees skills kept in the project, ' +
+            'so it keeps its own skills. Nothing was changed. To move it anyway and turn the cloud files off, add --no-copilot-cloud.'
+        );
+      }
       await this.removeProjectSkills(projectPath, { checkOnly: true });
+      if (this.copilotCloudOption === false) {
+        await persistCopilotCloudOptIn(projectPath, false).catch(() => {});
+        await removeCopilotCloudFiles(projectPath).catch(() => {});
+      }
     }
+    // A project that moves brings its tools along, so each keeps its skills.
+    const movedTools = movesProject
+      ? getConfiguredTools(projectPath).filter((id) => supportsGlobalSkills(id))
+      : [];
     if (!context.integrationsOnly) {
       await this.createDirectoryStructure(openspecPath, context.extendMode);
     }
 
     let globalSkills: { count: number } | undefined;
     let leftAlone: string | undefined;
+    let everySkillInstalled = true;
     const failedTools: Array<{ name: string; error: Error }> = [];
-    if (installed.skills.length > 0 || supported.length > 0) {
+    if (installed.skills.length > 0 || supported.length > 0 || movedTools.length > 0) {
       const spinner = this.startSpinner('Checking the skills for this machine...');
       let unchanged = false;
       try {
         const result = await installGlobalSkills({
-          toolIds: supported.map((tool) => tool.value),
+          toolIds: [...new Set([...supported.map((tool) => tool.value), ...movedTools])],
           workflows: this.getActiveWorkflows(),
           version: OPENSPEC_VERSION,
         });
         unchanged = result.unchanged;
+        everySkillInstalled = result.leftAlone.length === 0;
         if (result.failures.length === 0) globalSkills = { count: result.skills.length };
         else failedTools.push({ name: 'the global skills', error: new Error(result.failures.join('; ')) });
         leftAlone = describeLeftAlone(result.leftAlone);
@@ -580,10 +600,16 @@ export class InitCommand {
         }
       }
       // The project gives up its copies only once the global ones are really there.
-      if (movesProject && globalSkills && globalSkills.count > 0) {
+      if (movesProject && globalSkills && globalSkills.count > 0 && everySkillInstalled) {
         await this.removeProjectSkills(projectPath);
       } else if (movesProject) {
-        console.log(chalk.yellow('No skills are installed for this machine, so the project keeps its own.'));
+        console.log(
+          chalk.yellow(
+            globalSkills && globalSkills.count > 0
+              ? 'Not every skill could be installed for this machine, so the project keeps its own.'
+              : 'No skills are installed for this machine, so the project keeps its own.'
+          )
+        );
       }
     }
 

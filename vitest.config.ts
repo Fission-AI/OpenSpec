@@ -47,6 +47,7 @@ export default defineConfig({
       USERPROFILE: testHome,
       XDG_CONFIG_HOME: path.join(testHome, '.config'),
       XDG_DATA_HOME: path.join(testHome, '.local', 'share'),
+      XDG_STATE_HOME: path.join(testHome, '.local', 'state'),
       CODEX_HOME: path.join(testHome, '.codex'),
       // Project and global skill installs read the checkout's own skills/
       // folder, so no test fetches them from the network.

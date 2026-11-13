@@ -36,6 +36,8 @@ describe("a project's skills, installed through the skills package", () => {
       USERPROFILE: home,
       XDG_CONFIG_HOME: path.join(home, '.config'),
       XDG_DATA_HOME: path.join(home, '.local', 'share'),
+      // The `skills` package keeps its global lock file here when this is set.
+      XDG_STATE_HOME: path.join(home, '.local', 'state'),
       LOCALAPPDATA: path.join(home, 'AppData', 'Local'),
       APPDATA: path.join(home, 'AppData', 'Roaming'),
       CODEX_HOME: path.join(home, '.codex'),
@@ -254,6 +256,34 @@ describe("a project's skills, installed through the skills package", () => {
     expect(result.stdout).toContain('skills-lock.json still lists them because it could not be rewritten');
     expect(existsSync(skillFile('openspec-explore'))).toBe(false);
     expect(existsSync(path.join(dir, '.claude', 'skills', 'openspec-explore'))).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32')('never writes through a lock file that links outside the project', async () => {
+    const outside = path.join(box, 'elsewhere-lock.json');
+    const theirs = JSON.stringify({ version: 2, skills: { 'someone-elses': { source: 'x/y', computedHash: 'abc' } } }, null, 2);
+    await fs.writeFile(outside, theirs);
+    await fs.symlink(outside, lockPath());
+
+    const result = await init();
+
+    expect(result.stdout).toContain('skills-lock.json links outside the project');
+    expect(readFileSync(outside, 'utf8')).toBe(theirs);
+    expect(readFileSync(skillFile('openspec-propose'), 'utf8')).toBe(published('openspec-propose'));
+
+    await setWorkflows(['propose', 'apply']);
+    const update = await cli('update');
+    expect(update.exitCode, update.stderr).toBe(0);
+    expect(readFileSync(outside, 'utf8')).toBe(theirs);
+    expect(existsSync(skillFile('openspec-explore'))).toBe(false);
+  });
+
+  it('states the sync safeguards for an agent that has to merge specs itself', () => {
+    for (const name of ['openspec-archive-change', 'openspec-bulk-archive-change']) {
+      const text = published(name);
+      expect(text).toContain('When you merge inline because the sync skill is not installed, keep its safeguards.');
+      expect(text).toContain('retire_capabilities: true');
+      expect(text).toContain('openspec validate --specs');
+    }
   });
 
   it('leaves only openspec/ when the project moves to the global skills', async () => {

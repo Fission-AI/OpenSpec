@@ -21,6 +21,7 @@ import { classifySkillFile, classifySkillLinkSpot, isOsJunk } from './skill-link
 import {
   describeSkillsError,
   dropFromProjectLock,
+  rehashProjectLock,
   GitMissingError,
   installProjectSkills,
   lockedProjectSkills,
@@ -190,7 +191,15 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
 
   // 1. The one shared copy, and the list of tools set up here.
   const lockPath = projectLockPath(projectPath);
-  const lockBefore = readOr(lockPath);
+  // A lock file that is a link out of the project is never written through:
+  // the package would follow it. The skills are then written from the CLI.
+  let lockInProject = true;
+  try {
+    FileSystemUtils.assertPathWithin(projectPath, lockPath);
+  } catch {
+    lockInProject = false;
+  }
+  const lockBefore = lockInProject ? readOr(lockPath) : undefined;
   const locked = lockedProjectSkills(lockBefore);
   // Skills for the `skills` package to install: the ones not yet this
   // version's text, or not in its lock file.
@@ -234,7 +243,9 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     });
   };
   // Never in a dry run: it plans the same text, written below.
-  if (toFetch.length > 0 && input.writesToDisk) {
+  if (toFetch.length > 0 && input.writesToDisk && !lockInProject) {
+    result.unfetched = 'skills-lock.json links outside the project';
+  } else if (toFetch.length > 0 && input.writesToDisk) {
     try {
       const failures = await installProjectSkills({
         projectPath,
@@ -250,9 +261,22 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   }
   // What the package did not leave as this version's text (nothing fetched, or
   // a release whose tag isn't published yet) is written from the CLI.
+  const corrected = new Map<string, string>();
   for (const dirName of toFetch) {
     const skillFile = path.join(sharedDir, dirName, 'SKILL.md');
-    if (readOr(skillFile) !== contents.get(dirName)) await ops.writeFile(skillFile, contents.get(dirName)!, 'openspec');
+    if (readOr(skillFile) !== contents.get(dirName)) {
+      await ops.writeFile(skillFile, contents.get(dirName)!, 'openspec');
+      corrected.set(dirName, contents.get(dirName)!);
+    }
+  }
+  // The lock file must describe the text that is there, or the package reads
+  // the skill as edited. Only entries it already recorded are touched.
+  if (input.writesToDisk && lockInProject && corrected.size > 0) {
+    try {
+      rehashProjectLock(projectPath, corrected);
+    } catch {
+      // The skills are right either way; only the record is behind.
+    }
   }
   const unlocked: string[] = [];
   for (const skillName of OPENSPEC_SKILL_NAMES) {
@@ -294,7 +318,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     }
     // Through the package first when it has the skill on record, so its lock
     // file stays right; what it leaves goes below.
-    if (input.writesToDisk && locked.has(skillName)) {
+    if (input.writesToDisk && lockInProject && locked.has(skillName)) {
       await removeLockedProjectSkills(projectPath, [skillName]).catch(() => {});
     }
     await ops.removeDirectory(skillDir, 'openspec');
@@ -303,7 +327,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   // The lock file records no skill OpenSpec removed, and is gone once it
   // records none at all. A dry run plans it as the real run leaves it.
   if (input.writesToDisk) {
-    if (unlocked.length > 0) {
+    if (unlocked.length > 0 && lockInProject) {
       try {
         dropFromProjectLock(projectPath, unlocked);
       } catch (error) {
