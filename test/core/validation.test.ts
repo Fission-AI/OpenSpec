@@ -562,6 +562,114 @@ ${requirementPrefix}${'x'.repeat(length - requirementPrefix.length)}
         expect.stringContaining(VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG)
       );
     });
+
+    describe('MODIFIED requirement length against main spec (#2216)', () => {
+      const writeMainSpec = async (dir: string, length: number, reqName = 'Long') => {
+        const specsDir = path.join(dir, 'test-spec');
+        await fs.mkdir(specsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(specsDir, 'spec.md'),
+          `# test-spec Specification
+
+## Purpose
+Define requirement length boundary behavior for validation tests.
+
+## Requirements
+
+### Requirement: ${reqName}
+${requirementPrefix}${'x'.repeat(length - requirementPrefix.length)}
+
+#### Scenario: Long is checked
+- **WHEN** the change is validated
+- **THEN** the length finding is reported
+`
+        );
+      };
+
+      it('fails strict, but not normal, validation when MODIFIED grows past the limit', async () => {
+        const mainSpecsDir = path.join(testDir, 'main-grows', 'specs');
+        await writeMainSpec(mainSpecsDir, MAX_REQUIREMENT_TEXT_LENGTH);
+        const changeDir = await writeDelta('modified-grows', 'MODIFIED', MAX_REQUIREMENT_TEXT_LENGTH + 1);
+
+        const normal = await new Validator(false).validateChangeDeltaSpecs(changeDir, { mainSpecsDir });
+        const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir, { mainSpecsDir });
+
+        expect(normal.valid).toBe(true);
+        expect(strict.valid).toBe(false);
+        expect(strict.issues).toEqual([
+          expect.objectContaining({
+            level: 'WARNING',
+            message: `MODIFIED "Long": ${VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG}`,
+          }),
+        ]);
+      });
+
+      it('keeps an already-overlong MODIFIED requirement valid when kept unchanged or shortened', async () => {
+        for (const [label, nextLength] of [
+          ['unchanged', MAX_REQUIREMENT_TEXT_LENGTH + 100],
+          ['shortened', MAX_REQUIREMENT_TEXT_LENGTH + 50],
+        ] as const) {
+          const mainSpecsDir = path.join(testDir, `main-${label}`, 'specs');
+          await writeMainSpec(mainSpecsDir, MAX_REQUIREMENT_TEXT_LENGTH + 100);
+          const changeDir = await writeDelta(`modified-${label}`, 'MODIFIED', nextLength);
+
+          const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir, { mainSpecsDir });
+
+          expect(strict.valid).toBe(true);
+          expect(strict.issues).toEqual([]);
+        }
+      });
+
+      it('warns when an already-overlong MODIFIED requirement is expanded further', async () => {
+        const mainSpecsDir = path.join(testDir, 'main-expands', 'specs');
+        await writeMainSpec(mainSpecsDir, MAX_REQUIREMENT_TEXT_LENGTH + 50);
+        const changeDir = await writeDelta('modified-expands', 'MODIFIED', MAX_REQUIREMENT_TEXT_LENGTH + 60);
+
+        const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir, { mainSpecsDir });
+
+        expect(strict.valid).toBe(false);
+        expect(strict.issues).toEqual([
+          expect.objectContaining({
+            level: 'WARNING',
+            message: `MODIFIED "Long": ${VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG}`,
+          }),
+        ]);
+      });
+
+      it('follows a RENAMED requirement to check MODIFIED length growth against the baseline', async () => {
+        const mainSpecsDir = path.join(testDir, 'main-renamed', 'specs');
+        await writeMainSpec(mainSpecsDir, MAX_REQUIREMENT_TEXT_LENGTH - 20, 'Before');
+        const changeDir = path.join(testDir, 'modified-renamed');
+        const specsDir = path.join(changeDir, 'specs', 'test-spec');
+        await fs.mkdir(specsDir, { recursive: true });
+        await fs.writeFile(
+          path.join(specsDir, 'spec.md'),
+          `## RENAMED Requirements
+
+- FROM: \`### Requirement: Before\`
+- TO: \`### Requirement: After\`
+
+## MODIFIED Requirements
+
+### Requirement: After
+${requirementPrefix}${'x'.repeat(MAX_REQUIREMENT_TEXT_LENGTH + 1 - requirementPrefix.length)}
+
+#### Scenario: Long is checked
+- **WHEN** the change is validated
+- **THEN** the length finding is reported`
+        );
+
+        const strict = await new Validator(true).validateChangeDeltaSpecs(changeDir, { mainSpecsDir });
+
+        expect(strict.valid).toBe(false);
+        expect(strict.issues).toEqual([
+          expect.objectContaining({
+            level: 'WARNING',
+            message: `MODIFIED "After": ${VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG}`,
+          }),
+        ]);
+      });
+    });
   });
 
   describe('validateChangeDeltaSpecs with metadata', () => {
