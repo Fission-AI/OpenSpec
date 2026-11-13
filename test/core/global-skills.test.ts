@@ -42,6 +42,22 @@ describe('the skills package', () => {
   });
 });
 
+describe("the repository's own maintainer skills", () => {
+  // `npx skills add Fission-AI/OpenSpec` scans the whole repository. The skills
+  // in .agents/skills are for working on OpenSpec, so each is marked internal,
+  // which is how the skills package knows to leave it out.
+  it('are hidden from anyone installing the published skills', async () => {
+    const root = path.join(cliProjectRoot, '.agents', 'skills');
+    const names = (await fs.readdir(root, { withFileTypes: true })).filter((entry) => entry.isDirectory());
+    expect(names.length).toBeGreaterThan(0);
+    for (const { name } of names) {
+      const text = (await fs.readFile(path.join(root, name, 'SKILL.md'), 'utf8')).replace(/\r\n/g, '\n');
+      const header = text.slice(0, text.indexOf('\n---\n', 4));
+      expect(header, name).toMatch(/\nmetadata:\n {2}internal: true(\n|$)/);
+    }
+  });
+});
+
 describe('skills installed for this machine', () => {
   let box: string;
   let home: string;
