@@ -19,11 +19,11 @@ The `.actrc` file configures act to use the appropriate Docker image.
 
 ## Signing the Windows executables
 
-`binaries.yml` signs `openspec.exe` for each release through [SignPath Foundation](https://signpath.org), which signs open source projects for free. It is off until the repository has the four settings below; until then releases ship unsigned, as before.
+`binaries.yml` signs `openspec.exe` for each release through [SignPath Foundation](https://signpath.org), which signs open-source projects for free. Signing is off until the `SIGNPATH_ORGANIZATION_ID` variable is set; until then releases ship unsigned, as before.
 
 One-time setup:
 
-1. Apply at [signpath.org/apply](https://signpath.org/apply). Once approved, publish the code signing policy their terms require: a "Code signing policy" section on the README and the install page that credits SignPath and names who approves releases.
+1. Apply at [signpath.org/apply](https://signpath.org/apply). Once approved, publish the code signing policy their [terms](https://signpath.org/terms) require: a "Code signing policy" section on the README and the install page that credits SignPath, names the authors, reviewers and approvers, and states the privacy policy.
 2. In SignPath, link the project to the GitHub.com trusted build system and install the SignPath GitHub App on this repository.
 3. Give the project this artifact configuration. It signs both files in the uploaded zip, and only if they name themselves OpenSpec at the version the workflow sends:
 
@@ -43,13 +43,13 @@ One-time setup:
    </artifact-configuration>
    ```
 
-4. Add these under Settings → Secrets and variables → Actions:
+4. Add these under Settings → Secrets and variables → Actions, the organization ID last. It alone switches signing on, and a release that finds it without the other three fails instead of shipping unsigned:
 
    | Kind | Name | Value |
    |---|---|---|
    | Secret | `SIGNPATH_API_TOKEN` | API token of a SignPath user allowed to submit signing requests |
-   | Variable | `SIGNPATH_ORGANIZATION_ID` | The SignPath organization ID; setting it switches signing on |
    | Variable | `SIGNPATH_PROJECT_SLUG` | The project's slug in SignPath |
    | Variable | `SIGNPATH_SIGNING_POLICY_SLUG` | The release signing policy's slug, usually `release-signing` |
+   | Variable | `SIGNPATH_ORGANIZATION_ID` | The SignPath organization ID; setting it switches signing on |
 
 Each release: publishing it starts the Binaries workflow, which sends a signing request and waits up to an hour. An approver approves it in SignPath, and the workflow then tests the signed files and attaches them. If nobody approves in time the run fails and nothing is attached; run the workflow again with the release's tag.
