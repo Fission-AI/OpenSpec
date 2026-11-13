@@ -128,10 +128,13 @@ A global install made for a single tool leaves real copies in that tool's own fo
 | A link | OpenSpec's |
 | A copy with the current text | OpenSpec's, and up to date |
 | A copy with an earlier release's text | OpenSpec's, and replaced on update |
-| The folder the lock file records for the skill, edited, in a tool that is set up | OpenSpec's: replaced, and the edit named |
+| The folder the lock file records for the skill, edited, in a tool that holds only copies | OpenSpec's: replaced, and the edit named |
+| A folder with files beside the skill that OpenSpec didn't publish | The user's: left alone and named |
 | Any other folder: the user's text, or no skill in it | The user's: left alone and named |
 
 A copy counts only for a tool the global install covers and that the package gives a folder of its own. That leaves out MiniMax Code, whose copies belong to its project install, and the tools that read the shared folder. Which tools get their own folder is the package's call: its "universal" flag describes the project folder, and Antigravity is universal there but not globally. A test installs for every covered tool and fails if OpenSpec and the package disagree.
+
+The package replaces a skill folder whole, so the rule about files beside a skill holds in the shared folder too, on install and when the profile drops the skill. A published skill is one file today, and a test fails when that changes.
 
 ### D12. A removal never takes the user's own folder
 

@@ -20,4 +20,6 @@ Skills are now installed by Vercel's `skills` package, the one behind `npx skill
 
 `openspec update` replaces the skills OpenSpec installed, for a project and for the machine, and names any you had edited. Keep changes of your own in a skill under another name.
 
+If you already installed the skills with `npx skills add Fission-AI/OpenSpec`, in a project or with `--global`, `openspec update` takes them over. A folder that holds text or files of your own is left alone and named.
+
 Every skill now reads the same whatever workflow profile you use. Where a skill hands off to another one, it says to use that skill if it is installed and what to do otherwise.
