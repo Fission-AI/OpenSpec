@@ -2243,6 +2243,29 @@ describe('InitCommand - profile and detection features', () => {
     expect(await fileExists(path.join(testDir, '.agents'))).toBe(false);
   });
 
+  it('still says which edits were replaced when the global install then fails', async () => {
+    installGlobalSkillsMock.mockResolvedValue({
+      skills: ['openspec-propose'],
+      agents: [],
+      removedSkills: [],
+      leftAlone: [],
+      replacedEdits: ['openspec-propose'],
+      unchanged: false,
+      failures: ['could not link openspec-explore'],
+    });
+    const logged: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logged.push(args.join(' '));
+    });
+
+    await expect(new InitCommand({ tools: 'claude', scope: 'global' }).execute(testDir)).rejects.toThrow(
+      'OpenSpec setup failed for the global skills'
+    );
+    expect(logged.join('\n')).toContain(
+      'Replaced your edits in 1 skill OpenSpec installs for this machine: openspec-propose.'
+    );
+  });
+
   it('never asks a scripted init, or a project that already has its own skills', async () => {
     await new InitCommand({ tools: 'claude' }).execute(testDir);
     expect(selectMock).not.toHaveBeenCalled();

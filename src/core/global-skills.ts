@@ -497,18 +497,31 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
       // With the shared folder, so the tool gets links to the one copy and not a copy of its own.
       installs.push([[UNIVERSAL_AGENT, agent], wanted.filter((name) => !heldBy.get(agent)!.includes(name))]);
     }
-    for (const [forAgents, skills] of installs) {
+    for (const [index, [forAgents, skills]] of installs.entries()) {
       if (skills.length === 0) continue;
-      const installed = await installPublishedSkills(input.version, { scope: 'global', agents: forAgents, skills });
-      failures.push(...installed.failed.map((failure) => failure.message));
+      try {
+        const installed = await installPublishedSkills(input.version, { scope: 'global', agents: forAgents, skills });
+        failures.push(...installed.failed.map((failure) => failure.message));
+      } catch (error) {
+        // Nothing is written before the first install, so that failure is the
+        // caller's to report. A later one comes after skills were replaced:
+        // it is listed, and what was replaced is still reported below.
+        if (index === 0) throw error;
+        failures.push(describeSkillsError(error));
+        break;
+      }
     }
   }
-  if (removedSkills.length > 0) {
+  if (removedSkills.length > 0 && failures.length === 0) {
     const removed = await removeSkills(removedSkills, options);
     failures.push(...removed.failed.map((failure) => failure.message));
   }
 
-  return { ...result, unchanged: false, failures: [...new Set(failures)] };
+  // Only the edits that are really gone: an install that failed partway may have left some.
+  const replaced = replacedEdits.filter(
+    (name) => classifySkillFile(before.paths.get(name)!, sharedSkillTexts(name)) !== 'user'
+  );
+  return { ...result, replacedEdits: replaced, unchanged: false, failures: [...new Set(failures)] };
 }
 
 /** The text this CLI publishes for a skill: what a current install holds. */

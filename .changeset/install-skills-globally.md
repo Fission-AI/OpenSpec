@@ -12,7 +12,7 @@ Existing projects are not affected: a project that already has its own skills ke
 
 **What's new**
 
-Install the skills once for every project on your machine. `openspec init --scope global --tools claude,codex` puts one copy in `~/.agents/skills/` and leaves the project with only its `openspec/` folder. After that, plain `openspec init` uses the global skills for new projects, and plain `openspec update` refreshes them from any folder. To move a project that has its own skills, run `openspec init --scope global` there.
+Install the skills once for every project on your machine. `openspec init --scope global --tools claude,codex` puts one copy in `~/.agents/skills/` and leaves the project with only its `openspec/` folder. After that, plain `openspec init` uses the global skills for new projects, unless you saved `skillsScope` as `project` or set `OPENSPEC_SKILLS_SCOPE=project`, and plain `openspec update` refreshes them from any folder. To move a project that has its own skills, run `openspec init --scope global` there.
 
 At a terminal, your first `openspec init` asks where the skills should go and remembers the answer.
 

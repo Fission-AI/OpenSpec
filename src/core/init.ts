@@ -589,7 +589,8 @@ export class InitCommand {
         if (result.failures.length === 0) globalSkills = { count: result.skills.length };
         else failedTools.push({ name: 'the global skills', error: new Error(result.failures.join('; ')) });
         leftAlone = describeLeftAlone(result.leftAlone);
-        if (!result.unchanged && result.failures.length === 0) replacedEdits = describeReplacedEdits(result.replacedEdits);
+        // Said even when the install then failed: those edits are gone either way.
+        if (!result.unchanged) replacedEdits = describeReplacedEdits(result.replacedEdits);
       } catch (error) {
         const hint =
           error instanceof GitMissingError ? ' Or keep the skills in the project: openspec init --scope project' : '';

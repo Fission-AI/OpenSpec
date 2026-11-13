@@ -316,7 +316,8 @@ export class UpdateCommand {
       // The same warning a project update gives, before a dry run and after a real one.
       const replaced = result.unchanged ? undefined : describeReplacedEdits(result.replacedEdits, !this.dryRun);
       if (replaced && this.dryRun) this.replacedGlobalEdits = replaced;
-      else if (replaced && failures.length === 0) this.log(chalk.yellow(replaced));
+      // Said even when the install then failed: those edits are gone either way.
+      else if (replaced) this.log(chalk.yellow(replaced));
     } catch (error) {
       const hint =
         error instanceof GitMissingError ? ' The project part of this update does not need it.' : '';
