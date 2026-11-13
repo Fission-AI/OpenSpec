@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { promises as fs } from 'fs';
-import { existsSync, lstatSync, readFileSync, readdirSync, readlinkSync } from 'fs';
+import { closeSync, existsSync, fstatSync, openSync, readFileSync, readdirSync, readlinkSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
@@ -71,13 +71,21 @@ describe("a project's skills, installed through the skills package", () => {
   const snapshot = (options: { times?: boolean } = {}): Record<string, string> => {
     const out: Record<string, string> = {};
     const walk = (folder: string) => {
-      for (const name of readdirSync(folder).sort()) {
-        const full = path.join(folder, name);
+      const entries = readdirSync(folder, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name));
+      for (const entry of entries) {
+        const full = path.join(folder, entry.name);
         const rel = path.relative(dir, full).split(path.sep).join('/');
-        const stat = lstatSync(full);
-        if (stat.isSymbolicLink()) out[rel] = `link:${readlinkSync(full)}`;
-        else if (stat.isDirectory()) walk(full);
-        else out[rel] = readFileSync(full, 'utf8') + (options.times ? `@${stat.mtimeMs}` : '');
+        if (entry.isSymbolicLink()) out[rel] = `link:${readlinkSync(full)}`;
+        else if (entry.isDirectory()) walk(full);
+        else {
+          // One handle for the text and its time, so both describe the same file.
+          const handle = openSync(full, 'r');
+          try {
+            out[rel] = readFileSync(handle, 'utf8') + (options.times ? `@${fstatSync(handle).mtimeMs}` : '');
+          } finally {
+            closeSync(handle);
+          }
+        }
       }
     };
     walk(dir);
