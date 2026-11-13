@@ -14,7 +14,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { fingerprintGeneratedContent, extractOpenSpecBlock } = await import(
@@ -175,8 +175,32 @@ for (const version of versions) {
       }
     }
   }
+  // 2.0.0 wrote a skill differently for every combination of
+  // workflows installed beside it, far more texts than the variants above
+  // reach. Such a release can list them all itself.
+  let renderings = 0;
+  try {
+    const dist = path.join(path.dirname(path.dirname(bin)), 'dist');
+    const generation = await import(pathToFileURL(path.join(dist, 'core/shared/skill-generation.js')).href);
+    const references = await import(pathToFileURL(path.join(dist, 'utils/command-references.js')).href);
+    if (typeof generation.everySkillRendering === 'function') {
+      const transforms = [references.transformToSharedSkillReferences, references.transformToSkillReferences].filter(
+        (transform) => typeof transform === 'function'
+      );
+      for (const { dirName } of generation.getSkillTemplates()) {
+        for (const transform of transforms) {
+          for (const text of generation.everySkillRendering(dirName, version, transform)) {
+            fingerprints.add(fingerprintGeneratedContent(text));
+            renderings += 1;
+          }
+        }
+      }
+    }
+  } catch {
+    // An older release without these exports: the variants above cover it.
+  }
   covered.push(version);
-  console.log(`${version}: ${variants.length} variant(s), ${files} files`);
+  console.log(`${version}: ${variants.length} variant(s), ${files} files, ${renderings} profile renderings`);
 }
 
 fs.rmSync(workRoot, { recursive: true, force: true });
