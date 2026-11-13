@@ -427,7 +427,11 @@ export class InitCommand {
     const saved = getGlobalConfig().skillsScope;
     if (saved) return saved;
     try {
-      if ((await readGlobalSkills()).skills.length > 0) return 'global';
+      // Nobody chose this, so it still gives way to the project when the
+      // global skills can't serve the run.
+      if ((await readGlobalSkills()).skills.length > 0) {
+        return canPrompt || this.globalByDefaultFits(detectedTools) ? 'global' : 'project';
+      }
     } catch {
       // No readable global install: fall through to asking, or to the default.
     }
@@ -551,8 +555,10 @@ export class InitCommand {
       }
       await this.removeProjectSkills(projectPath, { checkOnly: true });
       if (this.copilotCloudOption === false) {
-        await persistCopilotCloudOptIn(projectPath, false).catch(() => {});
-        await removeCopilotCloudFiles(projectPath).catch(() => {});
+        // A failure here stops the move before anything else changes: the
+        // cloud agent must not keep its files and lose its skills.
+        await removeCopilotCloudFiles(projectPath);
+        await persistCopilotCloudOptIn(projectPath, false);
       }
     }
     // A project that moves brings its tools along, so each keeps its skills.
@@ -591,8 +597,10 @@ export class InitCommand {
       if (leftAlone) console.log(chalk.yellow(leftAlone));
     }
     if (failedTools.length === 0) {
-      // The choice sticks even if the profile later empties the install. A saved choice is never replaced.
-      if (globalSkills && getGlobalConfig().skillsScope === undefined) {
+      // An explicit choice sticks even if the profile later empties the install.
+      // A default nobody chose is not saved, so it can still give way to a
+      // project install later. A saved choice is never replaced.
+      if (globalSkills && this.scopeOption === 'global' && getGlobalConfig().skillsScope === undefined) {
         try {
           await markConfigFlag('skillsScope', 'global');
         } catch {

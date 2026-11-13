@@ -247,7 +247,7 @@ export class UpdateCommand {
       }
     }
     try {
-      const refreshed = await this.refreshGlobalSkills();
+      const refreshed = await this.refreshGlobalSkills(resolvedProjectPath);
       if (this.dryRun) {
         if (refreshed) {
           const recorder = this.recorder ?? (this.recorder = new UpdatePlanRecorder(resolvedProjectPath));
@@ -275,7 +275,7 @@ export class UpdateCommand {
    * current profile. Returns whether anything changed, or in a dry run whether
    * anything would.
    */
-  private async refreshGlobalSkills(): Promise<boolean> {
+  private async refreshGlobalSkills(planRoot: string): Promise<boolean> {
     const { GitMissingError, describeLeftAlone, describeSkillsError, installGlobalSkills } = await import('./global-skills.js');
     // The profile the project part of this run settled on, which a dry run
     // has not saved; outside a project, the saved one.
@@ -317,7 +317,8 @@ export class UpdateCommand {
       const message = `Could not update the skills for this machine: ${failures.join('; ')}`;
       // A plan reports what would fail; it does not fail itself.
       if (!this.dryRun) throw new Error(message);
-      this.recorder?.addFailure('global-skills', message);
+      // Outside a project nothing has made the plan yet.
+      (this.recorder ??= new UpdatePlanRecorder(planRoot)).addFailure('global-skills', message);
     }
     return changed;
   }
