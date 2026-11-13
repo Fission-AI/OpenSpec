@@ -520,6 +520,29 @@ describe('skills installed for this machine', () => {
       expect(again.stdout).not.toContain('Replaced your edits');
     });
 
+    it('does not call a skill that an earlier `npx skills add` installed an edit', async () => {
+      // What `npx skills add Fission-AI/OpenSpec -g` put there under 1.17.0 and 2.0.0.
+      const published = path.join(cliProjectRoot, 'test', 'fixtures', 'released-output', 'published-skills');
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+      const current = readFileSync(globalSkill('openspec-explore'), 'utf8');
+
+      for (const release of ['v1.17.0', 'v2.0.0']) {
+        const old = readFileSync(path.join(published, `${release}-openspec-explore.md`), 'utf8');
+        expect(old).not.toBe(current);
+        await fs.writeFile(globalSkill('openspec-explore'), old);
+
+        const plan = await cli(dir, 'update', '--dry-run', '--json');
+        expect(JSON.parse(plan.stdout).notes.map((note: { code: string }) => note.code)).toEqual(['global-skills']);
+
+        const result = await cli(dir, 'update');
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Updated the 6 skills for this machine');
+        expect(result.stdout).not.toContain('Replaced your edits');
+        expect(readFileSync(globalSkill('openspec-explore'), 'utf8')).toBe(current);
+      }
+    });
+
     it('says the global skills are up to date and fetches nothing when they are', async () => {
       const dir = await project('app');
       await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');

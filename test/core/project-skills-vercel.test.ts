@@ -149,6 +149,29 @@ describe("a project's skills, installed through the skills package", () => {
     expect(again.stdout).toContain('up to date');
   });
 
+  it('takes over skills an earlier `npx skills add` installed, without calling them edits', async () => {
+    // What `npx skills add Fission-AI/OpenSpec` put there under 2.0.0: real
+    // folders in the shared folder, and in a tool's own.
+    const old = readFileSync(
+      path.join(cliProjectRoot, 'test', 'fixtures', 'released-output', 'published-skills', 'v2.0.0-openspec-explore.md'),
+      'utf8'
+    );
+    await init();
+    await fs.writeFile(skillFile('openspec-explore'), old);
+    const own = path.join(dir, '.claude', 'skills', 'openspec-explore');
+    await fs.rm(own, { recursive: true, force: true });
+    await fs.mkdir(own, { recursive: true });
+    await fs.writeFile(path.join(own, 'SKILL.md'), old);
+
+    const result = await cli('update');
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stdout).not.toContain('Replaced your edits');
+    expect(result.stdout).not.toContain('with your own changes');
+    expect(readFileSync(skillFile('openspec-explore'), 'utf8')).toBe(published('openspec-explore'));
+    expect(readFileSync(path.join(own, 'SKILL.md'), 'utf8')).toBe(published('openspec-explore'));
+  });
+
   it('replaces an edited skill and says so', async () => {
     await init();
     await fs.appendFile(skillFile('openspec-explore'), '\nMy own note.\n');

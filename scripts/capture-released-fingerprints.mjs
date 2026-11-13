@@ -5,7 +5,9 @@
 // For each version on npm it installs the release into a cache folder, runs
 // `init --tools all` in throwaway projects with a throwaway HOME (once per
 // profile, former default workflow set and delivery the release supports), and fingerprints every file
-// that appeared. It then rewrites src/core/shared/released-generated-fingerprints.ts.
+// that appeared. It also fingerprints every text the repository's `skills/`
+// folder has held, from git history. It then rewrites
+// src/core/shared/released-generated-fingerprints.ts.
 //
 // Usage: pnpm build && node scripts/capture-released-fingerprints.mjs [--cache DIR] [--only 1.0.0,1.16.0]
 // Run it after each release so the new release's output is recognized too.
@@ -205,6 +207,30 @@ for (const version of versions) {
 
 fs.rmSync(workRoot, { recursive: true, force: true });
 
+// The repository also publishes its skills in `skills/`, which is what
+// `npx skills add Fission-AI/OpenSpec` installs, from whatever commit was
+// current that day. Every text that folder has held is OpenSpec's too, so a
+// skill installed that way is never mistaken for one the user edited. Needs
+// the full history: a shallow clone records only what it has.
+let published = 0;
+const publishedBlobs = new Set(
+  execFileSync('git', ['log', '--format=', '--raw', '--no-abbrev', 'HEAD', '--', 'skills/*/SKILL.md'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  })
+    .split('\n')
+    .map((line) => line.split(/\s+/)[3])
+    .filter((blob) => blob && !/^0+$/.test(blob))
+);
+for (const blob of publishedBlobs) {
+  const content = execFileSync('git', ['cat-file', 'blob', blob], { cwd: repoRoot, encoding: 'utf8' });
+  if (content.trim() === '') continue;
+  fingerprints.add(fingerprintGeneratedContent(content));
+  published += 1;
+}
+console.log(`skills/ history: ${published} published skill texts`);
+
 // --only adds to what is already recorded rather than replacing it, so
 // releases outside the subset keep their coverage.
 if (only && fs.existsSync(OUTPUT)) {
@@ -225,7 +251,8 @@ const lines = [
   '//',
   '// Fingerprints of every file `openspec init --tools all` generated in each',
   '// release below, across every profile, former default workflow set and',
-  '// delivery that release supports.',
+  '// delivery that release supports, and of every skill text the repository',
+  '// has published in `skills/`.',
   `// Releases: ${covered.join(', ')}`,
   ...(skipped.length ? [`// Not captured: ${skipped.join(', ')}`] : []),
   'export const RELEASED_GENERATED_FINGERPRINTS: readonly string[] = [',
