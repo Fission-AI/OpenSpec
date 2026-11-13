@@ -110,6 +110,31 @@ function keepsOwnGlobalFolder(agent: { id: string; universal: boolean }): boolea
   return !agent.universal || OWN_GLOBAL_FOLDER.has(agent.id);
 }
 
+/** The files a published skill folder holds. A test fails when the published skills gain another. */
+const PUBLISHED_FILES: ReadonlySet<string> = new Set(['SKILL.md']);
+/** Files the system drops into any folder: not the user's work. */
+const SYSTEM_FILES: ReadonlySet<string> = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini']);
+
+/**
+ * Whether a skill folder holds anything OpenSpec didn't publish. The package
+ * replaces a folder whole, so such a folder is the user's to keep.
+ */
+function holdsOtherFiles(dir: string): boolean {
+  try {
+    return readdirSync(dir).some((entry) => !PUBLISHED_FILES.has(entry) && !SYSTEM_FILES.has(entry));
+  } catch {
+    return false;
+  }
+}
+
+function isLink(entry: string): boolean {
+  try {
+    return lstatSync(entry).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
 /** Where the package keeps the one copy of every global skill. */
 function sharedGlobalDir(): string {
   return path.join(os.homedir(), '.agents', 'skills');
@@ -401,21 +426,35 @@ export async function readGlobalSkills(): Promise<GlobalSkills> {
     const dir = agentDirs.get(agent);
     // A tool whose folder is the shared one needs nothing of its own.
     if (!dir || sameFolder(dir, sharedGlobalDir())) return false;
-    return ours.some((skill) => {
-      const entry = path.join(dir, skill.name);
-      try {
-        if (lstatSync(entry).isSymbolicLink()) return true;
-      } catch {
-        return false;
-      }
-      if (!ownFolder.has(agent) || !covered.has(agent)) return false;
-      const spot = classifySkillFile(entry, sharedSkillTexts(skill.name));
+    const entries = ours.map((skill) => path.join(dir, skill.name));
+    if (!ownFolder.has(agent) || !covered.has(agent)) {
+      // Any other tool counts by its links alone, and not at all once it holds a real folder.
+      const present = entries.filter((entry) => {
+        try {
+          lstatSync(entry);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+      return present.length > 0 && present.every(isLink);
+    }
+    return entries.some((entry, index) => {
+      if (isLink(entry)) return true;
+      const spot = classifySkillFile(entry, sharedSkillTexts(ours[index].name));
       return spot === 'copy' || spot === 'released';
     });
   };
+  // The package names one agent per folder, and which one depends on what
+  // else is on the machine (Antigravity's folder can come back under its
+  // CLI's id). Every covered tool with a folder of its own is looked at directly.
+  const candidates = new Set([
+    ...ours.flatMap((skill) => [...skill.agents]),
+    ...[...covered].filter((agent) => ownFolder.has(agent)),
+  ]);
   return {
     skills: ours.map((skill) => skill.name),
-    agents: [...new Set(ours.flatMap((skill) => [...skill.agents]))].filter(linked),
+    agents: [...candidates].filter(linked),
     foreign: named
       .filter((skill) => !isOurSource(skill.source) && classifySkillFile(skill.path, sharedSkillTexts(skill.name)) === 'user')
       .map((skill) => ({ name: skill.name, path: skill.path, agents: skill.agents })),
@@ -470,12 +509,27 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const inTheWay = before.foreign.filter(
     (skill) => skill.agents.length === 0 || skill.agents.some((agent) => universal.has(agent) || agents.includes(agent))
   );
-  const blocked = inProfile.filter((name) => inTheWay.some((skill) => skill.name === name));
+  // So is a folder of that name in the shared folder holding files OpenSpec
+  // didn't publish, with or without a skill beside them: the package lists
+  // only skills, and replaces a folder whole.
+  const sharedFolderIsUsers = (name: string): boolean => {
+    const entry = path.join(sharedGlobalDir(), name);
+    try {
+      return lstatSync(entry).isDirectory() && holdsOtherFiles(entry);
+    } catch {
+      return false;
+    }
+  };
+  const blocked = inProfile.filter(
+    (name) => inTheWay.some((skill) => skill.name === name) || sharedFolderIsUsers(name)
+  );
   const wanted = inProfile.filter((name) => !blocked.includes(name));
   // The package lists a skill once however many folders hold it, so a tool's
   // own folder is checked directly: a real folder there with someone else's
   // text is the user's, even when the shared copy is OpenSpec's.
   const agentDirs = new Map(supported.map((agent) => [agent.id, agent.globalSkillsDir]));
+  const holdsLinks = (agent: string): boolean =>
+    before.skills.some((name) => isLink(path.join(agentDirs.get(agent) ?? '', name)));
   const entryIn = (agent: string, name: string): 'missing' | 'ours' | 'theirs' => {
     const entry = path.join(agentDirs.get(agent) ?? '', name);
     try {
@@ -483,10 +537,14 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     } catch {
       return 'missing';
     }
-    // In a tool already set up, the folder the package recorded for this
-    // skill is OpenSpec's install, edited or not: `npx skills add --global`
-    // for one tool keeps the skill there and nowhere else.
-    if (before.agents.includes(agent) && sameFolder(entry, before.paths.get(name))) return 'ours';
+    // A folder with the user's files beside the skill is theirs to keep.
+    if (holdsOtherFiles(entry)) return 'theirs';
+    // `npx skills add --global` for one tool keeps each skill in that tool's
+    // folder and nowhere else, so there the folder the package recorded is
+    // OpenSpec's install, edited or not. Only in that shape: a tool that
+    // holds links has its skills in the shared folder, and a real folder
+    // beside them is the user's.
+    if (before.agents.includes(agent) && !holdsLinks(agent) && sameFolder(entry, before.paths.get(name))) return 'ours';
     // Otherwise only OpenSpec's own text is OpenSpec's: a folder with other text, or with no skill in it, is the user's.
     const spot = classifySkillFile(entry, sharedSkillTexts(name));
     return spot === 'copy' || spot === 'released' ? 'ours' : 'theirs';
@@ -569,7 +627,7 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     const withOwn = linkedAgents.filter((agent) => heldBy.get(agent)!.length > 0);
     const installs: Array<[string[], string[]]> = [[agents.filter((agent) => !withOwn.includes(agent)), wanted]];
     for (const agent of withOwn) {
-      // With the shared folder, so the tool gets links to the one copy and not a copy of its own.
+      // With the shared folder, so the tool is linked to the one copy where the package links.
       installs.push([[UNIVERSAL_AGENT, agent], wanted.filter((name) => !heldBy.get(agent)!.includes(name))]);
     }
     for (const [index, [forAgents, skills]] of installs.entries()) {
@@ -616,9 +674,12 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
           }
           const recorded =
             sameFolder(entry, before.paths.get(name)) && writtenDirs.some((written) => sameFolder(dir, written));
-          if (recorded) continue;
-          const spot = classifySkillFile(entry, sharedSkillTexts(name));
-          if (spot === 'copy' || spot === 'released') continue;
+          // A folder with the user's files beside the skill is kept whoever installed the skill.
+          if (!holdsOtherFiles(entry)) {
+            if (recorded) continue;
+            const spot = classifySkillFile(entry, sharedSkillTexts(name));
+            if (spot === 'copy' || spot === 'released') continue;
+          }
           const kept = path.join(dir, `${keptName(name)}${process.pid}`);
           // If it can't step aside, nothing is removed this run.
           renameSync(entry, kept);
@@ -690,8 +751,8 @@ export function describeLeftAlone(leftAlone: readonly string[]): string | undefi
   if (leftAlone.length === 0) return undefined;
   const one = leftAlone.length === 1;
   return (
-    `Left ${leftAlone.join(', ')} in your home folder alone: OpenSpec didn't install ${one ? 'it' : 'them'}. ` +
-    `Remove ${one ? 'it' : 'them'} to get OpenSpec's own.`
+    `Left ${leftAlone.join(', ')} in your home folder alone: ${one ? 'it holds' : 'they hold'} text or files that aren't OpenSpec's. ` +
+    `Move ${one ? 'it' : 'them'} away to get OpenSpec's own.`
   );
 }
 
