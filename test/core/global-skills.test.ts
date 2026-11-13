@@ -1215,6 +1215,37 @@ describe('skills installed for this machine', () => {
         }
       }, 120000);
 
+      it('takes over an old lock that never said whose it was', async () => {
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+        await fs.mkdir(lockDir(), { recursive: true });
+        // An interrupted run made the file and never wrote its process id.
+        await fs.writeFile(path.join(lockDir(), 'pid'), '');
+        const hourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        await fs.utimes(lockDir(), hourAgo, hourAgo);
+        await fs.appendFile(globalSkill('openspec-explore'), '\nold\n');
+
+        const result = await cli(dir, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Updated the 6 skills for this machine');
+        expect(existsSync(lockDir())).toBe(false);
+      });
+
+      it("goes on without the lock when OpenSpec's data folder can't hold one", async () => {
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+        const data = path.join(home, '.local', 'share', 'openspec');
+        await fs.rm(data, { recursive: true, force: true });
+        await fs.writeFile(data, 'a file where the folder should be');
+        await fs.appendFile(globalSkill('openspec-explore'), '\nold\n');
+
+        const result = await cli(dir, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Updated the 6 skills for this machine');
+      });
+
       it('takes over a lock left by a run that is gone', async () => {
         const dir = await project('app');
         await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');

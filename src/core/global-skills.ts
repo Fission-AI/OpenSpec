@@ -593,23 +593,30 @@ async function withGlobalSkillsLock<T>(work: () => Promise<T>): Promise<T> {
       // A data folder that can't be written is no reason to stop: go on without the lock.
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') break;
     }
-    // Left by a run that was cut short: its process is gone, or it never said whose it was.
-    let abandoned: boolean;
+    let age: number;
     try {
-      abandoned = !isRunning(Number(readFileSync(owner, 'utf8')));
+      age = Date.now() - statSync(lock).mtimeMs;
     } catch {
-      try {
-        abandoned = Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS;
-      } catch {
-        abandoned = false;
-      }
+      // Nothing is at the lock's place: the data folder itself can't hold one. Go on without it.
+      break;
     }
+    // Left by a run that was cut short: its process is gone, or it never said whose it was.
+    let pid = Number.NaN;
+    try {
+      pid = Number(readFileSync(owner, 'utf8').trim());
+    } catch {
+      // No readable owner.
+    }
+    const abandoned = Number.isInteger(pid) && pid > 0 ? !isRunning(pid) : age > LOCK_STALE_MS;
     if (abandoned) {
       rmSync(lock, { recursive: true, force: true });
       continue;
     }
     if (Date.now() > deadline) {
-      throw new Error('Another openspec run is still changing the skills for this machine. Run this again when it has finished.');
+      throw new Error(
+        'Another openspec run is still changing the skills for this machine. Run this again when it has finished. ' +
+          `If no other run is going, delete ${lock}`
+      );
     }
     await new Promise((resolve) => setTimeout(resolve, 200));
   }
