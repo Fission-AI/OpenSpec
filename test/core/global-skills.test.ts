@@ -8,6 +8,7 @@ import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
 import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
 import { getCommandContents } from '../../src/core/shared/skill-generation.js';
 import { stripVolatileFrontmatter } from '../../scripts/skillssh-shared.mjs';
+import { isReleasedGeneratedContent } from '../../src/core/shared/generated-fingerprint.js';
 
 // Every case runs the real CLI in a fresh process with its own throwaway home:
 // the `skills` package settles some folders when it loads, so one process
@@ -39,6 +40,21 @@ describe('the skills package', () => {
     await walk(path.join(cliProjectRoot, 'src'));
 
     expect(importers).toEqual(['src/core/global-skills.ts']);
+  });
+});
+
+describe('the published skills', () => {
+  // A release installs these files as they are. Recorded here and now, the
+  // next release knows them as OpenSpec's and never takes one for an edit.
+  // If this fails, the skills changed: run scripts/capture-released-fingerprints.mjs.
+  it('are already recorded as text a release installs', async () => {
+    const root = path.join(cliProjectRoot, 'skills');
+    const names = (await fs.readdir(root)).filter((entry) => entry.startsWith('openspec-'));
+    expect(names).toHaveLength(12);
+    for (const name of names) {
+      const text = await fs.readFile(path.join(root, name, 'SKILL.md'), 'utf8');
+      expect(isReleasedGeneratedContent(text), name).toBe(true);
+    }
   });
 });
 

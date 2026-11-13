@@ -138,11 +138,11 @@ Then, inside a project that still has its own skills:
 openspec init --scope global
 ```
 
-That removes the project's copies, and stops first if you edited one. From then on, `openspec update` in any folder refreshes the one global copy, and names the projects it knows of that still have their own skills, so you can see which are left. It knows a project once `openspec init` or `openspec update` from 2.1 or later has run in it.
+That removes the project's copies, and stops first if you edited one. From then on, `openspec update` in any folder refreshes the one global copy, and names the projects it knows of that still have their own skills, so you can see which are left. It knows a project once `openspec init` or `openspec update` from 2.1 or later has run in it. A project you leave alone keeps its own skills and works as before. [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project) has the details.
 
 If you already installed the skills with `npx skills add Fission-AI/OpenSpec --global`, there is nothing to undo. `openspec update` takes them over: it brings them to your CLI's version, keeps the ones in your [workflow profile](../reference/cli.md#openspec-config-profile), and removes the rest.
 
-That includes a global install made for a single tool, with `--agent claude-code` for example, where the tool holds its own copies: update replaces them with links to the one shared copy. A folder there with your own text is never replaced. If you edited every one of those copies, OpenSpec can't tell them from skills of your own and leaves the tool as it is. [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project) has the details. A project you leave alone keeps its own skills and works as before.
+That includes a global install made for a single tool, with `--agent claude-code` for example, where the tool holds its own copies: update replaces them with links to the one shared copy. A folder there with your own text is never replaced. If you edited every one of those copies, OpenSpec can't tell them from skills of your own and leaves the tool as it is.
 
 In a project it works the same way once OpenSpec knows which tool the project is for. If `openspec update` says it found no configured tools, run `openspec init --scope project --tools <id>` there once. On a machine with no saved profile, the first update keeps every skill it finds and saves that set as a custom profile; run `openspec config profile core` first if you want the standard six.
 
