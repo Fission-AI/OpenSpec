@@ -179,15 +179,6 @@ gh attestation verify openspec-darwin-arm64.tar.gz --repo Fission-AI/OpenSpec
 
 It fails if the workflow didn't build the file. The install command already checks each download against the release's `SHA256SUMS`, so this step is optional.
 
-### If antivirus blocks OpenSpec
-
-Some antivirus tools, Kaspersky among them, remove or block `openspec.exe` on Windows. The executables are not code-signed, and releases up to 2.0.0 also describe themselves as Bun, the runtime OpenSpec is built on, so they can look like an unfamiliar program. Later releases describe themselves as OpenSpec, from FISSION AI INC, the company that publishes it. For a file that passes the [download check](#verify-a-download), the alert is a false alarm.
-
-If it happens to you:
-
-1. **Use npm instead.** `npm install -g @fission-ai/openspec@latest` installs a copy that runs on Node.js, with no `.exe` involved. This is the simplest way around it.
-2. **Or keep the standalone copy.** First [verify the download](#verify-a-download), so you know the file is ours. Then report it to your antivirus vendor as a false positive, or allow that one file in your antivirus and run the install command again. Allow the file, not its folder, and remove the exception once a later release installs without it.
-
 ## Switch from npm to the standalone install
 
 Switching is optional; npm keeps working. Your settings and your projects carry over; only the program changes.

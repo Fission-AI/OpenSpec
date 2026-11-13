@@ -127,7 +127,7 @@
       # Antivirus that distrusts the file deletes it or stops it from starting
       # (#2243), which is not a Windows version problem and should not read as one.
       if (-not (Test-Path -LiteralPath $exe)) {
-        throw "openspec install: $asset was removed before it could run, most likely by your antivirus. See https://openspec.dev/docs/installation#if-antivirus-blocks-openspec. $npmHint"
+        throw "openspec install: $asset was removed before it could run, most likely by your antivirus. $npmHint"
       }
       throw "openspec install: the downloaded $asset does not run on this machine. It needs Windows 10 or later; on those, your antivirus may be blocking it. $npmHint"
     }
