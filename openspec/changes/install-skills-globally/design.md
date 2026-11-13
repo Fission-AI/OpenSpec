@@ -44,18 +44,25 @@ Edits to a skill OpenSpec installed are replaced without a backup. That is the p
 
 ### D4. Scope is read from disk, with one saved answer
 
+The first of these that applies decides:
+
 | Situation | Scope |
 |---|---|
 | `--scope` given | That one |
 | Project has its own OpenSpec skills or commands | Project |
+| `OPENSPEC_SKILLS_SCOPE` set | That one |
 | `skillsScope` saved in the global config | That one |
 | The global skills are installed | Global |
-| At a terminal | Ask once, save the answer |
-| Scripted, nothing saved | Project, as in 2.0 |
+| At a terminal | Ask once, save the answer; global is the first choice |
+| Scripted, nothing saved | Global |
 
 A project doesn't record that it uses the global skills. Having none of its own is the record, so there is nothing for a teammate's CLI to misread, and a 2.0 CLI sees such a project as one with no tools set up.
 
-Scripted runs default to the project because `openspec init --tools …` is in CI files and agent instructions today, and those expect project files.
+A scripted run gets the same default as the question. This changes what `openspec init --tools …` does in a new project, so three things keep it from breaking anyone:
+
+- **It falls back to the project when global can't serve the request**, and prints why: a tool the global skills don't cover, the Copilot cloud files, or no git to fetch with. Only the pure default does this; an explicit choice of global reports the problem.
+- **One setting restores project installs** for a script, a CI job or a whole machine: the flag, the environment variable, or the saved choice.
+- **A project that already has its own skills is never moved** by a default.
 
 ### D5. `--tools` adds to the global install
 

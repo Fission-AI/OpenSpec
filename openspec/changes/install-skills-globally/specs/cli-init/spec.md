@@ -48,13 +48,25 @@ With the global scope, `openspec init` SHALL install the skills once for this ma
 
 ### Requirement: Init chooses where skills go
 
-Init SHALL use the first of these that applies: the `--scope` flag; the project, when it already has OpenSpec skills of its own; the saved `skillsScope`; the global scope, when the global skills are installed; the answer to a question asked once at a terminal and then saved; the project.
+Init SHALL use the first of these that applies: the `--scope` flag; the project, when it already has OpenSpec skills of its own; the `OPENSPEC_SKILLS_SCOPE` environment variable; the saved `skillsScope`; the global scope, when the global skills are installed; the answer to a question asked once at a terminal and then saved; the global scope.
 
 #### Scenario: Scripted init on a machine with nothing saved
 
 - **WHEN** `openspec init --tools claude` runs with no saved choice and no global skills
-- **THEN** the skills SHALL be written to the project, as in 2.0
+- **THEN** the skills SHALL be installed for the machine
+- **AND** the project SHALL get only `openspec/`
+
+#### Scenario: A script that keeps project installs
+
+- **WHEN** `OPENSPEC_SKILLS_SCOPE=project openspec init --tools claude` runs
+- **THEN** the skills SHALL be written to the project
 - **AND** nothing SHALL be written to the home folder
+
+#### Scenario: The default can't serve the request
+
+- **WHEN** a scripted init with nothing saved sets up a tool the global skills don't cover, asks for the Copilot cloud files, or runs without git
+- **THEN** the skills SHALL be installed in the project
+- **AND** init SHALL say why
 
 #### Scenario: The next project after a global install
 

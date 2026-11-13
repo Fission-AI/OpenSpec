@@ -133,6 +133,11 @@ function sourceNeedsGit(source: string): boolean {
   return !path.isAbsolute(source) && !source.startsWith('.');
 }
 
+/** Whether the skills can be fetched at all: a repository source takes git. */
+export function canFetchSkills(): boolean {
+  return !sourceNeedsGit(skillsSource()) || spawnSync('git', ['--version'], { stdio: 'ignore' }).status === 0;
+}
+
 /**
  * Whether the lock file says a skill came from OpenSpec's own source. One from
  * anywhere else, or with no record at all, is someone's own and stays theirs.

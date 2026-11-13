@@ -71,6 +71,7 @@ import { markConfigFlag } from './completion-tip.js';
 import {
   GitMissingError,
   SKILL_SCOPES,
+  canFetchSkills,
   describeLeftAlone,
   describeSkillsError,
   installGlobalSkills,
@@ -283,7 +284,7 @@ export class InitCommand {
     // Get tool states before processing
     const toolStates = getToolStates(projectPath);
 
-    if ((await this.resolveSkillScope(projectPath, canPrompt)) === 'global') {
+    if ((await this.resolveSkillScope(projectPath, canPrompt, detectedTools)) === 'global') {
       await this.setUpWithGlobalSkills(projectPath, openspecPath, {
         extendMode,
         integrationsOnly,
@@ -401,22 +402,36 @@ export class InitCommand {
   // ═══════════════════════════════════════════════════════════
 
   /**
-   * Where this project's skills live. A project with skills of its own keeps
-   * them. Otherwise the saved choice applies, then a global install already on
-   * this machine; failing both, a terminal user is asked once, and a scripted
-   * run stays in the project, as it always has.
+   * Where this project's skills live, from the first of these that says:
+   * `--scope`; the project, when it has skills of its own; the
+   * `OPENSPEC_SKILLS_SCOPE` environment variable; the saved choice; a global
+   * install already on this machine; the answer a terminal user gives once.
+   * With none of those, a scripted run installs for the machine too, which is
+   * the answer the question defaults to, unless the machine can't use global
+   * skills for what was asked (see `globalByDefaultFits`).
    */
-  private async resolveSkillScope(projectPath: string, canPrompt: boolean): Promise<SkillScope> {
+  private async resolveSkillScope(
+    projectPath: string,
+    canPrompt: boolean,
+    detectedTools: readonly AIToolOption[]
+  ): Promise<SkillScope> {
     if (this.scopeOption) return this.scopeOption;
     if (projectHasOwnSkills(projectPath)) return 'project';
+    const fromEnv = process.env.OPENSPEC_SKILLS_SCOPE?.trim();
+    if (fromEnv) {
+      if (!(SKILL_SCOPES as readonly string[]).includes(fromEnv)) {
+        throw new Error(`Invalid OPENSPEC_SKILLS_SCOPE "${fromEnv}". Use global or project.`);
+      }
+      return fromEnv as SkillScope;
+    }
     const saved = getGlobalConfig().skillsScope;
     if (saved) return saved;
     try {
       if ((await readGlobalSkills()).skills.length > 0) return 'global';
     } catch {
-      // No readable global install: fall through to asking, or to the project.
+      // No readable global install: fall through to asking, or to the default.
     }
-    if (!canPrompt) return 'project';
+    if (!canPrompt) return this.globalByDefaultFits(detectedTools) ? 'global' : 'project';
     const { select } = await import('@inquirer/prompts');
     const scope = await select<SkillScope>({
       message: 'Where should OpenSpec install its skills?',
@@ -432,6 +447,29 @@ export class InitCommand {
       // Not saved: the question comes back next time, which beats failing init.
     }
     return scope;
+  }
+
+  /**
+   * Whether a scripted run that nobody told where to install can use the
+   * global skills. It can't when a tool it sets up isn't covered by them, when
+   * it asks for the Copilot cloud files (which need the skills in the project),
+   * or when the skills can't be fetched for lack of git. The project install
+   * handles all three, so the run goes there and says why.
+   */
+  private globalByDefaultFits(detectedTools: readonly AIToolOption[]): boolean {
+    const ids = this.resolveToolsArg() ?? detectedTools.map((tool) => tool.value);
+    const uncovered = AI_TOOLS.filter((tool) => ids.includes(tool.value) && !supportsGlobalSkills(tool.value));
+    const reason =
+      uncovered.length > 0
+        ? `${uncovered.map((tool) => tool.name).join(', ')} ${uncovered.length === 1 ? "isn't" : "aren't"} covered by the global skills`
+        : this.copilotCloudOption === true
+          ? 'the Copilot cloud files need the skills in the project'
+          : !canFetchSkills()
+            ? "git isn't on your PATH"
+            : undefined;
+    if (reason === undefined) return true;
+    console.log(chalk.dim(`Installing the skills in this project: ${reason}.`));
+    return false;
   }
 
   /**

@@ -10,7 +10,7 @@ This is step 4 of the plan in #2022. It replaces the older `add-global-install-s
 
 - **`openspec init --scope global`** installs the skills once for this machine, in `~/.agents/skills/`, and gives the project only its `openspec/` folder. The `skills` package places the files, the links each tool needs, and its lock file.
 - **No flag to remember afterwards.** Once the global skills exist, plain `openspec init` uses them for new projects, and plain `openspec update` refreshes them, from any folder.
-- **Asked once.** At a terminal, the first `openspec init` in a project without skills asks where they should go and saves the answer as `skillsScope` in the global config. Scripted runs are never asked and behave as they do in 2.0.
+- **Asked once.** At a terminal, the first `openspec init` in a project without skills asks where they should go and saves the answer as `skillsScope` in the global config. Scripted runs are never asked and, with nothing saved, install for the machine too.
 - **Existing projects keep their own skills** until someone runs `openspec init --scope global` there, which removes the project's copies. An edited skill stops the switch before anything is removed.
 - **The skills come from the repository.** The `skills` package clones `Fission-AI/OpenSpec` at the CLI's version and installs the published `skills/` folder, so the CLI writes no skill text for a global install. This needs git; init says so plainly when it is missing.
 - **One skill text for every profile.** Skills no longer read differently depending on which other workflows are installed, so the published files are exactly what gets installed. The profile only picks which skills.

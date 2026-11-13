@@ -51,6 +51,10 @@ export default defineConfig({
       // Project and global skill installs read the checkout's own skills/
       // folder, so no test fetches them from the network.
       OPENSPEC_SKILLS_SOURCE: path.join(path.dirname(fileURLToPath(import.meta.url)), 'skills'),
+      // A scripted `openspec init` installs for the machine unless told
+      // otherwise. The suite's project tests say so here, once; the tests of
+      // that default clear it.
+      OPENSPEC_SKILLS_SCOPE: 'project',
     },
     // Tests rely on per-file process isolation (e.g., `process.cwd()` assumptions).
     pool: 'forks',

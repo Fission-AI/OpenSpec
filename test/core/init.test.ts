@@ -2188,6 +2188,8 @@ describe('InitCommand - profile and detection features', () => {
   });
 
   it('interactive init asks once where the skills go and remembers the answer', async () => {
+    // The suite pins project installs; this test is about the question itself.
+    delete process.env.OPENSPEC_SKILLS_SCOPE;
     searchableMultiSelectMock.mockResolvedValue(['claude']);
 
     const first = new InitCommand({});
@@ -2216,6 +2218,8 @@ describe('InitCommand - profile and detection features', () => {
   });
 
   it('interactive init installs for the machine when that is the answer, and writes no project skills', async () => {
+    // The suite pins project installs; this test is about the question itself.
+    delete process.env.OPENSPEC_SKILLS_SCOPE;
     selectMock.mockResolvedValue('global');
     searchableMultiSelectMock.mockResolvedValue(['claude']);
 

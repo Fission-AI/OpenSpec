@@ -85,7 +85,7 @@ When `openspec/config.yaml` contains a `store:` line and the repo has no local s
 
 ```bash
 # install Claude Code integration files in the code repo
-openspec init --tools claude
+openspec init --scope project --tools claude
 ```
 
 - **Integration files**: written in the code repo.
@@ -111,11 +111,11 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 | `--no-animation` | Show a static welcome screen instead of the animated one. |
 | `--scope <scope>` | Where the skills go: `global` installs them once for this machine, in `~/.agents/skills/` (needs `git` and a connection to GitHub); `project` installs them in the project. In a project that has its own skills, `--scope global` removes them, unless one was edited or the project is set up for a tool the global skills don't cover. See [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project). |
 
-Without `--scope`, a project that has its own skills keeps them. A project without any uses the choice saved as [`skillsScope`](configuration/config-json.md#skillsscope), then the global skills if this machine has them. Otherwise an interactive init asks once, and a non-interactive one installs in the project.
+Without `--scope`, a project that has its own skills keeps them. A project without any uses the choice saved as [`skillsScope`](configuration/config-json.md#skillsscope), then the global skills if this machine has them. Otherwise an interactive init asks once, and a non-interactive one installs for the machine. A non-interactive run falls back to the project, and says why, when it sets up a tool the global skills don't cover, asks for the Copilot cloud files, or has no `git`. `OPENSPEC_SKILLS_SCOPE=global` or `=project` sets the choice for a run without the flag.
 
 **Output**
 
-OpenSpec writes its skills once, to `.agents/skills/`. Tools that need them get links in their own folder. MiniMax Code instead gets its own copy in `~/.minimax/skills/`:
+With the skills in the project (`--scope project`), OpenSpec writes them once, to `.agents/skills/`. Tools that need them get links in their own folder. MiniMax Code instead gets its own copy in `~/.minimax/skills/`:
 
 ```
 ▌ OpenSpec structure created
@@ -131,7 +131,9 @@ Getting started:
   Start your first change: /openspec-propose "your idea"
 ```
 
-`--tools none` creates only `openspec/config.yaml`. On an already-initialized project, init rewrites the installed files in place and the summary reads `Refreshed: Claude Code` with `Config: openspec/config.yaml (exists)`.
+With the skills on this machine, the summary line reads `6 skills in ~/.agents/skills/ for every project on this machine` and the project holds only `openspec/`.
+
+`--tools none` creates only the `openspec/` folder and sets up no tool. On an already-initialized project, init rewrites the installed files in place and the summary reads `Refreshed: Claude Code` with `Config: openspec/config.yaml (exists)`.
 
 **Exit codes**
 

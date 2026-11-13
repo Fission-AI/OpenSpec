@@ -42,6 +42,8 @@ describe('skills installed for this machine', () => {
       CLAUDE_CONFIG_DIR: path.join(home, '.claude'),
       // The published skills, read from this checkout instead of cloned from GitHub.
       OPENSPEC_SKILLS_SOURCE: path.join(cliProjectRoot, 'skills'),
+      // The suite pins project installs; here the default itself is under test.
+      OPENSPEC_SKILLS_SCOPE: '',
     };
   });
 
@@ -65,14 +67,65 @@ describe('skills installed for this machine', () => {
   };
   const entries = async (dir: string): Promise<string[]> => (await fs.readdir(dir)).sort();
 
-  it('keeps a scripted init in the project when nothing says otherwise', async () => {
+  it('installs for the machine when a scripted init is told nothing else', async () => {
     const dir = await project('app');
     const result = await cli(dir, 'init', '--tools', 'claude');
+
+    expect(result.exitCode).toBe(0);
+    expect(await entries(dir)).toEqual(['openspec']);
+    expect(await globalSkills()).toEqual(CORE_SKILLS);
+  });
+
+  it('keeps a scripted init in the project when OPENSPEC_SKILLS_SCOPE says so', async () => {
+    const dir = await project('app');
+    const result = await runCLI(['init', '--tools', 'claude'], {
+      cwd: dir,
+      env: { ...env, OPENSPEC_SKILLS_SCOPE: 'project' },
+      timeoutMs: 60000,
+    });
 
     expect(result.exitCode).toBe(0);
     expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
     expect(await globalSkills()).toEqual([]);
     expect(existsSync(path.join(home, '.claude'))).toBe(false);
+
+    const bad = await runCLI(['init', '--tools', 'claude'], {
+      cwd: await project('other'),
+      env: { ...env, OPENSPEC_SKILLS_SCOPE: 'everywhere' },
+      timeoutMs: 60000,
+    });
+    expect(bad.exitCode).toBe(1);
+    expect(bad.stderr).toContain('Invalid OPENSPEC_SKILLS_SCOPE "everywhere". Use global or project.');
+  });
+
+  it('falls back to the project, and says why, when the default cannot serve what was asked', async () => {
+    // A tool the global skills don't cover.
+    const uncovered = await project('uncovered');
+    const first = await cli(uncovered, 'init', '--tools', 'claude,oh-my-pi');
+    expect(first.exitCode).toBe(0);
+    expect(first.stdout).toContain("Installing the skills in this project: Oh My Pi isn't covered by the global skills.");
+    expect(existsSync(path.join(uncovered, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+
+    // The Copilot cloud files, which need the skills in the project.
+    const cloud = await project('cloud');
+    const second = await cli(cloud, 'init', '--tools', 'github-copilot', '--copilot-cloud');
+    expect(second.exitCode).toBe(0);
+    expect(second.stdout).toContain('the Copilot cloud files need the skills in the project');
+    expect(existsSync(path.join(cloud, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+
+    // No git to fetch them with.
+    const empty = await project('no-programs-here');
+    const noGit = await project('no-git');
+    const third = await runCLI(['init', '--tools', 'claude'], {
+      cwd: noGit,
+      env: { ...env, OPENSPEC_SKILLS_SOURCE: '', PATH: empty, Path: empty },
+      timeoutMs: 60000,
+    });
+    expect(third.exitCode).toBe(0);
+    expect(third.stdout).toContain("Installing the skills in this project: git isn't on your PATH.");
+    expect(existsSync(path.join(noGit, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+
+    expect(await globalSkills()).toEqual([]);
   });
 
   it('installs the skills once for the machine and leaves the project with only openspec/', async () => {
@@ -323,7 +376,7 @@ describe('skills installed for this machine', () => {
 
       const dir = await project('app');
       // No global install of OpenSpec's own: update has nothing to refresh and init stays in the project.
-      await cli(dir, 'init', '--tools', 'claude');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
       expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
 
       await cli(await project('other'), 'init', '--scope', 'global', '--tools', 'claude');
@@ -440,7 +493,7 @@ describe('skills installed for this machine', () => {
 
     it('changes nothing for a machine without the global skills', async () => {
       const dir = await project('app');
-      await cli(dir, 'init', '--tools', 'claude');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
 
       const result = await cli(dir, 'update');
 
@@ -453,7 +506,7 @@ describe('skills installed for this machine', () => {
   describe('moving a project to the global skills', () => {
     it('removes the project copies and installs the global ones', async () => {
       const dir = await project('app');
-      await cli(dir, 'init', '--tools', 'claude');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
 
       const result = await cli(dir, 'init', '--scope', 'global');
 
@@ -468,7 +521,7 @@ describe('skills installed for this machine', () => {
 
     it('keeps the project skills when the global install fails', async () => {
       const dir = await project('app');
-      await cli(dir, 'init', '--tools', 'claude');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
       await fs.mkdir(path.join(home, '.agents'), { recursive: true });
       await fs.writeFile(path.join(home, '.agents', 'skills'), 'not a folder');
 
@@ -515,7 +568,7 @@ describe('skills installed for this machine', () => {
 
     it('keeps the project skills when nothing ends up installed for the machine', async () => {
       const dir = await project('app');
-      await cli(dir, 'init', '--tools', 'claude');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
 
       const result = await cli(dir, 'init', '--scope', 'global', '--tools', 'none');
 
@@ -526,7 +579,7 @@ describe('skills installed for this machine', () => {
 
     it('removes the command files 1.x wrote as well', async () => {
       const dir = await project('app');
-      await cli(dir, 'init', '--tools', 'claude');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
       const commands = generateCommands(getCommandContents(['propose', 'apply']), CommandAdapterRegistry.get('claude')!);
       for (const command of commands) {
         await fs.mkdir(path.dirname(path.join(dir, command.path)), { recursive: true });
@@ -541,7 +594,7 @@ describe('skills installed for this machine', () => {
 
     it('stops before removing anything when a command file was edited', async () => {
       const dir = await project('app');
-      await cli(dir, 'init', '--tools', 'claude');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
       const [command] = generateCommands(getCommandContents(['propose']), CommandAdapterRegistry.get('claude')!);
       await fs.mkdir(path.dirname(path.join(dir, command.path)), { recursive: true });
       await fs.writeFile(path.join(dir, command.path), `${command.fileContent}\nmy own step\n`);
@@ -556,7 +609,7 @@ describe('skills installed for this machine', () => {
 
     it('stops before removing anything when a project skill was edited', async () => {
       const dir = await project('app');
-      await cli(dir, 'init', '--tools', 'claude');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
       const edited = path.join(dir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
       await fs.writeFile(edited, 'my own notes');
 
