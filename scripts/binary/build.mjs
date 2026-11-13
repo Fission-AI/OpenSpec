@@ -86,7 +86,8 @@ const hash = createHash('sha256').update(JSON.stringify(files)).digest('hex').sl
 const { version } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 const windows = {
   title: 'OpenSpec',
-  publisher: 'OpenSpec Contributors',
+  // The legal entity that builds and publishes the file (openspec.dev/legal).
+  publisher: 'Fission AI, Inc.',
   // Four numbers, as Windows wants; a prerelease suffix has no place in them.
   version: `${version.split('-')[0]}.0`,
   description: 'OpenSpec CLI',
