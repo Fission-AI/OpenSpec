@@ -23,7 +23,9 @@ my-project/
 
 Cursor and Codex read `.agents/skills/` themselves, so they need nothing else.
 
-`.openspec-target` is how `openspec update` knows what is OpenSpec's. Each line is one of:
+`skills-lock.json`, at the project root, is the record the [`skills`](https://github.com/vercel-labs/skills) package keeps of the skills it installed there.
+
+`.openspec-target` is how `openspec update` knows which tools are set up and what is OpenSpec's. Each line is one of:
 
 | Line | Meaning |
 |---|---|

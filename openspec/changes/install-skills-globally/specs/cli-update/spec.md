@@ -41,3 +41,33 @@ When the global skills are installed, `openspec update` SHALL reinstall them at 
 - **WHEN** the user runs `openspec update --dry-run`
 - **THEN** the plan SHALL note that the global skills would be refreshed
 - **AND** nothing in the home folder SHALL change
+
+### Requirement: Update keeps a project's skills under the skills package
+
+`openspec update` SHALL treat a project as up to date when its installed skills equal the text the running CLI publishes, and SHALL then change no file and fetch nothing. Otherwise it SHALL install the skills through the `skills` package and record them in `skills-lock.json`. Skills that 1.x or 2.0 installed SHALL be recognized as OpenSpec's and brought under the lock file.
+
+#### Scenario: A project 2.0 installed
+
+- **WHEN** the user runs `openspec update` in a project that 2.0 set up
+- **THEN** its skills SHALL be replaced with the published text and listed in `skills-lock.json`
+- **AND** a second `openspec update` SHALL report it up to date and change nothing
+
+#### Scenario: A skill an older CLI marked as kept
+
+- **GIVEN** `.agents/skills/.openspec-target` marks a skill as kept and its text is OpenSpec's
+- **WHEN** the user runs `openspec update`
+- **THEN** the skill SHALL be managed as OpenSpec's again
+
+### Requirement: Update keeps the lock file right when skills are removed
+
+A skill the profile drops SHALL be removed together with its links and its lock entry, and a lock file that then records no skill SHALL be deleted. Entries for skills that are not OpenSpec's SHALL be left as they are.
+
+#### Scenario: The profile drops a skill
+
+- **WHEN** the profile no longer includes explore and the user runs `openspec update`
+- **THEN** `openspec-explore`, its links and its entry in `skills-lock.json` SHALL be removed
+
+#### Scenario: The lock file cannot be rewritten
+
+- **WHEN** a skill is removed and `skills-lock.json` is read-only
+- **THEN** the removal SHALL finish and update SHALL say the lock file still lists the skill

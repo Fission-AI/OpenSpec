@@ -52,12 +52,16 @@ Review `config.yaml`, then delete `project.md` when ready.
 
 ## What init installs
 
-Running init creates two things in your project:
+Running init creates these in your project:
 
 - An `openspec/` folder at the repo root
 - Workflow files: skills in the shared `.agents/skills/` folder, with links from a tool's own folder where it needs them (`.claude/skills/`, for example)
 
+- A `skills-lock.json` file at the repo root, which records the installed skills
+
 Commit all of it like the rest of your source.
+
+The skills are fetched from the OpenSpec repository by [`skills`](https://github.com/vercel-labs/skills), the package behind `npx skills`, which also keeps `skills-lock.json`. If `git` is missing or GitHub can't be reached, OpenSpec writes the same skills itself and says so. Nothing else changes, and there is no lock file until an `openspec update --force` can fetch them.
 
 Init also removes the command files earlier versions generated, and keeps any you edited. A project set up before 1.0 also has older leftovers: folders like `.claude/commands/openspec/`, and OpenSpec marker blocks in files like `CLAUDE.md` and `AGENTS.md`. An interactive init asks before removing them. With `--force`, with `--tools`, or in a non-interactive run, init removes them without asking, including any edits inside those blocks, so back them up first.
 
@@ -137,7 +141,7 @@ The project gets its `openspec/` folder and nothing else. The skills go to `~/.a
 - **Edits**: a refresh replaces the skills OpenSpec installed, so keep changes of your own in a skill under another name. A skill with an OpenSpec name that you put in your home folder yourself is left alone.
 - **Not in your home folder**: run `openspec init` inside a project. The home folder is where the global skills live, so it can't also be a project that uses them.
 
-OpenSpec hands the install to [`skills`](https://github.com/vercel-labs/skills), the package behind `npx skills`. It fetches the skills published in the OpenSpec repository for your CLI's version, so the files, the layout and the lock file (`~/.agents/.skill-lock.json`) are the same ones `npx skills add Fission-AI/OpenSpec --global` gives you. Fetching them needs `git` and a connection to GitHub; project installs need neither. To remove the global skills, run `npx skills remove --global` and pick the `openspec-` ones.
+OpenSpec hands the install to [`skills`](https://github.com/vercel-labs/skills), the package behind `npx skills`. It fetches the skills published in the OpenSpec repository for your CLI's version, so the files, the layout and the lock file (`~/.agents/.skill-lock.json`) are the same ones `npx skills add Fission-AI/OpenSpec --global` gives you. Fetching them needs `git` and a connection to GitHub. A project install falls back to writing the skills itself; the global install stops and tells you. To remove the global skills, run `npx skills remove --global` and pick the `openspec-` ones.
 
 #### Move an existing project to the global skills
 

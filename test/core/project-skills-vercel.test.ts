@@ -206,6 +206,48 @@ describe("a project's skills, installed through the skills package", () => {
     expect((await fs.readdir(dir)).sort()).toEqual(['openspec', 'skills-lock.json']);
   });
 
+  it('does not freeze a skill an older CLI marked as kept when its text is still OpenSpec\'s', async () => {
+    await init();
+    // What a 2.0 teammate's update leaves: it reads the text without a version line as the user's.
+    const target = path.join(dir, '.agents', 'skills', '.openspec-target');
+    await fs.writeFile(target, `${readFileSync(target, 'utf8')}keep openspec-explore\nkeep openspec-sync-specs\n`);
+    await setWorkflows(['propose', 'apply']);
+
+    const result = await cli('update');
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(existsSync(skillFile('openspec-explore'))).toBe(false);
+    expect(existsSync(skillFile('openspec-sync-specs'))).toBe(false);
+    expect(lockedSkills()).toEqual(['openspec-apply-change', 'openspec-propose']);
+    expect(readFileSync(target, 'utf8')).not.toContain('keep ');
+  });
+
+  it('drops the lock entry of a skill whose folder was already deleted', async () => {
+    await init();
+    await fs.rm(path.join(dir, '.agents', 'skills', 'openspec-explore'), { recursive: true });
+    await setWorkflows(['propose', 'apply', 'sync', 'archive', 'update']);
+
+    const result = await cli('update');
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(lockedSkills()).not.toContain('openspec-explore');
+    expect(existsSync(path.join(dir, '.claude', 'skills', 'openspec-explore'))).toBe(false);
+  });
+
+  it.skipIf(process.platform === 'win32')('finishes a removal when the lock file cannot be rewritten, and says so', async () => {
+    await init();
+    await fs.chmod(lockPath(), 0o444);
+    await setWorkflows(['propose', 'apply']);
+
+    const result = await cli('update');
+    await fs.chmod(lockPath(), 0o644);
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(result.stdout).toContain('skills-lock.json still lists them because it could not be rewritten');
+    expect(existsSync(skillFile('openspec-explore'))).toBe(false);
+    expect(existsSync(path.join(dir, '.claude', 'skills', 'openspec-explore'))).toBe(false);
+  });
+
   it('leaves only openspec/ when the project moves to the global skills', async () => {
     await init();
 

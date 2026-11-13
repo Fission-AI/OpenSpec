@@ -90,3 +90,19 @@ Init SHALL use the first of these that applies: the `--scope` flag; the project,
 - **WHEN** they run `openspec init --scope global`
 - **THEN** init SHALL exit 1 and name that skill
 - **AND** no file SHALL be removed
+
+### Requirement: Init installs a project's skills through the skills package
+
+With the project scope, `openspec init` SHALL install the project's skills through the `skills` package, from the skills published for the running CLI's version, and SHALL leave a `skills-lock.json` at the project root that records them. When the skills cannot be fetched, init SHALL write the same text itself, SHALL say that the lock file was not written and why, and SHALL still exit 0. A skill the user owns, and any file a user keeps beside a `SKILL.md`, SHALL NOT be replaced.
+
+#### Scenario: A fresh project install
+
+- **WHEN** the user runs `openspec init --scope project --tools claude`
+- **THEN** `.agents/skills/` SHALL hold each skill in the profile, with the published text
+- **AND** `skills-lock.json` SHALL list exactly those skills
+
+#### Scenario: git is missing
+
+- **WHEN** the same command runs on a machine without git
+- **THEN** the skills SHALL be written and init SHALL exit 0
+- **AND** init SHALL say they were written without `skills-lock.json`

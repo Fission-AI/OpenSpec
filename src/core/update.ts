@@ -773,7 +773,7 @@ export class UpdateCommand {
           )
         );
       }
-      for (const line of formatKeptSkills(result.kept, result.linkedOutside, result.refreshedEdited, result.unfetched)) this.log(chalk.yellow(line));
+      for (const line of formatKeptSkills(result.kept, result.linkedOutside, result.refreshedEdited, result.unfetched, result.partlyFetched, result.lockNotUpdated)) this.log(chalk.yellow(line));
       // A dry run is the last chance to save them.
       if (result.refreshedEdited.length > 0) {
         this.recorder?.addNote(

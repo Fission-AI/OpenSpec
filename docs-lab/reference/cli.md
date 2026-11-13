@@ -148,7 +148,7 @@ openspec update --force     # rewrite files even when they're current
 openspec update --dry-run   # list what an update would change, and change nothing
 ```
 
-update finds the tools init configured and compares their generated files against the CLI's version. If the skills are also [installed for this machine](../start/setup.md#install-the-skills-once-for-every-project), it refreshes those too, and then it runs from any folder, not only a project. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
+update finds the tools init configured and compares their skills with the text this CLI version publishes. If the skills are also [installed for this machine](../start/setup.md#install-the-skills-once-for-every-project), it refreshes those too, and then it runs from any folder, not only a project. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
 
 **Arguments**
 

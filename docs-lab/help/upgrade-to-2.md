@@ -120,6 +120,10 @@ Without these, each link checks out as a small text file. `openspec update` repl
 
 Most tools read `.agents/skills/` directly. If yours reads only its own folder, [Link another tool](../reference/supported-tools.md#link-another-tool) shows the one command to point it at the shared copy.
 
+## Teams on mixed versions
+
+From 2.1 on, an installed skill carries no version line and the project gains a `skills-lock.json`. A teammate still on 2.0 can keep working in the same project, with one thing to know: their `openspec update` reads those skills as edited, says "Replaced your edits", and writes its own copies back. Nothing is lost, and the next update from a newer CLI puts them right, but the files change back and forth until everyone is on the same version. Upgrade together where you can.
+
 ## Many projects: install the skills once
 
 If you use OpenSpec in many projects, you don't have to upgrade each one's skills by hand. Install them once for the machine, then move each project when you next work in it. In your terminal:

@@ -80,6 +80,10 @@ export interface SharedSkillInstallResult {
    * were written from this CLI instead, without that package's lock file.
    */
   unfetched?: string;
+  /** What the package reported for single skills it could not install; the CLI wrote those. */
+  partlyFetched?: string;
+  /** Why skills-lock.json still lists skills that were removed, when it could not be rewritten. */
+  lockNotUpdated?: string;
   /**
    * Tools whose own skills folder could not be brought up to date (for
    * example it is a link out of the project). The shared copy is still
@@ -167,7 +171,10 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     }
     if (!view.exists(path.join(skillDir, 'SKILL.md'))) continue;
     if (previouslyKept.has(skillName)) {
-      keptShared.add(skillName);
+      // Still the user's only while its text isn't OpenSpec's. An older CLI
+      // marks a skill this one installed as kept, because it carries no
+      // version line; that must not freeze it.
+      if (classifySkillFile(skillDir, generatedTexts(skillName), view) === 'user') keptShared.add(skillName);
     } else if (!sharedIsOurs && classifySkillFile(skillDir, oursFor(skillName), view) === 'user') {
       keepAsUsers(skillName);
     }
@@ -235,7 +242,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
         skills: toFetch,
         version: input.version,
       });
-      if (failures.length > 0) result.unfetched = failures.join('; ');
+      if (failures.length > 0) result.partlyFetched = failures.join('; ');
     } catch (error) {
       // A project install never fails for lack of git or a connection.
       result.unfetched = error instanceof GitMissingError ? "git isn't on your PATH" : describeSkillsError(error);
@@ -251,7 +258,12 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   for (const skillName of OPENSPEC_SKILL_NAMES) {
     if (wanted.has(skillName)) continue;
     const skillDir = path.join(sharedDir, skillName);
-    if (!view.exists(skillDir) || sharedSpotIsUsers(skillName)) continue;
+    if (!view.exists(skillDir)) {
+      // Already gone from disk: its record goes too.
+      if (locked.has(skillName) && !sharedSpotIsUsers(skillName)) unlocked.push(skillName);
+      continue;
+    }
+    if (sharedSpotIsUsers(skillName)) continue;
     // A deselected skill goes; any other file the user keeps beside its
     // SKILL.md stays, and so does a SKILL.md the user edited (it is theirs
     // from now on, recorded as kept).
@@ -291,7 +303,14 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   // The lock file records no skill OpenSpec removed, and is gone once it
   // records none at all. A dry run plans it as the real run leaves it.
   if (input.writesToDisk) {
-    if (unlocked.length > 0) dropFromProjectLock(projectPath, unlocked);
+    if (unlocked.length > 0) {
+      try {
+        dropFromProjectLock(projectPath, unlocked);
+      } catch (error) {
+        // The skills are removed either way; only the record is behind.
+        result.lockNotUpdated = error instanceof Error ? error.message : String(error);
+      }
+    }
   } else if (toFetch.length > 0 || unlocked.length > 0) {
     const planned = plannedProjectLock(
       lockBefore,
@@ -442,7 +461,9 @@ export function formatKeptSkills(
   kept: readonly string[],
   linkedOutside: readonly string[] = [],
   refreshedEdited: readonly string[] = [],
-  unfetched?: string
+  unfetched?: string,
+  partlyFetched?: string,
+  lockNotUpdated?: string
 ): string[] {
   const inShared = kept.filter((rel) => rel.startsWith('.agents/skills/'));
   const elsewhere = kept.filter((rel) => !rel.startsWith('.agents/skills/'));
@@ -473,6 +494,15 @@ export function formatKeptSkills(
     lines.push(
       `Wrote the skills from this CLI, without the skills-lock.json file the skills package keeps: ` +
         `they could not be fetched (${unfetched}). To add it later: openspec update --force`
+    );
+  }
+  if (partlyFetched !== undefined) {
+    lines.push(`Wrote some skills from this CLI because the skills package could not install them: ${partlyFetched}`);
+  }
+  if (lockNotUpdated !== undefined) {
+    lines.push(
+      `Removed the skills, but skills-lock.json still lists them because it could not be rewritten (${lockNotUpdated}). ` +
+        'Fix the file and run openspec update again.'
     );
   }
   for (const folder of linkedOutside) {

@@ -75,6 +75,24 @@ Nine tools have no agent id in the package: AtomCode, CoStrict, DeepSeek Harness
 - The home folder as a project. `init` with the global scope refuses to run there, and `update` there only refreshes the global skills.
 - A project's own skills, until the global install has succeeded. A failed install leaves the project as it was.
 
+### D9. Project installs go through the package too
+
+`installSharedSkills`, 2.0's installer, keeps the parts that are about OpenSpec's own history and hands the writing to the package:
+
+| Step | Who does it |
+|---|---|
+| Decide which skills are the user's and must not be replaced | OpenSpec, as in 2.0 |
+| Remove the copies 1.x left in tool folders | OpenSpec, as in 2.0 |
+| Write `.agents/skills/<skill>` and record it in `skills-lock.json` | the `skills` package |
+| Link a tool's folder | the package where it uses the same folder OpenSpec does; OpenSpec for the rest and on Windows |
+| Remove a skill the profile dropped | the package for what it recorded, then OpenSpec for what is left |
+
+- **Up to date means the text matches.** Installed skills carry no version line, so `update` compares them with the text this CLI publishes. A matching project is left alone and nothing is fetched.
+- **A project install never needs git.** If the skills can't be fetched, the CLI writes the same text itself and says the lock file wasn't written. The global install still stops, because it is new and opt-in.
+- **A skill folder with the user's files beside `SKILL.md`** is written by the CLI, not the package, because the package replaces the whole folder.
+- **A dry run plans the same text** and the lock file change, and calls neither the network nor the package.
+- **A teammate on 2.0** reads the unstamped skills as edited and rewrites them, and marks them as kept if their profile drops them. This CLI puts both right on its next update: a kept mark only holds while the skill's text isn't OpenSpec's.
+
 ## Risks
 
 - **A project install fetches too.** `openspec init --scope project` and `openspec update` now install a project's `.agents/skills` with the same package, from the same published skills, and record them in `skills-lock.json`. 2.0's installer still decides what is the user's, makes the links for tools the package doesn't know, and migrates 1.x projects. When the skills can't be fetched (no git, no connection), it writes the same text itself and says the lock file is missing, so a project install never fails for that. The installed text has no version stamp: a project is up to date when its skills equal the text this CLI publishes.

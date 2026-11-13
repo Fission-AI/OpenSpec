@@ -19,6 +19,13 @@
 - [x] 3.2 Show the refresh in `--dry-run`
 - [x] 3.3 Point out a project that has both copies
 
+## 3b. Project installs
+
+- [x] 3b.1 Install a project's `.agents/skills` through the `skills` package, recorded in `skills-lock.json`
+- [x] 3b.2 Write the skills from the CLI when they can't be fetched, so a project install never needs git
+- [x] 3b.3 Decide "up to date" from the installed text, which carries no version line
+- [x] 3b.4 Keep the lock file right when skills are removed, and delete it when it records none
+
 ## 4. Proof and docs
 
 - [x] 4.1 Tests that run the real CLI in a throwaway home
