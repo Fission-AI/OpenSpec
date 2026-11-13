@@ -20,7 +20,8 @@ and the redirect list at cutover. The target structure is the page index in
 | editing-changes.md | `guides/change-course.md` |
 | team-workflow.md | `guides/teams.md` |
 | examples.md | parked: `guides/examples.md` skeleton kept off the index and sync config until real archived changes exist (see README TODOs) |
-| customization.md | `customize/project-config.md` + `customize/schemas.md` + `customize/overview.md` (decision ladder) · schema.yaml fields to `reference/schemas/schema-yaml.md` |
+| community.md | `community/index.md` (open-source projects and submission guidance) |
+| customization.md | `customize/project-config.md` + `customize/schemas.md` + `customize/overview.md` (decision ladder) · schema.yaml fields to `reference/schemas/schema-yaml.md` · community catalog to `community/index.md` |
 | multi-language.md | `customize/project-config.md` §context, the "Another language" note |
 | stores-beta/user-guide.md | `multi-repo/stores.md` · worksets section to `multi-repo/worksets.md` |
 | commands.md | `reference/skills.md` (legacy `/openspec:*` section removed) |
@@ -41,5 +42,5 @@ planned `reference/file-formats.md`).
 
 Point `website/docs.sync.config.mjs` here, add old-to-new redirects in
 `website/public/_redirects`, and verify `llms.txt` / `llms-full.txt` /
-per-page markdown routes. `docs/` stays in place, untouched. The site just
-stops reading it.
+per-page markdown routes. `docs/` stays in place. Migrated community catalogs contain links to their new
+home; the remaining legacy pages stay untouched. The site no longer reads them.

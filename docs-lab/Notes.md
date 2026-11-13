@@ -89,6 +89,5 @@ Product issues found while verifying the schema system (all file refs current as
 - `suggestSchemas` fuzzy "did you mean" helper exists but is wired to nothing
   (project-config.ts:420).
 
-Docs follow-up: the community schema catalog lives only in legacy docs/customization.md
-(#community-schemas); customize/schemas.md links to it on GitHub. When the old docs tree
-retires, the catalog needs a docs-lab home.
+Resolved 2026-11-10: community/index.md owns the schema examples and project showcase.
+The legacy catalogs and customize/schemas.md link to that page.
