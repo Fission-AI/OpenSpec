@@ -170,6 +170,8 @@ export class UpdateCommand {
   private hasGlobalSkills = false;
   /** The workflows the project update settled on, for the global refresh that follows it. */
   private settledWorkflows: readonly string[] | undefined;
+  /** In a dry run, the warning about edits the global refresh would replace. */
+  private replacedGlobalEdits: string | undefined;
   private ops: UpdateFileOps = realFileOps;
 
   constructor(options: UpdateCommandOptions = {}) {
@@ -226,6 +228,7 @@ export class UpdateCommand {
     }
     this.hasGlobalSkills = globalSkillCount > 0;
     this.settledWorkflows = undefined;
+    this.replacedGlobalEdits = undefined;
 
     // With the global skills installed, update works from anywhere; a project is optional.
     // The home folder holds the global skills, so it is never updated as a project of its own.
@@ -253,8 +256,9 @@ export class UpdateCommand {
           const recorder = this.recorder ?? (this.recorder = new UpdatePlanRecorder(resolvedProjectPath));
           recorder.addNote(
             'global-skills',
-            'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills, replacing any edits there.'
+            'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills.'
           );
+          if (this.replacedGlobalEdits) recorder.addNote('edited-skills', this.replacedGlobalEdits);
         }
       } else {
         const note = hasProject ? await duplicateSkillsNote(resolvedProjectPath) : undefined;
@@ -276,7 +280,8 @@ export class UpdateCommand {
    * anything would.
    */
   private async refreshGlobalSkills(planRoot: string): Promise<boolean> {
-    const { GitMissingError, describeLeftAlone, describeSkillsError, installGlobalSkills } = await import('./global-skills.js');
+    const { GitMissingError, describeLeftAlone, describeReplacedEdits, describeSkillsError, installGlobalSkills } =
+      await import('./global-skills.js');
     // The profile the project part of this run settled on, which a dry run
     // has not saved; outside a project, the saved one.
     const globalConfig = getGlobalConfig();
@@ -308,6 +313,10 @@ export class UpdateCommand {
       }
       const leftAlone = describeLeftAlone(result.leftAlone);
       if (leftAlone) this.log(chalk.yellow(leftAlone));
+      // The same warning a project update gives, before a dry run and after a real one.
+      const replaced = result.unchanged ? undefined : describeReplacedEdits(result.replacedEdits, !this.dryRun);
+      if (replaced && this.dryRun) this.replacedGlobalEdits = replaced;
+      else if (replaced && failures.length === 0) this.log(chalk.yellow(replaced));
     } catch (error) {
       const hint =
         error instanceof GitMissingError ? ' The project part of this update does not need it.' : '';

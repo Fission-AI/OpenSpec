@@ -40,7 +40,7 @@ What this costs:
 
 The API has no update call. `openspec update` first compares the installed skills with the text this CLI publishes. If they match, and no skill or tool was added or dropped, it says so and fetches nothing. Otherwise it installs the skills for the running version again, which replaces what is there. A skill the profile no longer wants is removed with `removeSkills`, and only if the lock file says OpenSpec installed it.
 
-Edits to a skill OpenSpec installed are replaced without a backup. That is the package's behavior and we follow it.
+Edits to a skill OpenSpec installed are replaced without a backup. That is the package's behavior and we follow it, but not silently: `update` names each global skill whose edits it replaced, in the words a project update uses, and a dry run warns first.
 
 ### D4. Scope is read from disk, with one saved answer
 

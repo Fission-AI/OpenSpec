@@ -73,6 +73,7 @@ import {
   SKILL_SCOPES,
   canFetchSkills,
   describeLeftAlone,
+  describeReplacedEdits,
   describeSkillsError,
   installGlobalSkills,
   isHomeFolder,
@@ -571,6 +572,7 @@ export class InitCommand {
 
     let globalSkills: { count: number } | undefined;
     let leftAlone: string | undefined;
+    let replacedEdits: string | undefined;
     let everySkillInstalled = true;
     const failedTools: Array<{ name: string; error: Error }> = [];
     if (installed.skills.length > 0 || supported.length > 0 || movedTools.length > 0) {
@@ -587,6 +589,7 @@ export class InitCommand {
         if (result.failures.length === 0) globalSkills = { count: result.skills.length };
         else failedTools.push({ name: 'the global skills', error: new Error(result.failures.join('; ')) });
         leftAlone = describeLeftAlone(result.leftAlone);
+        if (!result.unchanged && result.failures.length === 0) replacedEdits = describeReplacedEdits(result.replacedEdits);
       } catch (error) {
         const hint =
           error instanceof GitMissingError ? ' Or keep the skills in the project: openspec init --scope project' : '';
@@ -595,6 +598,7 @@ export class InitCommand {
       if (failedTools.length > 0) spinner.fail('Could not install the skills for this machine');
       else spinner.succeed(unchanged ? 'Skills for this machine are up to date' : 'Skills installed for this machine');
       if (leftAlone) console.log(chalk.yellow(leftAlone));
+      if (replacedEdits) console.log(chalk.yellow(replacedEdits));
     }
     if (failedTools.length === 0) {
       // An explicit choice sticks even if the profile later empties the install.

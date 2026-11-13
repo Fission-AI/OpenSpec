@@ -22,6 +22,26 @@ const CORE_SKILLS = [
   'openspec-update-change',
 ];
 
+describe('the skills package', () => {
+  // One module talks to the package, so a change in its API, lock file or
+  // paths lands in one place.
+  it('is imported by src/core/global-skills.ts and nothing else', async () => {
+    const importers: string[] = [];
+    const walk = async (dir: string): Promise<void> => {
+      for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) await walk(full);
+        else if (entry.name.endsWith('.ts') && /(?:from|import\()\s*['"]skills['"]/.test(await fs.readFile(full, 'utf8'))) {
+          importers.push(path.relative(cliProjectRoot, full).split(path.sep).join('/'));
+        }
+      }
+    };
+    await walk(path.join(cliProjectRoot, 'src'));
+
+    expect(importers).toEqual(['src/core/global-skills.ts']);
+  });
+});
+
 describe('skills installed for this machine', () => {
   let box: string;
   let home: string;
@@ -469,11 +489,35 @@ describe('skills installed for this machine', () => {
       expect(JSON.parse(result.stdout).notes).toEqual([
         {
           code: 'global-skills',
-          message:
-            'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills, replacing any edits there.',
+          message: 'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills.',
+        },
+        {
+          code: 'edited-skills',
+          message: expect.stringContaining(
+            'Update will replace your edits in 1 skill OpenSpec installs for this machine: openspec-propose.'
+          ),
         },
       ]);
       expect(readFileSync(globalSkill('openspec-propose'), 'utf8')).toBe(edited);
+    });
+
+    it('says which edited global skills it replaced, as a project update does', async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+      await fs.appendFile(globalSkill('openspec-propose'), '\nmy note\n');
+
+      const result = await cli(dir, 'update');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain(
+        'Replaced your edits in 1 skill OpenSpec installs for this machine: openspec-propose.'
+      );
+      expect(readFileSync(globalSkill('openspec-propose'), 'utf8')).not.toContain('my note');
+
+      // Nothing was edited this time, so nothing is reported.
+      await fs.rm(path.join(home, '.claude', 'skills', 'openspec-explore'), { recursive: true, force: true });
+      const again = await cli(dir, 'update');
+      expect(again.stdout).not.toContain('Replaced your edits');
     });
 
     it('says the global skills are up to date and fetches nothing when they are', async () => {

@@ -405,6 +405,8 @@ export interface GlobalInstallResult {
   removedSkills: string[];
   /** Skills left alone because something other than OpenSpec installed them. */
   leftAlone: string[];
+  /** Skills OpenSpec installed that the user had edited, and that this run replaces. */
+  replacedEdits: string[];
   /** True when the installed skills already matched and nothing was fetched. */
   unchanged: boolean;
   failures: string[];
@@ -451,7 +453,13 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   );
   const leftAlone = [...new Set([...blocked, ...[...heldBy.values()].flat()])];
   const removedSkills = before.skills.filter((name) => !inProfile.includes(name));
-  const result = { skills: wanted, agents, removedSkills, leftAlone };
+  // The package replaces what it finds, so an edit inside one of OpenSpec's
+  // own skills goes. Named, so the user can recover it and knows where it went.
+  const replacedEdits = wanted.filter((name) => {
+    const dir = before.paths.get(name);
+    return dir !== undefined && classifySkillFile(dir, sharedSkillTexts(name)) === 'user';
+  });
+  const result = { skills: wanted, agents, removedSkills, leftAlone, replacedEdits };
 
   if (inProfile.length > 0 && wanted.length === 0) {
     return {
@@ -538,5 +546,19 @@ export function describeLeftAlone(leftAlone: readonly string[]): string | undefi
   return (
     `Left ${leftAlone.join(', ')} in your home folder alone: OpenSpec didn't install ${one ? 'it' : 'them'}. ` +
     `Remove ${one ? 'it' : 'them'} to get OpenSpec's own.`
+  );
+}
+
+/**
+ * What to tell the user about edits a global refresh replaces, in the words
+ * a project update uses for the same thing. `done` is false in a dry run.
+ */
+export function describeReplacedEdits(names: readonly string[], done = true): string | undefined {
+  if (names.length === 0) return undefined;
+  const one = names.length === 1;
+  return (
+    `${done ? 'Replaced' : 'Update will replace'} your edits in ${names.length} skill${one ? '' : 's'} OpenSpec installs for this machine: ` +
+    `${names.join(', ')}. OpenSpec refreshes ${one ? 'this skill' : 'these skills'} on every update and keeps no copy. ` +
+    `${done ? 'Keep' : 'Save your text first, and keep'} lasting changes in a skill of your own under another name.`
   );
 }
