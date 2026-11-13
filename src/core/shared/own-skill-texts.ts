@@ -9,7 +9,7 @@ import { createRequire } from 'module';
 import { getTransformerForTool, transformToSharedSkillReferences } from '../../utils/command-references.js';
 import { resolveCommandInvocation, resolveCommandSurfaceCapability } from '../command-surface.js';
 import type { FileView } from '../file-view.js';
-import { everySkillRendering } from './skill-generation.js';
+import { everySkillRendering, stripVolatileFrontmatter } from './skill-generation.js';
 import { classifySkillFile } from './skill-links.js';
 
 const require = createRequire(import.meta.url);
@@ -32,12 +32,16 @@ export function ownSkillTexts(toolId: string, dirName: string, version: string =
 }
 const ownTextCache = new Map<string, string[]>();
 
-/** Every text this version writes for `dirName` in the shared `.agents/skills`. */
+/**
+ * Every text of this version's `dirName` in the shared `.agents/skills`: with
+ * the version stamp 2.0 wrote, and the published form, which has none.
+ */
 export function sharedSkillTexts(dirName: string, version: string = OPENSPEC_VERSION): string[] {
   const key = `${version}\0${dirName}`;
   let texts = sharedTextCache.get(key);
   if (!texts) {
-    texts = everySkillRendering(dirName, version, transformToSharedSkillReferences);
+    const stamped = everySkillRendering(dirName, version, transformToSharedSkillReferences);
+    texts = [...stamped, ...stamped.map(stripVolatileFrontmatter)];
     sharedTextCache.set(key, texts);
   }
   return texts;

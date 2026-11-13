@@ -1634,15 +1634,18 @@ describe('InitCommand', () => {
       expect(content).toContain('name: openspec-apply-change');
     });
 
-    it('should embed generatedBy version in skill files', async () => {
+    it('should write the published skill text, which has no generatedBy version', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
       const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
-      // Should contain generatedBy field with a version string
-      expect(content).toMatch(/generatedBy:\s*["']?\d+\.\d+\.\d+["']?/);
+      // The same file the repository publishes in skills/, for every release.
+      expect(content).not.toContain('generatedBy');
+      expect(content).toBe(
+        await fs.readFile(path.join(process.cwd(), 'skills', 'openspec-explore', 'SKILL.md'), 'utf-8')
+      );
     });
   });
 

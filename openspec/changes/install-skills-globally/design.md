@@ -77,6 +77,6 @@ Nine tools have no agent id in the package: AtomCode, CoStrict, DeepSeek Harness
 
 ## Risks
 
-- **A project install is still 2.0's installer.** Moving it to the `skills` package means re-proving every upgrade path from 1.x, so it is a separate change. Until then two installers exist: ours for projects, the package for the machine.
+- **A project install fetches too.** `openspec init --scope project` and `openspec update` now install a project's `.agents/skills` with the same package, from the same published skills, and record them in `skills-lock.json`. 2.0's installer still decides what is the user's, makes the links for tools the package doesn't know, and migrates 1.x projects. When the skills can't be fetched (no git, no connection), it writes the same text itself and says the lock file is missing, so a project install never fails for that. The installed text has no version stamp: a project is up to date when its skills equal the text this CLI publishes.
 - **Both copies present.** A project with its own skills on a machine with the global ones may show each skill twice. `openspec update` says so and names the command that fixes it.
 - **Yarn 1 on Node 22.12 to 22.19** refuses a dependency whose `engines` it doesn't meet. npm and pnpm only warn.

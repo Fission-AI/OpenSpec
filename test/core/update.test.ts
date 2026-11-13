@@ -111,10 +111,24 @@ async function createLegacyCodexPrompt(): Promise<string> {
   return prompt;
 }
 
+/**
+ * The skills can't be fetched, so the CLI writes them itself: the write a
+ * test then makes fail.
+ */
+function failSkillFetch(): void {
+  process.env.OPENSPEC_SKILLS_SOURCE = path.join(os.tmpdir(), 'openspec-no-skills-here');
+}
+
 function failCodexSkillWrites(): void {
+  failSkillFetch();
   const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
   vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
-    if (filePath.includes(`${path.sep}.agents${path.sep}`) && filePath.endsWith('SKILL.md')) {
+    // Nothing in `.agents/skills` can be written: a skill, or (where the
+    // skills are already current and need no write) the list of tools.
+    if (
+      filePath.includes(`${path.sep}.agents${path.sep}`) &&
+      (filePath.endsWith('SKILL.md') || filePath.endsWith('.openspec-target'))
+    ) {
       throw new Error('EACCES: permission denied');
     }
     return originalWriteFile(filePath, content);
@@ -2003,6 +2017,7 @@ metadata:
       await fs.mkdir(path.dirname(prompt), { recursive: true });
       await fs.writeFile(prompt, releasedCodexPrompt('opsx-explore.md'));
 
+      failSkillFetch();
       const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
       vi.spyOn(FileSystemUtils, 'writeFile').mockImplementation(async (filePath, content) => {
         if (filePath.includes(`${path.sep}.agents${path.sep}`) && filePath.endsWith('SKILL.md')) {
@@ -2024,6 +2039,7 @@ metadata:
       await writeReleasedSkill(skillsDir, 'openspec-explore');
 
       // Mock writeFile to fail for skills
+      failSkillFetch();
       const originalWriteFile = FileSystemUtils.writeFile.bind(FileSystemUtils);
       const writeSpy = vi
         .spyOn(FileSystemUtils, 'writeFile')
@@ -2470,8 +2486,8 @@ Legacy content without generatedBy
       consoleSpy.mockRestore();
     });
 
-    it('should embed generatedBy in updated skill files', async () => {
-      // Set up a configured tool without generatedBy
+    it('should write updated skill files as the published text, with no generatedBy', async () => {
+      // Set up a configured tool with a skill an earlier release stamped
       const skillsDir = path.join(testDir, '.claude', 'skills');
       await writeReleasedSkill(skillsDir, 'openspec-explore');
 
@@ -2482,8 +2498,11 @@ Legacy content without generatedBy
         'utf-8'
       );
 
-      // Should contain generatedBy field
-      expect(updatedContent).toMatch(/generatedBy:\s*["']\d+\.\d+\.\d+["']/);
+      // The same file the repository publishes in skills/, for every release.
+      expect(updatedContent).not.toContain('generatedBy');
+      expect(updatedContent).toBe(
+        await fs.readFile(path.join(process.cwd(), 'skills', 'openspec-explore', 'SKILL.md'), 'utf-8')
+      );
     });
   });
 

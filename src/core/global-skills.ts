@@ -5,13 +5,17 @@
  * fetches the skills published in OpenSpec's repository, and owns the layout,
  * the links each tool needs and the lock file. This module holds no paths and
  * writes no skill text of its own.
+ *
+ * A project's own skills go through the same package (see
+ * `installProjectSkills`), called by the installer that owns that layout.
  */
 
 import os from 'os';
 import path from 'path';
-import { realpathSync } from 'fs';
+import { readFileSync, realpathSync, rmSync, writeFileSync } from 'fs';
 import { spawnSync } from 'child_process';
-import { AI_TOOLS, OPENSPEC_SKILL_NAMES } from './config.js';
+import { createHash } from 'crypto';
+import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
 import { getSkillTemplates } from './shared/skill-generation.js';
 import { getConfiguredTools } from './shared/tool-detection.js';
 
@@ -139,6 +143,167 @@ function isOurSource(source: string | undefined): boolean {
     : path.resolve(source) === path.resolve(ours);
 }
 
+/**
+ * Install skills from OpenSpec's source: the ones published with this release,
+ * so they always match the CLI. Throws `GitMissingError` when the source has
+ * to be cloned and git is missing.
+ */
+async function installPublishedSkills(
+  version: string,
+  options: { scope: SkillScope; cwd?: string; agents: readonly string[]; skills: readonly string[] }
+) {
+  const { installSkills, isDiagnostic } = await import('skills');
+  const source = skillsSource();
+  const install = (ref?: string) => installSkills(source, { ...options, telemetry: false, ...(ref ? { ref } : {}) });
+  if (!sourceNeedsGit(source)) return install();
+  if (spawnSync('git', ['--version'], { stdio: 'ignore' }).status !== 0) {
+    // Counted, so we learn how often the git requirement gets in someone's way.
+    const { trackCommand } = await import('../telemetry/index.js');
+    await trackCommand('skills:git-missing', version);
+    throw new GitMissingError();
+  }
+  try {
+    return await install(`v${version}`);
+  } catch (error) {
+    // A release whose tag isn't published yet: the default branch holds the same skills.
+    if (!isDiagnostic(error, 'SKILLS_GIT_CLONE_FAILED')) throw error;
+    return install();
+  }
+}
+
+/** The record the `skills` package keeps of a project's skills. */
+const PROJECT_LOCK_FILE = 'skills-lock.json';
+
+export function projectLockPath(projectPath: string): string {
+  return path.join(projectPath, PROJECT_LOCK_FILE);
+}
+
+interface ProjectLock {
+  version: number;
+  skills: Record<string, unknown>;
+}
+
+function parseProjectLock(text: string | undefined): ProjectLock | undefined {
+  try {
+    const lock = JSON.parse(text ?? '') as ProjectLock;
+    return typeof lock?.version === 'number' && typeof lock.skills === 'object' && lock.skills !== null
+      ? lock
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The skills a project's lock file records, by name. */
+export function lockedProjectSkills(lockText: string | undefined): Set<string> {
+  return new Set(Object.keys(parseProjectLock(lockText)?.skills ?? {}));
+}
+
+/** The hash the `skills` package records for a skill folder that holds only this SKILL.md. */
+function lockHash(skillText: string): string {
+  const content = Buffer.from(skillText.replaceAll('\r\n', '\n'), 'utf-8');
+  return createHash('sha256').update(`SKILL.md\0${content.length}\0`).update(content).digest('hex');
+}
+
+/**
+ * A project's lock file once `installed` (skill name to SKILL.md text) are
+ * recorded and `removed` are not, or undefined when it then records no skill
+ * at all (and so should not exist). Only a dry run uses the text, to say
+ * whether the file changes: the `skills` package writes the real one. An
+ * unreadable lock file is returned as it is.
+ */
+export function plannedProjectLock(
+  lockText: string | undefined,
+  installed: ReadonlyMap<string, string>,
+  removed: readonly string[]
+): string | undefined {
+  const lock = parseProjectLock(lockText) ?? (lockText === undefined ? { version: 2, skills: {} } : undefined);
+  if (!lock) return lockText;
+  const skills = { ...lock.skills };
+  for (const name of removed) delete skills[name];
+  for (const [name, text] of installed) {
+    skills[name] = { source: skillsSource(), ...(skills[name] as object | undefined), computedHash: lockHash(text) };
+  }
+  if (Object.keys(skills).length === 0) return undefined;
+  return JSON.stringify({ version: lock.version, skills }, null, 2) + '\n';
+}
+
+/**
+ * The agents, by the `skills` package's ids, to install a project's skills
+ * for: the shared `.agents/skills`, and each given tool the package links
+ * skills for in the very folder OpenSpec does.
+ */
+async function projectAgents(tools: readonly AIToolOption[]): Promise<string[]> {
+  const { getSupportedAgents } = await import('skills');
+  const linkDirs = new Map(
+    getSupportedAgents()
+      .filter((agent) => !agent.universal)
+      .map((agent) => [agent.id, path.normalize(agent.projectSkillsDir)])
+  );
+  return [
+    UNIVERSAL_AGENT,
+    ...tools
+      .filter((tool) => linkDirs.get(AGENT_IDS[tool.value]) === path.join(tool.skillsDir ?? '', 'skills'))
+      .map((tool) => AGENT_IDS[tool.value]),
+  ];
+}
+
+export interface ProjectInstallInput {
+  projectPath: string;
+  /** Tools whose own skills folder the package may link the skills into. */
+  linkedTools: readonly AIToolOption[];
+  skills: readonly string[];
+  /** The CLI's version: the skills published with that release are the ones installed. */
+  version: string;
+}
+
+/**
+ * Install OpenSpec's skills into a project's `.agents/skills`, recorded in its
+ * `skills-lock.json`. Returns what failed for single skills; throws when
+ * nothing could be fetched (`GitMissingError` when git is why).
+ */
+export async function installProjectSkills(input: ProjectInstallInput): Promise<string[]> {
+  const installed = await installPublishedSkills(input.version, {
+    scope: 'project',
+    // The real folder, so a link the package makes reads as the one OpenSpec makes.
+    cwd: realpathSync(input.projectPath),
+    agents: await projectAgents(input.linkedTools),
+    skills: input.skills,
+  });
+  return [...new Set(installed.failed.map((failure) => failure.message))];
+}
+
+/**
+ * Take skills out of a project's `.agents/skills` and its lock file. Links in
+ * tools' own folders are left to the caller, which knows whose they are.
+ */
+export async function removeLockedProjectSkills(projectPath: string, names: readonly string[]): Promise<void> {
+  const { removeSkills } = await import('skills');
+  await removeSkills(names, {
+    cwd: realpathSync(projectPath),
+    scope: 'project',
+    agents: [UNIVERSAL_AGENT],
+    telemetry: false,
+  });
+}
+
+/**
+ * Drop skills from a project's lock file without touching their folders, and
+ * delete a lock file that then records no skill at all.
+ */
+export function dropFromProjectLock(projectPath: string, names: readonly string[]): void {
+  const lockPath = projectLockPath(projectPath);
+  let text: string;
+  try {
+    text = readFileSync(lockPath, 'utf-8');
+  } catch {
+    return;
+  }
+  const planned = plannedProjectLock(text, new Map(), names);
+  if (planned === undefined) rmSync(lockPath);
+  else if (lockedProjectSkills(planned).size !== lockedProjectSkills(text).size) writeFileSync(lockPath, planned);
+}
+
 export interface GlobalSkills {
   /** OpenSpec's skills installed for this machine. */
   skills: string[];
@@ -183,7 +348,7 @@ export interface GlobalInstallResult {
  * Reinstalling is the update: the `skills` package replaces what it finds.
  */
 export async function installGlobalSkills(input: GlobalInstallInput): Promise<GlobalInstallResult> {
-  const { installSkills, isDiagnostic, removeSkills } = await import('skills');
+  const { removeSkills } = await import('skills');
   const before = await readGlobalSkills();
   const inProfile = getSkillTemplates(input.workflows).map(({ dirName }) => dirName);
   // A skill of the same name that OpenSpec didn't install is someone's own: never replace it.
@@ -192,32 +357,11 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const added = (input.toolIds ?? []).filter(supportsGlobalSkills).map((id) => AGENT_IDS[id]);
   const agents = [...new Set([UNIVERSAL_AGENT, ...before.agents, ...added])];
 
-  const source = skillsSource();
   const options = { scope: 'global', telemetry: false } as const;
   const failures: string[] = [];
   // A profile with no workflows installs nothing, and only clears what was there.
   if (wanted.length > 0) {
-    const install = (ref?: string) =>
-      installSkills(source, { ...options, agents, skills: wanted, ...(ref ? { ref } : {}) });
-    let installed;
-    if (!sourceNeedsGit(source)) {
-      installed = await install();
-    } else {
-      if (spawnSync('git', ['--version'], { stdio: 'ignore' }).status !== 0) {
-        // Counted, so we learn how often the git requirement gets in someone's way.
-        const { trackCommand } = await import('../telemetry/index.js');
-        await trackCommand('skills:git-missing', input.version);
-        throw new GitMissingError();
-      }
-      try {
-        // The skills published with this release, so they always match the CLI.
-        installed = await install(`v${input.version}`);
-      } catch (error) {
-        // A release whose tag isn't published yet: the default branch holds the same skills.
-        if (!isDiagnostic(error, 'SKILLS_GIT_CLONE_FAILED')) throw error;
-        installed = await install();
-      }
-    }
+    const installed = await installPublishedSkills(input.version, { scope: 'global', agents, skills: wanted });
     failures.push(...installed.failed.map((failure) => failure.message));
   }
 

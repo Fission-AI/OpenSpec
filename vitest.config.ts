@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Every test runs with a throwaway home, so a test that forgets to isolate it
 // can never write to the developer's real one (~/.minimax/skills,
@@ -47,6 +48,9 @@ export default defineConfig({
       XDG_CONFIG_HOME: path.join(testHome, '.config'),
       XDG_DATA_HOME: path.join(testHome, '.local', 'share'),
       CODEX_HOME: path.join(testHome, '.codex'),
+      // Project and global skill installs read the checkout's own skills/
+      // folder, so no test fetches them from the network.
+      OPENSPEC_SKILLS_SOURCE: path.join(path.dirname(fileURLToPath(import.meta.url)), 'skills'),
     },
     // Tests rely on per-file process isolation (e.g., `process.cwd()` assumptions).
     pool: 'forks',

@@ -26,6 +26,7 @@ import {
   formatIdeRestart,
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
+import { stripVolatileFrontmatter } from './shared/skill-generation.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -772,7 +773,7 @@ export class UpdateCommand {
           )
         );
       }
-      for (const line of formatKeptSkills(result.kept, result.linkedOutside, result.refreshedEdited)) this.log(chalk.yellow(line));
+      for (const line of formatKeptSkills(result.kept, result.linkedOutside, result.refreshedEdited, result.unfetched)) this.log(chalk.yellow(line));
       // A dry run is the last chance to save them.
       if (result.refreshedEdited.length > 0) {
         this.recorder?.addNote(
@@ -965,7 +966,9 @@ export class UpdateCommand {
         }
         try {
           const existing = this.view.read(skillFile);
-          const generated = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+          const stamped = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+          // The shared copy is the published text, which has no version stamp.
+          const generated = usesSharedSkills(tool) ? stripVolatileFrontmatter(stamped) : stamped;
           return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
         } catch {
           return true;
@@ -1072,7 +1075,8 @@ export class UpdateCommand {
   ): void {
     const updates = toolsToUpdate.map((toolId) => {
       const status = statusByTool.get(toolId);
-      if (status?.needsUpdate) {
+      // A skill with no version to read, whose text differs, is reported as that.
+      if (status?.needsUpdate && !(status.generatedByVersion === null && driftedSkills.has(toolId))) {
         const fromVersion = status.generatedByVersion ?? 'unknown';
         return `${status.toolId} (${fromVersion} → ${OPENSPEC_VERSION})`;
       }

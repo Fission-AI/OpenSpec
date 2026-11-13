@@ -26,7 +26,7 @@ export type SkillLinkSpot = 'missing' | 'link' | 'copy' | 'released' | 'user';
  * a skill folder the user's.
  */
 const OS_JUNK = new Set(['.DS_Store', 'Thumbs.db', 'desktop.ini']);
-const isOsJunk = (name: string) => OS_JUNK.has(name) || name.startsWith('._');
+export const isOsJunk = (name: string) => OS_JUNK.has(name) || name.startsWith('._');
 
 /**
  * The text of the link OpenSpec makes at `linkPath` to `targetDir` (always

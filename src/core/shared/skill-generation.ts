@@ -90,6 +90,16 @@ export function everySkillRendering(
   return texts;
 }
 
+/**
+ * Drops the per-release `generatedBy` frontmatter line. What is left is the
+ * published form of a skill: the text in the repository's `skills/` folder,
+ * and the text a project's `.agents/skills` holds, which is the same for every
+ * release that doesn't change the skill.
+ */
+export function stripVolatileFrontmatter(content: string): string {
+  return content.replace(/^ {2}generatedBy: .*\n/m, '');
+}
+
 const NO_TRANSFORM = (text: string) => text;
 const renderingCache = new WeakMap<(text: string) => string, Map<string, string[]>>();
 
