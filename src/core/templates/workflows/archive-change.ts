@@ -5,7 +5,6 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
@@ -14,19 +13,14 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  * how it normally does that. A profile that selects `archive` gets `sync`
  * injected (see getProfileWorkflows), but an install whose workflow set was
  * read back off disk can still be missing it — in which case the merge has to
- * happen inline rather than be handed to a workflow that is not there.
+ * happen inline rather than be handed to a workflow that is not there. The
+ * text is the same for every profile, so it states both paths.
  */
-const SYNC_INLINE_HANDOFF = optionalWorkflow(
-  'sync',
-  'run the `/opsx:sync` workflow inline (agent-driven intelligent merge)',
-  'perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)'
-);
+const SYNC_INLINE_HANDOFF =
+  'run the `/opsx:sync` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (an agent-driven intelligent merge either way)';
 
-const SYNC_GUARDRAIL = optionalWorkflow(
-  'sync',
-  'run the `/opsx:sync` workflow inline (agent-driven)',
-  'perform the delta-to-main-spec merge inline (agent-driven)'
-);
+const SYNC_GUARDRAIL =
+  'run the `/opsx:sync` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (agent-driven either way)';
 
 export function getArchiveChangeSkillTemplate(): SkillTemplate {
   return {
@@ -158,7 +152,7 @@ ${PROJECT_ROOT_GUARD}
    form of main specs produced by this merge; do not use them as archive guidance,
    change CLI behavior, or copy the rule text into any output file.
 
-   Then ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge)', 'perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)')} for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching \`specs\` instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
+   Then run the \`openspec-sync-specs\` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (an agent-driven intelligent merge either way) for change '<name>', passing the delta spec analysis and the fetched specs-rule snapshot from above, and wait for it to finish. The inline sync must reuse that snapshot without fetching \`specs\` instructions again. Do not delegate it to a background task — step 5 would move \`changeRoot\` out from under a sync that is still reading it, leaving the change archived and the main specs never updated. If your agent can only run it by delegation, delegate synchronously and wait for the result.
 
    If the sync reports any stop or blocking condition, treat the sync as failed.
    Stop the archive immediately. Do not perform the post-sync content comparison and do not move its \`changeRoot\`.
@@ -224,7 +218,7 @@ ${PROJECT_ROOT_GUARD}
 - Don't block archive on warnings - just inform and confirm
 - Preserve .openspec.yaml when moving to archive (it moves with the directory)
 - Show clear summary of what happened
-- If sync is requested, ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven)', 'perform the delta-to-main-spec merge inline (agent-driven)')}
+- If sync is requested, run the \`openspec-sync-specs\` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (agent-driven either way)
 - Never archive while a spec sync is still in flight — run the sync inline and verify the main specs before moving \`changeRoot\`
 - If delta specs exist, always run the sync assessment and show the combined summary before prompting
 - Apply relevant runtime context and report conflicts; operation guidance remains advisory

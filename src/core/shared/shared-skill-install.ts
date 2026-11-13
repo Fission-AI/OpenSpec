@@ -192,9 +192,8 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
     // A deselected skill goes; any other file the user keeps beside its
     // SKILL.md stays, and so does a SKILL.md the user edited (it is theirs
     // from now on, recorded as kept).
-    // Judged against OpenSpec's text alone (this version's, whatever
-    // workflows were installed beside it), never against what the file held
-    // before this run, which it always equals.
+    // Judged against OpenSpec's text alone (this version's), never against
+    // what the file held before this run, which it always equals.
     const generated = generatedTexts(skillName);
     if (
       view.isDirectory(skillDir) &&

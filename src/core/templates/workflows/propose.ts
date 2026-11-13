@@ -5,30 +5,23 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 /**
  * The implementation handoff. `apply` is not guaranteed to be installed, so
- * the prompt is resolved at generation time (see optional-workflow.ts) rather
- * than naming a workflow that may not exist.
+ * the prompt covers both cases: the text is the same for every profile, and
+ * the agent reading it can see which skills it has.
  *
  * The two surfaces word this differently on purpose (#258): a command-only
  * tool has no conversational agent to ask, so its prompt names a command or
  * the CLI and never invites "ask me to implement".
  */
-const SKILL_APPLY_HANDOFF = optionalWorkflow(
-  'apply',
-  'use the `/opsx:apply` skill or ask me to apply this change',
-  'ask me to apply this change'
-);
+const SKILL_APPLY_HANDOFF =
+  'use the `/opsx:apply` skill if it is installed, or ask me to apply this change';
 
-const COMMAND_APPLY_HANDOFF = optionalWorkflow(
-  'apply',
-  'run `/opsx:apply`',
-  'run `openspec instructions apply --change "<name>" --json` to get the tasks'
-);
+const COMMAND_APPLY_HANDOFF =
+  'run `/opsx:apply`. If it is not installed, run `openspec instructions apply --change "<name>" --json` to get the tasks';
 
 export function getOpsxProposeSkillTemplate(): SkillTemplate {
   return {

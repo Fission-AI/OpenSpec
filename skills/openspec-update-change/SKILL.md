@@ -26,7 +26,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
-This workflow revises artifacts that already exist; `openspec-continue-change` is what creates the ones that do not.
+This workflow revises artifacts that already exist; it never creates missing ones. `openspec-continue-change` is what creates the ones that do not exist yet, if that skill is installed. Otherwise, when an artifact is missing, `openspec status --change "<name>" --json` names the next one and `openspec instructions "<artifact-id>" --change "<name>" --json` explains how to create it.
 
 **Steps**
 
@@ -68,7 +68,7 @@ This workflow revises artifacts that already exist; `openspec-continue-change` i
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Draft the requested edit in the conversation, not in files. Work out exactly what it changes; step 5 owns every write. Then check every other existing artifact against the drafted edit - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Propose revisions to files that already exist (`existingOutputPaths`). If an artifact has no existing output files and status `ready` or `blocked`, note it and point the user to `openspec-continue-change` to create them. Leave `skipped` artifacts untouched; do not treat them as missing or defer them to the continue workflow.
+   - Propose revisions to files that already exist (`existingOutputPaths`). If an artifact has no existing output files and status `ready` or `blocked`, note it and point the user to `openspec-continue-change` to create them if that skill is installed, or otherwise to `openspec instructions "<artifact-id>" --change "<name>" --json` for how to create them. Leave `skipped` artifacts untouched; do not treat them as missing or defer them to the continue workflow.
    - A glob artifact (e.g. `specs/**/*.md`) is marked `done` after at least one file matches, and the continue workflow only handles `ready` artifacts. When reconciliation identifies a missing file for a glob artifact whose `existingOutputPaths` is non-empty:
      1. Run `openspec instructions "<artifact-id>" --change "<name>" --json` and use its `instruction` and `template`. Treat `context` and `rules` as constraints; do not copy them into the file. If instructions report `skipped: true`, do not create the file. Read current dependency files from disk; if a required non-skipped dependency is missing, stop and ask the user to restore it first.
      2. Choose a concrete path inside `changeRoot` that matches `artifactPaths.<id>.outputPath` and does not already exist. Verify it remains inside `changeRoot` after resolving any symlinked parent directories. The glob `resolvedOutputPath` is not a valid target.
@@ -87,22 +87,22 @@ This workflow revises artifacts that already exist; `openspec-continue-change` i
      ```
 
 6. **Point to the next step (guidance only - NEVER act on it)**
-   - Artifacts with empty `existingOutputPaths` and status `ready` or `blocked` -> suggest `openspec-continue-change` to create them.
-   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest `openspec-apply-change` to carry the delta into code.
-   - Everything done and implemented -> suggest `openspec-archive-change`.
+   - Artifacts with empty `existingOutputPaths` and status `ready` or `blocked` -> suggest `openspec-continue-change` to create them if that skill is installed. Otherwise run `openspec status --change "<name>" --json` for the next artifact and point the user to `openspec instructions "<artifact-id>" --change "<name>" --json` for how to create it.
+   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; suggest `openspec-apply-change` to carry the delta into code if that skill is installed, or otherwise say that the code may need updating and offer to carry the delta into it.
+   - Everything done and implemented -> suggest `openspec-archive-change` if that skill is installed, or otherwise suggest archiving with `openspec archive "<name>"`.
 
 **Output**
 
 After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
 - Any file created under a glob artifact that was already partially populated
-- Anything deferred to `openspec-continue-change` (artifacts with no files yet and status `ready` or `blocked`, never `skipped` artifacts)
+- Anything deferred because it does not exist yet, which is work for `openspec-continue-change` if that skill is installed (artifacts with no files yet and status `ready` or `blocked`, never `skipped` artifacts)
 - Where the change stands and the recommended next skill
 
 **Guardrails**
-- Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to `openspec-apply-change`.
+- Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, stop and point to `openspec-apply-change` if that skill is installed. Otherwise stop and say that the revised plan now implies code changes; implementing them is a separate step.
 - Use the artifact ids and paths reported by `openspec status`; never branch on hardcoded artifact names.
 - Edit only the concrete files in `existingOutputPaths`, plus any confirmed concrete path allowed under a partly populated glob artifact (step 4); never write to a glob `resolvedOutputPath`.
-- Do not advance the build frontier: if an artifact has empty `existingOutputPaths` and status `ready` or `blocked`, that is `openspec-continue-change`'s job. Leave `skipped` artifacts untouched. The only new-file scope is a confirmed concrete path under a glob artifact whose `existingOutputPaths` is non-empty.
+- Do not advance the build frontier: if an artifact has empty `existingOutputPaths` and status `ready` or `blocked`, that is `openspec-continue-change`'s job if that skill is installed, and otherwise a separate step outside this workflow. Leave `skipped` artifacts untouched. The only new-file scope is a confirmed concrete path under a glob artifact whose `existingOutputPaths` is non-empty.
 - Confirm every edit with the user before writing.
-- If the request changes the change's *intent* rather than refining it, recommend starting fresh with `openspec-new-change` (the "Update vs. Start Fresh" heuristic).
+- If the request changes the change's *intent* rather than refining it, recommend starting fresh with `openspec-new-change` if that skill is installed, or otherwise ask for a distinct unused change name and recommend `openspec new change "<new-change-name>"` instead (the "Update vs. Start Fresh" heuristic).

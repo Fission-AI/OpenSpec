@@ -19,38 +19,24 @@ import {
 } from '../../../src/core/command-generation/invocation.js';
 import { getCommandContents } from '../../../src/core/shared/skill-generation.js';
 import { MAX_CONTEXT_SIZE } from '../../../src/core/project-config.js';
-import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
 import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
 import { parseTaskLines } from '../../../src/utils/task-progress.js';
 
-// Templates carry optional-workflow conditionals; a body only means anything
-// once resolved against a workflow set. Unless a test says otherwise, these are
-// the bodies a profile with every workflow installed receives.
-const withAll = (body: string) =>
-  resolveOptionalWorkflows(body, new Set<string>(ALL_WORKFLOWS));
-const withoutApply = (body: string) =>
-  resolveOptionalWorkflows(
-    body,
-    new Set<string>(ALL_WORKFLOWS.filter((id) => id !== 'apply'))
-  );
-
-const proposeSkillBody = withAll(getOpsxProposeSkillTemplate().instructions);
-const proposeCommandBody = withAll(getOpsxProposeCommandTemplate().content);
-const asDeployed = <T extends { instructions: string }>(template: T): T => ({
-  ...template,
-  instructions: withAll(template.instructions),
-});
+// The bodies every workflow profile receives: the text does not vary with the
+// profile.
+const proposeSkillBody = getOpsxProposeSkillTemplate().instructions;
+const proposeCommandBody = getOpsxProposeCommandTemplate().content;
 
 const proposeBodies: Array<[string, string]> = [
-  ['propose skill', generateSkillContent(asDeployed(getOpsxProposeSkillTemplate()), 'TEST')],
+  ['propose skill', generateSkillContent(getOpsxProposeSkillTemplate(), 'TEST')],
   ['propose command', proposeCommandBody],
 ];
 
 // ff runs the byte-identical artifact loop, so it carries the identical guards.
 const loopBodies: Array<[string, string]> = [
   ...proposeBodies,
-  ['ff skill', withAll(getFfChangeSkillTemplate().instructions)],
-  ['ff command', withAll(getOpsxFfCommandTemplate().content)],
+  ['ff skill', getFfChangeSkillTemplate().instructions],
+  ['ff command', getOpsxFfCommandTemplate().content],
 ];
 
 const repoRoot = path.resolve(fileURLToPath(new URL('.', import.meta.url)), '../../..');
@@ -390,7 +376,7 @@ describe('propose implementation boundary', () => {
     expect(proposeCommandBody).not.toContain('ask me to apply this change');
 
     expect(proposeSkillBody).toContain(
-      'use the `/opsx:apply` skill or ask me to apply this change'
+      'use the `/opsx:apply` skill if it is installed, or ask me to apply this change'
     );
     expect(proposeSkillBody).not.toContain('ask me to implement');
   });
@@ -398,26 +384,22 @@ describe('propose implementation boundary', () => {
   // The same boundary has to hold when `apply` is not installed: the command
   // surface may name the CLI, never a conversational handoff (#1734).
   it('keeps command-only tools off direct coding when apply is not installed', () => {
-    const command = withoutApply(getOpsxProposeCommandTemplate().content);
-    const skill = withoutApply(getOpsxProposeSkillTemplate().instructions);
-    const ffCommand = withoutApply(getOpsxFfCommandTemplate().content);
-
-    for (const body of [command, skill, ffCommand]) {
-      expect(body).not.toContain('/opsx:apply');
-    }
+    const command = getOpsxProposeCommandTemplate().content;
+    const skill = getOpsxProposeSkillTemplate().instructions;
+    const ffCommand = getOpsxFfCommandTemplate().content;
 
     expect(command).toContain(
-      'run `openspec instructions apply --change "<name>" --json` to get the tasks'
+      'run `/opsx:apply`. If it is not installed, run `openspec instructions apply --change "<name>" --json` to get the tasks'
     );
     expect(command).not.toContain('ask me to implement');
     expect(command).not.toContain('ask me to apply this change');
 
     expect(ffCommand).toContain(
-      'Run `openspec instructions apply --change "<name>" --json` to get the task list'
+      'Run `/opsx:apply` to start implementing. If it is not installed, run `openspec instructions apply --change "<name>" --json` to get the task list'
     );
     expect(ffCommand).not.toContain('ask me to implement');
 
-    expect(skill).toContain('ask me to apply this change');
+    expect(skill).toContain('use the `/opsx:apply` skill if it is installed, or ask me to apply this change');
     expect(skill).not.toContain('ask me to implement');
   });
 

@@ -63,7 +63,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    **Handle states:**
    - If `state: "blocked"`: show the message and pause implementation.
-     - If `missingArtifacts` is non-empty: suggest using `openspec-continue-change` to create them.
+     - If `missingArtifacts` is non-empty: suggest using `openspec-continue-change` to create them if that skill is installed. Otherwise suggest completing the missing artifacts: run `openspec status --change "<name>" --json`, select the next `ready` artifact (not `skipped` or `blocked`), and use `openspec instructions "<artifact-id>" --change "<name>" --json` for its rules and template. Keep the selected `--store <id>` on both commands.
      - Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file from existing planning artifacts. Do not assume another artifact is ready or start implementation while blocked.
    - If `state: "all_done"`: report that all tracked tasks are complete and suggest review or verification as appropriate before archiving
    - Otherwise: proceed to implementation
@@ -156,7 +156,7 @@ Working on task 4/7: <task description>
 ...
 
 All tracked tasks are complete. Review or verify the change as appropriate
-before archiving. You can archive this change with `openspec-archive-change`.
+before archiving. You can archive this change with `openspec-archive-change`, or with `openspec archive "<name>"` if that skill is not installed.
 ```
 
 **Output On Pause (Issue Encountered)**

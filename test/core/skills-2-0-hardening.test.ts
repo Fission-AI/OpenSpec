@@ -538,14 +538,13 @@ describe('OpenSpec 2.0 skills: hardening', () => {
   });
 
   it('refreshes a fallback copy left at an older text, without --force', async () => {
-    await setProfile({
-      profile: 'custom',
-      workflows: ['propose', 'explore', 'new', 'continue', 'apply', 'update', 'ff', 'sync', 'archive', 'bulk-archive', 'verify', 'onboard'],
-    });
     await new InitCommand({ tools: 'claude', force: true }).execute(project);
-    const older = await read('.agents/skills/openspec-apply-change/SKILL.md');
-    await setProfile({ profile: 'core' });
-    await new UpdateCommand().execute(project);
+    // A skill's text no longer changes with the profile, so the older text is
+    // one a release wrote.
+    const older = readFileSync(
+      path.join(FIXTURES, 'v1.16.0-claude-skills', 'openspec-apply-change', 'SKILL.md'),
+      'utf8'
+    );
     const spot = p('.claude', 'skills', 'openspec-apply-change');
     await fs.rm(spot);
     await fs.mkdir(spot);

@@ -5,7 +5,6 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
@@ -33,45 +32,28 @@ adding a service to operate; shared state would need a separate sync design.
 
 /**
  * Explore's handoffs. A custom profile can install explore without propose or
- * apply, so each reference is resolved at generation time (see
- * optional-workflow.ts) instead of naming a workflow that may not exist. The
- * fallbacks point at explore's own capture path and the always-present CLI.
+ * apply, so each reference names the skill "if installed" and gives a
+ * fallback: the skill text is the same for every profile, and the agent
+ * reading it can see which skills it has. The fallbacks point at explore's own
+ * capture path and the always-present CLI.
  */
-const IMPLEMENT_REQUEST_HANDOFF = optionalWorkflow(
-  'propose',
-  'point them at `/opsx:propose`, which turns the discussion into a change',
-  'offer to capture the discussion as a change, as described below'
-);
+const IMPLEMENT_REQUEST_HANDOFF =
+  'point them at `/opsx:propose`, which turns the discussion into a change, if that skill is installed. Otherwise offer to capture the discussion as a change, as described below';
 
-const CAPTURE_PLANNING_HANDOFF = optionalWorkflow(
-  'propose',
-  '`/opsx:propose` writes the remaining planning artifacts',
-  'any remaining planning artifacts can be captured here the same way'
-);
+const CAPTURE_PLANNING_HANDOFF =
+  '`/opsx:propose` writes the remaining planning artifacts if that skill is installed; otherwise any remaining planning artifacts can be captured here the same way';
 
-const CAPTURE_APPLY_HANDOFF = optionalWorkflow(
-  'apply',
-  '`/opsx:apply` implements the change once tasks exist',
-  'implementation works from the change\'s tasks (`openspec instructions apply --change "<name>" --json`), outside explore mode'
-);
+const CAPTURE_APPLY_HANDOFF =
+  '`/opsx:apply` implements the change once tasks exist if that skill is installed; otherwise implementation works from the change\'s tasks (`openspec instructions apply --change "<name>" --json`), outside explore mode';
 
-const DISCOVERY_END_HANDOFF = optionalWorkflow(
-  'propose',
-  'Ready to start? Use the `/opsx:propose` skill and this becomes a change.',
-  'Ready to start? I can capture this as a change.'
-);
+const DISCOVERY_END_HANDOFF =
+  'Ready to start? If the `/opsx:propose` skill is installed, use it and this becomes a change. Otherwise I can capture this as a change.';
 
-const SUMMARY_NEXT_STEP = optionalWorkflow(
-  'propose',
-  '- Turn this into a change: `/opsx:propose`',
-  '- Capture this as a change: ask me to'
-);
+const SUMMARY_NEXT_STEP =
+  '- Turn this into a change: `/opsx:propose`, or ask me to capture it if that skill is not installed';
 
-const GUARDRAIL_HANDOFF = optionalWorkflow(
-  'propose',
-  '`/opsx:propose` turns the discussion into a change, and the work happens there',
-  'offer to capture the discussion as a change, and the work happens from that change'
-);
+const GUARDRAIL_HANDOFF =
+  'if `/opsx:propose` is installed, it turns the discussion into a change; otherwise offer to capture the discussion as a change. Either way, the work happens from that change';
 
 export function getExploreSkillTemplate(): SkillTemplate {
   return {
@@ -198,7 +180,7 @@ If the user asks you to capture the exploration as a new change, that request is
 3. Follow the returned \`template\` and \`instruction\` fields. Read completed dependency files listed in \`dependencies\`, and apply \`context\` and \`rules\` as constraints without copying them into the artifact. Choose the output path before creating anything: when \`resolvedOutputPath\` is a glob, use the instruction to choose a concrete path inside \`changeRoot\` and verify it remains inside \`changeRoot\` after resolving symlinks, both in its parent directories and in the file itself if it already exists; if it does not, stop and tell the user. Otherwise the output path is \`resolvedOutputPath\`. If the instruction delegates creation to a specific skill or command, invoke it only if it can write the artifact to that output path; otherwise stop and tell the user. Otherwise write the artifact to that output path. Verify that the selected concrete output exists at that output path.
 4. After creating each artifact, re-run \`openspec status --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) and continue until every requested artifact is \`done\`, \`skipped\`, or was deliberately skipped because its own \`instruction\` stated a condition that did not apply. Tell the user about a deliberate conditional skip, remember it, and do not reconsider it. Dependencies are enablers, not gates: if a requested artifact is still \`blocked\` only because you deliberately skipped a conditional prerequisite, run \`openspec instructions "<artifact-id>" --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) despite the blocked status, then create it using step 3 only when those recorded conditional skips are its sole missing dependencies. If a requested artifact is blocked by a prerequisite the user did not ask to capture and cannot be conditionally skipped, explain that dependency and ask before expanding the capture.
 
-Capture the artifact(s) the user requested without asking them to invoke another workflow. If they asked only to start a change, stop after scaffolding and show its status. When the requested capture is done, stop there and name where the work continues: ${CAPTURE_PLANNING_HANDOFF}, and ${CAPTURE_APPLY_HANDOFF}. Capturing artifacts never starts implementing them.
+Capture the artifact(s) the user requested without asking them to invoke another workflow. If they asked only to start a change, stop after scaffolding and show its status. When the requested capture is done, stop there and name where the work continues. ${CAPTURE_PLANNING_HANDOFF}. ${CAPTURE_APPLY_HANDOFF}. Capturing artifacts never starts implementing them.
 
 ### When a change exists
 
@@ -534,7 +516,7 @@ If the user asks you to capture the exploration as a new change, that request is
 3. Follow the returned \`template\` and \`instruction\` fields. Read completed dependency files listed in \`dependencies\`, and apply \`context\` and \`rules\` as constraints without copying them into the artifact. Choose the output path before creating anything: when \`resolvedOutputPath\` is a glob, use the instruction to choose a concrete path inside \`changeRoot\` and verify it remains inside \`changeRoot\` after resolving symlinks, both in its parent directories and in the file itself if it already exists; if it does not, stop and tell the user. Otherwise the output path is \`resolvedOutputPath\`. If the instruction delegates creation to a specific skill or command, invoke it only if it can write the artifact to that output path; otherwise stop and tell the user. Otherwise write the artifact to that output path. Verify that the selected concrete output exists at that output path.
 4. After creating each artifact, re-run \`openspec status --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) and continue until every requested artifact is \`done\`, \`skipped\`, or was deliberately skipped because its own \`instruction\` stated a condition that did not apply. Tell the user about a deliberate conditional skip, remember it, and do not reconsider it. Dependencies are enablers, not gates: if a requested artifact is still \`blocked\` only because you deliberately skipped a conditional prerequisite, run \`openspec instructions "<artifact-id>" --change "<name>" --json\` (append the confirmed \`--store "<id>"\` only for a registered standalone store) despite the blocked status, then create it using step 3 only when those recorded conditional skips are its sole missing dependencies. If a requested artifact is blocked by a prerequisite the user did not ask to capture and cannot be conditionally skipped, explain that dependency and ask before expanding the capture.
 
-Capture the artifact(s) the user requested without asking them to invoke another workflow. If they asked only to start a change, stop after scaffolding and show its status. When the requested capture is done, stop there and name where the work continues: ${CAPTURE_PLANNING_HANDOFF}, and ${CAPTURE_APPLY_HANDOFF}. Capturing artifacts never starts implementing them.
+Capture the artifact(s) the user requested without asking them to invoke another workflow. If they asked only to start a change, stop after scaffolding and show its status. When the requested capture is done, stop there and name where the work continues. ${CAPTURE_PLANNING_HANDOFF}. ${CAPTURE_APPLY_HANDOFF}. Capturing artifacts never starts implementing them.
 
 ### When a change exists
 

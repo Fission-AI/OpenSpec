@@ -550,9 +550,9 @@ describe('InitCommand', () => {
       }
 
       // The default profile installs six workflows; `continue` and `new` are
-      // not among them. Nothing it generates may name them (#1734) - it would
-      // send the agent to a skill that was never written. The CLI fallback is
-      // stated outright instead of behind a runtime availability check.
+      // not among them. The skill text is the same for every profile, so it
+      // names them only "if installed" and states the CLI fallback outright
+      // (#1734): the agent is never left with a skill that was never written.
       const updateVariants = [
         await fs.readFile(
           path.join(
@@ -586,9 +586,11 @@ describe('InitCommand', () => {
 
       for (const content of applyVariants) {
         // The core profile has no `continue`, so the blocked-state handoff
-        // must be the CLI recovery in full, not a workflow this install lacks.
+        // must carry the CLI recovery in full beside the "if installed" skill.
         expect(content).not.toContain('/opsx:');
-        expect(content).not.toContain('openspec-continue-change');
+        expect(content).toContain(
+          'suggest using `openspec-continue-change` to create them if that skill is installed. Otherwise suggest completing the missing artifacts'
+        );
         expect(content).toContain('openspec status --change "<name>" --json');
         expect(content).toContain('next `ready` artifact (not `skipped` or `blocked`)');
         expect(content).toContain(

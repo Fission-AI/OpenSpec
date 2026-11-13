@@ -7,8 +7,6 @@ import {
 } from '../../src/utils/command-references.js';
 import type { CommandInvocation } from '../../src/core/command-generation/invocation.js';
 import { getApplyChangeSkillTemplate } from '../../src/core/templates/workflows/apply-change.js';
-import { resolveOptionalWorkflows } from '../../src/core/templates/optional-workflow.js';
-import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 
 const FLAT_SLASH: CommandInvocation = { style: 'flat', prefix: '/' };
 const FLAT_AT: CommandInvocation = { style: 'flat', prefix: '@' };
@@ -324,20 +322,18 @@ describe('apply skill template generates valid per-target invocations', () => {
   });
 
   // The blocked-state answer for an installation without `continue` (#1734).
-  // The conditional's fallback has to stand on its own: the agent gets no
-  // workflow to hand off to, so it needs the whole CLI recovery, not a
-  // shortened version of the installed branch.
+  // The fallback has to stand on its own: the agent gets no workflow to hand
+  // off to, so it needs the whole CLI recovery, not a shortened version of
+  // the handoff.
   it('gives the full CLI recovery when continue is not installed', () => {
-    const withoutContinue = resolveOptionalWorkflows(
-      skill,
-      new Set(ALL_WORKFLOWS.filter((id) => id !== 'continue'))
-    );
-    const blocked = withoutContinue.slice(
-      withoutContinue.indexOf('If `state: "blocked"`'),
-      withoutContinue.indexOf('If `state: "all_done"`')
+    const blocked = skill.slice(
+      skill.indexOf('If `state: "blocked"`'),
+      skill.indexOf('If `state: "all_done"`')
     );
 
-    expect(blocked).not.toContain('/opsx:continue');
+    expect(blocked).toContain(
+      'suggest using `/opsx:continue` to create them if that skill is installed. Otherwise suggest completing the missing artifacts'
+    );
     expect(blocked).toContain('pause implementation');
     expect(blocked).toContain('If `missingArtifacts` is non-empty');
     expect(blocked).toContain('openspec status --change "<name>" --json');

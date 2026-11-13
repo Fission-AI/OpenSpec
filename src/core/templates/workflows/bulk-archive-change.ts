@@ -5,7 +5,6 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
@@ -14,19 +13,14 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  * how it normally does that. A profile that selects `archive` gets `sync`
  * injected (see getProfileWorkflows), but an install whose workflow set was
  * read back off disk can still be missing it — in which case the merge has to
- * happen inline rather than be handed to a workflow that is not there.
+ * happen inline rather than be handed to a workflow that is not there. The
+ * text is the same for every profile, so it states both paths.
  */
-const SYNC_INLINE_HANDOFF = optionalWorkflow(
-  'sync',
-  'Run the `/opsx:sync` workflow inline (agent-driven intelligent merge)',
-  'Perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)'
-);
+const SYNC_INLINE_HANDOFF =
+  'Run the `/opsx:sync` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (an agent-driven intelligent merge either way)';
 
-const SYNC_GUARDRAIL = optionalWorkflow(
-  'sync',
-  'run the `/opsx:sync` workflow inline (agent-driven)',
-  'perform the delta-to-main-spec merge inline (agent-driven)'
-);
+const SYNC_GUARDRAIL =
+  'run the `/opsx:sync` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (agent-driven either way)';
 
 export function getBulkArchiveChangeSkillTemplate(): SkillTemplate {
   return {
@@ -219,7 +213,7 @@ ${PROJECT_ROOT_GUARD}
    Process changes in the determined order (respecting conflict resolution):
 
    a. **Sync included delta specs**:
-      - ${optionalWorkflow('sync', 'Run the `openspec-sync-specs` workflow inline (agent-driven intelligent merge)', 'Perform the delta-to-main-spec merge inline yourself (agent-driven intelligent merge)')} only for changes with entries in \`includedDeltas\`, passing only the included delta paths and explicitly instructing it to ignore that change's \`excludedDeltas\`. Wait for it to finish.
+      - Run the \`openspec-sync-specs\` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (an agent-driven intelligent merge either way) only for changes with entries in \`includedDeltas\`, passing only the included delta paths and explicitly instructing it to ignore that change's \`excludedDeltas\`. Wait for it to finish.
       - If the sync reports any stop or blocking condition, treat the sync as failed. Stop processing that change immediately. Before continuing to the next change, record this change's outcome as Failed in the batch results, including the sync blocking/error condition.
       - Do not perform the post-sync content comparison and do not move its \`changeRoot\`; leave the change intact.
       - For conflicts, apply in resolved order.
@@ -374,7 +368,7 @@ No active changes found. Create a new change to get started.
 - Archive directory target uses the current date, computed once in step 3d and reused at the move: YYYY-MM-DD-<name>; a name that already starts with a \`YYYY-MM-DD-\` prefix is used as-is (never stack a second date)
 - If archive target exists, fail that change but continue with others
 - Check every archive target in step 3, before the first main-spec write; a change whose target exists is never synced or moved
-- If sync is requested, ${optionalWorkflow('sync', 'run the `openspec-sync-specs` workflow inline (agent-driven)', 'perform the delta-to-main-spec merge inline (agent-driven)')} for each change with included delta specs
+- If sync is requested, run the \`openspec-sync-specs\` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (agent-driven either way) for each change with included delta specs
 - Carry the per-delta \`includedDeltas\` and \`excludedDeltas\` decisions into execution; sync and verify only included deltas
 - Report every excluded delta as \`sync skipped\` without treating the archive itself as skipped
 - Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at \`<planningHome.root>/openspec/specs/<capability-path>/spec.md\` before moving \`changeRoot\`

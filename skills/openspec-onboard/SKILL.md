@@ -165,7 +165,7 @@ Spend 1-2 minutes investigating the relevant code:
 │   [Optional: ASCII diagram if helpful]  │
 └─────────────────────────────────────────┘
 
-Explore mode (`openspec-explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
+Investigating before implementing is worth doing whenever a problem needs thinking through. Explore mode (`openspec-explore`, if that skill is installed) is for this kind of thinking, and you can use it anytime.
 
 Now let's create a change to hold our work.
 ```
@@ -496,7 +496,7 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ## Skill Reference
 
-**The skills you have installed:**
+Only the skills installed on this machine are available.
 
  | Skill            | What it does                               |
  |------------------|--------------------------------------------|
@@ -513,7 +513,7 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ## What's Next?
 
-Try `openspec-propose` on something you actually want to build. You've got the rhythm now!
+Try `openspec-propose` on something you actually want to build, or ask me to start a change if that skill is not installed. You've got the rhythm now!
 ```
 
 ---
@@ -528,6 +528,7 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at the `changeRoot` reported by `openspec status --change "<name>" --json`.
 
 To pick up where we left off later, `openspec status --change "<name>" --json` shows exactly where the change stands.
+Only the skills installed on this machine are available.
 - `openspec-continue-change <name>` - Resume artifact creation
 - `openspec-apply-change <name>` - Jump to implementation (if tasks exist)
 
@@ -543,7 +544,7 @@ If the user says they just want to see the skills or skip the tutorial:
 ```
 ## OpenSpec Quick Reference
 
-**The skills you have installed:**
+Only the skills installed on this machine are available.
 
  | Skill                    | What it does                               |
  |--------------------------|--------------------------------------------|
@@ -556,7 +557,7 @@ If the user says they just want to see the skills or skip the tutorial:
  | `openspec-ff-change <name>`       | Fast-forward: all artifacts at once        |
  | `openspec-verify-change <name>`   | Verify implementation                      |
 
-Try `openspec-propose` to start your first change.
+Try `openspec-propose` to start your first change, or ask me to start it if that skill is not installed.
 ```
 
 Exit gracefully.

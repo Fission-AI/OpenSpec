@@ -21,8 +21,8 @@ import {
 import { generateCommands } from '../../../src/core/command-generation/generator.js';
 import { getProfileWorkflows } from '../../../src/core/profiles.js';
 
-// Bodies as generated with every workflow installed. Profile-dependent
-// handoffs are covered separately below.
+// Bodies as generated. The text is the same for every profile; the handoffs'
+// "if installed" wording is covered separately below.
 const skill = getSkillTemplates().find(e => e.workflowId === 'explore')!.template;
 const command = getCommandTemplates().find(e => e.id === 'explore')!.template;
 
@@ -621,7 +621,7 @@ describe('explore handoff to the propose workflow (#869)', () => {
   it('names the propose workflow where discovery ends', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        '**Flow into a proposal**: "Ready to start? Use the `/opsx:propose` skill and this becomes a change."'
+        '**Flow into a proposal**: "Ready to start? If the `/opsx:propose` skill is installed, use it and this becomes a change. Otherwise I can capture this as a change."'
       );
       expect(body, label).not.toContain('I can create a change proposal');
     }
@@ -630,7 +630,7 @@ describe('explore handoff to the propose workflow (#869)', () => {
   it('pairs the do-not-implement guardrail with the handoff', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
-        'When the user is ready to build, name the handoff rather than starting: `/opsx:propose` turns the discussion into a change, and the work happens there'
+        'When the user is ready to build, name the handoff rather than starting: if `/opsx:propose` is installed, it turns the discussion into a change; otherwise offer to capture the discussion as a change. Either way, the work happens from that change'
       );
     }
   });
@@ -765,14 +765,15 @@ describe('explore capture path names where the work continues (#869)', () => {
   });
 });
 
-// A custom profile can install explore without propose or apply. Explore must
-// then not name a handoff to a workflow that was never generated; the agent
-// would be sent to a command nobody answers to. Checked through the same
-// registries init and update call, on both delivery surfaces.
-describe('explore handoffs follow the installed workflow set (#869)', () => {
-  const PROFILES: Array<[string, string[], Array<'propose' | 'apply'>]> = [
-    ['explore only', ['explore'], ['propose', 'apply']],
-    ['explore + propose without apply', ['explore', 'propose'], ['apply']],
+// A custom profile can install explore without propose or apply. The text is
+// the same for every profile, so each handoff names the skill only "if
+// installed" and states what to do otherwise; an agent without that skill is
+// never left with a dead reference. Checked through the same registries init
+// and update call, on both delivery surfaces.
+describe('explore handoffs hold for every installed workflow set (#869)', () => {
+  const PROFILES: Array<[string, string[]]> = [
+    ['explore only', ['explore']],
+    ['explore + propose without apply', ['explore', 'propose']],
   ];
 
   function exploreSkillBody(workflows: string[]): string {
@@ -787,45 +788,29 @@ describe('explore handoffs follow the installed workflow set (#869)', () => {
     return entry!.body;
   }
 
-  it.each(PROFILES)('%s: generated skills never name a missing workflow', (_name, workflows, missing) => {
-    const body = exploreSkillBody(workflows);
-    for (const tool of AI_TOOLS) {
-      const content = generateSkillContent(
-        getSkillTemplates(workflows).find(e => e.workflowId === 'explore')!.template,
-        'TEST',
-        getSkillReferenceTransformer(tool.value)
-      );
-      for (const id of missing) {
-        const skillName = id === 'propose' ? 'openspec-propose' : 'openspec-apply-change';
-        expect(content, `${tool.value} ${id}`).not.toContain(skillName);
-      }
-    }
-    for (const id of missing) {
-      expect(body).not.toContain(`/opsx:${id}`);
-      expect(transformToCodexCompatibleSkillReferences(body)).not.toMatch(
-        new RegExp(`openspec-${id}`)
-      );
-    }
-    expect(body).not.toContain('[[opsx:');
+  it.each(PROFILES)('%s: the text is the one every profile gets', (_name, workflows) => {
+    expect(exploreSkillBody(workflows)).toBe(skill.instructions);
+    expect(exploreCommandBody(workflows)).toBe(command.content);
+    expect(exploreSkillBody(workflows)).not.toContain('[[opsx:');
+    expect(exploreCommandBody(workflows)).not.toContain('[[opsx:');
   });
 
-  it.each(PROFILES)('%s: generated commands never name a missing workflow', (_name, workflows, missing) => {
-    const contents = getCommandContents(workflows);
-    for (const adapter of CommandAdapterRegistry.getAll()) {
-      const invocation = getInvocationForAdapter(adapter);
-      const explore = generateCommands(contents, adapter).find(c =>
-        c.fileContent.includes('Enter explore mode')
-      );
-      expect(explore, adapter.toolId).toBeDefined();
-      for (const id of missing) {
-        expect(explore!.fileContent, `${adapter.toolId} ${id}`).not.toContain(
-          formatCommandInvocation(invocation, id)
-        );
-        expect(explore!.fileContent, `${adapter.toolId} ${id}`).not.toContain(`/opsx:${id}`);
+  it('gives every propose and apply handoff a fallback for when the skill is missing', () => {
+    for (const [label, body] of bodies) {
+      for (const line of body.split('\n')) {
+        for (const sentence of line.split(/(?<=\.)\s+(?=[A-Z`])/)) {
+          if (!/\/opsx:(propose|apply)/.test(sentence)) continue;
+          expect(sentence, label).toMatch(/installed/);
+        }
       }
-      expect(explore!.fileContent, adapter.toolId).not.toContain('[[opsx:');
+      expect(body, label).toContain('Otherwise offer to capture the discussion as a change, as described below');
+      expect(body, label).toContain('otherwise any remaining planning artifacts can be captured here the same way');
+      expect(body, label).toContain(
+        'otherwise implementation works from the change\'s tasks (`openspec instructions apply --change "<name>" --json`), outside explore mode'
+      );
+      expect(body, label).toContain('Otherwise I can capture this as a change.');
+      expect(body, label).toContain('otherwise offer to capture the discussion as a change');
     }
-    expect(exploreCommandBody(workflows)).not.toContain('[[opsx:');
   });
 
   it.each(PROFILES)('%s: explore still names a way forward', (_name, workflows) => {

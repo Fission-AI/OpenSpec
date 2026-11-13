@@ -32,30 +32,7 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
-import {
-  assertWorkflowConditionalsResolved,
-  resolveOptionalWorkflows,
-} from '../templates/optional-workflow.js';
-import { ALL_WORKFLOWS } from '../profiles.js';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
-
-/**
- * The workflow set a template body is rendered against.
- *
- * `workflowFilter` is both the list of workflows to install and the set a
- * template may refer to, so resolving optional-workflow conditionals here —
- * the one place every generation path (init, update, migration, the skills.sh
- * distribution) already funnels through — keeps a reference to an uninstalled
- * workflow out of every generated file (#1734, umbrella #919).
- *
- * With no filter, every workflow is installed (that is what an unfiltered call
- * means), so the installed branch is kept.
- */
-function resolveInstalledWorkflows(
-  workflowFilter?: readonly string[]
-): ReadonlySet<string> {
-  return new Set<string>(workflowFilter ?? ALL_WORKFLOWS);
-}
 
 /**
  * Skill template with directory name and workflow ID mapping.
@@ -77,26 +54,22 @@ export interface CommandTemplateEntry {
 /**
  * Gets skill templates with their directory names, optionally filtered by workflow IDs.
  *
+ * The filter chooses which skills are returned, never what they say: a skill's
+ * text is the same for every workflow list.
+ *
  * @param workflowFilter - If provided, only return templates whose workflowId is in this array
  */
 export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemplateEntry[] {
   const all = allSkillTemplates();
-  const installed = resolveInstalledWorkflows(workflowFilter);
-  const selected = workflowFilter ? all.filter(entry => installed.has(entry.workflowId)) : all;
-
-  return selected.map(entry => ({
-    ...entry,
-    template: {
-      ...entry.template,
-      instructions: resolveOptionalWorkflows(entry.template.instructions, installed),
-    },
-  }));
+  if (!workflowFilter) return all;
+  const wanted = new Set<string>(workflowFilter);
+  return all.filter(entry => wanted.has(entry.workflowId));
 }
 
 /**
- * Every text this version writes for one skill, whatever set of workflows was
- * installed beside it. A skill's text changes only with the workflows its own
- * conditionals name, so this is 2^k texts for k such workflows.
+ * Every text this version writes for one skill. A skill's text no longer
+ * depends on the workflows installed beside it, so this is one text (none for
+ * an unknown skill).
  */
 export function everySkillRendering(
   dirName: string,
@@ -112,20 +85,7 @@ export function everySkillRendering(
   if (cached) return cached;
   const entry = allSkillTemplates().find((candidate) => candidate.dirName === dirName);
   if (!entry) return [];
-  const named = [
-    ...new Set([...entry.template.instructions.matchAll(/\[\[opsx:if-workflow ([a-z-]+)\]\]/g)].map((match) => match[1])),
-  ];
-  const texts: string[] = [];
-  for (let mask = 0; mask < 2 ** named.length; mask += 1) {
-    const installed = new Set(named.filter((_, index) => mask & (2 ** index)));
-    texts.push(
-      generateSkillContent(
-        { ...entry.template, instructions: resolveOptionalWorkflows(entry.template.instructions, installed) },
-        generatedByVersion,
-        transformInstructions
-      )
-    );
-  }
+  const texts = [generateSkillContent(entry.template, generatedByVersion, transformInstructions)];
   byTransformer.set(key, texts);
   return texts;
 }
@@ -171,16 +131,9 @@ export function getCommandTemplates(workflowFilter?: readonly string[]): Command
     { template: getOpsxProposeCommandTemplate(), id: 'propose' },
   ];
 
-  const installed = resolveInstalledWorkflows(workflowFilter);
-  const selected = workflowFilter ? all.filter(entry => installed.has(entry.id)) : all;
-
-  return selected.map(entry => ({
-    ...entry,
-    template: {
-      ...entry.template,
-      content: resolveOptionalWorkflows(entry.template.content, installed),
-    },
-  }));
+  if (!workflowFilter) return all;
+  const wanted = new Set<string>(workflowFilter);
+  return all.filter(entry => wanted.has(entry.id));
 }
 
 /**
@@ -215,11 +168,6 @@ export function generateSkillContent(
   const instructions = transformInstructions
     ? transformInstructions(template.instructions)
     : template.instructions;
-
-  assertWorkflowConditionalsResolved(
-    instructions,
-    `Skill '${template.name}' was generated without resolving its optional-workflow blocks`
-  );
 
   return `---
 name: ${template.name}

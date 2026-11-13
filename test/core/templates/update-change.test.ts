@@ -6,26 +6,18 @@ import {
 } from '../../../src/core/templates/skill-templates.js';
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 import { PROJECT_ROOT_GUARD } from '../../../src/core/templates/workflows/project-root.js';
-import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
-import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../../src/core/profiles.js';
 
 const skill = getUpdateChangeSkillTemplate();
 const command = getOpsxUpdateCommandTemplate();
 
-const render = (workflows: readonly string[]): Array<[string, string]> => {
-  const installed = new Set<string>(workflows);
-  return [
-    ['skill', resolveOptionalWorkflows(skill.instructions, installed)],
-    ['command', resolveOptionalWorkflows(command.content, installed)],
-  ];
-};
-
 // Both delivery surfaces must carry the same contract; every behavioral
-// assertion below runs against each body. Templates carry optional-workflow
-// conditionals, so a body is only meaningful once resolved against a workflow
-// set — these are the bodies a profile with every workflow installed receives.
-const bodies = render(ALL_WORKFLOWS);
-const coreBodies = render(CORE_WORKFLOWS);
+// assertion below runs against each body. The text is the same for every
+// workflow profile: each handoff names the skill "if installed" and gives the
+// CLI path otherwise.
+const bodies: Array<[string, string]> = [
+  ['skill', skill.instructions],
+  ['command', command.content],
+];
 
 // The load-bearing sentence of step 4 and the whole of step 5 are pinned
 // verbatim. #1836 happened because a single verb ("Apply") in step 4 silently
@@ -357,23 +349,22 @@ describe('update-change templates', () => {
     }
   });
 
-  it('hands off to /opsx:continue when that workflow is installed', () => {
+  it('hands off to /opsx:continue when that skill is installed', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain(
         '`/opsx:continue` is what creates the ones that do not'
       );
-      expect(body, label).toContain('suggest `/opsx:continue` to create them');
-      expect(body, label).toContain("that is `/opsx:continue`'s job");
-      // The handoff is stated outright, not deferred to a runtime availability
-      // check the model has to perform (#1734).
+      expect(body, label).toContain('suggest `/opsx:continue` to create them if that skill is installed');
+      expect(body, label).toContain("that is `/opsx:continue`'s job if that skill is installed");
+      // The handoff and its fallback are both stated outright; the agent is
+      // never told to go and verify availability as a separate step (#1734).
       expect(body, label).not.toContain('may not be installed');
       expect(body, label).not.toContain('verify that it is available');
     }
   });
 
-  it('never names /opsx:continue on a profile that does not install it', () => {
-    for (const [label, body] of coreBodies) {
-      expect(body, label).not.toContain('/opsx:continue');
+  it('gives the CLI path for when /opsx:continue is not installed', () => {
+    for (const [label, body] of bodies) {
       expect(body, label).toContain('it never creates missing ones');
       expect(body, label).toContain(
         'run `openspec status --change "<name>" --json` for the next artifact'
@@ -384,7 +375,7 @@ describe('update-change templates', () => {
       expect(body, label).toContain(
         'Anything deferred because it does not exist yet'
       );
-      expect(body, label).toContain('creating them is a separate step, outside this workflow');
+      expect(body, label).toContain('and otherwise a separate step outside this workflow');
     }
   });
 
@@ -402,9 +393,10 @@ describe('update-change templates', () => {
   });
 
   it('routes intent changes to the CLI when /opsx:new is not installed', () => {
-    for (const [label, body] of coreBodies) {
-      expect(body, label).not.toContain('/opsx:new');
-      expect(body, label).toContain('ask for a distinct unused change name');
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'recommend starting fresh with `/opsx:new` if that skill is installed, or otherwise ask for a distinct unused change name'
+      );
       expect(body, label).toContain('openspec new change "<new-change-name>"');
       expect(body, label).not.toContain('openspec new change "<name>"');
       expect(body, label).toContain('Update vs. Start Fresh');
