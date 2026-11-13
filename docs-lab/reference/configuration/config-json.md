@@ -41,7 +41,7 @@ The machine-level fallback store id for root resolution, consulted only when no 
 
 ### skillsScope
 
-Where `openspec init` puts the skills in a project that has none of its own: `global` installs them once for this machine, `project` installs them in the project. An interactive init saves your answer here the first time it asks. Change it with `openspec config set skillsScope project`. A project that already has its own skills ignores this, and `--scope` or `OPENSPEC_SKILLS_SCOPE` overrides it for one run. With nothing saved, init asks at a terminal and otherwise installs for the machine. See [Install the skills once for every project](../../start/setup.md#install-the-skills-once-for-every-project).
+Where `openspec init` puts the skills in a project that has none of its own: `global` installs them once for this machine, `project` installs them in the project. An interactive init saves your answer here the first time it asks, and `openspec init --scope global` saves `global` here if nothing is saved yet. Change it with `openspec config set skillsScope project`. A project that already has its own skills ignores this, and `--scope` or `OPENSPEC_SKILLS_SCOPE` overrides it for one run. With nothing saved, init asks at a terminal and otherwise installs for the machine. See [Install the skills once for every project](../../start/setup.md#install-the-skills-once-for-every-project).
 
 ### openers
 

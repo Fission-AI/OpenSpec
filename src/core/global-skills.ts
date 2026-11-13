@@ -135,6 +135,70 @@ function isLink(entry: string): boolean {
   }
 }
 
+/**
+ * Whether an entry is a link OpenSpec's install made: one into the shared
+ * folder, or one whose target is gone. A link to anywhere else is the user's.
+ */
+function isInstallLink(entry: string): boolean {
+  if (!isLink(entry)) return false;
+  let target: string;
+  try {
+    target = realpathSync.native(entry);
+  } catch {
+    return true;
+  }
+  try {
+    const shared = realpathSync.native(sharedGlobalDir());
+    return target === shared || target.startsWith(shared + path.sep);
+  } catch {
+    return false;
+  }
+}
+
+const KEPT_ASIDE = /^\.(openspec-[a-z0-9-]+)\.kept-(\d+)$/;
+
+function isRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+/**
+ * Put back any folder a removal set aside and a run that was cut short never
+ * restored. Returns what could not go back because its place is taken.
+ */
+function restoreKeptAside(dirs: Iterable<string>): string[] {
+  const problems: string[] = [];
+  for (const dir of dirs) {
+    let entries: string[];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      const match = KEPT_ASIDE.exec(entry);
+      // One that a run still going set aside is that run's to put back.
+      if (!match || isRunning(Number(match[2]))) continue;
+      const place = path.join(dir, match[1]);
+      try {
+        lstatSync(place);
+        problems.push(`your own ${match[1]} from an earlier run is at ${path.join(dir, entry)}, and its place is taken`);
+      } catch {
+        try {
+          renameSync(path.join(dir, entry), place);
+        } catch {
+          problems.push(`your own ${match[1]} from an earlier run is still at ${path.join(dir, entry)}`);
+        }
+      }
+    }
+  }
+  return problems;
+}
+
 /** Where the package keeps the one copy of every global skill. */
 function sharedGlobalDir(): string {
   return path.join(os.homedir(), '.agents', 'skills');
@@ -360,7 +424,7 @@ export async function removeLockedProjectSkills(projectPath: string, names: read
  * Drop skills from a project's lock file without touching their folders, and
  * delete a lock file that then records no skill at all.
  */
-export function dropFromProjectLock(projectPath: string, names: readonly string[]): void {
+export function dropFromProjectLock(projectPath: string, names: readonly string[], packageDroppedSome = false): void {
   const lockPath = projectLockPath(projectPath);
   let text: string;
   try {
@@ -369,8 +433,10 @@ export function dropFromProjectLock(projectPath: string, names: readonly string[
     return;
   }
   const planned = plannedProjectLock(text, new Map(), names);
-  // Only a lock file this call changed is rewritten or removed.
-  if (lockedProjectSkills(planned).size === lockedProjectSkills(text).size) return;
+  // Only a lock file OpenSpec changed is rewritten or removed: by this call,
+  // or just before it through the package, which leaves an empty file behind.
+  const unchangedHere = lockedProjectSkills(planned).size === lockedProjectSkills(text).size;
+  if (unchangedHere && !(packageDroppedSome && planned === undefined)) return;
   if (planned === undefined) rmSync(lockPath);
   else writeFileSync(lockPath, planned);
 }
@@ -440,7 +506,8 @@ export async function readGlobalSkills(): Promise<GlobalSkills> {
       return present.length > 0 && present.every(isLink);
     }
     return entries.some((entry, index) => {
-      if (isLink(entry)) return true;
+      if (isInstallLink(entry)) return true;
+      if (isLink(entry)) return false;
       const spot = classifySkillFile(entry, sharedSkillTexts(ours[index].name));
       return spot === 'copy' || spot === 'released';
     });
@@ -495,8 +562,12 @@ export interface GlobalInstallResult {
  */
 export async function installGlobalSkills(input: GlobalInstallInput): Promise<GlobalInstallResult> {
   const { getSupportedAgents, removeSkills } = await import('skills');
-  const before = await readGlobalSkills();
   const supported = getSupportedAgents();
+  // Before anything is read: a folder of the user's that a run cut short left set aside goes back.
+  const leftBehind = input.dryRun
+    ? []
+    : restoreKeptAside(new Set(supported.map((agent) => agent.globalSkillsDir).filter((dir) => typeof dir === 'string')));
+  const before = await readGlobalSkills();
   // The agents that read the shared folder and get nothing of their own.
   const universal = new Set(supported.filter((agent) => !keepsOwnGlobalFolder(agent)).map((agent) => agent.id));
   universal.add(UNIVERSAL_AGENT);
@@ -509,16 +580,23 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const inTheWay = before.foreign.filter(
     (skill) => skill.agents.length === 0 || skill.agents.some((agent) => universal.has(agent) || agents.includes(agent))
   );
-  // So is a folder of that name in the shared folder holding files OpenSpec
-  // didn't publish, with or without a skill beside them: the package lists
-  // only skills, and replaces a folder whole.
+  // The package lists only what it can read as a skill, under the name in the
+  // skill's own header, and replaces a folder whole. So the shared folder is
+  // looked at directly too. A folder there with a skill's name is the user's
+  // when it holds files OpenSpec didn't publish, or text that isn't
+  // OpenSpec's in a file the package did not list as OpenSpec's install: a
+  // skill of their own, or an edit that left the header unreadable.
   const sharedFolderIsUsers = (name: string): boolean => {
     const entry = path.join(sharedGlobalDir(), name);
     try {
-      return lstatSync(entry).isDirectory() && holdsOtherFiles(entry);
+      if (!lstatSync(entry).isDirectory()) return false;
     } catch {
       return false;
     }
+    if (holdsOtherFiles(entry)) return true;
+    // Listed as OpenSpec's install: an edit there is replaced, and named.
+    if (sameFolder(entry, before.paths.get(name))) return false;
+    return classifySkillFile(entry, sharedSkillTexts(name)) === 'user';
   };
   const blocked = inProfile.filter(
     (name) => inTheWay.some((skill) => skill.name === name) || sharedFolderIsUsers(name)
@@ -533,7 +611,8 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const entryIn = (agent: string, name: string): 'missing' | 'ours' | 'theirs' => {
     const entry = path.join(agentDirs.get(agent) ?? '', name);
     try {
-      if (lstatSync(entry).isSymbolicLink()) return 'ours';
+      // A link the install made is OpenSpec's. One the user pointed somewhere else is theirs.
+      if (lstatSync(entry).isSymbolicLink()) return isInstallLink(entry) ? 'ours' : 'theirs';
     } catch {
       return 'missing';
     }
@@ -557,8 +636,14 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const heldBy = new Map(
     linkedAgents.map((agent) => [agent, wanted.filter((name) => entryIn(agent, name) === 'theirs')] as const)
   );
-  const leftAlone = [...new Set([...blocked, ...[...heldBy.values()].flat()])];
+  const heldNames = [...heldBy.values()].flat();
   const removedSkills = before.skills.filter((name) => !inProfile.includes(name));
+  // A dropped skill whose folder also holds the user's files loses its record
+  // and its links, and keeps the folder: named as left alone, not as removed.
+  const keptOnRemoval = removedSkills.filter((name) => {
+    const dir = before.paths.get(name);
+    return dir !== undefined && holdsOtherFiles(dir);
+  });
   // The package replaces what it finds, so an edit inside one of OpenSpec's
   // own skills goes, as does one in a skill the profile dropped. Named, so
   // the user can recover it and knows where it went. Only a folder this run
@@ -573,7 +658,8 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
       return undefined;
     }
   };
-  const replacedEdits = [...wanted, ...removedSkills].filter((name) => {
+  const leftAlone = [...new Set([...blocked, ...heldNames, ...keptOnRemoval])];
+  const replacedEdits = [...wanted, ...removedSkills.filter((name) => !keptOnRemoval.includes(name))].filter((name) => {
     const dir = before.paths.get(name);
     return (
       dir !== undefined &&
@@ -582,7 +668,13 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     );
   });
   const editedText = new Map(replacedEdits.map((name) => [name, skillText(name)] as const));
-  const result = { skills: wanted, agents, removedSkills, leftAlone, replacedEdits };
+  const result = {
+    skills: wanted,
+    agents,
+    removedSkills: removedSkills.filter((name) => !keptOnRemoval.includes(name)),
+    leftAlone,
+    replacedEdits,
+  };
 
   if (inProfile.length > 0 && wanted.length === 0) {
     return {
@@ -596,10 +688,11 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   }
 
   const newAgent = added.some((agent) => !universal.has(agent) && !before.agents.includes(agent));
-  const current = wanted.every((name) => {
-    const dir = before.paths.get(name);
-    return dir !== undefined && classifySkillFile(dir, publishedSkillText(name, input.version)) === 'copy';
-  });
+  // The one shared copy must be there with the current text, whatever a tool
+  // holds of its own: every tool that reads the shared folder depends on it.
+  const current = wanted.every(
+    (name) => classifySkillFile(path.join(sharedGlobalDir(), name), publishedSkillText(name, input.version)) === 'copy'
+  );
   // Every tool set up must still reach every skill: a deleted link is put
   // back, and a copy counts only while it holds the current text.
   const reaches = (agent: string, name: string): boolean => {
@@ -615,12 +708,12 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     wanted.every((name) => heldBy.get(agent)!.includes(name) || reaches(agent, name))
   );
   if (!input.force && current && linksComplete && !newAgent && removedSkills.length === 0) {
-    return { ...result, unchanged: true, failures: [] };
+    return { ...result, unchanged: true, failures: leftBehind };
   }
   if (input.dryRun) return { ...result, unchanged: false, failures: [] };
 
   const options = { scope: 'global', telemetry: false } as const;
-  const failures: string[] = [];
+  const failures: string[] = [...leftBehind];
   // A profile with no workflows installs nothing, and only clears what was there.
   if (wanted.length > 0) {
     // A tool that holds a skill of its own is installed for separately, without that skill.
@@ -636,10 +729,12 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
         const installed = await installPublishedSkills(input.version, { scope: 'global', agents: forAgents, skills });
         failures.push(...installed.failed.map((failure) => failure.message));
       } catch (error) {
-        // Nothing is written before the first install, so that failure is the
-        // caller's to report. A later one comes after skills were replaced:
-        // it is listed, and what was replaced is still reported below.
-        if (index === 0) throw error;
+        // A first install that failed before writing anything is the caller's
+        // to report. One that failed after replacing skills (the lock file
+        // could not be written, say), or a later one, is listed, and what was
+        // replaced is still reported below.
+        const wrote = replacedEdits.some((name) => skillText(name) !== editedText.get(name));
+        if (index === 0 && !wrote) throw error;
         failures.push(describeSkillsError(error));
         break;
       }
@@ -647,40 +742,37 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   }
   if (removedSkills.length > 0 && failures.length === 0) {
     // The package removes a skill from every tool's folder, whatever is in
-    // it. A folder of that name holding anything but OpenSpec's text is the
-    // user's: it steps aside for the removal and comes straight back. Only
-    // the folder the package recorded for the skill, in a folder this install
-    // writes to, is OpenSpec's to remove whatever it holds, and an edit there
-    // was named above.
+    // it. So everything it must not take steps aside for the removal and
+    // comes straight back: any entry in a folder this install doesn't write
+    // to, and in the ones it does, a folder holding anything but OpenSpec's
+    // text. The folder the package recorded for the skill is OpenSpec's to
+    // remove even when edited, and that edit was named above.
     const aside: Array<[string, string]> = [];
-    const keptName = (name: string) => `.${name}.kept-`;
     try {
       for (const dir of new Set([...agentDirs.values()].filter(isDir))) {
+        const written = writtenDirs.some((writtenDir) => sameFolder(dir, writtenDir));
         for (const name of removedSkills) {
           const entry = path.join(dir, name);
-          // One a run that was cut short left behind goes back first, if its place is free.
-          for (const left of leftovers(dir, keptName(name))) {
-            try {
-              lstatSync(entry);
-              failures.push(`your own ${name} from an earlier run is still at ${left}`);
-            } catch {
-              renameSync(left, entry);
-            }
-          }
+          let isFolder: boolean;
           try {
-            if (!lstatSync(entry).isDirectory()) continue;
+            isFolder = lstatSync(entry).isDirectory();
           } catch {
             continue;
           }
-          const recorded =
-            sameFolder(entry, before.paths.get(name)) && writtenDirs.some((written) => sameFolder(dir, written));
-          // A folder with the user's files beside the skill is kept whoever installed the skill.
-          if (!holdsOtherFiles(entry)) {
-            if (recorded) continue;
-            const spot = classifySkillFile(entry, sharedSkillTexts(name));
-            if (spot === 'copy' || spot === 'released') continue;
+          if (written) {
+            // A link there is the install's own, and goes.
+            if (!isFolder) continue;
+            // A folder with the user's files beside the skill is kept whoever installed the skill.
+            if (!holdsOtherFiles(entry)) {
+              if (sameFolder(entry, before.paths.get(name))) continue;
+              const spot = classifySkillFile(entry, sharedSkillTexts(name));
+              if (spot === 'copy' || spot === 'released') continue;
+            }
           }
-          const kept = path.join(dir, `${keptName(name)}${process.pid}`);
+          // Anything in a folder this install doesn't write to is kept as it
+          // is, OpenSpec's text included: MiniMax Code's copies, or a tool
+          // nobody set up here.
+          const kept = path.join(dir, `.${name}.kept-${process.pid}`);
           // If it can't step aside, nothing is removed this run.
           renameSync(entry, kept);
           aside.push([kept, entry]);
@@ -705,17 +797,6 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   // Told by the text itself, so it holds when the skill was removed or made a link.
   const replaced = replacedEdits.filter((name) => skillText(name) !== editedText.get(name));
   return { ...result, replacedEdits: replaced, unchanged: false, failures: [...new Set(failures)] };
-}
-
-/** Folders in `dir` whose name starts with `prefix`. */
-function leftovers(dir: string, prefix: string): string[] {
-  try {
-    return readdirSync(dir)
-      .filter((entry) => entry.startsWith(prefix))
-      .map((entry) => path.join(dir, entry));
-  } catch {
-    return [];
-  }
 }
 
 /** The text this CLI publishes for a skill: what a current install holds. */
@@ -746,12 +827,22 @@ export function describeSkillsError(error: unknown): string {
   return typeof fix === 'string' && fix.length > 0 ? `${error.message} ${fix}` : error.message;
 }
 
+/** What to tell the user about skills a global refresh removes because the profile leaves them out. */
+export function describeRemovedSkills(names: readonly string[], done = true): string | undefined {
+  if (names.length === 0) return undefined;
+  const one = names.length === 1;
+  return (
+    `${done ? 'Removed' : 'Update will remove'} ${names.length} skill${one ? '' : 's'} your workflow profile doesn't include: ` +
+    `${names.join(', ')}. To keep ${one ? 'it' : 'them'}, add ${one ? 'its workflow' : 'their workflows'} with: openspec config profile`
+  );
+}
+
 /** What to tell the user about skills a global install did not touch. */
-export function describeLeftAlone(leftAlone: readonly string[]): string | undefined {
+export function describeLeftAlone(leftAlone: readonly string[], done = true): string | undefined {
   if (leftAlone.length === 0) return undefined;
   const one = leftAlone.length === 1;
   return (
-    `Left ${leftAlone.join(', ')} in your home folder alone: ${one ? 'it holds' : 'they hold'} text or files that aren't OpenSpec's. ` +
+    `${done ? 'Left' : 'Update will leave'} ${leftAlone.join(', ')} in your home folder alone: ${one ? 'it holds' : 'they hold'} text or files that aren't OpenSpec's. ` +
     `Move ${one ? 'it' : 'them'} away to get OpenSpec's own.`
   );
 }

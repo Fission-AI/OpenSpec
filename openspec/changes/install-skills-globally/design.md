@@ -140,6 +140,21 @@ The package replaces a skill folder whole, so the rule about files beside a skil
 
 When the profile drops a skill, the package removes that name from every tool's folder, whatever is in it. Before the removal, any folder of that name holding something other than OpenSpec's text is renamed aside, and it is renamed back straight after. An edit in OpenSpec's own copy of a dropped skill is named, in a dry run and after the real one, like any other replaced edit.
 
+### D13. The shared folder is read from disk, not only from the package's list
+
+The package lists a skill by the name in its header and skips one it can't parse. So a `SKILL.md` in `~/.agents/skills/openspec-*` with a broken or renamed header was invisible to OpenSpec, and the install replaced it without a word. Each wanted skill's folder is now also looked at directly. Text there that isn't OpenSpec's, in a file the package did not list as OpenSpec's install, is left alone and named.
+
+The same pass decides "up to date": the shared copy must be there with the current text, whatever a tool holds of its own, because the tools that read only the shared folder depend on it.
+
+### D14. What a global refresh says
+
+| It does | It says |
+|---|---|
+| Replaces an edit in a skill OpenSpec installed | Names the skill, in a dry run and after |
+| Removes a skill the profile leaves out | Names the skill, in a dry run and after, with the command that keeps it |
+| Leaves a folder or link of the user's alone | Names it, in a dry run and after |
+| Fails after it has replaced something | Still names what was replaced |
+
 ## Risks
 
 - **A project install fetches too.** `openspec init --scope project` and `openspec update` now install a project's `.agents/skills` with the same package, from the same published skills, and record them in `skills-lock.json`. 2.0's installer still decides what is the user's, makes the links for tools the package doesn't know, and migrates 1.x projects. When the skills can't be fetched (no git, no connection), it writes the same text itself and says the lock file is missing, so a project install never fails for that. The installed text has no version stamp: a project is up to date when its skills equal the text this CLI publishes.

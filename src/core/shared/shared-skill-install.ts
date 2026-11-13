@@ -329,7 +329,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   if (input.writesToDisk) {
     if (unlocked.length > 0 && lockInProject) {
       try {
-        dropFromProjectLock(projectPath, unlocked);
+        dropFromProjectLock(projectPath, unlocked, unlocked.some((name) => locked.has(name)));
       } catch (error) {
         // The skills are removed either way; only the record is behind.
         result.lockNotUpdated = error instanceof Error ? error.message : String(error);

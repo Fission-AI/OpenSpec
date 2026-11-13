@@ -42,6 +42,30 @@ When the global skills are installed, `openspec update` SHALL reinstall them at 
 - **THEN** the plan SHALL note that the global skills would be refreshed
 - **AND** nothing in the home folder SHALL change
 
+### Requirement: Update says what it does to the global skills
+
+When `openspec update` refreshes the skills installed for this machine, it SHALL name each skill it removes because the workflow profile leaves it out, and each skill it leaves alone because its folder holds text or files that are not OpenSpec's. `openspec update --dry-run` SHALL name the same skills and change nothing.
+
+#### Scenario: A skill outside the profile
+
+- **GIVEN** the global skills include a skill the workflow profile does not
+- **WHEN** the user runs `openspec update`
+- **THEN** that skill SHALL be removed and named
+
+#### Scenario: A skill the skills package cannot read
+
+- **GIVEN** `~/.agents/skills/openspec-explore/SKILL.md` holds text that is not OpenSpec's and a header the `skills` package cannot parse
+- **WHEN** the user runs `openspec update`
+- **THEN** that file SHALL be left as it is
+- **AND** update SHALL name the skill as left alone
+
+#### Scenario: A tool's own copy of a skill
+
+- **GIVEN** a tool the global install covers holds copies of OpenSpec's skills in its own folder, as `npx skills add --global` for one tool leaves them
+- **WHEN** the user runs `openspec update`
+- **THEN** every copy with OpenSpec's text SHALL be brought up to date
+- **AND** a folder there with the user's own text or files SHALL be left as it is
+
 ### Requirement: Update names the projects that still have their own skills
 
 `openspec init` and `openspec update` SHALL record the project they run in, when it has an `openspec/` folder, in a list kept in the global data folder on this machine. When the global skills are installed, `openspec update` and `openspec init --scope global` SHALL name the other recorded projects that still have their own OpenSpec skills and give the command that moves one. A list that cannot be read or written SHALL NOT fail the command.

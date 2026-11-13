@@ -27,6 +27,7 @@ import {
   getUniversalTool,
   universalToolFallbackHint,
   OPENSPEC_DIR_NAME,
+  OPENSPEC_SKILL_NAMES,
   AIToolOption,
   resolveToolIdAlias,
 } from './config.js';
@@ -73,6 +74,7 @@ import {
   SKILL_SCOPES,
   canFetchSkills,
   describeLeftAlone,
+  describeRemovedSkills,
   describeReplacedEdits,
   describeSkillsError,
   installGlobalSkills,
@@ -536,7 +538,8 @@ export class InitCommand {
         )
       );
     }
-    if (tools.length > 0 && supported.length === 0 && installed.skills.length === 0) {
+    // Even with the global skills on this machine: a tool asked for by name was not set up.
+    if (tools.length > 0 && supported.length === 0 && (installed.skills.length === 0 || this.toolsArg !== undefined)) {
       throw new Error(
         'None of the selected tools are covered by the global skills, so nothing was set up. ' +
           `Run: openspec init --scope project --tools ${tools.map((tool) => tool.value).join(',')}`
@@ -567,6 +570,27 @@ export class InitCommand {
             'so it keeps its own skills. Nothing was changed. To move it anyway and turn the cloud files off, add --no-copilot-cloud.'
         );
       }
+      // Skills an older release kept in a tool's former folder (Codex's
+      // `.codex/skills`, say) are moved to the shared folder by an update,
+      // not here: left where they are, the next update would undo this move.
+      const formerFolders = AI_TOOLS.filter((tool) => configured.includes(tool.value))
+        .flatMap((tool) => tool.legacySkillsDirs ?? [])
+        .map((root) => path.posix.join(root, 'skills'))
+        .filter((dir) => {
+          try {
+            return fs.readdirSync(path.join(projectPath, dir)).some((entry) =>
+              (OPENSPEC_SKILL_NAMES as readonly string[]).includes(entry)
+            );
+          } catch {
+            return false;
+          }
+        });
+      if (formerFolders.length > 0) {
+        throw new Error(
+          `This project still keeps OpenSpec files where an older release put them (${formerFolders.join(', ')}). ` +
+            'Run openspec update here first, then run this again. Nothing was changed.'
+        );
+      }
       await this.removeProjectSkills(projectPath, { checkOnly: true });
       if (this.copilotCloudOption === false) {
         // A failure here stops the move before anything else changes: the
@@ -586,6 +610,7 @@ export class InitCommand {
     let globalSkills: { count: number } | undefined;
     let leftAlone: string | undefined;
     let replacedEdits: string | undefined;
+    let removedSkills: string | undefined;
     let everySkillInstalled = true;
     const failedTools: Array<{ name: string; error: Error }> = [];
     if (installed.skills.length > 0 || supported.length > 0 || movedTools.length > 0) {
@@ -604,13 +629,20 @@ export class InitCommand {
         leftAlone = describeLeftAlone(result.leftAlone);
         // Said even when the install then failed: those edits are gone either way.
         if (!result.unchanged) replacedEdits = describeReplacedEdits(result.replacedEdits);
+        if (!result.unchanged && result.failures.length === 0 && result.skills.length > 0) {
+          removedSkills = describeRemovedSkills(result.removedSkills);
+        }
       } catch (error) {
+        const toolList = supported.map((tool) => tool.value).join(',');
         const hint =
-          error instanceof GitMissingError ? ' Or keep the skills in the project: openspec init --scope project' : '';
+          error instanceof GitMissingError
+            ? ` Or keep the skills in the project: openspec init --scope project${toolList ? ` --tools ${toolList}` : ''}`
+            : '';
         failedTools.push({ name: 'the global skills', error: new Error(describeSkillsError(error) + hint) });
       }
       if (failedTools.length > 0) spinner.fail('Could not install the skills for this machine');
       else spinner.succeed(unchanged ? 'Skills for this machine are up to date' : 'Skills installed for this machine');
+      if (removedSkills) console.log(chalk.yellow(removedSkills));
       if (leftAlone) console.log(chalk.yellow(leftAlone));
       if (replacedEdits) console.log(chalk.yellow(replacedEdits));
     }

@@ -173,6 +173,8 @@ export class UpdateCommand {
   private settledWorkflows: readonly string[] | undefined;
   /** In a dry run, the warning about edits the global refresh would replace. */
   private replacedGlobalEdits: string | undefined;
+  private removedGlobalSkills: string | undefined;
+  private leftAloneGlobalSkills: string | undefined;
   private ops: UpdateFileOps = realFileOps;
 
   constructor(options: UpdateCommandOptions = {}) {
@@ -231,6 +233,8 @@ export class UpdateCommand {
     if (!this.dryRun) rememberProject(resolvedProjectPath);
     this.settledWorkflows = undefined;
     this.replacedGlobalEdits = undefined;
+    this.removedGlobalSkills = undefined;
+    this.leftAloneGlobalSkills = undefined;
 
     // With the global skills installed, update works from anywhere; a project is optional.
     // The home folder holds the global skills, so it is never updated as a project of its own.
@@ -260,6 +264,8 @@ export class UpdateCommand {
             'global-skills',
             'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills.'
           );
+          if (this.removedGlobalSkills) recorder.addNote('removed-skills', this.removedGlobalSkills);
+          if (this.leftAloneGlobalSkills) recorder.addNote('left-alone-skills', this.leftAloneGlobalSkills);
           if (this.replacedGlobalEdits) recorder.addNote('edited-skills', this.replacedGlobalEdits);
         }
       } else {
@@ -284,7 +290,7 @@ export class UpdateCommand {
    * anything would.
    */
   private async refreshGlobalSkills(planRoot: string): Promise<boolean> {
-    const { GitMissingError, describeLeftAlone, describeReplacedEdits, describeSkillsError, installGlobalSkills } =
+    const { GitMissingError, describeLeftAlone, describeRemovedSkills, describeReplacedEdits, describeSkillsError, installGlobalSkills } =
       await import('./global-skills.js');
     // The profile the project part of this run settled on, which a dry run
     // has not saved; outside a project, the saved one.
@@ -315,8 +321,16 @@ export class UpdateCommand {
               : chalk.yellow('Removed the skills for this machine: your profile has no workflows.')
         );
       }
-      const leftAlone = describeLeftAlone(result.leftAlone);
-      if (leftAlone) this.log(chalk.yellow(leftAlone));
+      // A profile with no workflows has its own line above.
+      const removed =
+        failures.length === 0 && !result.unchanged && (this.dryRun || result.skills.length > 0)
+          ? describeRemovedSkills(result.removedSkills, !this.dryRun)
+          : undefined;
+      if (removed && this.dryRun) this.removedGlobalSkills = removed;
+      else if (removed) this.log(chalk.yellow(removed));
+      const leftAlone = describeLeftAlone(result.leftAlone, !this.dryRun);
+      if (leftAlone && this.dryRun) this.leftAloneGlobalSkills = leftAlone;
+      else if (leftAlone) this.log(chalk.yellow(leftAlone));
       // The same warning a project update gives, before a dry run and after a real one.
       const replaced = result.unchanged ? undefined : describeReplacedEdits(result.replacedEdits, !this.dryRun);
       if (replaced && this.dryRun) this.replacedGlobalEdits = replaced;

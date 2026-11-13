@@ -109,9 +109,10 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 | `--force` | Remove files from older OpenSpec layouts without asking. Interactive runs otherwise confirm the cleanup first. |
 | `--profile <profile>` | Override the global config profile for this run: `core` (the standard workflow set) or `custom` (the workflows saved in global config). |
 | `--no-animation` | Show a static welcome screen instead of the animated one. |
+| `--copilot-cloud`, `--no-copilot-cloud` | Write, or don't write, the files GitHub's hosted Copilot agent needs. They need the skills in the project. See [GitHub Copilot](supported-tools.md#github-copilot). |
 | `--scope <scope>` | Where the skills go: `global` installs them once for this machine, in `~/.agents/skills/` (needs `git` and a connection to GitHub); `project` installs them in the project. In a project that has its own skills, `--scope global` removes them, unless one was edited, the project is set up for a tool the global skills don't cover, or it has the Copilot cloud files. See [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project). |
 
-Without `--scope`, a project that has its own skills keeps them. A project without any uses the choice saved as [`skillsScope`](configuration/config-json.md#skillsscope), then the global skills if this machine has them. Otherwise an interactive init asks once, and a non-interactive one installs for the machine. A non-interactive run falls back to the project, and says why, when it sets up a tool the global skills don't cover, asks for the Copilot cloud files, or has no `git`. `OPENSPEC_SKILLS_SCOPE=global` or `=project` sets the choice for a run without the flag.
+Without `--scope`, a project that has its own skills keeps them. A project without any uses the choice saved as [`skillsScope`](configuration/config-json.md#skillsscope), then the global skills if this machine has them. Otherwise an interactive init asks once, and a non-interactive one installs for the machine. With no choice made (no flag, environment variable or saved `skillsScope`), a non-interactive run falls back to the project, and says why, when it sets up a tool the global skills don't cover, asks for the Copilot cloud files, or has no `git`. Once global is chosen, it stops in those cases and names `--scope project`. `--scope global` also saves the choice if none is saved yet. `OPENSPEC_SKILLS_SCOPE=global` or `=project` sets the choice for a run without the flag.
 
 **Output**
 
@@ -138,7 +139,7 @@ With the skills on this machine, the summary line reads `6 skills in ~/.agents/s
 **Exit codes**
 
 - `0`: setup completed.
-- `1`: invalid `--tools` or `--profile` value, a non-interactive run with no tools detected and no `--tools`, or an invalid store-only invocation.
+- `1`: invalid `--tools`, `--profile` or `--scope` value (or `OPENSPEC_SKILLS_SCOPE`), a non-interactive run with no tools detected and no `--tools`, a global install that failed or that none of the selected tools can use, or an invalid store-only invocation.
 
 ## openspec update
 
@@ -150,7 +151,7 @@ openspec update --force     # rewrite files even when they're current
 openspec update --dry-run   # list what an update would change, and change nothing
 ```
 
-update finds the tools init configured and compares their skills with the text this CLI version publishes. If the skills are also [installed for this machine](../start/setup.md#install-the-skills-once-for-every-project), it brings those up to date too, and then it runs from any folder, not only a project. Outside a dry run, it then names the other projects on this machine that still have their own skills, from the [list init and update keep](../start/setup.md#install-the-skills-once-for-every-project). With `--dry-run`, a pending global refresh is shown as one note, not file by file, with a second note naming any global skill whose edits it would replace. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
+update finds the tools init configured and compares their skills with the text this CLI version publishes. If the skills are also [installed for this machine](../start/setup.md#install-the-skills-once-for-every-project), it brings those up to date too, and then it runs from any folder, not only a project. Outside a dry run, it then names the other projects on this machine that still have their own skills, from the [list init and update keep](../start/setup.md#install-the-skills-once-for-every-project). With `--dry-run`, a pending global refresh is shown as one note, not file by file, with further notes naming any global skill whose edits it would replace, any it would remove because your profile leaves it out, and any it would leave alone because it holds something of yours. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
 
 **Arguments**
 

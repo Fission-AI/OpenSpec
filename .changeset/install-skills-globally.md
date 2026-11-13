@@ -8,7 +8,7 @@
 - `OPENSPEC_SKILLS_SCOPE=project` for a CI job or a shell
 - `openspec config set skillsScope project` for a machine, once
 
-Existing projects are not affected: a project that already has its own skills keeps them. A scripted run also installs in the project on its own, and says why, when it sets up a tool the global skills don't cover, asks for the Copilot cloud files, or has no `git`.
+Existing projects are not affected: a project that already has its own skills keeps them. With no choice made, a scripted run also installs in the project on its own, and says why, when it sets up a tool the global skills don't cover, asks for the Copilot cloud files, or has no `git`.
 
 **What's new**
 
@@ -20,6 +20,6 @@ Skills are now installed by Vercel's `skills` package, the one behind `npx skill
 
 `openspec update` replaces the skills OpenSpec installed, for a project and for the machine, and names any you had edited. Keep changes of your own in a skill under another name.
 
-If you already installed the skills with `npx skills add Fission-AI/OpenSpec`, in a project or with `--global`, `openspec update` takes them over. A folder that holds text or files of your own is left alone and named.
+If you already installed the skills with `npx skills add Fission-AI/OpenSpec --global`, `openspec update` takes them over. A folder that holds text or files of your own is left alone and named. Update keeps the global skills to your workflow profile, and names any it removes.
 
 Every skill now reads the same whatever workflow profile you use. Where a skill hands off to another one, it says to use that skill if it is installed and what to do otherwise.
