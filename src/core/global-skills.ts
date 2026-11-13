@@ -12,10 +12,11 @@
 
 import os from 'os';
 import path from 'path';
-import { lstatSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'fs';
+import { lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'fs';
 import { spawnSync } from 'child_process';
 import { createHash } from 'crypto';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
+import { getGlobalDataDir } from './global-config.js';
 import { sharedSkillTexts } from './shared/own-skill-texts.js';
 import { classifySkillFile } from './shared/skill-links.js';
 import { getSkillTemplates } from './shared/skill-generation.js';
@@ -562,6 +563,64 @@ export interface GlobalInstallResult {
  * Skills that already hold this version's text are left as they are.
  */
 export async function installGlobalSkills(input: GlobalInstallInput): Promise<GlobalInstallResult> {
+  // A dry run changes nothing, so it waits for nobody.
+  return input.dryRun ? installGlobalSkillsNow(input) : withGlobalSkillsLock(() => installGlobalSkillsNow(input));
+}
+
+const LOCK_WAIT_MS = 60_000;
+const LOCK_STALE_MS = 10 * 60_000;
+
+/**
+ * One run at a time changes the skills for this machine. Two at once (an
+ * `openspec update` in several projects, say) would each read a home folder
+ * the other is halfway through changing: the package's lock file is not
+ * written atomically, and a folder one run has set aside to protect it is
+ * invisible to the other. A run that finds another at work waits for it.
+ */
+async function withGlobalSkillsLock<T>(work: () => Promise<T>): Promise<T> {
+  const lock = path.join(getGlobalDataDir(), 'global-skills.lock');
+  const owner = path.join(lock, 'pid');
+  const deadline = Date.now() + LOCK_WAIT_MS;
+  let held = false;
+  for (;;) {
+    try {
+      mkdirSync(path.dirname(lock), { recursive: true });
+      mkdirSync(lock);
+      writeFileSync(owner, String(process.pid));
+      held = true;
+      break;
+    } catch (error) {
+      // A data folder that can't be written is no reason to stop: go on without the lock.
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') break;
+    }
+    // Left by a run that was cut short: its process is gone, or it never said whose it was.
+    let abandoned: boolean;
+    try {
+      abandoned = !isRunning(Number(readFileSync(owner, 'utf8')));
+    } catch {
+      try {
+        abandoned = Date.now() - statSync(lock).mtimeMs > LOCK_STALE_MS;
+      } catch {
+        abandoned = false;
+      }
+    }
+    if (abandoned) {
+      rmSync(lock, { recursive: true, force: true });
+      continue;
+    }
+    if (Date.now() > deadline) {
+      throw new Error('Another openspec run is still changing the skills for this machine. Run this again when it has finished.');
+    }
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  try {
+    return await work();
+  } finally {
+    if (held) rmSync(lock, { recursive: true, force: true });
+  }
+}
+
+async function installGlobalSkillsNow(input: GlobalInstallInput): Promise<GlobalInstallResult> {
   const { getSupportedAgents, removeSkills } = await import('skills');
   const supported = getSupportedAgents();
   // Before anything is read: a folder of the user's that a run cut short left set aside goes back.
@@ -590,14 +649,21 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const sharedFolderIsUsers = (name: string): boolean => {
     const entry = path.join(sharedGlobalDir(), name);
     try {
-      if (!lstatSync(entry).isDirectory()) return false;
+      // The package keeps a real folder per skill there. A link or a file of that name is the user's.
+      if (!lstatSync(entry).isDirectory()) return true;
     } catch {
       return false;
     }
     if (holdsOtherFiles(entry)) return true;
     // Listed as OpenSpec's install: an edit there is replaced, and named.
     if (sameFolder(entry, before.paths.get(name))) return false;
-    return classifySkillFile(entry, sharedSkillTexts(name)) === 'user';
+    if (classifySkillFile(entry, sharedSkillTexts(name)) !== 'user') return false;
+    // An empty file is nobody's text: a write that was cut short, which the install repairs.
+    try {
+      return readFileSync(path.join(entry, 'SKILL.md'), 'utf8').trim() !== '';
+    } catch {
+      return true;
+    }
   };
   const blocked = inProfile.filter(
     (name) => inTheWay.some((skill) => skill.name === name) || sharedFolderIsUsers(name)
@@ -761,10 +827,10 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
             continue;
           }
           if (written) {
-            // A link there is the install's own, and goes.
-            if (!isFolder) continue;
+            // A link the install made goes. A link the user pointed elsewhere, or a file, is kept.
+            if (!isFolder && isInstallLink(entry)) continue;
             // A folder with the user's files beside the skill is kept whoever installed the skill.
-            if (!holdsOtherFiles(entry)) {
+            if (isFolder && !holdsOtherFiles(entry)) {
               if (sameFolder(entry, before.paths.get(name))) continue;
               const spot = classifySkillFile(entry, sharedSkillTexts(name));
               if (spot === 'copy' || spot === 'released') continue;
@@ -775,7 +841,14 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
           // nobody set up here.
           const kept = path.join(dir, `.${name}.kept-${process.pid}`);
           // If it can't step aside, nothing is removed this run.
-          renameSync(entry, kept);
+          try {
+            renameSync(entry, kept);
+          } catch (error) {
+            throw new Error(
+              `${entry} is yours and could not be set aside to protect it (${(error as NodeJS.ErrnoException).code ?? 'error'}), ` +
+                'so no skill was removed. Make its folder writable, or move it away.'
+            );
+          }
           aside.push([kept, entry]);
         }
       }

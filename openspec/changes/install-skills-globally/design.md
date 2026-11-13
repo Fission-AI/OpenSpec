@@ -155,6 +155,10 @@ The same pass decides "up to date": the shared copy must be there with the curre
 | Leaves a folder or link of the user's alone | Names it, in a dry run and after |
 | Fails after it has replaced something | Still names what was replaced |
 
+### D15. One run at a time changes the global skills
+
+`openspec update` in several projects at once is ordinary: a script looping over repositories, or several agents. Each run refreshes the same home folder. The package writes its lock file in place, and a folder one run has set aside to protect it is invisible to another, which could then let the package remove it. So a run that changes the global skills takes a lock in OpenSpec's data folder first, and a run that finds another at work waits for it, for up to a minute. A lock left by a run that is gone is taken over. A dry run takes no lock.
+
 ## Risks
 
 - **A project install fetches too.** `openspec init --scope project` and `openspec update` now install a project's `.agents/skills` with the same package, from the same published skills, and record them in `skills-lock.json`. 2.0's installer still decides what is the user's, makes the links for tools the package doesn't know, and migrates 1.x projects. When the skills can't be fetched (no git, no connection), it writes the same text itself and says the lock file is missing, so a project install never fails for that. The installed text has no version stamp: a project is up to date when its skills equal the text this CLI publishes.

@@ -258,6 +258,13 @@ export class UpdateCommand {
     try {
       const refreshed = await this.refreshGlobalSkills(resolvedProjectPath);
       if (this.dryRun) {
+        // Said whether or not anything else would change.
+        if (this.leftAloneGlobalSkills) {
+          (this.recorder ??= new UpdatePlanRecorder(resolvedProjectPath)).addNote(
+            'left-alone-skills',
+            this.leftAloneGlobalSkills
+          );
+        }
         if (refreshed) {
           const recorder = this.recorder ?? (this.recorder = new UpdatePlanRecorder(resolvedProjectPath));
           recorder.addNote(
@@ -265,7 +272,7 @@ export class UpdateCommand {
             'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills.'
           );
           if (this.removedGlobalSkills) recorder.addNote('removed-skills', this.removedGlobalSkills);
-          if (this.leftAloneGlobalSkills) recorder.addNote('left-alone-skills', this.leftAloneGlobalSkills);
+
           if (this.replacedGlobalEdits) recorder.addNote('edited-skills', this.replacedGlobalEdits);
         }
       } else {

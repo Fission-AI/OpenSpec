@@ -588,7 +588,8 @@ export class InitCommand {
       if (formerFolders.length > 0) {
         throw new Error(
           `This project still keeps OpenSpec files where an older release put them (${formerFolders.join(', ')}). ` +
-            'Run openspec update here first, then run this again. Nothing was changed.'
+            'Run openspec update here first, then run this again. If they are still there after the update, ' +
+            'they hold changes of yours: move or delete them. Nothing was removed.'
         );
       }
       await this.removeProjectSkills(projectPath, { checkOnly: true });
