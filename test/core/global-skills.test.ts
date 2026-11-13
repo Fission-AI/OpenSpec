@@ -7,6 +7,7 @@ import path from 'path';
 import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
 import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
 import { getCommandContents } from '../../src/core/shared/skill-generation.js';
+import { stripVolatileFrontmatter } from '../../scripts/skillssh-shared.mjs';
 
 // Every case runs the real CLI in a fresh process with its own throwaway home:
 // the `skills` package settles some folders when it loads, so one process
@@ -39,6 +40,8 @@ describe('skills installed for this machine', () => {
       APPDATA: path.join(home, 'AppData', 'Roaming'),
       CODEX_HOME: path.join(home, '.codex'),
       CLAUDE_CONFIG_DIR: path.join(home, '.claude'),
+      // The published skills, read from this checkout instead of cloned from GitHub.
+      OPENSPEC_SKILLS_SOURCE: path.join(cliProjectRoot, 'skills'),
     };
   });
 
@@ -95,12 +98,48 @@ describe('skills installed for this machine', () => {
     await cli(inProject, 'init', '--scope', 'project', '--tools', 'claude');
     await cli(usesGlobal, 'init', '--scope', 'global', '--tools', 'claude');
 
+    // The published skills carry no version stamp; everything else is the same text.
     for (const name of CORE_SKILLS) {
       expect(readFileSync(globalSkill(name), 'utf8')).toBe(
-        readFileSync(path.join(inProject, '.agents', 'skills', name, 'SKILL.md'), 'utf8')
+        stripVolatileFrontmatter(readFileSync(path.join(inProject, '.agents', 'skills', name, 'SKILL.md'), 'utf8'))
       );
     }
   });
+
+  it('says plainly that git is needed when the skills have to be fetched and git is missing', async () => {
+    const empty = await project('no-programs-here');
+    const dir = await project('app');
+    const result = await runCLI(['init', '--scope', 'global', '--tools', 'claude'], {
+      cwd: dir,
+      env: { ...env, OPENSPEC_SKILLS_SOURCE: '', PATH: empty, Path: empty },
+      timeoutMs: 60000,
+    });
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout).toContain("needs git, and it isn't on your PATH");
+    expect(result.stdout).toContain('openspec init --scope project');
+    expect(await globalSkills()).toEqual([]);
+  });
+
+  // Fetches from GitHub, so it only runs when asked: OPENSPEC_NETWORK_TESTS=1.
+  it.skipIf(!process.env.OPENSPEC_NETWORK_TESTS)('clones the published skills from the repository', async () => {
+    const dir = await project('app');
+    const result = await runCLI(['init', '--scope', 'global', '--tools', 'claude'], {
+      cwd: dir,
+      env: { ...env, OPENSPEC_SKILLS_SOURCE: '' },
+      timeoutMs: 120000,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(await globalSkills()).toEqual(CORE_SKILLS);
+    const lock = JSON.parse(readFileSync(path.join(home, '.agents', '.skill-lock.json'), 'utf8'));
+    expect(lock.skills['openspec-propose'].source).toBe('Fission-AI/OpenSpec');
+    expect(lock.skills['openspec-propose'].sourceType).toBe('github');
+
+    const update = await runCLI(['update'], { cwd: dir, env: { ...env, OPENSPEC_SKILLS_SOURCE: '' }, timeoutMs: 120000 });
+    expect(update.exitCode).toBe(0);
+    expect(update.stdout).toContain('Updated the 6 skills for this machine');
+  }, 240000);
 
   it('rejects a scope it does not know', async () => {
     const result = await cli(await project('app'), 'init', '--scope', 'everywhere', '--tools', 'claude');

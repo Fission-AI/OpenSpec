@@ -120,6 +120,22 @@ Without these, each link checks out as a small text file. `openspec update` repl
 
 Most tools read `.agents/skills/` directly. If yours reads only its own folder, [Link another tool](../reference/supported-tools.md#link-another-tool) shows the one command to point it at the shared copy.
 
+## Many projects: install the skills once
+
+If you use OpenSpec in many projects, you don't have to upgrade each one's skills by hand. Install them once for the machine, then move each project when you next work in it. In your terminal:
+
+```bash
+openspec init --scope global --tools claude
+```
+
+Then, inside a project that still has its own skills:
+
+```bash
+openspec init --scope global
+```
+
+That removes the project's copies, and stops first if you edited one. From then on, `openspec update` in any folder refreshes the one global copy. [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project) has the details. A project you leave alone keeps its own skills and works as before.
+
 ## Stay on 1.x
 
 You don't have to upgrade yet. 1.x keeps working as it is. Pin it the way you installed it.

@@ -3,15 +3,14 @@
 ```
 openspec init --scope global --tools claude,codex
         │
-        ├─ OpenSpec writes the skill text ──▶ <data dir>/openspec/skills/<skill>/SKILL.md
-        │
-        └─ skills.installSkills(that folder, { scope: 'global', agents })
+        └─ skills.installSkills('Fission-AI/OpenSpec', { ref: 'v<cli version>', scope: 'global', agents, skills })
+                 ├─ clones the repository and reads its skills/ folder
                  ├─ ~/.agents/skills/<skill>/SKILL.md      one real copy
                  ├─ ~/.claude/skills/<skill>               link, for tools that need one
                  └─ ~/.agents/.skill-lock.json             the package's own record
 ```
 
-`src/core/global-skills.ts` is the only file that imports `skills`. It holds one table (OpenSpec tool id to the package's agent id) and no paths.
+`src/core/global-skills.ts` is the only file that imports `skills`. It holds one table (OpenSpec tool id to the package's agent id), no paths, and writes no skill text.
 
 ## Decisions
 
@@ -21,17 +20,25 @@ openspec init --scope global --tools claude,codex
 
 Its telemetry is turned off on every call.
 
-### D2. OpenSpec writes the text; the package installs it from a local folder
+### D2. Install the skills the repository publishes
 
-The published `skills/` folder in this repository is not what the CLI installs. It is one rendering for every profile, with `/openspec-propose` style references. The CLI writes tool-neutral references and drops mentions of workflows the profile doesn't install. Installing from the repository would change the text people get and bring back references to skills they don't have.
+The CLI does not write skill text for a global install. The package clones `Fission-AI/OpenSpec` at the tag of the running CLI (`v2.1.0`) and installs from its `skills/` folder, the same files `npx skills add Fission-AI/OpenSpec` installs. The profile only picks which skills.
 
-So the CLI generates the skills with the code a project install already uses, into `<data dir>/openspec/skills/`, and installs from there. This also means no git, no network, and no release tag that has to exist before the CLI works.
+Two things had to change for the published files to be the right ones:
 
-The cost: the lock file records a local path, so `npx skills update` can't refresh these skills. `openspec update` does. Pointing at the repository later is a change to one function, once its skills match what the CLI writes.
+- **One text for every profile.** A skill used to be written differently depending on which other workflows were installed, so no single published file could match. Each of those 53 places now has one wording that is right either way ("use the `openspec-continue-change` skill if it is installed, otherwise ..."). A test holds this: every skill's text is the same for every workflow list.
+- **The same reference style.** The published skills wrote `/openspec-propose`; they now write `openspec-propose`, as installed skills do.
+
+What this costs:
+
+- **git and a connection to GitHub.** Without git, init stops with a message that says so and names `--scope project`. That case is counted in telemetry (as the command name `skills:git-missing`, nothing else), so we learn how often it happens.
+- **The release tag.** If the tag for the running version isn't published yet, the install falls back to the default branch, which holds the same skills at release time.
+
+`OPENSPEC_SKILLS_SOURCE` points the install at another source, such as a local copy of the `skills/` folder. The tests use it so they never touch the network.
 
 ### D3. Reinstalling is the update
 
-The API has no update call. `openspec update` writes the current text and installs it again, which replaces what is there. A skill the profile no longer wants is removed with `removeSkills`, and only if the lock file says OpenSpec installed it.
+The API has no update call. `openspec update` installs the skills for the running version again, which replaces what is there. A skill the profile no longer wants is removed with `removeSkills`, and only if the lock file says OpenSpec installed it.
 
 Edits to a skill OpenSpec installed are replaced without a backup. That is the package's behavior and we follow it.
 

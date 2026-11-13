@@ -1,7 +1,9 @@
 ## 1. The `skills` package
 
 - [x] 1.1 Add `skills` and check it bundles into the standalone binary and runs on Node 22.12
-- [x] 1.2 `global-skills.ts`: write the skill text, install it, read what is installed, remove what the profile dropped
+- [x] 1.2 `global-skills.ts`: install the published skills, read what is installed, remove what the profile dropped
+- [x] 1.4 Clone the repository at the CLI's version, with a plain error when git is missing and a fallback when the tag isn't published
+- [x] 1.5 One skill text for every workflow profile, and published skills that match it
 - [x] 1.3 Map OpenSpec tool ids to the package's agent ids
 
 ## 2. Init

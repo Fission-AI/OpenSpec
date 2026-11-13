@@ -137,7 +137,7 @@ The project gets its `openspec/` folder and nothing else. The skills go to `~/.a
 - **Edits**: a refresh replaces the skills OpenSpec installed, so keep changes of your own in a skill under another name. A skill with an OpenSpec name that you put in your home folder yourself is left alone.
 - **Not in your home folder**: run `openspec init` inside a project. The home folder is where the global skills live, so it can't also be a project that uses them.
 
-OpenSpec hands the install to [`skills`](https://github.com/vercel-labs/skills), the package behind `npx skills`, so the layout and the lock file (`~/.agents/.skill-lock.json`) are the ones that tool uses. To remove the global skills, run `npx skills remove --global` and pick the `openspec-` ones.
+OpenSpec hands the install to [`skills`](https://github.com/vercel-labs/skills), the package behind `npx skills`. It fetches the skills published in the OpenSpec repository for your CLI's version, so the files, the layout and the lock file (`~/.agents/.skill-lock.json`) are the same ones `npx skills add Fission-AI/OpenSpec --global` gives you. Fetching them needs `git` and a connection to GitHub; project installs need neither. To remove the global skills, run `npx skills remove --global` and pick the `openspec-` ones.
 
 #### Move an existing project to the global skills
 

@@ -1,24 +1,44 @@
 /**
  * Skills installed once for this machine, for every project.
  *
- * OpenSpec writes the skill text; Vercel's `skills` package (the one behind
- * `npx skills`) puts it in place. It owns the layout, the links each tool needs
- * and the lock file, so this module holds no paths of its own.
+ * Vercel's `skills` package (the one behind `npx skills`) does the install: it
+ * fetches the skills published in OpenSpec's repository, and owns the layout,
+ * the links each tool needs and the lock file. This module holds no paths and
+ * writes no skill text of its own.
  */
 
 import os from 'os';
 import path from 'path';
 import { realpathSync } from 'fs';
-import { promises as fs } from 'fs';
+import { spawnSync } from 'child_process';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES } from './config.js';
-import { getGlobalDataDir } from './global-config.js';
-import { sharedSkillContents } from './shared/shared-skill-install.js';
 import { getSkillTemplates } from './shared/skill-generation.js';
 import { getConfiguredTools } from './shared/tool-detection.js';
 
 export type SkillScope = 'global' | 'project';
 
 export const SKILL_SCOPES: readonly SkillScope[] = ['global', 'project'];
+
+/** Where the skills are published: the same place `npx skills add` reads them from. */
+const PUBLISHED_SOURCE = 'Fission-AI/OpenSpec';
+
+/**
+ * Another place to install the skills from, for tests and for anyone who keeps
+ * a copy of OpenSpec's `skills/` folder: a local path, or any source the
+ * `skills` package accepts.
+ */
+const SOURCE_OVERRIDE_ENV = 'OPENSPEC_SKILLS_SOURCE';
+
+/** Told to the user when the skills can't be fetched because git is missing. */
+export class GitMissingError extends Error {
+  constructor() {
+    super(
+      "Installing OpenSpec's skills for this machine needs git, and it isn't on your PATH. " +
+        'Install git (https://git-scm.com/downloads) and run this again, or keep the skills in the project: openspec init --scope project'
+    );
+    this.name = 'GitMissingError';
+  }
+}
 
 /** The agent every tool that reads `~/.agents/skills` shares. */
 const UNIVERSAL_AGENT = 'universal';
@@ -98,17 +118,25 @@ export function projectHasOwnSkills(projectPath: string): boolean {
   );
 }
 
-/** Where OpenSpec writes the skill text the `skills` package installs from. */
-function sourceDir(): string {
-  return path.join(getGlobalDataDir(), 'skills');
+function skillsSource(): string {
+  return process.env[SOURCE_OVERRIDE_ENV]?.trim() || PUBLISHED_SOURCE;
+}
+
+/** Whether the source is a repository to clone, which takes git. */
+function sourceNeedsGit(source: string): boolean {
+  return !path.isAbsolute(source) && !source.startsWith('.');
 }
 
 /**
- * Whether the lock file says OpenSpec installed a skill. One that someone added
- * with `npx skills add` has another source, and stays theirs to manage.
+ * Whether the lock file says a skill came from OpenSpec's own source. One from
+ * anywhere else, or with no record at all, is someone's own and stays theirs.
  */
 function isOurSource(source: string | undefined): boolean {
-  return source !== undefined && path.resolve(source) === path.resolve(sourceDir());
+  if (source === undefined) return false;
+  const ours = skillsSource();
+  return sourceNeedsGit(ours)
+    ? source.toLowerCase() === ours.toLowerCase()
+    : path.resolve(source) === path.resolve(ours);
 }
 
 export interface GlobalSkills {
@@ -136,7 +164,7 @@ export interface GlobalInstallInput {
   /** Tools to add. The tools already set up are always kept and refreshed. */
   toolIds?: readonly string[];
   workflows: readonly string[];
-  /** The CLI's version, stamped into each skill. */
+  /** The CLI's version: the skills published with that release are the ones installed. */
   version: string;
 }
 
@@ -155,7 +183,7 @@ export interface GlobalInstallResult {
  * Reinstalling is the update: the `skills` package replaces what it finds.
  */
 export async function installGlobalSkills(input: GlobalInstallInput): Promise<GlobalInstallResult> {
-  const { installSkills, removeSkills } = await import('skills');
+  const { installSkills, isDiagnostic, removeSkills } = await import('skills');
   const before = await readGlobalSkills();
   const inProfile = getSkillTemplates(input.workflows).map(({ dirName }) => dirName);
   // A skill of the same name that OpenSpec didn't install is someone's own: never replace it.
@@ -164,18 +192,32 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const added = (input.toolIds ?? []).filter(supportsGlobalSkills).map((id) => AGENT_IDS[id]);
   const agents = [...new Set([UNIVERSAL_AGENT, ...before.agents, ...added])];
 
-  const source = sourceDir();
-  await fs.rm(source, { recursive: true, force: true });
-  for (const [name, content] of sharedSkillContents(input.version, input.workflows)) {
-    await fs.mkdir(path.join(source, name), { recursive: true });
-    await fs.writeFile(path.join(source, name, 'SKILL.md'), content, 'utf8');
-  }
-
+  const source = skillsSource();
   const options = { scope: 'global', telemetry: false } as const;
   const failures: string[] = [];
   // A profile with no workflows installs nothing, and only clears what was there.
   if (wanted.length > 0) {
-    const installed = await installSkills(source, { ...options, agents, skills: wanted });
+    const install = (ref?: string) =>
+      installSkills(source, { ...options, agents, skills: wanted, ...(ref ? { ref } : {}) });
+    let installed;
+    if (!sourceNeedsGit(source)) {
+      installed = await install();
+    } else {
+      if (spawnSync('git', ['--version'], { stdio: 'ignore' }).status !== 0) {
+        // Counted, so we learn how often the git requirement gets in someone's way.
+        const { trackCommand } = await import('../telemetry/index.js');
+        await trackCommand('skills:git-missing', input.version);
+        throw new GitMissingError();
+      }
+      try {
+        // The skills published with this release, so they always match the CLI.
+        installed = await install(`v${input.version}`);
+      } catch (error) {
+        // A release whose tag isn't published yet: the default branch holds the same skills.
+        if (!isDiagnostic(error, 'SKILLS_GIT_CLONE_FAILED')) throw error;
+        installed = await install();
+      }
+    }
     failures.push(...installed.failed.map((failure) => failure.message));
   }
 

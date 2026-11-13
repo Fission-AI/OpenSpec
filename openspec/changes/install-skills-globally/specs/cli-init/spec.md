@@ -2,7 +2,7 @@
 
 ### Requirement: Init installs skills for this machine
 
-With the global scope, `openspec init` SHALL install the skills once for this machine through the `skills` package, and SHALL give the project its `openspec/` folder and no skill files. The skills SHALL be the text a project install writes for the same profile. Tools named with `--tools` SHALL be added to the tools already set up, never removed.
+With the global scope, `openspec init` SHALL install the skills once for this machine through the `skills` package, from the skills published in the OpenSpec repository for the running CLI's version, and SHALL give the project its `openspec/` folder and no skill files. Apart from the version stamp, the skills SHALL be the text a project install writes. Tools named with `--tools` SHALL be added to the tools already set up, never removed.
 
 #### Scenario: First global install
 
@@ -10,6 +10,17 @@ With the global scope, `openspec init` SHALL install the skills once for this ma
 - **THEN** `~/.agents/skills/` SHALL hold one copy of each skill in the profile
 - **AND** Claude Code SHALL reach each skill from `~/.claude/skills/`
 - **AND** the project SHALL contain only `openspec/`
+
+#### Scenario: git is missing
+
+- **WHEN** the user runs `openspec init --scope global --tools claude` on a machine without git
+- **THEN** init SHALL exit 1, say that git is needed, and name `openspec init --scope project`
+- **AND** nothing SHALL be written to the home folder
+
+#### Scenario: The release tag isn't published yet
+
+- **WHEN** the repository has no tag for the running CLI's version
+- **THEN** the skills SHALL be installed from the default branch
 
 #### Scenario: A tool is added later
 
