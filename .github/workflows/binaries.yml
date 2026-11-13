@@ -1,9 +1,11 @@
 name: Binaries
 
 # Standalone `openspec` executables for people without Node.js (#2055).
-# One Linux job cross-compiles every asset; each is then tested on its own OS
-# and CPU, and only then attached to a published release. Not run in the merge
-# queue: the PR run covers the change, and a release re-verifies before upload.
+# One Linux job cross-compiles every asset but the Windows ones, which a
+# Windows job builds and, for a release, code-signs. Each asset is then tested
+# on its own OS and CPU, and only then attached to a published release. Not run
+# in the merge queue: the PR run covers the change, and a release re-verifies
+# before upload.
 on:
   pull_request:
     branches: [main]
@@ -51,11 +53,110 @@ jobs:
               - '!assets/**'
               - '!*.md'
 
+  # Built on Windows because only there can Bun label the executables as
+  # OpenSpec (name, publisher, version). Unlabeled they still say "Bun", and
+  # unsigned they have no publisher at all: antivirus tools read that as a
+  # disguised program and remove it (#2243).
+  windows:
+    name: Build Windows
+    runs-on: windows-latest
+    # Signing waits up to an hour for a maintainer to approve the request.
+    timeout-minutes: 80
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    permissions:
+      contents: read
+      actions: read # SignPath reads this run to confirm it built the files
+    outputs:
+      signed: ${{ steps.sign.outcome == 'success' }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # The same bytes the Linux job builds from: Git for Windows would
+      # otherwise check the schemas out with CRLF line endings.
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.REF }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      # No dependency caches, as in the Build job.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '22.12.0'
+          package-manager-cache: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+          no-cache: true
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run build
+      - run: bun scripts/binary/build.mjs windows-x64 windows-arm64
+      # The binaries report package.json's version (smoke.sh checks), so this
+      # keeps assets off a release they do not belong to. First job of a
+      # release, so nothing is signed for the wrong version either.
+      - name: Check the version matches the release tag
+        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+        run: |
+          version=$(node -p "require('./package.json').version")
+          # Tags are v1.2.3, or @fission-ai/openspec@1.2.3 as changesets first
+          # creates them. Exact match: a suffix match would let v11.0.0 pass for 1.0.0.
+          tag_version=${REF##*@}
+          tag_version=${tag_version#v}
+          [[ "$tag_version" == "$version" ]] || {
+            echo "::error::package.json version $version does not match tag $REF"
+            exit 1
+          }
+      # SignPath only signs files it can fetch from this run's own artifacts.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        id: unsigned
+        with:
+          name: windows-unsigned
+          path: dist-bin/openspec-windows-*.exe
+          if-no-files-found: error
+          retention-days: 7
+      # Releases only, and only once the repository has its SignPath settings
+      # (see README.md here); until then the executables ship unsigned. Once
+      # set, a request that fails or is not approved in time fails the release.
+      # The four-part version build.mjs wrote into the files; SignPath refuses
+      # to sign a file whose own details say anything else.
+      - name: Windows file version
+        id: version
+        run: echo "version=$(node -p "require('./package.json').version.split('-')[0] + '.0'")" >> "$GITHUB_OUTPUT"
+      - name: Sign
+        id: sign
+        if: github.event_name != 'pull_request' && github.repository == 'Fission-AI/OpenSpec' && vars.SIGNPATH_ORGANIZATION_ID != ''
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed
+      # Both or neither: a missing file fails here rather than shipping a mix.
+      - name: Use the signed executables
+        if: steps.sign.outcome == 'success'
+        run: |
+          for asset in windows-x64 windows-arm64; do
+            cp "signed/openspec-$asset.exe" "dist-bin/openspec-$asset.exe"
+          done
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-binaries
+          path: dist-bin/openspec-windows-*.exe
+          if-no-files-found: error
+          retention-days: 7
+
   build:
     name: Build
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: changes
+    needs: [changes, windows]
     if: needs.changes.outputs.code == 'true'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -75,21 +176,12 @@ jobs:
           no-cache: true
       - run: pnpm install --frozen-lockfile
       - run: pnpm run build
-      - run: bun scripts/binary/build.mjs --all
-      # The binaries report package.json's version (smoke.sh checks), so this
-      # keeps assets off a release they do not belong to.
-      - name: Check the version matches the release tag
-        if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
-        run: |
-          version=$(node -p "require('./package.json').version")
-          # Tags are v1.2.3, or @fission-ai/openspec@1.2.3 as changesets first
-          # creates them. Exact match: a suffix match would let v11.0.0 pass for 1.0.0.
-          tag_version=${REF##*@}
-          tag_version=${tag_version#v}
-          [[ "$tag_version" == "$version" ]] || {
-            echo "::error::package.json version $version does not match tag $REF"
-            exit 1
-          }
+      - run: bun scripts/binary/build.mjs linux-x64 linux-arm64 linux-x64-musl linux-arm64-musl darwin-x64 darwin-arm64
+      # The Windows executables, from the job above.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-binaries
+          path: dist-bin
       # Users download archives: .tar.gz, or .zip on Windows. The bare
       # binaries stay in dist-bin for the tests below.
       - name: Archives, checksums and installer
@@ -119,7 +211,7 @@ jobs:
 
   verify:
     name: Verify ${{ matrix.asset }}
-    needs: build
+    needs: [windows, build]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 40
     strategy:
@@ -172,6 +264,26 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit 1 }
           cmd /c "$exe --version"
           if ($LASTEXITCODE -ne 0) { exit 1 }
+
+      # What Windows and antivirus tools read off the file: OpenSpec's own
+      # name, publisher and version, and on a signed release a signature
+      # Windows accepts. Bun's own details here are what got it removed (#2243).
+      - name: File details and signature
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          SIGNED: ${{ needs.windows.outputs.signed }}
+        run: |
+          $exe = "dist-bin\openspec-$env:ASSET.exe"
+          $info = (Get-Item $exe).VersionInfo
+          $info | Format-List ProductName, CompanyName, FileDescription, ProductVersion, FileVersion, LegalCopyright
+          $version = ((Get-Content package.json -Raw | ConvertFrom-Json).version -split '-')[0]
+          if ($info.ProductName -ne 'OpenSpec') { throw "product name is '$($info.ProductName)', expected OpenSpec" }
+          if ($info.CompanyName -ne 'OpenSpec Contributors') { throw "publisher is '$($info.CompanyName)', expected OpenSpec Contributors" }
+          if ($info.ProductVersion -ne "$version.0") { throw "product version is '$($info.ProductVersion)', expected $version.0" }
+          $signature = Get-AuthenticodeSignature $exe
+          Write-Host "Signature: $($signature.Status) $($signature.SignerCertificate.Subject)"
+          if ($env:SIGNED -eq 'true' -and $signature.Status -ne 'Valid') { throw "signature is $($signature.Status): $($signature.StatusMessage)" }
 
       # Serves this build as a release and checks the installer picks exactly
       # this asset on this machine, verifies it, and installs a working copy.
@@ -336,8 +448,8 @@ jobs:
           gh release upload "$tag" openspec-*.tar.gz openspec-*.zip --clobber --repo "$GITHUB_REPOSITORY"
           gh release upload "$tag" SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
       # Signed proof each archive was built by this workflow from this tag, which
-      # anyone can check with `gh attestation verify`. The binaries are not
-      # notarized or code-signed yet, so this is the verifiable trail meanwhile.
+      # anyone can check with `gh attestation verify`. The macOS binaries are
+      # not notarized yet, so this is the verifiable trail for them meanwhile.
       # After the upload, so a first-time problem here never holds binaries back.
       - uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         continue-on-error: true
