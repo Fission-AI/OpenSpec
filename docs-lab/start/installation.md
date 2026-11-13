@@ -181,7 +181,7 @@ It fails if the workflow didn't build the file. The install command already chec
 
 ### If antivirus blocks OpenSpec
 
-Some antivirus tools, Kaspersky among them, remove or block `openspec.exe` on Windows. The executables are not code-signed, and releases up to 2.0.0 also describe themselves as Bun, the runtime OpenSpec is built on, so they can look like an unfamiliar program. Later releases describe themselves as OpenSpec. For a file that passes the [download check](#verify-a-download), the alert is a false alarm.
+Some antivirus tools, Kaspersky among them, remove or block `openspec.exe` on Windows. The executables are not code-signed, and releases up to 2.0.0 also describe themselves as Bun, the runtime OpenSpec is built on, so they can look like an unfamiliar program. Later releases describe themselves as OpenSpec, from Fission AI, Inc., the company that publishes it. For a file that passes the [download check](#verify-a-download), the alert is a false alarm.
 
 If it happens to you:
 

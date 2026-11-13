@@ -91,7 +91,7 @@ const windows = {
   // Four numbers, as Windows wants; a prerelease suffix has no place in them.
   version: `${version.split('-')[0]}.0`,
   description: 'OpenSpec CLI',
-  copyright: 'Copyright (c) 2024 OpenSpec Contributors. MIT License.',
+  copyright: 'Copyright (c) 2026 Fission AI, Inc. MIT License.',
 };
 
 for (const asset of assets) {
