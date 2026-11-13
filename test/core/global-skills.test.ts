@@ -948,6 +948,8 @@ describe('skills installed for this machine', () => {
         await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
         // Links into a dotfiles folder that isn't on this machine yet.
         const mine = (name: string) => path.join(home, 'my-dotfiles', name);
+        // Windows reports a junction's target with a trailing separator.
+        const pointsTo = async (link: string) => (await fs.readlink(link)).replace(/[\\/]+$/, '');
         for (const name of ['openspec-explore', 'openspec-verify-change']) {
           await fs.rm(path.join(claude(), name), { recursive: true, force: true });
           await fs.symlink(mine(name), path.join(claude(), name), 'junction');
@@ -957,7 +959,7 @@ describe('skills installed for this machine', () => {
         const forced = await cli(dir, 'update', '--force');
 
         expect(forced.exitCode).toBe(0);
-        expect(await fs.readlink(path.join(claude(), 'openspec-explore'))).toBe(mine('openspec-explore'));
+        expect(await pointsTo(path.join(claude(), 'openspec-explore'))).toBe(mine('openspec-explore'));
         expect(plan.stdout).toContain('Update will leave openspec-explore, openspec-verify-change in your home folder alone');
         expect(forced.stdout).toContain('Left openspec-explore, openspec-verify-change in your home folder alone');
         // Named on a plain update too, while everything else is current.
@@ -967,8 +969,8 @@ describe('skills installed for this machine', () => {
         const dropped = await cli(dir, 'update');
 
         expect(dropped.exitCode).toBe(0);
-        expect(await fs.readlink(path.join(claude(), 'openspec-verify-change'))).toBe(mine('openspec-verify-change'));
-        expect(await fs.readlink(path.join(claude(), 'openspec-explore'))).toBe(mine('openspec-explore'));
+        expect(await pointsTo(path.join(claude(), 'openspec-verify-change'))).toBe(mine('openspec-verify-change'));
+        expect(await pointsTo(path.join(claude(), 'openspec-explore'))).toBe(mine('openspec-explore'));
       });
 
       it("puts back the skill behind one of the install's own links when the shared copy was deleted", async () => {
