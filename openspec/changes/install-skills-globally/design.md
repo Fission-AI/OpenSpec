@@ -121,7 +121,17 @@ Moving to the global skills is done one project at a time, and nothing told the 
 
 `npx skills add Fission-AI/OpenSpec` installs whatever `skills/` held that day, and that text was never one the CLI generated. It read as the user's own edit: a project kept those skills as "yours" beside the new ones, and the global update warned about edits nobody made. `scripts/capture-released-fingerprints.mjs` now also records every text `skills/` has held, from git history, so these are replaced like any other OpenSpec file.
 
-One case is not taken over: a global install made for a single tool leaves real copies in that tool's own folder and none in the shared one. A tool counts as set up only by its links, so those copies are left as they are and the upgrade guide says how to switch. Taking them over means deciding, tool by tool, which folders the package reads globally, which is a change of its own.
+A global install made for a single tool leaves real copies in that tool's own folder and none in the shared one, and the package does the same for Antigravity, and for any tool where it can't make a link. So a tool counts as set up when its folder holds, for one of OpenSpec's skills, a link or a copy with OpenSpec's text:
+
+| In the tool's folder | Read as |
+|---|---|
+| A link | OpenSpec's |
+| A copy with the current text | OpenSpec's, and up to date |
+| A copy with an earlier release's text | OpenSpec's, and replaced on update |
+| The folder the lock file records for the skill, edited, in a tool that is set up | OpenSpec's: replaced, and the edit named |
+| Any other folder: the user's text, or no skill in it | The user's: left alone and named |
+
+A copy counts only for a tool the global install covers and that the package gives a folder of its own. That leaves out MiniMax Code, whose copies belong to its project install, and the tools that read the shared folder. Which tools get their own folder is the package's call: its "universal" flag describes the project folder, and Antigravity is universal there but not globally. A test installs for every covered tool and fails if OpenSpec and the package disagree.
 
 ### D12. A removal never takes the user's own folder
 

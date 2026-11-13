@@ -142,7 +142,7 @@ That removes the project's copies, and stops first if you edited one. From then 
 
 If you already installed the skills with `npx skills add Fission-AI/OpenSpec`, for a project or with `--global`, there is nothing to undo. `openspec update` takes them over: it brings them to your CLI's version, keeps the ones in your [workflow profile](../reference/cli.md#openspec-config-profile), and removes the rest.
 
-One case is left to you. If you installed them globally for a single tool, with `--agent claude-code` for example, that tool has its own copies and OpenSpec leaves them as they are. Remove them with `npx skills remove --global`, then run `openspec init --scope global --tools <id>`. [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project) has the details. A project you leave alone keeps its own skills and works as before.
+That includes a global install made for a single tool, with `--agent claude-code` for example, where the tool holds its own copies: update replaces them with links to the one shared copy. A folder there with your own text is never replaced. If you edited every one of those copies, OpenSpec can't tell them from skills of your own and leaves the tool as it is. [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project) has the details. A project you leave alone keeps its own skills and works as before.
 
 ## Stay on 1.x
 

@@ -543,26 +543,254 @@ describe('skills installed for this machine', () => {
       }
     });
 
-    it('leaves the copies a single-tool `npx skills add --global` made as they are, and claims nothing about them', async () => {
-      // The package's own CLI, asked for one tool: real folders in ~/.claude/skills, none in ~/.agents/skills.
-      const skillsCli = path.join(cliProjectRoot, 'node_modules', 'skills', 'bin', 'cli.mjs');
-      const elsewhere = await project('elsewhere');
-      execFileSync(
-        process.execPath,
-        [skillsCli, 'add', path.join(cliProjectRoot, 'skills'), '--global', '--agent', 'claude-code', '--yes'],
-        { cwd: elsewhere, env: { ...env, PATH: process.env.PATH, DISABLE_TELEMETRY: '1', DO_NOT_TRACK: '1' }, stdio: 'ignore' }
-      );
-      const own = path.join(home, '.claude', 'skills', 'openspec-propose', 'SKILL.md');
-      await fs.appendFile(own, '\nmy note\n');
+    describe('copies in a tool folder of its own', () => {
+      // `npx skills add --global` for one tool: real folders in ~/.claude/skills, none in ~/.agents/skills.
+      const npxForClaudeOnly = async (): Promise<string> => {
+        const skillsCli = path.join(cliProjectRoot, 'node_modules', 'skills', 'bin', 'cli.mjs');
+        const elsewhere = await project('elsewhere');
+        execFileSync(
+          process.execPath,
+          [skillsCli, 'add', path.join(cliProjectRoot, 'skills'), '--global', '--agent', 'claude-code', '--yes'],
+          { cwd: elsewhere, env: { ...env, PATH: process.env.PATH, DISABLE_TELEMETRY: '1', DO_NOT_TRACK: '1' }, stdio: 'ignore' }
+        );
+        expect(await entries(path.join(home, '.claude', 'skills'))).toHaveLength(12);
+        expect(await globalSkills()).toEqual([]);
+        return elsewhere;
+      };
+      const claude = () => path.join(home, '.claude', 'skills');
+      const isLink = async (file: string) => (await fs.lstat(file)).isSymbolicLink();
+      const oldText = () =>
+        readFileSync(
+          path.join(cliProjectRoot, 'test', 'fixtures', 'released-output', 'published-skills', 'v2.0.0-openspec-explore.md'),
+          'utf8'
+        );
+      const MINE = '---\nname: openspec-explore\ndescription: mine\n---\nmine\n';
 
-      const plan = await cli(elsewhere, 'update', '--dry-run');
-      const result = await cli(elsewhere, 'update');
+      it('takes over what `npx skills add --global` installed for one tool, and names an edit it replaces', async () => {
+        const elsewhere = await npxForClaudeOnly();
+        const own = path.join(claude(), 'openspec-propose', 'SKILL.md');
+        await fs.appendFile(own, '\nmy note\n');
+        await fs.writeFile(path.join(claude(), 'openspec-explore', 'SKILL.md'), oldText());
 
-      expect(result.exitCode).toBe(0);
-      expect(plan.stdout).not.toContain('replace your edits');
-      expect(result.stdout).not.toContain('Replaced your edits');
-      expect(readFileSync(own, 'utf8')).toContain('my note');
-    }, 120000);
+        const plan = await cli(elsewhere, 'update', '--dry-run');
+        expect(plan.stdout).toContain('Update will replace your edits in 1 skill OpenSpec installs for this machine: openspec-propose.');
+        expect(readFileSync(own, 'utf8')).toContain('my note');
+        const result = await cli(elsewhere, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Replaced your edits in 1 skill OpenSpec installs for this machine: openspec-propose.');
+        // One copy, which Claude Code links to; the skills outside the profile are gone.
+        expect(await globalSkills()).toEqual(CORE_SKILLS);
+        expect(await entries(claude())).toEqual(CORE_SKILLS);
+        for (const name of CORE_SKILLS) {
+          expect(readFileSync(path.join(claude(), name, 'SKILL.md'), 'utf8')).toBe(readFileSync(globalSkill(name), 'utf8'));
+        }
+        const again = await cli(elsewhere, 'update');
+        expect(again.stdout).toContain('The 6 skills for this machine are up to date');
+        expect(again.stdout).not.toContain('Replaced your edits');
+      }, 120000);
+
+      it('says such an install is up to date, and writes nothing, when its copies hold the current text', async () => {
+        const elsewhere = await npxForClaudeOnly();
+        const configFile = path.join(home, '.config', 'openspec', 'config.json');
+        await fs.mkdir(path.dirname(configFile), { recursive: true });
+        await fs.writeFile(
+          configFile,
+          JSON.stringify({
+            profile: 'custom',
+            workflows: ['propose', 'explore', 'new', 'continue', 'apply', 'update', 'ff', 'sync', 'archive', 'bulk-archive', 'verify', 'onboard'],
+          })
+        );
+
+        const result = await cli(elsewhere, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('The 12 skills for this machine are up to date');
+        expect(await isLink(path.join(claude(), 'openspec-propose'))).toBe(false);
+      }, 120000);
+
+      it('leaves a tool alone, and claims nothing, when every copy there was edited', async () => {
+        const elsewhere = await npxForClaudeOnly();
+        for (const name of await entries(claude())) await fs.appendFile(path.join(claude(), name, 'SKILL.md'), '\nmy note\n');
+
+        const plan = await cli(elsewhere, 'update', '--dry-run');
+        const result = await cli(elsewhere, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(plan.stdout).not.toContain('replace your edits');
+        expect(result.stdout).not.toContain('Replaced your edits');
+        expect(await entries(claude())).toHaveLength(12);
+        for (const name of await entries(claude())) {
+          expect(readFileSync(path.join(claude(), name, 'SKILL.md'), 'utf8')).toContain('my note');
+        }
+      }, 120000);
+
+      it("replaces a tool's older copy even when the shared copy is current", async () => {
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+        const copy = path.join(claude(), 'openspec-explore');
+        await fs.rm(copy, { recursive: true, force: true });
+        await fs.mkdir(copy, { recursive: true });
+        await fs.writeFile(path.join(copy, 'SKILL.md'), oldText());
+
+        const result = await cli(dir, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Updated the 6 skills for this machine');
+        expect(result.stdout).not.toContain('Replaced your edits');
+        expect(readFileSync(path.join(copy, 'SKILL.md'), 'utf8')).toBe(readFileSync(globalSkill('openspec-explore'), 'utf8'));
+        expect((await cli(dir, 'update')).stdout).toContain('The 6 skills for this machine are up to date');
+      });
+
+      it("never sets a tool up because a folder there has a skill's name", async () => {
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'codex');
+        // A tool with a folder of its own that this machine was never set up for.
+        const notes = path.join(home, '.qwen', 'skills', 'openspec-explore', 'notes.md');
+        const mine = path.join(home, '.qwen', 'skills', 'openspec-propose', 'SKILL.md');
+        for (const [file, text] of [[notes, 'my notes'], [mine, MINE]]) {
+          await fs.mkdir(path.dirname(file), { recursive: true });
+          await fs.writeFile(file, text);
+        }
+
+        const result = await cli(dir, 'update', '--force');
+
+        expect(result.exitCode).toBe(0);
+        expect(readFileSync(notes, 'utf8')).toBe('my notes');
+        expect(readFileSync(mine, 'utf8')).toBe(MINE);
+        expect(await entries(path.join(home, '.qwen', 'skills'))).toEqual(['openspec-explore', 'openspec-propose']);
+        expect(await entries(path.join(home, '.qwen', 'skills', 'openspec-explore'))).toEqual(['notes.md']);
+      });
+
+      it("keeps the user's own folder in a tool that is set up by copies", async () => {
+        const elsewhere = await npxForClaudeOnly();
+        // Not the package's install of that skill: the user's own, under the same name.
+        const notes = path.join(claude(), 'openspec-explore', 'notes.md');
+        await fs.rm(path.join(claude(), 'openspec-explore'), { recursive: true });
+        await fs.mkdir(path.dirname(notes), { recursive: true });
+        await fs.writeFile(notes, 'my notes');
+        await fs.writeFile(path.join(claude(), 'openspec-propose', 'SKILL.md'), oldText());
+
+        const result = await cli(elsewhere, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(readFileSync(notes, 'utf8')).toBe('my notes');
+        expect(await entries(path.join(claude(), 'openspec-explore'))).toEqual(['notes.md']);
+        // The rest of the tool is still brought up to date.
+        expect(readFileSync(path.join(claude(), 'openspec-propose', 'SKILL.md'), 'utf8')).toBe(
+          readFileSync(globalSkill('openspec-propose'), 'utf8')
+        );
+      }, 120000);
+
+      it("never replaces the user's own skill because the lock file lists that name", async () => {
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'codex');
+        // The shared copies are deleted by hand; the lock file still lists them.
+        await fs.rm(path.join(home, '.agents', 'skills'), { recursive: true });
+        const mine = path.join(claude(), 'openspec-explore', 'SKILL.md');
+        await fs.mkdir(path.dirname(mine), { recursive: true });
+        await fs.writeFile(mine, MINE);
+
+        const result = await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+
+        expect(readFileSync(mine, 'utf8')).toBe(MINE);
+        expect(result.stdout + result.stderr).not.toContain('Replaced your edits');
+      });
+
+      it('leaves a tool whose folder is the shared folder itself alone', async () => {
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'codex');
+        await fs.mkdir(path.join(home, '.claude'), { recursive: true });
+        await fs.symlink(path.join(home, '.agents', 'skills'), claude(), 'junction');
+        await fs.writeFile(globalSkill('openspec-explore'), oldText());
+
+        const result = await cli(dir, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(await isLink(claude())).toBe(true);
+        expect(await globalSkills()).toEqual(CORE_SKILLS);
+        expect(await isLink(path.join(home, '.agents', 'skills', 'openspec-explore'))).toBe(false);
+        expect(readFileSync(globalSkill('openspec-explore'), 'utf8')).not.toBe(oldText());
+        expect((await cli(dir, 'update')).stdout).toContain('The 6 skills for this machine are up to date');
+      });
+
+      describe('Antigravity, which the package gives a folder of its own', () => {
+        const antigravity = () => path.join(home, '.gemini', 'config', 'skills');
+
+        it('gets the skills when it is the only tool, and they are refreshed on update', async () => {
+          const dir = await project('app');
+          const init = await cli(dir, 'init', '--scope', 'global', '--tools', 'antigravity');
+          expect(init.exitCode).toBe(0);
+          expect(await entries(antigravity())).toEqual(CORE_SKILLS);
+          await fs.writeFile(path.join(antigravity(), 'openspec-explore', 'SKILL.md'), oldText());
+
+          const result = await cli(dir, 'update');
+
+          expect(result.exitCode).toBe(0);
+          expect(result.stdout).toContain('Updated the 6 skills for this machine');
+          expect(readFileSync(path.join(antigravity(), 'openspec-explore', 'SKILL.md'), 'utf8')).toBe(
+            readFileSync(globalSkill('openspec-explore'), 'utf8')
+          );
+          expect((await cli(dir, 'update')).stdout).toContain('The 6 skills for this machine are up to date');
+        });
+
+        it('gets the skills when it is added to a machine whose skills are current', async () => {
+          await cli(await project('first'), 'init', '--scope', 'global', '--tools', 'claude');
+
+          const result = await cli(await project('second'), 'init', '--scope', 'global', '--tools', 'antigravity');
+
+          expect(result.exitCode).toBe(0);
+          expect(await entries(antigravity())).toEqual(CORE_SKILLS);
+          expect(existsSync(path.join(antigravity(), 'openspec-explore', 'SKILL.md'))).toBe(true);
+        });
+
+        it("leaves the user's own skill there alone, says so, and still refreshes the rest", async () => {
+          const dir = await project('app');
+          await cli(dir, 'init', '--scope', 'global', '--tools', 'antigravity');
+          const mine = path.join(antigravity(), 'openspec-explore', 'SKILL.md');
+          await fs.writeFile(mine, MINE);
+          await fs.appendFile(path.join(antigravity(), 'openspec-propose', 'SKILL.md'), '\nmy note\n');
+          await fs.writeFile(path.join(antigravity(), 'openspec-apply-change', 'SKILL.md'), oldText().replace('openspec-explore', 'openspec-apply-change'));
+
+          const result = await cli(dir, 'update', '--force');
+
+          expect(result.exitCode).toBe(0);
+          expect(readFileSync(mine, 'utf8')).toBe(MINE);
+          // An edited copy can't be told from a skill of the user's own, so it is kept and named too.
+          expect(readFileSync(path.join(antigravity(), 'openspec-propose', 'SKILL.md'), 'utf8')).toContain('my note');
+          expect(result.stdout).toContain('Left openspec-');
+          expect(result.stdout).toContain('openspec-explore');
+          expect(result.stdout).toContain('openspec-propose');
+          expect(readFileSync(path.join(antigravity(), 'openspec-sync-specs', 'SKILL.md'), 'utf8')).toBe(
+            readFileSync(globalSkill('openspec-sync-specs'), 'utf8')
+          );
+        });
+      });
+
+      it('agrees with the skills package about which tools get a folder of their own', async () => {
+        // Every tool the global install covers, set up at once: the package
+        // writes into a tool's own folder exactly when OpenSpec expects it to.
+        const all = await cli(await project('app'), 'init', '--scope', 'global', '--tools', 'all');
+        expect(all.exitCode, all.stderr).toBe(0);
+        const { getSupportedAgents } = await import('skills');
+        const shared = path.join(home, '.agents', 'skills');
+        const real = (process.env.HOME ?? os.homedir()).replace(/[\\/]+$/, '');
+        const written: string[] = [];
+        const expected: string[] = [];
+        for (const agent of getSupportedAgents()) {
+          if (!agent.globalSkillsDir) continue;
+          // This process has its own home; the CLI ran in the test's.
+          const dir = path.join(home, path.relative(real, agent.globalSkillsDir));
+          if (dir === shared) continue;
+          if (existsSync(path.join(dir, 'openspec-explore'))) written.push(agent.id);
+          if (!agent.universal || ['antigravity', 'antigravity-cli'].includes(agent.id)) expected.push(agent.id);
+        }
+        // Every tool written to is one OpenSpec treats as having its own folder.
+        expect(written.filter((id) => !expected.includes(id))).toEqual([]);
+        expect(written).toContain('claude-code');
+        expect(written).toContain('antigravity');
+      }, 120000);
+    });
 
     it("never takes MiniMax Code's copies in the home folder for part of the global install", async () => {
       const dir = await project('app');

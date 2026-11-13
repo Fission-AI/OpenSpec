@@ -141,6 +141,9 @@ instead: `openspec init --tools kiro`.
 - **Shared skills**: Antigravity reads the same `.agents/skills/` copy as every other
   tool. Workflows OpenSpec wrote to `.agents/workflows/` before 2.0 are removed on
   update.
+- **Global skills**: for a [machine-wide install](../start/setup.md#install-the-skills-once-for-every-project),
+  the `skills` package keeps Antigravity's skills in `~/.gemini/config/skills/`,
+  as links to the shared copy or as copies. `openspec update` keeps them current.
 
 ### Cline
 

@@ -97,6 +97,24 @@ const AGENT_IDS: Readonly<Record<string, string>> = {
   zed: 'zed',
 };
 
+/**
+ * Agents the package calls universal, because in a project they read
+ * `.agents/skills`, but that it gives a folder of their own for a global
+ * install. A test installs for every covered tool and fails if this list and
+ * the package disagree.
+ */
+const OWN_GLOBAL_FOLDER: ReadonlySet<string> = new Set(['antigravity', 'antigravity-cli']);
+
+/** Whether a global install writes into this agent's own folder, and not only the shared one. */
+function keepsOwnGlobalFolder(agent: { id: string; universal: boolean }): boolean {
+  return !agent.universal || OWN_GLOBAL_FOLDER.has(agent.id);
+}
+
+/** Where the package keeps the one copy of every global skill. */
+function sharedGlobalDir(): string {
+  return path.join(os.homedir(), '.agents', 'skills');
+}
+
 export function supportsGlobalSkills(toolId: string): boolean {
   return Object.hasOwn(AGENT_IDS, toolId);
 }
@@ -367,23 +385,33 @@ export async function readGlobalSkills(): Promise<GlobalSkills> {
   const { skills } = await listSkills({ scope: 'global' });
   const named = skills.filter((skill) => (OPENSPEC_SKILL_NAMES as readonly string[]).includes(skill.name));
   const ours = named.filter((skill) => isOurSource(skill.source));
-  const agentDirs = new Map(getSupportedAgents().map((agent) => [agent.id, agent.globalSkillsDir]));
-  // The package reports an agent for any folder of that name. Only one that
-  // holds links, and no real folder, is a tool this install was set up for:
-  // a real folder there is the user's own and must never be replaced.
+  const supported = getSupportedAgents();
+  const agentDirs = new Map(supported.map((agent) => [agent.id, agent.globalSkillsDir]));
+  const ownFolder = new Set(supported.filter(keepsOwnGlobalFolder).map((agent) => agent.id));
+  const covered = new Set(Object.values(AGENT_IDS));
+  // The package reports an agent for any folder of that name. A tool this
+  // install was set up for holds, for one of these skills, a link to the
+  // shared copy or a copy with OpenSpec's text: the package copies when a
+  // tool is the only one installed for, and where it can't link.
+  // A copy counts only for a tool the global install covers and writes a
+  // folder for, so MiniMax Code's copies, which its project install keeps,
+  // never do. A folder with the user's own text, or with no skill in it,
+  // never makes a tool one of ours, and is never replaced.
   const linked = (agent: string): boolean => {
     const dir = agentDirs.get(agent);
-    if (!dir) return false;
-    let links = 0;
-    for (const skill of ours) {
+    // A tool whose folder is the shared one needs nothing of its own.
+    if (!dir || sameFolder(dir, sharedGlobalDir())) return false;
+    return ours.some((skill) => {
+      const entry = path.join(dir, skill.name);
       try {
-        if (!lstatSync(path.join(dir, skill.name)).isSymbolicLink()) return false;
-        links += 1;
+        if (lstatSync(entry).isSymbolicLink()) return true;
       } catch {
-        // Not there for this skill.
+        return false;
       }
-    }
-    return links > 0;
+      if (!ownFolder.has(agent) || !covered.has(agent)) return false;
+      const spot = classifySkillFile(entry, sharedSkillTexts(skill.name));
+      return spot === 'copy' || spot === 'released';
+    });
   };
   return {
     skills: ours.map((skill) => skill.name),
@@ -430,7 +458,8 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const { getSupportedAgents, removeSkills } = await import('skills');
   const before = await readGlobalSkills();
   const supported = getSupportedAgents();
-  const universal = new Set(supported.filter((agent) => agent.universal).map((agent) => agent.id));
+  // The agents that read the shared folder and get nothing of their own.
+  const universal = new Set(supported.filter((agent) => !keepsOwnGlobalFolder(agent)).map((agent) => agent.id));
   universal.add(UNIVERSAL_AGENT);
   const inProfile = getSkillTemplates(input.workflows).map(({ dirName }) => dirName);
   const added = (input.toolIds ?? []).filter(supportsGlobalSkills).map((id) => AGENT_IDS[id]);
@@ -454,11 +483,19 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     } catch {
       return 'missing';
     }
-    // Only OpenSpec's own text is OpenSpec's: a folder with other text, or with no skill in it, is the user's.
+    // In a tool already set up, the folder the package recorded for this
+    // skill is OpenSpec's install, edited or not: `npx skills add --global`
+    // for one tool keeps the skill there and nowhere else.
+    if (before.agents.includes(agent) && sameFolder(entry, before.paths.get(name))) return 'ours';
+    // Otherwise only OpenSpec's own text is OpenSpec's: a folder with other text, or with no skill in it, is the user's.
     const spot = classifySkillFile(entry, sharedSkillTexts(name));
     return spot === 'copy' || spot === 'released' ? 'ours' : 'theirs';
   };
-  const linkedAgents = agents.filter((agent) => !universal.has(agent) && agentDirs.has(agent));
+  const isDir = (dir: string | null | undefined): dir is string => typeof dir === 'string';
+  const linkedAgents = agents.filter((agent) => {
+    const dir = agentDirs.get(agent);
+    return !universal.has(agent) && isDir(dir) && !sameFolder(dir, sharedGlobalDir());
+  });
   const heldBy = new Map(
     linkedAgents.map((agent) => [agent, wanted.filter((name) => entryIn(agent, name) === 'theirs')] as const)
   );
@@ -470,13 +507,7 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   // writes to counts: the shared folder, and the folder of a tool this
   // install is set up for. A copy the package recorded in the folder of a
   // tool that isn't set up is left as it is.
-  const isDir = (dir: string | null | undefined): dir is string => typeof dir === 'string';
-  const toolDirs = supported.filter((agent) => !agent.universal).map((agent) => agent.globalSkillsDir).filter(isDir);
-  const recordedDirs = [...new Set([...before.paths.values()].map((dir) => path.dirname(dir)))];
-  const writtenDirs = [
-    ...recordedDirs.filter((dir) => !toolDirs.some((tool) => sameFolder(dir, tool))),
-    ...agents.map((agent) => agentDirs.get(agent)).filter(isDir),
-  ];
+  const writtenDirs = [sharedGlobalDir(), ...linkedAgents.map((agent) => agentDirs.get(agent)).filter(isDir)];
   const skillText = (name: string): string | undefined => {
     try {
       return readFileSync(path.join(before.paths.get(name)!, 'SKILL.md'), 'utf8');
@@ -511,9 +542,19 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     const dir = before.paths.get(name);
     return dir !== undefined && classifySkillFile(dir, publishedSkillText(name, input.version)) === 'copy';
   });
-  // Every tool set up must still reach every skill: a deleted link is put back.
+  // Every tool set up must still reach every skill: a deleted link is put
+  // back, and a copy counts only while it holds the current text.
+  const reaches = (agent: string, name: string): boolean => {
+    const entry = path.join(agentDirs.get(agent) ?? '', name);
+    try {
+      if (lstatSync(entry).isSymbolicLink()) return true;
+    } catch {
+      return false;
+    }
+    return classifySkillFile(entry, publishedSkillText(name, input.version)) === 'copy';
+  };
   const linksComplete = linkedAgents.every((agent) =>
-    wanted.every((name) => heldBy.get(agent)!.includes(name) || entryIn(agent, name) === 'ours')
+    wanted.every((name) => heldBy.get(agent)!.includes(name) || reaches(agent, name))
   );
   if (!input.force && current && linksComplete && !newAgent && removedSkills.length === 0) {
     return { ...result, unchanged: true, failures: [] };
