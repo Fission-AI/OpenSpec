@@ -12,7 +12,7 @@
 
 import os from 'os';
 import path from 'path';
-import { lstatSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'fs';
+import { lstatSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'fs';
 import { spawnSync } from 'child_process';
 import { createHash } from 'crypto';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
@@ -136,6 +136,15 @@ function sourceNeedsGit(source: string): boolean {
 /** Whether the skills can be fetched at all: a repository source takes git. */
 export function canFetchSkills(): boolean {
   return !sourceNeedsGit(skillsSource()) || spawnSync('git', ['--version'], { stdio: 'ignore' }).status === 0;
+}
+
+function sameFolder(one: string, other: string | undefined): boolean {
+  if (other === undefined) return false;
+  try {
+    return realpathSync.native(one) === realpathSync.native(other);
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -445,7 +454,9 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     } catch {
       return 'missing';
     }
-    return classifySkillFile(entry, sharedSkillTexts(name)) === 'user' ? 'theirs' : 'ours';
+    // Only OpenSpec's own text is OpenSpec's: a folder with other text, or with no skill in it, is the user's.
+    const spot = classifySkillFile(entry, sharedSkillTexts(name));
+    return spot === 'copy' || spot === 'released' ? 'ours' : 'theirs';
   };
   const linkedAgents = agents.filter((agent) => !universal.has(agent) && agentDirs.has(agent));
   const heldBy = new Map(
@@ -454,11 +465,34 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
   const leftAlone = [...new Set([...blocked, ...[...heldBy.values()].flat()])];
   const removedSkills = before.skills.filter((name) => !inProfile.includes(name));
   // The package replaces what it finds, so an edit inside one of OpenSpec's
-  // own skills goes. Named, so the user can recover it and knows where it went.
-  const replacedEdits = wanted.filter((name) => {
+  // own skills goes, as does one in a skill the profile dropped. Named, so
+  // the user can recover it and knows where it went. Only a folder this run
+  // writes to counts: the shared folder, and the folder of a tool this
+  // install is set up for. A copy the package recorded in the folder of a
+  // tool that isn't set up is left as it is.
+  const isDir = (dir: string | null | undefined): dir is string => typeof dir === 'string';
+  const toolDirs = supported.filter((agent) => !agent.universal).map((agent) => agent.globalSkillsDir).filter(isDir);
+  const recordedDirs = [...new Set([...before.paths.values()].map((dir) => path.dirname(dir)))];
+  const writtenDirs = [
+    ...recordedDirs.filter((dir) => !toolDirs.some((tool) => sameFolder(dir, tool))),
+    ...agents.map((agent) => agentDirs.get(agent)).filter(isDir),
+  ];
+  const skillText = (name: string): string | undefined => {
+    try {
+      return readFileSync(path.join(before.paths.get(name)!, 'SKILL.md'), 'utf8');
+    } catch {
+      return undefined;
+    }
+  };
+  const replacedEdits = [...wanted, ...removedSkills].filter((name) => {
     const dir = before.paths.get(name);
-    return dir !== undefined && classifySkillFile(dir, sharedSkillTexts(name)) === 'user';
+    return (
+      dir !== undefined &&
+      writtenDirs.some((written) => sameFolder(path.dirname(dir), written)) &&
+      classifySkillFile(dir, sharedSkillTexts(name)) === 'user'
+    );
   });
+  const editedText = new Map(replacedEdits.map((name) => [name, skillText(name)] as const));
   const result = { skills: wanted, agents, removedSkills, leftAlone, replacedEdits };
 
   if (inProfile.length > 0 && wanted.length === 0) {
@@ -513,15 +547,73 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     }
   }
   if (removedSkills.length > 0 && failures.length === 0) {
-    const removed = await removeSkills(removedSkills, options);
-    failures.push(...removed.failed.map((failure) => failure.message));
+    // The package removes a skill from every tool's folder, whatever is in
+    // it. A folder of that name holding anything but OpenSpec's text is the
+    // user's: it steps aside for the removal and comes straight back. Only
+    // the folder the package recorded for the skill, in a folder this install
+    // writes to, is OpenSpec's to remove whatever it holds, and an edit there
+    // was named above.
+    const aside: Array<[string, string]> = [];
+    const keptName = (name: string) => `.${name}.kept-`;
+    try {
+      for (const dir of new Set([...agentDirs.values()].filter(isDir))) {
+        for (const name of removedSkills) {
+          const entry = path.join(dir, name);
+          // One a run that was cut short left behind goes back first, if its place is free.
+          for (const left of leftovers(dir, keptName(name))) {
+            try {
+              lstatSync(entry);
+              failures.push(`your own ${name} from an earlier run is still at ${left}`);
+            } catch {
+              renameSync(left, entry);
+            }
+          }
+          try {
+            if (!lstatSync(entry).isDirectory()) continue;
+          } catch {
+            continue;
+          }
+          const recorded =
+            sameFolder(entry, before.paths.get(name)) && writtenDirs.some((written) => sameFolder(dir, written));
+          if (recorded) continue;
+          const spot = classifySkillFile(entry, sharedSkillTexts(name));
+          if (spot === 'copy' || spot === 'released') continue;
+          const kept = path.join(dir, `${keptName(name)}${process.pid}`);
+          // If it can't step aside, nothing is removed this run.
+          renameSync(entry, kept);
+          aside.push([kept, entry]);
+        }
+      }
+      const removed = await removeSkills(removedSkills, options);
+      failures.push(...removed.failed.map((failure) => failure.message));
+    } catch (error) {
+      failures.push(describeSkillsError(error));
+    } finally {
+      for (const [kept, entry] of aside) {
+        try {
+          renameSync(kept, entry);
+        } catch {
+          failures.push(`your own ${path.basename(entry)} could not be put back: it is at ${kept}`);
+        }
+      }
+    }
   }
 
   // Only the edits that are really gone: an install that failed partway may have left some.
-  const replaced = replacedEdits.filter(
-    (name) => classifySkillFile(before.paths.get(name)!, sharedSkillTexts(name)) !== 'user'
-  );
+  // Told by the text itself, so it holds when the skill was removed or made a link.
+  const replaced = replacedEdits.filter((name) => skillText(name) !== editedText.get(name));
   return { ...result, replacedEdits: replaced, unchanged: false, failures: [...new Set(failures)] };
+}
+
+/** Folders in `dir` whose name starts with `prefix`. */
+function leftovers(dir: string, prefix: string): string[] {
+  try {
+    return readdirSync(dir)
+      .filter((entry) => entry.startsWith(prefix))
+      .map((entry) => path.join(dir, entry));
+  } catch {
+    return [];
+  }
 }
 
 /** The text this CLI publishes for a skill: what a current install holds. */

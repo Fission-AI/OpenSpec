@@ -121,6 +121,12 @@ Moving to the global skills is done one project at a time, and nothing told the 
 
 `npx skills add Fission-AI/OpenSpec` installs whatever `skills/` held that day, and that text was never one the CLI generated. It read as the user's own edit: a project kept those skills as "yours" beside the new ones, and the global update warned about edits nobody made. `scripts/capture-released-fingerprints.mjs` now also records every text `skills/` has held, from git history, so these are replaced like any other OpenSpec file.
 
+One case is not taken over: a global install made for a single tool leaves real copies in that tool's own folder and none in the shared one. A tool counts as set up only by its links, so those copies are left as they are and the upgrade guide says how to switch. Taking them over means deciding, tool by tool, which folders the package reads globally, which is a change of its own.
+
+### D12. A removal never takes the user's own folder
+
+When the profile drops a skill, the package removes that name from every tool's folder, whatever is in it. Before the removal, any folder of that name holding something other than OpenSpec's text is renamed aside, and it is renamed back straight after. An edit in OpenSpec's own copy of a dropped skill is named, in a dry run and after the real one, like any other replaced edit.
+
 ## Risks
 
 - **A project install fetches too.** `openspec init --scope project` and `openspec update` now install a project's `.agents/skills` with the same package, from the same published skills, and record them in `skills-lock.json`. 2.0's installer still decides what is the user's, makes the links for tools the package doesn't know, and migrates 1.x projects. When the skills can't be fetched (no git, no connection), it writes the same text itself and says the lock file is missing, so a project install never fails for that. The installed text has no version stamp: a project is up to date when its skills equal the text this CLI publishes.

@@ -49,6 +49,12 @@ function argValue(name) {
   return i === -1 ? undefined : process.argv[i + 1];
 }
 
+// The history of skills/ is read further down. A shallow clone would record
+// only part of it and silently drop the rest from the list.
+if (execFileSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: repoRoot, encoding: 'utf8' }).trim() === 'true') {
+  throw new Error('This is a shallow clone. Run `git fetch --unshallow` first: the history of skills/ is recorded too.');
+}
+
 const cacheDir = path.resolve(argValue('--cache') ?? path.join(os.tmpdir(), 'openspec-release-cache'));
 const only = argValue('--only')?.split(',');
 const workRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-capture-'));

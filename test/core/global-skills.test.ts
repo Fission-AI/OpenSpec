@@ -543,6 +543,118 @@ describe('skills installed for this machine', () => {
       }
     });
 
+    it('leaves the copies a single-tool `npx skills add --global` made as they are, and claims nothing about them', async () => {
+      // The package's own CLI, asked for one tool: real folders in ~/.claude/skills, none in ~/.agents/skills.
+      const skillsCli = path.join(cliProjectRoot, 'node_modules', 'skills', 'bin', 'cli.mjs');
+      const elsewhere = await project('elsewhere');
+      execFileSync(
+        process.execPath,
+        [skillsCli, 'add', path.join(cliProjectRoot, 'skills'), '--global', '--agent', 'claude-code', '--yes'],
+        { cwd: elsewhere, env: { ...env, PATH: process.env.PATH, DISABLE_TELEMETRY: '1', DO_NOT_TRACK: '1' }, stdio: 'ignore' }
+      );
+      const own = path.join(home, '.claude', 'skills', 'openspec-propose', 'SKILL.md');
+      await fs.appendFile(own, '\nmy note\n');
+
+      const plan = await cli(elsewhere, 'update', '--dry-run');
+      const result = await cli(elsewhere, 'update');
+
+      expect(result.exitCode).toBe(0);
+      expect(plan.stdout).not.toContain('replace your edits');
+      expect(result.stdout).not.toContain('Replaced your edits');
+      expect(readFileSync(own, 'utf8')).toContain('my note');
+    }, 120000);
+
+    it("never takes MiniMax Code's copies in the home folder for part of the global install", async () => {
+      const dir = await project('app');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude,minimax-code');
+      await cli(dir, 'init', '--scope', 'global');
+      const minimax = path.join(home, '.minimax', 'skills');
+      const snapshot = async () =>
+        Promise.all(
+          (await entries(minimax)).map(async (name) => {
+            const stat = await fs.lstat(path.join(minimax, name));
+            return [name, stat.isSymbolicLink(), readFileSync(path.join(minimax, name, 'SKILL.md'), 'utf8')];
+          })
+        );
+      const before = await snapshot();
+      expect(before.length).toBeGreaterThan(0);
+
+      const result = await cli(dir, 'update', '--force');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).not.toContain('in your home folder alone');
+      expect(await snapshot()).toEqual(before);
+    });
+
+    describe('when the profile drops a skill', () => {
+      const configFile = () => path.join(home, '.config', 'openspec', 'config.json');
+      const setWorkflows = async (workflows: string[]) => {
+        await fs.mkdir(path.dirname(configFile()), { recursive: true });
+        await fs.writeFile(configFile(), JSON.stringify({ profile: 'custom', workflows }));
+      };
+      const MINE = '---\nname: openspec-verify-change\ndescription: mine\n---\nmine\n';
+      const ownFolder = async (...segments: string[]): Promise<string> => {
+        const file = path.join(home, ...segments, 'openspec-verify-change', 'SKILL.md');
+        await fs.rm(path.dirname(file), { recursive: true, force: true });
+        await fs.mkdir(path.dirname(file), { recursive: true });
+        await fs.writeFile(file, MINE);
+        return file;
+      };
+
+      it('names an edit in it before it goes', async () => {
+        await setWorkflows(['propose', 'explore', 'verify']);
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+        await fs.appendFile(globalSkill('openspec-verify-change'), '\nmy note\n');
+        await setWorkflows(['propose', 'explore']);
+
+        const plan = await cli(dir, 'update', '--dry-run');
+        expect(plan.stdout).toContain('Update will replace your edits in 1 skill OpenSpec installs for this machine: openspec-verify-change.');
+        const result = await cli(dir, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(result.stdout).toContain('Replaced your edits in 1 skill OpenSpec installs for this machine: openspec-verify-change.');
+        expect(await globalSkills()).toEqual(['openspec-explore', 'openspec-propose']);
+        expect((await cli(dir, 'update')).stdout).toContain('The 2 skills for this machine are up to date');
+      });
+
+      it("keeps a folder of that name with the user's own text, in a tool that is set up and in one that isn't", async () => {
+        await setWorkflows(['propose', 'explore', 'verify']);
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+        // Where Claude Code's link was, and in a tool this install never touched.
+        const inSetUpTool = await ownFolder('.claude', 'skills');
+        const inOtherTool = await ownFolder('.cursor', 'skills');
+        await setWorkflows(['propose', 'explore']);
+
+        const result = await cli(dir, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(readFileSync(inSetUpTool, 'utf8')).toBe(MINE);
+        expect(readFileSync(inOtherTool, 'utf8')).toBe(MINE);
+        expect(await globalSkills()).toEqual(['openspec-explore', 'openspec-propose']);
+        // Nothing is left under another name.
+        expect(await entries(path.join(home, '.cursor', 'skills'))).toEqual(['openspec-verify-change']);
+        expect((await entries(path.join(home, '.claude', 'skills'))).filter((name) => name.startsWith('.'))).toEqual([]);
+      });
+
+      it('puts back a folder that an earlier run, cut short, had set aside', async () => {
+        await setWorkflows(['propose', 'explore', 'verify']);
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+        const mine = await ownFolder('.cursor', 'skills');
+        const aside = path.join(home, '.cursor', 'skills', '.openspec-verify-change.kept-4242');
+        await fs.rename(path.dirname(mine), aside);
+        await setWorkflows(['propose', 'explore']);
+
+        const result = await cli(dir, 'update');
+
+        expect(result.exitCode).toBe(0);
+        expect(readFileSync(mine, 'utf8')).toBe(MINE);
+        expect(existsSync(aside)).toBe(false);
+      });
+    });
+
     it('says the global skills are up to date and fetches nothing when they are', async () => {
       const dir = await project('app');
       await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
