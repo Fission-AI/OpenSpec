@@ -12,10 +12,12 @@
 
 import os from 'os';
 import path from 'path';
-import { readFileSync, realpathSync, rmSync, writeFileSync } from 'fs';
+import { lstatSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'fs';
 import { spawnSync } from 'child_process';
 import { createHash } from 'crypto';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
+import { sharedSkillTexts } from './shared/own-skill-texts.js';
+import { classifySkillFile } from './shared/skill-links.js';
 import { getSkillTemplates } from './shared/skill-generation.js';
 import { getConfiguredTools } from './shared/tool-detection.js';
 
@@ -37,8 +39,8 @@ const SOURCE_OVERRIDE_ENV = 'OPENSPEC_SKILLS_SOURCE';
 export class GitMissingError extends Error {
   constructor() {
     super(
-      "Installing OpenSpec's skills for this machine needs git, and it isn't on your PATH. " +
-        'Install git (https://git-scm.com/downloads) and run this again, or keep the skills in the project: openspec init --scope project'
+      "Fetching OpenSpec's skills needs git, and it isn't on your PATH. " +
+        'Install git (https://git-scm.com/downloads) and run this again.'
     );
     this.name = 'GitMissingError';
   }
@@ -138,9 +140,16 @@ function sourceNeedsGit(source: string): boolean {
 function isOurSource(source: string | undefined): boolean {
   if (source === undefined) return false;
   const ours = skillsSource();
-  return sourceNeedsGit(ours)
-    ? source.toLowerCase() === ours.toLowerCase()
-    : path.resolve(source) === path.resolve(ours);
+  if (!sourceNeedsGit(ours)) return path.resolve(source) === path.resolve(ours);
+  // The lock file records a GitHub source as owner/repo, however it was given.
+  const repo = (value: string) =>
+    value
+      .trim()
+      .replace(/^(?:https?:\/\/|git@)github\.com[/:]/i, '')
+      .replace(/\.git$/i, '')
+      .replace(/\/+$/, '')
+      .toLowerCase();
+  return repo(source) === repo(ours);
 }
 
 /**
@@ -166,7 +175,10 @@ async function installPublishedSkills(
     return await install(`v${version}`);
   } catch (error) {
     // A release whose tag isn't published yet: the default branch holds the same skills.
-    if (!isDiagnostic(error, 'SKILLS_GIT_CLONE_FAILED')) throw error;
+    // Any other failure (no connection, say) must not quietly install another release's skills.
+    const tagMissing =
+      isDiagnostic(error, 'SKILLS_GIT_CLONE_FAILED') && /Remote branch \S+ not found/i.test(String(error.message));
+    if (!tagMissing) throw error;
     return install();
   }
 }
@@ -208,9 +220,9 @@ function lockHash(skillText: string): string {
 /**
  * A project's lock file once `installed` (skill name to SKILL.md text) are
  * recorded and `removed` are not, or undefined when it then records no skill
- * at all (and so should not exist). Only a dry run uses the text, to say
- * whether the file changes: the `skills` package writes the real one. An
- * unreadable lock file is returned as it is.
+ * at all (and so should not exist). A dry run uses it to say whether the
+ * file changes, and a removal writes it; the `skills` package writes the
+ * entries for what it installs. An unreadable lock file is returned as it is.
  */
 export function plannedProjectLock(
   lockText: string | undefined,
@@ -300,28 +312,53 @@ export function dropFromProjectLock(projectPath: string, names: readonly string[
     return;
   }
   const planned = plannedProjectLock(text, new Map(), names);
+  // Only a lock file this call changed is rewritten or removed.
+  if (lockedProjectSkills(planned).size === lockedProjectSkills(text).size) return;
   if (planned === undefined) rmSync(lockPath);
-  else if (lockedProjectSkills(planned).size !== lockedProjectSkills(text).size) writeFileSync(lockPath, planned);
+  else writeFileSync(lockPath, planned);
 }
 
 export interface GlobalSkills {
   /** OpenSpec's skills installed for this machine. */
   skills: string[];
-  /** Agents, by the `skills` package's ids, that have a link to them. */
+  /** Agents, by the `skills` package's ids, that reach them through a link in their own folder. */
   agents: string[];
-  /** Skills with an OpenSpec name that something else put there. */
-  foreign: string[];
+  /** Skills with an OpenSpec name and someone else's text, that nothing records as OpenSpec's. */
+  foreign: Array<{ name: string; path: string; agents: readonly string[] }>;
+  /** Where each of OpenSpec's skills sits. */
+  paths: Map<string, string>;
 }
 
 export async function readGlobalSkills(): Promise<GlobalSkills> {
-  const { listSkills } = await import('skills');
+  const { getSupportedAgents, listSkills } = await import('skills');
   const { skills } = await listSkills({ scope: 'global' });
   const named = skills.filter((skill) => (OPENSPEC_SKILL_NAMES as readonly string[]).includes(skill.name));
   const ours = named.filter((skill) => isOurSource(skill.source));
+  const agentDirs = new Map(getSupportedAgents().map((agent) => [agent.id, agent.globalSkillsDir]));
+  // The package reports an agent for any folder of that name. Only one that
+  // holds links, and no real folder, is a tool this install was set up for:
+  // a real folder there is the user's own and must never be replaced.
+  const linked = (agent: string): boolean => {
+    const dir = agentDirs.get(agent);
+    if (!dir) return false;
+    let links = 0;
+    for (const skill of ours) {
+      try {
+        if (!lstatSync(path.join(dir, skill.name)).isSymbolicLink()) return false;
+        links += 1;
+      } catch {
+        // Not there for this skill.
+      }
+    }
+    return links > 0;
+  };
   return {
     skills: ours.map((skill) => skill.name),
-    agents: [...new Set(ours.flatMap((skill) => [...skill.agents]))],
-    foreign: [...new Set(named.filter((skill) => !isOurSource(skill.source)).map((skill) => skill.name))],
+    agents: [...new Set(ours.flatMap((skill) => [...skill.agents]))].filter(linked),
+    foreign: named
+      .filter((skill) => !isOurSource(skill.source) && classifySkillFile(skill.path, sharedSkillTexts(skill.name)) === 'user')
+      .map((skill) => ({ name: skill.name, path: skill.path, agents: skill.agents })),
+    paths: new Map(ours.map((skill) => [skill.name, skill.path])),
   };
 }
 
@@ -331,6 +368,10 @@ export interface GlobalInstallInput {
   workflows: readonly string[];
   /** The CLI's version: the skills published with that release are the ones installed. */
   version: string;
+  /** Fetch and install even when what is there already matches. */
+  force?: boolean;
+  /** Only work out whether anything would change; fetch and write nothing. */
+  dryRun?: boolean;
 }
 
 export interface GlobalInstallResult {
@@ -340,22 +381,56 @@ export interface GlobalInstallResult {
   removedSkills: string[];
   /** Skills left alone because something other than OpenSpec installed them. */
   leftAlone: string[];
+  /** True when the installed skills already matched and nothing was fetched. */
+  unchanged: boolean;
   failures: string[];
 }
 
 /**
  * Install OpenSpec's skills for this machine, or refresh the ones there.
  * Reinstalling is the update: the `skills` package replaces what it finds.
+ * Skills that already hold this version's text are left as they are.
  */
 export async function installGlobalSkills(input: GlobalInstallInput): Promise<GlobalInstallResult> {
-  const { removeSkills } = await import('skills');
+  const { getSupportedAgents, removeSkills } = await import('skills');
   const before = await readGlobalSkills();
+  const supported = getSupportedAgents();
+  const universal = new Set(supported.filter((agent) => agent.universal).map((agent) => agent.id));
+  universal.add(UNIVERSAL_AGENT);
   const inProfile = getSkillTemplates(input.workflows).map(({ dirName }) => dirName);
-  // A skill of the same name that OpenSpec didn't install is someone's own: never replace it.
-  const leftAlone = inProfile.filter((name) => before.foreign.includes(name));
-  const wanted = inProfile.filter((name) => !leftAlone.includes(name));
   const added = (input.toolIds ?? []).filter(supportsGlobalSkills).map((id) => AGENT_IDS[id]);
   const agents = [...new Set([UNIVERSAL_AGENT, ...before.agents, ...added])];
+  // A skill of the same name with someone else's text, in a folder this
+  // install writes to, is the user's own: never replace it.
+  // One that only a tool outside this install holds (MiniMax Code's own copies, say) is not in the way.
+  const inTheWay = before.foreign.filter(
+    (skill) => skill.agents.length === 0 || skill.agents.some((agent) => universal.has(agent) || agents.includes(agent))
+  );
+  const leftAlone = inProfile.filter((name) => inTheWay.some((skill) => skill.name === name));
+  const wanted = inProfile.filter((name) => !leftAlone.includes(name));
+  const removedSkills = before.skills.filter((name) => !inProfile.includes(name));
+  const result = { skills: wanted, agents, removedSkills, leftAlone };
+
+  if (inProfile.length > 0 && wanted.length === 0) {
+    return {
+      ...result,
+      unchanged: true,
+      failures: [
+        `every skill in your profile is already in your home folder from somewhere else (${leftAlone.join(', ')}). ` +
+          "Remove them to let OpenSpec install its own",
+      ],
+    };
+  }
+
+  const newAgent = added.some((agent) => !universal.has(agent) && !before.agents.includes(agent));
+  const current = wanted.every((name) => {
+    const dir = before.paths.get(name);
+    return dir !== undefined && classifySkillFile(dir, publishedSkillText(name, input.version)) === 'copy';
+  });
+  if (!input.force && current && !newAgent && removedSkills.length === 0) {
+    return { ...result, unchanged: true, failures: [] };
+  }
+  if (input.dryRun) return { ...result, unchanged: false, failures: [] };
 
   const options = { scope: 'global', telemetry: false } as const;
   const failures: string[] = [];
@@ -364,14 +439,17 @@ export async function installGlobalSkills(input: GlobalInstallInput): Promise<Gl
     const installed = await installPublishedSkills(input.version, { scope: 'global', agents, skills: wanted });
     failures.push(...installed.failed.map((failure) => failure.message));
   }
-
-  const removedSkills = before.skills.filter((name) => !inProfile.includes(name));
   if (removedSkills.length > 0) {
     const removed = await removeSkills(removedSkills, options);
     failures.push(...removed.failed.map((failure) => failure.message));
   }
 
-  return { skills: wanted, agents, removedSkills, leftAlone, failures: [...new Set(failures)] };
+  return { ...result, unchanged: false, failures: [...new Set(failures)] };
+}
+
+/** The text this CLI publishes for a skill: what a current install holds. */
+function publishedSkillText(name: string, version: string): string[] {
+  return sharedSkillTexts(name, version).filter((text) => !/^ {2}generatedBy: /m.test(text));
 }
 
 /**

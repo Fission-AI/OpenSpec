@@ -68,7 +68,18 @@ import {
 import { pruneEmptyParents } from './released-output-sweep.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
 import { markConfigFlag } from './completion-tip.js';
-import { SKILL_SCOPES, projectHasOwnSkills, readGlobalSkills, type SkillScope } from './global-skills.js';
+import {
+  GitMissingError,
+  SKILL_SCOPES,
+  describeLeftAlone,
+  describeSkillsError,
+  installGlobalSkills,
+  isHomeFolder,
+  projectHasOwnSkills,
+  readGlobalSkills,
+  supportsGlobalSkills,
+  type SkillScope,
+} from './global-skills.js';
 import { readKeptSharedSkills } from './shared-skill-target.js';
 import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
@@ -443,12 +454,15 @@ export class InitCommand {
         '--copilot-cloud sets up the GitHub-hosted agent, which only sees skills kept in the project. Add --scope project.'
       );
     }
-    const { describeLeftAlone, describeSkillsError, installGlobalSkills, isHomeFolder, supportsGlobalSkills } =
-      await import('./global-skills.js');
     if (isHomeFolder(projectPath)) {
       throw new Error('This is your home folder, where the global skills live. Run openspec init inside a project.');
     }
-    const installed = await readGlobalSkills();
+    let installed: Awaited<ReturnType<typeof readGlobalSkills>>;
+    try {
+      installed = await readGlobalSkills();
+    } catch (error) {
+      throw new Error(`Could not read the skills installed for this machine: ${describeSkillsError(error)}`);
+    }
     // Tools are picked once: with the global skills in place, only --tools adds more.
     const selected =
       this.toolsArg !== undefined || installed.skills.length === 0
@@ -462,14 +476,31 @@ export class InitCommand {
       console.log(
         chalk.yellow(
           `${unsupported.map((tool) => tool.name).join(', ')} ${one ? "isn't" : "aren't"} covered by the global skills. ` +
-            `Where you use ${one ? 'it' : 'them'}, run: openspec init --scope project`
+            `Where you use ${one ? 'it' : 'them'}, run: openspec init --scope project --tools ${unsupported.map((tool) => tool.value).join(',')}`
         )
+      );
+    }
+    if (tools.length > 0 && supported.length === 0 && installed.skills.length === 0) {
+      throw new Error(
+        'None of the selected tools are covered by the global skills, so nothing was set up. ' +
+          `Run: openspec init --scope project --tools ${tools.map((tool) => tool.value).join(',')}`
       );
     }
 
     // Moving a project: check first, and remove its copies only once the global ones are in place.
     const movesProject = projectHasOwnSkills(projectPath);
     if (movesProject) {
+      // A tool the global skills don't cover would be left with no skills at all.
+      const configured = getConfiguredTools(projectPath);
+      const uncovered = AI_TOOLS.filter(
+        (tool) => configured.includes(tool.value) && usesSharedSkills(tool) && !supportsGlobalSkills(tool.value)
+      );
+      if (uncovered.length > 0) {
+        throw new Error(
+          `This project is set up for ${uncovered.map((tool) => tool.name).join(', ')}, which the global skills don't cover, ` +
+            'so it keeps its own skills. Nothing was changed.'
+        );
+      }
       await this.removeProjectSkills(projectPath, { checkOnly: true });
     }
     if (!context.integrationsOnly) {
@@ -480,21 +511,25 @@ export class InitCommand {
     let leftAlone: string | undefined;
     const failedTools: Array<{ name: string; error: Error }> = [];
     if (installed.skills.length > 0 || supported.length > 0) {
-      const spinner = this.startSpinner('Installing skills for this machine...');
+      const spinner = this.startSpinner('Checking the skills for this machine...');
+      let unchanged = false;
       try {
         const result = await installGlobalSkills({
           toolIds: supported.map((tool) => tool.value),
           workflows: this.getActiveWorkflows(),
           version: OPENSPEC_VERSION,
         });
+        unchanged = result.unchanged;
         if (result.failures.length === 0) globalSkills = { count: result.skills.length };
         else failedTools.push({ name: 'the global skills', error: new Error(result.failures.join('; ')) });
         leftAlone = describeLeftAlone(result.leftAlone);
       } catch (error) {
-        failedTools.push({ name: 'the global skills', error: new Error(describeSkillsError(error)) });
+        const hint =
+          error instanceof GitMissingError ? ' Or keep the skills in the project: openspec init --scope project' : '';
+        failedTools.push({ name: 'the global skills', error: new Error(describeSkillsError(error) + hint) });
       }
       if (failedTools.length > 0) spinner.fail('Could not install the skills for this machine');
-      else spinner.succeed('Skills installed for this machine');
+      else spinner.succeed(unchanged ? 'Skills for this machine are up to date' : 'Skills installed for this machine');
       if (leftAlone) console.log(chalk.yellow(leftAlone));
     }
     if (failedTools.length === 0) {
@@ -506,7 +541,12 @@ export class InitCommand {
           // Not saved: the installed skills still mark the choice.
         }
       }
-      if (movesProject) await this.removeProjectSkills(projectPath);
+      // The project gives up its copies only once the global ones are really there.
+      if (movesProject && globalSkills && globalSkills.count > 0) {
+        await this.removeProjectSkills(projectPath);
+      } else if (movesProject) {
+        console.log(chalk.yellow('No skills are installed for this machine, so the project keeps its own.'));
+      }
     }
 
     if (context.deferredLegacyCleanup) {

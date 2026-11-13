@@ -135,9 +135,9 @@ The project gets its `openspec/` folder and nothing else. The skills go to `~/.a
 
 - **The next project**: plain `openspec init` uses the global skills, so there is nothing to install again.
 - **Asked once**: at a terminal, your first `openspec init` asks where the skills should go and remembers the answer. Scripts and agents that pass `--tools` are never asked, and stay in the project unless the global skills are already installed.
-- **Updating**: `openspec update` refreshes the global skills from any folder. In a project with its own skills it refreshes both.
+- **Updating**: `openspec update` brings the global skills up to date from any folder, and fetches nothing when they already are. In a project with its own skills it updates both.
 - **Another tool**: run `openspec init --scope global --tools <id>` again. It adds the tool and keeps the ones you have.
-- **One project with its own skills**: `openspec init --scope project` installs them there, whatever the machine uses.
+- **One project with its own skills**: `openspec init --scope project --tools <id>` installs them there, whatever the machine uses.
 - **Edits**: a refresh replaces the skills OpenSpec installed, so keep changes of your own in a skill under another name. A skill with an OpenSpec name that you put in your home folder yourself is left alone.
 - **Not in your home folder**: run `openspec init` inside a project. The home folder is where the global skills live, so it can't also be a project that uses them.
 
@@ -151,7 +151,7 @@ In a project that already has its own skills, in your terminal:
 openspec init --scope global
 ```
 
-This removes the project's copies and installs the global ones. Only that project changes. If you edited one of its skills, init stops before removing anything and names it. Commit the removal like any other change. A teammate who doesn't have the global skills yet runs `openspec init --scope global --tools <id>` once.
+This removes the project's copies and installs the global ones. Only that project changes. Init stops before removing anything, and says why, if you edited one of its skills or if the project is set up for a tool the global skills don't cover. Commit the removal like any other change. A teammate who doesn't have the global skills yet runs `openspec init --scope global --tools <id>` once.
 
 Ten tools are not covered by the global skills and keep the setup a project install gives them. [Supported tools](../reference/supported-tools.md#where-skills-go) lists them.
 

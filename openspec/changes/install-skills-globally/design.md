@@ -32,13 +32,13 @@ Two things had to change for the published files to be the right ones:
 What this costs:
 
 - **git and a connection to GitHub.** Without git, init stops with a message that says so and names `--scope project`. That case is counted in telemetry (as the command name `skills:git-missing`, nothing else), so we learn how often it happens.
-- **The release tag.** If the tag for the running version isn't published yet, the install falls back to the default branch, which holds the same skills at release time.
+- **The release tag.** If the tag for the running version isn't published yet, the install falls back to the default branch, which holds the same skills at release time. Only a missing tag does this. Any other failure, such as no connection, is reported and nothing from another release is installed.
 
 `OPENSPEC_SKILLS_SOURCE` points the install at another source, such as a local copy of the `skills/` folder. The tests use it so they never touch the network.
 
 ### D3. Reinstalling is the update
 
-The API has no update call. `openspec update` installs the skills for the running version again, which replaces what is there. A skill the profile no longer wants is removed with `removeSkills`, and only if the lock file says OpenSpec installed it.
+The API has no update call. `openspec update` first compares the installed skills with the text this CLI publishes. If they match, and no skill or tool was added or dropped, it says so and fetches nothing. Otherwise it installs the skills for the running version again, which replaces what is there. A skill the profile no longer wants is removed with `removeSkills`, and only if the lock file says OpenSpec installed it.
 
 Edits to a skill OpenSpec installed are replaced without a backup. That is the package's behavior and we follow it.
 
@@ -73,7 +73,10 @@ Nine tools have no agent id in the package: AtomCode, CoStrict, DeepSeek Harness
 
 - A skill with an OpenSpec name that the lock file doesn't attribute to OpenSpec. It is skipped and named, not replaced.
 - The home folder as a project. `init` with the global scope refuses to run there, and `update` there only refreshes the global skills.
-- A project's own skills, until the global install has succeeded. A failed install leaves the project as it was.
+- A project's own skills, until the global install has succeeded. A failed install, or one that installs nothing, leaves the project as it was.
+- A project set up for a tool the global skills don't cover. Moving it is refused, because that tool would be left with no skills.
+- A real folder in a tool's home skills folder. Only a tool whose entries are links to the shared copy counts as set up, so a folder the user put there is never replaced.
+- A skill that only a tool outside this install holds, such as MiniMax Code's own copies.
 
 ### D9. Project installs go through the package too
 

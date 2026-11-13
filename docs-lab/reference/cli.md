@@ -77,7 +77,7 @@ openspec init --tools claude,cursor  # set up specific tools, no prompts
 openspec init --tools none           # openspec/ structure only, no tool files
 ```
 
-With no `--tools`, init prompts you to pick tools in an interactive terminal. Outside one, it sets up the tools it detects in the project. With none detected it exits 1 and lists the valid ids.
+With no `--tools`, init prompts you to pick tools in an interactive terminal. Outside one, it sets up the tools it detects in the project. With none detected it exits 1 and lists the valid ids, unless the [global skills](../start/setup.md#install-the-skills-once-for-every-project) are installed: then the project uses those.
 
 **Store-only repositories**
 
@@ -109,7 +109,7 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 | `--force` | Remove files from older OpenSpec layouts without asking. Interactive runs otherwise confirm the cleanup first. |
 | `--profile <profile>` | Override the global config profile for this run: `core` (the standard workflow set) or `custom` (the workflows saved in global config). |
 | `--no-animation` | Show a static welcome screen instead of the animated one. |
-| `--scope <scope>` | Where the skills go: `global` installs them once for this machine, in `~/.agents/skills/` (needs `git` and a connection to GitHub); `project` installs them in the project. In a project that has its own skills, `--scope global` removes them. See [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project). |
+| `--scope <scope>` | Where the skills go: `global` installs them once for this machine, in `~/.agents/skills/` (needs `git` and a connection to GitHub); `project` installs them in the project. In a project that has its own skills, `--scope global` removes them, unless one was edited or the project is set up for a tool the global skills don't cover. See [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project). |
 
 Without `--scope`, a project that has its own skills keeps them. A project without any uses the choice saved as [`skillsScope`](configuration/config-json.md#skillsscope), then the global skills if this machine has them. Otherwise an interactive init asks once, and a non-interactive one installs in the project.
 
@@ -148,7 +148,7 @@ openspec update --force     # rewrite files even when they're current
 openspec update --dry-run   # list what an update would change, and change nothing
 ```
 
-update finds the tools init configured and compares their skills with the text this CLI version publishes. If the skills are also [installed for this machine](../start/setup.md#install-the-skills-once-for-every-project), it refreshes those too, and then it runs from any folder, not only a project. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
+update finds the tools init configured and compares their skills with the text this CLI version publishes. If the skills are also [installed for this machine](../start/setup.md#install-the-skills-once-for-every-project), it brings those up to date too, and then it runs from any folder, not only a project. With `--dry-run`, a pending global refresh is shown as one note, not file by file. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
 
 **Arguments**
 

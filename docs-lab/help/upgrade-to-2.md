@@ -122,7 +122,7 @@ Most tools read `.agents/skills/` directly. If yours reads only its own folder, 
 
 ## Teams on mixed versions
 
-From 2.1 on, an installed skill carries no version line and the project gains a `skills-lock.json`. A teammate still on 2.0 can keep working in the same project, with one thing to know: their `openspec update` reads those skills as edited, says "Replaced your edits", and writes its own copies back. Nothing is lost, and the next update from a newer CLI puts them right, but the files change back and forth until everyone is on the same version. Upgrade together where you can.
+From 2.1 on, an installed skill carries no `generatedBy` line and the project gains a `skills-lock.json`. A teammate still on 2.0 can keep working in the same project, with one thing to know: their `openspec update` reads those skills as edited, says "Replaced your edits", and writes its own copies back. Nothing is lost, and the next update from a newer CLI puts them right, but the files change back and forth until everyone is on the same version. Upgrade together where you can, and move a shared project to the global skills only once everyone on it has 2.1 or later: an older CLI doesn't know the global skills and would put the project's own back.
 
 ## Many projects: install the skills once
 

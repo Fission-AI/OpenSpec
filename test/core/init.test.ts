@@ -63,7 +63,7 @@ describe('InitCommand', () => {
     selectMock.mockReset();
     selectMock.mockResolvedValue('project');
     installGlobalSkillsMock.mockReset();
-    installGlobalSkillsMock.mockResolvedValue({ skills: ['openspec-propose'], agents: [], removedSkills: [], leftAlone: [], failures: [] });
+    installGlobalSkillsMock.mockResolvedValue({ skills: ['openspec-propose'], agents: [], removedSkills: [], leftAlone: [], unchanged: false, failures: [] });
     showWelcomeScreenMock.mockClear();
     searchableMultiSelectMock.mockReset();
   });
@@ -1861,7 +1861,7 @@ describe('InitCommand - profile and detection features', () => {
     selectMock.mockReset();
     selectMock.mockResolvedValue('project');
     installGlobalSkillsMock.mockReset();
-    installGlobalSkillsMock.mockResolvedValue({ skills: ['openspec-propose'], agents: [], removedSkills: [], leftAlone: [], failures: [] });
+    installGlobalSkillsMock.mockResolvedValue({ skills: ['openspec-propose'], agents: [], removedSkills: [], leftAlone: [], unchanged: false, failures: [] });
     showWelcomeScreenMock.mockClear();
     searchableMultiSelectMock.mockReset();
   });

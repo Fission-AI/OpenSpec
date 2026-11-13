@@ -243,46 +243,73 @@ export class UpdateCommand {
         projectError = error;
       }
     }
-    if (this.dryRun) {
-      const recorder = this.recorder ?? (this.recorder = new UpdatePlanRecorder(resolvedProjectPath));
-      recorder.addNote(
-        'global-skills',
-        'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills.'
-      );
-    } else {
-      await this.refreshGlobalSkills();
-      const note = hasProject ? await duplicateSkillsNote(resolvedProjectPath) : undefined;
-      if (note) this.log(chalk.dim(note));
+    try {
+      const refreshed = await this.refreshGlobalSkills();
+      if (this.dryRun) {
+        if (refreshed) {
+          const recorder = this.recorder ?? (this.recorder = new UpdatePlanRecorder(resolvedProjectPath));
+          recorder.addNote(
+            'global-skills',
+            'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills, replacing any edits there.'
+          );
+        }
+      } else {
+        const note = hasProject ? await duplicateSkillsNote(resolvedProjectPath) : undefined;
+        if (note) this.log(chalk.dim(note));
+      }
+    } catch (error) {
+      // Both failed: the project's error must not be lost behind this one.
+      if (projectError instanceof Error && error instanceof Error) {
+        throw new Error(`${projectError.message}\n${error.message}`);
+      }
+      throw error;
     }
     if (projectError) throw projectError;
   }
 
-  /** Reinstall the skills kept for this machine, at this CLI's version and the current profile. */
-  private async refreshGlobalSkills(): Promise<void> {
-    const { describeLeftAlone, describeSkillsError, installGlobalSkills } = await import('./global-skills.js');
+  /**
+   * Bring the skills kept for this machine to this CLI's version and the
+   * current profile. Returns whether anything changed, or in a dry run whether
+   * anything would.
+   */
+  private async refreshGlobalSkills(): Promise<boolean> {
+    const { GitMissingError, describeLeftAlone, describeSkillsError, installGlobalSkills } = await import('./global-skills.js');
     const globalConfig = getGlobalConfig();
     const workflows = getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows).filter((workflow) =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
     );
     let failures: string[];
+    let changed = false;
     try {
-      const result = await installGlobalSkills({ workflows, version: OPENSPEC_VERSION });
-      failures = result.failures;
+      const result = await installGlobalSkills({
+        workflows,
+        version: OPENSPEC_VERSION,
+        force: this.force,
+        dryRun: this.dryRun,
+      });
+      failures = this.dryRun ? [] : result.failures;
+      changed = !result.unchanged;
       if (failures.length === 0) {
+        const count = result.skills.length;
         this.log(
-          result.skills.length > 0
-            ? chalk.green(`✓ Updated the ${result.skills.length} skills for this machine in ~/.agents/skills (v${OPENSPEC_VERSION})`)
-            : chalk.yellow('Removed the skills for this machine: your profile has no workflows.')
+          result.unchanged
+            ? chalk.green(`✓ The ${count} skills for this machine are up to date (v${OPENSPEC_VERSION})`)
+            : count > 0
+              ? chalk.green(`✓ Updated the ${count} skills for this machine in ~/.agents/skills (v${OPENSPEC_VERSION})`)
+              : chalk.yellow('Removed the skills for this machine: your profile has no workflows.')
         );
       }
       const leftAlone = describeLeftAlone(result.leftAlone);
       if (leftAlone) this.log(chalk.yellow(leftAlone));
     } catch (error) {
-      failures = [describeSkillsError(error)];
+      const hint =
+        error instanceof GitMissingError ? ' The project part of this update does not need it.' : '';
+      failures = [describeSkillsError(error) + hint];
     }
     if (failures.length > 0) {
       throw new Error(`Could not update the skills for this machine: ${failures.join('; ')}`);
     }
+    return changed;
   }
 
   private async updateProject(projectPath: string): Promise<void> {
