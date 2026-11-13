@@ -138,7 +138,7 @@ Then, inside a project that still has its own skills:
 openspec init --scope global
 ```
 
-That removes the project's copies, and stops first if you edited one. From then on, `openspec update` in any folder refreshes the one global copy. [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project) has the details. A project you leave alone keeps its own skills and works as before.
+That removes the project's copies, and stops first if you edited one. From then on, `openspec update` in any folder refreshes the one global copy, and names the projects it knows of that still have their own skills, so you can see which are left. It knows a project once `openspec init` or `openspec update` from 2.1 or later has run in it. [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project) has the details. A project you leave alone keeps its own skills and works as before.
 
 ## Stay on 1.x
 

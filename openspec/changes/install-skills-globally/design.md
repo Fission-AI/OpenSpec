@@ -106,6 +106,16 @@ Nine tools have no agent id in the package: AtomCode, CoStrict, DeepSeek Harness
 - **A dry run plans the same text** and the lock file change, and calls neither the network nor the package.
 - **A teammate on 2.0** reads the unstamped skills as edited and rewrites them, and marks them as kept if their profile drops them. This CLI puts both right on its next update: a kept mark only holds while the skill's text isn't OpenSpec's.
 
+### D10. Remember which projects use OpenSpec
+
+Moving to the global skills is done one project at a time, and nothing told the user which projects were left. `openspec init` and `openspec update` now note the project they ran in, in `projects.json` in the global data folder. On a machine with the global skills, `update` and `init --scope global` name the noted projects that still have their own skills and give the command that moves one.
+
+- **It only names them.** Moving a project removes files from it, so that stays a command the user runs in that project.
+- **It never fails a command.** A list that can't be read or written is treated as empty.
+- **It looks after itself.** A project whose `openspec/` folder is gone drops off. A dry run records nothing.
+- **It stays on the machine.** Paths are never sent anywhere, telemetry included.
+- **It starts empty.** A project is known once a 2.1 CLI has run `init` or `update` in it.
+
 ## Risks
 
 - **A project install fetches too.** `openspec init --scope project` and `openspec update` now install a project's `.agents/skills` with the same package, from the same published skills, and record them in `skills-lock.json`. 2.0's installer still decides what is the user's, makes the links for tools the package doesn't know, and migrates 1.x projects. When the skills can't be fetched (no git, no connection), it writes the same text itself and says the lock file is missing, so a project install never fails for that. The installed text has no version stamp: a project is up to date when its skills equal the text this CLI publishes.

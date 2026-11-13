@@ -18,6 +18,7 @@
 - [x] 3.1 Refresh the global skills on every `openspec update`, from any folder
 - [x] 3.2 Show the refresh in `--dry-run`
 - [x] 3.3 Point out a project that has both copies
+- [x] 3.4 Note each project init and update run in, and name the ones that still have their own skills
 
 ## 3b. Project installs
 

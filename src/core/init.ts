@@ -91,6 +91,7 @@ import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-ins
 import { realFileOps, UpdatePlanRecorder } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
 import { classifyOwnSkill } from './shared/own-skill-texts.js';
+import { otherProjectsNote, rememberProject } from './known-projects.js';
 import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   resolveCommandSurfaceCapability,
@@ -293,6 +294,9 @@ export class InitCommand {
         detectedTools,
         deferredLegacyCleanup,
       });
+      rememberProject(projectPath);
+      const others = otherProjectsNote(projectPath);
+      if (others) console.log(chalk.dim(others));
       return;
     }
 
@@ -382,6 +386,8 @@ export class InitCommand {
     const wroteCloud = copilotDecision.write && copilotSucceeded;
     const copilotPresent = wroteCloud ? await listManagedCloudFiles(projectPath) : [];
     const copilotCollisions = wroteCloud ? await findUnmanagedCloudFiles(projectPath) : [];
+
+    rememberProject(projectPath);
 
     // Display success message
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus, {

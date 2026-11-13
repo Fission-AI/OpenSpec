@@ -82,6 +82,7 @@ import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
 import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
+import { otherProjectsNote, rememberProject } from './known-projects.js';
 import {
   realFileOps,
   UpdatePlanRecorder,
@@ -227,6 +228,7 @@ export class UpdateCommand {
       // No readable global install: update the project as before.
     }
     this.hasGlobalSkills = globalSkillCount > 0;
+    if (!this.dryRun) rememberProject(resolvedProjectPath);
     this.settledWorkflows = undefined;
     this.replacedGlobalEdits = undefined;
 
@@ -263,6 +265,8 @@ export class UpdateCommand {
       } else {
         const note = hasProject ? await duplicateSkillsNote(resolvedProjectPath) : undefined;
         if (note) this.log(chalk.dim(note));
+        const others = otherProjectsNote(resolvedProjectPath);
+        if (others) this.log(chalk.dim(others));
       }
     } catch (error) {
       // Both failed: the project's error must not be lost behind this one.

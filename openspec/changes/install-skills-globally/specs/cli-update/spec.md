@@ -42,6 +42,33 @@ When the global skills are installed, `openspec update` SHALL reinstall them at 
 - **THEN** the plan SHALL note that the global skills would be refreshed
 - **AND** nothing in the home folder SHALL change
 
+### Requirement: Update names the projects that still have their own skills
+
+`openspec init` and `openspec update` SHALL record the project they run in, in a list kept in the global data folder on this machine. When the global skills are installed, `openspec update` SHALL name the other recorded projects that still have their own OpenSpec skills and give the command that moves one. A list that cannot be read or written SHALL NOT fail the command.
+
+#### Scenario: Another project still has its own skills
+
+- **GIVEN** the global skills are installed and a recorded project has its own skills
+- **WHEN** the user runs `openspec update` in another folder
+- **THEN** update SHALL name that project
+- **AND** SHALL change nothing in it
+
+#### Scenario: A recorded project is gone
+
+- **GIVEN** a recorded project's `openspec/` folder no longer exists
+- **WHEN** the user runs `openspec update`
+- **THEN** that project SHALL NOT be named
+
+#### Scenario: Dry run
+
+- **WHEN** the user runs `openspec update --dry-run`
+- **THEN** the list SHALL NOT be written
+
+#### Scenario: The list cannot be written
+
+- **WHEN** the global data folder cannot be written during `openspec init` or `openspec update`
+- **THEN** the command SHALL finish as it would have without the list
+
 ### Requirement: Update keeps a project's skills under the skills package
 
 `openspec update` SHALL treat a project as up to date when its installed skills equal the text the running CLI publishes, and SHALL then change no file and fetch nothing. Otherwise it SHALL install the skills through the `skills` package and record them in `skills-lock.json`. Skills that 1.x or 2.0 installed SHALL be recognized as OpenSpec's and brought under the lock file.
