@@ -181,7 +181,7 @@ It fails if the workflow didn't build the file. The install command already chec
 
 ### If antivirus blocks OpenSpec
 
-Some antivirus tools, Kaspersky among them, remove or block `openspec.exe` on Windows. It is a false alarm about an unfamiliar program, not something found inside the file: releases up to 2.0.0 are unsigned and describe themselves as Bun, the runtime OpenSpec is built on. Later releases describe themselves as OpenSpec, and signed ones carry a signature you can see under Properties → Digital Signatures. The [code signing policy](#code-signing-policy) has the details.
+Some antivirus tools, Kaspersky among them, remove or block `openspec.exe` on Windows. It is a false alarm about an unfamiliar program, not something found inside the file: the executables are not code-signed, and releases up to 2.0.0 also describe themselves as Bun, the runtime OpenSpec is built on. Later releases describe themselves as OpenSpec.
 
 If it happens to you:
 
@@ -258,12 +258,3 @@ On Homebrew: `brew uninstall openspec`. On Deno: `deno uninstall --global opensp
 - Leftovers from older versions: marker blocks in `CLAUDE.md` or `AGENTS.md` (delete the block, keep the file) and `opsx-*.md` prompts in `~/.codex/prompts`.
 - The `openspec/` folder: pause first. `specs/` and `changes/archive/` are your record of the system, plain Markdown that reads fine without OpenSpec.
 - Per-machine state: settings and the telemetry id in `~/.config/openspec/`; schema overrides, store registrations, and the standalone install's built-in schemas (`binary-schemas/`) in `~/.local/share/openspec/` (Windows: `%APPDATA%\openspec`, `%LOCALAPPDATA%\openspec`). Registrations are pointers; the store repos they point to are untouched.
-
-## Code signing policy
-
-Signed Windows builds use free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
-
-- **What is signed.** `openspec.exe` for Windows x64 and arm64, built from this repository by its [release workflow](https://github.com/Fission-AI/OpenSpec/blob/main/.github/workflows/binaries.yml) on GitHub's own runners. Nothing built anywhere else is signed.
-- **Committers and reviewers.** The [maintainers](https://github.com/Fission-AI/OpenSpec/blob/main/MAINTAINERS.md).
-- **Approvers.** The [core maintainers](https://github.com/Fission-AI/OpenSpec/blob/main/MAINTAINERS.md#core-maintainers), who approve the signing request for each release.
-- **Privacy.** OpenSpec sends anonymous usage statistics: the name of each command you run and the OpenSpec version, with no arguments, paths, or file contents. Turn that off with `openspec config set telemetry.enabled false`, `OPENSPEC_TELEMETRY=0`, or `DO_NOT_TRACK=1`; it is always off in CI. Beyond that, it contacts other systems only to do what you ask, such as checking for an update or installing one.

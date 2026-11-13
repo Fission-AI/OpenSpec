@@ -23,7 +23,7 @@ The `.actrc` file configures act to use the appropriate Docker image.
 
 One-time setup:
 
-1. Apply at [signpath.org/apply](https://signpath.org/apply). The [code signing policy](../../docs-lab/start/installation.md#code-signing-policy) they ask for is already published.
+1. Apply at [signpath.org/apply](https://signpath.org/apply). Once approved, publish the code signing policy their terms require: a "Code signing policy" section on the README and the install page that credits SignPath and names who approves releases.
 2. In SignPath, link the project to the GitHub.com trusted build system and install the SignPath GitHub App on this repository.
 3. Give the project this artifact configuration. It signs both files in the uploaded zip, and only if they name themselves OpenSpec at the version the workflow sends:
 

@@ -248,13 +248,6 @@ See [MAINTAINERS.md](MAINTAINERS.md) for the list of core maintainers and adviso
 
 </details>
 
-<details>
-<summary><strong>Code signing policy</strong></summary>
-
-Signed Windows builds use free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org). The [code signing policy](https://openspec.dev/docs/installation#code-signing-policy) says what is signed and who approves it.
-
-</details>
-
 
 
 ## License
