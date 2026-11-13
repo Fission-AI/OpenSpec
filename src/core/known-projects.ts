@@ -9,7 +9,18 @@
  */
 
 import path from 'path';
-import { mkdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'fs';
+import {
+  closeSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'fs';
 import { OPENSPEC_DIR_NAME } from './config.js';
 import { getGlobalDataDir } from './global-config.js';
 import { projectHasOwnSkills } from './global-skills.js';
@@ -54,9 +65,16 @@ function isPlainPath(entry: string): boolean {
  */
 function recordedPaths(): string[] {
   try {
-    const file = knownProjectsPath();
-    if (statSync(file).size > MAX_LIST_BYTES) return [];
-    const parsed: unknown = JSON.parse(readFileSync(file, 'utf8'));
+    // One handle for the size check and the read, so both see the same file.
+    const handle = openSync(knownProjectsPath(), 'r');
+    let text: string;
+    try {
+      if (fstatSync(handle).size > MAX_LIST_BYTES) return [];
+      text = readFileSync(handle, 'utf8');
+    } finally {
+      closeSync(handle);
+    }
+    const parsed: unknown = JSON.parse(text);
     const projects = (parsed as { projects?: unknown } | null)?.projects;
     if (!Array.isArray(projects)) return [];
     return [...new Set(projects.filter((entry): entry is string => typeof entry === 'string' && isPlainPath(entry)))];
