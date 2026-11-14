@@ -1010,7 +1010,8 @@ describe('skills installed for this machine', () => {
       it('puts back a folder an earlier run had set aside, on any later run', async () => {
         const dir = await project('app');
         await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
-        const aside = path.join(home, '.qwen', 'skills', '.openspec-explore.kept-4242');
+        // The id of a process that can't be running: Windows rounds an id down to a multiple of four, so a small one can match a live process.
+        const aside = path.join(home, '.qwen', 'skills', '.openspec-explore.kept-2147483646');
         await fs.mkdir(aside, { recursive: true });
         await fs.writeFile(path.join(aside, 'SKILL.md'), MINE);
 
@@ -1125,7 +1126,7 @@ describe('skills installed for this machine', () => {
         const dir = await project('app');
         await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
         const mine = await ownFolder('.cursor', 'skills');
-        const aside = path.join(home, '.cursor', 'skills', '.openspec-verify-change.kept-4242');
+        const aside = path.join(home, '.cursor', 'skills', '.openspec-verify-change.kept-2147483646');
         await fs.rename(path.dirname(mine), aside);
         await setWorkflows(['propose', 'explore']);
 
