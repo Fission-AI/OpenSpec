@@ -38,7 +38,7 @@ openspec --version 2>&1 || echo "CLI_NOT_INSTALLED"
 ```
 
 **If CLI not installed:**
-> OpenSpec CLI is not installed. Install it first, then come back to `/openspec-onboard`.
+> OpenSpec CLI is not installed. Install it first, then come back to `openspec-onboard`.
 
 Stop here if not installed.
 
@@ -165,7 +165,7 @@ Spend 1-2 minutes investigating the relevant code:
 │   [Optional: ASCII diagram if helpful]  │
 └─────────────────────────────────────────┘
 
-Explore mode (`/openspec-explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.
+Investigating before implementing is worth doing whenever a problem needs thinking through. Explore mode (`openspec-explore`, if that skill is installed) is for this kind of thinking, and you can use it anytime.
 
 Now let's create a change to hold our work.
 ```
@@ -496,24 +496,24 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ## Skill Reference
 
-**The skills you have installed:**
+Only the skills installed on this machine are available.
 
  | Skill            | What it does                               |
  |------------------|--------------------------------------------|
- | `/openspec-propose` | Create a change and generate all artifacts |
- | `/openspec-explore` | Think through problems before/during work  |
- | `/openspec-apply-change`   | Implement tasks from a change              |
- | `/openspec-archive-change` | Archive a completed change                 |
- | `/openspec-new-change`     | Start a new change, one artifact at a time |
- | `/openspec-continue-change` | Continue working on an existing change    |
- | `/openspec-ff-change`      | Fast-forward: create all artifacts at once |
- | `/openspec-verify-change`  | Verify implementation matches artifacts    |
+ | `openspec-propose` | Create a change and generate all artifacts |
+ | `openspec-explore` | Think through problems before/during work  |
+ | `openspec-apply-change`   | Implement tasks from a change              |
+ | `openspec-archive-change` | Archive a completed change                 |
+ | `openspec-new-change`     | Start a new change, one artifact at a time |
+ | `openspec-continue-change` | Continue working on an existing change    |
+ | `openspec-ff-change`      | Fast-forward: create all artifacts at once |
+ | `openspec-verify-change`  | Verify implementation matches artifacts    |
 
 ---
 
 ## What's Next?
 
-Try `/openspec-propose` on something you actually want to build. You've got the rhythm now!
+Try `openspec-propose` on something you actually want to build, or ask me to start a change if that skill is not installed. You've got the rhythm now!
 ```
 
 ---
@@ -528,8 +528,9 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at the `changeRoot` reported by `openspec status --change "<name>" --json`.
 
 To pick up where we left off later, `openspec status --change "<name>" --json` shows exactly where the change stands.
-- `/openspec-continue-change <name>` - Resume artifact creation
-- `/openspec-apply-change <name>` - Jump to implementation (if tasks exist)
+Only the skills installed on this machine are available.
+- `openspec-continue-change <name>` - Resume artifact creation
+- `openspec-apply-change <name>` - Jump to implementation (if tasks exist)
 
 The work won't be lost. Come back whenever you're ready.
 ```
@@ -543,20 +544,20 @@ If the user says they just want to see the skills or skip the tutorial:
 ```
 ## OpenSpec Quick Reference
 
-**The skills you have installed:**
+Only the skills installed on this machine are available.
 
  | Skill                    | What it does                               |
  |--------------------------|--------------------------------------------|
- | `/openspec-propose <idea>`  | Create a change and generate all artifacts |
- | `/openspec-explore`         | Think through problems (no code changes)   |
- | `/openspec-apply-change <name>`    | Implement tasks                            |
- | `/openspec-archive-change <name>`  | Archive when done                          |
- | `/openspec-new-change <name>`      | Start a new change, step by step           |
- | `/openspec-continue-change <name>` | Continue an existing change                |
- | `/openspec-ff-change <name>`       | Fast-forward: all artifacts at once        |
- | `/openspec-verify-change <name>`   | Verify implementation                      |
+ | `openspec-propose <idea>`  | Create a change and generate all artifacts |
+ | `openspec-explore`         | Think through problems (no code changes)   |
+ | `openspec-apply-change <name>`    | Implement tasks                            |
+ | `openspec-archive-change <name>`  | Archive when done                          |
+ | `openspec-new-change <name>`      | Start a new change, step by step           |
+ | `openspec-continue-change <name>` | Continue an existing change                |
+ | `openspec-ff-change <name>`       | Fast-forward: all artifacts at once        |
+ | `openspec-verify-change <name>`   | Verify implementation                      |
 
-Try `/openspec-propose` to start your first change.
+Try `openspec-propose` to start your first change, or ask me to start it if that skill is not installed.
 ```
 
 Exit gracefully.

@@ -64,6 +64,8 @@ function run(bin: string, args: string[], box: Sandbox): { status: number | null
       XDG_CONFIG_HOME: path.join(box.home, '.config'),
       XDG_DATA_HOME: path.join(box.home, '.local', 'share'),
       CODEX_HOME: path.join(box.home, '.codex'),
+      // This build installs the skills from the checkout, not from GitHub.
+      OPENSPEC_SKILLS_SOURCE: path.join(repoRoot, 'skills'),
       OPENSPEC_TELEMETRY: '0',
       DO_NOT_TRACK: '1',
       CI: '1',
@@ -380,9 +382,9 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     for (const [rel, hash] of Object.entries(before)) {
       expect(after[rel], rel).toBe(hash);
     }
-    // Nothing new outside the shared copy.
+    // Nothing new outside the shared copy and the lock file that records it.
     const added = Object.keys(after).filter((rel) => !(rel in before));
-    expect(added.filter((rel) => !rel.startsWith('.agents/skills/'))).toEqual([]);
+    expect(added.filter((rel) => !rel.startsWith('.agents/skills/') && rel !== 'skills-lock.json')).toEqual([]);
   }, 600_000);
 
   it('never sets up a tool or cleans up because of prompts in the home folder', async () => {

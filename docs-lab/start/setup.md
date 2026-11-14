@@ -16,7 +16,19 @@ cd <your-project>
 openspec init
 ```
 
-Init asks which AI tools you use, writes the workflow files for the ones you pick, and reports what you got:
+The first time, init asks where the skills should go: on this machine, for every project, or in this project only. It remembers the answer. Then it asks which AI tools you use and reports what you got.
+
+With the skills on this machine, which is the default:
+
+```
+OpenSpec Setup Complete
+
+Created: Claude Code
+6 skills in ~/.agents/skills/ for every project on this machine
+Config: openspec/config.yaml (schema: spec-driven)
+```
+
+With the skills in this project:
 
 ```
 OpenSpec Setup Complete
@@ -52,12 +64,18 @@ Review `config.yaml`, then delete `project.md` when ready.
 
 ## What init installs
 
-Running init creates two things in your project:
+Every project gets an `openspec/` folder at the repo root. Where the skills go depends on the choice you made:
 
-- An `openspec/` folder at the repo root
-- Workflow files: skills in the shared `.agents/skills/` folder, with links from a tool's own folder where it needs them (`.claude/skills/`, for example)
+| | On this machine | In this project |
+|---|---|---|
+| Skills | `~/.agents/skills/` in your home folder | `.agents/skills/` in the project |
+| Links for tools that read their own folder | `~/.claude/skills/`, for example | `.claude/skills/`, for example |
+| Record of what is installed | `~/.agents/.skill-lock.json` | `skills-lock.json` at the repo root |
+| What you commit | `openspec/` | `openspec/`, the skills, the links and `skills-lock.json` |
 
-Commit all of it like the rest of your source.
+The rest of this section describes a project install. [Install the skills once for every project](#install-the-skills-once-for-every-project) covers the machine-wide one.
+
+The skills are fetched from the OpenSpec repository by [`skills`](https://github.com/vercel-labs/skills), the package behind `npx skills`, which also keeps `skills-lock.json`. If `git` is missing or GitHub can't be reached, OpenSpec writes the same skills itself and says so. Nothing else changes, and there is no lock file until an `openspec update --force` can fetch them.
 
 Init also removes the command files earlier versions generated, and keeps any you edited. A project set up before 1.0 also has older leftovers: folders like `.claude/commands/openspec/`, and OpenSpec marker blocks in files like `CLAUDE.md` and `AGENTS.md`. An interactive init asks before removing them. With `--force`, with `--tools`, or in a non-interactive run, init removes them without asking, including any edits inside those blocks, so back them up first.
 
@@ -118,5 +136,42 @@ openspec update
 ```
 
 Restart Claude Code, then run `/openspec-propose` in its chat. If only some workflows are missing, [change your profile](../customize/profiles.md#expanding-the-set-optional-workflows).
+
+### Install the skills once for every project
+
+One copy of the skills for the whole machine is the default: it is the first answer when init asks, and what a scripted `openspec init --tools …` does when nothing says otherwise. To choose it without being asked, in your terminal:
+
+```bash
+openspec init --scope global --tools claude,codex
+```
+
+The project gets its `openspec/` folder and nothing else. The skills go to `~/.agents/skills/` in your home folder, with a link for each tool that reads its own folder, such as `~/.claude/skills/`.
+
+- **The next project**: plain `openspec init` uses the global skills, so there is nothing to install again.
+- **Asked once**: at a terminal, your first `openspec init` asks where the skills should go and remembers the answer.
+- **Scripts and agents**: a run that passes `--tools` is never asked. With nothing saved it installs for the machine. To keep a script installing in the project, pass `--scope project`, set `OPENSPEC_SKILLS_SCOPE=project`, or save the choice once with `openspec config set skillsScope project`.
+- **When the default can't work**: with no choice made, a scripted run installs in the project instead, and says why, if it sets up a tool the global skills don't cover, asks for the Copilot cloud files, or has no `git` to fetch the skills with. Once you have chosen global (with `--scope global`, the environment variable or the saved setting), it doesn't fall back. It stops and prints the `--scope project` command if it is asked for the Copilot cloud files, has no `git`, or none of the tools it was given can use the global skills. With a mix, such as `--tools claude,oh-my-pi`, it sets up the tools that can and names the ones that need `--scope project`.
+- **Updating**: `openspec update` brings the global skills up to date from any folder, and fetches nothing when they already are. In a project with its own skills it updates both.
+- **Projects that still have their own skills**: `openspec init` and `openspec update` note each project they run in, in `projects.json` in OpenSpec's data folder (`~/.local/share/openspec/`, or `%LOCALAPPDATA%\openspec\` on Windows). Once the global skills are installed, `openspec update` and `openspec init --scope global` name the noted projects that still carry their own copy, so you know which ones are left to move. The list stays on your machine and is safe to delete.
+- **Another tool**: run `openspec init --scope global --tools <id>` again. It adds the tool and keeps the ones you have.
+- **One project with its own skills**: `openspec init --scope project --tools <id>` installs them there, whatever the machine uses.
+- **Edits**: if you edit a global skill, `openspec update` replaces it and keeps no copy, the same as for a project. It names each skill where that happened, and `openspec update --dry-run` warns first. Keep changes of your own in a skill under another name.
+- **What is left alone**: a skill with an OpenSpec name that you put in your home folder yourself, a skill folder with files of yours beside the skill, a link you pointed somewhere of your own, and a skill whose header an edit left unreadable. `openspec update` names each one and tells you to move it away if you want OpenSpec's own.
+- **Skills outside your profile**: update keeps the global skills to your [workflow profile](../reference/cli.md#openspec-config-profile). It names any it removes, and `--dry-run` names them first.
+- **Not in your home folder**: run `openspec init` inside a project. The home folder is where the global skills live, so it can't also be a project that uses them.
+
+OpenSpec hands the install to [`skills`](https://github.com/vercel-labs/skills), the package behind `npx skills`. It fetches the skills published in the OpenSpec repository for your CLI's version, so the skills, the layout and the lock file are the same ones `npx skills add Fission-AI/OpenSpec --global` gives you. The lock file is `~/.agents/.skill-lock.json`, or `$XDG_STATE_HOME/skills/.skill-lock.json` when that variable is set. Fetching them needs `git` and a connection to GitHub. A project install falls back to writing the skills itself; the global install stops and tells you. To remove the global skills, run `npx skills remove --global` and pick the `openspec-` ones.
+
+#### Move an existing project to the global skills
+
+In a project that already has its own skills, in your terminal:
+
+```bash
+openspec init --scope global
+```
+
+This removes the project's copies and installs the global ones. Only that project changes. Init stops before removing anything, and says why, if you edited one of its skills, if skills still sit where an older release kept them (run `openspec update` there first), if the project is set up for a tool the global skills don't cover, or if it has the GitHub Copilot cloud files, which need the skills in the project (`--no-copilot-cloud` turns those off and moves it). The project's tools come along: each one gets the skills on this machine. Commit the removal like any other change. A teammate who doesn't have the global skills yet runs `openspec init --scope global --tools <id>` once.
+
+Ten tools are not covered by the global skills and keep the setup a project install gives them. [Supported tools](../reference/supported-tools.md#where-skills-go) lists them.
 
 Setup is done. The [Quickstart](quickstart.md) takes your first change from here.

@@ -15,6 +15,7 @@ The CLI keeps its machine-level settings at `~/.config/openspec/config.json` on 
 | `workflows` | list of strings | No | The workflow list a `custom` profile installs |
 | `featureFlags` | map: flag → boolean | No | Boolean feature toggles |
 | `defaultStore` | string | No | Machine-level fallback store for root resolution |
+| `skillsScope` | string: `global` or `project` | No | Where `openspec init` puts skills in a project that has none |
 | `openers` | map: tool id → settings | No | The tools worksets open in, and how each is launched |
 | `telemetry` | map | No | Telemetry opt-out, anonymous id, and notice-seen state |
 
@@ -37,6 +38,10 @@ Boolean toggles keyed by flag name, set with `openspec config set featureFlags.<
 ### defaultStore
 
 The machine-level fallback store id for root resolution, consulted only when no `--store` flag, local `openspec/`, or project `store:` pointer resolves. The full ladder is [Root resolution](../../multi-repo/stores.md#where-artifacts-get-created-when-using-stores).
+
+### skillsScope
+
+Where `openspec init` puts the skills in a project that has none of its own: `global` installs them once for this machine, `project` installs them in the project. An interactive init saves your answer here the first time it asks, and `openspec init --scope global` saves `global` here if nothing is saved yet. Change it with `openspec config set skillsScope project`. A project that already has its own skills ignores this, and `--scope` or `OPENSPEC_SKILLS_SCOPE` overrides it for one run. With nothing saved, init asks at a terminal and otherwise installs for the machine. See [Install the skills once for every project](../../start/setup.md#install-the-skills-once-for-every-project).
 
 ### openers
 

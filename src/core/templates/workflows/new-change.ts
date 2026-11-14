@@ -5,25 +5,19 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 /**
  * Handoffs to `continue`, which is not guaranteed to be installed alongside
- * `new`; resolved at generation time (see optional-workflow.ts).
+ * `new`; one wording covers both cases, because the skill text is the same for every
+ * profile and the agent reading it can see which skills it has.
  */
-const FIRST_ARTIFACT_PROMPT = optionalWorkflow(
-  'continue',
-  'Use the `/opsx:continue` skill or just describe what this change is about and I\'ll draft it.',
-  'Just describe what this change is about and I\'ll draft it.'
-);
+const FIRST_ARTIFACT_PROMPT =
+  'Use the `/opsx:continue` skill if it is installed, or just describe what this change is about and I\'ll draft it.';
 
-const EXISTING_CHANGE_HINT = optionalWorkflow(
-  'continue',
-  'suggest using `/opsx:continue` instead',
-  'say so and ask whether to resume that change or pick a different name'
-);
+const EXISTING_CHANGE_HINT =
+  'suggest using `/opsx:continue` instead if that skill is installed. Otherwise say so and ask whether to resume that change or pick a different name';
 
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {

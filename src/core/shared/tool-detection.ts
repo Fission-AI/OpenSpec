@@ -23,6 +23,9 @@ import {
 } from './skill-paths.js';
 import { DISK_VIEW, type FileView } from '../file-view.js';
 import { classifySkillLinkSpot, isCheckedOutLink } from './skill-links.js';
+import { normalizeGeneratedContent } from './generated-fingerprint.js';
+import { sharedSkillTexts } from './own-skill-texts.js';
+import { stripVolatileFrontmatter } from './skill-generation.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
 /**
@@ -75,8 +78,10 @@ export interface ToolVersionStatus {
   /** Whether the tool has any skills or commands configured */
   configured: boolean;
   /**
-   * The generatedBy version recorded in the tool's skill files. Null when no
-   * skill says the files are current (a commands-only install never is).
+   * The version of the tool's skill files: the generatedBy line one records,
+   * or the current version for a shared skill that is this version's
+   * published text (which carries no such line). Null when no skill says the
+   * files are current (a commands-only install never is).
    */
   generatedByVersion: string | null;
   /** Whether the tool needs updating (version mismatch or missing) */
@@ -271,6 +276,19 @@ export function extractGeneratedByVersion(
 }
 
 /**
+ * Whether a skill file is the published text of this version's skill: what a
+ * project's `.agents/skills` holds, with no version stamp to read.
+ */
+function isPublishedSkillText(skillName: string, skillFile: string, version: string, view: FileView): boolean {
+  try {
+    const text = normalizeGeneratedContent(view.read(skillFile));
+    return sharedSkillTexts(skillName, version).some((ours) => stripVolatileFrontmatter(ours) === text);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Gets version status for a tool by reading its skill files. Command files
  * never make a tool current: OpenSpec 2.0 installs skills only.
  */
@@ -324,7 +342,11 @@ export function getToolVersionStatus(
     for (const skillsDir of skillsDirs) {
       const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
       if (view.exists(skillFile) && speaksForVersion(skillFile)) {
-        generatedByVersion = extractGeneratedByVersion(skillFile, view);
+        generatedByVersion =
+          extractGeneratedByVersion(skillFile, view) ??
+          (usesSharedSkills(tool) && isPublishedSkillText(skillName, skillFile, currentVersion, view)
+            ? currentVersion
+            : null);
         foundSkill = true;
         break;
       }

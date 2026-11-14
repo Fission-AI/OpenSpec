@@ -12,14 +12,24 @@ import { getCommandContents } from '../../src/core/shared/skill-generation.js';
 import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
 import { releasedCodexPrompt } from '../helpers/released-codex-prompt.js';
 
-const { confirmMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
+const { confirmMock, selectMock, installGlobalSkillsMock, showWelcomeScreenMock, searchableMultiSelectMock } = vi.hoisted(() => ({
   confirmMock: vi.fn(),
+  selectMock: vi.fn(),
+  installGlobalSkillsMock: vi.fn(),
   showWelcomeScreenMock: vi.fn().mockResolvedValue(undefined),
   searchableMultiSelectMock: vi.fn(),
 }));
 
 vi.mock('@inquirer/prompts', () => ({
   confirm: confirmMock,
+  select: selectMock,
+}));
+
+// The real install writes to the home folder through the `skills` package, which
+// test/core/global-skills.test.ts covers by running the CLI. Here only the call is checked.
+vi.mock('../../src/core/global-skills.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../src/core/global-skills.js')>()),
+  installGlobalSkills: installGlobalSkillsMock,
 }));
 
 vi.mock('../../src/ui/welcome-screen.js', () => ({
@@ -49,6 +59,11 @@ describe('InitCommand', () => {
     vi.spyOn(console, 'log').mockImplementation(() => { });
     confirmMock.mockReset();
     confirmMock.mockResolvedValue(true);
+    // The one-time "where should skills go" question: these tests cover project installs.
+    selectMock.mockReset();
+    selectMock.mockResolvedValue('project');
+    installGlobalSkillsMock.mockReset();
+    installGlobalSkillsMock.mockResolvedValue({ skills: ['openspec-propose'], agents: [], removedSkills: [], leftAlone: [], replacedEdits: [], unchanged: false, failures: [] });
     showWelcomeScreenMock.mockClear();
     searchableMultiSelectMock.mockReset();
   });
@@ -535,9 +550,9 @@ describe('InitCommand', () => {
       }
 
       // The default profile installs six workflows; `continue` and `new` are
-      // not among them. Nothing it generates may name them (#1734) - it would
-      // send the agent to a skill that was never written. The CLI fallback is
-      // stated outright instead of behind a runtime availability check.
+      // not among them. The skill text is the same for every profile, so it
+      // names them only "if installed" and states the CLI fallback outright
+      // (#1734): the agent is never left with a skill that was never written.
       const updateVariants = [
         await fs.readFile(
           path.join(
@@ -571,9 +586,11 @@ describe('InitCommand', () => {
 
       for (const content of applyVariants) {
         // The core profile has no `continue`, so the blocked-state handoff
-        // must be the CLI recovery in full, not a workflow this install lacks.
+        // must carry the CLI recovery in full beside the "if installed" skill.
         expect(content).not.toContain('/opsx:');
-        expect(content).not.toContain('openspec-continue-change');
+        expect(content).toContain(
+          'suggest using `openspec-continue-change` to create them if that skill is installed. Otherwise suggest completing the missing artifacts'
+        );
         expect(content).toContain('openspec status --change "<name>" --json');
         expect(content).toContain('next `ready` artifact (not `skipped` or `blocked`)');
         expect(content).toContain(
@@ -1617,15 +1634,18 @@ describe('InitCommand', () => {
       expect(content).toContain('name: openspec-apply-change');
     });
 
-    it('should embed generatedBy version in skill files', async () => {
+    it('should write the published skill text, which has no generatedBy version', async () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
       const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-explore', 'SKILL.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
-      // Should contain generatedBy field with a version string
-      expect(content).toMatch(/generatedBy:\s*["']?\d+\.\d+\.\d+["']?/);
+      // The same file the repository publishes in skills/, for every release.
+      expect(content).not.toContain('generatedBy');
+      expect(content).toBe(
+        await fs.readFile(path.join(process.cwd(), 'skills', 'openspec-explore', 'SKILL.md'), 'utf-8')
+      );
     });
   });
 
@@ -1837,6 +1857,11 @@ describe('InitCommand - profile and detection features', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
     confirmMock.mockReset();
     confirmMock.mockResolvedValue(true);
+    // The one-time "where should skills go" question: these tests cover project installs.
+    selectMock.mockReset();
+    selectMock.mockResolvedValue('project');
+    installGlobalSkillsMock.mockReset();
+    installGlobalSkillsMock.mockResolvedValue({ skills: ['openspec-propose'], agents: [], removedSkills: [], leftAlone: [], replacedEdits: [], unchanged: false, failures: [] });
     showWelcomeScreenMock.mockClear();
     searchableMultiSelectMock.mockReset();
   });
@@ -2160,6 +2185,97 @@ describe('InitCommand - profile and detection features', () => {
     expect(await directoryExists(path.join(testDir, '.github', 'prompts'))).toBe(false);
     const config = await fs.readFile(path.join(testDir, 'openspec', 'config.yaml'), 'utf8');
     expect(config).toContain('cloudAgent: false');
+  });
+
+  it('interactive init asks once where the skills go and remembers the answer', async () => {
+    // The suite pins project installs; this test is about the question itself.
+    delete process.env.OPENSPEC_SKILLS_SCOPE;
+    searchableMultiSelectMock.mockResolvedValue(['claude']);
+
+    const first = new InitCommand({});
+    vi.spyOn(first as any, 'canPromptInteractively').mockReturnValue(true);
+    await first.execute(testDir);
+
+    expect(selectMock).toHaveBeenCalledTimes(1);
+    expect(selectMock).toHaveBeenCalledWith(
+      expect.objectContaining({ message: 'Where should OpenSpec install its skills?', default: 'global' })
+    );
+    const saved = JSON.parse(await fs.readFile(path.join(configTempDir, 'openspec', 'config.json'), 'utf8'));
+    expect(saved.skillsScope).toBe('project');
+    expect(await fileExists(path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md'))).toBe(true);
+
+    const nextProject = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-init-next-'));
+    try {
+      const second = new InitCommand({});
+      vi.spyOn(second as any, 'canPromptInteractively').mockReturnValue(true);
+      await second.execute(nextProject);
+
+      expect(selectMock).toHaveBeenCalledTimes(1);
+      expect(await fileExists(path.join(nextProject, '.agents', 'skills', 'openspec-explore', 'SKILL.md'))).toBe(true);
+    } finally {
+      await fs.rm(nextProject, { recursive: true, force: true });
+    }
+  });
+
+  it('interactive init installs for the machine when that is the answer, and writes no project skills', async () => {
+    // The suite pins project installs; this test is about the question itself.
+    delete process.env.OPENSPEC_SKILLS_SCOPE;
+    selectMock.mockResolvedValue('global');
+    searchableMultiSelectMock.mockResolvedValue(['claude']);
+
+    const initCommand = new InitCommand({});
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+    await initCommand.execute(testDir);
+
+    expect(installGlobalSkillsMock).toHaveBeenCalledTimes(1);
+    expect(installGlobalSkillsMock).toHaveBeenCalledWith(expect.objectContaining({ toolIds: ['claude'] }));
+    expect((await fs.readdir(testDir)).sort()).toEqual(['openspec']);
+    const saved = JSON.parse(await fs.readFile(path.join(configTempDir, 'openspec', 'config.json'), 'utf8'));
+    expect(saved.skillsScope).toBe('global');
+  });
+
+  it('reports a failed global install and exits with an error', async () => {
+    installGlobalSkillsMock.mockRejectedValue(new Error('disk is full'));
+
+    await expect(new InitCommand({ tools: 'claude', scope: 'global' }).execute(testDir)).rejects.toThrow(
+      'OpenSpec setup failed for the global skills'
+    );
+    expect(await fileExists(path.join(testDir, '.agents'))).toBe(false);
+  });
+
+  it('still says which edits were replaced when the global install then fails', async () => {
+    installGlobalSkillsMock.mockResolvedValue({
+      skills: ['openspec-propose'],
+      agents: [],
+      removedSkills: [],
+      leftAlone: [],
+      replacedEdits: ['openspec-propose'],
+      unchanged: false,
+      failures: ['could not link openspec-explore'],
+    });
+    const logged: string[] = [];
+    vi.spyOn(console, 'log').mockImplementation((...args: unknown[]) => {
+      logged.push(args.join(' '));
+    });
+
+    await expect(new InitCommand({ tools: 'claude', scope: 'global' }).execute(testDir)).rejects.toThrow(
+      'OpenSpec setup failed for the global skills'
+    );
+    expect(logged.join('\n')).toContain(
+      'Replaced your edits in 1 skill OpenSpec installs for this machine: openspec-propose.'
+    );
+  });
+
+  it('never asks a scripted init, or a project that already has its own skills', async () => {
+    await new InitCommand({ tools: 'claude' }).execute(testDir);
+    expect(selectMock).not.toHaveBeenCalled();
+
+    searchableMultiSelectMock.mockResolvedValue(['claude']);
+    const again = new InitCommand({});
+    vi.spyOn(again as any, 'canPromptInteractively').mockReturnValue(true);
+    await again.execute(testDir);
+
+    expect(selectMock).not.toHaveBeenCalled();
   });
 
   it('re-init with --no-copilot-cloud removes previously generated managed cloud files', async () => {

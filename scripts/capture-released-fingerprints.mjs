@@ -5,7 +5,9 @@
 // For each version on npm it installs the release into a cache folder, runs
 // `init --tools all` in throwaway projects with a throwaway HOME (once per
 // profile, former default workflow set and delivery the release supports), and fingerprints every file
-// that appeared. It then rewrites src/core/shared/released-generated-fingerprints.ts.
+// that appeared. It also fingerprints every text the repository's `skills/`
+// folder has held, from git history. It then rewrites
+// src/core/shared/released-generated-fingerprints.ts.
 //
 // Usage: pnpm build && node scripts/capture-released-fingerprints.mjs [--cache DIR] [--only 1.0.0,1.16.0]
 // Run it after each release so the new release's output is recognized too.
@@ -14,7 +16,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const { fingerprintGeneratedContent, extractOpenSpecBlock } = await import(
@@ -45,6 +47,12 @@ const OUTPUT = path.join(repoRoot, 'src/core/shared/released-generated-fingerpri
 function argValue(name) {
   const i = process.argv.indexOf(name);
   return i === -1 ? undefined : process.argv[i + 1];
+}
+
+// The history of skills/ is read further down. A shallow clone would record
+// only part of it and silently drop the rest from the list.
+if (execFileSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: repoRoot, encoding: 'utf8' }).trim() === 'true') {
+  throw new Error('This is a shallow clone. Run `git fetch --unshallow` first: the history of skills/ is recorded too.');
 }
 
 const cacheDir = path.resolve(argValue('--cache') ?? path.join(os.tmpdir(), 'openspec-release-cache'));
@@ -175,11 +183,59 @@ for (const version of versions) {
       }
     }
   }
+  // 2.0.0 wrote a skill differently for every combination of
+  // workflows installed beside it, far more texts than the variants above
+  // reach. Such a release can list them all itself.
+  let renderings = 0;
+  try {
+    const dist = path.join(path.dirname(path.dirname(bin)), 'dist');
+    const generation = await import(pathToFileURL(path.join(dist, 'core/shared/skill-generation.js')).href);
+    const references = await import(pathToFileURL(path.join(dist, 'utils/command-references.js')).href);
+    if (typeof generation.everySkillRendering === 'function') {
+      const transforms = [references.transformToSharedSkillReferences, references.transformToSkillReferences].filter(
+        (transform) => typeof transform === 'function'
+      );
+      for (const { dirName } of generation.getSkillTemplates()) {
+        for (const transform of transforms) {
+          for (const text of generation.everySkillRendering(dirName, version, transform)) {
+            fingerprints.add(fingerprintGeneratedContent(text));
+            renderings += 1;
+          }
+        }
+      }
+    }
+  } catch {
+    // An older release without these exports: the variants above cover it.
+  }
   covered.push(version);
-  console.log(`${version}: ${variants.length} variant(s), ${files} files`);
+  console.log(`${version}: ${variants.length} variant(s), ${files} files, ${renderings} profile renderings`);
 }
 
 fs.rmSync(workRoot, { recursive: true, force: true });
+
+// The repository also publishes its skills in `skills/`, which is what
+// `npx skills add Fission-AI/OpenSpec` installs, from whatever commit was
+// current that day. Every text that folder has held is OpenSpec's too, so a
+// skill installed that way is never mistaken for one the user edited. Needs
+// the full history: a shallow clone records only what it has.
+let published = 0;
+const publishedBlobs = new Set(
+  execFileSync('git', ['log', '--format=', '--raw', '--no-abbrev', 'HEAD', '--', 'skills/*/SKILL.md'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+  })
+    .split('\n')
+    .map((line) => line.split(/\s+/)[3])
+    .filter((blob) => blob && !/^0+$/.test(blob))
+);
+for (const blob of publishedBlobs) {
+  const content = execFileSync('git', ['cat-file', 'blob', blob], { cwd: repoRoot, encoding: 'utf8' });
+  if (content.trim() === '') continue;
+  fingerprints.add(fingerprintGeneratedContent(content));
+  published += 1;
+}
+console.log(`skills/ history: ${published} published skill texts`);
 
 // --only adds to what is already recorded rather than replacing it, so
 // releases outside the subset keep their coverage.
@@ -201,7 +257,8 @@ const lines = [
   '//',
   '// Fingerprints of every file `openspec init --tools all` generated in each',
   '// release below, across every profile, former default workflow set and',
-  '// delivery that release supports.',
+  '// delivery that release supports, and of every skill text the repository',
+  '// has published in `skills/`.',
   `// Releases: ${covered.join(', ')}`,
   ...(skipped.length ? [`// Not captured: ${skipped.join(', ')}`] : []),
   'export const RELEASED_GENERATED_FINGERPRINTS: readonly string[] = [',

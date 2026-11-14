@@ -26,6 +26,7 @@ import {
   formatIdeRestart,
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
+import { stripVolatileFrontmatter } from './shared/skill-generation.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -81,6 +82,7 @@ import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
 import { formatKeptSkills, installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
 import { classifyOwnSkill } from './shared/own-skill-texts.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
+import { otherProjectsNote, rememberProject } from './known-projects.js';
 import {
   realFileOps,
   UpdatePlanRecorder,
@@ -165,6 +167,14 @@ export class UpdateCommand {
   private savedOwnSkills: string[] = [];
   private editedGlobalPromptsReported = false;
   private recorder: UpdatePlanRecorder | null = null;
+  /** Whether OpenSpec's skills are installed for this machine. */
+  private hasGlobalSkills = false;
+  /** The workflows the project update settled on, for the global refresh that follows it. */
+  private settledWorkflows: readonly string[] | undefined;
+  /** In a dry run, the warning about edits the global refresh would replace. */
+  private replacedGlobalEdits: string | undefined;
+  private removedGlobalSkills: string | undefined;
+  private leftAloneGlobalSkills: string | undefined;
   private ops: UpdateFileOps = realFileOps;
 
   constructor(options: UpdateCommandOptions = {}) {
@@ -211,6 +221,144 @@ export class UpdateCommand {
    * @param projectPath - Path to the project root containing the openspec directory
    */
   async execute(projectPath: string): Promise<void> {
+    const resolvedProjectPath = path.resolve(projectPath);
+    const { duplicateSkillsNote, isHomeFolder, readGlobalSkills } = await import('./global-skills.js');
+    let globalSkillCount = 0;
+    try {
+      globalSkillCount = (await readGlobalSkills()).skills.length;
+    } catch {
+      // No readable global install: update the project as before.
+    }
+    this.hasGlobalSkills = globalSkillCount > 0;
+    if (!this.dryRun) rememberProject(resolvedProjectPath);
+    this.settledWorkflows = undefined;
+    this.replacedGlobalEdits = undefined;
+    this.removedGlobalSkills = undefined;
+    this.leftAloneGlobalSkills = undefined;
+
+    // With the global skills installed, update works from anywhere; a project is optional.
+    // The home folder holds the global skills, so it is never updated as a project of its own.
+    const hasProject =
+      (await FileSystemUtils.directoryExists(path.join(resolvedProjectPath, OPENSPEC_DIR_NAME))) &&
+      !(this.hasGlobalSkills && isHomeFolder(resolvedProjectPath));
+    if (!this.hasGlobalSkills) {
+      await this.updateProject(projectPath);
+      return;
+    }
+
+    // A project that fails to update must not keep the global skills from being refreshed.
+    let projectError: unknown;
+    if (hasProject) {
+      try {
+        await this.updateProject(projectPath);
+      } catch (error) {
+        projectError = error;
+      }
+    }
+    try {
+      const refreshed = await this.refreshGlobalSkills(resolvedProjectPath);
+      if (this.dryRun) {
+        // Said whether or not anything else would change.
+        if (this.leftAloneGlobalSkills) {
+          (this.recorder ??= new UpdatePlanRecorder(resolvedProjectPath)).addNote(
+            'left-alone-skills',
+            this.leftAloneGlobalSkills
+          );
+        }
+        if (refreshed) {
+          const recorder = this.recorder ?? (this.recorder = new UpdatePlanRecorder(resolvedProjectPath));
+          recorder.addNote(
+            'global-skills',
+            'Update will also refresh the OpenSpec skills installed for this machine in ~/.agents/skills.'
+          );
+          if (this.removedGlobalSkills) recorder.addNote('removed-skills', this.removedGlobalSkills);
+
+          if (this.replacedGlobalEdits) recorder.addNote('edited-skills', this.replacedGlobalEdits);
+        }
+      } else {
+        const note = hasProject ? await duplicateSkillsNote(resolvedProjectPath) : undefined;
+        if (note) this.log(chalk.dim(note));
+        const others = otherProjectsNote(resolvedProjectPath);
+        if (others) this.log(chalk.dim(others));
+      }
+    } catch (error) {
+      // Both failed: the project's error must not be lost behind this one.
+      if (projectError instanceof Error && error instanceof Error) {
+        throw new Error(`${projectError.message}\n${error.message}`);
+      }
+      throw error;
+    }
+    if (projectError) throw projectError;
+  }
+
+  /**
+   * Bring the skills kept for this machine to this CLI's version and the
+   * current profile. Returns whether anything changed, or in a dry run whether
+   * anything would.
+   */
+  private async refreshGlobalSkills(planRoot: string): Promise<boolean> {
+    const { GitMissingError, describeLeftAlone, describeRemovedSkills, describeReplacedEdits, describeSkillsError, installGlobalSkills } =
+      await import('./global-skills.js');
+    // The profile the project part of this run settled on, which a dry run
+    // has not saved; outside a project, the saved one.
+    const globalConfig = getGlobalConfig();
+    const workflows =
+      this.settledWorkflows ??
+      getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows).filter((workflow) =>
+        (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+      );
+    let failures: string[];
+    let changed = false;
+    try {
+      const result = await installGlobalSkills({
+        workflows,
+        version: OPENSPEC_VERSION,
+        force: this.force,
+        dryRun: this.dryRun,
+      });
+      failures = result.failures;
+      changed = !result.unchanged;
+      if (failures.length === 0) {
+        const count = result.skills.length;
+        this.log(
+          result.unchanged
+            ? chalk.green(`✓ The ${count} skills for this machine are up to date (v${OPENSPEC_VERSION})`)
+            : count > 0
+              ? chalk.green(`✓ Updated the ${count} skills for this machine in ~/.agents/skills (v${OPENSPEC_VERSION})`)
+              : chalk.yellow('Removed the skills for this machine: your profile has no workflows.')
+        );
+      }
+      // A profile with no workflows has its own line above.
+      const removed =
+        failures.length === 0 && !result.unchanged && (this.dryRun || result.skills.length > 0)
+          ? describeRemovedSkills(result.removedSkills, !this.dryRun)
+          : undefined;
+      if (removed && this.dryRun) this.removedGlobalSkills = removed;
+      else if (removed) this.log(chalk.yellow(removed));
+      const leftAlone = describeLeftAlone(result.leftAlone, !this.dryRun);
+      if (leftAlone && this.dryRun) this.leftAloneGlobalSkills = leftAlone;
+      else if (leftAlone) this.log(chalk.yellow(leftAlone));
+      // The same warning a project update gives, before a dry run and after a real one.
+      const replaced = result.unchanged ? undefined : describeReplacedEdits(result.replacedEdits, !this.dryRun);
+      if (replaced && this.dryRun) this.replacedGlobalEdits = replaced;
+      // Said even when the install then failed: those edits are gone either way.
+      else if (replaced) this.log(chalk.yellow(replaced));
+    } catch (error) {
+      const hint =
+        error instanceof GitMissingError ? ' The project part of this update does not need it.' : '';
+      failures = [describeSkillsError(error) + hint];
+    }
+    if (failures.length > 0) {
+      const message = `Could not update the skills for this machine: ${failures.join('; ')}`;
+      // A plan reports what would fail; it does not fail itself.
+      if (!this.dryRun) throw new Error(message);
+      // Outside a project nothing has made the plan yet.
+      (this.recorder ??= new UpdatePlanRecorder(planRoot)).addFailure('global-skills', message);
+    }
+    return changed;
+  }
+
+  private async updateProject(projectPath: string): Promise<void> {
     const resolvedProjectPath = path.resolve(projectPath);
     const openspecPath = path.join(resolvedProjectPath, OPENSPEC_DIR_NAME);
     this.legacyCleanupSkipped = false;
@@ -275,6 +423,7 @@ export class UpdateCommand {
     const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
       (ALL_WORKFLOWS as readonly string[]).includes(workflow)
     );
+    this.settledWorkflows = desiredWorkflows;
 
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
     const legacyUpgrade = await this.handleLegacyCleanup(
@@ -331,6 +480,7 @@ export class UpdateCommand {
         return;
       }
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
+      if (this.hasGlobalSkills) return;
       this.log(chalk.yellow('No configured tools found.'));
       this.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
@@ -697,7 +847,7 @@ export class UpdateCommand {
           )
         );
       }
-      for (const line of formatKeptSkills(result.kept, result.linkedOutside, result.refreshedEdited)) this.log(chalk.yellow(line));
+      for (const line of formatKeptSkills(result.kept, result.linkedOutside, result.refreshedEdited, result.unfetched, result.partlyFetched, result.lockNotUpdated)) this.log(chalk.yellow(line));
       // A dry run is the last chance to save them.
       if (result.refreshedEdited.length > 0) {
         this.recorder?.addNote(
@@ -890,7 +1040,9 @@ export class UpdateCommand {
         }
         try {
           const existing = this.view.read(skillFile);
-          const generated = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+          const stamped = generateSkillContent(template, OPENSPEC_VERSION, transformer);
+          // The shared copy is the published text, which has no version stamp.
+          const generated = usesSharedSkills(tool) ? stripVolatileFrontmatter(stamped) : stamped;
           return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
         } catch {
           return true;
@@ -997,7 +1149,8 @@ export class UpdateCommand {
   ): void {
     const updates = toolsToUpdate.map((toolId) => {
       const status = statusByTool.get(toolId);
-      if (status?.needsUpdate) {
+      // A skill with no version to read, whose text differs, is reported as that.
+      if (status?.needsUpdate && !(status.generatedByVersion === null && driftedSkills.has(toolId))) {
         const fromVersion = status.generatedByVersion ?? 'unknown';
         return `${status.toolId} (${fromVersion} → ${OPENSPEC_VERSION})`;
       }
@@ -1034,6 +1187,8 @@ export class UpdateCommand {
    * Detects new tool directories that aren't currently configured and displays a hint.
    */
   private detectNewTools(projectPath: string, configuredTools: string[]): void {
+    // A project that uses the global skills has no tools of its own to add.
+    if (this.hasGlobalSkills && configuredTools.length === 0) return;
     const availableTools = getAvailableTools(projectPath);
     const configuredSet = new Set(configuredTools);
 

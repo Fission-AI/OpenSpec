@@ -33,7 +33,13 @@ export interface UpdatePlanChange {
  * about, which the plan lists as a non-interactive run makes it. Stable
  * identifiers, for a caller that branches on them.
  */
-export type UpdatePlanNoteCode = 'legacy-tool-directories' | 'legacy-artifacts' | 'edited-skills';
+export type UpdatePlanNoteCode =
+  | 'legacy-tool-directories'
+  | 'legacy-artifacts'
+  | 'edited-skills'
+  | 'global-skills'
+  | 'removed-skills'
+  | 'left-alone-skills';
 
 export interface UpdatePlanNote {
   code: UpdatePlanNoteCode;
@@ -512,7 +518,9 @@ function listFilesRecursively(dirPath: string): string[] {
 export function formatUpdatePlan(plan: UpdatePlan): string {
   const lines: string[] = [];
   if (plan.changes.length === 0) {
-    lines.push('No changes: skills are up to date.');
+    // The notes below say what else the update does, outside this project's files.
+    const elsewhere = plan.notes.some((note) => note.code === 'global-skills');
+    lines.push(elsewhere ? 'No file in this folder would change.' : 'No changes: skills are up to date.');
   } else {
     lines.push(`${plan.changes.length} file(s) would change:`);
     const width = Math.max(...plan.changes.map((change) => change.action.length));

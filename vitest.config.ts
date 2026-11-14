@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config';
 import os from 'node:os';
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // Every test runs with a throwaway home, so a test that forgets to isolate it
 // can never write to the developer's real one (~/.minimax/skills,
@@ -46,7 +47,15 @@ export default defineConfig({
       USERPROFILE: testHome,
       XDG_CONFIG_HOME: path.join(testHome, '.config'),
       XDG_DATA_HOME: path.join(testHome, '.local', 'share'),
+      XDG_STATE_HOME: path.join(testHome, '.local', 'state'),
       CODEX_HOME: path.join(testHome, '.codex'),
+      // Project and global skill installs read the checkout's own skills/
+      // folder, so no test fetches them from the network.
+      OPENSPEC_SKILLS_SOURCE: path.join(path.dirname(fileURLToPath(import.meta.url)), 'skills'),
+      // A scripted `openspec init` installs for the machine unless told
+      // otherwise. The suite's project tests say so here, once; the tests of
+      // that default clear it.
+      OPENSPEC_SKILLS_SCOPE: 'project',
     },
     // Tests rely on per-file process isolation (e.g., `process.cwd()` assumptions).
     pool: 'forks',

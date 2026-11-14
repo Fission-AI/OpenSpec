@@ -23,7 +23,9 @@ my-project/
 
 Cursor and Codex read `.agents/skills/` themselves, so they need nothing else.
 
-`.openspec-target` is how `openspec update` knows what is OpenSpec's. Each line is one of:
+`skills-lock.json`, at the project root, is the record the [`skills`](https://github.com/vercel-labs/skills) package keeps of the skills it installed there.
+
+`.openspec-target` is how `openspec update` knows which tools are set up and what is OpenSpec's. Each line is one of:
 
 | Line | Meaning |
 |---|---|
@@ -36,6 +38,8 @@ Cursor and Codex read `.agents/skills/` themselves, so they need nothing else.
 - **Where a link can't be made**: OpenSpec writes a plain copy instead, and refreshes it on `openspec update`.
 
 To add a tool that isn't listed, see [Link another tool](#link-another-tool).
+
+With `openspec init --scope global` the same layout sits in your home folder: one copy in `~/.agents/skills/`, and links such as `~/.claude/skills/openspec-propose`. The [`skills`](https://github.com/vercel-labs/skills) package places them, so there is no `.openspec-target` file there. These tools have no machine-wide folder it knows, so they keep their skills in each project: AtomCode, CoStrict, DeepSeek Harness, EasyCode, GigaCode, GSD, Oh My Pi, SourceCraft Code Assistant, and Veai. MiniMax Code is not part of the global install either, because its project install already writes to `~/.minimax/skills/`.
 
 ## Support matrix
 
@@ -137,6 +141,9 @@ instead: `openspec init --tools kiro`.
 - **Shared skills**: Antigravity reads the same `.agents/skills/` copy as every other
   tool. Workflows OpenSpec wrote to `.agents/workflows/` before 2.0 are removed on
   update.
+- **Global skills**: for a [machine-wide install](../start/setup.md#install-the-skills-once-for-every-project),
+  the `skills` package keeps Antigravity's skills in `~/.gemini/config/skills/`,
+  as links to the shared copy or as copies. `openspec update` keeps them current.
 
 ### Cline
 

@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { getSkillTemplates, generateSkillContent } from '../dist/core/shared/skill-generation.js';
-import { transformToSkillReferences } from '../dist/utils/command-references.js';
+import { transformToSharedSkillReferences } from '../dist/utils/command-references.js';
 import {
   cleanSkillSubdirectories,
   prepareSkillDirectory,
@@ -37,7 +37,7 @@ for (const { template, dirName } of getSkillTemplates()) {
   // skills.sh installs SKILL.md files only — no /opsx:* commands exist in
   // that channel, so references must point at the skills themselves.
   const content = stripVolatileFrontmatter(
-    generateSkillContent(template, 'skills.sh', transformToSkillReferences)
+    generateSkillContent(template, 'skills.sh', transformToSharedSkillReferences)
   );
   const skillDir = prepareSkillDirectory(outDir, dirName);
   writeFileSync(join(skillDir, 'SKILL.md'), content, 'utf8');

@@ -39,6 +39,7 @@ export const GlobalConfigSchema = z
     // Runtime-managed (like telemetry.noticeSeen); not user-settable via CLI set.
     completionTipSeen: z.boolean().optional(),
     standaloneTipSeen: z.boolean().optional(),
+    skillsScope: z.enum(['global', 'project']).optional(),
   })
   .passthrough();
 
@@ -58,6 +59,7 @@ const KNOWN_TOP_LEVEL_KEYS = new Set([
   'workflows',
   'defaultStore',
   'telemetry',
+  'skillsScope',
 ]);
 
 /** Nested keys users may set under `telemetry` via the CLI. */

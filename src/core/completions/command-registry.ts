@@ -40,6 +40,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'no-copilot-cloud',
         description: 'Skip generating GitHub Copilot cloud coding-agent files',
       },
+      {
+        name: 'scope',
+        description: 'Where the skills go: global (this machine, for every project) or project',
+        takesValue: true,
+        values: ['global', 'project'],
+      },
     ],
   },
   {
