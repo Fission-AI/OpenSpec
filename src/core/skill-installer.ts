@@ -29,17 +29,35 @@ export function projectSkillText(toolId: string, shared: string): string {
 
 type Targets = { scope: SkillScope; cwd?: string; agents: readonly string[] };
 
+/** The tag the release workflow creates when it publishes a version to npm. */
+const RELEASE_TAG_PREFIX = '@fission-ai/openspec@';
+
+/** Git's wording when the tag asked for is not in the repository. */
+function isMissingRef(error: unknown): boolean {
+  return error instanceof Error && /Remote branch \S+ not found/i.test(error.message);
+}
+
 export async function installReleaseSkills(targets: Targets, names: string[], version: string): Promise<Map<string, Error>> {
   const failures = new Map<string, Error>();
   if (!names.length) return failures;
-  const result = await installSkills('Fission-AI/OpenSpec/skills', {
+  const install = (ref: string) => installSkills('Fission-AI/OpenSpec/skills', {
     ...targets,
-    ref: `v${version}`,
+    ref,
     skills: names,
     telemetry: false,
     lockfile: targets.scope === 'global',
     // Git cannot carry a Windows junction into a teammate's checkout.
     mode: targets.scope === 'project' && process.platform === 'win32' ? 'copy' : 'auto',
+  });
+  // A release is published under `@fission-ai/openspec@<version>`, and `v<version>`
+  // is added afterward. Both name the same commit, so until the short tag
+  // exists the release's own tag is used. Any other failure is reported.
+  const result = await install(`v${version}`).catch((missing: unknown) => {
+    if (!isMissingRef(missing)) throw missing;
+    return install(`${RELEASE_TAG_PREFIX}${version}`).catch((error: unknown) => {
+      // Neither tag exists: say so in terms of the one people look for.
+      throw isMissingRef(error) ? missing : error;
+    });
   });
   const contents = expectedSkillContents(version);
   for (const failure of result.failed) failures.set(failure.agent, new Error(failure.message));

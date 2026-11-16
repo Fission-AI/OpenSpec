@@ -264,6 +264,31 @@ describe("a project's skills, installed through the skills package", { timeout: 
     expect(existsSync(skillFile('openspec-propose'))).toBe(false);
   });
 
+  it("installs from the release's own tag until the short one exists", async () => {
+    // The state right after a release: published as @fission-ai/openspec@<version>, with v<version> not created yet.
+    const repo = path.join(box, 'just-released');
+    execFileSync('git', ['clone', '--quiet', '--no-tags', path.dirname(process.env.GIT_CONFIG_GLOBAL!), repo]);
+    execFileSync('git', ['-C', repo, 'tag', '--no-sign', `@fission-ai/openspec@${version}`]);
+    const config = path.join(box, 'gitconfig');
+    execFileSync('git', ['config', '--file', config, `url.${pathToFileURL(repo).href}.insteadOf`, 'https://skills.example.invalid/Fission-AI/OpenSpec.git']);
+    env.GIT_CONFIG_GLOBAL = config;
+
+    const project = await cli('init', '--scope', 'project', '--tools', 'claude');
+    expect(project.exitCode, project.stdout + project.stderr).toBe(0);
+    expect(readFileSync(skillFile('openspec-propose'), 'utf8')).toBe(published('openspec-propose'));
+
+    const update = await cli('update');
+    expect(update.exitCode, update.stdout + update.stderr).toBe(0);
+
+    const global = await runCLI(['init', '--scope', 'global', '--tools', 'claude'], {
+      cwd: await fs.mkdtemp(path.join(box, 'other-')),
+      env,
+      timeoutMs: 60000,
+    });
+    expect(global.exitCode, global.stdout + global.stderr).toBe(0);
+    expect(existsSync(path.join(home, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+  });
+
   it('plans the skill changes in a dry run and writes nothing', async () => {
     await init();
     for (const name of CORE_SKILLS) await fs.writeFile(skillFile(name), stamped(name));
