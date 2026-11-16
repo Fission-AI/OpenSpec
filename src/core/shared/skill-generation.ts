@@ -67,30 +67,6 @@ export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemp
 }
 
 /**
- * Every text this version writes for one skill. A skill's text no longer
- * depends on the workflows installed beside it, so this is one text (none for
- * an unknown skill).
- */
-export function everySkillRendering(
-  dirName: string,
-  generatedByVersion: string,
-  transformInstructions?: (instructions: string) => string
-): string[] {
-  // Pure and asked for many times per run (every tool, every skill): cached
-  // per transformer, version and skill.
-  const byTransformer = renderingCache.get(transformInstructions ?? NO_TRANSFORM) ?? new Map<string, string[]>();
-  renderingCache.set(transformInstructions ?? NO_TRANSFORM, byTransformer);
-  const key = `${generatedByVersion}\0${dirName}`;
-  const cached = byTransformer.get(key);
-  if (cached) return cached;
-  const entry = allSkillTemplates().find((candidate) => candidate.dirName === dirName);
-  if (!entry) return [];
-  const texts = [generateSkillContent(entry.template, generatedByVersion, transformInstructions)];
-  byTransformer.set(key, texts);
-  return texts;
-}
-
-/**
  * Drops the per-release `generatedBy` frontmatter line. What is left is the
  * published form of a skill: the text in the repository's `skills/` folder,
  * and the text a project's `.agents/skills` holds, which is the same for every
@@ -99,9 +75,6 @@ export function everySkillRendering(
 export function stripVolatileFrontmatter(content: string): string {
   return content.replace(/^ {2}generatedBy: .*\n/m, '');
 }
-
-const NO_TRANSFORM = (text: string) => text;
-const renderingCache = new WeakMap<(text: string) => string, Map<string, string[]>>();
 
 function allSkillTemplates(): SkillTemplateEntry[] {
   return [

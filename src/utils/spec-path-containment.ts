@@ -1,6 +1,6 @@
 import * as nodeFs from 'fs';
 import path from 'path';
-import { OPENSPEC_DIR_NAME } from '../core/config.js';
+import { OPENSPEC_DIR_NAME } from '../core/project-dir.js';
 import { FileSystemUtils } from './file-system.js';
 
 /**

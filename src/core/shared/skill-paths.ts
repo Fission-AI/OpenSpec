@@ -1,7 +1,7 @@
 import os from 'node:os';
 import path from 'node:path';
 
-import { AI_TOOLS, SKILL_LINKED_TOOL_IDS, type AIToolOption } from '../config.js';
+import { AI_TOOLS, installerAgent, SKILL_LINKED_TOOL_IDS, type AIToolOption } from '../config.js';
 
 export type SkillCapableTool = AIToolOption & (
   | { skillsDir: string }
@@ -62,8 +62,7 @@ export function resolveSharedSkillsDir(projectRoot: string): string {
  */
 export function resolveSkillLinkDir(projectRoot: string, tool: AIToolOption): string | undefined {
   if (!usesSharedSkills(tool) || !SKILL_LINKED_TOOL_IDS.has(tool.value)) return undefined;
-  if (tool.skillsDir === SHARED_SKILLS_ROOT) return undefined;
-  return path.join(projectRoot, tool.skillsDir!, 'skills');
+  return path.join(projectRoot, installerAgent(tool.value).projectSkillsDir);
 }
 
 /**

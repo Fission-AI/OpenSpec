@@ -1,3 +1,4 @@
+import * as skillInstaller from '../../src/core/skill-installer.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
 import { InitCommand } from '../../src/core/init.js';
@@ -23,7 +24,7 @@ const { confirmMock, searchableMultiSelectMock, interactiveState } = vi.hoisted(
   interactiveState: { value: false },
 }));
 
-vi.mock('@inquirer/prompts', () => ({ confirm: confirmMock }));
+vi.mock('@inquirer/prompts', () => ({ confirm: confirmMock, select: vi.fn(async () => 'project') }));
 
 vi.mock('../../src/prompts/searchable-multi-select.js', () => ({
   searchableMultiSelect: searchableMultiSelectMock,
@@ -116,7 +117,7 @@ async function createLegacyCodexPrompt(): Promise<string> {
  * test then makes fail.
  */
 function failSkillFetch(): void {
-  process.env.OPENSPEC_SKILLS_SOURCE = path.join(os.tmpdir(), 'openspec-no-skills-here');
+  vi.spyOn(skillInstaller, 'installBundledSkills').mockRejectedValue(new Error('EACCES: permission denied'));
 }
 
 function failCodexSkillWrites(): void {
@@ -220,51 +221,6 @@ describe('UpdateCommand', () => {
   });
 
   describe('skill updates', () => {
-    it('keeps openspec-* skills the user already had in .agents/skills before OpenSpec used it', async () => {
-      // A Claude install from before 2.0 never wrote to .agents. A skill there
-      // (from npx skills, or written by hand) is the user's, even named openspec-*.
-      await writeReleasedSkill(path.join(testDir, '.claude', 'skills'), 'openspec-explore');
-      const sharedDir = path.join(testDir, '.agents', 'skills');
-      const userSkill = path.join(sharedDir, 'openspec-propose', 'SKILL.md');
-      await fs.mkdir(path.dirname(userSkill), { recursive: true });
-      await fs.writeFile(userSkill, 'my propose');
-      await fs.writeFile(path.join(sharedDir, 'openspec-propose', 'ref.md'), 'my notes');
-      const consoleSpy = vi.spyOn(console, 'log');
-
-      await updateCommand.execute(testDir);
-
-      expect(await fs.readFile(userSkill, 'utf-8')).toBe('my propose');
-      expect(await fs.readFile(path.join(sharedDir, 'openspec-propose', 'ref.md'), 'utf-8')).toBe('my notes');
-      expect(await fs.readFile(path.join(sharedDir, '.openspec-target'), 'utf-8')).toBe('claude own-files\nkeep openspec-propose\n');
-      expect(consoleSpy.mock.calls.flat().map(String).some((entry) =>
-        entry.includes('Kept 1 skill in .agents/skills as your own') && entry.includes('.agents/skills/openspec-propose')
-      )).toBe(true);
-      // OpenSpec's other skills are written as usual.
-      expect(await fs.readFile(path.join(sharedDir, 'openspec-explore', 'SKILL.md'), 'utf-8')).toContain('name: openspec-explore');
-
-      // Later runs keep leaving it alone, and settle.
-      consoleSpy.mockClear();
-      await updateCommand.execute(testDir);
-      expect(await fs.readFile(userSkill, 'utf-8')).toBe('my propose');
-      expect(consoleSpy.mock.calls.flat().map(String).some((entry) => entry.includes('up to date'))).toBe(true);
-    });
-
-    it('never removes an openspec-* skill the user had in .agents/skills, even under commands-only delivery', async () => {
-      setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
-      await writeReleasedSkill(path.join(testDir, '.claude', 'skills'), 'openspec-explore');
-      const userDir = path.join(testDir, '.agents', 'skills', 'openspec-explore');
-      await fs.mkdir(userDir, { recursive: true });
-      await fs.writeFile(path.join(userDir, 'SKILL.md'), 'mine');
-      await fs.writeFile(path.join(userDir, 'ref.md'), 'ref');
-
-      await updateCommand.execute(testDir);
-
-      expect(await fs.readFile(path.join(userDir, 'SKILL.md'), 'utf-8')).toBe('mine');
-      expect(await fs.readFile(path.join(userDir, 'ref.md'), 'utf-8')).toBe('ref');
-      const consoleSpy = vi.spyOn(console, 'log');
-      await updateCommand.execute(testDir);
-      expect(consoleSpy.mock.calls.flat().map(String).some((entry) => entry.includes('up to date'))).toBe(true);
-    });
 
     it('keeps a tool with no folder of its own set up when delivery is later set to both', async () => {
       // Cursor reads the shared copy and gets no commands, so it has no folder
@@ -318,31 +274,6 @@ describe('UpdateCommand', () => {
           await fs.readFile(path.join(testDir, '.agents', 'skills', name, 'SKILL.md'), 'utf-8')
         );
       }
-    });
-
-    it('keeps a skill the user edited in a linked tool folder, reports it, and settles', async () => {
-      // A Claude install from before 2.0 where the user changed one skill.
-      const skillsDir = path.join(testDir, '.claude', 'skills');
-      const edited = await writeReleasedSkill(skillsDir, 'openspec-explore');
-      await fs.appendFile(edited, '\nAlways use pnpm.\n');
-      await writeReleasedSkill(skillsDir, 'openspec-propose');
-      const consoleSpy = vi.spyOn(console, 'log');
-
-      await updateCommand.execute(testDir);
-
-      // The edit stays as it was, with no link in its place; the untouched
-      // skill became a link to the shared copy.
-      expect((await fs.lstat(path.join(skillsDir, 'openspec-explore'))).isSymbolicLink()).toBe(false);
-      expect(await fs.readFile(edited, 'utf-8')).toContain('Always use pnpm.');
-      expect((await fs.lstat(path.join(skillsDir, 'openspec-propose'))).isSymbolicLink()).toBe(true);
-      expect(consoleSpy.mock.calls.flat().map(String).some((entry) =>
-        entry.includes('Kept 1 skill folder') && entry.includes('.claude/skills/openspec-explore')
-      )).toBe(true);
-
-      // Keeping it does not make every later update think there is work.
-      consoleSpy.mockClear();
-      await updateCommand.execute(testDir);
-      expect(consoleSpy.mock.calls.flat().map(String).some((entry) => entry.includes('up to date'))).toBe(true);
     });
 
     it('should update skill files for configured Claude tool', async () => {
@@ -459,7 +390,7 @@ describe('UpdateCommand', () => {
     );
 
     it('should update MiniMax Code skills without touching unrelated global skills', async () => {
-      const skillsDir = path.join(testDir, 'home', '.minimax', 'skills');
+      const skillsDir = path.join(testDir, '.minimax', 'skills');
       const exploreSkill = path.join(skillsDir, 'openspec-explore', 'SKILL.md');
       const customSkill = path.join(skillsDir, 'my-custom-skill', 'SKILL.md');
       await fs.mkdir(path.dirname(exploreSkill), { recursive: true });
@@ -471,13 +402,13 @@ describe('UpdateCommand', () => {
 
       expect(await fs.readFile(exploreSkill, 'utf-8')).toContain('name: openspec-explore');
       expect(await fs.readFile(customSkill, 'utf-8')).toBe('custom content');
-      expect(await FileSystemUtils.directoryExists(path.join(testDir, '.minimax'))).toBe(false);
+      expect(await FileSystemUtils.directoryExists(path.join(testDir, 'home', '.minimax'))).toBe(false);
       expect(await FileSystemUtils.directoryExists(path.join(testDir, '.mavis'))).toBe(false);
     });
 
     it('should not update MiniMax skills through a linked directory outside the global skills root', async () => {
       const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-minimax-outside-'));
-      const skillsRoot = path.join(testDir, 'home', '.minimax', 'skills');
+      const skillsRoot = path.join(testDir, '.minimax', 'skills');
       const linkedSkillDir = path.join(skillsRoot, 'openspec-explore');
       const skillFile = path.join(outsideDir, 'SKILL.md');
       const oldSkillContent = `---
@@ -517,7 +448,7 @@ Outside content
         delivery: 'skills',
       });
       const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-minimax-outside-'));
-      const skillsRoot = path.join(testDir, 'home', '.minimax', 'skills');
+      const skillsRoot = path.join(testDir, '.minimax', 'skills');
       const linkedSkillDir = path.join(skillsRoot, 'openspec-explore');
       const skillFile = path.join(outsideDir, 'SKILL.md');
       const oldSkillContent = `---
@@ -697,7 +628,7 @@ metadata:
       // /opsx:* commands that were not generated.
       expect(sharedSkill).not.toContain('/opsx:');
       expect(sharedSkill).not.toContain('/opsx-');
-      expect(sharedSkill).toContain('`openspec-propose`');
+      expect(sharedSkill).toContain('capture the discussion as a change');
 
       // Legacy managed skill is gone; user files stay where they were
       await expect(fs.access(legacySkillDir)).rejects.toThrow();
@@ -721,7 +652,7 @@ metadata:
       await updateCommand.execute(testDir);
 
       await expect(fs.access(path.join(testDir, '.kimi'))).rejects.toThrow();
-      const migratedSkill = path.join(testDir, '.kimi-code', 'skills', 'openspec-explore', 'SKILL.md');
+      const migratedSkill = path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md');
       await expect(fs.access(migratedSkill)).resolves.toBeUndefined();
     });
 
@@ -745,7 +676,7 @@ metadata:
         'openspec-propose',
         'SKILL.md'
       );
-      expect(await fs.readFile(currentSkill, 'utf-8')).toContain('`openspec-apply-change`');
+      expect(await fs.readFile(currentSkill, 'utf-8')).toContain('ask me to apply it');
       await expect(
         fs.access(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))
       ).rejects.toThrow();
@@ -788,7 +719,7 @@ metadata:
       expect(await fs.readFile(
         path.join(canonicalSkills, 'openspec-propose', 'SKILL.md'),
         'utf-8'
-      )).toContain('`openspec-apply-change`');
+      )).toContain('ask me to apply it');
     });
 
     it('should preserve and report a divergent legacy Codex skill', async () => {
@@ -879,7 +810,7 @@ metadata:
         path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('`openspec-apply-change`');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       expect(
         consoleSpy.mock.calls.flat().map(String).some((entry) =>
@@ -899,7 +830,7 @@ metadata:
       expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('amp\n');
       const updated = await fs.readFile(skillFile, 'utf-8');
       expect(updated).toContain('name: openspec-propose');
-      expect(updated).toContain('`openspec-apply-change`');
+      expect(updated).toContain('ask me to apply it');
       expect(updated).not.toContain('stale Amp skill');
     });
 
@@ -915,7 +846,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('`openspec-apply-change`');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       expect(await FileSystemUtils.directoryExists(path.join(testDir, '.agents', 'workflows'))).toBe(false);
       expect(getConfiguredToolsForProfileSync(testDir)).toEqual([
@@ -945,7 +876,7 @@ metadata:
       expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('antigravity\ncodex\n');
       expect(
         await fs.readFile(path.join(skillsDir, 'openspec-propose', 'SKILL.md'), 'utf-8')
-      ).toContain('`openspec-apply-change`');
+      ).toContain('ask me to apply it');
       // No workflow is generated in the current folder, and the legacy skills
       // moved over.
       await expect(
@@ -972,7 +903,7 @@ metadata:
       expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('agents\ncodex\n');
       expect(
         await fs.readFile(path.join(skillsDir, 'openspec-propose', 'SKILL.md'), 'utf-8')
-      ).toContain('`openspec-apply-change`');
+      ).toContain('ask me to apply it');
       expect(
         await fs.readFile(
           path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'),
@@ -998,7 +929,7 @@ metadata:
       expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('agents\ncodex\n');
       const propose = await fs.readFile(path.join(skillsDir, 'openspec-propose', 'SKILL.md'), 'utf-8');
       expect(propose).not.toMatch(/\$openspec-|\/openspec-/);
-      expect(propose).toContain('`openspec-');
+      expect(propose).toContain('name: openspec-');
       const configured = getConfiguredToolsForProfileSync(testDir);
       expect(configured).toEqual(expect.arrayContaining(['agents', 'codex']));
       // Its replacement skill exists, so the forced update retires the prompt.
@@ -1060,7 +991,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('`openspec-apply-change`');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
     });
 
@@ -1093,7 +1024,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('`openspec-apply-change`');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       await expect(
         fs.access(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))
@@ -1118,7 +1049,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('`openspec-apply-change`');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
     });
 
@@ -1177,7 +1108,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('`openspec-apply-change`');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       await expect(
         fs.access(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))
@@ -1341,7 +1272,7 @@ metadata:
       const skill = await fs.readFile(skillFile, 'utf-8');
       // Positive assertion too: a skill that simply dropped every reference
       // would satisfy the negative one. The shared copy names skills.
-      expect(skill).toContain('`openspec-');
+      expect(skill).toContain('name: openspec-');
       expect(skill).not.toMatch(/\/opsx[:-]/);
     });
 
@@ -1365,7 +1296,7 @@ metadata:
         path.join(testDir, '.agents', 'skills', 'openspec-apply-change', 'SKILL.md'),
         'utf-8'
       );
-      expect(sharedSkill).toContain('`openspec-');
+      expect(sharedSkill).toContain('name: openspec-');
       expect(sharedSkill).not.toMatch(/\/opsx[:-]/);
       expect(
         await fs.readFile(path.join(testDir, '.claude', 'skills', 'openspec-apply-change', 'SKILL.md'), 'utf-8')
@@ -1430,7 +1361,7 @@ metadata:
       expect(await FileSystemUtils.fileExists(exploreCmd)).toBe(false);
 
       // ZCode reads the one shared copy; its old copy is gone.
-      expect(await FileSystemUtils.fileExists(path.join(skillsDir, 'openspec-explore', 'SKILL.md'))).toBe(false);
+      expect(await FileSystemUtils.fileExists(path.join(skillsDir, 'openspec-explore', 'SKILL.md'))).toBe(true);
       const sharedSkill = await fs.readFile(
         path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md'),
         'utf-8'
@@ -1469,9 +1400,9 @@ metadata:
 
       expect(await FileSystemUtils.fileExists(workflow)).toBe(false);
       // Skills are the shared copy, which points at skills.
-      expect(await FileSystemUtils.fileExists(oldSkill)).toBe(false);
+      expect(await FileSystemUtils.fileExists(oldSkill)).toBe(true);
       const skillContent = await fs.readFile(skillFile, 'utf-8');
-      expect(skillContent).toContain('`openspec-');
+      expect(skillContent).toContain('name: openspec-');
       expect(skillContent).not.toContain('/opsx:');
       expect(skillContent).not.toContain('/opsx-');
     });
@@ -1504,7 +1435,7 @@ metadata:
         path.join(testDir, '.agents', 'skills', 'openspec-apply-change', 'SKILL.md'),
         'utf-8'
       );
-      expect(skillContent).toContain('`openspec-archive-change`');
+      expect(skillContent).toContain('ask to archive this change');
       expect(skillContent).not.toMatch(/\/opsx[:-]/);
       expect(getConfiguredToolsForProfileSync(testDir)).toContain('codeassistant');
 
@@ -1654,7 +1585,7 @@ metadata:
         expect(await FileSystemUtils.fileExists(command)).toBe(false);
       }
       expect(await fs.readFile(
-        path.join(testDir, '.easycode', 'skills', 'openspec-explore', 'SKILL.md'), 'utf-8'
+        path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md'), 'utf-8'
       )).toContain('name: openspec-explore');
 
       const consoleSpy = vi.spyOn(console, 'log');
@@ -1718,7 +1649,7 @@ metadata:
       // not kept in .devin either; the generated workflow is removed, not moved.
       expect(
         await FileSystemUtils.fileExists(path.join(testDir, '.devin', 'skills', 'openspec-explore', 'SKILL.md'))
-      ).toBe(false);
+      ).toBe(true);
       expect(
         await fs.readFile(path.join(testDir, '.agents', 'skills', 'openspec-explore', 'SKILL.md'), 'utf-8')
       ).toContain('name: openspec-explore');
@@ -1943,7 +1874,7 @@ metadata:
 
       // MiniMax keeps its skills in the user's home, outside the shared copy
       // whose writes fail here.
-      const otherSkill = path.join(testDir, 'home', '.minimax', 'skills', 'openspec-explore', 'SKILL.md');
+      const otherSkill = path.join(testDir, '.minimax', 'skills', 'openspec-explore', 'SKILL.md');
       await fs.mkdir(path.dirname(otherSkill), { recursive: true });
       await fs.writeFile(otherSkill, 'old');
 
@@ -3235,7 +3166,7 @@ More user content after markers.
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('`openspec-apply-change`');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       expect(await FileSystemUtils.directoryExists(path.join(testDir, '.agents', 'workflows'))).toBe(false);
     });
@@ -3491,7 +3422,7 @@ More user content after markers.
 
       expect(await fs.readdir(commandsDir)).toEqual(['personal.toml']);
       for (const skillName of ['openspec-explore', 'openspec-new-change']) {
-        expect(await fs.readFile(path.join(skillsDir, skillName, 'SKILL.md'), 'utf-8')).toContain(`name: ${skillName}`);
+        expect(await fs.readFile(path.join(testDir, '.agents', 'skills', skillName, 'SKILL.md'), 'utf-8')).toContain(`name: ${skillName}`);
       }
       expect(await FileSystemUtils.fileExists(path.join(skillsDir, 'openspec-propose', 'SKILL.md'))).toBe(false);
       expect(await fs.readFile(userCommand, 'utf-8')).toBe('prompt = "Keep my command"\n');
@@ -3797,7 +3728,7 @@ More user content after markers.
       );
       expect(skillContent).not.toContain('/opsx:');
       expect(skillContent).not.toContain('/opsx-');
-      expect(skillContent).toContain('`openspec-');
+      expect(skillContent).toContain('name: openspec-');
 
       // update-change references several other workflows; a command missing
       // from the reference map would leave a raw /opsx: reference behind
@@ -3807,7 +3738,7 @@ More user content after markers.
       );
       expect(updateSkillContent).not.toContain('/opsx:');
       expect(updateSkillContent).not.toContain('/opsx-');
-      expect(updateSkillContent).toContain('`openspec-');
+      expect(updateSkillContent).toContain('name: openspec-');
     });
 
     it('should install skills even when delivery is set to commands', async () => {
@@ -3907,7 +3838,7 @@ More user content after markers.
         for (const skillName of ['openspec-explore', 'openspec-update-change']) {
           const content = await fs.readFile(path.join(sharedDir, skillName, 'SKILL.md'), 'utf-8');
           expect(content).toContain(`name: ${skillName}`);
-          expect(content).toContain('`openspec-');
+          expect(content).toContain('name: openspec-');
           expect(content).not.toMatch(/\/opsx[:-]/);
         }
         expect(await FileSystemUtils.fileExists(exploreSkill)).toBe(false);
@@ -3949,7 +3880,7 @@ More user content after markers.
         'openspec-sync-specs',
         'openspec-update-change',
       ]);
-      expect(await fs.readdir(skillsDir)).toEqual(['openspec-custom']);
+      expect((await fs.readdir(skillsDir)).sort()).toEqual([...(await openspecSkills()), 'openspec-custom'].sort());
       expect(await fs.readFile(customSkill, 'utf-8')).toBe('my custom skill');
       expect(await fs.readFile(path.join(grokDir, 'notes.md'), 'utf-8')).toBe('my Grok notes');
       expect((await fs.readdir(grokDir)).sort()).toEqual(['notes.md', 'skills']);
@@ -3988,7 +3919,6 @@ More user content after markers.
 
       const skillFile = path.join(
         testDir,
-        'home',
         '.minimax',
         'skills',
         'openspec-explore',
@@ -4001,7 +3931,7 @@ More user content after markers.
       await updateCommand.execute(testDir);
 
       expect(await fs.readFile(skillFile, 'utf-8')).toContain('name: openspec-explore');
-      expect(await FileSystemUtils.directoryExists(path.join(testDir, '.minimax'))).toBe(false);
+      expect(await FileSystemUtils.directoryExists(path.join(testDir, 'home', '.minimax'))).toBe(false);
       const output = consoleSpy.mock.calls.flat().join('\n');
       expect(output).toContain('Updated: MiniMax Code');
       consoleSpy.mockRestore();

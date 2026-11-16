@@ -14,49 +14,14 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  * says what to do when that skill is not installed.
  */
 const EXPLORE_MODE_NOTE =
-  'Investigating before implementing is worth doing whenever a problem needs thinking through. Explore mode (`/opsx:explore`, if that skill is installed) is for this kind of thinking, and you can use it anytime.';
-
-/**
- * The skill-reference tables. Every row is always listed; the line above each
- * table says that only the installed skills are available.
- */
-const COMMAND_REFERENCE_ROWS = [
-  ' | `/opsx:propose` | Create a change and generate all artifacts |',
-  ' | `/opsx:explore` | Think through problems before/during work  |',
-  ' | `/opsx:apply`   | Implement tasks from a change              |',
-  ' | `/opsx:archive` | Archive a completed change                 |',
-  ' | `/opsx:new`     | Start a new change, one artifact at a time |',
-  ' | `/opsx:continue` | Continue working on an existing change    |',
-  ' | `/opsx:ff`      | Fast-forward: create all artifacts at once |',
-  ' | `/opsx:verify`  | Verify implementation matches artifacts    |',
-].join('\n');
-
-const QUICK_REFERENCE_ROWS = [
-  ' | `/opsx:propose <idea>`  | Create a change and generate all artifacts |',
-  ' | `/opsx:explore`         | Think through problems (no code changes)   |',
-  ' | `/opsx:apply <name>`    | Implement tasks                            |',
-  ' | `/opsx:archive <name>`  | Archive when done                          |',
-  ' | `/opsx:new <name>`      | Start a new change, step by step           |',
-  ' | `/opsx:continue <name>` | Continue an existing change                |',
-  ' | `/opsx:ff <name>`       | Fast-forward: all artifacts at once        |',
-  ' | `/opsx:verify <name>`   | Verify implementation                      |',
-].join('\n');
-
-/**
- * Resume hints for a user stopping mid-tutorial. Both skills are optional, so
- * the line above the list says that only the installed ones are available.
- */
-const RESUME_HINTS = [
-  '- `/opsx:continue <name>` - Resume artifact creation',
-  '- `/opsx:apply <name>` - Jump to implementation (if tasks exist)',
-].join('\n');
+  'Use exploration to work through questions before implementing a change.';
 
 /** Where the tutorial points once it is over. */
 const NEXT_STEP_INVITE =
-  'Try `/opsx:propose` on something you actually want to build, or ask me to start a change if that skill is not installed. You\'ve got the rhythm now!';
+  'Ask me to start a change for something you want to build.';
 
 const QUICK_REFERENCE_INVITE =
-  'Try `/opsx:propose` to start your first change, or ask me to start it if that skill is not installed.';
+  'Ask me to start your first change.';
 
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
@@ -548,11 +513,7 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ## Skill Reference
 
-Only the skills installed on this machine are available.
-
- | Skill            | What it does                               |
- |------------------|--------------------------------------------|
-${COMMAND_REFERENCE_ROWS}
+List the OpenSpec workflows available to you in this session, with one line explaining each. Omit workflows you cannot invoke.
 
 ---
 
@@ -573,8 +534,7 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at the \`changeRoot\` reported by \`openspec status --change "<name>" --json\`.
 
 To pick up where we left off later, \`openspec status --change "<name>" --json\` shows exactly where the change stands.
-Only the skills installed on this machine are available.
-${RESUME_HINTS}
+Offer one next step from the workflows available to you.
 
 The work won't be lost. Come back whenever you're ready.
 \`\`\`
@@ -588,11 +548,7 @@ If the user says they just want to see the skills or skip the tutorial:
 \`\`\`
 ## OpenSpec Quick Reference
 
-Only the skills installed on this machine are available.
-
- | Skill                    | What it does                               |
- |--------------------------|--------------------------------------------|
-${QUICK_REFERENCE_ROWS}
+List the OpenSpec workflows available to you in this session, with one line explaining each. Omit workflows you cannot invoke.
 
 ${QUICK_REFERENCE_INVITE}
 \`\`\`

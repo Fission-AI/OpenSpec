@@ -7,7 +7,7 @@
 import path from 'path';
 import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
 import { CommandAdapterRegistry } from '../command-generation/index.js';
-import { hasLegacySkills, isToolListed, readKeptSharedSkills, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
+import { hasLegacySkills, isToolListed, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
 import {
   resolveCommandSurfaceCapability,
 } from '../command-surface.js';
@@ -24,8 +24,7 @@ import {
 import { DISK_VIEW, type FileView } from '../file-view.js';
 import { classifySkillLinkSpot, isCheckedOutLink } from './skill-links.js';
 import { normalizeGeneratedContent } from './generated-fingerprint.js';
-import { sharedSkillTexts } from './own-skill-texts.js';
-import { stripVolatileFrontmatter } from './skill-generation.js';
+import { bundledSkillContents } from '../skill-installer.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
 /**
@@ -282,7 +281,7 @@ export function extractGeneratedByVersion(
 function isPublishedSkillText(skillName: string, skillFile: string, version: string, view: FileView): boolean {
   try {
     const text = normalizeGeneratedContent(view.read(skillFile));
-    return sharedSkillTexts(skillName, version).some((ours) => stripVolatileFrontmatter(ours) === text);
+    return bundledSkillContents(version).get(skillName) === text;
   } catch {
     return false;
   }
@@ -319,29 +318,10 @@ export function getToolVersionStatus(
   let foundSkill = false;
 
   // 1. Find the first skill file that exists and read its version.
-  const keptShared = usesSharedSkills(tool) ? readKeptSharedSkills(projectRoot, view) : new Set<string>();
-  // A skill the user keeps in the shared folder is theirs, not a version,
-  // whether read there or through a tool's link to it.
-  // In a tool's own folder (MiniMax), OpenSpec never makes links: a link at a
-  // skill's spot is the user's and is never written, so it isn't a version
-  // either.
-  const ownFolder = !usesSharedSkills(tool);
-  let usersOwnSkill = false;
-  const speaksForVersion = (skillFile: string): boolean => {
-    if (keptShared.has(path.basename(path.dirname(skillFile)))) return false;
-    if (
-      ownFolder &&
-      (view.linkTarget?.(path.dirname(skillFile)) !== undefined || view.linkTarget?.(skillFile) !== undefined)
-    ) {
-      usersOwnSkill = true;
-      return false;
-    }
-    return true;
-  };
   for (const skillName of SKILL_NAMES) {
     for (const skillsDir of skillsDirs) {
       const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
-      if (view.exists(skillFile) && speaksForVersion(skillFile)) {
+      if (view.exists(skillFile)) {
         generatedByVersion =
           extractGeneratedByVersion(skillFile, view) ??
           (usesSharedSkills(tool) && isPublishedSkillText(skillName, skillFile, currentVersion, view)
@@ -359,15 +339,6 @@ export function getToolVersionStatus(
   const markerConfigured = isListedToolPresent(projectRoot, toolId, view) || hasSkillLinks(projectRoot, tool, view);
   const configured =
     getToolSkillStatus(projectRoot, toolId, view).configured || commandConfigured || markerConfigured;
-  // Every skill of the tool's present is the user's own (kept): there is no
-  // OpenSpec skill to date, and nothing for update to write. Missing skills
-  // are profile drift's to find.
-  if (!foundSkill && usersOwnSkill) {
-    generatedByVersion = currentVersion;
-  } else if (!foundSkill && keptShared.size > 0 && isListedToolPresent(projectRoot, toolId, view)) {
-    generatedByVersion = currentVersion;
-  }
-
   // 2. OpenSpec 2.0 installs skills only, so command files never make a tool
   //    current: a commands-only install from 1.x has no skills and always
   //    needs an update, which installs them and removes the generated commands.

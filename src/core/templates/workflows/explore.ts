@@ -38,22 +38,22 @@ adding a service to operate; shared state would need a separate sync design.
  * capture path and the always-present CLI.
  */
 const IMPLEMENT_REQUEST_HANDOFF =
-  'point them at `/opsx:propose`, which turns the discussion into a change, if that skill is installed. Otherwise offer to capture the discussion as a change, as described below';
+  'offer to capture the discussion as a change';
 
 const CAPTURE_PLANNING_HANDOFF =
-  '`/opsx:propose` writes the remaining planning artifacts if that skill is installed; otherwise any remaining planning artifacts can be captured here the same way';
+  'finish the remaining planning artifacts from the change';
 
 const CAPTURE_APPLY_HANDOFF =
-  '`/opsx:apply` implements the change once tasks exist if that skill is installed; otherwise implementation works from the change\'s tasks (`openspec instructions apply --change "<name>" --json`), outside explore mode';
+  'start implementation from the tasks after leaving explore mode';
 
 const DISCOVERY_END_HANDOFF =
-  'Ready to start? If the `/opsx:propose` skill is installed, use it and this becomes a change. Otherwise I can capture this as a change.';
+  'Would you like me to capture this as a change?';
 
 const SUMMARY_NEXT_STEP =
-  '- Turn this into a change: `/opsx:propose`, or ask me to capture it if that skill is not installed';
+  '- Ask me to capture this discussion as a change';
 
 const GUARDRAIL_HANDOFF =
-  'if `/opsx:propose` is installed, it turns the discussion into a change; otherwise offer to capture the discussion as a change. Either way, the work happens from that change';
+  'offer to capture the discussion as a change first';
 
 export function getExploreSkillTemplate(): SkillTemplate {
   return {

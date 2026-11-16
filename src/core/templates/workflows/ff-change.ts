@@ -17,10 +17,10 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  * the CLI and never invites "ask me to implement".
  */
 const SKILL_APPLY_HANDOFF =
-  'Use the `/opsx:apply` skill if it is installed, or ask me to implement, to start working on the tasks.';
+  'The plan is ready for review. When you’re ready, ask me to apply it.';
 
 const COMMAND_APPLY_HANDOFF =
-  'Run `/opsx:apply` to start implementing. If it is not installed, run `openspec instructions apply --change "<name>" --json` to get the task list and start implementing.';
+  'Review the plan. To start implementation, run `openspec instructions apply --change "<name>" --json`.';
 
 export function getFfChangeSkillTemplate(): SkillTemplate {
   return {

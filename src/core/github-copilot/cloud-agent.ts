@@ -481,7 +481,7 @@ export async function removeCopilotCloudFiles(
   projectPath: string,
   ops: CopilotCloudFileOps = DIRECT_CLOUD_FILE_OPS
 ): Promise<number> {
-  let removed = 0;
+  const removed = new Map<string, string>();
   const managedPaths = Object.values(COPILOT_CLOUD_FILES).map((relPath) => ({
     relPath,
     fullPath: FileSystemUtils.resolveProjectArtifactPath(projectPath, relPath),
@@ -497,12 +497,17 @@ export async function removeCopilotCloudFiles(
         continue;
       }
 
-      await ops.removeFile(fullPath);
-      removed++;
+      try {
+        await ops.removeFile(fullPath);
+        removed.set(fullPath, content);
+      } catch (error) {
+        for (const [file, original] of removed) await ops.writeFile(file, original);
+        throw error;
+      }
     }
   }
 
-  return removed;
+  return removed.size;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

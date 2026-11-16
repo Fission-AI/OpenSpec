@@ -60,46 +60,46 @@ function specDrivenTitles(): Record<string, string> {
 }
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: '4fb99e5f96714a538d4915916549916a442aec3b0b074a71d63c53e60f102b6a',
+  getExploreSkillTemplate: '4f78f51fd51fba713706347d2ca6a60fa7f6faa890b00b83b8e0f5ace45b6832',
   getNewChangeSkillTemplate: 'aa1b169e0941ad8f9275f6f622019eebddeaab607815516bf872bf9ca7368b81',
   getContinueChangeSkillTemplate: '45c4be5783f07e72e44a33ed44ad7a4db3492fd8d37499bc6b76278e9ddcdc53',
-  getApplyChangeSkillTemplate: '9562c9acafd7e6ed87aa4620a7b895a5596650ae26833a850d5c6909b24b6640',
-  getFfChangeSkillTemplate: '863173ff42c414e109a43de1dd3b3401ef8a8d67133643fe1b1c943928198181',
+  getApplyChangeSkillTemplate: '244136f2de5518cd92b0d58e1cec8ffbef2bd2443b5e49f748cf64e7d7c6fce8',
+  getFfChangeSkillTemplate: '293a3bd2c6372dba854792c416dad0efc9ba83515496dc576f9ef2a067701d82',
   getSyncSpecsSkillTemplate: '7aaf33f2a3ddb86d8bd7131bf36588a580fb8279127b881f19c6d8af60cfe059',
-  getOnboardSkillTemplate: 'd4dafb8da264993bd53cb63a5863e077b8c2a92a65aa39ea22065b474821bb63',
-  getOpsxExploreCommandTemplate: 'd7dee64a95486785e4cbaf5cb140af92233f13a78e466e6839da705aa4a3198f',
-  getOpsxNewCommandTemplate: '0bfd4699b1c0ae5ec19562d6eaf34b114f98b879dc523bd0f080354a49e8d76b',
-  getOpsxContinueCommandTemplate: 'ad60035e75ab330e46891701018c0397e7e9c318b28597aecef56ed6333b4a73',
-  getOpsxApplyCommandTemplate: '51bd0f3bd297265be795b0f9cc51168ca79a7343dd7c05d63929837f562e2f8f',
-  getOpsxFfCommandTemplate: 'c2aee057e6db122a57151ba7de1a0f64d66cbc5f2137fea4b3060d7685d9cb76',
+  getOnboardSkillTemplate: '06f68fb14002e182b88def80b0798a0d571b3d36f7ea7304fd44487b1b8f27a3',
+  getOpsxExploreCommandTemplate: '79f55c7093193e13a08c8729810cedf37d19de1fd2c45a35389bc47d6e29757a',
+  getOpsxNewCommandTemplate: '63fad016276d99c5325637bb2e9a2a375508e3e0b2f08de244f462a3287e8efc',
+  getOpsxContinueCommandTemplate: '82928867ed095b1a39a375958b4e91d959a9347e37843dddc66f70bf85ca0ea1',
+  getOpsxApplyCommandTemplate: '610de2766882217300eb362194055e1ebf1889a8c077bbcff4eb9fae8b8a11b1',
+  getOpsxFfCommandTemplate: '95bc67362028d4f66073843e823f58192b32c717917d0cd69c98ef32f6366c48',
   getArchiveChangeSkillTemplate: '05b3971d0406c4709188ca0919fb089fcf72f24675d541b6bdffc43d5c89e913',
   getBulkArchiveChangeSkillTemplate: 'ad7b25a3dfd56bcfa237dd817849f9d6794b870f2fa1833d2480f574e01c6bd5',
   getOpsxSyncCommandTemplate: '9198dbb037358ba542987ccb7b31ace676de41b5476bfc09827cfa535bc65bf5',
   getVerifyChangeSkillTemplate: 'fc41a1c6d94db1fd3c373e9a7e29f06e6f0e4704595ffc7e004931eefbf0db0d',
   getOpsxArchiveCommandTemplate: '0bf3010dd3a6564c5efa455e7ef23a75ea976f2050533a7ad68e6356aa3bbe1d',
-  getOpsxOnboardCommandTemplate: '48c5baef9b05b6e773d04cfc02f8bf6dc7dd896daf74c34cdae8e44db87a990f',
+  getOpsxOnboardCommandTemplate: '1cd975ef1c65402ef464047667a912e13e730c99541198d12868aa3ebbf98306',
   getOpsxBulkArchiveCommandTemplate: '397083bf2877df645f298a8d4c09c60b070f17efe70ef79610fc98b1a5111c9a',
   getOpsxVerifyCommandTemplate: '0eb6e5c1224a267a1876faff7c805dd5e0e2cd7f3e36b8f5b20aa7315114e1d2',
-  getOpsxProposeSkillTemplate: 'e3e89bb24a767e1d8a16633d9abc48407dfc0d4be52bff6164a86a78ca496d9a',
-  getOpsxProposeCommandTemplate: '33c453a4248c47ab6b4b1bc10d8cfb85a139a19719024fccb92f03b668be0489',
+  getOpsxProposeSkillTemplate: 'fae28cc3a0fea447f523e73f978e1f0cccabefa509b0d534cfc88b0da1c9f486',
+  getOpsxProposeCommandTemplate: '542b86e971fbeb04c76b0fe1199e439e78b38774abb7b77581df82e258b9cad6',
   getFeedbackSkillTemplate: 'dabeb5e825b9349abc8156c3e7b8608f27987912a6d9bf47ef29addde6138133',
-  getUpdateChangeSkillTemplate: 'cc4f3c5ee3eaefa3126cd10a6c7333511d10772cf44f7e04b0ba1a64022af0b6',
-  getOpsxUpdateCommandTemplate: '2a51fa7418cd1656aaf2ec7e26e12020d93c7151413ac83aa0c204fc3ab7592c',
+  getUpdateChangeSkillTemplate: '3f7706b74a21ae5fba964a6589da1cd5ba18991b9ebb06ac3343295226d00ca9',
+  getOpsxUpdateCommandTemplate: '2fd741565374d8f26ca26c7428b6ed48e0ed9d0b4b32722b0a2629c7ef2b38b7',
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '03bbc849c167ddfa44ed4f8a78a3ee231983ffa1f2581316d5c8782d0b58cf9a',
+  'openspec-explore': '38eddc0bb50280799dd128c0673d57fc40beafb4330602890a565bce4a4442a7',
   'openspec-new-change': '865a0326f5b5257869ae9615e8b86f4b58f896b18a614f272bdbf49ca2a88371',
   'openspec-continue-change': 'c2ab331eacd0d2cbef6aa125f02063ce3e178f935b28809632ae4b644961049b',
-  'openspec-apply-change': '3bcdae74d624bc2656ab885e3f7ab2b8b3d445faab507d099f476db15bc20591',
-  'openspec-ff-change': '39fd2cea4fab5266f8083941b020662d040bf8baeddd891d2b549ad6c3f9d162',
+  'openspec-apply-change': 'efb30419f0fc22cf6cf68e9142eacecd670cbcf2717423288cc07ff64432f3ce',
+  'openspec-ff-change': '729cceff177bd8148b0cf2c5307ad2ee8d2ec5993dbf773e1a3dc8fc88ae6fd0',
   'openspec-sync-specs': '02bb0d11a10c7626e5e641f0505336527050ab4d9d8bb45e1351c6ed05c0dc7a',
   'openspec-archive-change': '2c169c6e2a91fe5f9d88389878976257825954efef4e6b6c02a79ad5cf9ac795',
   'openspec-bulk-archive-change': 'd1506fcc9f5380442582206f18df6e44d12d0e70665861cf1188c86a6a7ffb42',
   'openspec-verify-change': '8e547cddf53b89c95fc17d6c30decdc9a8b507bed242fae02b42a6f48c025177',
-  'openspec-onboard': '753d74d1a5714ba1191afd35ab0258a27c6c1ab1ff6e21374fe9c540984642ea',
-  'openspec-propose': 'b63374b24e1265833ee6b48212f763520cc79a2b022cb60a46bf24617723f507',
-  'openspec-update-change': 'b4d2dc0bd4e6a41dc053cd08b337a3cc8215b3f411dd25557deeb4b9ed5f5d7b',
+  'openspec-onboard': '4e661e271eadbbcf9cc1a87189637cc725de7624abac6f325c1b1a58aed6c6fe',
+  'openspec-propose': 'a02bf8d97ec10bd3a2a74ee67c7994d206ec55f55402121b9f7da36c22779833',
+  'openspec-update-change': 'cee18194a8b231376343a3fe2ab330145929ee310333d8684aa48422d1dd8b10',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
@@ -529,9 +529,7 @@ describe('skill templates split parity', () => {
 
     for (const [variant, content] of variants) {
       expect(content, variant).toContain('Planning is complete!');
-      expect(content, variant).toContain(
-        'Once implementation and any tracked work are complete, archive it'
-      );
+      expect(content, variant).not.toContain('archive it');
       expect(content, variant).not.toContain('All artifacts created!');
       expect(content, variant).not.toContain('or archive it');
     }

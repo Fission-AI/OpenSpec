@@ -2,26 +2,33 @@
 "@fission-ai/openspec": minor
 ---
 
-**Heads up for scripts and CI: `openspec init --tools …` in a new project now installs the skills for the machine, not into the project.** If a pipeline or setup script expects `.agents/skills/` in the repository, keep project installs with any one of:
+# OpenSpec now supports global skills for coding agents
 
-- `openspec init --scope project --tools …` for one run
-- `OPENSPEC_SKILLS_SCOPE=project` for a CI job or a shell
-- `openspec config set skillsScope project` for a machine, once
+As more teams adopt Vercel’s `skills` installer, it’s becoming a common way to install skills across coding tools. OpenSpec is adopting it too, so we can spend less time maintaining installer code and more time improving the skills themselves.
 
-Existing projects are not affected: a project that already has its own skills keeps them. With no choice made, a scripted run also installs in the project on its own, and says why, when it sets up a tool the global skills don't cover, asks for the Copilot cloud files, or has no `git`.
+Moving to Vercel’s installer gives OpenSpec native support for **global skill installation**. Your coding agent can use the same OpenSpec skills across projects. Vercel’s installer handles the location for each supported agent, whether it reads `~/.agents/skills/` or uses its own folder.
 
-**What's new**
+## What you’ll see when you upgrade
 
-Install the skills once for every project on your machine. `openspec init --scope global --tools claude,codex` puts one copy in `~/.agents/skills/` and leaves the project with only its `openspec/` folder. After that, plain `openspec init` uses the global skills for new projects, unless you saved `skillsScope` as `project` or set `OPENSPEC_SKILLS_SCOPE=project`, and plain `openspec update` refreshes them from any folder. To move a project that has its own skills, run `openspec init --scope global` there. `openspec update` names the projects that are left: `init` and `update` note each project they run in, in a `projects.json` in OpenSpec's data folder that never leaves your machine.
+With the new CLI, the next time you run `openspec update` from a repo that has its own OpenSpec skills, you’ll see this choice:
 
-At a terminal, your first `openspec init` asks where the skills should go and remembers the answer.
+```text
+Where should OpenSpec keep this project’s skills?
 
-Skills are now installed by Vercel's `skills` package, the one behind `npx skills`. It fetches the skills published in the OpenSpec repository for your CLI's version, so a machine-wide install needs `git` and a connection to GitHub. A project install goes through the same package and adds a `skills-lock.json` to the project; without `git` or a connection it still works, and the CLI writes the same skills itself.
+❯ Keep in this project   Keep the skills in this repo.
+  Switch to global       Share the skills across projects on this machine.
+```
 
-`openspec update` replaces the skills OpenSpec installed, for a project and for the machine, and names any you had edited. Keep changes of your own in a skill under another name.
+**Keep in this project.** Press Enter to keep the skill files in the repo. Your team keeps getting them through Git. Choose this if GitHub’s hosted Copilot agent needs to read them from the repo.
 
-If you already installed the skills with `npx skills add Fission-AI/OpenSpec --global`, `openspec update` takes them over. A folder that holds text or files of your own is left alone and named. Update keeps the global skills to your workflow profile, and names any it removes.
+**Switch to global.** We recommend this for most teams. OpenSpec installs your selected skills on your machine before removing the repo copies. Commit those removals. **After pulling that commit, each teammate runs `openspec update` once in their checkout.** Your team can then use the skills across projects without committing skill files or adding them to `.gitignore` in every repo.
 
-Every skill now reads the same whatever workflow profile you use. Where a skill hands off to another one, it says to use that skill if it is installed and what to do otherwise.
+Global skills are the default for new projects. Existing repos switch only when you choose to. Either way, `openspec config profile` still controls which workflows you install.
 
-`npx skills add Fission-AI/OpenSpec` now installs only the OpenSpec workflow skills. It used to add four skills meant for people working on OpenSpec itself.
+## Before you update
+
+- **Edited a built-in skill?** Both choices refreshes the built-in instructions. Save edits you want to keep first. Put team guidance in `openspec/config.yaml` under `rules` or `context`, or give a custom skill its own name.
+
+- **Upgrading the CLI?** `openspec update` can offer to upgrade it and continue. If it prints an upgrade command instead, run that command, then run `openspec update` again. Package installs require Node 22.20.0 or newer. The standalone executable includes its own runtime.
+
+- **Already installed the official skills globally with `npx skills add`?** Keep that install and run `openspec update`.

@@ -15,35 +15,35 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  * surfaces below so the skill and the command cannot drift apart.
  */
 const CONTINUE_SCOPE_NOTE =
-  'This workflow revises artifacts that already exist; it never creates missing ones. `/opsx:continue` is what creates the ones that do not exist yet, if that skill is installed. Otherwise, when an artifact is missing, `openspec status --change "<name>" --json` names the next one and `openspec instructions "<artifact-id>" --change "<name>" --json` explains how to create it.';
+  'Revise existing artifacts. If an artifact is missing, identify it and show the next ready artifact from `openspec status --change "<name>" --json`.';
 
 const CONTINUE_CREATE_THEM =
-  'point the user to `/opsx:continue` to create them if that skill is installed, or otherwise to `openspec instructions "<artifact-id>" --change "<name>" --json` for how to create them';
+  'show how to create the next ready artifact with `openspec instructions "<artifact-id>" --change "<name>" --json`';
 
 const CONTINUE_NEXT_STEP =
-  'suggest `/opsx:continue` to create them if that skill is installed. Otherwise run `openspec status --change "<name>" --json` for the next artifact and point the user to `openspec instructions "<artifact-id>" --change "<name>" --json` for how to create it';
+  'give the CLI command for the next ready artifact';
 
 const CONTINUE_DEFERRED =
-  'Anything deferred because it does not exist yet, which is work for `/opsx:continue` if that skill is installed (artifacts with no files yet and status `ready` or `blocked`, never `skipped` artifacts)';
+  'Missing artifacts deferred to a separate step (ready or blocked, excluding skipped artifacts)';
 
 const CONTINUE_FRONTIER =
-  'that is `/opsx:continue`\'s job if that skill is installed, and otherwise a separate step outside this workflow';
+  'create missing artifacts in a separate step';
 
 /**
  * `apply` and `archive` are in the `core` profile but not guaranteed in a
  * custom one, so their handoffs are worded the same way.
  */
 const APPLY_DELTA_HANDOFF =
-  'suggest `/opsx:apply` to carry the delta into code if that skill is installed, or otherwise say that the code may need updating and offer to carry the delta into it';
+  'tell the user which implementation tasks need revisiting';
 
 const APPLY_GUARDRAIL =
-  'stop and point to `/opsx:apply` if that skill is installed. Otherwise stop and say that the revised plan now implies code changes; implementing them is a separate step';
+  'stop after revising the plan and identify any code changes it calls for';
 
 const ARCHIVE_HANDOFF =
-  'suggest `/opsx:archive` if that skill is installed, or otherwise suggest archiving with `openspec archive "<name>"`';
+  'suggest archiving with `openspec archive "<name>"`';
 
 const INTENT_CHANGE_GUARDRAIL =
-  'recommend starting fresh with `/opsx:new` if that skill is installed, or otherwise ask for a distinct unused change name and recommend `openspec new change "<new-change-name>"` instead (the "Update vs. Start Fresh" heuristic)';
+  'ask for a distinct unused name and recommend `openspec new change "<new-change-name>"`';
 
 export function getUpdateChangeSkillTemplate(): SkillTemplate {
   return {

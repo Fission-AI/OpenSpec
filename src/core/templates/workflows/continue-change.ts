@@ -14,7 +14,7 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  * text is the same for every profile.
  */
 const PLANNING_COMPLETE_HANDOFF =
-  'You can now implement this change with `/opsx:apply`, or if that skill is not installed, `openspec instructions apply --change "<name>" --json` returns the tasks and how to work them. Once implementation and any tracked work are complete, archive it with `/opsx:archive`, or with `openspec archive "<name>"` if that skill is not installed.';
+  'The plan is ready for review. When you’re ready, ask me to apply it.';
 
 /**
  * A glob artifact reads `done` once one matching file exists, so a run

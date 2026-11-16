@@ -1,9 +1,7 @@
 /**
  * The projects on this machine that use OpenSpec.
  *
- * `openspec init` and `openspec update` note the project they ran in, so a
- * machine with the global skills can name the projects that still carry their
- * own. The list is a plain file in the global data folder. It never leaves
+ * `openspec init` and `openspec update` note the project they ran in, for future migrations. The list is a plain file in the global data folder. It never leaves
  * the machine, and nothing depends on it: a list that can't be read or
  * written is treated as empty and never fails a command.
  */
@@ -23,7 +21,6 @@ import {
 } from 'fs';
 import { OPENSPEC_DIR_NAME } from './config.js';
 import { getGlobalDataDir } from './global-config.js';
-import { projectHasOwnSkills } from './global-skills.js';
 
 export const KNOWN_PROJECTS_FILE_NAME = 'projects.json';
 
@@ -116,32 +113,4 @@ export function rememberProject(projectPath: string): void {
       // Nothing more to do.
     }
   }
-}
-
-const NAMED_AT_MOST = 5;
-
-/**
- * A note naming the other projects on this machine that still have their own
- * OpenSpec skills, for a machine that has the global ones.
- */
-export function otherProjectsNote(currentProjectPath: string): string | undefined {
-  let others: string[];
-  try {
-    const current = canonical(currentProjectPath);
-    // Compared by where each path leads today, so a project recorded under two names is one project.
-    others = [...new Set(readKnownProjects().map(canonical))].filter(
-      (project) => project !== current && isPlainPath(project) && projectHasOwnSkills(project)
-    );
-  } catch {
-    return undefined;
-  }
-  if (others.length === 0) return undefined;
-
-  const named = others.slice(0, NAMED_AT_MOST).map((project) => `  ${project}`);
-  if (others.length > NAMED_AT_MOST) named.push(`  and ${others.length - NAMED_AT_MOST} more`);
-  const subject =
-    others.length === 1
-      ? '1 other project on this machine still has its own OpenSpec skills:'
-      : `${others.length} other projects on this machine still have their own OpenSpec skills:`;
-  return [subject, ...named, 'To move one to the global skills, run this in it: openspec init --scope global'].join('\n');
 }

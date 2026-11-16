@@ -110,13 +110,13 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 | `--profile <profile>` | Override the global config profile for this run: `core` (the standard workflow set) or `custom` (the workflows saved in global config). |
 | `--no-animation` | Show a static welcome screen instead of the animated one. |
 | `--copilot-cloud`, `--no-copilot-cloud` | Write, or don't write, the files GitHub's hosted Copilot agent needs. They need the skills in the project. See [GitHub Copilot](supported-tools.md#github-copilot). |
-| `--scope <scope>` | Where the skills go: `global` installs them once for this machine, in `~/.agents/skills/` (needs `git` and a connection to GitHub); `project` installs them in the project. In a project that has its own skills, `--scope global` removes them, unless one was edited, the project is set up for a tool the global skills don't cover, or it has the Copilot cloud files. See [Install the skills once for every project](../start/setup.md#install-the-skills-once-for-every-project). |
+| `--scope <scope>` | Install skills for this machine (`global`) or commit them with the repo (`project`). |
 
-Without `--scope`, a project that has its own skills keeps them. A project without any uses the choice saved as [`skillsScope`](configuration/config-json.md#skillsscope), then the global skills if this machine has them. Otherwise an interactive init asks once, and a non-interactive one installs for the machine. With no choice made (no flag, environment variable or saved `skillsScope`), a non-interactive run falls back to the project, and says why, when it sets up a tool the global skills don't cover, asks for the Copilot cloud files, or has no `git`. Once global is chosen, it doesn't fall back: it stops and names `--scope project` if it is asked for the Copilot cloud files, has no `git`, or none of the selected tools can use the global skills. With a mix of tools, it sets up the ones that can and names the rest. `--scope global` also saves the choice if none is saved yet. `OPENSPEC_SKILLS_SCOPE=global` or `=project` sets the choice for a run without the flag.
+Existing repo skills stay in the project. For new setups, `--scope` takes precedence over `OPENSPEC_SKILLS_SCOPE`, then the machine’s `skillsScope` setting. The default is global unless a requested tool needs project scope or you request hosted Copilot.
 
 **Output**
 
-With the skills in the project (`--scope project`), OpenSpec writes them once, to `.agents/skills/`. Tools that need them get links in their own folder. MiniMax Code instead gets its own copy in `~/.minimax/skills/`:
+With the skills in the project (`--scope project`), OpenSpec writes them once, to `.agents/skills/`. Tools that need them get links in their own folder. Windows uses copies.
 
 ```
 ▌ OpenSpec structure created
@@ -151,7 +151,9 @@ openspec update --force     # rewrite files even when they're current
 openspec update --dry-run   # list what an update would change, and change nothing
 ```
 
-update finds the tools init configured and compares their skills with the text this CLI version publishes. If the skills are also [installed for this machine](../start/setup.md#install-the-skills-once-for-every-project), it brings those up to date too, and then it runs from any folder, not only a project. Outside a dry run, it then names the other projects on this machine that still have their own skills, from the [list init and update keep](../start/setup.md#install-the-skills-once-for-every-project). With `--dry-run`, a pending global refresh is shown as one note, not file by file, with further notes naming any global skill whose edits it would replace, any it would remove because your profile leaves it out, and any it would leave alone because it holds something of yours. When a newer OpenSpec release exists, it first offers to upgrade the CLI, then reruns with the upgraded version. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the check.
+Run update in a terminal to switch an existing project to global skills. Enter keeps the project skills. After the maintainer commits the removals, teammates run update in their checkouts to set up their tools. Runs without a terminal keep the current scope.
+
+Update refreshes the installed instructions from the running CLI, including after a downgrade. A pending global refresh appears as a note in the dry-run plan. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the CLI upgrade offer.
 
 **Arguments**
 

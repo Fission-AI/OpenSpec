@@ -14,11 +14,11 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  * same for every profile.
  */
 const BLOCKED_STATE_HANDOFF =
-  'suggest using `/opsx:continue` to create them if that skill is installed. Otherwise suggest completing the missing artifacts: run `openspec status --change "<name>" --json`, select the next `ready` artifact (not `skipped` or `blocked`), and use `openspec instructions "<artifact-id>" --change "<name>" --json` for its rules and template. Keep the selected `--store <id>` on both commands.';
+  'show the missing artifacts and the recovery step from the CLI’s `instruction` field. Keep the selected store on any follow-up command.';
 
 /** The archive handoff shown once every task is done. */
 const ARCHIVE_HANDOFF =
-  'You can archive this change with `/opsx:archive`, or with `openspec archive "<name>"` if that skill is not installed.';
+  'Review the completed work, then ask to archive this change.';
 
 /**
  * The apply workflow instructions, authored once and rendered by both the

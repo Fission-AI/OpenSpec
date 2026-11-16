@@ -18,10 +18,10 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  * the CLI and never invites "ask me to implement".
  */
 const SKILL_APPLY_HANDOFF =
-  'use the `/opsx:apply` skill if it is installed, or ask me to apply this change';
+  'ask me to apply it';
 
 const COMMAND_APPLY_HANDOFF =
-  'run `/opsx:apply`. If it is not installed, run `openspec instructions apply --change "<name>" --json` to get the tasks';
+  'run `openspec instructions apply --change "<name>" --json` for the tasks';
 
 export function getOpsxProposeSkillTemplate(): SkillTemplate {
   return {
@@ -161,7 +161,7 @@ After completing all artifacts, summarize:
 - Change name and location
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
-- Prompt: "The artifacts are ready for review. When you are ready, ${SKILL_APPLY_HANDOFF}."
+- Prompt: "The plan is ready for review. When you’re ready, ${SKILL_APPLY_HANDOFF}."
 
 **Artifact Creation Guidelines**
 

@@ -19,22 +19,15 @@ export function skillToolListPath(projectPath: string): string {
   return path.join(projectPath, SHARED_SKILLS_ROOT, 'skills', TOOL_LIST_FILE);
 }
 
-/**
- * The list file's content: tool ids, sorted, one per line; then a
- * `keep <skill>` line for each `openspec-*` skill in `.agents/skills/` that is
- * the user's (it was there before OpenSpec used the folder), which OpenSpec
- * never writes over or removes.
- */
+/** Sorted public tool IDs, with the 2.0 own-files marker where applicable. */
 export function formatSkillToolList(
   toolIds: Iterable<string>,
-  keptSkills: Iterable<string> = [],
   toolsWithOwnFiles: ReadonlySet<string> = new Set()
 ): string {
   return [
     // `own-files`: OpenSpec gave the tool files of its own (commands or
     // links), so deleting them all removes the tool.
     ...[...new Set(toolIds)].sort().map((id) => (toolsWithOwnFiles.has(id) ? `${id} own-files` : id)),
-    ...[...new Set(keptSkills)].sort().map((name) => `keep ${name}`),
   ].map((line) => `${line}\n`).join('');
 }
 
@@ -51,25 +44,6 @@ export function readListedToolsWithOwnFiles(projectPath: string, view: FileView 
         .map((line) => line.trim().split(/\s+/))
         .filter((tokens) => tokens[1] === 'own-files')
         .map((tokens) => tokens[0])
-    );
-  } catch {
-    return new Set();
-  }
-}
-
-/** The `openspec-*` skills in `.agents/skills/` recorded as the user's. */
-export function readKeptSharedSkills(projectPath: string, view: FileView = DISK_VIEW): Set<string> {
-  const listPath = skillToolListPath(projectPath);
-  try {
-    FileSystemUtils.assertProjectArtifactPath(projectPath, listPath);
-    if (!view.exists(listPath)) return new Set();
-    const names = new Set<string>(OPENSPEC_SKILL_NAMES);
-    return new Set(
-      view
-        .read(listPath)
-        .split(/\r?\n/)
-        .map((line) => line.trim().match(/^keep\s+(\S+)$/)?.[1])
-        .filter((name): name is string => name !== undefined && names.has(name))
     );
   } catch {
     return new Set();

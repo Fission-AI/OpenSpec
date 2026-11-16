@@ -14,10 +14,10 @@ import { PROJECT_ROOT_GUARD } from './project-root.js';
  * profile and the agent reading it can see which skills it has.
  */
 const FIRST_ARTIFACT_PROMPT =
-  'Use the `/opsx:continue` skill if it is installed, or just describe what this change is about and I\'ll draft it.';
+  'Describe what this change should do and I’ll draft the first artifact.';
 
 const EXISTING_CHANGE_HINT =
-  'suggest using `/opsx:continue` instead if that skill is installed. Otherwise say so and ask whether to resume that change or pick a different name';
+  'ask whether to resume that change or start one with a different name';
 
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {

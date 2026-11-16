@@ -34,6 +34,7 @@
     "dist",
     "bin",
     "schemas",
+    "skills",
     "!dist/**/*.test.js",
     "!dist/**/__tests__",
     "!dist/**/*.map"
@@ -57,7 +58,7 @@
     "changeset": "changeset"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.20.0"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.0",

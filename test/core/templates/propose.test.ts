@@ -370,37 +370,11 @@ describe('propose implementation boundary', () => {
     }
   });
 
-  it('hands command-only tools to apply instead of advertising direct coding (#258)', () => {
-    expect(proposeCommandBody).toContain('When you are ready, run `/opsx:apply`.');
-    expect(proposeCommandBody).not.toContain('ask me to implement');
-    expect(proposeCommandBody).not.toContain('ask me to apply this change');
-
-    expect(proposeSkillBody).toContain(
-      'use the `/opsx:apply` skill if it is installed, or ask me to apply this change'
-    );
-    expect(proposeSkillBody).not.toContain('ask me to implement');
-  });
-
-  // The same boundary has to hold when `apply` is not installed: the command
-  // surface may name the CLI, never a conversational handoff (#1734).
-  it('keeps command-only tools off direct coding when apply is not installed', () => {
-    const command = getOpsxProposeCommandTemplate().content;
-    const skill = getOpsxProposeSkillTemplate().instructions;
-    const ffCommand = getOpsxFfCommandTemplate().content;
-
-    expect(command).toContain(
-      'run `/opsx:apply`. If it is not installed, run `openspec instructions apply --change "<name>" --json` to get the tasks'
-    );
-    expect(command).not.toContain('ask me to implement');
-    expect(command).not.toContain('ask me to apply this change');
-
-    expect(ffCommand).toContain(
-      'Run `/opsx:apply` to start implementing. If it is not installed, run `openspec instructions apply --change "<name>" --json` to get the task list'
-    );
-    expect(ffCommand).not.toContain('ask me to implement');
-
-    expect(skill).toContain('use the `/opsx:apply` skill if it is installed, or ask me to apply this change');
-    expect(skill).not.toContain('ask me to implement');
+  it('stops for review and gives a next step that works without optional skills', () => {
+    expect(proposeSkillBody).toContain('The plan is ready for review. When you’re ready, ask me to apply it.');
+    for (const command of [proposeCommandBody, getOpsxFfCommandTemplate().content]) {
+      expect(command).toContain('openspec instructions apply --change "<name>" --json');
+    }
   });
 
   it('preserves planning and initialization boundaries through every command adapter', () => {
@@ -411,10 +385,6 @@ describe('propose implementation boundary', () => {
 
     for (const adapter of CommandAdapterRegistry.getAll()) {
       const generated = generateCommand(propose, adapter).fileContent;
-      const applyInvocation = formatCommandInvocation(
-        getInvocationForAdapter(adapter),
-        'apply'
-      );
       expect(generated, adapter.toolId).toContain(
         'selected or triggered this workflow authorizes planning only'
       );
@@ -428,9 +398,7 @@ describe('propose implementation boundary', () => {
       expect(generated, adapter.toolId).toContain(
         'wait for a new user request to start the apply workflow'
       );
-      expect(generated, adapter.toolId).toContain(
-        `When you are ready, run \`${applyInvocation}\`.`
-      );
+      expect(generated, adapter.toolId).toContain('openspec instructions apply');
       expect(generated, adapter.toolId).not.toContain('ask me to implement');
       expect(generated, adapter.toolId).toContain('stop without creating or changing any files');
       expect(generated, adapter.toolId).toContain('Offer `openspec init`');

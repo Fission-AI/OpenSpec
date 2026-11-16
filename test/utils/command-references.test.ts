@@ -313,39 +313,10 @@ describe('getTransformerForTool', () => {
 describe('apply skill template generates valid per-target invocations', () => {
   const skill = getApplyChangeSkillTemplate().instructions;
 
-  it('authors invocation references as transformable /opsx:* tokens', () => {
-    expect(skill).toContain('/opsx:apply add-auth');
-    expect(skill).toContain('suggest using `/opsx:continue`');
-    expect(skill).toContain('archive this change with `/opsx:archive`');
-    // No bare, non-transformable skill-name prose remains.
-    expect(skill).not.toContain('suggest using openspec-continue-change');
-  });
-
-  // The blocked-state answer for an installation without `continue` (#1734).
-  // The fallback has to stand on its own: the agent gets no workflow to hand
-  // off to, so it needs the whole CLI recovery, not a shortened version of
-  // the handoff.
-  it('gives the full CLI recovery when continue is not installed', () => {
-    const blocked = skill.slice(
-      skill.indexOf('If `state: "blocked"`'),
-      skill.indexOf('If `state: "all_done"`')
-    );
-
-    expect(blocked).toContain(
-      'suggest using `/opsx:continue` to create them if that skill is installed. Otherwise suggest completing the missing artifacts'
-    );
-    expect(blocked).toContain('pause implementation');
-    expect(blocked).toContain('If `missingArtifacts` is non-empty');
-    expect(blocked).toContain('openspec status --change "<name>" --json');
-    expect(blocked).toContain('next `ready` artifact (not `skipped` or `blocked`)');
-    expect(blocked).toContain('openspec instructions "<artifact-id>" --change "<name>" --json');
-    expect(blocked).toContain('Keep the selected `--store <id>` on both commands');
-    expect(blocked).toContain(
-      'Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file'
-    );
-    expect(blocked).toContain(
-      'Do not assume another artifact is ready or start implementation while blocked'
-    );
+  it('uses the CLI recovery from the blocked state before implementation resumes', () => {
+    const blocked = skill.slice(skill.indexOf('If `state: "blocked"`'), skill.indexOf('If `state: "all_done"`'));
+    expect(blocked).toContain('recovery step from the CLI’s `instruction` field');
+    expect(blocked).toContain('Keep the selected store');
   });
 
   const cases = [
@@ -354,11 +325,9 @@ describe('apply skill template generates valid per-target invocations', () => {
     { tool: 'kimi', transform: getSkillReferenceTransformer('kimi'), cont: '/skill:openspec-continue-change', arch: '/skill:openspec-archive-change', apply: '/skill:openspec-apply-change' },
   ];
 
-  for (const { tool, transform, cont, arch, apply } of cases) {
-    it(`emits ${tool} skill invocations for continue, apply, and archive`, () => {
+  for (const { tool, transform, apply } of cases) {
+    it(`emits ${tool} skill invocations for the selected change`, () => {
       const out = transform(skill);
-      expect(out).toContain(cont);
-      expect(out).toContain(arch);
       expect(out).toContain(`${apply} add-auth`);
       // No canonical token survives the rewrite.
       expect(out).not.toMatch(/\/opsx:(continue|apply|archive)/);

@@ -1,662 +1,156 @@
-/**
- * Writes the one shared copy of OpenSpec's skills to `.agents/skills/`, links
- * it into the own folder of each tool that doesn't read that folder, and moves
- * skills earlier releases wrote into each tool's own folder out of the way.
- *
- * Nothing the user wrote or changed is removed: a link spot or an old copy is
- * replaced only when it is empty, already a link to the shared copy, equal to
- * the shared copy, or untouched output of an earlier release.
- */
-import path from 'path';
-import * as fs from 'fs';
-import { OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
+import path from 'node:path';
+import { realpathSync } from 'node:fs';
+import { getSupportedAgents } from 'skills';
+import { installerAgent, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
+import { FileSystemUtils } from '../../utils/file-system.js';
 import type { FileView } from '../file-view.js';
 import type { UpdateFileOps } from '../update-plan.js';
-import { transformToSharedSkillReferences } from '../../utils/command-references.js';
-import { FileSystemUtils } from '../../utils/file-system.js';
-import { formatSkillToolList, hasSkillToolList, readKeptSharedSkills, skillToolListPath } from '../shared-skill-target.js';
-import { generateSkillContent, getSkillTemplates, stripVolatileFrontmatter } from './skill-generation.js';
-import { sharedSkillTexts } from './own-skill-texts.js';
-import { classifySkillFile, classifySkillLinkSpot, isOsJunk } from './skill-links.js';
-import {
-  describeSkillsError,
-  dropFromProjectLock,
-  rehashProjectLock,
-  GitMissingError,
-  installProjectSkills,
-  lockedProjectSkills,
-  plannedProjectLock,
-  projectLockPath,
-  removeLockedProjectSkills,
-} from '../global-skills.js';
+import { pruneEmptyParents } from '../released-output-sweep.js';
+import { formatSkillToolList, skillToolListPath } from '../shared-skill-target.js';
+import { bundledSkillContents, installBundledSkills, removeManagedSkills } from '../skill-installer.js';
 import { resolveFormerOwnSkillsDir, resolveSharedSkillsDir, resolveSkillLinkDir, usesSharedSkills } from './skill-paths.js';
 
-/**
- * The shared copy's content for each skill of the given workflows (every
- * workflow when omitted), by folder name: the published text, the same the
- * repository's `skills/` folder holds, with no version stamp.
- */
-export function sharedSkillContents(version: string, workflows?: readonly string[]): Map<string, string> {
-  return new Map(
-    getSkillTemplates(workflows).map(({ template, dirName }) => [
-      dirName,
-      stripVolatileFrontmatter(generateSkillContent(template, version, transformToSharedSkillReferences)),
-    ])
-  );
-}
-
-export interface SharedSkillInstallInput {
+interface SharedSkillInstallInput {
   projectPath: string;
-  /** Every tool set up in the project; tools that keep their own folder are ignored. */
   tools: readonly AIToolOption[];
-  /** The OpenSpec version: the skills published with that release are the ones installed. */
   version: string;
-  /** The workflows a tool should have, from its profile (or a legacy override). */
   workflowsFor: (toolId: string) => readonly string[];
   ops: UpdateFileOps;
-  /** The tree as this run has it so far. */
   view: FileView;
-  /** Whether this run writes to disk (false for a dry run). */
   writesToDisk: boolean;
 }
 
 export interface SharedSkillInstallResult {
-  /** Skills written to `.agents/skills/`. */
   writtenSkillCount: number;
-  /** Shared skills removed because no set-up tool needs them any more. */
   removedSkillCount: number;
-  /** Untouched copies earlier releases left in tools' own folders, removed or replaced by a link. */
-  replacedOldCopyCount: number;
-  /** Project-relative folders kept because they hold something of the user's. */
-  kept: string[];
-  /** Tools' old skills folders that link out of the project and still hold OpenSpec skills. */
-  linkedOutside: string[];
-  /**
-   * Shared skills refreshed this run whose text was neither this version's
-   * nor a release's: the user had edited them, and the edit was replaced.
-   */
-  refreshedEdited: string[];
-  /**
-   * Why the skills could not be fetched with the `skills` package, when they
-   * were written from this CLI instead, without that package's lock file.
-   */
-  unfetched?: string;
-  /** What the package reported for single skills it could not install; the CLI wrote those. */
-  partlyFetched?: string;
-  /** Why skills-lock.json still lists skills that were removed, when it could not be rewritten. */
-  lockNotUpdated?: string;
-  /**
-   * Tools whose own skills folder could not be brought up to date (for
-   * example it is a link out of the project). The shared copy is still
-   * written; only these tools fail.
-   */
   toolFailures: Map<string, Error>;
 }
 
-const toPosix = (p: string) => p.split(path.sep).join('/');
+function readSkill(dir: string, name: string, view: FileView) {
+  try {
+    return view.read(path.join(dir, name, 'SKILL.md')).replaceAll('\r\n', '\n');
+  } catch {
+    return undefined;
+  }
+}
 
-/**
- * Brings `.agents/skills/` and the tools' own skill folders to the state the
- * set-up tools need. Run once per `init` or `update`, before any tool's
- * former-root migration (which needs the shared copy in place).
- */
+function present(dir: string, view: FileView) {
+  return view.exists(dir) || view.linkTarget?.(dir) !== undefined;
+}
+
+export function ownSkillFolderNeedsWork(project: string, tool: AIToolOption, wanted: ReadonlySet<string>, view: FileView) {
+  const shared = resolveSharedSkillsDir(project);
+  const target = resolveSkillLinkDir(project, tool);
+  const former = resolveFormerOwnSkillsDir(project, tool);
+  return OPENSPEC_SKILL_NAMES.some(name => {
+    if (target && wanted.has(name)) {
+      const content = readSkill(target, name, view);
+      return content === undefined || content !== readSkill(shared, name, view);
+    }
+    return Boolean(former && present(path.join(former, name), view) &&
+      !(view.linkTarget?.(path.join(former, name)) && !target && wanted.has(name)));
+  });
+}
+
 export async function installSharedSkills(input: SharedSkillInstallInput): Promise<SharedSkillInstallResult> {
   const { projectPath, ops, view } = input;
   const tools = input.tools.filter(usesSharedSkills);
-  const result: SharedSkillInstallResult = {
-    writtenSkillCount: 0,
-    removedSkillCount: 0,
-    replacedOldCopyCount: 0,
-    kept: [],
-    linkedOutside: [],
-    refreshedEdited: [],
-    toolFailures: new Map(),
-  };
-  if (tools.length === 0) return result;
-
-  const sharedDir = resolveSharedSkillsDir(projectPath);
-  const workflows = [...new Set(tools.flatMap((tool) => [...input.workflowsFor(tool.value)]))];
-  // Wanted skills as written now; any other skill as a full install renders it,
-  // only to recognize a copy of it.
-  const contents = new Map([
-    ...sharedSkillContents(input.version),
-    ...(workflows.length > 0 ? sharedSkillContents(input.version, workflows) : []),
-  ]);
-  const wanted = new Set(getSkillTemplates(workflows).map(({ dirName }) => dirName));
-  const relative = (p: string) => toPosix(path.relative(projectPath, p));
-
-  // What the shared copy held before this run: a plain copy made where a link
-  // couldn't be is still OpenSpec's when it matches that, after a profile
-  // change or a new wording.
-  const previous = new Map<string, string>();
-  for (const skillName of OPENSPEC_SKILL_NAMES) {
-    try {
-      previous.set(skillName, view.read(path.join(sharedDir, skillName, 'SKILL.md')));
-    } catch {
-      // No shared copy of this skill yet.
-    }
-  }
-  // Until a project lists its tools, `.agents/skills` is not yet OpenSpec's:
-  // an `openspec-*` skill already there (from `npx skills`, or written by
-  // hand) is the user's unless it is text OpenSpec wrote. Such a skill is
-  // recorded in the list, so later runs keep leaving it alone; deleting it
-  // hands the name back to OpenSpec.
-  const sharedIsOurs = hasSkillToolList(projectPath, view);
-  const previouslyKept = readKeptSharedSkills(projectPath, view);
-  // The previous shared text is OpenSpec's only once the folder is, and never
-  // for a skill kept as the user's.
-  const generatedTexts = (skillName: string): string[] => sharedSkillTexts(skillName, input.version);
-  const oursFor = (skillName: string) =>
-    [
-      ...generatedTexts(skillName),
-      sharedIsOurs && !previouslyKept.has(skillName) ? previous.get(skillName) : undefined,
-    ].filter((text): text is string => text !== undefined);
-  const keptShared = new Set<string>();
-  const keepAsUsers = (skillName: string) => {
-    keptShared.add(skillName);
-    if (!previouslyKept.has(skillName)) result.kept.push(relative(path.join(sharedDir, skillName)));
-  };
-  for (const skillName of OPENSPEC_SKILL_NAMES) {
-    const skillDir = path.join(sharedDir, skillName);
-    // OpenSpec never links a shared skill: a link there is the user's (a
-    // team's skill kept elsewhere), and nothing is written through it.
-    if (view.linkTarget?.(skillDir) !== undefined || view.linkTarget?.(path.join(skillDir, 'SKILL.md')) !== undefined) {
-      keepAsUsers(skillName);
-      continue;
-    }
-    // A file where a skill's folder goes (such as a link git checked out as
-    // text) is the user's too: kept, and nothing is written beneath it.
-    if (view.exists(skillDir) && !view.isDirectory(skillDir)) {
-      keepAsUsers(skillName);
-      continue;
-    }
-    if (!view.exists(path.join(skillDir, 'SKILL.md'))) continue;
-    if (previouslyKept.has(skillName)) {
-      // Still the user's only while its text isn't OpenSpec's. An older CLI
-      // marks a skill this one installed as kept, because it carries no
-      // version line; that must not freeze it.
-      if (classifySkillFile(skillDir, generatedTexts(skillName), view) === 'user') keptShared.add(skillName);
-    } else if (!sharedIsOurs && classifySkillFile(skillDir, oursFor(skillName), view) === 'user') {
-      keepAsUsers(skillName);
-    }
-  }
-  const sharedSpotIsUsers = (skillName: string): boolean => keptShared.has(skillName);
-  const readOr = (filePath: string): string | undefined => {
-    try {
-      return view.read(filePath);
-    } catch {
-      return undefined;
-    }
-  };
-
-  // 1. The one shared copy, and the list of tools set up here.
-  const lockPath = projectLockPath(projectPath);
-  // A lock file that is a link out of the project is never written through:
-  // the package would follow it. The skills are then written from the CLI.
-  let lockInProject = true;
-  try {
-    FileSystemUtils.assertPathWithin(projectPath, lockPath);
-  } catch {
-    lockInProject = false;
-  }
-  const lockBefore = lockInProject ? readOr(lockPath) : undefined;
-  const locked = lockedProjectSkills(lockBefore);
-  // Skills for the `skills` package to install: the ones not yet this
-  // version's text, or not in its lock file.
-  const toFetch: string[] = [];
-  for (const dirName of wanted) {
-    if (sharedSpotIsUsers(dirName)) continue;
-    const skillDir = path.join(sharedDir, dirName);
-    const skillFile = path.join(skillDir, 'SKILL.md');
-    FileSystemUtils.assertPathWithin(projectPath, skillFile);
-    // A skill OpenSpec installs is refreshed in place, as in 1.x. When the
-    // text being replaced is the user's edit, say so: it is not kept.
-    if (classifySkillFile(skillDir, generatedTexts(dirName), view) === 'user') {
-      result.refreshedEdited.push(relative(skillFile));
-    }
-    result.writtenSkillCount += 1;
-    if (holdsOtherFiles(skillDir) || view.isDirectory(skillFile)) {
-      // The package replaces a skill's whole folder. Files the user keeps
-      // beside SKILL.md stay (and a folder where SKILL.md goes still stops
-      // the write), so this one is written from the CLI.
-      await ops.writeFile(skillFile, contents.get(dirName)!, 'openspec');
-    } else if (readOr(skillFile) !== contents.get(dirName) || !locked.has(dirName)) {
-      toFetch.push(dirName);
-    }
-  }
-  // The package also makes a tool's links where that leaves exactly what the
-  // link step below would: each spot free or already a link, in a folder of
-  // the project. Old copies, the user's own folders and Windows (where it
-  // makes junctions, not relative links) stay with the link step.
-  const packageMayLink = (tool: AIToolOption): boolean => {
-    const linkDir = resolveSkillLinkDir(projectPath, tool);
-    if (!linkDir || process.platform === 'win32') return false;
-    if (isSameFolderTree(linkDir, sharedDir) || !ownFolderInProject(projectPath, linkDir)) return false;
-    return toFetch.every((skillName) => {
-      const spot = classifySkillLinkSpot(
-        path.join(linkDir, skillName),
-        path.join(sharedDir, skillName),
-        oursFor(skillName),
-        view
-      );
-      return spot === 'missing' || spot === 'link';
-    });
-  };
-  // Never in a dry run: it plans the same text, written below.
-  if (toFetch.length > 0 && input.writesToDisk && !lockInProject) {
-    result.unfetched = 'skills-lock.json links outside the project';
-  } else if (toFetch.length > 0 && input.writesToDisk) {
-    try {
-      const failures = await installProjectSkills({
-        projectPath,
-        linkedTools: tools.filter(packageMayLink),
-        skills: toFetch,
-        version: input.version,
-      });
-      if (failures.length > 0) result.partlyFetched = failures.join('; ');
-    } catch (error) {
-      // A project install never fails for lack of git or a connection.
-      result.unfetched = error instanceof GitMissingError ? "git isn't on your PATH" : describeSkillsError(error);
-    }
-  }
-  // What the package did not leave as this version's text (nothing fetched, or
-  // a release whose tag isn't published yet) is written from the CLI.
-  const corrected = new Map<string, string>();
-  for (const dirName of toFetch) {
-    const skillFile = path.join(sharedDir, dirName, 'SKILL.md');
-    if (readOr(skillFile) !== contents.get(dirName)) {
-      await ops.writeFile(skillFile, contents.get(dirName)!, 'openspec');
-      corrected.set(dirName, contents.get(dirName)!);
-    }
-  }
-  // The lock file must describe the text that is there, or the package reads
-  // the skill as edited. Only entries it already recorded are touched.
-  if (input.writesToDisk && lockInProject && corrected.size > 0) {
-    try {
-      rehashProjectLock(projectPath, corrected);
-    } catch {
-      // The skills are right either way; only the record is behind.
-    }
-  }
-  const unlocked: string[] = [];
-  for (const skillName of OPENSPEC_SKILL_NAMES) {
-    if (wanted.has(skillName)) continue;
-    const skillDir = path.join(sharedDir, skillName);
-    if (!view.exists(skillDir)) {
-      // Already gone from disk: its record goes too.
-      if (locked.has(skillName) && !sharedSpotIsUsers(skillName)) unlocked.push(skillName);
-      continue;
-    }
-    if (sharedSpotIsUsers(skillName)) continue;
-    // A deselected skill goes; any other file the user keeps beside its
-    // SKILL.md stays, and so does a SKILL.md the user edited (it is theirs
-    // from now on, recorded as kept).
-    // Judged against OpenSpec's text alone (this version's), never against
-    // what the file held before this run, which it always equals.
-    const generated = generatedTexts(skillName);
-    if (
-      view.isDirectory(skillDir) &&
-      view.exists(path.join(skillDir, 'SKILL.md')) &&
-      classifySkillFile(skillDir, generated, view) === 'user'
-    ) {
-      keepAsUsers(skillName);
-      continue;
-    }
-    const spot = classifySkillLinkSpot(skillDir, skillDir, generated, view);
-    if (spot === 'user' && !view.isDirectory(skillDir)) {
-      keepAsUsers(skillName);
-      continue;
-    }
-    unlocked.push(skillName);
-    if (spot === 'user') {
-      if (view.exists(path.join(skillDir, 'SKILL.md'))) {
-        await ops.removeFile(path.join(skillDir, 'SKILL.md'), 'openspec');
-        result.removedSkillCount += 1;
-        if (input.writesToDisk) removeIfEmpty(skillDir);
-      }
-      continue;
-    }
-    // Through the package first when it has the skill on record, so its lock
-    // file stays right; what it leaves goes below.
-    if (input.writesToDisk && lockInProject && locked.has(skillName)) {
-      await removeLockedProjectSkills(projectPath, [skillName]).catch(() => {});
-    }
-    await ops.removeDirectory(skillDir, 'openspec');
-    result.removedSkillCount += 1;
-  }
-  // The lock file records no skill OpenSpec removed, and is gone once it
-  // records none at all. A dry run plans it as the real run leaves it.
-  if (input.writesToDisk) {
-    if (unlocked.length > 0 && lockInProject) {
-      try {
-        dropFromProjectLock(projectPath, unlocked, unlocked.some((name) => locked.has(name)));
-      } catch (error) {
-        // The skills are removed either way; only the record is behind.
-        result.lockNotUpdated = error instanceof Error ? error.message : String(error);
-      }
-    }
-  } else if (toFetch.length > 0 || unlocked.length > 0) {
-    const planned = plannedProjectLock(
-      lockBefore,
-      new Map(toFetch.map((name) => [name, contents.get(name)!])),
-      unlocked
-    );
-    if (planned === undefined) {
-      if (lockBefore !== undefined) await ops.removeFile(lockPath, 'openspec');
-    } else if (planned !== lockBefore) {
-      await ops.writeFile(lockPath, planned, 'openspec');
-    }
-  }
-  const listPath = skillToolListPath(projectPath);
-  // Kept as long as it records a skill of the user's in the shared folder.
-  if (wanted.size > 0 || keptShared.size > 0) {
-    // Tools that get files of their own this run: links.
-    const withOwnFiles = new Set(
-      tools
-        .filter((tool) => resolveSkillLinkDir(projectPath, tool) !== undefined)
-        .map((tool) => tool.value)
-    );
-    await ops.writeFile(listPath, formatSkillToolList(tools.map((tool) => tool.value), keptShared, withOwnFiles), 'openspec');
-  } else if (view.exists(listPath)) {
-    // No workflows selected and nothing of the user's to record.
-    await ops.removeFile(listPath, 'openspec');
-  }
-
-  // 2. Each tool's own skills folder: links for the tools that need them, and
-  //    old copies out of the way everywhere else.
+  const result: SharedSkillInstallResult = { writtenSkillCount: 0, removedSkillCount: 0, toolFailures: new Map() };
+  if (!tools.length) return result;
+  const shared = resolveSharedSkillsDir(projectPath);
+  FileSystemUtils.assertPathWithin(projectPath, shared);
+  const workflows = [...new Set(tools.flatMap(tool => [...input.workflowsFor(tool.value)]))];
+  const contents = bundledSkillContents(input.version, workflows);
+  const agents = new Set(['universal']);
+  const targets = new Map<string, string>([[shared, 'openspec']]);
+  const legacy = new Set<string>();
   for (const tool of tools) {
-    const linkDir = resolveSkillLinkDir(projectPath, tool);
-    const ownDir = linkDir ?? resolveFormerOwnSkillsDir(projectPath, tool);
-    if (!ownDir) continue;
-    // A tool whose own skills folder is the shared one (a link the user made
-    // in 1.x to share skills) already reads the shared copy through it.
-    if (isSameFolderTree(ownDir, sharedDir)) continue;
+    const target = resolveSkillLinkDir(projectPath, tool);
+    const former = resolveFormerOwnSkillsDir(projectPath, tool);
     try {
-      await settleOwnSkillsFolder(tool, ownDir, linkDir);
+      if (target) FileSystemUtils.assertPathWithin(projectPath, target);
+      if (target) targets.set(target, tool.value);
+      agents.add(installerAgent(tool.value).id);
+      for (const old of [former, ...(tool.legacySkillsDirs ?? []).map(root => path.join(projectPath, root, 'skills'))]) {
+        if (!old || old === target || old === shared) continue;
+        try {
+          FileSystemUtils.assertPathWithin(projectPath, old);
+          if (view.linkTarget?.(old)) continue;
+          if (view.exists(old) && view.exists(shared) && realpathSync(old) === realpathSync(shared)) continue;
+          legacy.add(old);
+        } catch {
+          // Earlier tools sometimes linked their entire skills folder to a shared home.
+        }
+      }
     } catch (error) {
-      result.toolFailures.set(tool.value, error instanceof Error ? error : new Error(String(error)));
+      result.toolFailures.set(tool.value, error as Error);
     }
   }
-
-  async function settleOwnSkillsFolder(tool: AIToolOption, ownDir: string, linkDir: string | undefined) {
-    // The folder itself must stay in the project: one linked elsewhere is
-    // refused, as every other write is. A single skill's link is the user's
-    // business and is classified (and kept) below.
-    if (!linkDir && !ownFolderInProject(projectPath, ownDir)) {
-      // A tool that reads `.agents/skills` needs nothing here; an old folder
-      // linked out of the project is left alone, not a failure. Old OpenSpec
-      // skills in it are reported, since the tool may load them twice.
-      let names: string[] = [];
-      try {
-        names = view.listDirectory ? view.listDirectory(ownDir) : fs.readdirSync(ownDir);
-      } catch {
-        names = [];
-      }
-      if (names.some((name) => (OPENSPEC_SKILL_NAMES as readonly string[]).includes(name))) {
-        result.linkedOutside.push(relative(ownDir));
-      }
-      return;
-    }
-    FileSystemUtils.assertPathWithin(projectPath, ownDir);
-    const linksWanted = linkDir !== undefined;
-    for (const skillName of OPENSPEC_SKILL_NAMES) {
-      const spotPath = path.join(ownDir, skillName);
-      const spot = classifySkillLinkSpot(spotPath, path.join(sharedDir, skillName), oursFor(skillName), view);
-      if (spot === 'missing') {
-        if (linksWanted && wanted.has(skillName)) {
-          await ops.linkSkill(spotPath, path.join(sharedDir, skillName), tool.value);
+  const install = new Set<string>();
+  const remove = new Set<string>();
+  for (const [dir, tool] of targets) {
+    for (const name of OPENSPEC_SKILL_NAMES) {
+      const spot = path.join(dir, name);
+      const text = contents.get(name);
+      if (text !== undefined) {
+        if (readSkill(dir, name, view) === text) continue;
+        install.add(name);
+        if (!input.writesToDisk) {
+          if (dir === shared || process.platform === 'win32') {
+            if (present(spot, view)) await ops.removeDirectory(spot, tool);
+            await ops.writeFile(path.join(spot, 'SKILL.md'), text, tool);
+          }
+          else await ops.linkSkill(spot, path.join(shared, name), tool);
         }
-        continue;
+      } else if (present(spot, view)) {
+        remove.add(name);
+        if (!input.writesToDisk) await ops.removeDirectory(spot, tool);
       }
-      if (spot === 'user') {
-        // A tool that reads `.agents/skills` would load an untouched old
-        // SKILL.md here a second time; the user's other files stay.
-        const skillFile = classifySkillFile(spotPath, oursFor(skillName), view);
-        if (!linkDir && (skillFile === 'copy' || skillFile === 'released')) {
-          await ops.removeFile(path.join(spotPath, 'SKILL.md'), tool.value);
-          if (skillFile === 'released') result.replacedOldCopyCount += 1;
-          continue;
-        }
-        result.kept.push(relative(spotPath));
-        continue;
-      }
-      if (linksWanted && wanted.has(skillName)) {
-        // A link already in place stays, and so does a fallback copy equal to
-        // the shared copy (made where links can't be). An old copy becomes a
-        // link.
-        if (
-          spot === 'copy' &&
-          !sharedSpotIsUsers(skillName) &&
-          readOr(path.join(spotPath, 'SKILL.md')) === contents.get(skillName)
-        ) {
-          continue;
-        }
-        if (spot !== 'link') {
-          await ops.linkSkill(spotPath, path.join(sharedDir, skillName), tool.value);
-          if (spot === 'released') result.replacedOldCopyCount += 1;
-        }
-        continue;
-      }
-      // Not wanted here: a tool that reads `.agents/skills` would load an old
-      // copy twice, and a deselected skill's link points at nothing.
-      if (spot === 'link' && !linkDir) continue; // someone else's link; not ours to remove
-      // A link to a skill kept as the user's points at their skill, not ours.
-      if (spot === 'link' && sharedSpotIsUsers(skillName)) continue;
-      await ops.removeDirectory(spotPath, tool.value);
-      if (spot === 'released') result.replacedOldCopyCount += 1;
-    }
-    if (input.writesToDisk) {
-      removeIfEmpty(ownDir);
-      // The tool's folder too (`.cline/` once `.cline/skills/` is gone), when
-      // OpenSpec's skills were all it held. Never the project itself.
-      const toolDir = path.dirname(ownDir);
-      if (path.resolve(toolDir) !== path.resolve(projectPath)) removeIfEmpty(toolDir);
     }
   }
-
-  if (input.writesToDisk && wanted.size === 0) {
-    removeIfEmpty(sharedDir);
-    removeIfEmpty(path.dirname(sharedDir));
+  if (input.writesToDisk) {
+    const options = { scope: 'project', cwd: realpathSync(projectPath), agents: [...agents] } as const;
+    const failures = await installBundledSkills(options, [...install], input.version);
+    for (const tool of tools) {
+      const failure = failures.get(installerAgent(tool.value).id) ?? failures.get('universal');
+      if (failure) result.toolFailures.set(tool.value, failure);
+    }
+    if (result.toolFailures.size) return result;
+    // All universal agents share the canonical folder. Letting one keep it
+    // would leave excluded workflows visible after removal.
+    const removeAgents = new Set([...agents, ...getSupportedAgents().filter(agent => agent.universal).map(agent => agent.id)]);
+    await removeManagedSkills({ ...options, agents: [...removeAgents] }, [...remove]);
+    // The package cannot discover a built-in with missing or invalid
+    // frontmatter, or remove an untracked copy under a non-hidden tool root.
+    for (const dir of targets.keys()) {
+      for (const name of remove) {
+        const spot = path.join(dir, name);
+        if (present(spot, view)) await ops.removeDirectory(spot, 'openspec');
+      }
+    }
   }
+  // Only old OpenSpec layouts live outside the package's target directories.
+  for (const dir of legacy) {
+    for (const name of OPENSPEC_SKILL_NAMES) {
+      const spot = path.join(dir, name);
+      if (!present(spot, view)) continue;
+      if (contents.has(name) && view.linkTarget?.(spot)) continue;
+      await ops.removeDirectory(spot, 'openspec');
+    }
+  }
+  const marker = skillToolListPath(projectPath);
+  if (contents.size) {
+    const own = new Set(tools.filter(tool => resolveSkillLinkDir(projectPath, tool)).map(tool => tool.value));
+    const list = formatSkillToolList(tools.map(tool => tool.value), own);
+    if (!view.exists(marker) || view.read(marker) !== list) await ops.writeFile(marker, list, 'openspec');
+  } else if (view.exists(marker)) {
+    await ops.removeFile(marker, 'openspec');
+  }
+  if (input.writesToDisk) {
+    const dirs = [...new Set([...targets.keys(), ...legacy])];
+    await pruneEmptyParents(projectPath, dirs.map(dir => path.relative(projectPath, path.join(dir, '.removed'))));
+  }
+  result.writtenSkillCount = contents.size;
+  result.removedSkillCount = remove.size;
   return result;
-}
-
-/** Whether a skill's folder holds anything beside its SKILL.md. */
-function holdsOtherFiles(skillDir: string): boolean {
-  try {
-    return fs.readdirSync(skillDir).some((name) => name !== 'SKILL.md' && !isOsJunk(name));
-  } catch {
-    return false;
-  }
-}
-
-/** Whether a tool's own skills folder stays inside the project through links. */
-function ownFolderInProject(projectPath: string, ownDir: string): boolean {
-  try {
-    FileSystemUtils.assertPathWithin(projectPath, ownDir);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** What init and update print for skill folders they kept as the user's. */
-export function formatKeptSkills(
-  kept: readonly string[],
-  linkedOutside: readonly string[] = [],
-  refreshedEdited: readonly string[] = [],
-  unfetched?: string,
-  partlyFetched?: string,
-  lockNotUpdated?: string
-): string[] {
-  const inShared = kept.filter((rel) => rel.startsWith('.agents/skills/'));
-  const elsewhere = kept.filter((rel) => !rel.startsWith('.agents/skills/'));
-  const lines: string[] = [];
-  if (elsewhere.length > 0) {
-    lines.push(
-      `Kept ${elsewhere.length} skill folder${elsewhere.length === 1 ? '' : 's'} with your own changes: ` +
-        `${elsewhere.join(', ')}. Nothing was overwritten. Compare each with .agents/skills ` +
-        'and delete yours once you have kept what you need.'
-    );
-  }
-  if (inShared.length > 0) {
-    lines.push(
-      `Kept ${inShared.length} skill${inShared.length === 1 ? '' : 's'} in .agents/skills as your own: ` +
-        `${inShared.join(', ')}. OpenSpec won't update or remove ${inShared.length === 1 ? 'it' : 'them'}; ` +
-        'delete one to have OpenSpec install its own again.'
-    );
-  }
-  if (refreshedEdited.length > 0) {
-    const one = refreshedEdited.length === 1;
-    lines.push(
-      `Replaced your edits in ${refreshedEdited.length} skill${one ? '' : 's'} OpenSpec installs: ` +
-        `${refreshedEdited.join(', ')}. OpenSpec refreshes ${one ? 'this skill' : 'these skills'} on every update ` +
-        'and keeps no copy. Recover your text from git, and keep lasting changes in a skill of your own under another name.'
-    );
-  }
-  if (unfetched !== undefined) {
-    lines.push(
-      `Wrote the skills from this CLI, without the skills-lock.json file the skills package keeps: ` +
-        `they could not be fetched (${unfetched}). To add it later: openspec update --force`
-    );
-  }
-  if (partlyFetched !== undefined) {
-    lines.push(`Wrote some skills from this CLI because the skills package could not install them: ${partlyFetched}`);
-  }
-  if (lockNotUpdated !== undefined) {
-    lines.push(
-      `Removed the skills, but skills-lock.json still lists them because it could not be rewritten (${lockNotUpdated}). ` +
-        'Fix the file and run openspec update again.'
-    );
-  }
-  for (const folder of linkedOutside) {
-    lines.push(
-      `Left ${folder} alone: it links outside the project and still holds old OpenSpec skills, ` +
-        'which your tool may load twice. Delete the openspec-* folders in it by hand if nothing else uses them.'
-    );
-  }
-  return lines;
-}
-
-/**
- * Whether two folders are, through links, the same folder or one inside the
- * other. Then a tool's own skills folder is the shared one, and settling it
- * would remove the very copy every tool reads.
- */
-export function isSameFolderTree(a: string, b: string): boolean {
-  return isWithinFolder(a, b) || isWithinFolder(b, a);
-}
-
-/**
- * Whether `inner` is `outer` or inside it, compared by file identity rather
- * than path text, so letter case and other spellings of one folder can't hide
- * it.
- */
-function isWithinFolder(inner: string, outer: string): boolean {
-  let outerStat: fs.BigIntStats;
-  let current: string;
-  try {
-    // Bigint: Windows file ids are 64-bit.
-    outerStat = fs.statSync(outer, { bigint: true });
-    current = fs.realpathSync.native(inner);
-  } catch {
-    return false;
-  }
-  if (outerStat.ino === 0n) {
-    // Some file systems (network shares on Windows) report no file ids:
-    // compare real paths instead, ignoring case where the platform does.
-    let outerReal: string;
-    try {
-      outerReal = fs.realpathSync.native(outer);
-    } catch {
-      return false;
-    }
-    const fold = (p: string) => (process.platform === 'linux' ? p : p.toLowerCase());
-    const [i, o] = [fold(current), fold(outerReal)];
-    return i === o || i.startsWith(o.endsWith(path.sep) ? o : o + path.sep);
-  }
-  for (;;) {
-    try {
-      const stat = fs.statSync(current, { bigint: true });
-      if (stat.ino === outerStat.ino && stat.dev === outerStat.dev) return true;
-    } catch {
-      return false;
-    }
-    const parent = path.dirname(current);
-    if (parent === current) return false;
-    current = parent;
-  }
-}
-
-function removeIfEmpty(dir: string): void {
-  try {
-    if (fs.lstatSync(dir).isDirectory() && fs.readdirSync(dir).length === 0) fs.rmdirSync(dir);
-  } catch {
-    // Missing or not removable: nothing to tidy.
-  }
-}
-
-/**
- * Whether a tool's own skills folder is not yet how `installSharedSkills`
- * leaves it: a link missing or still an old copy for a skill the tool needs,
- * a link or untouched copy left for one it doesn't, or an untouched old copy
- * in a tool that reads `.agents/skills` (which would load it twice). A folder
- * holding the user's own changes is never reported, so a kept edit does not
- * make every update think there is work to do.
- */
-export function ownSkillFolderNeedsWork(
-  projectPath: string,
-  tool: AIToolOption,
-  linkedSkillNames: ReadonlySet<string>,
-  view: FileView
-): boolean {
-  if (!usesSharedSkills(tool)) return false;
-  const linkDir = resolveSkillLinkDir(projectPath, tool);
-  const ownDir = linkDir ?? resolveFormerOwnSkillsDir(projectPath, tool);
-  if (!ownDir) return false;
-  const sharedDir = resolveSharedSkillsDir(projectPath);
-  if (isSameFolderTree(ownDir, sharedDir)) return false;
-  // An old folder linked out of the project is left alone (and reported).
-  if (!linkDir && !ownFolderInProject(projectPath, ownDir)) return false;
-  const kept = readKeptSharedSkills(projectPath, view);
-  for (const skillName of OPENSPEC_SKILL_NAMES) {
-    let sharedContent = '';
-    try {
-      sharedContent = view.read(path.join(sharedDir, skillName, 'SKILL.md'));
-    } catch {
-      // No shared copy of this skill: nothing at the spot can equal it.
-    }
-    // Judged as the install judges it: against the shared copy and every text
-    // this version writes for the skill.
-    // A kept skill's shared text is the user's, never OpenSpec's (as in the
-    // install's own check).
-    const ours = kept.has(skillName) ? [...sharedSkillTexts(skillName)] : [sharedContent, ...sharedSkillTexts(skillName)];
-    const spotPath = path.join(ownDir, skillName);
-    const spot = classifySkillLinkSpot(spotPath, path.join(sharedDir, skillName), ours, view);
-    if (spot === 'user') {
-      const skillFile = classifySkillFile(spotPath, ours, view);
-      if (!linkDir && (skillFile === 'copy' || skillFile === 'released')) return true;
-      continue;
-    }
-    // A link to a skill kept as the user's stays, wanted or not.
-    const keptSpot = path.join(sharedDir, skillName);
-    if (spot === 'link' && kept.has(skillName) && (view.exists(keptSpot) || view.linkTarget?.(keptSpot) !== undefined)) {
-      continue;
-    }
-    const wanted = linkDir !== undefined && linkedSkillNames.has(skillName);
-    // A fallback copy stays only while it equals the shared copy.
-    if (wanted && spot === 'copy' && !kept.has(skillName)) {
-      let copied: string | undefined;
-      try {
-        copied = view.read(path.join(spotPath, 'SKILL.md'));
-      } catch {
-        copied = undefined;
-      }
-      if (copied !== sharedContent) return true;
-    }
-    if (wanted ? spot === 'missing' || spot === 'released' : spot !== 'missing' && !(spot === 'link' && !linkDir)) {
-      return true;
-    }
-  }
-  return false;
 }

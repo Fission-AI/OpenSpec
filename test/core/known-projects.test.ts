@@ -4,7 +4,7 @@ import { existsSync, readFileSync, realpathSync } from 'fs';
 import os from 'os';
 import path from 'path';
 import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
-import { knownProjectsPath, otherProjectsNote, readKnownProjects, rememberProject } from '../../src/core/known-projects.js';
+import { knownProjectsPath, readKnownProjects, rememberProject } from '../../src/core/known-projects.js';
 
 describe('the list of projects that use OpenSpec', () => {
   let box: string;
@@ -85,7 +85,6 @@ describe('the list of projects that use OpenSpec', () => {
 
     expect(() => rememberProject(dir)).not.toThrow();
     expect(readKnownProjects()).toEqual([]);
-    expect(otherProjectsNote(box)).toBeUndefined();
   });
 
   it('leaves no draft behind when the list itself cannot be replaced', async () => {
@@ -137,17 +136,10 @@ describe('the list of projects that use OpenSpec', () => {
     expect(readFileSync(knownProjectsPath(), 'utf8')).toBe(before);
   });
 
-  it('says nothing when no other project has its own skills', async () => {
-    const dir = await project('app');
-    rememberProject(dir);
-    rememberProject(await project('no-skills'));
-
-    expect(otherProjectsNote(dir)).toBeUndefined();
-  });
 });
 
 // The real CLI in a throwaway home, as in global-skills.test.ts.
-describe('naming the projects that still have their own skills', () => {
+describe('local project history', () => {
   let box: string;
   let home: string;
   let env: NodeJS.ProcessEnv;
@@ -201,62 +193,6 @@ describe('naming the projects that still have their own skills', () => {
     await cli(second, 'init', '--scope', 'global', '--tools', 'claude');
     expect(listed()).toEqual([first, second]);
   });
-
-  it('names them when another project moves to the global skills, and on update from anywhere', async () => {
-    const own = await project('own');
-    await cli(own, 'init', '--scope', 'project', '--tools', 'claude');
-    const moved = await project('moved');
-
-    const init = await cli(moved, 'init', '--scope', 'global', '--tools', 'claude');
-    expect(init.exitCode).toBe(0);
-    expect(init.stdout).toContain(`1 other project on this machine ${NOTE}:\n  ${own}\n`);
-    expect(init.stdout).toContain('To move one to the global skills, run this in it: openspec init --scope global');
-
-    const fromProject = await cli(moved, 'update');
-    expect(fromProject.stdout).toContain(`  ${own}\n`);
-    const fromElsewhere = await cli(await project('not-a-project'), 'update');
-    expect(fromElsewhere.exitCode).toBe(0);
-    expect(fromElsewhere.stdout).toContain(`  ${own}\n`);
-
-    // The project itself is told about its own double copy, not listed as another.
-    const inOwn = await cli(own, 'update');
-    expect(inOwn.stdout).not.toContain(NOTE);
-  });
-
-  it('stops naming a project once it has moved, or is gone', async () => {
-    const own = await project('own');
-    const doomed = await project('doomed');
-    await cli(own, 'init', '--scope', 'project', '--tools', 'claude');
-    await cli(doomed, 'init', '--scope', 'project', '--tools', 'claude');
-    const moved = await project('moved');
-    await cli(moved, 'init', '--scope', 'global', '--tools', 'claude');
-
-    expect((await cli(moved, 'update')).stdout).toContain(`2 other projects on this machine still have their own`);
-    expect((await cli(own, 'init', '--scope', 'global')).exitCode).toBe(0);
-    await fs.rm(doomed, { recursive: true });
-
-    const result = await cli(moved, 'update');
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout).not.toContain('still ha');
-  });
-
-  it('names five and counts the rest, and a dry run says nothing', async () => {
-    const names = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
-    for (const name of names) await cli(await project(name), 'init', '--scope', 'project', '--tools', 'claude');
-    const moved = await project('moved');
-    await cli(moved, 'init', '--scope', 'global', '--tools', 'claude');
-
-    const result = await cli(moved, 'update');
-    expect(result.stdout).toContain('7 other projects on this machine still have their own OpenSpec skills:');
-    expect(result.stdout).toContain(`  ${path.join(box, 'e')}\n  and 2 more\n`);
-    expect(result.stdout).not.toContain(path.join(box, 'f'));
-
-    const plan = await cli(moved, 'update', '--dry-run');
-    expect(plan.stdout).not.toContain('still ha');
-    const json = await cli(moved, 'update', '--dry-run', '--json');
-    expect(() => JSON.parse(json.stdout)).not.toThrow();
-    expect(json.stdout).not.toContain('still ha');
-  }, 120000);
 
   it('says nothing on a machine without the global skills', async () => {
     await cli(await project('one'), 'init', '--scope', 'project', '--tools', 'claude');
