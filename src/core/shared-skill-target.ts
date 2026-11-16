@@ -1,5 +1,5 @@
 import path from 'path';
-import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
+import { AI_TOOLS, resolveToolIdAlias, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
@@ -43,7 +43,7 @@ export function readListedToolsWithOwnFiles(projectPath: string, view: FileView 
         .split(/\r?\n/)
         .map((line) => line.trim().split(/\s+/))
         .filter((tokens) => tokens[1] === 'own-files')
-        .map((tokens) => tokens[0])
+        .map((tokens) => resolveToolIdAlias(tokens[0]))
     );
   } catch {
     return new Set();
@@ -88,7 +88,7 @@ function readListFileTools(projectPath: string, view: FileView): string[] {
     return view
       .read(listPath)
       .split(/\r?\n/)
-      .map((line) => line.trim().split(/\s+/)[0])
+      .map((line) => resolveToolIdAlias(line.trim().split(/\s+/)[0]))
       .filter((id) => known.has(id));
   } catch {
     return [];

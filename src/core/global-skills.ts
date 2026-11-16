@@ -109,13 +109,7 @@ function isRunning(pid: number): boolean {
 const LOCK_WAIT_MS = 60_000;
 const LOCK_STALE_MS = 10 * 60_000;
 
-/**
- * One run at a time changes the skills for this machine. Two at once (an
- * `openspec update` in several projects, say) would each read a home folder
- * the other is halfway through changing: the package's lock file is not
- * written atomically, and a folder one run has set aside to protect it is
- * invisible to the other. A run that finds another at work waits for it.
- */
+/** Serialize machine-wide installs because the package shares one lock file between projects. */
 async function withGlobalSkillsLock<T>(work: () => Promise<T>): Promise<T> {
   const lock = path.join(getGlobalDataDir(), 'global-skills.lock');
   const owner = path.join(lock, 'pid');

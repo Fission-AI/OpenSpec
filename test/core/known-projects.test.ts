@@ -158,7 +158,6 @@ describe('local project history', () => {
       APPDATA: path.join(home, 'AppData', 'Roaming'),
       CODEX_HOME: path.join(home, '.codex'),
       CLAUDE_CONFIG_DIR: path.join(home, '.claude'),
-      OPENSPEC_SKILLS_SOURCE: path.join(cliProjectRoot, 'skills'),
       OPENSPEC_SKILLS_SCOPE: '',
     };
   });

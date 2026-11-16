@@ -30,13 +30,6 @@ If this stays a single-device tool, I recommend keeping SQLite to avoid
 adding a service to operate; shared state would need a separate sync design.
 \`\`\``;
 
-/**
- * Explore's handoffs. A custom profile can install explore without propose or
- * apply, so each reference names the skill "if installed" and gives a
- * fallback: the skill text is the same for every profile, and the agent
- * reading it can see which skills it has. The fallbacks point at explore's own
- * capture path and the always-present CLI.
- */
 const IMPLEMENT_REQUEST_HANDOFF =
   'offer to capture the discussion as a change';
 

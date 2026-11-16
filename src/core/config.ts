@@ -171,6 +171,16 @@ export const SKILL_LINKED_TOOL_IDS: ReadonlySet<string> = new Set(
   AI_TOOLS.filter(tool => !installerAgent(tool.value).universal).map(tool => tool.value)
 );
 
+/** Some regional agent variants read exactly the same project folder. */
+export const agentsByProjectFolder = new Map<string, string[]>();
+for (const tool of AI_TOOLS) {
+  const agent = installerAgent(tool.value);
+  if (agent.universal) continue;
+  const ids = agentsByProjectFolder.get(agent.projectSkillsDir) ?? [];
+  ids.push(tool.value);
+  agentsByProjectFolder.set(agent.projectSkillsDir, ids);
+}
+
 /**
  * The vendor-neutral target every assistant that is not listed above can use.
  * Named wherever a tool lookup comes up empty, so "my tool isn't here" is never

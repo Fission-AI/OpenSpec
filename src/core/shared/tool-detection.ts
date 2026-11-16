@@ -5,9 +5,9 @@
  */
 
 import path from 'path';
-import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
+import { AI_TOOLS, agentsByProjectFolder, installerAgent, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
 import { CommandAdapterRegistry } from '../command-generation/index.js';
-import { hasLegacySkills, isToolListed, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
+import { hasLegacySkills, readSkillToolList, isToolListed, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
 import {
   resolveCommandSurfaceCapability,
 } from '../command-surface.js';
@@ -106,7 +106,7 @@ export function isListedToolPresent(projectRoot: string, toolId: string, view: F
   if (!tool || !usesSharedSkills(tool) || !isToolListed(projectRoot, toolId, view)) return false;
   if (!readListedToolsWithOwnFiles(projectRoot, view).has(toolId)) return true;
   if (toolHasAnyConfiguredCommand(projectRoot, toolId, view)) return true;
-  const linkDir = resolveSkillLinkDir(projectRoot, tool);
+  const linkDir = resolveSkillLinkDir(projectRoot, tool) ?? resolveFormerOwnSkillsDir(projectRoot, tool);
   return (
     (linkDir !== undefined && OPENSPEC_SKILL_NAMES.some((name) => view.exists(path.join(linkDir, name, 'SKILL.md')))) ||
     hasSkillLinks(projectRoot, tool, view)
@@ -387,9 +387,14 @@ function hasLegacyCommands(projectRoot: string, toolId: string, view: FileView):
  * Gets all configured tools in the project (configured via skills or commands).
  */
 export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VIEW): string[] {
+  const listed = readSkillToolList(projectRoot, view);
   return AI_TOOLS
     .filter((t) => {
       if (!toolSupportsSkills(t)) return false;
+      const aliases = agentsByProjectFolder.get(installerAgent(t.value).projectSkillsDir);
+      if (aliases && aliases.length > 1 && !listed.includes(t.value)) {
+        if (aliases.some(id => listed.includes(id)) || t.value !== aliases[0]) return false;
+      }
       return (
         getToolSkillStatus(projectRoot, t.value, view).configured ||
         toolHasAnyConfiguredCommand(projectRoot, t.value, view) ||

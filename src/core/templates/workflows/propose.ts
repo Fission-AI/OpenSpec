@@ -8,15 +8,6 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
-/**
- * The implementation handoff. `apply` is not guaranteed to be installed, so
- * the prompt covers both cases: the text is the same for every profile, and
- * the agent reading it can see which skills it has.
- *
- * The two surfaces word this differently on purpose (#258): a command-only
- * tool has no conversational agent to ask, so its prompt names a command or
- * the CLI and never invites "ask me to implement".
- */
 const SKILL_APPLY_HANDOFF =
   'ask me to apply it';
 

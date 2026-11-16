@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { promises as fs } from 'fs';
 import { closeSync, existsSync, fstatSync, openSync, readFileSync, readdirSync, readlinkSync } from 'fs';
 import os from 'os';
+import { execFileSync } from 'node:child_process';
 import path from 'path';
 import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
 
@@ -42,8 +43,7 @@ describe("a project's skills, installed through the skills package", () => {
       APPDATA: path.join(home, 'AppData', 'Roaming'),
       CODEX_HOME: path.join(home, '.codex'),
       CLAUDE_CONFIG_DIR: path.join(home, '.claude'),
-      // The published skills, read from this checkout instead of cloned from GitHub.
-      OPENSPEC_SKILLS_SOURCE: path.join(cliProjectRoot, 'skills'),
+
     };
   });
 
@@ -60,7 +60,6 @@ describe("a project's skills, installed through the skills package", () => {
   const skillFile = (name: string) => path.join(dir, '.agents', 'skills', name, 'SKILL.md');
   const published = (name: string) => readFileSync(path.join(cliProjectRoot, 'skills', name, 'SKILL.md'), 'utf8');
   const lockPath = () => path.join(dir, 'skills-lock.json');
-  const lockedSkills = (): string[] => Object.keys(JSON.parse(readFileSync(lockPath(), 'utf8')).skills).sort();
   const setWorkflows = async (workflows: string[]) => {
     const file = path.join(home, '.config', 'openspec', 'config.json');
     await fs.mkdir(path.dirname(file), { recursive: true });
@@ -100,6 +99,30 @@ describe("a project's skills, installed through the skills package", () => {
       expect(readFileSync(skillFile(name), 'utf8')).toBe(published(name));
       expect(readFileSync(path.join(dir, '.claude/skills', name, 'SKILL.md'), 'utf8')).toBe(published(name));
     }
+    expect(existsSync(lockPath())).toBe(false);
+  });
+
+  it('installs AiderDesk into a second Git checkout and refreshes it without a lock file', async () => {
+    const result = await cli('init', '--scope', 'project', '--tools', 'aider-desk,claude,cursor');
+    expect(result.exitCode, result.stderr).toBe(0);
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: dir, env: { ...process.env, ...env }, stdio: 'pipe' });
+    git('init', '--quiet');
+    git('add', '-A');
+    git('-c', 'user.name=OpenSpec', '-c', 'user.email=test@example.com', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'Project skills');
+    const clone = path.join(box, 'clone');
+    git('clone', '--quiet', dir, clone);
+    await fs.rename(dir, path.join(box, 'original-moved'));
+    dir = clone;
+    const skill = 'openspec-propose';
+    for (const folder of ['.claude/skills', '.aider-desk/skills', '.agents/skills']) {
+      expect(readFileSync(path.join(dir, folder, skill, 'SKILL.md'), 'utf8').replaceAll('\r\n', '\n')).toBe(published(skill).replaceAll('\r\n', '\n'));
+    }
+    const marker = path.join(dir, '.agents/skills/.openspec-target');
+    expect(readFileSync(marker, 'utf8')).toContain('aider-desk own-files');
+    await fs.writeFile(path.join(dir, '.aider-desk/skills', skill, 'SKILL.md'), 'stale');
+    expect((await cli('update')).exitCode).toBe(0);
+    expect(readFileSync(path.join(dir, '.aider-desk/skills', skill, 'SKILL.md'), 'utf8')).toBe(published(skill));
+    expect((await cli('update')).stdout).toContain('up to date');
     expect(existsSync(lockPath())).toBe(false);
   });
 
@@ -211,7 +234,7 @@ describe("a project's skills, installed through the skills package", () => {
     await fs.mkdir(empty);
     const result = await runCLI(['init', '--scope', 'project', '--tools', 'claude'], {
       cwd: dir,
-      env: { ...env, OPENSPEC_SKILLS_SOURCE: '', PATH: empty, Path: empty },
+      env: { ...env, PATH: empty, Path: empty },
       timeoutMs: 60000,
     });
 

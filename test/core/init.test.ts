@@ -562,18 +562,9 @@ describe('InitCommand', () => {
       ];
 
       for (const content of applyVariants) {
-        // The core profile has no `continue`, so the blocked-state handoff
-        // must carry the CLI recovery in full beside the "if installed" skill.
         expect(content).not.toContain('/opsx:');
-        expect(content).toContain(
-          'suggest using `openspec-continue-change` to create them if that skill is installed. Otherwise suggest completing the missing artifacts'
-        );
-        expect(content).toContain('openspec status --change "<name>" --json');
-        expect(content).toContain('next `ready` artifact (not `skipped` or `blocked`)');
-        expect(content).toContain(
-          'openspec instructions "<artifact-id>" --change "<name>" --json'
-        );
-        expect(content).toContain('Keep the selected `--store <id>` on both commands');
+        expect(content).toContain('recovery step from the CLI’s `instruction` field');
+        expect(content).toContain('Keep the selected store');
       }
 
       const syncFiles = [

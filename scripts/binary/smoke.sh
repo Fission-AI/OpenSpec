@@ -28,7 +28,8 @@ version=$("$bin" --version)
 [ "$version" = "$expected" ] || fail "--version printed '$version', expected '$expected'"
 
 "$bin" schemas --json | grep -q '"source": "package"' || fail "built-in schema not found"
-"$bin" init --tools claude > /dev/null
+"$bin" init --scope project --tools claude > /dev/null
+[ -f .claude/skills/openspec-propose/SKILL.md ] || fail "Claude cannot read the bundled propose skill"
 [ -f openspec/config.yaml ] || fail "init did not write openspec/config.yaml"
 "$bin" new change demo > /dev/null
 "$bin" status --change demo --json | grep -q '"schemaName": "spec-driven"' || fail "status did not resolve the schema"

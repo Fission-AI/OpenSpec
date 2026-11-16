@@ -64,8 +64,7 @@ function run(bin: string, args: string[], box: Sandbox): { status: number | null
       XDG_CONFIG_HOME: path.join(box.home, '.config'),
       XDG_DATA_HOME: path.join(box.home, '.local', 'share'),
       CODEX_HOME: path.join(box.home, '.codex'),
-      // This build installs the skills from the checkout, not from GitHub.
-      OPENSPEC_SKILLS_SOURCE: path.join(repoRoot, 'skills'),
+
       OPENSPEC_TELEMETRY: '0',
       DO_NOT_TRACK: '1',
       CI: '1',
@@ -195,6 +194,43 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     const second = run(currentBin, ['update'], box);
     expect(second.status, second.output).toBe(0);
     expect(second.output).toContain('up to date');
+    expect(snapshot(box.project)).toEqual(before);
+  }, 600_000);
+
+  it('matches a fresh install after updating a real 2.0 Claude and Cursor checkout', async () => {
+    const profile = { profile: 'custom', workflows: ['propose', 'apply'] };
+    const box = await initWith('2.0.0', 'two', 'claude,cursor', profile);
+    const shared = '.agents/skills';
+    const edited = path.join(box.project, shared, 'openspec-propose/SKILL.md');
+    await fs.appendFile(edited, '\nLocal edit');
+    const protectedFiles = {
+      'openspec/config.yaml': 'schema: spec-driven\ncontext: Team context\n',
+      'openspec/specs/team/spec.md': '# Team spec\n',
+      '.agents/skills/team-review/SKILL.md': '# Team review\n',
+    };
+    for (const [rel, data] of Object.entries(protectedFiles)) {
+      const file = path.join(box.project, rel);
+      await fs.mkdir(path.dirname(file), { recursive: true });
+      await fs.writeFile(file, data);
+    }
+    const fresh = { ...box, project: path.join(tempRoot, 'fresh') };
+    await fs.mkdir(fresh.project);
+    const initialized = run(currentBin, ['init', '--scope', 'project', '--tools', 'claude,cursor'], fresh);
+    expect(initialized.status, initialized.output).toBe(0);
+    const updated = run(currentBin, ['update'], box);
+    expect(updated.status, updated.output).toBe(0);
+    for (const dir of [shared, '.claude/skills']) {
+      const wanted = readdirSync(path.join(fresh.project, dir)).filter(name => name.startsWith('openspec-')).sort();
+      expect(readdirSync(path.join(box.project, dir)).filter(name => name.startsWith('openspec-')).sort()).toEqual(wanted);
+      for (const name of wanted) {
+        const rel = path.join(dir, name, 'SKILL.md');
+        expect(readFileSync(path.join(box.project, rel), 'utf8')).toBe(readFileSync(path.join(fresh.project, rel), 'utf8'));
+      }
+    }
+    for (const [rel, data] of Object.entries(protectedFiles)) expect(readFileSync(path.join(box.project, rel), 'utf8')).toBe(data);
+    expect(readFileSync(path.join(box.project, shared, '.openspec-target'), 'utf8')).toBe('claude own-files\ncursor\n');
+    const before = snapshot(box.project);
+    expect(run(currentBin, ['update'], box).output).toContain('up to date');
     expect(snapshot(box.project)).toEqual(before);
   }, 600_000);
 
@@ -382,9 +418,9 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     for (const [rel, hash] of Object.entries(before)) {
       expect(after[rel], rel).toBe(hash);
     }
-    // Nothing new outside the shared copy and the lock file that records it.
+    // Nothing new outside the shared copy.
     const added = Object.keys(after).filter((rel) => !(rel in before));
-    expect(added.filter((rel) => !rel.startsWith('.agents/skills/') && rel !== 'skills-lock.json')).toEqual([]);
+    expect(added.filter((rel) => !rel.startsWith('.agents/skills/'))).toEqual([]);
   }, 600_000);
 
   it('never sets up a tool or cleans up because of prompts in the home folder', async () => {

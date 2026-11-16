@@ -1,12 +1,12 @@
 import path from 'node:path';
-import { realpathSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { getSupportedAgents } from 'skills';
 import { installerAgent, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 import type { FileView } from '../file-view.js';
 import type { UpdateFileOps } from '../update-plan.js';
 import { pruneEmptyParents } from '../released-output-sweep.js';
-import { formatSkillToolList, skillToolListPath } from '../shared-skill-target.js';
+import { formatSkillToolList, readListedToolsWithOwnFiles, skillToolListPath } from '../shared-skill-target.js';
 import { bundledSkillContents, installBundledSkills, removeManagedSkills } from '../skill-installer.js';
 import { resolveFormerOwnSkillsDir, resolveSharedSkillsDir, resolveSkillLinkDir, usesSharedSkills } from './skill-paths.js';
 
@@ -71,12 +71,14 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       if (target) FileSystemUtils.assertPathWithin(projectPath, target);
       if (target) targets.set(target, tool.value);
       agents.add(installerAgent(tool.value).id);
-      for (const old of [former, ...(tool.legacySkillsDirs ?? []).map(root => path.join(projectPath, root, 'skills'))]) {
+      const oldFolders = [former];
+      if (!contents.size) oldFolders.push(...(tool.legacySkillsDirs ?? []).map(root => path.join(projectPath, root, 'skills')));
+      for (const old of oldFolders) {
         if (!old || old === target || old === shared) continue;
         try {
           FileSystemUtils.assertPathWithin(projectPath, old);
           if (view.linkTarget?.(old)) continue;
-          if (view.exists(old) && view.exists(shared) && realpathSync(old) === realpathSync(shared)) continue;
+          if (existsSync(old) && existsSync(shared) && realpathSync(old) === realpathSync(shared)) continue;
           legacy.add(old);
         } catch {
           // Earlier tools sometimes linked their entire skills folder to a shared home.
@@ -115,7 +117,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       const failure = failures.get(installerAgent(tool.value).id) ?? failures.get('universal');
       if (failure) result.toolFailures.set(tool.value, failure);
     }
-    if (result.toolFailures.size) return result;
+    if (failures.size) return result;
     // All universal agents share the canonical folder. Letting one keep it
     // would leave excluded workflows visible after removal.
     const removeAgents = new Set([...agents, ...getSupportedAgents().filter(agent => agent.universal).map(agent => agent.id)]);
@@ -141,6 +143,12 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   const marker = skillToolListPath(projectPath);
   if (contents.size) {
     const own = new Set(tools.filter(tool => resolveSkillLinkDir(projectPath, tool)).map(tool => tool.value));
+    const previousOwn = readListedToolsWithOwnFiles(projectPath, view);
+    for (const tool of tools) {
+      if (own.has(tool.value) || !previousOwn.has(tool.value)) continue;
+      const former = resolveFormerOwnSkillsDir(projectPath, tool);
+      if (former && [...contents.keys()].some(name => view.linkTarget?.(path.join(former, name)))) own.add(tool.value);
+    }
     const list = formatSkillToolList(tools.map(tool => tool.value), own);
     if (!view.exists(marker) || view.read(marker) !== list) await ops.writeFile(marker, list, 'openspec');
   } else if (view.exists(marker)) {

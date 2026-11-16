@@ -8,11 +8,6 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
-/**
- * `/opsx:continue` is not in the `core` profile, so the blocked-state handoff
- * names the skill "if installed" and gives the CLI fallback; the text is the
- * same for every profile.
- */
 const BLOCKED_STATE_HANDOFF =
   'show the missing artifacts and the recovery step from the CLI’s `instruction` field. Keep the selected store on any follow-up command.';
 

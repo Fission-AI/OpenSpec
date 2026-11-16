@@ -490,8 +490,7 @@ export class InitCommand {
       if (!globalSkills?.count) throw new Error('No global skills were installed. This project keeps its skills.');
       if (migration) migrateIfNeeded(projectPath, context.detectedTools);
       if (this.copilotCloudOption === false) {
-        await removeCopilotCloudFiles(projectPath);
-        await persistCopilotCloudOptIn(projectPath, false);
+        await removeCopilotCloudFiles(projectPath, undefined, () => persistCopilotCloudOptIn(projectPath, false, true));
       }
       await this.removeProjectSkills(projectPath);
       console.log('Commit the removed files. After pulling that commit, each teammate runs openspec update once.');
@@ -1456,7 +1455,7 @@ export class InitCommand {
     }
 
     // Show manual setup notes for tools that need extra configuration
-    for (const tool of globalSkills ? [] : successfulTools) {
+    for (const tool of successfulTools.filter(tool => !globalSkills || installerAgent(tool.value).id === 'universal')) {
       const setupNote = AI_TOOLS.find((t) => t.value === tool.value)?.setupNote;
       if (setupNote) {
         console.log(chalk.yellow(`Setup required for ${tool.name}: ${setupNote}`));

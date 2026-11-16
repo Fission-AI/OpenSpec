@@ -8,11 +8,6 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
-/**
- * The planning-complete handoff. Neither `apply` nor `archive` is guaranteed
- * to be installed, so each half names the skill and its CLI fallback; the
- * text is the same for every profile.
- */
 const PLANNING_COMPLETE_HANDOFF =
   'The plan is ready for review. When you’re ready, ask me to apply it.';
 
@@ -77,7 +72,7 @@ ${PROJECT_ROOT_GUARD}
    **If all planning artifacts are complete (\`isPlanningComplete: true\`, or legacy \`isComplete: true\`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "Planning is complete! You can now implement this change. Once implementation and any tracked work are complete, archive it."
+   - Suggest: "Planning is complete! Review the plan before starting implementation."
    - STOP
 
    ---

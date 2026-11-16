@@ -305,7 +305,6 @@ export class UpdateCommand {
       getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows).filter((workflow) =>
         (ALL_WORKFLOWS as readonly string[]).includes(workflow)
       );
-    let failures: string[];
     let changed = false;
     try {
       const result = await installGlobalSkills({
@@ -314,30 +313,24 @@ export class UpdateCommand {
         force: this.force,
         dryRun: this.dryRun,
       });
-      failures = [];
       changed = !result.unchanged;
-      if (failures.length === 0) {
-        const count = result.skills.length;
-        this.log(
-          result.unchanged
-            ? chalk.green(`✓ The ${count} skills for this machine are up to date (v${OPENSPEC_VERSION})`)
-            : count > 0
-              ? chalk.green(`✓ Updated the ${count} skills for this machine in ~/.agents/skills (v${OPENSPEC_VERSION})`)
-              : chalk.yellow('Removed the skills for this machine: your profile has no workflows.')
-        );
-      }
+      const count = result.skills.length;
+      this.log(
+        result.unchanged
+          ? chalk.green(`✓ The ${count} skills for this machine are up to date (v${OPENSPEC_VERSION})`)
+          : count > 0
+            ? chalk.green(`✓ Updated the ${count} skills for this machine in ~/.agents/skills (v${OPENSPEC_VERSION})`)
+            : chalk.yellow('Removed the skills for this machine: your profile has no workflows.')
+      );
       // A profile with no workflows has its own line above.
       const removed =
-        failures.length === 0 && !result.unchanged && (this.dryRun || result.skills.length > 0)
+        !result.unchanged && (this.dryRun || result.skills.length > 0)
           ? describeRemovedSkills(result.removedSkills, !this.dryRun)
           : undefined;
       if (removed && this.dryRun) this.removedGlobalSkills = removed;
       else if (removed) this.log(chalk.yellow(removed));
     } catch (error) {
-      failures = [describeSkillsError(error)];
-    }
-    if (failures.length > 0) {
-      const message = `Could not update the skills for this machine: ${failures.join('; ')}`;
+      const message = `Could not update the skills for this machine: ${describeSkillsError(error)}`;
       // A plan reports what would fail; it does not fail itself.
       if (!this.dryRun) throw new Error(message);
       // Outside a project nothing has made the plan yet.

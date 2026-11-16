@@ -8,11 +8,6 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
-/**
- * Handoffs to `continue`, which is not guaranteed to be installed alongside
- * `new`; one wording covers both cases, because the skill text is the same for every
- * profile and the agent reading it can see which skills it has.
- */
 const FIRST_ARTIFACT_PROMPT =
   'Describe what this change should do and I’ll draft the first artifact.';
 

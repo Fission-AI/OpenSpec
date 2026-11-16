@@ -479,34 +479,28 @@ export async function writeCopilotCloudFiles(
  */
 export async function removeCopilotCloudFiles(
   projectPath: string,
-  ops: CopilotCloudFileOps = DIRECT_CLOUD_FILE_OPS
+  ops: CopilotCloudFileOps = DIRECT_CLOUD_FILE_OPS,
+  afterRemove?: () => Promise<void>
 ): Promise<number> {
   const removed = new Map<string, string>();
-  const managedPaths = Object.values(COPILOT_CLOUD_FILES).map((relPath) => ({
-    relPath,
-    fullPath: FileSystemUtils.resolveProjectArtifactPath(projectPath, relPath),
-  }));
-  for (const { fullPath } of managedPaths) {
-    await assertMissingOrRegularFile(fullPath);
+  const managed = new Map<string, string>();
+  for (const rel of Object.values(COPILOT_CLOUD_FILES)) {
+    const file = FileSystemUtils.resolveProjectArtifactPath(projectPath, rel);
+    await assertMissingOrRegularFile(file);
+    if (!(await FileSystemUtils.fileExists(file))) continue;
+    const content = await FileSystemUtils.readFile(file);
+    if (isManagedCopilotCloudFile(rel, content)) managed.set(file, content);
   }
-
-  for (const { relPath, fullPath } of managedPaths) {
-    if (await FileSystemUtils.fileExists(fullPath)) {
-      const content = await FileSystemUtils.readFile(fullPath);
-      if (!isManagedCopilotCloudFile(relPath, content)) {
-        continue;
-      }
-
-      try {
-        await ops.removeFile(fullPath);
-        removed.set(fullPath, content);
-      } catch (error) {
-        for (const [file, original] of removed) await ops.writeFile(file, original);
-        throw error;
-      }
+  try {
+    for (const [file, content] of managed) {
+      await ops.removeFile(file);
+      removed.set(file, content);
     }
+    await afterRemove?.();
+  } catch (error) {
+    for (const [file, content] of removed) await ops.writeFile(file, content);
+    throw error;
   }
-
   return removed.size;
 }
 
@@ -579,18 +573,27 @@ export async function isCopilotCloudEnabled(projectPath: string): Promise<boolea
  */
 export async function persistCopilotCloudOptIn(
   projectPath: string,
-  value: boolean
+  value: boolean,
+  required = false
 ): Promise<void> {
   const configPath = resolveConfigFilePath(projectPath);
   if (!configPath) {
+    if (required) {
+      const file = FileSystemUtils.resolveProjectArtifactPath(projectPath, 'openspec/config.yaml');
+      await FileSystemUtils.writeFile(file, `schema: spec-driven\ngithubCopilot:\n  cloudAgent: ${value}\n`);
+    }
     return;
   }
+  FileSystemUtils.assertProjectArtifactPath(projectPath, configPath);
   const existing = await FileSystemUtils.readFile(configPath);
   const parsed = parseDocument(existing);
   // A file YAML can't parse cleanly — a multi-document stream, a tab-indented
   // syntax error — can't be edited without corrupting it, and toString() would
   // throw. Leave it untouched rather than clobber or crash; such a file is
   // already invalid, so readProjectConfig ignores it anyway.
+  if (required && (parsed.errors.length || (parsed.contents !== null && !isMap(parsed.contents)))) {
+    throw new Error(`Cannot save the hosted Copilot setting in ${configPath}. Fix the YAML and run update again.`);
+  }
   if (parsed.errors.length > 0) {
     return;
   }

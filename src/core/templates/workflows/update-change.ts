@@ -8,12 +8,6 @@ import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
-/**
- * Passages that hand off to `/opsx:continue` or `/opsx:new`. Neither workflow
- * is in the `core` profile, so each names the skill "if installed" and gives a
- * CLI fallback; the text is the same for every profile. Shared by both
- * surfaces below so the skill and the command cannot drift apart.
- */
 const CONTINUE_SCOPE_NOTE =
   'Revise existing artifacts. If an artifact is missing, identify it and show the next ready artifact from `openspec status --change "<name>" --json`.';
 
@@ -29,10 +23,6 @@ const CONTINUE_DEFERRED =
 const CONTINUE_FRONTIER =
   'create missing artifacts in a separate step';
 
-/**
- * `apply` and `archive` are in the `core` profile but not guaranteed in a
- * custom one, so their handoffs are worded the same way.
- */
 const APPLY_DELTA_HANDOFF =
   'tell the user which implementation tasks need revisiting';
 

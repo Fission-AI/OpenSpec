@@ -58,8 +58,7 @@ describe('skills installed for this machine', () => {
       APPDATA: path.join(home, 'AppData', 'Roaming'),
       CODEX_HOME: path.join(home, '.codex'),
       CLAUDE_CONFIG_DIR: path.join(home, '.claude'),
-      // The published skills, read from this checkout instead of cloned from GitHub.
-      OPENSPEC_SKILLS_SOURCE: path.join(cliProjectRoot, 'skills'),
+
       // The suite pins project installs; here the default itself is under test.
       OPENSPEC_SKILLS_SCOPE: '',
     };
@@ -146,6 +145,30 @@ describe('skills installed for this machine', () => {
         stripVolatileFrontmatter(readFileSync(path.join(inProject, '.agents', 'skills', name, 'SKILL.md'), 'utf8'))
       );
     }
+  });
+
+  it('refreshes a previous global install to the same skills a fresh installation exposes', async () => {
+    const dir = await project('app');
+    await cli(dir, 'init', '--scope', 'global', '--tools', 'claude,cursor');
+    const canonical = path.join(home, '.agents/skills');
+    const toolDir = path.join(home, '.claude/skills');
+    const read = () => [canonical, toolDir].map(folder => CORE_SKILLS.map(name => readFileSync(path.join(folder, name, 'SKILL.md'), 'utf8')));
+    const fresh = read();
+    const old = path.join(cliProjectRoot, 'test/fixtures/released-output/published-skills/v2.0.0-openspec-explore.md');
+    await fs.copyFile(old, globalSkill('openspec-explore'));
+    await fs.appendFile(globalSkill('openspec-apply-change'), '\nEdited');
+    const custom = path.join(canonical, 'team-workflow/SKILL.md');
+    await fs.mkdir(path.dirname(custom));
+    await fs.writeFile(custom, 'Team instructions');
+    const excluded = path.join(canonical, 'openspec-onboard');
+    await fs.mkdir(excluded);
+    await fs.copyFile(path.join(cliProjectRoot, 'skills/openspec-onboard/SKILL.md'), path.join(excluded, 'SKILL.md'));
+    const result = await cli(dir, 'update');
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(read()).toEqual(fresh);
+    expect(existsSync(excluded)).toBe(false);
+    expect(readFileSync(custom, 'utf8')).toBe('Team instructions');
+    expect((await cli(dir, 'update')).stdout).toContain('up to date');
   });
 
   it('rejects a scope it does not know', async () => {
@@ -370,6 +393,26 @@ describe('skills installed for this machine', () => {
       expect(result.exitCode).toBe(0);
       expect(await entries(dir)).toEqual(['openspec']);
       expect(existsSync(path.join(home, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+    });
+
+    it('keeps Copilot and project skills when one of the requested global targets fails, and retries', async () => {
+      const dir = await project('partial');
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude,github-copilot', '--copilot-cloud');
+      const files = ['openspec/config.yaml', '.github/workflows/copilot-setup-steps.yml', '.github/agents/openspec.agent.md',
+        '.agents/skills/.openspec-target', ...CORE_SKILLS.map(name => `.agents/skills/${name}/SKILL.md`)];
+      const before = files.map(file => readFileSync(path.join(dir, file), 'utf8'));
+      await fs.mkdir(path.join(home, '.claude'));
+      const blocked = path.join(home, '.claude', 'skills');
+      await fs.writeFile(blocked, 'not a folder');
+      const failed = await cli(dir, 'init', '--scope', 'global', '--no-copilot-cloud');
+      expect(failed.exitCode).toBe(1);
+      expect(files.map(file => readFileSync(path.join(dir, file), 'utf8'))).toEqual(before);
+      expect((await globalSkills()).length).toBeGreaterThan(0);
+      await fs.rm(blocked);
+      const retried = await cli(dir, 'init', '--scope', 'global', '--no-copilot-cloud');
+      expect(retried.exitCode, retried.stderr).toBe(0);
+      expect(existsSync(path.join(dir, '.agents/skills'))).toBe(false);
+      expect(readFileSync(path.join(dir, 'openspec/config.yaml'), 'utf8')).toContain('cloudAgent: false');
     });
 
     it('refuses to move a project that has the Copilot cloud files, unless they are turned off', async () => {
