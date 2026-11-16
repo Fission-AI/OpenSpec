@@ -119,7 +119,7 @@ async function createLegacyCodexPrompt(): Promise<string> {
  * test then makes fail.
  */
 function failSkillFetch(): void {
-  vi.spyOn(skillInstaller, 'installBundledSkills').mockRejectedValue(new Error('EACCES: permission denied'));
+  vi.spyOn(skillInstaller, 'installReleaseSkills').mockRejectedValue(new Error('EACCES: permission denied'));
 }
 
 function failCodexSkillWrites(): void {

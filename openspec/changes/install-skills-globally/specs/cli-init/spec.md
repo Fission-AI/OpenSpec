@@ -2,7 +2,7 @@
 
 ### Requirement: Install the running CLI’s skills for the selected tools
 
-Init SHALL use the bundled skills with the package installer, the selected agent IDs, scope and workflow profile. Project installs SHALL leave any existing package lock untouched.
+Init SHALL install skills from the running CLI’s GitHub release tag with the package installer, the selected agent IDs, scope and workflow profile. Project installs SHALL leave any existing package lock untouched.
 
 #### Scenario: New project
 
@@ -12,14 +12,14 @@ Init SHALL use the bundled skills with the package installer, the selected agent
 #### Scenario: Team skills in Git
 
 - **WHEN** a developer runs `openspec init --scope project --tools claude,cursor`
-- **THEN** both agents SHALL be able to read the same bundled instructions from another checkout
+- **THEN** both agents SHALL be able to read the same instructions from another checkout
 - **AND** the project marker SHALL retain the OpenSpec tool IDs
 - **AND** no project skills lock SHALL be created
 
-#### Scenario: Installed without git
+#### Scenario: Release unavailable
 
-- **WHEN** the CLI installs skills without git or access to the network
-- **THEN** setup SHALL use the skills bundled with that CLI
+- **WHEN** Git is unavailable or the installer cannot fetch the matching GitHub tag
+- **THEN** setup SHALL report the failure and SHALL NOT install from the default branch
 
 #### Scenario: Registry and scope
 

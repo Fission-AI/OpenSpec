@@ -5,7 +5,7 @@ import { getSupportedAgents } from 'skills';
 import { AI_TOOLS, installerAgent, OPENSPEC_SKILL_NAMES } from './config.js';
 import { getGlobalDataDir } from './global-config.js';
 import { getConfiguredTools } from './shared/tool-detection.js';
-import { bundledSkillContents, installBundledSkills, removeManagedSkills, type SkillScope } from './skill-installer.js';
+import { expectedSkillContents, installReleaseSkills, removeManagedSkills, type SkillScope } from './skill-installer.js';
 
 export type { SkillScope };
 export const SKILL_SCOPES: readonly SkillScope[] = ['global', 'project'];
@@ -71,7 +71,7 @@ export async function installGlobalSkills(input: GlobalInstallInput) {
   const refresh = async () => {
     const before = await readGlobalSkills();
     const agents = [...new Set(['universal', ...before.agents, ...(input.toolIds ?? []).map(id => installerAgent(id).id)])];
-    const contents = bundledSkillContents(input.version, input.workflows);
+    const contents = expectedSkillContents(input.version, input.workflows);
     const skills = [...contents.keys()];
     const removedSkills = before.skills.filter(name => !contents.has(name));
     const dirs = globalDirectories();
@@ -86,7 +86,7 @@ export async function installGlobalSkills(input: GlobalInstallInput) {
     const unchanged = current && !input.force && !removedSkills.length;
     if (!unchanged && !input.dryRun) {
       const targets = { scope: 'global', agents } as const;
-      const failures = await installBundledSkills(targets, skills, input.version);
+      const failures = await installReleaseSkills(targets, skills, input.version);
       if (failures.size) throw new Error([...failures.values()].map(error => error.message).join('\n'));
       // Drop excluded workflows only after all selected skills are available.
       const universal = getSupportedAgents().filter(agent => agent.universal && agent.globalSkillsDir).map(agent => agent.id);

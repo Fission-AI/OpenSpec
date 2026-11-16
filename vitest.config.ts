@@ -53,6 +53,8 @@ export default defineConfig({
       // otherwise. The suite's project tests say so here, once; the tests of
       // that default clear it.
       OPENSPEC_SKILLS_SCOPE: 'project',
+      GH_HOST: 'skills.example.invalid',
+      GIT_CONFIG_GLOBAL: path.join(testHome, 'release', 'gitconfig'),
     },
     // Tests rely on per-file process isolation (e.g., `process.cwd()` assumptions).
     pool: 'forks',

@@ -65,6 +65,8 @@ function run(bin: string, args: string[], box: Sandbox): { status: number | null
       XDG_DATA_HOME: path.join(box.home, '.local', 'share'),
       CODEX_HOME: path.join(box.home, '.codex'),
 
+      GH_HOST: process.env.GH_HOST,
+      GIT_CONFIG_GLOBAL: process.env.GIT_CONFIG_GLOBAL,
       OPENSPEC_TELEMETRY: '0',
       DO_NOT_TRACK: '1',
       CI: '1',

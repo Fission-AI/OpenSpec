@@ -8,7 +8,7 @@ import type { FileView } from '../file-view.js';
 import type { UpdateFileOps } from '../update-plan.js';
 import { pruneEmptyParents } from '../released-output-sweep.js';
 import { formatSkillToolList, readListedToolsWithOwnFiles, skillToolListPath } from '../shared-skill-target.js';
-import { bundledSkillContents, installBundledSkills, projectSkillText, removeManagedSkills } from '../skill-installer.js';
+import { expectedSkillContents, installReleaseSkills, projectSkillText, removeManagedSkills } from '../skill-installer.js';
 import { resolveFormerOwnSkillsDir, resolveSharedSkillsDir, resolveSkillLinkDir, usesSharedSkills } from './skill-paths.js';
 
 interface SharedSkillInstallInput {
@@ -62,7 +62,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   const shared = resolveSharedSkillsDir(projectPath);
   FileSystemUtils.assertPathWithin(projectPath, shared);
   const workflows = [...new Set(tools.flatMap(tool => [...input.workflowsFor(tool.value)]))];
-  const contents = bundledSkillContents(input.version, workflows);
+  const contents = expectedSkillContents(input.version, workflows);
   const agents = new Set(['universal']);
   const targets = new Map<string, string>([[shared, 'openspec']]);
   const legacy = new Set<string>();
@@ -119,7 +119,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   }
   if (input.writesToDisk) {
     const options = { scope: 'project', cwd: realpathSync(projectPath), agents: [...agents] } as const;
-    const failures = await installBundledSkills(options, [...install], input.version);
+    const failures = await installReleaseSkills(options, [...install], input.version);
     for (const tool of tools) {
       const failure = failures.get(installerAgent(tool.value).id) ?? failures.get('universal');
       if (failure) result.toolFailures.set(tool.value, failure);

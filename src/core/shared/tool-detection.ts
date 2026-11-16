@@ -24,7 +24,7 @@ import {
 import { DISK_VIEW, type FileView } from '../file-view.js';
 import { classifySkillLinkSpot, isCheckedOutLink } from './skill-links.js';
 import { normalizeGeneratedContent } from './generated-fingerprint.js';
-import { bundledSkillContents, projectSkillText } from '../skill-installer.js';
+import { expectedSkillContents, projectSkillText } from '../skill-installer.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
 /**
@@ -283,7 +283,7 @@ export function extractGeneratedByVersion(
 function isPublishedSkillText(skillName: string, skillFile: string, version: string, view: FileView, toolId: string): boolean {
   try {
     const text = normalizeGeneratedContent(view.read(skillFile));
-    const source = bundledSkillContents(version).get(skillName);
+    const source = expectedSkillContents(version).get(skillName);
     return source !== undefined && projectSkillText(toolId, source) === text;
   } catch {
     return false;

@@ -27,7 +27,9 @@ Global skills are the default for new projects. Existing repos switch only when 
 
 ## Before you update
 
-- **Edited a built-in skill?** Both choices refreshes the built-in instructions. Save edits you want to keep first. Put team guidance in `openspec/config.yaml` under `rules` or `context`, or give a custom skill its own name.
+- **Edited a built-in skill?** Both choices refresh the built-in instructions. Save edits you want to keep first. Put team guidance in `openspec/config.yaml` under `rules` or `context`, or give a custom skill its own name.
+
+- **Installing or refreshing skills?** You’ll need Git and access to GitHub. OpenSpec fetches the skills from the release tag for your CLI version.
 
 - **Upgrading the CLI?** `openspec update` can offer to upgrade it and continue. If it prints an upgrade command instead, run that command, then run `openspec update` again. Package installs require Node 22.20.0 or newer. The standalone executable includes its own runtime.
 

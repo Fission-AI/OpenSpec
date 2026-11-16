@@ -22,7 +22,7 @@ import {
   formatIdeRestart,
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
-import { bundledSkillContents, projectSkillText } from './skill-installer.js';
+import { expectedSkillContents, projectSkillText } from './skill-installer.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -901,7 +901,7 @@ export class UpdateCommand {
       const dirs = [resolveToolSkillsDir(projectPath, tool)];
       const own = resolveSkillLinkDir(projectPath, tool);
       if (own) dirs.push(own);
-      const contents = bundledSkillContents(OPENSPEC_VERSION, workflowsForTool(toolId));
+      const contents = expectedSkillContents(OPENSPEC_VERSION, workflowsForTool(toolId));
       return dirs.some(dir => [...contents].some(([name, generated]) => {
         const file = path.join(dir, name, 'SKILL.md');
         if (!this.view.exists(file)) return false;

@@ -81,7 +81,7 @@ A project set up before 1.0 has older files, such as `.claude/commands/openspec/
 
 ## Skills you customized
 
-Save edits to built-in skills before updating. OpenSpec replaces them with the instructions bundled with the CLI you run.
+Save edits to built-in skills before updating. OpenSpec replaces them with the instructions from your CLI’s GitHub release tag.
 
 To keep a customization across updates, put it somewhere `update` doesn't write:
 
@@ -110,7 +110,7 @@ Most tools read `.agents/skills/` directly. If yours reads only its own folder, 
 
 ## Teams on mixed versions
 
-Upgrade the team’s CLIs before switching a repo to global skills. Earlier CLIs only understand project skills. If teammates run different releases against the same installed skills, each update restores the instructions bundled with that CLI.
+Upgrade the team’s CLIs before switching a repo to global skills. Earlier CLIs only understand project skills. If teammates run different releases against the same installed skills, each update restores the instructions from that CLI’s GitHub release tag.
 
 ## Many projects: install the skills once
 

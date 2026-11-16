@@ -4,6 +4,8 @@ import { closeSync, existsSync, fstatSync, openSync, readFileSync, readdirSync, 
 import os from 'os';
 import { execFileSync } from 'node:child_process';
 import path from 'path';
+import { pathToFileURL } from 'node:url';
+import { version } from '../../package.json';
 import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
 
 // A project's own skills are installed by the `skills` package, from the
@@ -93,7 +95,7 @@ describe("a project's skills, installed through the skills package", () => {
     return out;
   };
 
-  it('installs the bundled skills for the selected agents without a project lock', async () => {
+  it('installs the tagged skills for the selected agents without a project lock', async () => {
     await init();
     for (const name of CORE_SKILLS) {
       expect(readFileSync(skillFile(name), 'utf8')).toBe(published(name));
@@ -205,7 +207,7 @@ describe("a project's skills, installed through the skills package", () => {
     expect(readFileSync(path.join(own, 'SKILL.md'), 'utf8')).toBe(published('openspec-explore'));
   });
 
-  it('replaces an edited skill with bundled text', async () => {
+  it('replaces an edited skill with the release text', async () => {
     await init();
     await fs.appendFile(skillFile('openspec-explore'), '\nMy own note.\n');
 
@@ -248,27 +250,18 @@ describe("a project's skills, installed through the skills package", () => {
     expect((await fs.readdir(dir)).sort()).toEqual(['openspec']);
   });
 
-  it('installs offline without git or a project lock', async () => {
-    const empty = path.join(box, 'no-programs-here');
-    await fs.mkdir(empty);
-    const result = await runCLI(['init', '--scope', 'project', '--tools', 'claude'], {
-      cwd: dir,
-      env: { ...env, PATH: empty, Path: empty },
-      timeoutMs: 60000,
-    });
+  it('reports a missing release tag even when the default branch contains the skills', async () => {
+    const repo = path.join(box, 'untagged');
+    execFileSync('git', ['clone', '--quiet', '--no-tags', path.dirname(process.env.GIT_CONFIG_GLOBAL!), repo]);
+    const config = path.join(box, 'gitconfig');
+    execFileSync('git', ['config', '--file', config, `url.${pathToFileURL(repo).href}.insteadOf`, 'https://skills.example.invalid/Fission-AI/OpenSpec.git']);
+    env.GIT_CONFIG_GLOBAL = config;
 
-    expect(result.exitCode, result.stderr).toBe(0);
-    for (const name of CORE_SKILLS) {
-      expect(readFileSync(skillFile(name), 'utf8')).toBe(published(name));
-      expect(readFileSync(path.join(dir, '.claude', 'skills', name, 'SKILL.md'), 'utf8')).toBe(published(name));
-    }
-    expect(existsSync(lockPath())).toBe(false);
+    const result = await cli('init', '--scope', 'project', '--tools', 'claude');
 
-    // The skills are this version's, so there is nothing to update...
-    expect((await cli('update')).stdout).toContain('up to date');
-    expect(existsSync(lockPath())).toBe(false);
-    expect((await cli('update', '--force')).exitCode).toBe(0);
-    expect(existsSync(lockPath())).toBe(false);
+    expect(result.exitCode).toBe(1);
+    expect(result.stdout + result.stderr).toContain(`v${version}`);
+    expect(existsSync(skillFile('openspec-propose'))).toBe(false);
   });
 
   it('plans the skill changes in a dry run and writes nothing', async () => {

@@ -74,7 +74,7 @@ Every project gets an `openspec/` folder at the repo root. Where the skills go d
 
 The rest of this section describes a project install. [Install the skills once for every project](#install-the-skills-once-for-every-project) covers the machine-wide one.
 
-The CLI bundles the skills. Vercel’s installer places them for each selected tool, including when you’re offline. Project installs leave `skills-lock.json` alone.
+Vercel’s installer fetches skills from the OpenSpec GitHub tag that matches your CLI version. Installing or refreshing skills requires Git and access to GitHub. Project installs leave `skills-lock.json` alone.
 
 Init also removes the command files earlier versions generated, and keeps any you edited. A project set up before 1.0 also has older leftovers: folders like `.claude/commands/openspec/`, and OpenSpec marker blocks in files like `CLAUDE.md` and `AGENTS.md`. An interactive init asks before removing them. With `--force`, with `--tools`, or in a non-interactive run, init removes them without asking, including any edits inside those blocks, so back them up first.
 

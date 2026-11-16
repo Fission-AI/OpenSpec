@@ -1,6 +1,6 @@
 ## Implementation
 
-- [x] Install bundled skills through the package in both scopes and disable project lock files.
+- [x] Install skills from the running CLI’s GitHub release tag through the package in both scopes and disable project lock files.
 - [x] Preserve public tool IDs, project markers and aliases while exposing the package registry.
 - [x] Default new projects to global skills and offer existing repositories a migration through update.
 - [x] Verify the global install before applying the hosted Copilot opt-out and removing project skills.

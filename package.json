@@ -34,7 +34,6 @@
     "dist",
     "bin",
     "schemas",
-    "skills",
     "!dist/**/*.test.js",
     "!dist/**/__tests__",
     "!dist/**/*.map"

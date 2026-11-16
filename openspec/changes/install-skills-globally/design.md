@@ -4,7 +4,7 @@ The committed skill files and existing tool marker identify projects that carry 
 
 ## Installer
 
-The CLI ships the workflow files in its npm package. The standalone executable materializes the same bundled text in a temporary directory. Both call the package installer with an explicit agent list, scope and workflow names. No network request is needed to install skills. Project install and removal disable the package lock file. Global operations allow the package to manage its own lock.
+The npm CLI and standalone executable give Vercel’s installer the OpenSpec GitHub repository, the running CLI’s release tag, and the selected agents, scope and workflows. If the tag cannot be fetched, setup reports the error. Project install and removal disable the package lock file. Global operations allow the package to manage its own lock.
 
 Public OpenSpec IDs remain stable. The picker and help use the package registry plus existing OpenSpec display names and aliases. Previously supported agents outside the registry use the universal folder and the manual setup guide. The project marker records selected IDs and which integrations have files of their own. Windows project installs use copies so checked-in skills work from a second checkout.
 

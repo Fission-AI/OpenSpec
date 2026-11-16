@@ -227,6 +227,6 @@ Project installs use `.minimax/skills/`. Global installs use `~/.minimax/skills/
 - **Alongside other tools**: every tool reads this one skill tree. `.openspec-target`
   lists the tools set up in the project. To remove a tool, delete its folder (or, for a tool
   with no folder of its own, its line in `.openspec-target`).
-- **Custom skills**: choose a name distinct from OpenSpec's built-in skills. Update replaces built-ins with the instructions bundled with the running CLI and leaves separately named skills alone.
+- **Custom skills**: choose a name distinct from OpenSpec's built-in skills. Update replaces built-ins with the instructions from the running CLI’s GitHub release tag and leaves separately named skills alone.
 - **`AGENTS.md`**: not created or edited. The target is the `.agents/` folder, not
   the file.

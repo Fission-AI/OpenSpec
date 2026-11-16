@@ -202,7 +202,7 @@ jobs:
         run: |
           if [ -n "$ALPINE" ]; then
             docker run --rm -v "$PWD:/src" -w /src "alpine:$ALPINE" sh -c \
-              "apk add --no-cache bash libstdc++ libgcc >/dev/null && bash scripts/binary/smoke.sh dist-bin/openspec-$ASSET"
+              "apk add --no-cache bash git nodejs libstdc++ libgcc >/dev/null && bash scripts/binary/smoke.sh dist-bin/openspec-$ASSET"
           elif [ "$RUNNER_OS" = Windows ]; then
             bash scripts/binary/smoke.sh "dist-bin/openspec-$ASSET.exe"
           else
