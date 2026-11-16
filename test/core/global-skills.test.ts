@@ -39,7 +39,8 @@ describe("the repository's own maintainer skills", () => {
   });
 });
 
-describe('skills installed for this machine', () => {
+// Each case runs the CLI several times, and every install is a Git fetch.
+describe('skills installed for this machine', { timeout: 60_000 }, () => {
   let box: string;
   let home: string;
   let env: NodeJS.ProcessEnv;
