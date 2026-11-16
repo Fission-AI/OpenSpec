@@ -3,6 +3,7 @@ import * as skillInstaller from '../../src/core/skill-installer.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
 import { InitCommand } from '../../src/core/init.js';
+import { rememberProjectSkills } from '../../src/core/shared-skill-target.js';
 import { getConfiguredToolsForProfileSync } from '../../src/core/profile-sync-drift.js';
 import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
@@ -116,10 +117,6 @@ async function createLegacyCodexPrompt(): Promise<string> {
   return prompt;
 }
 
-/**
- * The skills can't be fetched, so the CLI writes them itself: the write a
- * test then makes fail.
- */
 function failSkillFetch(): void {
   vi.spyOn(skillInstaller, 'installReleaseSkills').mockRejectedValue(new Error('EACCES: permission denied'));
 }
@@ -1936,6 +1933,7 @@ metadata:
       setMockConfig({ featureFlags: {}, profile: 'core', delivery: 'commands' });
       await new InitCommand({ tools: 'cursor', force: true }).execute(testDir);
 
+      await rememberProjectSkills(testDir);
       await createLegacyCodexPrompt();
 
       interactiveState.value = true;
