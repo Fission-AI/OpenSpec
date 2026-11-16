@@ -264,6 +264,24 @@ describe("a project's skills, installed through the skills package", { timeout: 
     expect(existsSync(skillFile('openspec-propose'))).toBe(false);
   });
 
+  it('says plainly that Git is needed when it is missing, and changes nothing', async () => {
+    // A PATH with no git on it. The CLI runs under its own Node, so it still starts.
+    const empty = path.join(box, 'no-programs-here');
+    await fs.mkdir(empty, { recursive: true });
+    env.PATH = empty;
+    env.Path = empty;
+
+    const result = await cli('init', '--scope', 'project', '--tools', 'claude');
+
+    const output = result.stdout + result.stderr;
+    expect(result.exitCode).toBe(1);
+    expect(output).toContain('Git is needed to install the OpenSpec skills, and it is not on your PATH.');
+    // No stack trace from the installer.
+    expect(output).not.toMatch(/^\s+at .+\(.+:\d+:\d+\)$/m);
+    expect(output).not.toContain('spawn git ENOENT');
+    expect(existsSync(skillFile('openspec-propose'))).toBe(false);
+  });
+
   it("installs from the release's own tag until the short one exists", async () => {
     // The state right after a release: published as @fission-ai/openspec@<version>, with v<version> not created yet.
     const repo = path.join(box, 'just-released');
