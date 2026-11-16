@@ -30,7 +30,7 @@ Commit your work first, so you can go back to it. That commit is also the only c
 openspec update
 ```
 
-**3. Commit the result.** If you kept project skills, commit the refreshed files and `.agents/skills/.openspec-target` so teammates skip the migration prompt. If you switched to global skills, commit the removals and ask teammates to run `openspec update` after pulling.
+**3. Commit the result.** If you kept project skills, commit the refreshed files and `openspec/config.yaml`, which now holds `skillsScope: project`, so teammates skip the migration prompt. If you switched to global skills, commit the removals and ask teammates to run `openspec update` after pulling.
 
 Running `update` again changes nothing.
 

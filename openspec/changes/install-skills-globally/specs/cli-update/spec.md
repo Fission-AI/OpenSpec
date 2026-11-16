@@ -7,7 +7,7 @@ Interactive update in a project with repo-owned skills and no recorded choice SH
 #### Scenario: Keep team skills
 
 - **WHEN** the developer presses Enter
-- **THEN** update SHALL refresh the profile’s skills in the repository and record the choice there
+- **THEN** update SHALL refresh the profile’s skills in the repository and record the choice as `skillsScope: project` in `openspec/config.yaml`
 - **AND** after the choice is committed, interactive updates in any checkout SHALL skip the migration prompt
 - **AND** `openspec init --scope global` SHALL still allow an explicit switch
 

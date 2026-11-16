@@ -22,7 +22,7 @@ import {
   formatIdeRestart,
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
-import { keepsProjectSkills, rememberProjectSkills } from './shared-skill-target.js';
+import { keepsProjectSkills, rememberProjectSkills } from './project-skills-scope.js';
 import { expectedSkillContents, projectSkillText } from './skill-installer.js';
 import {
   detectLegacyArtifacts,
@@ -231,8 +231,13 @@ export class UpdateCommand {
           default: 'project',
         });
         if (scope === 'project') {
-          await rememberProjectSkills(resolvedProjectPath);
-          console.log('Commit .agents/skills/.openspec-target to keep this choice for the team.');
+          // A config that can't be written must not stop the update: the choice is asked again next time.
+          const saved = await rememberProjectSkills(resolvedProjectPath).catch(() => undefined);
+          console.log(
+            saved
+              ? `Commit ${FileSystemUtils.toPosixPath(path.relative(resolvedProjectPath, saved))} to keep this choice for the team.`
+              : 'Could not save this choice in openspec/config.yaml. Add "skillsScope: project" to it by hand to stop being asked.'
+          );
         } else {
           const cloud = await isCopilotCloudEnabled(resolvedProjectPath);
           if (!cloud || await confirm({ message: 'Turn off hosted Copilot for this repo to switch to global skills?', default: false })) {

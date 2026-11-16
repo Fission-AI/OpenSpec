@@ -3,7 +3,7 @@ import * as skillInstaller from '../../src/core/skill-installer.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
 import { InitCommand } from '../../src/core/init.js';
-import { rememberProjectSkills } from '../../src/core/shared-skill-target.js';
+import { rememberProjectSkills } from '../../src/core/project-skills-scope.js';
 import { getConfiguredToolsForProfileSync } from '../../src/core/profile-sync-drift.js';
 import { ALL_WORKFLOWS } from '../../src/core/profiles.js';
 import { FileSystemUtils } from '../../src/utils/file-system.js';
@@ -189,6 +189,9 @@ describe('UpdateCommand', () => {
     const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
     expect(await FileSystemUtils.fileExists(skill)).toBe(true);
     expect(install).not.toHaveBeenCalled();
+    // The choice sits with the project's other settings, and the tool list stays a list of tools.
+    expect(await fs.readFile(path.join(testDir, 'openspec/config.yaml'), 'utf8')).toMatch(/^skillsScope: project$/m);
+    expect(await fs.readFile(path.join(testDir, '.agents/skills/.openspec-target'), 'utf8')).toBe('claude own-files\ncursor\n');
     const checkout = path.join(testDir, 'second-checkout');
     const env = { ...process.env, ...isolatedGitEnv(testDir) };
     const git = (...args: string[]) => execFileSync('git', args, { cwd: testDir, env, stdio: 'pipe' });

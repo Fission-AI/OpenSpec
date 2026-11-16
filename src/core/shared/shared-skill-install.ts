@@ -7,7 +7,7 @@ import { normalizeGeneratedFile } from './generated-fingerprint.js';
 import type { FileView } from '../file-view.js';
 import type { UpdateFileOps } from '../update-plan.js';
 import { pruneEmptyParents } from '../released-output-sweep.js';
-import { formatSkillToolList, keepsProjectSkills, readListedToolsWithOwnFiles, skillToolListPath } from '../shared-skill-target.js';
+import { formatSkillToolList, readListedToolsWithOwnFiles, skillToolListPath } from '../shared-skill-target.js';
 import { expectedSkillContents, installReleaseSkills, projectSkillText, removeManagedSkills } from '../skill-installer.js';
 import { resolveFormerOwnSkillsDir, resolveSharedSkillsDir, resolveSkillLinkDir, usesSharedSkills } from './skill-paths.js';
 
@@ -156,7 +156,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       const former = resolveFormerOwnSkillsDir(projectPath, tool);
       if (former && [...contents.keys()].some(name => view.linkTarget?.(path.join(former, name)))) own.add(tool.value);
     }
-    const list = formatSkillToolList(tools.map(tool => tool.value), own, keepsProjectSkills(projectPath, view));
+    const list = formatSkillToolList(tools.map(tool => tool.value), own);
     if (!view.exists(marker) || view.read(marker) !== list) await ops.writeFile(marker, list, 'openspec');
   } else if (view.exists(marker)) {
     await ops.removeFile(marker, 'openspec');
