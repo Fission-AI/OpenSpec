@@ -5,7 +5,13 @@
 To upgrade, update the CLI, then run `openspec update` in each project. At the migration prompt, press Enter to keep shipping skills in Git, or choose **Switch to global**. OpenSpec refreshes its built-in skills and removes old generated commands. It keeps command files you edited.
 
 > [!WARNING]
-> `update` replaces an edit you made inside a skill OpenSpec installs in `.agents/skills/`, and keeps no copy. Save those edits first: [Skills you customized](#skills-you-customized).
+> `update` replaces each built-in skill folder in `.agents/skills/` whole and keeps no copy. An edit you made inside one, and any file you added to it, is removed without a message. Save them first: [Skills you customized](#skills-you-customized). `openspec update --dry-run` lists what would change.
+
+## New in 2.1
+
+- **Setup scripts.** `openspec init --tools <ids>` in a new repo now installs the skills on your machine, not in the repo. To keep them in the repo, run `openspec init --scope project --tools <ids>` or set `OPENSPEC_SKILLS_SCOPE=project`.
+- **Git and GitHub.** Installing or refreshing skills needs Git on your `PATH` and access to github.com. There is no offline fallback.
+- **Existing repos.** `openspec update` in a terminal asks once whether to keep the skills in the repo or switch to global skills. Nothing moves until you choose.
 
 ## What changes
 
@@ -30,7 +36,9 @@ Commit your work first, so you can go back to it. That commit is also the only c
 openspec update
 ```
 
-**3. Commit the result.** If you kept project skills, commit the refreshed files and `openspec/config.yaml`, which now holds `skillsScope: project`, so teammates skip the migration prompt. If you switched to global skills, commit the removals and ask teammates to run `openspec update` after pulling.
+No question appears when update runs without a terminal (in CI or from an agent) or with `--force`. It refreshes the skills where they are and leaves `openspec/config.yaml` alone.
+
+**3. Commit the result.** If you chose **Keep in this project**, commit the refreshed files and `openspec/config.yaml`, which now holds `skillsScope: project`, so teammates skip the migration prompt. If you switched to global skills, commit the removals. After pulling, each teammate runs `openspec update` in a terminal, answers **Yes** to setting up skills on their machine, and picks their tools. In a script or from an agent, they run `openspec init --tools <ids>` instead.
 
 Running `update` again changes nothing.
 
@@ -81,7 +89,7 @@ A project set up before 1.0 has older files, such as `.claude/commands/openspec/
 
 ## Skills you customized
 
-Save edits to built-in skills before updating. OpenSpec replaces them with the instructions from your CLI’s GitHub release tag.
+Save edits to built-in skills before updating, along with any file you added inside a built-in skill folder. OpenSpec replaces each of those folders with the instructions from your CLI’s GitHub release tag.
 
 To keep a customization across updates, put it somewhere `update` doesn't write:
 
@@ -110,11 +118,11 @@ Most tools read `.agents/skills/` directly. If yours reads only its own folder, 
 
 ## Teams on mixed versions
 
-Upgrade the team’s CLIs before switching a repo to global skills. Earlier CLIs only understand project skills. If teammates run different releases against the same installed skills, each update restores the instructions from that CLI’s GitHub release tag.
+Upgrade the team’s CLIs before switching a repo to global skills. Earlier CLIs only understand project skills. If teammates run different releases against the same installed skills, each update restores the instructions from that CLI’s own version.
 
 ## Many projects: install the skills once
 
-Run `openspec update` in the repo and choose **Switch to global**. Commit the removed files. After pulling, each teammate runs `openspec update` once and selects their own tools. Press Enter on **Keep in this project** if the team shares skills through Git or uses hosted Copilot. If the team previously chose Keep, switch later with `openspec init --scope global`.
+Run `openspec update` in the repo and choose **Switch to global**. Commit the removed files. After pulling, each teammate runs `openspec update` in a terminal, answers **Yes** to setting up skills on their machine, and selects their own tools. Press Enter on **Keep in this project** if the team shares skills through Git or uses hosted Copilot. If the team previously chose Keep, switch later with `openspec init --scope global`.
 
 **Already installed the official skills globally with `npx skills add`?** Keep that install and run `openspec update`. It refreshes the built-in workflows for your profile.
 

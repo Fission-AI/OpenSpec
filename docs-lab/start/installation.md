@@ -209,13 +209,13 @@ No project needs re-initializing. To switch back, delete the file and run the np
 
 ## Updating
 
-In your terminal, in each project where you ran init:
+In your terminal:
 
 ```bash
 openspec update
 ```
 
-When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update) says so and can install it for you; that upgrade is once per machine. Every run refreshes the project's generated skills, which never update on their own. A current project prints `✓ All 2 tool(s) up to date (v1.7.0)`.
+When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update) says so and can install it for you; that upgrade is once per machine. Every run refreshes your skills, which never update on their own. With global skills, running it once from any folder is enough, and it prints `✓ The 6 skills for this machine are up to date (v2.1.0)`. With skills kept in a project, run it in each project; a current one prints `✓ All 2 tool(s) up to date (v2.1.0)`.
 
 
 > [!WARNING]

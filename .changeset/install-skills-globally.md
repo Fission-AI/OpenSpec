@@ -21,7 +21,7 @@ Where should OpenSpec keep this project’s skills?
 
 **Keep in this project.** Press Enter to keep the skill files in the repo. OpenSpec saves the choice as `skillsScope: project` in `openspec/config.yaml`. Commit that file with the skills. After pulling, teammates can run `openspec update` without seeing the migration prompt again. To switch later, run `openspec init --scope global`. Choose this if GitHub’s hosted Copilot agent needs to read them from the repo.
 
-**Switch to global.** We recommend this for most teams. OpenSpec installs your selected skills on your machine before removing the repo copies. Commit those removals. **After pulling that commit, each teammate runs `openspec update` once in their checkout.** Your team can then use the skills across projects without committing skill files or adding them to `.gitignore` in every repo.
+**Switch to global.** We recommend this for most teams. OpenSpec installs your selected skills on your machine before removing the repo copies. Commit those removals. **After pulling that commit, each teammate runs `openspec update` in a terminal, answers Yes to setting up skills on their machine, and picks their tools.** In a script or from an agent, run `openspec init --tools <ids>` instead. Your team can then use the skills across projects without committing skill files or adding them to `.gitignore` in every repo.
 
 ## Breaking change for setup scripts
 
@@ -35,11 +35,13 @@ openspec init --scope project --tools claude
 
 Existing repos with project skills switch only when you choose to. Your workflow profile still controls which skills get installed.
 
+A repo set up with `--scope project` is still asked the Keep or Switch question the first time someone runs `openspec update` in a terminal. Press Enter and commit `openspec/config.yaml`, or add `skillsScope: project` to that file yourself to skip the question.
+
 ## Before you update
 
-- **Edited a built-in skill?** Both choices refresh the built-in instructions. Save edits you want to keep first. Put team guidance in `openspec/config.yaml` under `rules` or `context`, or give a custom skill its own name.
+- **Edited a built-in skill?** Both choices replace each built-in skill folder whole, without a message. Save edits you want to keep first, and move out any file you added inside one. `openspec update --dry-run` lists what would change. Put team guidance in `openspec/config.yaml` under `rules` or `context`, or give a custom skill its own name.
 
-- **Installing or refreshing skills?** You’ll need Git and access to GitHub. OpenSpec fetches the skills from the release tag for your CLI version.
+- **Installing or refreshing skills?** You’ll need Git and access to GitHub. OpenSpec fetches the skills from the release tag for your CLI version. An error that starts `Failed to clone` means Git is missing from your `PATH` (`spawn git ENOENT`) or this machine can’t reach github.com.
 
 - **Upgrading the CLI?** `openspec update` can offer to upgrade it and continue. If it prints an upgrade command instead, run that command, then run `openspec update` again. Package installs require Node 22.20.0 or newer. The standalone executable includes its own runtime.
 

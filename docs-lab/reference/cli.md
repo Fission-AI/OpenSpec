@@ -112,7 +112,7 @@ Running init from a subdirectory exits 1 and tells you to run it from the reposi
 | `--copilot-cloud`, `--no-copilot-cloud` | Write, or don't write, the files GitHub's hosted Copilot agent needs. They need the skills in the project. See [GitHub Copilot](supported-tools.md#github-copilot). |
 | `--scope <scope>` | Install skills for this machine (`global`) or commit them with the repo (`project`). |
 
-Existing repo skills stay in the project. For new setups, `--scope` takes precedence over `OPENSPEC_SKILLS_SCOPE`, then the machine’s `skillsScope` setting. The default is global unless a requested tool needs project scope or you request hosted Copilot.
+Without `--scope`, existing repo skills stay in the project. `--scope global` in such a repo installs the skills on your machine and removes the repo copies without asking. For new setups, `--scope` takes precedence over `OPENSPEC_SKILLS_SCOPE`, then the machine’s `skillsScope` setting. The default is global unless a requested tool needs project scope or you request hosted Copilot.
 
 **Output**
 
@@ -125,7 +125,7 @@ With the skills in the project (`--scope project`), OpenSpec writes them once, t
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills in .agents/skills/ (linked from .claude/skills/)
+6 skills in .agents/skills/ (also in .claude/skills/)
 Config: openspec/config.yaml (schema: spec-driven)
 
 Getting started:
@@ -206,7 +206,7 @@ openspec update --dry-run
 | `changes[].path` | Project-relative path. A file outside the project, such as a global skill or the global config, is shown from your home directory as `~/...`, or as an absolute path when it is outside home too. |
 | `changes[].action` | `add`, `update`, or `delete`. A file whose new bytes match the old ones is not listed. |
 | `changes[].tool` | The configured tool the file belongs to, such as `claude`. Files that belong to no one tool are `openspec`: the shared skills in `.agents/skills/`, the global config, and legacy-artifact cleanup. |
-| `notes[]` | `{ code, message }` for a step a terminal user would be asked about or warned of. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. `edited-skills`: update will replace an edit you made inside a skill it installs, and the message names the files. Empty for an ordinary refresh. |
+| `notes[]` | `{ code, message }` for a step a terminal user would be asked about or warned of. `legacy-tool-directories`: a move that an interactive run asks about first; `changes` lists it as made. `legacy-artifacts`: files from OpenSpec's older layout were found, such as `openspec-proposal.md` slash commands or OpenSpec marker blocks in `AGENTS.md`. Without `--force` a non-interactive update leaves them alone, so `changes` does too; `--dry-run --force` lists their cleanup. Empty for an ordinary refresh. |
 | `failures[]` | `{ tool, error }` for each tool the real update would fail on, including a write it cannot make: a directory where a file belongs, a file where a directory belongs, or a file or folder without write permission. For that tool, `changes` stops where the real update stops; the other tools are still planned. Failures the disk only reports while writing, such as running out of space, cannot be foreseen. |
 
 A failure before planning, such as no OpenSpec directory, still prints exactly one JSON document: the empty plan plus a `status` array with `severity`, `code` (`update_error`), and `message`. The exit code is 1.

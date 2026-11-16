@@ -112,6 +112,8 @@ mkdir .mytool
 mklink /J .mytool\skills .agents\skills
 ```
 
+With global skills, make the link in your home folder instead: `ln -s ~/.agents/skills ~/.mytool/skills`.
+
 Replace `.mytool` with your tool's folder. If the tool already has a `skills/` folder of its own, link each skill instead: `ln -s ../../.agents/skills/openspec-propose .mytool/skills/openspec-propose`.
 
 **Committing links**: Git stores links as links. A teammate on Windows should run `git config --global core.symlinks true` (or clone with `git clone -c core.symlinks=true <url>`) and enable Developer Mode so links can be created. Otherwise each link checks out as a small text file, which `openspec update` replaces with a plain copy of the skill. A junction made with `mklink /J` is not committed as a link; recreate it on each machine.
