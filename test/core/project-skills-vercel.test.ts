@@ -304,7 +304,12 @@ describe("a project's skills, installed through the skills package", { timeout: 
     ]);
     // The package reinstalls the skill everywhere, so the shared folder is replaced too.
     expect(changes).toContainEqual(['.agents/skills/openspec-propose/notes.md', 'delete']);
-    expect(changes).toContainEqual(['.claude/skills/openspec-propose', 'add']);
+    // Claude Code's entry comes back: a link, or on Windows a copy of the skill file.
+    expect(changes).toContainEqual(
+      process.platform === 'win32'
+        ? ['.claude/skills/openspec-propose/SKILL.md', 'add']
+        : ['.claude/skills/openspec-propose', 'add']
+    );
     expect(existsSync(notes)).toBe(true);
 
     const update = await cli('update');
