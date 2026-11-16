@@ -1,8 +1,8 @@
-# Upgrade to 2.1
+# Upgrade to 2.1: global skills
 
-> What changes in OpenSpec 2.1, and what to do about it.
+> OpenSpec 2.1 supports global skills for coding agents. What changes, and what to do about it.
 
-**In short:** update the CLI and run `openspec update` in each repo. It asks one question. Nothing changes until you answer.
+**In short:** OpenSpec can now install its skills globally, so every project on your machine uses the same ones. To upgrade, update the CLI and run `openspec update` in each repo. It asks one question, and nothing changes until you answer.
 
 ## What’s changing
 
