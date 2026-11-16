@@ -1,8 +1,9 @@
 import path from 'node:path';
-import { existsSync, realpathSync } from 'node:fs';
+import { realpathSync } from 'node:fs';
 import { getSupportedAgents } from 'skills';
 import { installerAgent, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
+import { normalizeGeneratedFile } from './generated-fingerprint.js';
 import type { FileView } from '../file-view.js';
 import type { UpdateFileOps } from '../update-plan.js';
 import { pruneEmptyParents } from '../released-output-sweep.js';
@@ -28,7 +29,7 @@ export interface SharedSkillInstallResult {
 
 function readSkill(dir: string, name: string, view: FileView) {
   try {
-    return view.read(path.join(dir, name, 'SKILL.md')).replaceAll('\r\n', '\n');
+    return normalizeGeneratedFile(view.read(path.join(dir, name, 'SKILL.md')));
   } catch {
     return undefined;
   }
@@ -64,13 +65,17 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   const agents = new Set(['universal']);
   const targets = new Map<string, string>([[shared, 'openspec']]);
   const legacy = new Set<string>();
+  const sharedPath = FileSystemUtils.canonicalizeExistingPath(shared);
+  const sharesFolder = (dir: string) => path.relative(sharedPath, FileSystemUtils.canonicalizeExistingPath(dir)) === '';
   for (const tool of tools) {
     const target = resolveSkillLinkDir(projectPath, tool);
     const former = resolveFormerOwnSkillsDir(projectPath, tool);
     try {
       if (target) FileSystemUtils.assertPathWithin(projectPath, target);
-      if (target) targets.set(target, tool.value);
-      agents.add(installerAgent(tool.value).id);
+      if (!target || !sharesFolder(target)) {
+        if (target) targets.set(target, tool.value);
+        agents.add(installerAgent(tool.value).id);
+      }
       const oldFolders = [former];
       if (!contents.size) oldFolders.push(...(tool.legacySkillsDirs ?? []).map(root => path.join(projectPath, root, 'skills')));
       for (const old of oldFolders) {
@@ -78,7 +83,7 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
         try {
           FileSystemUtils.assertPathWithin(projectPath, old);
           if (view.linkTarget?.(old)) continue;
-          if (existsSync(old) && existsSync(shared) && realpathSync(old) === realpathSync(shared)) continue;
+          if (sharesFolder(old)) continue;
           legacy.add(old);
         } catch {
           // Earlier tools sometimes linked their entire skills folder to a shared home.

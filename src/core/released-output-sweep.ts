@@ -227,6 +227,8 @@ export async function pruneEmptyParents(projectPath: string, removed: readonly s
     let dir = path.dirname(path.join(root, ...rel.split('/')));
     while (dir !== root && dir.startsWith(root + path.sep)) {
       try {
+        // Windows can remove a junction even when its target contains skills.
+        if ((await fs.lstat(dir)).isSymbolicLink()) break;
         await fs.rmdir(dir); // fails unless empty
       } catch {
         break;

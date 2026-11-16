@@ -70,7 +70,8 @@ import {
 import {
   shouldReconcileCommandFilesForTool,
 } from './command-surface.js';
-import { usesSharedSkills } from './shared/skill-paths.js';
+import { normalizeGeneratedFile } from './shared/generated-fingerprint.js';
+import { resolveSkillLinkDir, usesSharedSkills } from './shared/skill-paths.js';
 import { isToolListed } from './shared-skill-target.js';
 import { installSharedSkills, type SharedSkillInstallResult } from './shared/shared-skill-install.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
@@ -109,15 +110,6 @@ function throwIfUpdateFailed(failedTools: readonly ToolFailure[]): void {
   if (failedTools.length > 0) {
     throw new Error(`OpenSpec update failed for: ${failedTools.map((tool) => tool.name).join(', ')}`);
   }
-}
-
-/**
- * Checkout artifacts that are not real content drift: a UTF-8 BOM and the CRLF
- * line endings a Windows clone with `core.autocrlf` reintroduces on every
- * checkout of committed generated files.
- */
-function normalizeGeneratedFile(content: string): string {
-  return content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
 }
 
 /**
@@ -906,17 +898,19 @@ export class UpdateCommand {
       // skills are in its own folder and the update moves them (config sync).
       if (usesSharedSkills(tool) && !isToolListed(projectPath, tool.value, this.view)) return false;
 
-      const skillsDir = resolveToolSkillsDir(projectPath, tool);
-      return [...bundledSkillContents(OPENSPEC_VERSION, workflowsForTool(toolId))].some(([dirName, generated]) => {
-        const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
-        if (!this.view.exists(skillFile)) return false;
+      const dirs = [resolveToolSkillsDir(projectPath, tool)];
+      const own = resolveSkillLinkDir(projectPath, tool);
+      if (own) dirs.push(own);
+      const contents = bundledSkillContents(OPENSPEC_VERSION, workflowsForTool(toolId));
+      return dirs.some(dir => [...contents].some(([name, generated]) => {
+        const file = path.join(dir, name, 'SKILL.md');
+        if (!this.view.exists(file)) return false;
         try {
-          const existing = this.view.read(skillFile);
-          return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
+          return normalizeGeneratedFile(this.view.read(file)) !== generated;
         } catch {
           return true;
         }
-      });
+      }));
     });
   }
 
