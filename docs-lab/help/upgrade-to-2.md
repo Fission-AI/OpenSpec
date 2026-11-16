@@ -2,16 +2,12 @@
 
 > What changes in OpenSpec 2.0, and how to move a project over.
 
-To upgrade, update the CLI, then run `openspec update` in each project. At the migration prompt, press Enter to keep shipping skills in Git, or choose **Switch to global**. OpenSpec refreshes its built-in skills and removes old generated commands. It keeps command files you edited.
+Already on 2.0? [Upgrade to 2.1](upgrade-to-2-1.md) is the short page you need.
+
+To upgrade from 1.x, update the CLI, then run `openspec update` in each project. OpenSpec refreshes its built-in skills and removes old generated commands. It keeps command files you edited.
 
 > [!WARNING]
-> `update` replaces each built-in skill folder in `.agents/skills/` whole and keeps no copy. An edit you made inside one, and any file you added to it, is removed without a message. Save them first: [Skills you customized](#skills-you-customized). `openspec update --dry-run` lists what would change.
-
-## New in 2.1
-
-- **Setup scripts.** `openspec init --tools <ids>` in a new repo now installs the skills on your machine, not in the repo. To keep them in the repo, run `openspec init --scope project --tools <ids>` or set `OPENSPEC_SKILLS_SCOPE=project`.
-- **Git and GitHub.** Installing or refreshing skills needs Git on your `PATH` and access to github.com. There is no offline fallback.
-- **Existing repos.** `openspec update` in a terminal asks once whether to keep the skills in the repo or switch to global skills. Nothing moves until you choose.
+> `update` replaces each built-in skill folder in `.agents/skills/` whole and keeps no copy. An edit you made inside one, and any file you added to it, is removed without a message. Save them first: [Skills you customized](#skills-you-customized). `openspec update --dry-run` shows what will change.
 
 ## What changes
 
@@ -36,9 +32,9 @@ Commit your work first, so you can go back to it. That commit is also the only c
 openspec update
 ```
 
-No question appears when update runs without a terminal (in CI or from an agent) or with `--force`. It refreshes the skills where they are and leaves `openspec/config.yaml` alone.
+In a terminal it asks where to keep the skills. [Upgrade to 2.1](upgrade-to-2-1.md) covers both answers.
 
-**3. Commit the result.** If you chose **Keep in this project**, commit the refreshed files and `openspec/config.yaml`, which now holds `skillsScope: project`, so teammates skip the migration prompt. If you switched to global skills, commit the removals. After pulling, each teammate runs `openspec update` in a terminal, answers **Yes** to setting up skills on their machine, and picks their tools. In a script or from an agent, they run `openspec init --tools <ids>` instead.
+**3. Commit the result.**
 
 Running `update` again changes nothing.
 
@@ -120,11 +116,9 @@ Most tools read `.agents/skills/` directly. If yours reads only its own folder, 
 
 Upgrade the team’s CLIs before switching a repo to global skills. Earlier CLIs only understand project skills. If teammates run different releases against the same installed skills, each update restores the instructions from that CLI’s own version.
 
-## Many projects: install the skills once
+## Skills you already installed globally
 
-Run `openspec update` in the repo and choose **Switch to global**. Commit the removed files. After pulling, each teammate runs `openspec update` in a terminal, answers **Yes** to setting up skills on their machine, and selects their own tools. Press Enter on **Keep in this project** if the team shares skills through Git or uses hosted Copilot. If the team previously chose Keep, switch later with `openspec init --scope global`.
-
-**Already installed the official skills globally with `npx skills add`?** Keep that install and run `openspec update`. It refreshes the built-in workflows for your profile.
+**Installed the official skills with `npx skills add`?** Keep that install and run `openspec update`. It refreshes the built-in workflows for your profile.
 
 **Set up global skills by hand?** Save any edits and move custom skills to their own names. Remove any links you made from the repo to your home folder before switching. Use `openspec init --scope global --tools <id>` to set up the tool’s supported paths.
 

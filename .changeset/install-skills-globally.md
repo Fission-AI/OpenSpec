@@ -16,33 +16,43 @@ With the new CLI, the next time you run `openspec update` from a repo that has i
 Where should OpenSpec keep this project’s skills?
 
 ❯ Keep in this project   Keep the skills in this repo.
-  Switch to global       Share the skills across projects on this machine.
+  Switch to global       Install the skills globally, for every project on this machine.
 ```
 
-**Keep in this project.** Press Enter to keep the skill files in the repo. OpenSpec saves the choice as `skillsScope: project` in `openspec/config.yaml`. Commit that file with the skills. After pulling, teammates can run `openspec update` without seeing the migration prompt again. To switch later, run `openspec init --scope global`. Choose this if GitHub’s hosted Copilot agent needs to read them from the repo.
+Nothing changes until you choose. In CI or from an agent there is no question: update refreshes the skills where they are.
 
-**Switch to global.** We recommend this for most teams. OpenSpec installs your selected skills on your machine before removing the repo copies. Commit those removals. **After pulling that commit, each teammate runs `openspec update` in a terminal, answers Yes to setting up skills on their machine, and picks their tools.** In a script or from an agent, run `openspec init --tools <ids>` instead. Your team can then use the skills across projects without committing skill files or adding them to `.gitignore` in every repo.
+### Keep in this project
 
-## Breaking change for setup scripts
+Press Enter. The skills stay in your repo.
 
-In 2.0, a script that ran `openspec init --tools claude` in a new repo wrote the skills into that repo. The same command now installs them on the machine by default. A teammate who clones the repo won’t get those skills through Git.
+1. Commit `openspec/config.yaml`. It records your choice, so your teammates aren’t asked.
 
-To keep the old behavior, update the script:
+Choose this if GitHub’s hosted Copilot agent reads the skills from the repo. You can switch later with `openspec init --scope global`.
+
+### Switch to global
+
+We recommend this for most teams. The skills are installed globally on your machine, and the copies in the repo are removed.
+
+1. Commit the removed files.
+2. Each teammate pulls, runs `openspec update`, and answers **Yes** when it offers to set up skills on their machine.
+
+In a script, run `openspec init --tools <ids>` in place of step 2. Upgrade everyone’s CLI before you switch a repo: earlier versions only know project skills.
+
+## If a script sets up your repos
+
+In 2.0, `openspec init --tools claude` in a new repo wrote the skills into that repo. It now installs them globally. To keep them in your project repo, add `--scope project`:
 
 ```sh
 openspec init --scope project --tools claude
 ```
 
-Existing repos with project skills switch only when you choose to. Your workflow profile still controls which skills get installed.
-
-A repo set up with `--scope project` is still asked the Keep or Switch question the first time someone runs `openspec update` in a terminal. Press Enter and commit `openspec/config.yaml`, or add `skillsScope: project` to that file yourself to skip the question.
+Existing repos don’t change until someone answers the question above.
 
 ## Before you update
 
-- **Edited a built-in skill?** Both choices replace each built-in skill folder whole, without a message. Save edits you want to keep first, and move out any file you added inside one. `openspec update --dry-run` lists what would change. Put team guidance in `openspec/config.yaml` under `rules` or `context`, or give a custom skill its own name.
+- **Edited a built-in skill?** Update replaces the built-in skill folders. Save your edits first, along with any file you added inside one. `openspec update --dry-run` shows what will change.
+- **Git.** Installing or refreshing skills needs Git and access to GitHub.
+- **Node.** An npm install needs Node 22.20.0 or newer. The standalone executable needs nothing.
+- **Already ran `npx skills add`?** Keep that install and run `openspec update`.
 
-- **Installing or refreshing skills?** You’ll need Git and access to GitHub. OpenSpec fetches the skills from the release tag for your CLI version. An error that starts `Failed to clone` means Git is missing from your `PATH` (`spawn git ENOENT`) or this machine can’t reach github.com.
-
-- **Upgrading the CLI?** `openspec update` can offer to upgrade it and continue. If it prints an upgrade command instead, run that command, then run `openspec update` again. Package installs require Node 22.20.0 or newer. The standalone executable includes its own runtime.
-
-- **Already installed the official skills globally with `npx skills add`?** Keep that install and run `openspec update`.
+The [upgrade guide](https://openspec.dev/docs/upgrade-to-2-1) has the same steps on one page.

@@ -16,7 +16,7 @@ cd <your-project>
 openspec init
 ```
 
-Select the tools you use. New projects share the skills on your machine. Run `openspec init --scope project` to keep them in Git instead.
+Select the tools you use. In a new project the skills are installed globally. Run `openspec init --scope project` to keep them in your project repo instead.
 
 **Breaking change for setup scripts.** In 2.0, `openspec init --tools claude` wrote skill files into a new repo. It now installs them on the machine by default. If your script commits skills for teammates or CI, use `openspec init --scope project --tools claude`.
 
@@ -151,7 +151,7 @@ Run `openspec update` to refresh the skills for your [workflow profile](../custo
 #### Move an existing project to the global skills
 
 1. Save any edits to built-in skills, and move out any file you added inside a built-in skill folder: update replaces those folders whole. Put team guidance under `rules` or `context` in `openspec/config.yaml`, or give a custom skill its own name.
-2. Run `openspec update` in a terminal. Choose **Switch to global** to install skills on your machine and remove the repo copies. To keep sharing skills through Git, press Enter on **Keep in this project** and commit the updated `openspec/config.yaml`, where OpenSpec saves the choice as `skillsScope: project`. Other checkouts then remember the choice. You can switch later with `openspec init --scope global`.
+2. Run `openspec update` in a terminal. Choose **Switch to global** to install skills on your machine and remove the repo copies. To keep the skills in your project repo, press Enter on **Keep in this project** and commit the updated `openspec/config.yaml`, where OpenSpec saves the choice as `skillsScope: project`. Other checkouts then remember the choice. You can switch later with `openspec init --scope global`.
 3. If you switched to global, commit the removals. After pulling that commit, each teammate runs `openspec update` in a terminal, answers **Yes** to setting up skills on their machine, and selects their tools. In a script or from an agent, they run `openspec init --tools <ids>` instead.
 
 Keep project skills for GitHub’s hosted Copilot agent. It can read committed files, but it can’t read your home folder. CI jobs that only run `openspec validate` don’t need skills. For jobs that install them, see [OPENSPEC_SKILLS_SCOPE](../reference/configuration/environment-variables.md#openspec_skills_scope).

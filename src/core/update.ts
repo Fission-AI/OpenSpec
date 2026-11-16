@@ -226,7 +226,7 @@ export class UpdateCommand {
           message: 'Where should OpenSpec keep this project’s skills?',
           choices: [
             { name: 'Keep in this project   Keep the skills in this repo.', value: 'project' },
-            { name: 'Switch to global       Share the skills across projects on this machine.', value: 'global' },
+            { name: 'Switch to global       Install the skills globally, for every project on this machine.', value: 'global' },
           ],
           default: 'project',
         });
