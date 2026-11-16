@@ -139,7 +139,8 @@ describe('the list of projects that use OpenSpec', () => {
 });
 
 // The real CLI in a throwaway home, as in global-skills.test.ts.
-describe('local project history', () => {
+// Each case runs the CLI several times, and every install is a Git fetch.
+describe('local project history', { timeout: 60_000 }, () => {
   let box: string;
   let home: string;
   let env: NodeJS.ProcessEnv;
