@@ -2168,6 +2168,34 @@ describe('InitCommand - profile and detection features', () => {
     expect(selectMock).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['one that needs project scope', ['eve']],
+    ['a mix that includes one', ['claude', 'eve']],
+  ])('interactive init keeps the skills in the project when the tools picked are %s', async (_label, picked) => {
+    // No flag, no environment variable, no saved setting: the default follows the tools, as it does for --tools.
+    delete process.env.OPENSPEC_SKILLS_SCOPE;
+    searchableMultiSelectMock.mockResolvedValue(picked);
+
+    const initCommand = new InitCommand({});
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+    await initCommand.execute(testDir);
+
+    expect(installGlobalSkillsMock).not.toHaveBeenCalled();
+    expect(searchableMultiSelectMock).toHaveBeenCalledTimes(1);
+    expect(await fileExists(path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+  });
+
+  it('interactive init still refuses a tool that needs project scope when global was asked for', async () => {
+    delete process.env.OPENSPEC_SKILLS_SCOPE;
+    searchableMultiSelectMock.mockResolvedValue(['eve']);
+
+    const initCommand = new InitCommand({ scope: 'global' });
+    vi.spyOn(initCommand as any, 'canPromptInteractively').mockReturnValue(true);
+
+    await expect(initCommand.execute(testDir)).rejects.toThrow('None of the selected tools are covered by the global skills');
+    expect(await fileExists(path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(false);
+  });
+
   it('reports a failed global install and exits with an error', async () => {
     installGlobalSkillsMock.mockRejectedValue(new Error('disk is full'));
 

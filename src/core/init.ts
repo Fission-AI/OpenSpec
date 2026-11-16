@@ -168,6 +168,10 @@ export class InitCommand {
   private readonly animation: boolean;
   private readonly copilotCloudOption?: boolean;
   private readonly scopeOption?: SkillScope;
+  /** True when no flag, environment variable or saved setting chose the scope. */
+  private scopeIsDefault = false;
+  /** What the tool picker returned, kept so a second step does not ask again. */
+  private pickedTools?: string[];
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
@@ -240,11 +244,14 @@ export class InitCommand {
     this.resolveProfileOverride();
     const canPrompt = this.canPromptInteractively();
     if ((await this.resolveSkillScope(projectPath, detectedTools)) === 'global') {
-      await this.setUpWithGlobalSkills(projectPath, openspecPath, {
+      const done = await this.setUpWithGlobalSkills(projectPath, openspecPath, {
         extendMode, integrationsOnly, toolStates: getToolStates(projectPath), detectedTools,
       });
-      rememberProject(projectPath);
-      return;
+      if (done) {
+        rememberProject(projectPath);
+        return;
+      }
+      // The tools picked need project scope, and nobody asked for global: set up the project.
     }
     const deferredLegacyCleanup = integrationsOnly ? null : await this.handleLegacyCleanup(projectPath, extendMode);
     migrateLegacyToolDirs(projectPath);
@@ -383,6 +390,8 @@ export class InitCommand {
       (this.resolveToolsArg() ?? detectedTools.map(tool => tool.value)).some(id => !supportsGlobalSkills(id)))) {
       return 'project';
     }
+    // Nobody chose this: it can still give way to what the tool picker returns.
+    this.scopeIsDefault = true;
     return 'global';
   }
 
@@ -399,7 +408,7 @@ export class InitCommand {
       toolStates: Map<string, ToolSkillStatus>;
       detectedTools: AIToolOption[];
     }
-  ): Promise<void> {
+  ): Promise<boolean> {
     if (this.copilotCloudOption === true) {
       throw new Error(
         '--copilot-cloud sets up the GitHub-hosted agent, which only sees skills kept in the project. Add --scope project.'
@@ -422,6 +431,12 @@ export class InitCommand {
     const tools = this.validateTools(selected, context.toolStates);
     const supported = tools.filter((tool) => supportsGlobalSkills(tool.value));
     const unsupported = tools.filter((tool) => !supportsGlobalSkills(tool.value));
+    // A default scope follows the tools, as it does for --tools: a tool picked
+    // at the prompt that needs project scope gets a project install.
+    if (this.scopeIsDefault && this.toolsArg === undefined && !movesProject && unsupported.length > 0) {
+      this.pickedTools = selected;
+      return false;
+    }
     if (unsupported.length > 0 && this.toolsArg?.trim().toLowerCase() !== 'all') {
       const one = unsupported.length === 1;
       console.log(
@@ -508,7 +523,7 @@ export class InitCommand {
       { write: false, skippedUndecided: false, present: [], collisions: [], removed: 0 },
       globalSkills
     );
-
+    return true;
   }
 
   /**
@@ -808,6 +823,7 @@ export class InitCommand {
     detectedTools: AIToolOption[],
     projectPath: string
   ): Promise<string[]> {
+    if (this.pickedTools) return this.pickedTools;
     // Check for --tools flag first
     const nonInteractiveSelection = this.resolveToolsArg();
     if (nonInteractiveSelection !== null) {
