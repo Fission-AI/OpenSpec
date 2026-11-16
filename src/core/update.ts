@@ -22,6 +22,7 @@ import {
   formatIdeRestart,
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
+import { keepsProjectSkills, rememberProjectSkills } from './shared-skill-target.js';
 import { expectedSkillContents, projectSkillText } from './skill-installer.js';
 import {
   detectLegacyArtifacts,
@@ -219,7 +220,8 @@ export class UpdateCommand {
     if (hasProject && !this.dryRun && isInteractive() && !this.force) {
       const { select, confirm } = await import('@inquirer/prompts');
       const { InitCommand } = await import('./init.js');
-      if (projectHasOwnSkills(resolvedProjectPath)) {
+      const hasProjectSkills = projectHasOwnSkills(resolvedProjectPath);
+      if (hasProjectSkills && !keepsProjectSkills(resolvedProjectPath)) {
         const scope = await select({
           message: 'Where should OpenSpec keep this project’s skills?',
           choices: [
@@ -228,14 +230,17 @@ export class UpdateCommand {
           ],
           default: 'project',
         });
-        if (scope === 'global') {
+        if (scope === 'project') {
+          await rememberProjectSkills(resolvedProjectPath);
+          console.log('Commit .agents/skills/.openspec-target to keep this choice for the team.');
+        } else {
           const cloud = await isCopilotCloudEnabled(resolvedProjectPath);
           if (!cloud || await confirm({ message: 'Turn off hosted Copilot for this repo to switch to global skills?', default: false })) {
             await new InitCommand({ scope, tools: getConfiguredToolsForProfileSync(resolvedProjectPath).join(','), copilotCloud: cloud ? false : undefined }).execute(resolvedProjectPath);
             return;
           }
         }
-      } else if (!this.hasGlobalSkills && process.env.OPENSPEC_SKILLS_SCOPE !== 'project' &&
+      } else if (!hasProjectSkills && !this.hasGlobalSkills && process.env.OPENSPEC_SKILLS_SCOPE !== 'project' &&
         await confirm({ message: 'Set up OpenSpec skills for your coding tools on this machine?', default: false })) {
         await new InitCommand({ scope: 'global' }).execute(resolvedProjectPath);
         return;

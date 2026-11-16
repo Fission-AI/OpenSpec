@@ -10,21 +10,39 @@ import { SHARED_SKILLS_ROOT, resolveFormerOwnSkillsDir } from './shared/skill-pa
  * one id per line. Every tool's skills live in that one folder, so the list is
  * how `update` still knows which tools to keep. Releases before 2.0 wrote a
  * single id there (the one tool that rendered the shared folder); a one-line
- * file reads the same way.
+ * file reads the same way. A project that chose Keep adds a scope header.
  */
 const TOOL_LIST_FILE = '.openspec-target';
+const KEEP_PROJECT_SKILLS = '# scope: project';
 
 /** Path of the list of tools set up in the project. */
 export function skillToolListPath(projectPath: string): string {
   return path.join(projectPath, SHARED_SKILLS_ROOT, 'skills', TOOL_LIST_FILE);
 }
 
+function readMarker(projectPath: string, view: FileView): string {
+  const marker = skillToolListPath(projectPath);
+  FileSystemUtils.assertProjectArtifactPath(projectPath, marker);
+  return view.exists(marker) ? view.read(marker) : '';
+}
+
+export function keepsProjectSkills(projectPath: string, view: FileView = DISK_VIEW): boolean {
+  return readMarker(projectPath, view).split(/\r?\n/, 1)[0] === KEEP_PROJECT_SKILLS;
+}
+
+export async function rememberProjectSkills(projectPath: string): Promise<void> {
+  const tools = readMarker(projectPath, DISK_VIEW);
+  await FileSystemUtils.writeFile(skillToolListPath(projectPath), `${KEEP_PROJECT_SKILLS}\n${tools}`);
+}
+
 /** Sorted public tool IDs, with the 2.0 own-files marker where applicable. */
 export function formatSkillToolList(
   toolIds: Iterable<string>,
-  toolsWithOwnFiles: ReadonlySet<string> = new Set()
+  toolsWithOwnFiles: ReadonlySet<string> = new Set(),
+  keepInProject = false
 ): string {
   return [
+    ...(keepInProject ? [KEEP_PROJECT_SKILLS] : []),
     // `own-files`: OpenSpec gave the tool files of its own (commands or
     // links), so deleting them all removes the tool.
     ...[...new Set(toolIds)].sort().map((id) => (toolsWithOwnFiles.has(id) ? `${id} own-files` : id)),
@@ -33,13 +51,9 @@ export function formatSkillToolList(
 
 /** The listed tools OpenSpec gave files of their own (commands or links). */
 export function readListedToolsWithOwnFiles(projectPath: string, view: FileView = DISK_VIEW): Set<string> {
-  const listPath = skillToolListPath(projectPath);
   try {
-    FileSystemUtils.assertProjectArtifactPath(projectPath, listPath);
-    if (!view.exists(listPath)) return new Set();
     return new Set(
-      view
-        .read(listPath)
+      readMarker(projectPath, view)
         .split(/\r?\n/)
         .map((line) => line.trim().split(/\s+/))
         .filter((tokens) => tokens[1] === 'own-files')
@@ -80,13 +94,9 @@ function inferPreListTool(projectPath: string, view: FileView): string | undefin
 
 /** The known tools the list file names, or none when there is no such file. */
 function readListFileTools(projectPath: string, view: FileView): string[] {
-  const listPath = skillToolListPath(projectPath);
   try {
-    FileSystemUtils.assertProjectArtifactPath(projectPath, listPath);
-    if (!view.exists(listPath)) return [];
     const known = new Set(AI_TOOLS.map((tool) => tool.value));
-    return view
-      .read(listPath)
+    return readMarker(projectPath, view)
       .split(/\r?\n/)
       .map((line) => resolveToolIdAlias(line.trim().split(/\s+/)[0]))
       .filter((id) => known.has(id));

@@ -2,18 +2,20 @@
 
 ### Requirement: Choose whether to keep skills in the repository
 
-Interactive update in a project with repo-owned skills SHALL offer **Keep in this project** as the default and **Switch to global** as the alternative.
+Interactive update in a project with repo-owned skills and no recorded choice SHALL offer **Keep in this project** as the default and **Switch to global** as the alternative.
 
 #### Scenario: Keep team skills
 
-- **WHEN** the maintainer presses Enter
-- **THEN** update SHALL refresh the profile’s skills in the repository
+- **WHEN** the developer presses Enter
+- **THEN** update SHALL refresh the profile’s skills in the repository and record the choice there
+- **AND** after the choice is committed, interactive updates in any checkout SHALL skip the migration prompt
+- **AND** `openspec init --scope global` SHALL still allow an explicit switch
 
 #### Scenario: Move team skills
 
-- **WHEN** the maintainer switches to global
+- **WHEN** the developer switches to global
 - **THEN** update SHALL finish installing the requested skills before removing the repo copies
-- **AND** it SHALL tell the maintainer to commit the removals and teammates to run update after pulling
+- **AND** it SHALL tell the developer to commit the removals and teammates to run update after pulling
 
 #### Scenario: Fresh teammate checkout
 

@@ -18,6 +18,8 @@ import { releasedCodexPrompt } from '../helpers/released-codex-prompt.js';
 import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
+import { execFileSync } from 'node:child_process';
+import { isolatedGitEnv } from '../helpers/store-git.js';
 
 const { selectMock, confirmMock, searchableMultiSelectMock, interactiveState } = vi.hoisted(() => ({
   selectMock: vi.fn(),
@@ -177,7 +179,7 @@ describe('UpdateCommand', () => {
     await fs.rm(testDir, { recursive: true, force: true });
   });
 
-  it('keeps the project by default and removes repo skills only on an explicit switch', async () => {
+  it('remembers Keep across checkouts and still allows an explicit switch', async () => {
     await new InitCommand({ scope: 'project', tools: 'claude,cursor' }).execute(testDir);
     interactiveState.value = true;
     const install = vi.spyOn(globalSkills, 'installGlobalSkills').mockResolvedValue({
@@ -190,10 +192,39 @@ describe('UpdateCommand', () => {
     const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
     expect(await FileSystemUtils.fileExists(skill)).toBe(true);
     expect(install).not.toHaveBeenCalled();
-    selectMock.mockResolvedValue('global');
-    await updateCommand.execute(testDir);
+    const checkout = path.join(testDir, 'second-checkout');
+    const env = { ...process.env, ...isolatedGitEnv(testDir) };
+    const git = (...args: string[]) => execFileSync('git', args, { cwd: testDir, env, stdio: 'pipe' });
+    git('init', '--quiet');
+    git('add', 'openspec', '.agents', '.claude');
+    git('commit', '-qm', 'Keep skills in the project');
+    git('clone', '--quiet', testDir, checkout);
+
+    selectMock.mockClear();
+    delete process.env.OPENSPEC_SKILLS_SCOPE;
+    // Refreshing an edited skill also rewrites the tool list if it needs repair.
+    await fs.appendFile(path.join(checkout, '.agents/skills/openspec-propose/SKILL.md'), 'edited');
+    await new UpdateCommand().execute(checkout);
+    await new UpdateCommand().execute(checkout);
+    expect(selectMock).not.toHaveBeenCalled();
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(install).not.toHaveBeenCalled();
+
+    await new InitCommand({ scope: 'global' }).execute(testDir);
     expect(install).toHaveBeenCalledWith(expect.objectContaining({ toolIds: ['claude', 'cursor'] }));
     expect(await FileSystemUtils.fileExists(skill)).toBe(false);
+  });
+
+  it('switches to global when the developer chooses it during update', async () => {
+    await new InitCommand({ scope: 'project', tools: 'claude' }).execute(testDir);
+    interactiveState.value = true;
+    selectMock.mockResolvedValue('global');
+    const install = vi.spyOn(globalSkills, 'installGlobalSkills').mockResolvedValue({
+      skills: ['openspec-propose'], removedSkills: [], unchanged: false,
+    });
+    await updateCommand.execute(testDir);
+    expect(install).toHaveBeenCalledWith(expect.objectContaining({ toolIds: ['claude'] }));
+    expect(await FileSystemUtils.directoryExists(path.join(testDir, '.agents', 'skills'))).toBe(false);
   });
 
   it('lets a teammate skip local skills or choose tools after pulling the removals', async () => {

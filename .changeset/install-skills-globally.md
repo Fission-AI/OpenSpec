@@ -19,7 +19,7 @@ Where should OpenSpec keep this project’s skills?
   Switch to global       Share the skills across projects on this machine.
 ```
 
-**Keep in this project.** Press Enter to keep the skill files in the repo. Your team keeps getting them through Git. Choose this if GitHub’s hosted Copilot agent needs to read them from the repo.
+**Keep in this project.** Press Enter to keep the skill files in the repo. Commit the updated `.agents/skills/.openspec-target` with the skills. After pulling, teammates can run `openspec update` without seeing the migration prompt again. To switch later, run `openspec init --scope global`. Choose this if GitHub’s hosted Copilot agent needs to read them from the repo.
 
 **Switch to global.** We recommend this for most teams. OpenSpec installs your selected skills on your machine before removing the repo copies. Commit those removals. **After pulling that commit, each teammate runs `openspec update` once in their checkout.** Your team can then use the skills across projects without committing skill files or adding them to `.gitignore` in every repo.
 

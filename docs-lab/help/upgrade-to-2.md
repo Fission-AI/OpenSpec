@@ -30,7 +30,7 @@ Commit your work first, so you can go back to it. That commit is also the only c
 openspec update
 ```
 
-**3. Commit the result.** If you kept project skills, commit the refreshed files. If you switched to global skills, commit the removals and ask teammates to run `openspec update` after pulling.
+**3. Commit the result.** If you kept project skills, commit the refreshed files and `.agents/skills/.openspec-target` so teammates skip the migration prompt. If you switched to global skills, commit the removals and ask teammates to run `openspec update` after pulling.
 
 Running `update` again changes nothing.
 
@@ -114,7 +114,7 @@ Upgrade the team’s CLIs before switching a repo to global skills. Earlier CLIs
 
 ## Many projects: install the skills once
 
-Run `openspec update` in the repo and choose **Switch to global**. Commit the removed files. After pulling, each teammate runs `openspec update` once and selects their own tools. Press Enter on **Keep in this project** if the team shares skills through Git or uses hosted Copilot.
+Run `openspec update` in the repo and choose **Switch to global**. Commit the removed files. After pulling, each teammate runs `openspec update` once and selects their own tools. Press Enter on **Keep in this project** if the team shares skills through Git or uses hosted Copilot. If the team previously chose Keep, switch later with `openspec init --scope global`.
 
 **Already installed the official skills globally with `npx skills add`?** Keep that install and run `openspec update`. It refreshes the built-in workflows for your profile.
 

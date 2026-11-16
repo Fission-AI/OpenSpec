@@ -1,6 +1,6 @@
 ## Scope and migration
 
-The committed skill files and existing tool marker identify projects that carry their integrations in Git. An interactive update lets the maintainer keep those files or switch to global skills. Noninteractive updates refresh existing installs. A checkout with only project data can run ordinary commands without installing skills. Interactive update offers optional local tool setup to a teammate with no machine-wide install.
+The committed skill files and existing tool marker identify projects that carry their integrations in Git. The first interactive update offers to keep those files or switch to global skills. Choosing Keep records the decision in the existing tool marker. Committing that file carries the choice to other checkouts. An explicit `openspec init --scope global` can still switch the repo. Noninteractive updates refresh existing installs. A checkout with only project data can run ordinary commands without installing skills. Interactive update offers optional local tool setup to a teammate with no machine-wide install.
 
 ## Installer
 
