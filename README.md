@@ -164,14 +164,7 @@ Full documentation lives at **[openspec.dev/docs](https://openspec.dev/docs)**.
 → **[Supported Tools](https://openspec.dev/docs/supported-tools)**: tool integrations & install paths<br>
 → **[Customize](https://openspec.dev/docs/customize)**: profiles, project config, and schemas<br>
 → **[Stores](https://openspec.dev/docs/stores)**: plan in a separate repo, shared across your team (beta)<br>
-→ **[Community Showcase](docs/community.md)**: projects and resources built with and for OpenSpec
-
-## Community schemas
-
-Third-party schema bundles distributed via standalone repositories — these provide opinionated workflows that integrate OpenSpec with other tools, similar to how [github/spec-kit's community extension catalog](https://github.com/github/spec-kit/tree/main/extensions) handles tool integrations.
-
-→ **[Browse the catalog](docs/customization.md#community-schemas)** in the customization docs.
-
+→ **[Community](https://openspec.dev/docs/community)**: custom schema examples and projects built with OpenSpec
 
 ## Why OpenSpec?
 

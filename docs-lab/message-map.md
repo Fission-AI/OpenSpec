@@ -62,4 +62,5 @@ maintain.
 | What should a user do when OpenSpec doesn't do what they expected? | [Help › Troubleshooting](help/troubleshooting.md), then [Help › FAQ](help/faq.md) | Skeleton |
 | Where does a user go for help or to report a bug? | [Help › Troubleshooting](help/troubleshooting.md), Getting help | Skeleton |
 | How should a user move off the legacy `/openspec:*` commands? | [Help › Migration](help/legacy/migration.md) | Skeleton |
+| Where can a user find community schema examples and projects, or submit their own? | [Community](community/index.md) | Answered |
 | How does a script or CI drive the CLI programmatically? | Off-site by decision: repo-side contributor docs, per [sources.md](sources.md) | Off-site |
