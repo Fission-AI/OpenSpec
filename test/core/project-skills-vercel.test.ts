@@ -289,6 +289,31 @@ describe("a project's skills, installed through the skills package", { timeout: 
     expect(existsSync(path.join(home, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
   });
 
+  it('lists in a dry run every folder a reinstall replaces, with the files beside the skill', async () => {
+    await init();
+    // Nothing wrong with the shared copy; only Claude Code's link is gone.
+    const notes = path.join(dir, '.agents', 'skills', 'openspec-propose', 'notes.md');
+    await fs.writeFile(notes, 'mine');
+    await fs.rm(path.join(dir, '.claude', 'skills', 'openspec-propose'), { recursive: true, force: true });
+
+    const plan = await cli('update', '--dry-run', '--json');
+    expect(plan.exitCode, plan.stderr).toBe(0);
+    const changes = (JSON.parse(plan.stdout).changes as Array<{ path: string; action: string }>).map((change) => [
+      change.path,
+      change.action,
+    ]);
+    // The package reinstalls the skill everywhere, so the shared folder is replaced too.
+    expect(changes).toContainEqual(['.agents/skills/openspec-propose/notes.md', 'delete']);
+    expect(changes).toContainEqual(['.claude/skills/openspec-propose', 'add']);
+    expect(existsSync(notes)).toBe(true);
+
+    const update = await cli('update');
+    expect(update.exitCode, update.stderr).toBe(0);
+    // What the plan said: the real run does the same.
+    expect(existsSync(notes)).toBe(false);
+    expect(existsSync(path.join(dir, '.claude', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+  });
+
   it('plans the skill changes in a dry run and writes nothing', async () => {
     await init();
     for (const name of CORE_SKILLS) await fs.writeFile(skillFile(name), stamped(name));

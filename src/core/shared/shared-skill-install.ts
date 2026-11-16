@@ -101,19 +101,25 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       const spot = path.join(dir, name);
       const source = contents.get(name);
       if (source !== undefined) {
-        const text = projectSkillText(tool, source);
-        if (readSkill(dir, name, view) === text) continue;
-        install.add(name);
-        if (!input.writesToDisk) {
-          if (dir === shared || tool === 'eve' || process.platform === 'win32') {
-            if (present(spot, view)) await ops.removeDirectory(spot, tool);
-            await ops.writeFile(path.join(spot, 'SKILL.md'), text, tool);
-          }
-          else await ops.linkSkill(spot, path.join(shared, name), tool);
-        }
+        if (readSkill(dir, name, view) !== projectSkillText(tool, source)) install.add(name);
       } else if (present(spot, view)) {
         remove.add(name);
         if (!input.writesToDisk) await ops.removeDirectory(spot, tool);
+      }
+    }
+  }
+  if (!input.writesToDisk) {
+    // The package reinstalls a skill into every destination, replacing each
+    // folder whole: one that needed nothing itself is replaced too, with any
+    // file kept beside the skill.
+    for (const name of install) {
+      for (const [dir, tool] of targets) {
+        const spot = path.join(dir, name);
+        if (dir === shared || tool === 'eve' || process.platform === 'win32') {
+          if (present(spot, view)) await ops.removeDirectory(spot, tool);
+          await ops.writeFile(path.join(spot, 'SKILL.md'), projectSkillText(tool, contents.get(name)!), tool);
+        }
+        else await ops.linkSkill(spot, path.join(shared, name), tool);
       }
     }
   }
