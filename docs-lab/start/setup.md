@@ -44,7 +44,7 @@ If your tool runs in an IDE, restart it so it picks up the new skills.
 
 Re-running init is safe:
 
-- Tools you already set up print `Refreshed` instead of `Created`.
+- With skills in the project, tools you already set up print `Refreshed` instead of `Created`.
 - Running init again with a new tool selected adds that tool.
 - The `--tools` flag skips the picker ([CLI reference](../reference/cli.md)).
 
