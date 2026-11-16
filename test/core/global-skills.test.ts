@@ -292,6 +292,34 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
       expect(result.stderr).toContain("No OpenSpec directory found. Run 'openspec init' first.");
     });
 
+    it.skipIf(process.platform === 'win32' || process.getuid?.() === 0)(
+      "fails when a tool's copy of a removed skill is still there",
+      async () => {
+        const dir = await project('app');
+        await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+        // A plain copy the package can't delete, where Claude Code's link was.
+        const stuck = path.join(home, '.claude', 'skills', 'openspec-propose');
+        const text = await fs.readFile(globalSkill('openspec-propose'), 'utf8');
+        await fs.rm(stuck, { recursive: true, force: true });
+        await fs.mkdir(stuck, { recursive: true });
+        await fs.writeFile(path.join(stuck, 'SKILL.md'), text);
+        await fs.chmod(stuck, 0o500);
+        const configFile = path.join(home, '.config', 'openspec', 'config.json');
+        await fs.mkdir(path.dirname(configFile), { recursive: true });
+        await fs.writeFile(configFile, JSON.stringify({ profile: 'custom', workflows: [] }));
+
+        try {
+          const result = await cli(dir, 'update');
+
+          expect(result.exitCode).toBe(1);
+          expect(result.stdout + result.stderr).toContain(`Could not remove ${stuck}`);
+          expect(result.stdout).not.toContain('Removed the skills for this machine');
+        } finally {
+          await fs.chmod(stuck, 0o700);
+        }
+      }
+    );
+
     it('clears the global skills when the profile has no workflows', async () => {
       const dir = await project('app');
       await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');

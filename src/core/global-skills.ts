@@ -1,6 +1,6 @@
 import os from 'node:os';
 import path from 'node:path';
-import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { getSupportedAgents } from 'skills';
 import { AI_TOOLS, installerAgent, OPENSPEC_SKILL_NAMES } from './config.js';
 import { getGlobalDataDir } from './global-config.js';
@@ -91,6 +91,14 @@ export async function installGlobalSkills(input: GlobalInstallInput) {
       // Drop excluded workflows only after all selected skills are available.
       const universal = getSupportedAgents().filter(agent => agent.universal && agent.globalSkillsDir).map(agent => agent.id);
       await removeManagedSkills({ ...targets, agents: [...new Set([...agents, ...universal])] }, removedSkills);
+      // The package can fail to remove a tool's copy without reporting it.
+      const left = [...new Set(agents.flatMap(agent => {
+        const dir = dirs.get(agent) ?? dirs.get('universal')!;
+        return removedSkills.map(name => path.join(dir, name)).filter(spot => lstatSync(spot, { throwIfNoEntry: false }));
+      }))];
+      if (left.length) {
+        throw new Error(`Could not remove ${left.join(', ')}. Remove ${left.length === 1 ? 'it' : 'them'} by hand, then run openspec update again.`);
+      }
     }
     return { skills, removedSkills, unchanged };
   };
