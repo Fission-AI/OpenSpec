@@ -470,6 +470,18 @@ Content here
   });
 
   describe('getConfiguredTools', () => {
+    it('keeps the selected regional agent when two agents read the same folder', async () => {
+      const shared = path.join(testDir, '.agents/skills');
+      const target = path.join(testDir, '.qoder/skills/openspec-propose');
+      await fs.mkdir(shared, { recursive: true });
+      await fs.mkdir(target, { recursive: true });
+      await fs.writeFile(path.join(target, 'SKILL.md'), 'installed');
+      await fs.writeFile(path.join(shared, '.openspec-target'), 'qoder-cn own-files\n');
+      expect(getConfiguredTools(testDir)).toEqual(['qoder-cn']);
+      await fs.rm(target, { recursive: true });
+      expect(getConfiguredTools(testDir)).toEqual([]);
+    });
+
     it('should return empty array when no tools are configured', () => {
       const tools = getConfiguredTools(testDir);
       expect(tools).toEqual([]);

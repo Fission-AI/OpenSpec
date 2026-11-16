@@ -75,7 +75,7 @@ describe('OpenSpec 2.0 skills: hardening', () => {
     // What many 1.x users did by hand to share one set of skills.
     await new InitCommand({ tools: 'cursor,claude', force: true }).execute(project);
     await fs.rm(p('.claude', 'skills'), { recursive: true });
-    await fs.symlink(path.join('..', '.agents', 'skills'), p('.claude', 'skills'), linkType);
+    await fs.symlink(p('.agents', 'skills'), p('.claude', 'skills'), linkType);
 
     await new UpdateCommand().execute(project);
 
@@ -86,7 +86,7 @@ describe('OpenSpec 2.0 skills: hardening', () => {
   it('leaves the shared skills alone when .agents/skills is a link to a tool folder', async () => {
     await fs.mkdir(p('.claude', 'skills'), { recursive: true });
     await fs.mkdir(p('.agents'), { recursive: true });
-    await fs.symlink(path.join('..', '.claude', 'skills'), p('.agents', 'skills'), linkType);
+    await fs.symlink(p('.claude', 'skills'), p('.agents', 'skills'), linkType);
 
     await new InitCommand({ tools: 'claude', force: true }).execute(project);
 
@@ -173,7 +173,7 @@ describe('OpenSpec 2.0 skills: hardening', () => {
 
   it('writes links through .agents as named, so a linked .agents can move', async () => {
     await fs.mkdir(p('shared-agents', 'skills', 'openspec-explore'), { recursive: true });
-    await fs.symlink('shared-agents', p('.agents'), linkType);
+    await fs.symlink(p('shared-agents'), p('.agents'), linkType);
     await fs.mkdir(p('.claude', 'skills'), { recursive: true });
 
     expect(skillLinkText(p('.claude', 'skills', 'openspec-explore'), p('.agents', 'skills', 'openspec-explore'))).toBe(
@@ -226,7 +226,7 @@ describe('OpenSpec 2.0 skills: hardening', () => {
       // macOS and Windows folders ignore case, so .Agents is .agents.
       await new InitCommand({ tools: 'cursor,claude', force: true }).execute(project);
       await fs.rm(p('.claude', 'skills'), { recursive: true });
-      await fs.symlink(path.join('..', '.Agents', 'skills'), p('.claude', 'skills'), linkType);
+      await fs.symlink(p('.Agents', 'skills'), p('.claude', 'skills'), linkType);
 
       await new UpdateCommand({ force: true }).execute(project);
 

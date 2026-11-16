@@ -143,9 +143,11 @@ function skillDirsForTool(projectRoot: string, tool: SkillCapableTool, view: Fil
   const legacy = (tool.legacySkillsDirs ?? []).map((root) => path.join(projectRoot, root, 'skills'));
   if (!usesSharedSkills(tool)) return [resolveToolSkillsDir(projectRoot, tool), ...legacy];
   const own = resolveFormerOwnSkillsDir(projectRoot, tool);
+  const target = resolveSkillLinkDir(projectRoot, tool);
   return [
+    ...(target ? [target] : []),
     ...(isListedToolPresent(projectRoot, tool.value, view) ? [resolveSharedSkillsDir(projectRoot)] : []),
-    ...(own ? [own] : []),
+    ...(own && own !== target ? [own] : []),
     ...legacy,
   ];
 }

@@ -34,7 +34,7 @@ With the skills in this project:
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills in .agents/skills/ (linked from .claude/skills/)
+6 skills in .agents/skills/ (also in .claude/skills/)
 Config: openspec/config.yaml (schema: spec-driven)
 ```
 

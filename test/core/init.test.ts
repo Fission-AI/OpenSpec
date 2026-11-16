@@ -783,7 +783,7 @@ describe('InitCommand', () => {
         .map(String);
       const summary = logCalls.find((entry) => /^\d+ skills in /.test(entry));
       expect(summary).toBe(
-        '6 skills in .agents/skills/ (linked from .claude/skills/, .minimax/skills/)'
+        '6 skills in .agents/skills/ (also in .claude/skills/, .minimax/skills/)'
       );
     });
 

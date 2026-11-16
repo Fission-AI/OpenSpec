@@ -50,8 +50,6 @@ import {
   getConfiguredTools,
   getToolStates,
   getSkillTemplates,
-  hasGlobalSkillTarget,
-  resolveToolSkillsDir,
   toolSupportsSkills,
   type ToolSkillStatus,
   formatIdeRestart,
@@ -145,12 +143,7 @@ type InitCommandOptions = {
 type ValidatedInitTool = {
   value: string;
   name: string;
-  skillsDir?: string;
-  skillsPath: string;
-  skillsRoot: string;
-  isGlobalSkillTarget: boolean;
   wasConfigured: boolean;
-  writesSkills: boolean;
 };
 
 /**
@@ -265,7 +258,7 @@ export class InitCommand {
     const selectedToolIds = await this.getSelectedTools(toolStates, extendMode, detectedTools, projectPath);
 
     // Validate selected tools
-    const validatedTools = this.validateTools(selectedToolIds, toolStates, projectPath);
+    const validatedTools = this.validateTools(selectedToolIds, toolStates);
 
     // Selecting a renamed tool is consent to leave its former directory:
     // init is about to write the current one, and leaving OpenSpec content
@@ -425,7 +418,7 @@ export class InitCommand {
     const selected = this.toolsArg !== undefined || (!installed.skills.length && !movesProject)
       ? await this.getSelectedTools(context.toolStates, context.extendMode, context.detectedTools, projectPath)
       : configured;
-    const tools = this.validateTools(selected, context.toolStates, projectPath);
+    const tools = this.validateTools(selected, context.toolStates);
     const supported = tools.filter((tool) => supportsGlobalSkills(tool.value));
     const unsupported = tools.filter((tool) => !supportsGlobalSkills(tool.value));
     if (unsupported.length > 0 && this.toolsArg?.trim().toLowerCase() !== 'all') {
@@ -475,8 +468,7 @@ export class InitCommand {
       : [];
     const migration = movesProject && !this.resolveProfileOverride() ? computeProfileMigration(projectPath, context.detectedTools) : null;
     let globalSkills: { count: number } | undefined;
-    if (this.toolsArg?.trim().toLowerCase() !== 'none' &&
-        (installed.skills.length || supported.length || movedTools.length)) {
+    if (installed.skills.length || supported.length || movedTools.length) {
       const result = await installGlobalSkills({
         toolIds: [...new Set([...supported.map(tool => tool.value), ...movedTools])],
         workflows: migration?.workflows ?? this.getActiveWorkflows(),
@@ -998,8 +990,7 @@ export class InitCommand {
 
   private validateTools(
     toolIds: string[],
-    toolStates: Map<string, ToolSkillStatus>,
-    projectPath: string
+    toolStates: Map<string, ToolSkillStatus>
   ): ValidatedInitTool[] {
     const selectedTools: AIToolOption[] = [];
     for (const toolId of toolIds) {
@@ -1021,28 +1012,11 @@ export class InitCommand {
       selectedTools.push(tool);
     }
 
-    const generationTools = [...selectedTools];
-
-    const validatedTools: ValidatedInitTool[] = [];
-    for (const tool of generationTools) {
-      if (!toolSupportsSkills(tool)) continue;
-      const preState = toolStates.get(tool.value);
-      const skillsPath = resolveToolSkillsDir(projectPath, tool);
-      const isGlobalSkillTarget = hasGlobalSkillTarget(tool);
-      validatedTools.push({
-        value: tool.value,
-        name: tool.name,
-        skillsDir: tool.skillsDir,
-        skillsPath,
-        skillsRoot: isGlobalSkillTarget ? skillsPath : projectPath,
-        isGlobalSkillTarget,
-        wasConfigured: preState?.configured ?? false,
-        // Shared-folder skills are written once for every tool, not per tool.
-        writesSkills: !usesSharedSkills(tool),
-      });
-    }
-
-    return validatedTools;
+    return selectedTools.map(tool => ({
+      value: tool.value,
+      name: tool.name,
+      wasConfigured: toolStates.get(tool.value)?.configured ?? false,
+    }));
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -1123,8 +1097,6 @@ export class InitCommand {
     const globalConfig = getGlobalConfig();
     const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
-
-    // Get skill templates filtered by profile workflows
 
     // Every tool's project skills are one shared copy in `.agents/skills/`,
     // written once for the selected tools and every tool already set up here
@@ -1389,23 +1361,11 @@ export class InitCommand {
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
-      // Skills sit in one shared folder, linked into the tools that need it.
-      // MiniMax Code reads its own folder in the home directory instead. Each
-      // folder holds one copy of every skill, so the count is per folder.
-      const toolOption = (id: string) => AI_TOOLS.find((candidate) => candidate.value === id);
-      const skillDirs = [...new Set(successfulTools.map((tool) => {
-        const option = toolOption(tool.value);
-        if (tool.isGlobalSkillTarget && option?.globalSkillsDir) {
-          return `~/${option.globalSkillsDir}/skills/`;
-        }
-        return option && usesSharedSkills(option) ? '.agents/skills/' : `${tool.skillsDir}/skills/`;
-      }))];
-      const linkedFrom = [...new Set(successfulTools.flatMap((tool) => {
-        const option = toolOption(tool.value);
-        return option && SKILL_LINKED_TOOL_IDS.has(option.value) ? [`${option.skillsDir}/skills/`] : [];
-      }))];
-      const links = linkedFrom.length > 0 ? ` (linked from ${linkedFrom.join(', ')})` : '';
-      console.log(`${getSkillTemplates(workflows).length} skills in ${skillDirs.join(', ')}${links}`);
+      const toolFolders = new Set(successfulTools
+        .filter(tool => SKILL_LINKED_TOOL_IDS.has(tool.value))
+        .map(tool => `${installerAgent(tool.value).projectSkillsDir}/`));
+      const locations = toolFolders.size ? ` (also in ${[...toolFolders].join(', ')})` : '';
+      console.log(`${getSkillTemplates(workflows).length} skills in .agents/skills/${locations}`);
     }
 
     // Show failures

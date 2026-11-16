@@ -30,13 +30,13 @@ Commit your work first, so you can go back to it. That commit is also the only c
 openspec update
 ```
 
-**3. Commit the result.** The links are committed like any other file.
+**3. Commit the result.** If you kept project skills, commit the refreshed files. If you switched to global skills, commit the removals and ask teammates to run `openspec update` after pulling.
 
 Running `update` again changes nothing.
 
 ## What update does
 
-- **Skills**: written once to `.agents/skills/`, with a link from a tool's own folder where the tool needs one (`.claude/skills/`, for example).
+- **Project skills**: the installer writes to `.agents/skills/` and places each skill where the chosen tools can read it. On Windows it uses copies.
 - **Old skill copies**: the copies earlier versions wrote into each tool's folder are removed.
 - **Command files**: the command files earlier versions generated are removed.
 - **Old commands you edited**: update keeps them and lists them for review.
@@ -86,7 +86,7 @@ Save edits to built-in skills before updating. OpenSpec replaces them with the i
 To keep a customization across updates, put it somewhere `update` doesn't write:
 
 - **Project instructions**: `context` and `rules` in `openspec/config.yaml` give the agent your instructions without editing a skill ([Project config](../customize/project-config.md)).
-- **A skill of your own**: a skill under a name that doesn't start with `openspec-`, such as `.agents/skills/team-propose/`. `update` never touches it.
+- **A skill of your own**: a skill with a different name from any built-in, such as `.agents/skills/team-propose/`. `update` never touches it.
 
 ## Set up Windows for committed links
 

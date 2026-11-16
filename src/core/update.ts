@@ -10,13 +10,11 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { getSkillReferenceTransformer, transformToSharedSkillReferences, transformToSkillReferences } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, transformToSkillReferences } from '../utils/command-references.js';
 import { AI_TOOLS, OPENSPEC_DIR_NAME } from './config.js';
 import {
   getToolSkillStatus,
   getToolVersionStatus,
-  getSkillTemplates,
-  generateSkillContent,
   getToolsWithSkillsDir,
   resolveToolSkillsDir,
   toolSupportsSkills,
@@ -24,7 +22,7 @@ import {
   formatIdeRestart,
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
-import { stripVolatileFrontmatter } from './shared/skill-generation.js';
+import { bundledSkillContents } from './skill-installer.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -492,7 +490,6 @@ export class UpdateCommand {
     const toolsWithDriftedSkills = this.findToolsWithDriftedSkills(
       resolvedProjectPath,
       configuredTools,
-      delivery,
       (toolId) => legacyWorkflowOverrides[toolId] ?? desiredWorkflows
     );
     const toolsToUpdateSet = new Set<string>([
@@ -899,7 +896,6 @@ export class UpdateCommand {
   private findToolsWithDriftedSkills(
     projectPath: string,
     toolIds: string[],
-    delivery: Delivery,
     workflowsForTool: (toolId: string) => readonly (typeof ALL_WORKFLOWS)[number][]
   ): string[] {
     return toolIds.filter((toolId) => {
@@ -911,14 +907,11 @@ export class UpdateCommand {
       if (usesSharedSkills(tool) && !isToolListed(projectPath, tool.value, this.view)) return false;
 
       const skillsDir = resolveToolSkillsDir(projectPath, tool);
-      return getSkillTemplates(workflowsForTool(toolId)).some(({ template, dirName }) => {
+      return [...bundledSkillContents(OPENSPEC_VERSION, workflowsForTool(toolId))].some(([dirName, generated]) => {
         const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
         if (!this.view.exists(skillFile)) return false;
         try {
           const existing = this.view.read(skillFile);
-          const stamped = generateSkillContent(template, OPENSPEC_VERSION, transformToSharedSkillReferences);
-          // The shared copy is the published text, which has no version stamp.
-          const generated = stripVolatileFrontmatter(stamped);
           return normalizeGeneratedFile(existing) !== normalizeGeneratedFile(generated);
         } catch {
           return true;
@@ -1187,10 +1180,6 @@ export class UpdateCommand {
     }
   }
 
-  /**
-   * Removes skill directories for workflows that are no longer selected in the active profile.
-   * Returns the number of directories removed.
-   */
   private reportKeptInPlace(migration: LegacyToolMigration): void {
     const notice = keptInPlaceNotice(migration);
     if (notice) this.log(chalk.dim(notice));

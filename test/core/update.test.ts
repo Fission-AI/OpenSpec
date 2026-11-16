@@ -1,3 +1,4 @@
+import * as globalSkills from '../../src/core/global-skills.js';
 import * as skillInstaller from '../../src/core/skill-installer.js';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { UpdateCommand, scanInstalledWorkflows } from '../../src/core/update.js';
@@ -18,13 +19,14 @@ import path from 'path';
 import fs from 'fs/promises';
 import os from 'os';
 
-const { confirmMock, searchableMultiSelectMock, interactiveState } = vi.hoisted(() => ({
+const { selectMock, confirmMock, searchableMultiSelectMock, interactiveState } = vi.hoisted(() => ({
+  selectMock: vi.fn(),
   confirmMock: vi.fn(),
   searchableMultiSelectMock: vi.fn(),
   interactiveState: { value: false },
 }));
 
-vi.mock('@inquirer/prompts', () => ({ confirm: confirmMock, select: vi.fn(async () => 'project') }));
+vi.mock('@inquirer/prompts', () => ({ confirm: confirmMock, select: selectMock }));
 
 vi.mock('../../src/prompts/searchable-multi-select.js', () => ({
   searchableMultiSelect: searchableMultiSelectMock,
@@ -158,6 +160,7 @@ describe('UpdateCommand', () => {
     // Reset mock config to defaults
     resetMockConfig();
     interactiveState.value = false;
+    selectMock.mockReset().mockResolvedValue('project');
     confirmMock.mockReset();
     searchableMultiSelectMock.mockReset();
 
@@ -172,6 +175,42 @@ describe('UpdateCommand', () => {
 
     // Clean up test directory
     await fs.rm(testDir, { recursive: true, force: true });
+  });
+
+  it('keeps the project by default and removes repo skills only on an explicit switch', async () => {
+    await new InitCommand({ scope: 'project', tools: 'claude,cursor' }).execute(testDir);
+    interactiveState.value = true;
+    const install = vi.spyOn(globalSkills, 'installGlobalSkills').mockResolvedValue({
+      skills: ['openspec-propose'], removedSkills: [], unchanged: false,
+    });
+    await updateCommand.execute(testDir);
+    expect(selectMock).toHaveBeenCalledWith(expect.objectContaining({
+      message: 'Where should OpenSpec keep this project’s skills?', default: 'project',
+    }));
+    const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
+    expect(await FileSystemUtils.fileExists(skill)).toBe(true);
+    expect(install).not.toHaveBeenCalled();
+    selectMock.mockResolvedValue('global');
+    await updateCommand.execute(testDir);
+    expect(install).toHaveBeenCalledWith(expect.objectContaining({ toolIds: ['claude', 'cursor'] }));
+    expect(await FileSystemUtils.fileExists(skill)).toBe(false);
+  });
+
+  it('lets a teammate skip local skills or choose tools after pulling the removals', async () => {
+    delete process.env.OPENSPEC_SKILLS_SCOPE;
+    interactiveState.value = true;
+    const install = vi.spyOn(globalSkills, 'installGlobalSkills').mockResolvedValue({
+      skills: ['openspec-propose'], removedSkills: [], unchanged: false,
+    });
+    confirmMock.mockResolvedValueOnce(false);
+    await updateCommand.execute(testDir);
+    expect(install).not.toHaveBeenCalled();
+    expect(searchableMultiSelectMock).not.toHaveBeenCalled();
+    confirmMock.mockResolvedValueOnce(true);
+    searchableMultiSelectMock.mockResolvedValue(['aider-desk']);
+    await updateCommand.execute(testDir);
+    expect(install).toHaveBeenCalledWith(expect.objectContaining({ toolIds: ['aider-desk'] }));
+    expect(await FileSystemUtils.directoryExists(path.join(testDir, '.agents'))).toBe(false);
   });
 
   describe('basic validation', () => {
@@ -250,14 +289,14 @@ describe('UpdateCommand', () => {
       expect(getConfiguredToolsForProfileSync(testDir)).toEqual(['claude', 'cursor']);
     });
 
-    it('turns plain copies made where links could not be back into links after a profile change', async () => {
+    it('refreshes the files the agent reads after a profile change', async () => {
       // On Windows without link rights, each link is a plain copy of the
       // shared skill. A profile change rewrites the shared text; the copies
       // are still OpenSpec's, not "your own changes".
       await new InitCommand({ tools: 'claude', force: true }).execute(testDir);
       const skillsDir = path.join(testDir, '.claude', 'skills');
       for (const name of await fs.readdir(skillsDir)) {
-        await fs.rm(path.join(skillsDir, name));
+        await fs.rm(path.join(skillsDir, name), { recursive: true });
         await fs.cp(path.join(testDir, '.agents', 'skills', name), path.join(skillsDir, name), { recursive: true });
       }
       setMockConfig({
@@ -288,7 +327,7 @@ describe('UpdateCommand', () => {
       await updateCommand.execute(testDir);
 
       // The old copy is now a link to the one shared copy, which is current.
-      expect((await fs.lstat(exploreSkillDir)).isSymbolicLink()).toBe(true);
+      expect((await fs.lstat(exploreSkillDir)).isSymbolicLink()).toBe(process.platform !== 'win32');
       const updatedSkill = await fs.readFile(
         path.join(exploreSkillDir, 'SKILL.md'),
         'utf-8'

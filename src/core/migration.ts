@@ -557,7 +557,6 @@ function scanInstalledWorkflowArtifacts(
       for (const workflowId of ALL_WORKFLOWS) {
         const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
         const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
-        // A skill kept as the user's in the shared folder is not an install.
         if (view.exists(skillFile)) {
           installed.add(workflowId);
           hasSkills = true;

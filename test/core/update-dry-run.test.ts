@@ -207,11 +207,11 @@ describe('openspec update --dry-run', () => {
 
     const changes = await expectPlanMatchesRealUpdate();
 
-    // Claude's skill is a link to the one shared copy, which the edit reached.
+    const copied = process.platform === 'win32';
     expect(changes).toContainEqual({
-      path: '.agents/skills/openspec-propose/SKILL.md',
+      path: copied ? '.claude/skills/openspec-propose/SKILL.md' : '.agents/skills/openspec-propose/SKILL.md',
       action: 'update',
-      tool: 'openspec',
+      tool: copied ? 'claude' : 'openspec',
     });
   });
 
@@ -227,7 +227,7 @@ describe('openspec update --dry-run', () => {
       tool: 'openspec',
     });
     expect(changes).toContainEqual({
-      path: '.claude/skills/openspec-verify-change',
+      path: process.platform === 'win32' ? '.claude/skills/openspec-verify-change/SKILL.md' : '.claude/skills/openspec-verify-change',
       action: 'add',
       tool: 'claude',
     });
@@ -245,7 +245,7 @@ describe('openspec update --dry-run', () => {
       tool: 'openspec',
     });
     expect(changes).toContainEqual({
-      path: '.claude/skills/openspec-archive-change',
+      path: process.platform === 'win32' ? '.claude/skills/openspec-archive-change/SKILL.md' : '.claude/skills/openspec-archive-change',
       action: 'delete',
       tool: 'claude',
     });

@@ -196,6 +196,10 @@ export class UpdatePlanRecorder implements UpdateFileOps {
     // Otherwise every file under it goes - on disk, and any the plan put there.
     // Each is cleared on its own: a file's own entry outranks its directory's.
     for (const filePath of this.filesUnder(target)) this.stage(filePath, null, tool);
+    // A prior move can have staged a directory where the installer now writes SKILL.md.
+    for (const [file, entry] of this.staged) {
+      if (entry === STAGED_DIRECTORY && file.startsWith(target + path.sep)) this.staged.set(file, null);
+    }
     this.staged.set(target, null);
   }
 
