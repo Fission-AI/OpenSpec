@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import os from 'os';
 import path from 'path';
-import { keepsProjectSkills, rememberProjectSkills } from '../../src/core/project-skills-scope.js';
+import { forgetProjectSkills, keepsProjectSkills, rememberProjectSkills } from '../../src/core/project-skills-scope.js';
 
 describe("a project's choice to keep its skills in the repository", () => {
   let dir: string;
@@ -49,6 +49,20 @@ describe("a project's choice to keep its skills in the repository", () => {
     expect(saved).toBe(config());
     expect(await fs.readFile(config(), 'utf8')).toBe('schema: spec-driven\nskillsScope: project\n');
     expect(keepsProjectSkills(dir)).toBe(true);
+  });
+
+  it('is dropped when the skills leave the repository, and nothing else in the file changes', async () => {
+    const before = '# Team settings\nschema: spec-driven\ncontext: |\n  We ship on Fridays.\n';
+    await fs.writeFile(config(), before);
+    await rememberProjectSkills(dir);
+
+    await forgetProjectSkills(dir);
+
+    expect(await fs.readFile(config(), 'utf8')).toBe(before);
+    expect(keepsProjectSkills(dir)).toBe(false);
+    // Nothing to drop: the file is not rewritten.
+    await forgetProjectSkills(dir);
+    expect(await fs.readFile(config(), 'utf8')).toBe(before);
   });
 
   it.each([

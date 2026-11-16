@@ -11,6 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { forgetProjectSkills } from './project-skills-scope.js';
 import {
   classifyOpenSpecDir,
   MAX_CONTEXT_SIZE,
@@ -541,6 +542,8 @@ export class InitCommand {
     await pruneEmptyParents(projectPath, [...paths].map(FileSystemUtils.toPosixPath));
     const cleanup = await installSharedSkills({ ...input, ops: realFileOps, writesToDisk: true });
     for (const error of cleanup.toolFailures.values()) throw error;
+    // The skills are gone from the repo, so a saved "keep them here" no longer holds.
+    await forgetProjectSkills(projectPath).catch(() => {});
     console.log(chalk.dim("Removed this project's own OpenSpec skills"));
   }
 

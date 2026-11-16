@@ -72,7 +72,7 @@ references:
 
 ### skillsScope
 
-`skillsScope: project` records that your team keeps OpenSpec's skills in this repo. `openspec update` writes it when you choose **Keep in this project**, and it stops asking once the file is committed and pulled. Remove the line, or run `openspec init --scope global`, to move the repo to the [global skills](../../start/setup.md#move-an-existing-project-to-the-global-skills).
+`skillsScope: project` records that your team keeps OpenSpec's skills in this repo. `openspec update` writes it when you choose **Keep in this project**, and it stops asking once the file is committed and pulled. To move the repo to the [global skills](../../start/setup.md#move-an-existing-project-to-the-global-skills) later, run `openspec init --scope global`, which also removes this line. Removing the line by hand moves nothing: update asks the question again.
 
 ## Example
 

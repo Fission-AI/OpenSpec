@@ -37,3 +37,18 @@ export async function rememberProjectSkills(projectPath: string): Promise<string
   await FileSystemUtils.writeFile(configPath, doc.toString());
   return configPath;
 }
+
+/**
+ * Drop the recorded choice once the project's skills have left the
+ * repository, so the config doesn't go on saying they are kept there. Leaves
+ * a config it can't edit safely as it is.
+ */
+export async function forgetProjectSkills(projectPath: string): Promise<void> {
+  const configPath = resolveConfigFilePath(projectPath);
+  if (!configPath) return;
+  FileSystemUtils.assertProjectArtifactPath(projectPath, configPath);
+  const parsed = parseDocument(await FileSystemUtils.readFile(configPath));
+  if (parsed.errors.length > 0 || !isMap(parsed.contents) || !parsed.has(KEY)) return;
+  parsed.delete(KEY);
+  await FileSystemUtils.writeFile(configPath, parsed.toString());
+}
