@@ -71,7 +71,7 @@ jobs:
   test_matrix:
     name: Test (${{ matrix.label }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 15
+    timeout-minutes: ${{ matrix.timeout_minutes || 15 }}
     needs: changes
     if: needs.changes.outputs.code == 'true'
     strategy:
@@ -93,6 +93,7 @@ jobs:
           - os: windows-latest
             shell: pwsh
             label: windows-pwsh
+            timeout_minutes: 25
             node: '22.20.0'
             vitest_workers: 2
           - os: ubuntu-latest
