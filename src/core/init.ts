@@ -54,7 +54,7 @@ import {
   type ToolSkillStatus,
   formatIdeRestart,
 } from './shared/index.js';
-import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
+import { classifyCommandFiles, reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import {
   cleanUpRetiredTools,
   findRetiredTool,
@@ -525,24 +525,22 @@ export class InitCommand {
     // A dry pass first: what would stay behind because the user changed it.
     const plan = await installSharedSkills({ ...input, ops: new UpdatePlanRecorder(projectPath), writesToDisk: false });
     for (const error of plan.toolFailures.values()) throw error;
-    const kept = new Set<string>();
-    for (const id of commandTools) {
-      const commands = await reconcileCommandFiles(projectPath, id, [], { view: DISK_VIEW, remove: async () => {} });
-      for (const file of [...commands.kept, ...commands.unchecked]) kept.add(FileSystemUtils.toPosixPath(file));
-    }
-    if (kept.size > 0) {
+    const commands = commandTools.map(id => classifyCommandFiles(projectPath, id, [], DISK_VIEW, true));
+    const kept = commands.flatMap(files => [...files.kept, ...files.unchecked]).map(FileSystemUtils.toPosixPath);
+    if (kept.length) {
       throw new Error(
-        `These files have your own changes, so the project keeps its copy: ${[...kept].join(', ')}. ` +
+        `These files have your own changes, so the project keeps its copy: ${kept.join(', ')}. ` +
           'Nothing was removed. Delete them, or move your changes to a skill under another name, then run this again.'
       );
     }
     if (options.checkOnly) return;
+    const paths = new Set(commands.flatMap(files => files.generated.map(file => file.cmdPath)));
+    for (const file of paths) {
+      await realFileOps.removeFile(FileSystemUtils.resolveProjectArtifactPath(projectPath, file), 'openspec');
+    }
+    await pruneEmptyParents(projectPath, [...paths].map(FileSystemUtils.toPosixPath));
     const cleanup = await installSharedSkills({ ...input, ops: realFileOps, writesToDisk: true });
     for (const error of cleanup.toolFailures.values()) throw error;
-    for (const id of commandTools) {
-      const commands = await reconcileCommandFiles(projectPath, id, []);
-      await pruneEmptyParents(projectPath, commands.removed.map((rel) => FileSystemUtils.toPosixPath(rel)));
-    }
     console.log(chalk.dim("Removed this project's own OpenSpec skills"));
   }
 

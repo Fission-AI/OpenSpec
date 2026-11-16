@@ -208,7 +208,7 @@ brew upgrade openspec
 
 **Refresh agent instructions**
 
-Run this inside each project to regenerate AI guidance and refresh the installed skills:
+Run this once to refresh the skills installed on your machine. If your team keeps skills in Git, run it in each project that commits them.
 
 ```bash
 openspec update

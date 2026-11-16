@@ -1,4 +1,5 @@
 import { installSkills, removeSkills } from 'skills';
+import { parse, stringify } from 'yaml';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -17,6 +18,16 @@ export function bundledSkillContents(version: string, workflows?: readonly strin
   ]));
   if (!workflows) allContents.set(version, contents);
   return contents;
+}
+
+/** Vercel writes Eve a copy with only the frontmatter its agent reads. */
+export function projectSkillText(toolId: string, shared: string): string {
+  if (toolId !== 'eve') return shared;
+  const header = shared.match(/^---\n([\s\S]*?)\n---\n\n?/);
+  if (!header) return shared;
+  const fields = parse(header[1]);
+  delete fields['allowed-tools'];
+  return `---\n${stringify(fields)}---\n${shared.slice(header[0].length)}`;
 }
 
 type Targets = { scope: SkillScope; cwd?: string; agents: readonly string[] };

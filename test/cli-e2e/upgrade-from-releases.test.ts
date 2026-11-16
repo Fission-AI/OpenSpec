@@ -313,6 +313,32 @@ describe.skipIf(!enabled)('upgrading projects from released versions', () => {
     expect(snapshot(sibling)).toEqual(before);
   }, 600_000);
 
+  it('keeps a 1.10 Antigravity project global after the next update', async () => {
+    const box = await initWith('1.10.0', 'global-antigravity', 'antigravity');
+    const commands = path.join(box.project, '.agent', 'workflows');
+    const command = path.join(commands, 'opsx-apply.md');
+    const original = await fs.readFile(command, 'utf8');
+    const switchToGlobal = () => run(currentBin, ['init', '--scope', 'global', '--tools', 'antigravity'], box);
+
+    await fs.appendFile(command, 'Team instructions');
+    const edited = snapshot(box.project);
+    expect(switchToGlobal().status).toBe(1);
+    expect(snapshot(box.project)).toEqual(edited);
+    await fs.writeFile(command, original);
+    await fs.writeFile(path.join(commands, 'team.md'), 'Team workflow');
+
+    const moved = switchToGlobal();
+    expect(moved.status, moved.output).toBe(0);
+    expect(listFiles(commands)).toEqual(['team.md']);
+    expect(existsSync(path.join(box.home, '.gemini/config/skills/openspec-propose/SKILL.md'))).toBe(true);
+    expect(existsSync(path.join(box.project, '.agents/skills'))).toBe(false);
+
+    const before = snapshot(box.project);
+    const again = run(currentBin, ['update'], box);
+    expect(again.status, again.output).toBe(0);
+    expect(snapshot(box.project)).toEqual(before);
+  });
+
   it('moves a commands-only project to skills, keeping the command the user edited', async () => {
     // The 2.0 move in one case: a 1.x project that used commands only, with
     // one command customized. Update sets it up with skills, removes the

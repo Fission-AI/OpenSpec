@@ -8,7 +8,7 @@ import type { FileView } from '../file-view.js';
 import type { UpdateFileOps } from '../update-plan.js';
 import { pruneEmptyParents } from '../released-output-sweep.js';
 import { formatSkillToolList, readListedToolsWithOwnFiles, skillToolListPath } from '../shared-skill-target.js';
-import { bundledSkillContents, installBundledSkills, removeManagedSkills } from '../skill-installer.js';
+import { bundledSkillContents, installBundledSkills, projectSkillText, removeManagedSkills } from '../skill-installer.js';
 import { resolveFormerOwnSkillsDir, resolveSharedSkillsDir, resolveSkillLinkDir, usesSharedSkills } from './skill-paths.js';
 
 interface SharedSkillInstallInput {
@@ -27,9 +27,10 @@ export interface SharedSkillInstallResult {
   toolFailures: Map<string, Error>;
 }
 
-function readSkill(dir: string, name: string, view: FileView) {
+function readSkill(dir: string, name: string, view: FileView, forTool?: string) {
   try {
-    return normalizeGeneratedFile(view.read(path.join(dir, name, 'SKILL.md')));
+    const text = normalizeGeneratedFile(view.read(path.join(dir, name, 'SKILL.md')));
+    return forTool ? projectSkillText(forTool, text) : text;
   } catch {
     return undefined;
   }
@@ -46,7 +47,7 @@ export function ownSkillFolderNeedsWork(project: string, tool: AIToolOption, wan
   return OPENSPEC_SKILL_NAMES.some(name => {
     if (target && wanted.has(name)) {
       const content = readSkill(target, name, view);
-      return content === undefined || content !== readSkill(shared, name, view);
+      return content === undefined || content !== readSkill(shared, name, view, tool.value);
     }
     return Boolean(former && present(path.join(former, name), view) &&
       !(view.linkTarget?.(path.join(former, name)) && !target && wanted.has(name)));
@@ -98,12 +99,13 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   for (const [dir, tool] of targets) {
     for (const name of OPENSPEC_SKILL_NAMES) {
       const spot = path.join(dir, name);
-      const text = contents.get(name);
-      if (text !== undefined) {
+      const source = contents.get(name);
+      if (source !== undefined) {
+        const text = projectSkillText(tool, source);
         if (readSkill(dir, name, view) === text) continue;
         install.add(name);
         if (!input.writesToDisk) {
-          if (dir === shared || process.platform === 'win32') {
+          if (dir === shared || tool === 'eve' || process.platform === 'win32') {
             if (present(spot, view)) await ops.removeDirectory(spot, tool);
             await ops.writeFile(path.join(spot, 'SKILL.md'), text, tool);
           }

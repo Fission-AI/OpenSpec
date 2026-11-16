@@ -24,7 +24,7 @@ import {
 import { DISK_VIEW, type FileView } from '../file-view.js';
 import { classifySkillLinkSpot, isCheckedOutLink } from './skill-links.js';
 import { normalizeGeneratedContent } from './generated-fingerprint.js';
-import { bundledSkillContents } from '../skill-installer.js';
+import { bundledSkillContents, projectSkillText } from '../skill-installer.js';
 import { FileSystemUtils } from '../../utils/file-system.js';
 
 /**
@@ -280,10 +280,11 @@ export function extractGeneratedByVersion(
  * Whether a skill file is the published text of this version's skill: what a
  * project's `.agents/skills` holds, with no version stamp to read.
  */
-function isPublishedSkillText(skillName: string, skillFile: string, version: string, view: FileView): boolean {
+function isPublishedSkillText(skillName: string, skillFile: string, version: string, view: FileView, toolId: string): boolean {
   try {
     const text = normalizeGeneratedContent(view.read(skillFile));
-    return bundledSkillContents(version).get(skillName) === text;
+    const source = bundledSkillContents(version).get(skillName);
+    return source !== undefined && projectSkillText(toolId, source) === text;
   } catch {
     return false;
   }
@@ -316,6 +317,7 @@ export function getToolVersionStatus(
   }
 
   const skillsDirs = skillDirsForTool(projectRoot, tool, view);
+  const ownDir = resolveSkillLinkDir(projectRoot, tool);
   let generatedByVersion: string | null = null;
   let foundSkill = false;
 
@@ -324,9 +326,10 @@ export function getToolVersionStatus(
     for (const skillsDir of skillsDirs) {
       const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
       if (view.exists(skillFile)) {
+        const target = skillsDir === ownDir ? toolId : 'openspec';
         generatedByVersion =
           extractGeneratedByVersion(skillFile, view) ??
-          (usesSharedSkills(tool) && isPublishedSkillText(skillName, skillFile, currentVersion, view)
+          (usesSharedSkills(tool) && isPublishedSkillText(skillName, skillFile, currentVersion, view, target)
             ? currentVersion
             : null);
         foundSkill = true;

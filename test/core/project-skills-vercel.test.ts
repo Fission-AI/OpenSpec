@@ -126,6 +126,25 @@ describe("a project's skills, installed through the skills package", () => {
     expect(existsSync(lockPath())).toBe(false);
   });
 
+  it('repairs an edited Eve skill and leaves a fresh Eve install alone', async () => {
+    const result = await cli('init', '--scope', 'project', '--tools', 'eve');
+    expect(result.exitCode, result.stderr).toBe(0);
+    const file = path.join(dir, 'agent/skills/openspec-propose/SKILL.md');
+    const installed = await fs.readFile(file, 'utf8');
+    const fresh = snapshot({ times: true });
+
+    const current = await cli('update');
+    expect(current.stdout).toContain('up to date');
+    expect(snapshot({ times: true })).toEqual(fresh);
+    expect(JSON.parse((await cli('update', '--dry-run', '--json')).stdout).changes).toEqual([]);
+
+    await fs.appendFile(file, 'changed instructions');
+    const plan = JSON.parse((await cli('update', '--dry-run', '--json')).stdout);
+    expect(plan.changes).toEqual([{ path: 'agent/skills/openspec-propose/SKILL.md', action: 'update', tool: 'eve' }]);
+    expect((await cli('update')).exitCode).toBe(0);
+    expect(await fs.readFile(file, 'utf8')).toBe(installed);
+  });
+
   it('restores a removed integration when explicitly selected again', async () => {
     await init();
     const viaPackage = snapshot();
