@@ -486,7 +486,10 @@ export class InitCommand {
         await removeCopilotCloudFiles(projectPath, undefined, () => persistCopilotCloudOptIn(projectPath, false, true));
       }
       await this.removeProjectSkills(projectPath);
-      console.log('Commit the removed files. After pulling that commit, each teammate runs openspec update once.');
+      console.log(
+        'Commit the removed files. After pulling that commit, each teammate runs openspec update in a terminal and ' +
+          'answers Yes to set up their tools, or runs openspec init --tools <ids> in a script.'
+      );
     }
     if (!context.integrationsOnly) await this.createDirectoryStructure(openspecPath, context.extendMode);
     const configStatus = context.integrationsOnly ? 'exists' : await this.createConfig(openspecPath, context.extendMode);
