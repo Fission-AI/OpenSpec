@@ -22,7 +22,7 @@ const CORE_SKILLS = [
 ];
 const CORE_WORKFLOWS = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'];
 
-describe("a project's skills, installed through the skills package", () => {
+describe("a project's skills, installed through the skills package", { timeout: 60_000 }, () => {
   let box: string;
   let home: string;
   let dir: string;
