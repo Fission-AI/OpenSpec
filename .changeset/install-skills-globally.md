@@ -23,7 +23,17 @@ Where should OpenSpec keep this project’s skills?
 
 **Switch to global.** We recommend this for most teams. OpenSpec installs your selected skills on your machine before removing the repo copies. Commit those removals. **After pulling that commit, each teammate runs `openspec update` once in their checkout.** Your team can then use the skills across projects without committing skill files or adding them to `.gitignore` in every repo.
 
-Global skills are the default for new projects. Existing repos switch only when you choose to. Either way, `openspec config profile` still controls which workflows you install.
+## Breaking change for setup scripts
+
+In 2.0, a script that ran `openspec init --tools claude` in a new repo wrote the skills into that repo. The same command now installs them on the machine by default. A teammate who clones the repo won’t get those skills through Git.
+
+To keep the old behavior, update the script:
+
+```sh
+openspec init --scope project --tools claude
+```
+
+Existing repos with project skills switch only when you choose to. Your workflow profile still controls which skills get installed.
 
 ## Before you update
 

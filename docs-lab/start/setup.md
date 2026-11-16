@@ -18,6 +18,8 @@ openspec init
 
 Select the tools you use. New projects share the skills on your machine. Run `openspec init --scope project` to keep them in Git instead.
 
+**Breaking change for setup scripts.** In 2.0, `openspec init --tools claude` wrote skill files into a new repo. It now installs them on the machine by default. If your script commits skills for teammates or CI, use `openspec init --scope project --tools claude`.
+
 With the skills on this machine, which is the default:
 
 ```
