@@ -34,10 +34,10 @@ const IMPLEMENT_REQUEST_HANDOFF =
   'offer to capture the discussion as a change';
 
 const CAPTURE_PLANNING_HANDOFF =
-  'finish the remaining planning artifacts from the change';
+  'To finish planning, complete the remaining planning artifacts from the change';
 
 const CAPTURE_APPLY_HANDOFF =
-  'start implementation from the tasks after leaving explore mode';
+  'To implement, start from the tasks after leaving explore mode';
 
 const DISCOVERY_END_HANDOFF =
   'Would you like me to capture this as a change?';

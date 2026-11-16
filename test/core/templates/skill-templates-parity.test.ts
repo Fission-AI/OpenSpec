@@ -60,14 +60,14 @@ function specDrivenTitles(): Record<string, string> {
 }
 
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
-  getExploreSkillTemplate: '4f78f51fd51fba713706347d2ca6a60fa7f6faa890b00b83b8e0f5ace45b6832',
+  getExploreSkillTemplate: 'edf038cdf0f7179089ac6c4febd09e8c66a961459b66f0a460735a5e9de6f13d',
   getNewChangeSkillTemplate: 'aa1b169e0941ad8f9275f6f622019eebddeaab607815516bf872bf9ca7368b81',
   getContinueChangeSkillTemplate: '26a9a95665ad89930494109f874b327b5b3d50e8edb44f5e673483f2162cfee4',
   getApplyChangeSkillTemplate: '244136f2de5518cd92b0d58e1cec8ffbef2bd2443b5e49f748cf64e7d7c6fce8',
   getFfChangeSkillTemplate: '293a3bd2c6372dba854792c416dad0efc9ba83515496dc576f9ef2a067701d82',
   getSyncSpecsSkillTemplate: '7aaf33f2a3ddb86d8bd7131bf36588a580fb8279127b881f19c6d8af60cfe059',
   getOnboardSkillTemplate: '06f68fb14002e182b88def80b0798a0d571b3d36f7ea7304fd44487b1b8f27a3',
-  getOpsxExploreCommandTemplate: '79f55c7093193e13a08c8729810cedf37d19de1fd2c45a35389bc47d6e29757a',
+  getOpsxExploreCommandTemplate: '94d998600803a5d75a9ff9627fb35a45a6cf8a0ac19874a66bf8bc45e7a4e396',
   getOpsxNewCommandTemplate: '63fad016276d99c5325637bb2e9a2a375508e3e0b2f08de244f462a3287e8efc',
   getOpsxContinueCommandTemplate: '82928867ed095b1a39a375958b4e91d959a9347e37843dddc66f70bf85ca0ea1',
   getOpsxApplyCommandTemplate: '610de2766882217300eb362194055e1ebf1889a8c077bbcff4eb9fae8b8a11b1',
@@ -88,7 +88,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
 };
 
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
-  'openspec-explore': '38eddc0bb50280799dd128c0673d57fc40beafb4330602890a565bce4a4442a7',
+  'openspec-explore': '012f3656e212a9e6537009897e887ca31eaf7e8173071451411094691eac8831',
   'openspec-new-change': '865a0326f5b5257869ae9615e8b86f4b58f896b18a614f272bdbf49ca2a88371',
   'openspec-continue-change': 'fb8809e8bd4065d2ce84909f0ef2b4237d2d2dcf4143eccb14395180082d8ea8',
   'openspec-apply-change': 'efb30419f0fc22cf6cf68e9142eacecd670cbcf2717423288cc07ff64432f3ce',
