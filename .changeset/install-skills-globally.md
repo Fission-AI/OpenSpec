@@ -55,4 +55,4 @@ Existing repos don’t change until someone answers the question above.
 - **Node.** An npm install needs Node 22.20.0 or newer. The standalone executable needs nothing.
 - **Already ran `npx skills add`?** Keep that install and run `openspec update`.
 
-The [upgrade guide](https://openspec.dev/docs/upgrade-to-2-1) has the same steps on one page.
+The [upgrade guide](https://openspec.dev/docs/upgrade-2-1) has the same steps on one page.
