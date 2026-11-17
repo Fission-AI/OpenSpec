@@ -15,6 +15,10 @@ Verify that an implementation matches the change artifacts (specs, tasks, design
 
 **Project check:** Before the first step that writes anything, run `openspec list --json` and read `root`. If `root` is `null`, or a `status` error starts with `Declared in` or `Invalid store declaration in`, read `../openspec/references/project-check.md` and follow it before you do anything else.
 
+## Gotchas
+
+- **Make the last message easy to take in at a glance.** Lead with what was done and where. Put each decision, assumption or problem the user should check on its own line. Leave out what the files already say and checks that found nothing. End with the next step.
+
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
 **Steps**

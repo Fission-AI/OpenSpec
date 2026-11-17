@@ -23,20 +23,26 @@ const ONE_SHALL = `- **One SHALL per requirement.** Do not add a SHALL to a requ
 /** Seen: plans lost blind review for artifacts that disagreed, unrequested scope, untestable scenarios, and missed cases. */
 const READ_THE_PLAN_BACK = `- **Read the plan back before you show it.** Reread every artifact together and fix four things: places where the proposal, specs, design and tasks disagree; anything the request did not ask for; scenarios a test could not check as written (give exact values, outputs and errors); and any case the request covers that the plan leaves out.`;
 
+/** Seen: final replies restated the files, buried the one decision the user had to check, and stopped without a next step. */
+export const REPLY_GOTCHA = `- **Make the last message easy to take in at a glance.** Lead with what was done and where. Put each decision, assumption or problem the user should check on its own line. Leave out what the files already say and checks that found nothing. End with the next step.`;
+
 export const SPEC_WRITING_GOTCHAS = `## Gotchas
 
 ${CHANGE_WHERE_IT_LIVES}
-${ONE_SHALL}`;
+${ONE_SHALL}
+${REPLY_GOTCHA}`;
 
-/** For the skills that write a plan without asking first. Update confirms each edit, so it has only the two rules above. */
+/** For the skills that write a plan without asking first. Update confirms each edit, so it has only the rules above. */
 export const PLAN_WRITING_GOTCHAS = `${SPEC_WRITING_GOTCHAS}
 ${READ_THE_PLAN_BACK}`;
 
 export const APPLY_GOTCHAS = `## Gotchas
 
-${NOT_DONE_WHILE_INVALID}`;
+${NOT_DONE_WHILE_INVALID}
+${REPLY_GOTCHA}`;
 
 export const MERGE_GOTCHAS = `## Gotchas
 
 ${MODIFIED_REPLACES_WHOLE}
-${ONLY_SPEC_MD}`;
+${ONLY_SPEC_MD}
+${REPLY_GOTCHA}`;

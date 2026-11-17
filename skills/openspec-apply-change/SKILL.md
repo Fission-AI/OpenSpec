@@ -18,6 +18,7 @@ Implement tasks from an OpenSpec change.
 ## Gotchas
 
 - **A change is not done while `openspec validate "<name>"` fails.** Run it before you tick the last task. If it fails, leave that task unticked and report the error. A change with no delta specs fails until its `.openspec.yaml` has `skip_specs: true`: add that line when the proposal says callers see no change in behavior; otherwise stop and say the specs are missing.
+- **Make the last message easy to take in at a glance.** Lead with what was done and where. Put each decision, assumption or problem the user should check on its own line. Leave out what the files already say and checks that found nothing. End with the next step.
 
 **Input**: Optionally specify a change name (e.g., `openspec-apply-change add-auth`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
