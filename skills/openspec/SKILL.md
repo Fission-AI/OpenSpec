@@ -26,7 +26,7 @@ If they ask how to do something, where things stand, or what to do next, look be
 - `openspec status --change "<name>" --json` shows which parts of a change's plan exist and what comes next. `openspec status --all --json` does this for every change.
 - `openspec show "<name>"` prints a change or a spec.
 
-A change whose tasks are all done is ready to verify and archive, even when an optional artifact such as `design.md` was never written.
+A change whose tasks are all done is ready to verify and archive, even when an optional artifact such as `design.md` was never written. A ticked box is only a claim: before you call a change built, look at the code its tasks name, and say so if they disagree.
 
 Say where things stand in a sentence or two, name the next step and the skill that does it, and offer to do it. Do not start it until they say so.
 
