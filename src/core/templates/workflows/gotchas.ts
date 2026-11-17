@@ -20,10 +20,17 @@ const CHANGE_WHERE_IT_LIVES = `- **Change a promise where it lives.** If an exis
 /** Seen: propose appended a sixth and seventh SHALL to a requirement that already made five promises. */
 const ONE_SHALL = `- **One SHALL per requirement.** Do not add a SHALL to a requirement that has one. If a requirement you modify already makes several promises, keep one and move each other into its own ADDED requirement, scenarios included, so no promise is stated twice.`;
 
+/** Seen: plans lost blind review for artifacts that disagreed, unrequested scope, untestable scenarios, and missed cases. */
+const READ_THE_PLAN_BACK = `- **Read the plan back before you show it.** Reread every artifact together and fix four things: places where the proposal, specs, design and tasks disagree; anything the request did not ask for; scenarios a test could not check as written (give exact values, outputs and errors); and any case the request covers that the plan leaves out.`;
+
 export const SPEC_WRITING_GOTCHAS = `## Gotchas
 
 ${CHANGE_WHERE_IT_LIVES}
 ${ONE_SHALL}`;
+
+/** For the skills that write a plan without asking first. Update confirms each edit, so it has only the two rules above. */
+export const PLAN_WRITING_GOTCHAS = `${SPEC_WRITING_GOTCHAS}
+${READ_THE_PLAN_BACK}`;
 
 export const APPLY_GOTCHAS = `## Gotchas
 
