@@ -5,8 +5,9 @@ import {
   getCommandContents,
   generateSkillContent,
   generateSkillFiles,
-  referencePath,
 } from '../../../src/core/shared/skill-generation.js';
+import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
+import { PROJECT_ROOT_GUARD } from '../../../src/core/templates/workflows/project-root.js';
 
 describe('skill-generation', () => {
   describe('getSkillTemplates', () => {
@@ -308,32 +309,34 @@ describe('skill-generation', () => {
     const all = getSkillTemplates();
     const router = all.find(entry => entry.dirName === 'openspec')!;
     const workflows = all.filter(entry => entry !== router);
+    const shared = ['references/project-check.md', 'references/stores.md'];
 
-    it('keeps each workflow skill to a SKILL.md that points at its steps', () => {
+    it('keeps each workflow skill to one SKILL.md with its own steps', () => {
       for (const entry of workflows) {
         const files = generateSkillFiles(entry, 'TEST');
         expect([...files.keys()], entry.dirName).toEqual(['SKILL.md']);
         const text = files.get('SKILL.md')!;
-        expect(text, entry.dirName).toContain(`name: ${entry.template.name}\n`);
         expect(text, entry.dirName).toContain(`description: ${entry.template.description}\n`);
-        expect(text, entry.dirName).toContain(`\`${referencePath(entry.workflowId)}\` inside the \`openspec\` skill`);
-        expect(text, entry.dirName).not.toContain(entry.template.instructions);
+        // The blocks every skill used to repeat are now one line each.
+        expect(text, entry.dirName).not.toContain(STORE_SELECTION_GUIDANCE);
+        expect(text, entry.dirName).not.toContain(PROJECT_ROOT_GUARD);
+        for (const file of shared) expect(text, entry.dirName).toContain(`../openspec/${file}`);
+        // Everything else is the workflow's own text, word for word.
+        const rest = entry.template.instructions.split(STORE_SELECTION_GUIDANCE).join('').split(PROJECT_ROOT_GUARD).join('');
+        for (const part of rest.split('\n\n').filter(Boolean)) expect(text, entry.dirName).toContain(part);
       }
     });
 
-    it("holds every workflow's steps in the router, word for word", () => {
+    it('keeps the shared blocks, word for word, in the router', () => {
       const files = generateSkillFiles(router, 'TEST');
-      expect([...files.keys()].sort()).toEqual(
-        ['SKILL.md', ...workflows.map(entry => referencePath(entry.workflowId))].sort()
-      );
-      for (const entry of workflows) {
-        expect(files.get(referencePath(entry.workflowId)), entry.dirName).toBe(`${entry.template.instructions}\n`);
-      }
+      expect([...files.keys()].sort()).toEqual(['SKILL.md', ...shared].sort());
+      expect(files.get('references/stores.md')).toBe(`${STORE_SELECTION_GUIDANCE}\n`);
+      expect(files.get('references/project-check.md')).toBe(`${PROJECT_ROOT_GUARD}\n`);
     });
 
-    it("changes the router's SKILL.md when any reference changes", () => {
+    it("changes the router's SKILL.md when a reference changes", () => {
       const before = generateSkillFiles(router, 'TEST').get('SKILL.md');
-      const after = generateSkillFiles(router, 'TEST', text => text.replace('Enter explore mode', 'Enter explore mode!')).get('SKILL.md');
+      const after = generateSkillFiles(router, 'TEST', text => `${text}!`).get('SKILL.md');
       expect(before).toMatch(/\n {2}references: "[0-9a-f]{12}"\n---/);
       expect(after).not.toBe(before);
     });

@@ -88,7 +88,7 @@ Use it when:
 | **Creates** | Nothing itself. The skill it hands the request to creates what that skill's entry below describes. |
 | **Response** | For a question: where things stand, the next step and the skill that does it, and an offer to do it. For work: whatever the chosen skill responds with. If a request could mean more than one skill it asks which, and if the skill it needs is not installed it says so. |
 
-It also holds the steps of every skill below, one file each in its `references/` folder. Each of those skills is a short file that points at its own steps there, so the skills are always installed together.
+It also holds two short rules every skill below shares: how to work in a store, and what to do in a folder that doesn't use OpenSpec. Each skill reads them from the `openspec` skill's `references/` folder only when it needs them, so the skills are always installed together.
 
 ## openspec-explore
 

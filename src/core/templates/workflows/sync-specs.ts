@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
+import { MERGE_GOTCHAS } from './gotchas.js';
 
 export function getSyncSpecsSkillTemplate(): SkillTemplate {
   return {
@@ -19,6 +20,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${MERGE_GOTCHAS}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
@@ -300,6 +303,8 @@ This is an **agent-driven** operation - you will read delta specs and directly e
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${MERGE_GOTCHAS}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 

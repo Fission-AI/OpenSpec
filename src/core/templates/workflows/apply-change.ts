@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
+import { APPLY_GOTCHAS } from './gotchas.js';
 
 const BLOCKED_STATE_HANDOFF =
   'show the missing artifacts and the recovery step from the CLI’s `instruction` field. Keep the selected store on any follow-up command.';
@@ -30,6 +31,8 @@ export function getApplyInstructions(): string {
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${APPLY_GOTCHAS}
 
 **Input**: Optionally specify a change name (e.g., \`/opsx:apply add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 

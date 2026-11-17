@@ -52,8 +52,6 @@ When the user asks for work, find the row that matches, then use that skill and 
 - If the request could mean more than one row, ask which, naming the choices.
 - If the skill for the row is not installed, say so and stop. The user can add it with \`openspec config profile\`, then \`openspec update\`.
 
-Each skill's steps are a file in this skill's \`references/\` folder, and each skill reads its own.
-
 **Several steps at once**
 
 If the request asks for more than one row, such as "verify this change, then archive it", do them in order, one skill at a time. Finish each before you start the next. Each skill's own rules still apply: when one tells you to stop and wait for the user, stop there and say what comes next.

@@ -233,8 +233,8 @@ describe("a project's skills, installed through the skills package", { timeout: 
   });
 
   it('states the sync safeguards for an agent that has to merge specs itself', () => {
-    for (const name of ['archive', 'bulk-archive']) {
-      const text = readFileSync(path.join(cliProjectRoot, 'skills', 'openspec', 'references', `${name}.md`), 'utf8');
+    for (const name of ['openspec-archive-change', 'openspec-bulk-archive-change']) {
+      const text = published(name);
       expect(text).toContain('When you merge inline because the sync skill is not installed, keep its safeguards.');
       expect(text).toContain('retire_capabilities: true');
       expect(text).toContain('openspec validate --specs');

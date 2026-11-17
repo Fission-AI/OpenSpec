@@ -7,7 +7,7 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
-  references: "d6912e3ce7c1"
+  references: "9446ac7a53bd"
 ---
 
 You are the starting point for anything OpenSpec in this project. Work out what the user needs, then do one of three things: answer their question, hand the request to the skill that does it, or run several skills in order.
@@ -49,8 +49,6 @@ When the user asks for work, find the row that matches, then use that skill and 
 
 - If the request could mean more than one row, ask which, naming the choices.
 - If the skill for the row is not installed, say so and stop. The user can add it with `openspec config profile`, then `openspec update`.
-
-Each skill's steps are a file in this skill's `references/` folder, and each skill reads its own.
 
 **Several steps at once**
 

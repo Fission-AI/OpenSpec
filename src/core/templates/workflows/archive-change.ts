@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
+import { MERGE_GOTCHAS } from './gotchas.js';
 
 /**
  * Archiving must merge delta specs into the main specs; the `sync` workflow is
@@ -38,6 +39,8 @@ export function getArchiveChangeSkillTemplate(): SkillTemplate {
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${MERGE_GOTCHAS}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 
@@ -251,6 +254,8 @@ export function getOpsxArchiveCommandTemplate(): CommandTemplate {
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${MERGE_GOTCHAS}
 
 \`<capability-path>\` is the spec directory relative to \`specs/\` (for example, \`user-auth\` or \`identity/user-auth\`). Preserve the full path from each delta spec when resolving its main spec.
 

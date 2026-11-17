@@ -36,6 +36,8 @@ import {
 import type { CommandContent } from '../command-generation/index.js';
 import { createHash } from 'node:crypto';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
+import { STORE_SELECTION_GUIDANCE } from '../templates/workflows/store-selection.js';
+import { PROJECT_ROOT_GUARD } from '../templates/workflows/project-root.js';
 
 /**
  * Skill template with directory name and workflow ID mapping.
@@ -180,20 +182,40 @@ ${instructions}
 `;
 }
 
-/** Where the router keeps the steps of one workflow skill, relative to the router's folder. */
-export function referencePath(workflowId: string): string {
-  return `references/${workflowId}.md`;
+/**
+ * Blocks every workflow skill used to repeat in full. They matter only in a
+ * case most runs never meet, so each lives once, as a reference file in the
+ * router's folder, and a workflow skill says exactly when to read it.
+ */
+const SHARED_REFERENCES = [
+  {
+    file: 'references/stores.md',
+    text: STORE_SELECTION_GUIDANCE,
+    trigger: `**Stores:** If the user names a store, or the work lives in one, read \`../${ROUTER_SKILL_NAME}/references/stores.md\` before your first command and follow it.`,
+  },
+  {
+    file: 'references/project-check.md',
+    text: PROJECT_ROOT_GUARD,
+    trigger: `**Project check:** Before the first step that writes anything, run \`openspec list --json\` and read \`root\`. If \`root\` is \`null\`, or a \`status\` error starts with \`Declared in\` or \`Invalid store declaration in\`, read \`../${ROUTER_SKILL_NAME}/references/project-check.md\` and follow it before you do anything else.`,
+  },
+] as const;
+
+/** A workflow's steps as its SKILL.md carries them: each shared block replaced by its trigger. */
+function withSharedReferences(instructions: string): string {
+  return SHARED_REFERENCES.reduce((text, shared) => {
+    if (!text.includes(shared.text)) throw new Error(`a workflow skill is missing ${shared.file}`);
+    return text.replace(shared.text, shared.trigger);
+  }, instructions);
 }
 
 /**
  * The files of one skill as they are published and installed, by path inside
  * the skill's folder.
  *
- * A workflow skill is a short SKILL.md that points at its steps. The steps
- * themselves, the template's instructions word for word, are a reference file
- * in the router's folder. The router's SKILL.md carries a digest of its
- * references, so a changed reference shows as a changed SKILL.md wherever an
- * install is compared with what this release publishes.
+ * A workflow skill is one SKILL.md with its steps. The router's folder also
+ * holds the shared references, and its SKILL.md carries a digest of them, so
+ * a changed reference shows as a changed SKILL.md wherever an install is
+ * compared with what this release publishes.
  */
 export function generateSkillFiles(
   entry: SkillTemplateEntry,
@@ -202,19 +224,15 @@ export function generateSkillFiles(
 ): Map<string, string> {
   const files = new Map<string, string>();
   if (entry.workflowId !== ROUTER_WORKFLOW_ID) {
-    const pointer = { ...entry.template, instructions: stepsPointer(entry.workflowId) };
-    return files.set('SKILL.md', generateSkillContent(pointer, generatedByVersion));
+    const skill = { ...entry.template, instructions: withSharedReferences(entry.template.instructions) };
+    return files.set('SKILL.md', generateSkillContent(skill, generatedByVersion, transformInstructions));
   }
   const digest = createHash('sha256');
-  for (const workflow of allSkillTemplates()) {
-    const steps = transformInstructions ? transformInstructions(workflow.template.instructions) : workflow.template.instructions;
-    files.set(referencePath(workflow.workflowId), `${steps}\n`);
-    digest.update(`${workflow.workflowId}\n${steps}\n`);
+  for (const shared of SHARED_REFERENCES) {
+    const text = transformInstructions ? transformInstructions(shared.text) : shared.text;
+    files.set(shared.file, `${text}\n`);
+    digest.update(`${shared.file}\n${text}\n`);
   }
   const router = { ...entry.template, metadata: { ...entry.template.metadata, references: digest.digest('hex').slice(0, 12) } };
   return files.set('SKILL.md', generateSkillContent(router, generatedByVersion, transformInstructions));
-}
-
-function stepsPointer(workflowId: string): string {
-  return `The steps for this skill are in \`${referencePath(workflowId)}\` inside the \`${ROUTER_SKILL_NAME}\` skill, whose folder sits next to this skill's folder. Read that file now and follow it. Do nothing else for this request until you have read it.`;
 }

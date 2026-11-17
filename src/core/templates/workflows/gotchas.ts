@@ -1,0 +1,35 @@
+/**
+ * Gotchas: concrete corrections to mistakes agents made with these skills,
+ * each one seen in real agent sessions and fixed by the sentence here. They
+ * sit near the top of a skill so the agent reads them before it meets the
+ * situation.
+ */
+
+/** Seen: apply ticked every task while `openspec validate` failed, and called the change done. */
+const NOT_DONE_WHILE_INVALID = `- **A change is not done while \`openspec validate "<name>"\` fails.** Run it before you tick the last task. If it fails, leave that task unticked and report the error. A change with no delta specs fails until its \`.openspec.yaml\` has \`skip_specs: true\`: add that line when the proposal says callers see no change in behavior; otherwise stop and say the specs are missing.`;
+
+/** Seen: archive dropped a sentence the main spec gained after the change was planned. */
+const MODIFIED_REPLACES_WHOLE = `- **A MODIFIED requirement replaces the whole requirement in the main spec.** If the main spec now says something the delta's copy does not (it was edited after the change was planned), merging deletes it. Before you merge, compare each MODIFIED requirement with the main spec's current text. If the main spec has a sentence the delta lacks, carry it into the delta, or stop without merging and name the sentence that would be lost.`;
+
+/** Seen: sync merged a `notes.md` written like a delta, which validate and archive never read. */
+const ONLY_SPEC_MD = `- **Only files named \`spec.md\` are delta specs.** \`openspec validate\` and \`openspec archive\` read nothing else under \`specs/\`. Merge no other file, even when \`existingOutputPaths\` lists it or it is written like a delta; name it in your summary instead.`;
+
+/** Seen: propose added a second requirement beside one that already promised the behavior, or contradicted it. */
+const CHANGE_WHERE_IT_LIVES = `- **Change a promise where it lives.** If an existing requirement already promises the behavior, or the opposite of it, change that requirement with MODIFIED. Never add a second requirement that repeats or contradicts it. Only a promise no requirement makes gets its own ADDED requirement.`;
+
+/** Seen: propose appended a sixth and seventh SHALL to a requirement that already made five promises. */
+const ONE_SHALL = `- **One SHALL per requirement.** Do not add a SHALL to a requirement that has one. If a requirement you modify already makes several promises, keep one and move each other into its own ADDED requirement, scenarios included, so no promise is stated twice.`;
+
+export const SPEC_WRITING_GOTCHAS = `## Gotchas
+
+${CHANGE_WHERE_IT_LIVES}
+${ONE_SHALL}`;
+
+export const APPLY_GOTCHAS = `## Gotchas
+
+${NOT_DONE_WHILE_INVALID}`;
+
+export const MERGE_GOTCHAS = `## Gotchas
+
+${MODIFIED_REPLACES_WHOLE}
+${ONLY_SPEC_MD}`;

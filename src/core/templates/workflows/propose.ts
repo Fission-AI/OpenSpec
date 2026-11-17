@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
+import { SPEC_WRITING_GOTCHAS } from './gotchas.js';
 
 const SKILL_APPLY_HANDOFF =
   'ask me to apply it';
@@ -37,6 +38,8 @@ When the user is ready to implement, they must start the apply workflow explicit
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${SPEC_WRITING_GOTCHAS}
 
 **Input**: The user's request should include a change name (kebab-case) OR a description of what they want to build.
 
@@ -203,6 +206,8 @@ When the user is ready to implement, they must start the apply workflow explicit
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${SPEC_WRITING_GOTCHAS}
 
 **Input**: The argument after \`/opsx:propose\` is the change name (kebab-case), OR a description of what the user wants to build.
 

@@ -698,7 +698,7 @@ metadata:
       // /opsx:* commands that were not generated.
       expect(sharedSkill).not.toContain('/opsx:');
       expect(sharedSkill).not.toContain('/opsx-');
-      expect(sharedSkill).toContain('references/explore.md');
+      expect(sharedSkill).toContain('capture the discussion as a change');
 
       // Legacy managed skill is gone; user files stay where they were
       await expect(fs.access(legacySkillDir)).rejects.toThrow();
@@ -746,7 +746,7 @@ metadata:
         'openspec-propose',
         'SKILL.md'
       );
-      expect(await fs.readFile(currentSkill, 'utf-8')).toContain('references/propose.md');
+      expect(await fs.readFile(currentSkill, 'utf-8')).toContain('ask me to apply it');
       await expect(
         fs.access(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))
       ).rejects.toThrow();
@@ -789,7 +789,7 @@ metadata:
       expect(await fs.readFile(
         path.join(canonicalSkills, 'openspec-propose', 'SKILL.md'),
         'utf-8'
-      )).toContain('references/propose.md');
+      )).toContain('ask me to apply it');
     });
 
     it('should preserve and report a divergent legacy Codex skill', async () => {
@@ -880,7 +880,7 @@ metadata:
         path.join(testDir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('references/propose.md');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       expect(
         consoleSpy.mock.calls.flat().map(String).some((entry) =>
@@ -900,7 +900,7 @@ metadata:
       expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('amp\n');
       const updated = await fs.readFile(skillFile, 'utf-8');
       expect(updated).toContain('name: openspec-propose');
-      expect(updated).toContain('references/propose.md');
+      expect(updated).toContain('ask me to apply it');
       expect(updated).not.toContain('stale Amp skill');
     });
 
@@ -916,7 +916,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('references/propose.md');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       expect(await FileSystemUtils.directoryExists(path.join(testDir, '.agents', 'workflows'))).toBe(false);
       expect(getConfiguredToolsForProfileSync(testDir)).toEqual([
@@ -946,7 +946,7 @@ metadata:
       expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('antigravity\ncodex\n');
       expect(
         await fs.readFile(path.join(skillsDir, 'openspec-propose', 'SKILL.md'), 'utf-8')
-      ).toContain('references/propose.md');
+      ).toContain('ask me to apply it');
       // No workflow is generated in the current folder, and the legacy skills
       // moved over.
       await expect(
@@ -973,7 +973,7 @@ metadata:
       expect(await fs.readFile(path.join(skillsDir, '.openspec-target'), 'utf-8')).toBe('agents\ncodex\n');
       expect(
         await fs.readFile(path.join(skillsDir, 'openspec-propose', 'SKILL.md'), 'utf-8')
-      ).toContain('references/propose.md');
+      ).toContain('ask me to apply it');
       expect(
         await fs.readFile(
           path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'),
@@ -1061,7 +1061,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('references/propose.md');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
     });
 
@@ -1094,7 +1094,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('references/propose.md');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       await expect(
         fs.access(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))
@@ -1119,7 +1119,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('references/propose.md');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
     });
 
@@ -1178,7 +1178,7 @@ metadata:
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('references/propose.md');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       await expect(
         fs.access(path.join(testDir, '.codex', 'skills', 'openspec-propose', 'SKILL.md'))
@@ -1500,7 +1500,7 @@ metadata:
         path.join(testDir, '.agents', 'skills', 'openspec-apply-change', 'SKILL.md'),
         'utf-8'
       );
-      expect(skillContent).toContain('references/apply.md');
+      expect(skillContent).toContain('ask to archive this change');
       expect(skillContent).not.toMatch(/\/opsx[:-]/);
       expect(getConfiguredToolsForProfileSync(testDir)).toContain('codeassistant');
 
@@ -3213,7 +3213,7 @@ More user content after markers.
         path.join(skillsDir, 'openspec-propose', 'SKILL.md'),
         'utf-8'
       );
-      expect(proposeSkill).toContain('references/propose.md');
+      expect(proposeSkill).toContain('ask me to apply it');
       expect(proposeSkill).not.toMatch(/\$openspec-|\/openspec-/);
       expect(await FileSystemUtils.directoryExists(path.join(testDir, '.agents', 'workflows'))).toBe(false);
     });
