@@ -4,12 +4,12 @@
  */
 import type { SkillTemplate } from '../types.js';
 
-export const ROUTER_SKILL_NAME = 'openspec';
+export const ROUTER_SKILL_NAME = 'openspec-router';
 
 export function getRouterSkillTemplate(): SkillTemplate {
   return {
     name: ROUTER_SKILL_NAME,
-    description: 'Pick the right OpenSpec skill for a request. Use when the user mentions OpenSpec, or asks for work on the specs or changes in a project\'s openspec/ folder, and no more specific OpenSpec skill fits.',
+    description: 'Send an OpenSpec request to the skill that handles it. Use when the user asks for OpenSpec work without naming a skill, or asks about the specs or changes in a project\'s openspec/ folder and no more specific OpenSpec skill fits.',
     instructions: `Send the request to the OpenSpec skill that handles it. This skill has no steps of its own.
 
 **Pick the skill**

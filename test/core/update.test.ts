@@ -430,7 +430,7 @@ describe('UpdateCommand', () => {
         // The user's skills stay in .dsh; OpenSpec's are the shared copy. A
         // delivery change changes nothing: every tool gets skills.
         const expectedSkills = ['my-custom-skill', 'openspec-user-notes'];
-        const expectedShared = ['shared-custom-skill', '.openspec-target', 'openspec'];
+        const expectedShared = ['shared-custom-skill', '.openspec-target', 'openspec-router'];
         if (setting === 'profile') {
           expectedShared.push('openspec-explore');
         } else {
@@ -3910,7 +3910,7 @@ More user content after markers.
       const sharedDir = path.join(testDir, '.agents', 'skills');
       const openspecSkills = async () =>
         (await fs.readdir(sharedDir)).filter((name) => name.startsWith('openspec-')).sort();
-      expect(await openspecSkills()).toEqual(['openspec-explore', 'openspec-new-change']);
+      expect(await openspecSkills()).toEqual(['openspec-explore', 'openspec-new-change', 'openspec-router']);
       const customSkill = path.join(skillsDir, 'openspec-custom', 'SKILL.md');
       await fs.mkdir(path.dirname(customSkill), { recursive: true });
       await fs.writeFile(customSkill, 'my custom skill');
@@ -3924,10 +3924,11 @@ More user content after markers.
         'openspec-archive-change',
         'openspec-explore',
         'openspec-propose',
+        'openspec-router',
         'openspec-sync-specs',
         'openspec-update-change',
       ]);
-      expect((await fs.readdir(skillsDir)).sort()).toEqual([...(await openspecSkills()), 'openspec', 'openspec-custom'].sort());
+      expect((await fs.readdir(skillsDir)).sort()).toEqual([...(await openspecSkills()), 'openspec-custom'].sort());
       expect(await fs.readFile(customSkill, 'utf-8')).toBe('my custom skill');
       expect(await fs.readFile(path.join(grokDir, 'notes.md'), 'utf-8')).toBe('my Grok notes');
       expect((await fs.readdir(grokDir)).sort()).toEqual(['notes.md', 'skills']);

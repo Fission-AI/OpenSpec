@@ -15,11 +15,11 @@ import { stripVolatileFrontmatter } from '../../scripts/skillssh-shared.mjs';
 // cannot stand in for two machines.
 
 const CORE_SKILLS = [
-  'openspec',
   'openspec-apply-change',
   'openspec-archive-change',
   'openspec-explore',
   'openspec-propose',
+  'openspec-router',
   'openspec-sync-specs',
   'openspec-update-change',
 ];

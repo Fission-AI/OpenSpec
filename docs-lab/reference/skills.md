@@ -39,7 +39,7 @@ The skills come in two sets:
 - **Core**: installed by default, the main planning loop.
 - **Optional**: installed only when you add them, via [Profiles](../customize/profiles.md).
 
-One more skill, `openspec`, comes with either set. It has no steps of its own: it sends a request to the skill below that handles it, so you can ask for OpenSpec work without naming a skill.
+One more skill, `openspec-router`, comes with either set. It has no steps of its own: it sends a request to the skill below that handles it, so you can ask for OpenSpec work without naming a skill.
 
 Every skill expects a project that already uses OpenSpec. Before its first step that writes anything, a skill checks for a resolved root. What happens when there is none depends on how the skill was reached:
 

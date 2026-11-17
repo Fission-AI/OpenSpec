@@ -56,7 +56,7 @@ describe('profile handoff CLI regressions (#1734)', () => {
         expect(content, file).not.toMatch(/\/opsx:|\[\[opsx:/);
         for (const line of content.split('\n')) {
           // The router lists every skill by name; its one "not installed" rule covers them all.
-          if (path.basename(path.dirname(file)) === 'openspec') continue;
+          if (path.basename(path.dirname(file)) === 'openspec-router') continue;
           if (/openspec-(continue|new)-change/.test(line)) expect(line, file).toContain('installed');
         }
       }

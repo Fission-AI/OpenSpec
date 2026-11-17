@@ -1,6 +1,6 @@
 ---
-name: openspec
-description: Pick the right OpenSpec skill for a request. Use when the user mentions OpenSpec, or asks for work on the specs or changes in a project's openspec/ folder, and no more specific OpenSpec skill fits.
+name: openspec-router
+description: Send an OpenSpec request to the skill that handles it. Use when the user asks for OpenSpec work without naming a skill, or asks about the specs or changes in a project's openspec/ folder and no more specific OpenSpec skill fits.
 allowed-tools: Bash(openspec:*)
 license: MIT
 compatibility: Requires openspec CLI.

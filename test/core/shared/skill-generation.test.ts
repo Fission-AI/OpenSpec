@@ -11,7 +11,7 @@ describe('skill-generation', () => {
     it('should return the 12 workflow skills and the router', () => {
       const templates = getSkillTemplates();
       expect(templates).toHaveLength(13);
-      expect(templates.at(-1)?.dirName).toBe('openspec');
+      expect(templates.at(-1)?.dirName).toBe('openspec-router');
     });
 
     it('should have unique directory names', () => {
@@ -84,7 +84,7 @@ describe('skill-generation', () => {
 
     it('should return single template when filter has one workflow', () => {
       const filtered = getSkillTemplates(['propose']);
-      expect(filtered.map(t => t.dirName)).toEqual(['openspec-propose', 'openspec']);
+      expect(filtered.map(t => t.dirName)).toEqual(['openspec-propose', 'openspec-router']);
       expect(filtered[0].workflowId).toBe('propose');
     });
   });

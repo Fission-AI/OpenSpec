@@ -54,7 +54,7 @@ function setupCoreSkills(projectDir: string): void {
     writeSkill(projectDir, workflow);
   }
   // The router skill comes with any workflow skill.
-  writeSkill(projectDir, 'openspec');
+  writeSkill(projectDir, 'openspec-router');
 }
 
 function setupCoreCommands(projectDir: string): void {

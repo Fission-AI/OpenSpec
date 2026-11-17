@@ -2,4 +2,4 @@
 "@fission-ai/openspec": minor
 ---
 
-Add an `openspec` skill that picks the right OpenSpec skill for a request. It is installed alongside the workflow skills; run `openspec update` to get it.
+Add an `openspec-router` skill that sends a request to the OpenSpec skill that handles it. It is installed alongside the workflow skills; run `openspec update` to get it.

@@ -1040,11 +1040,11 @@ describe('InitCommand', () => {
       // Grok reads the one shared copy of the skills.
       const skillsDir = path.join(testDir, '.agents', 'skills');
       const skillNames = [
-        'openspec',
         'openspec-apply-change',
         'openspec-archive-change',
         'openspec-explore',
         'openspec-propose',
+        'openspec-router',
         'openspec-sync-specs',
         'openspec-update-change',
       ];
