@@ -7,6 +7,8 @@ Add a skill router, `/openspec`: one place to start for anything OpenSpec. Say w
 The other skills make fewer mistakes and write better plans:
 
 - **propose**, **ff** and **continue** read the plan back before showing it, and fix artifacts that disagree, scope nobody asked for, and scenarios a test could not check.
+- Every task in a plan says how to check it, and a plan to fix code that drifted from a correct spec no longer rewrites that spec.
+- `/openspec` no longer calls a change built just because its boxes are ticked: it looks at the code first.
 - **apply** no longer calls a change done while `openspec validate` fails.
 - **archive** and **sync** no longer drop a sentence the main spec gained after the change was planned, and no longer merge stray files under `specs/`.
 - Every skill that ends with a report leads with what it did, flags what needs you, and ends with the next step.
