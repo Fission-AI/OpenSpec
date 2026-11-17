@@ -1,4 +1,4 @@
-# Upgrade to 2.1: global skills
+# Upgrade to 2.1
 
 > OpenSpec 2.1 supports global skills for coding agents. What changes, and what to do about it.
 
