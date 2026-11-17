@@ -1426,5 +1426,5 @@ export function buildSpecSkeleton(specFolderName: string, changeName: string, pu
   const purposeBody =
     purpose?.trim() ||
     `${PURPOSE_PLACEHOLDER_PREFIX}${changeName}${PURPOSE_PLACEHOLDER_SUFFIX}`;
-  return `# ${titleBase} Specification\n\n## Purpose\n${purposeBody}\n\n## Requirements\n`;
+  return `# ${titleBase} Specification\n\n## Purpose\n\n${purposeBody}\n\n## Requirements\n`;
 }
