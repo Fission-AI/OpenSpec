@@ -40,10 +40,6 @@ export const sections = [
       { source: 'start/installation.md', slug: 'installation' },
       { source: 'start/setup.md', slug: 'setup' },
       { source: 'start/quickstart.md', slug: 'quickstart' },
-      // Not `upgrade-to-2-1`: the search index names each section of a page
-      // `<url>-<n>`, so that slug collides with the first section of `upgrade-to-2`.
-      { source: 'help/upgrade-to-2-1.md', slug: 'upgrade-2-1' },
-      { source: 'help/upgrade-to-2.md', slug: 'upgrade-to-2' },
     ],
   },
   // Guides are held back until the pages are drafted. Re-publish one by moving
@@ -149,6 +145,16 @@ export const sections = [
         ],
       },
       */
+    ],
+  },
+  // One page per release that needs action, newest first.
+  {
+    label: 'Upgrading',
+    pages: [
+      // Not `upgrade-to-2-1`: the search index names each section of a page
+      // `<url>-<n>`, so that slug collides with the first section of `upgrade-to-2`.
+      { source: 'help/upgrade-to-2-1.md', slug: 'upgrade-2-1' },
+      { source: 'help/upgrade-to-2.md', slug: 'upgrade-to-2' },
     ],
   },
   // TODO (held back 2026-08-21): Help and Legacy are not written yet (FAQ has one
