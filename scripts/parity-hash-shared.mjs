@@ -20,7 +20,7 @@
  * knowing before porting these patterns anywhere.)
  */
 const FUNCTION_PIN = /^(\s+)(get[A-Za-z0-9]+): '([0-9a-f]{64})'(,?)$/gm;
-const CONTENT_PIN = /^(\s+)'(openspec-[a-z0-9-]+)': '([0-9a-f]{64})'(,?)$/gm;
+const CONTENT_PIN = /^(\s+)'(openspec(?:-[a-z0-9-]+)?)': '([0-9a-f]{64})'(,?)$/gm;
 
 /** Any 64-hex literal, however it is written. */
 const HEX_LITERAL = /'[0-9a-f]{64}'/g;

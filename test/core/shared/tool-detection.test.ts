@@ -32,7 +32,7 @@ describe('tool-detection', () => {
     it('should contain all skill names matching COMMAND_IDS', () => {
       // One per workflow, and the router.
       expect(SKILL_NAMES).toHaveLength(13);
-      expect(SKILL_NAMES).toContain('openspec-router');
+      expect(SKILL_NAMES).toContain('openspec');
       expect(SKILL_NAMES).toContain('openspec-explore');
       expect(SKILL_NAMES).toContain('openspec-new-change');
       expect(SKILL_NAMES).toContain('openspec-continue-change');

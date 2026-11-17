@@ -56,7 +56,7 @@ describe('profile handoff CLI regressions (#1734)', () => {
         expect(content, file).not.toMatch(/\/opsx:|\[\[opsx:/);
         for (const line of content.split('\n')) {
           // The router lists every skill by name; its one "not installed" rule covers them all.
-          if (path.basename(path.dirname(file)) === 'openspec-router') continue;
+          if (path.basename(path.dirname(file)) === 'openspec') continue;
           if (/openspec-(continue|new)-change/.test(line)) expect(line, file).toContain('installed');
         }
       }
@@ -77,7 +77,7 @@ describe('profile handoff CLI regressions (#1734)', () => {
     const continueFile = path.join(project, '.claude', 'skills', 'openspec-continue-change', 'SKILL.md');
     expect(await fs.readFile(continueFile, 'utf-8')).toContain('references/continue.md');
     // The steps themselves are the router's reference file.
-    const continueSteps = path.join(project, '.claude', 'skills', 'openspec-router', 'references', 'continue.md');
+    const continueSteps = path.join(project, '.claude', 'skills', 'openspec', 'references', 'continue.md');
     expect(await fs.readFile(continueSteps, 'utf-8')).toContain('Continue working on a change');
     await fs.writeFile(configFile, JSON.stringify({ profile: 'core', delivery }));
     await cli(['update']);

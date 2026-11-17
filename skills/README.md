@@ -7,7 +7,7 @@ npx skills add Fission-AI/OpenSpec
 ```
 
 Each `openspec-*` folder here is the same skill `openspec init` writes into a
-project. A skill's steps are in `openspec-router/references/`; its own
+project. A skill's steps are in `openspec/references/`; its own
 `SKILL.md` points there, so install the skills together. The skills drive the `openspec` CLI, so for the full setup (CLI +
 `openspec/` project scaffolding + slash commands) run:
 

@@ -19,7 +19,7 @@ const bodies: Array<[string, string]> = [
   // skill's steps are the router's reference file.
   [
     'committed skill file',
-    readFileSync(new URL('../../../skills/openspec-router/references/verify.md', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../../skills/openspec/references/verify.md', import.meta.url), 'utf8'),
   ],
 ];
 

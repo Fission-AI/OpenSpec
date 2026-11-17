@@ -511,7 +511,7 @@ describe('InitCommand', () => {
           'sync',
           'archive',
           // Each skill's steps are a reference file in the router's folder.
-        ].map((name) => path.join(testDir, '.claude', 'skills', 'openspec-router', 'references', `${name}.md`)),
+        ].map((name) => path.join(testDir, '.claude', 'skills', 'openspec', 'references', `${name}.md`)),
       ];
       expect(await directoryExists(path.join(testDir, '.claude', 'commands'))).toBe(false);
       const generatedContents = await Promise.all(
@@ -537,7 +537,7 @@ describe('InitCommand', () => {
             testDir,
             '.claude',
             'skills',
-            'openspec-router',
+            'openspec',
             'references',
             'update.md'
           ),
@@ -558,7 +558,7 @@ describe('InitCommand', () => {
 
       const applyVariants = [
         await fs.readFile(
-          path.join(testDir, '.claude', 'skills', 'openspec-router', 'references', 'apply.md'),
+          path.join(testDir, '.claude', 'skills', 'openspec', 'references', 'apply.md'),
           'utf-8'
         ),
       ];
@@ -570,7 +570,7 @@ describe('InitCommand', () => {
       }
 
       const syncFiles = [
-        path.join(testDir, '.claude', 'skills', 'openspec-router', 'references', 'sync.md'),
+        path.join(testDir, '.claude', 'skills', 'openspec', 'references', 'sync.md'),
       ];
 
       for (const file of syncFiles) {
@@ -1042,11 +1042,11 @@ describe('InitCommand', () => {
       // Grok reads the one shared copy of the skills.
       const skillsDir = path.join(testDir, '.agents', 'skills');
       const skillNames = [
+        'openspec',
         'openspec-apply-change',
         'openspec-archive-change',
         'openspec-explore',
         'openspec-propose',
-        'openspec-router',
         'openspec-sync-specs',
         'openspec-update-change',
       ];
@@ -1400,7 +1400,7 @@ describe('InitCommand', () => {
       }
       // The steps of the propose skill, which its SKILL.md points at.
       const proposeFiles = [
-        path.join(testDir, '.agents', 'skills', 'openspec-router', 'references', 'propose.md'),
+        path.join(testDir, '.agents', 'skills', 'openspec', 'references', 'propose.md'),
       ];
 
       for (const proposeFile of proposeFiles) {
@@ -1576,7 +1576,7 @@ describe('InitCommand', () => {
       const initCommand = new InitCommand({ tools: 'claude', force: true });
       await initCommand.execute(testDir);
 
-      const skillFile = path.join(testDir, '.claude', 'skills', 'openspec-router', 'references', 'explore.md');
+      const skillFile = path.join(testDir, '.claude', 'skills', 'openspec', 'references', 'explore.md');
       const content = await fs.readFile(skillFile, 'utf-8');
 
       expect(content).toContain('Enter explore mode');

@@ -99,7 +99,7 @@ describe('config profile interactive flow', () => {
       'openspec-sync-specs',
       'openspec-archive-change',
       // The router, which comes with any workflow skill.
-      'openspec-router',
+      'openspec',
     ];
     // As 2.0 writes them: one shared copy, Claude's links to it, Claude listed.
     for (const dirName of coreSkillDirs) {

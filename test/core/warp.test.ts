@@ -98,7 +98,7 @@ describe('Warp integration', () => {
     await new InitCommand({ tools: 'warp', force: true }).execute(projectPath);
 
     expect(await installedSkills()).toEqual(getSkillTemplates().map(({ dirName }) => dirName).sort());
-    const onboarding = await fs.readFile(path.join(path.dirname(skillPath('openspec-router')), 'references', 'onboard.md'), 'utf8');
+    const onboarding = await fs.readFile(path.join(path.dirname(skillPath('openspec')), 'references', 'onboard.md'), 'utf8');
     expect(onboarding).toContain('Omit workflows you cannot invoke');
     expect(onboarding).not.toMatch(/\/opsx[:\-]|\$openspec-|\/openspec-/);
   });
@@ -125,7 +125,7 @@ describe('Warp integration', () => {
 
     await new UpdateCommand({ force: true }).execute(projectPath);
 
-    expect(await installedSkills()).toEqual(['my-skill', 'openspec-apply-change', 'openspec-router']);
+    expect(await installedSkills()).toEqual(['my-skill', 'openspec', 'openspec-apply-change']);
     expect(await fs.readFile(skillPath('openspec-apply-change'), 'utf8')).toContain('name: openspec-apply-change');
     expect((await fs.readdir(path.join(projectPath, '.warp'))).sort()).toEqual(['settings.json', 'skills']);
     for (const [filePath, content] of Object.entries(preserved)) {
@@ -135,8 +135,8 @@ describe('Warp integration', () => {
     expect((await fs.readdir(path.join(projectPath, '.agents', 'skills'))).sort()).toEqual([
       '.openspec-target',
       'my-skill',
+      'openspec',
       'openspec-apply-change',
-      'openspec-router',
     ]);
     expect(getConfiguredTools(projectPath)).toContain('warp');
   });

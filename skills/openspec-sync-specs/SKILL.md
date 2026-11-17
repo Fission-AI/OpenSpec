@@ -9,4 +9,4 @@ metadata:
   version: "1.0"
 ---
 
-The steps for this skill are in `references/sync.md` inside the `openspec-router` skill, whose folder sits next to this skill's folder. Read that file now and follow it. Do nothing else for this request until you have read it.
+The steps for this skill are in `references/sync.md` inside the `openspec` skill, whose folder sits next to this skill's folder. Read that file now and follow it. Do nothing else for this request until you have read it.

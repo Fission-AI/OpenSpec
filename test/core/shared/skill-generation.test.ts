@@ -13,7 +13,7 @@ describe('skill-generation', () => {
     it('should return the 12 workflow skills and the router', () => {
       const templates = getSkillTemplates();
       expect(templates).toHaveLength(13);
-      expect(templates.at(-1)?.dirName).toBe('openspec-router');
+      expect(templates.at(-1)?.dirName).toBe('openspec');
     });
 
     it('should have unique directory names', () => {
@@ -86,7 +86,7 @@ describe('skill-generation', () => {
 
     it('should return single template when filter has one workflow', () => {
       const filtered = getSkillTemplates(['propose']);
-      expect(filtered.map(t => t.dirName)).toEqual(['openspec-propose', 'openspec-router']);
+      expect(filtered.map(t => t.dirName)).toEqual(['openspec-propose', 'openspec']);
       expect(filtered[0].workflowId).toBe('propose');
     });
   });
@@ -306,7 +306,7 @@ describe('skill-generation', () => {
 
   describe('generateSkillFiles', () => {
     const all = getSkillTemplates();
-    const router = all.find(entry => entry.dirName === 'openspec-router')!;
+    const router = all.find(entry => entry.dirName === 'openspec')!;
     const workflows = all.filter(entry => entry !== router);
 
     it('keeps each workflow skill to a SKILL.md that points at its steps', () => {
@@ -316,7 +316,7 @@ describe('skill-generation', () => {
         const text = files.get('SKILL.md')!;
         expect(text, entry.dirName).toContain(`name: ${entry.template.name}\n`);
         expect(text, entry.dirName).toContain(`description: ${entry.template.description}\n`);
-        expect(text, entry.dirName).toContain(`\`${referencePath(entry.workflowId)}\` inside the \`openspec-router\` skill`);
+        expect(text, entry.dirName).toContain(`\`${referencePath(entry.workflowId)}\` inside the \`openspec\` skill`);
         expect(text, entry.dirName).not.toContain(entry.template.instructions);
       }
     });

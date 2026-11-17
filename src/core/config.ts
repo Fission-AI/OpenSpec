@@ -17,7 +17,7 @@ export const OPENSPEC_SKILL_NAMES = [
   'openspec-onboard',
   'openspec-propose',
   // The router: installed with any of the workflow skills above.
-  'openspec-router',
+  'openspec',
 ] as const;
 
 export const OPENSPEC_MARKERS = {
