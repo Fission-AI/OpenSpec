@@ -16,6 +16,7 @@ Each OpenSpec project keeps its config file at `openspec/config.yaml`, in the pr
 | `operations` | map: operation → guidance list | No | Advisory guidance for apply and archive work |
 | `store` | string | No | Fallback OpenSpec root when this openspec/ is config-only |
 | `references` | list | No | Stores whose specs are indexed into instructions |
+| `skillsScope` | string: `project` | No | The team keeps OpenSpec's skills in this repo |
 
 Invalid fields never fail a command. Each field is validated on its own, and a bad value is dropped with a warning. A file that cannot be read or is not valid YAML is ignored with a warning, except by `openspec validate`, which exits 1 so CI catches it.
 
@@ -68,6 +69,10 @@ references:
   - id: billing-specs
     remote: git@github.com:acme/billing-specs.git
 ```
+
+### skillsScope
+
+`skillsScope: project` records that your team keeps OpenSpec's skills in this repo. `openspec update` writes it when you choose **Keep in this project**, and it stops asking once the file is committed and pulled. To move the repo to the [global skills](../../start/setup.md#move-an-existing-project-to-the-global-skills) later, run `openspec init --scope global`, which also removes this line. Removing the line by hand moves nothing: update asks the question again.
 
 ## Example
 

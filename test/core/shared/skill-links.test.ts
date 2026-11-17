@@ -4,7 +4,7 @@ import os from 'os';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { classifySkillLinkSpot, createSkillLink } from '../../../src/core/shared/skill-links.js';
-import { AI_TOOLS } from '../../../src/core/config.js';
+import { AI_TOOLS, installerAgent } from '../../../src/core/config.js';
 import {
   resolveFormerOwnSkillsDir,
   resolveSharedSkillsDir,
@@ -20,7 +20,7 @@ describe('shared skill paths', () => {
     expect(resolveSharedSkillsDir('/p')).toBe(path.join('/p', '.agents', 'skills'));
     expect(usesSharedSkills(tool('cursor'))).toBe(true);
     expect(usesSharedSkills(tool('codex'))).toBe(true);
-    expect(usesSharedSkills(tool('minimax-code'))).toBe(false);
+    expect(usesSharedSkills(tool('minimax-code'))).toBe(true);
     for (const option of AI_TOOLS) {
       if (option.skillsDir && !option.globalSkillsDir) expect(usesSharedSkills(option), option.value).toBe(true);
     }
@@ -28,10 +28,7 @@ describe('shared skill paths', () => {
 
   it('links only the tools that may not read .agents/skills', () => {
     const linked = AI_TOOLS.filter((t) => resolveSkillLinkDir('/p', t)).map((t) => t.value).sort();
-    expect(linked).toEqual([
-      'claude', 'codeartsagent', 'codebuddy', 'codestudio', 'continue', 'easycode', 'forgecode',
-      'gigacode', 'hermes', 'iflow', 'kiro', 'lingma', 'rovodev', 'veai',
-    ]);
+    expect(linked).toEqual(AI_TOOLS.filter(tool => !installerAgent(tool.value).universal).map(tool => tool.value).sort());
     expect(resolveSkillLinkDir('/p', tool('claude'))).toBe(path.join('/p', '.claude', 'skills'));
   });
 

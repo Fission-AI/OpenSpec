@@ -5,73 +5,35 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
-/**
- * Passages that hand off to `/opsx:continue` or `/opsx:new`. Neither workflow
- * is in the `core` profile, so each is authored with a CLI fallback and
- * resolved at generation time (see optional-workflow.ts). Shared by both
- * surfaces below so the skill and the command cannot drift apart.
- */
-const CONTINUE_SCOPE_NOTE = optionalWorkflow(
-  'continue',
-  'This workflow revises artifacts that already exist; `/opsx:continue` is what creates the ones that do not.',
-  'This workflow revises artifacts that already exist; it never creates missing ones. When an artifact is missing, `openspec status --change "<name>" --json` names the next one and `openspec instructions "<artifact-id>" --change "<name>" --json` explains how to write it.'
-);
+const CONTINUE_SCOPE_NOTE =
+  'Revise existing artifacts. If an artifact is missing, identify it and show the next ready artifact from `openspec status --change "<name>" --json`.';
 
-const CONTINUE_CREATE_THEM = optionalWorkflow(
-  'continue',
-  'point the user to `/opsx:continue` to create them',
-  'point the user to `openspec instructions "<artifact-id>" --change "<name>" --json` for how to create them'
-);
+const CONTINUE_CREATE_THEM =
+  'show how to create the next ready artifact with `openspec instructions "<artifact-id>" --change "<name>" --json`';
 
-const CONTINUE_NEXT_STEP = optionalWorkflow(
-  'continue',
-  'suggest `/opsx:continue` to create them',
-  'run `openspec status --change "<name>" --json` for the next artifact and point the user to `openspec instructions "<artifact-id>" --change "<name>" --json` for how to create it'
-);
+const CONTINUE_NEXT_STEP =
+  'give the CLI command for the next ready artifact';
 
-const CONTINUE_DEFERRED = optionalWorkflow(
-  'continue',
-  'Anything deferred to `/opsx:continue` (artifacts with no files yet and status `ready` or `blocked`, never `skipped` artifacts)',
-  'Anything deferred because it does not exist yet (artifacts with no files and status `ready` or `blocked`, never `skipped` artifacts)'
-);
+const CONTINUE_DEFERRED =
+  'Missing artifacts deferred to a separate step (ready or blocked, excluding skipped artifacts)';
 
-const CONTINUE_FRONTIER = optionalWorkflow(
-  'continue',
-  "that is `/opsx:continue`'s job",
-  'creating them is a separate step, outside this workflow'
-);
+const CONTINUE_FRONTIER =
+  'create missing artifacts in a separate step';
 
-/**
- * `apply` and `archive` are in the `core` profile but not guaranteed in a
- * custom one, so their handoffs are resolved the same way.
- */
-const APPLY_DELTA_HANDOFF = optionalWorkflow(
-  'apply',
-  'suggest `/opsx:apply` to carry the delta into code',
-  'say that the code may need updating and offer to carry the delta into it'
-);
+const APPLY_DELTA_HANDOFF =
+  'tell the user which implementation tasks need revisiting';
 
-const APPLY_GUARDRAIL = optionalWorkflow(
-  'apply',
-  'stop and point to `/opsx:apply`',
-  'stop and say that the revised plan now implies code changes; implementing them is a separate step'
-);
+const APPLY_GUARDRAIL =
+  'stop after revising the plan and identify any code changes it calls for';
 
-const ARCHIVE_HANDOFF = optionalWorkflow(
-  'archive',
-  'suggest `/opsx:archive`',
-  'suggest archiving with `openspec archive "<name>"`'
-);
+const ARCHIVE_HANDOFF =
+  'suggest archiving with `openspec archive "<name>"`';
 
-const INTENT_CHANGE_GUARDRAIL = optionalWorkflow(
-  'new',
-  'recommend starting fresh with `/opsx:new` (the "Update vs. Start Fresh" heuristic)',
-  'ask for a distinct unused change name and recommend `openspec new change "<new-change-name>"` instead (the "Update vs. Start Fresh" heuristic)'
-);
+const INTENT_CHANGE_GUARDRAIL =
+  'ask for a distinct unused name and recommend `openspec new change "<new-change-name>"`';
 
 export function getUpdateChangeSkillTemplate(): SkillTemplate {
   return {

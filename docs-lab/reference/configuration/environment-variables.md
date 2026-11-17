@@ -12,3 +12,15 @@ its network-permission flag. XDG vars move the config/data directories. -->
 ## DO_NOT_TRACK
 
 ## XDG_CONFIG_HOME and XDG_DATA_HOME
+
+## OPENSPEC_SKILLS_SCOPE
+
+Set to `global` or `project` to choose where `openspec init` installs skills for a new repo. An explicit `--scope` takes precedence. Existing repo skills stay in place.
+
+For a CI job that needs agent skills in its checkout:
+
+```bash
+OPENSPEC_SKILLS_SCOPE=project openspec init --tools claude
+```
+
+A validation-only job can run `openspec validate --all` directly.

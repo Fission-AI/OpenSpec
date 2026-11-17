@@ -1,5 +1,5 @@
 import path from 'path';
-import { AI_TOOLS, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
+import { AI_TOOLS, resolveToolIdAlias, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
@@ -19,57 +19,33 @@ export function skillToolListPath(projectPath: string): string {
   return path.join(projectPath, SHARED_SKILLS_ROOT, 'skills', TOOL_LIST_FILE);
 }
 
-/**
- * The list file's content: tool ids, sorted, one per line; then a
- * `keep <skill>` line for each `openspec-*` skill in `.agents/skills/` that is
- * the user's (it was there before OpenSpec used the folder), which OpenSpec
- * never writes over or removes.
- */
+function readMarker(projectPath: string, view: FileView): string {
+  const marker = skillToolListPath(projectPath);
+  FileSystemUtils.assertProjectArtifactPath(projectPath, marker);
+  return view.exists(marker) ? view.read(marker) : '';
+}
+
+/** Sorted public tool IDs, with the 2.0 own-files marker where applicable. */
 export function formatSkillToolList(
   toolIds: Iterable<string>,
-  keptSkills: Iterable<string> = [],
   toolsWithOwnFiles: ReadonlySet<string> = new Set()
 ): string {
   return [
     // `own-files`: OpenSpec gave the tool files of its own (commands or
     // links), so deleting them all removes the tool.
     ...[...new Set(toolIds)].sort().map((id) => (toolsWithOwnFiles.has(id) ? `${id} own-files` : id)),
-    ...[...new Set(keptSkills)].sort().map((name) => `keep ${name}`),
   ].map((line) => `${line}\n`).join('');
 }
 
 /** The listed tools OpenSpec gave files of their own (commands or links). */
 export function readListedToolsWithOwnFiles(projectPath: string, view: FileView = DISK_VIEW): Set<string> {
-  const listPath = skillToolListPath(projectPath);
   try {
-    FileSystemUtils.assertProjectArtifactPath(projectPath, listPath);
-    if (!view.exists(listPath)) return new Set();
     return new Set(
-      view
-        .read(listPath)
+      readMarker(projectPath, view)
         .split(/\r?\n/)
         .map((line) => line.trim().split(/\s+/))
         .filter((tokens) => tokens[1] === 'own-files')
-        .map((tokens) => tokens[0])
-    );
-  } catch {
-    return new Set();
-  }
-}
-
-/** The `openspec-*` skills in `.agents/skills/` recorded as the user's. */
-export function readKeptSharedSkills(projectPath: string, view: FileView = DISK_VIEW): Set<string> {
-  const listPath = skillToolListPath(projectPath);
-  try {
-    FileSystemUtils.assertProjectArtifactPath(projectPath, listPath);
-    if (!view.exists(listPath)) return new Set();
-    const names = new Set<string>(OPENSPEC_SKILL_NAMES);
-    return new Set(
-      view
-        .read(listPath)
-        .split(/\r?\n/)
-        .map((line) => line.trim().match(/^keep\s+(\S+)$/)?.[1])
-        .filter((name): name is string => name !== undefined && names.has(name))
+        .map((tokens) => resolveToolIdAlias(tokens[0]))
     );
   } catch {
     return new Set();
@@ -106,15 +82,11 @@ function inferPreListTool(projectPath: string, view: FileView): string | undefin
 
 /** The known tools the list file names, or none when there is no such file. */
 function readListFileTools(projectPath: string, view: FileView): string[] {
-  const listPath = skillToolListPath(projectPath);
   try {
-    FileSystemUtils.assertProjectArtifactPath(projectPath, listPath);
-    if (!view.exists(listPath)) return [];
     const known = new Set(AI_TOOLS.map((tool) => tool.value));
-    return view
-      .read(listPath)
+    return readMarker(projectPath, view)
       .split(/\r?\n/)
-      .map((line) => line.trim().split(/\s+/)[0])
+      .map((line) => resolveToolIdAlias(line.trim().split(/\s+/)[0]))
       .filter((id) => known.has(id));
   } catch {
     return [];

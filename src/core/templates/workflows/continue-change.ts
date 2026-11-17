@@ -5,24 +5,11 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
-/**
- * The planning-complete handoff. Neither `apply` nor `archive` is guaranteed
- * to be installed, so each half is resolved at generation time (see
- * optional-workflow.ts).
- */
-const PLANNING_COMPLETE_HANDOFF = optionalWorkflow(
-  'apply',
-  'You can now implement this change with `/opsx:apply`.',
-  'You can now implement this change - `openspec instructions apply --change "<name>" --json` returns the tasks and how to work them.'
-) + ' ' + optionalWorkflow(
-  'archive',
-  'Once implementation and any tracked work are complete, archive it with `/opsx:archive`.',
-  'Once implementation and any tracked work are complete, archive it with `openspec archive "<name>"`.'
-);
+const PLANNING_COMPLETE_HANDOFF =
+  'The plan is ready for review. When you’re ready, ask me to apply it.';
 
 /**
  * A glob artifact reads `done` once one matching file exists, so a run
@@ -85,7 +72,7 @@ ${PROJECT_ROOT_GUARD}
    **If all planning artifacts are complete (\`isPlanningComplete: true\`, or legacy \`isComplete: true\`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "Planning is complete! You can now implement this change. Once implementation and any tracked work are complete, archive it."
+   - Suggest: "Planning is complete! Review the plan before starting implementation."
    - STOP
 
    ---

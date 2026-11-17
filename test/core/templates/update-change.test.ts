@@ -6,26 +6,18 @@ import {
 } from '../../../src/core/templates/skill-templates.js';
 import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
 import { PROJECT_ROOT_GUARD } from '../../../src/core/templates/workflows/project-root.js';
-import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
-import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../../src/core/profiles.js';
 
 const skill = getUpdateChangeSkillTemplate();
 const command = getOpsxUpdateCommandTemplate();
 
-const render = (workflows: readonly string[]): Array<[string, string]> => {
-  const installed = new Set<string>(workflows);
-  return [
-    ['skill', resolveOptionalWorkflows(skill.instructions, installed)],
-    ['command', resolveOptionalWorkflows(command.content, installed)],
-  ];
-};
-
 // Both delivery surfaces must carry the same contract; every behavioral
-// assertion below runs against each body. Templates carry optional-workflow
-// conditionals, so a body is only meaningful once resolved against a workflow
-// set — these are the bodies a profile with every workflow installed receives.
-const bodies = render(ALL_WORKFLOWS);
-const coreBodies = render(CORE_WORKFLOWS);
+// assertion below runs against each body. The text is the same for every
+// workflow profile: each handoff names the skill "if installed" and gives the
+// CLI path otherwise.
+const bodies: Array<[string, string]> = [
+  ['skill', skill.instructions],
+  ['command', command.content],
+];
 
 // The load-bearing sentence of step 4 and the whole of step 5 are pinned
 // verbatim. #1836 happened because a single verb ("Apply") in step 4 silently
@@ -239,14 +231,8 @@ describe('update-change templates', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('Never edit code');
       expect(body, label).toContain('NEVER edit implementation code');
-      expect(body, label).toContain('stop and point to `/opsx:apply`');
+      expect(body, label).toContain('stop after revising the plan');
       expect(body, label).toContain('Do not advance the build frontier');
-      expect(body, label).toContain(
-        'no existing output files and status `ready` or `blocked`, note it and point the user to `/opsx:continue`'
-      );
-      expect(body, label).toContain(
-        'empty `existingOutputPaths` and status `ready` or `blocked`, that is `/opsx:continue`\'s job'
-      );
       expect(body, label).toContain('Leave `skipped` artifacts untouched');
       expect(body, label).toContain('do not treat them as missing or defer them to the continue workflow');
     }
@@ -347,44 +333,15 @@ describe('update-change templates', () => {
   it('ends with next-step guidance and never acts on it (3.5)', () => {
     for (const [label, body] of bodies) {
       expect(body, label).toContain('guidance only - NEVER act on it');
-      expect(body, label).toContain(
-        'Artifacts with empty `existingOutputPaths` and status `ready` or `blocked` -> suggest `/opsx:continue`'
-      );
-      expect(body, label).toContain('suggest `/opsx:continue`');
-      expect(body, label).toContain('suggest `/opsx:apply`');
-      expect(body, label).toContain('suggest `/opsx:archive`');
+      expect(body, label).toContain('openspec archive "<name>"');
       expect(body, label).toContain('the code may no longer match the revised plan');
     }
   });
 
-  it('hands off to /opsx:continue when that workflow is installed', () => {
+  it('shows the next ready artifact and how to get its instructions', () => {
     for (const [label, body] of bodies) {
-      expect(body, label).toContain(
-        '`/opsx:continue` is what creates the ones that do not'
-      );
-      expect(body, label).toContain('suggest `/opsx:continue` to create them');
-      expect(body, label).toContain("that is `/opsx:continue`'s job");
-      // The handoff is stated outright, not deferred to a runtime availability
-      // check the model has to perform (#1734).
-      expect(body, label).not.toContain('may not be installed');
-      expect(body, label).not.toContain('verify that it is available');
-    }
-  });
-
-  it('never names /opsx:continue on a profile that does not install it', () => {
-    for (const [label, body] of coreBodies) {
-      expect(body, label).not.toContain('/opsx:continue');
-      expect(body, label).toContain('it never creates missing ones');
-      expect(body, label).toContain(
-        'run `openspec status --change "<name>" --json` for the next artifact'
-      );
-      expect(body, label).toContain(
-        '`openspec instructions "<artifact-id>" --change "<name>" --json` for how to create them'
-      );
-      expect(body, label).toContain(
-        'Anything deferred because it does not exist yet'
-      );
-      expect(body, label).toContain('creating them is a separate step, outside this workflow');
+      expect(body, label).toContain('openspec status --change "<name>" --json');
+      expect(body, label).toContain('openspec instructions "<artifact-id>" --change "<name>" --json');
     }
   });
 
@@ -395,19 +352,18 @@ describe('update-change templates', () => {
       expect(reconciliation, label).not.toContain('Apply the requested edit');
       expect(body, label).toContain('Write only after the user confirms');
       expect(body, label).toContain('If the user rejects a revision, do not write it');
-      expect(body, label).toContain('recommend starting fresh with `/opsx:new`');
-      expect(body, label).toContain('Update vs. Start Fresh');
+      expect(body, label).toContain('ask for a distinct unused name');
       expect(body, label).not.toContain('first verify whether the optional');
     }
   });
 
   it('routes intent changes to the CLI when /opsx:new is not installed', () => {
-    for (const [label, body] of coreBodies) {
-      expect(body, label).not.toContain('/opsx:new');
-      expect(body, label).toContain('ask for a distinct unused change name');
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'ask for a distinct unused name'
+      );
       expect(body, label).toContain('openspec new change "<new-change-name>"');
       expect(body, label).not.toContain('openspec new change "<name>"');
-      expect(body, label).toContain('Update vs. Start Fresh');
     }
   });
 });

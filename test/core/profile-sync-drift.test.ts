@@ -163,9 +163,9 @@ describe('profile sync drift detection', () => {
       expect(hasToolProfileOrDeliveryDrift(tempDir, 'cursor', ['explore'], 'skills')).toBe(true);
     });
 
-    it('does not flag a copy the user edited, so keeping it does not make every update run', () => {
+    it('flags an edited built-in for replacement', () => {
       setUp(released() + '\nMy own note.\n');
-      expect(hasToolProfileOrDeliveryDrift(tempDir, 'cursor', ['explore'], 'skills')).toBe(false);
+      expect(hasToolProfileOrDeliveryDrift(tempDir, 'cursor', ['explore'], 'skills')).toBe(true);
     });
   });
 

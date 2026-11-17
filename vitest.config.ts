@@ -46,7 +46,15 @@ export default defineConfig({
       USERPROFILE: testHome,
       XDG_CONFIG_HOME: path.join(testHome, '.config'),
       XDG_DATA_HOME: path.join(testHome, '.local', 'share'),
+      XDG_STATE_HOME: path.join(testHome, '.local', 'state'),
       CODEX_HOME: path.join(testHome, '.codex'),
+
+      // A scripted `openspec init` installs for the machine unless told
+      // otherwise. The suite's project tests say so here, once; the tests of
+      // that default clear it.
+      OPENSPEC_SKILLS_SCOPE: 'project',
+      GH_HOST: 'skills.example.invalid',
+      GIT_CONFIG_GLOBAL: path.join(testHome, 'release', 'gitconfig'),
     },
     // Tests rely on per-file process isolation (e.g., `process.cwd()` assumptions).
     pool: 'forks',

@@ -6,13 +6,22 @@ const GENERATED_VERSION =
   /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 /**
+ * Checkout artifacts that are not real content drift: a UTF-8 BOM and the CRLF
+ * line endings a Windows clone with `core.autocrlf` reintroduces on every
+ * checkout of committed generated files.
+ */
+export function normalizeGeneratedFile(content: string): string {
+  return content.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+}
+
+/**
  * Normalizes checkout line endings, a BOM, and a valid generated version
  * inside the YAML frontmatter: the parts of a generated file that change
  * between releases or checkouts without anyone editing it. Free-form
  * `generatedBy` text remains material.
  */
 export function normalizeGeneratedContent(content: string): string {
-  const normalized = content.replace(/^﻿/, '').replace(/\r\n/g, '\n');
+  const normalized = normalizeGeneratedFile(content);
   const frontmatter = normalized.match(/^---\n[\s\S]*?\n---(?:\n|$)/)?.[0];
   if (!frontmatter) return normalized;
 

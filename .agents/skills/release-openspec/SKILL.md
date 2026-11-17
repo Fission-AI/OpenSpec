@@ -7,6 +7,8 @@ description: >-
   publishing, and polish GitHub release notes. Also use when asked whether an
   open release PR is complete, what the next release step is, or to continue a
   release paused for human approval.
+metadata:
+  internal: true
 ---
 
 # Release OpenSpec

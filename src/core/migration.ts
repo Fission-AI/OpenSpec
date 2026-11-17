@@ -13,7 +13,7 @@ import { COMMAND_IDS } from './shared/tool-detection.js';
 import { ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { isToolListed, readKeptSharedSkills } from './shared-skill-target.js';
+import { isToolListed } from './shared-skill-target.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
 import path from 'path';
@@ -295,7 +295,9 @@ function migrateSkillDirs(
     const dirName = WORKFLOW_TO_SKILL_DIR[workflowId];
     const source = path.join(legacySkillsDir, dirName);
     const sourceSkill = path.join(source, 'SKILL.md');
-    if (!fs.existsSync(sourceSkill)) continue;
+    // A migrated checkout may already contain per-skill links here. Moving
+    // SKILL.md through one would rename the shared copy for every tool.
+    if (view.linkTarget?.(source) !== undefined || !view.exists(sourceSkill)) continue;
 
     const destination = path.join(currentSkillsDir, dirName);
     const destinationSkill = path.join(destination, 'SKILL.md');
@@ -523,7 +525,6 @@ function scanInstalledWorkflowArtifacts(
   view: FileView = DISK_VIEW
 ): InstalledWorkflowArtifacts {
   const installed = new Set<string>();
-  const kept = readKeptSharedSkills(projectPath, view);
   let hasSkills = false;
   let hasCommands = false;
 
@@ -556,8 +557,7 @@ function scanInstalledWorkflowArtifacts(
       for (const workflowId of ALL_WORKFLOWS) {
         const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId];
         const skillFile = path.join(skillsDir, skillDirName, 'SKILL.md');
-        // A skill kept as the user's in the shared folder is not an install.
-        if (view.exists(skillFile) && !kept.has(skillDirName)) {
+        if (view.exists(skillFile)) {
           installed.add(workflowId);
           hasSkills = true;
         }

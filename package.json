@@ -57,7 +57,7 @@
     "changeset": "changeset"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=22.20.0"
   },
   "devDependencies": {
     "@changesets/changelog-github": "^1.0.0",
@@ -82,6 +82,7 @@
     "diff": "^9.0.0",
     "ora": "^9.4.1",
     "picomatch": "^4.0.4",
+    "skills": "1.8.1",
     "tinyglobby": "^0.2.17",
     "yaml": "^2.8.3",
     "zod": "^4.4.3"

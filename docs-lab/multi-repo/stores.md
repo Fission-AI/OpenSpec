@@ -231,10 +231,10 @@ Run init from the code repo's root to install AI tool integration files without 
 
 ```bash
 # inside web-app, at the repository root
-openspec init --tools claude
+openspec init --scope project --tools claude
 ```
 
-- **Integration files**: written in the code repo.
+- **Integration files**: written in the code repo. Without `--scope project`, a new setup puts the skills on your machine instead and the repo gets none.
 - **`openspec/config.yaml`**: preserved byte-for-byte, including the `store:` line.
 - **`openspec/specs/` and `openspec/changes/`**: not created in the code repo.
 

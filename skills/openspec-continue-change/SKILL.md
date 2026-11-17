@@ -42,7 +42,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    Mark the most recently modified change as "(Recommended)" since it's likely what the user wants to continue.
 
-   Always announce: "Using change: <name>" and how to override (e.g., `/openspec-continue-change <other>`).
+   Always announce: "Using change: <name>" and how to override (e.g., `openspec-continue-change <other>`).
 
 2. **Check current status**
    ```bash
@@ -68,7 +68,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    **If all planning artifacts are complete (`isPlanningComplete: true`, or legacy `isComplete: true`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "Planning is complete! You can now implement this change. Once implementation and any tracked work are complete, archive it."
+   - Suggest: "Planning is complete! Review the plan before starting implementation."
    - STOP
 
    ---

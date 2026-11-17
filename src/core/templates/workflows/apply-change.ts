@@ -5,27 +5,15 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
-/**
- * `/opsx:continue` is not in the `core` profile, so the blocked-state handoff
- * is authored with a CLI fallback and resolved at generation time (see
- * optional-workflow.ts).
- */
-const BLOCKED_STATE_HANDOFF = optionalWorkflow(
-  'continue',
-  'suggest using `/opsx:continue` to create them.',
-  'suggest completing the missing artifacts. Run `openspec status --change "<name>" --json`, select the next `ready` artifact (not `skipped` or `blocked`), and use `openspec instructions "<artifact-id>" --change "<name>" --json` for its rules and template. Keep the selected `--store <id>` on both commands.'
-);
+const BLOCKED_STATE_HANDOFF =
+  'show the missing artifacts and the recovery step from the CLI’s `instruction` field. Keep the selected store on any follow-up command.';
 
 /** The archive handoff shown once every task is done. */
-const ARCHIVE_HANDOFF = optionalWorkflow(
-  'archive',
-  'You can archive this change with `/opsx:archive`.',
-  'You can archive this change by running `openspec archive "<name>"`.'
-);
+const ARCHIVE_HANDOFF =
+  'Review the completed work, then ask to archive this change.';
 
 /**
  * The apply workflow instructions, authored once and rendered by both the

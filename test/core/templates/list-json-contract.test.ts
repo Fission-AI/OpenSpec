@@ -66,6 +66,8 @@ describe('workflow list --json field usage', () => {
     }
   });
 
+  // One text for every profile: it names the sync workflow "if installed"
+  // and the inline merge otherwise, whether or not sync sits beside it.
   it('keeps bulk archive sync available with and without the sync workflow', () => {
     const variants = [
       [
@@ -86,12 +88,15 @@ describe('workflow list --json field usage', () => {
         text.indexOf('b. **Verify included delta specs')
       );
 
-      expect(syncStep(withSync)).toContain(workflow);
-      expect(syncStep(withoutSync)).not.toContain(workflow);
-      expect(syncStep(withoutSync)).toContain('Perform the delta-to-main-spec merge inline yourself');
-      expect(syncStep(withoutSync)).toContain('`includedDeltas`');
-      expect(syncStep(withoutSync)).toContain('`excludedDeltas`');
-      expect(withoutSync).toContain('If sync is requested, perform the delta-to-main-spec merge inline');
+      expect(withoutSync).toBe(withSync);
+      expect(syncStep(withSync)).toContain(
+        `Run the \`${workflow}\` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself`
+      );
+      expect(syncStep(withSync)).toContain('`includedDeltas`');
+      expect(syncStep(withSync)).toContain('`excludedDeltas`');
+      expect(withSync).toContain(
+        `If sync is requested, run the \`${workflow}\` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself`
+      );
     }
   });
 
@@ -115,10 +120,13 @@ describe('workflow list --json field usage', () => {
         text.indexOf('5. **Perform the archive**')
       );
 
-      expect(syncStep(withSync)).toContain(workflow);
-      expect(withoutSync).not.toContain(workflow);
-      expect(syncStep(withoutSync)).toContain('perform the delta-to-main-spec merge inline yourself');
-      expect(withoutSync).toContain('If sync is requested, perform the delta-to-main-spec merge inline');
+      expect(withoutSync).toBe(withSync);
+      expect(syncStep(withSync)).toContain(
+        `run the \`${workflow}\` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself`
+      );
+      expect(withSync).toContain(
+        `If sync is requested, run the \`${workflow}\` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself`
+      );
     }
   });
 });

@@ -2,10 +2,12 @@
 
 > What changes in OpenSpec 2.0, and how to move a project over.
 
-To upgrade, update the CLI, then run `openspec update` in each project. Your skills move into one shared folder and the old command files go. Old command files and old skill copies you edited are kept.
+Already on 2.0? [Upgrade to 2.1](upgrade-to-2-1.md) is the short page you need.
+
+To upgrade from 1.x, update the CLI, then run `openspec update` in each project. OpenSpec refreshes its built-in skills and removes old generated commands. It keeps command files you edited.
 
 > [!WARNING]
-> `update` replaces an edit you made inside a skill OpenSpec installs in `.agents/skills/`, and keeps no copy. Save those edits first: [Skills you customized](#skills-you-customized).
+> `update` replaces each built-in skill folder in `.agents/skills/` whole and keeps no copy. An edit you made inside one, and any file you added to it, is removed without a message. Save them first: [Skills you customized](#skills-you-customized). `openspec update --dry-run` shows what will change.
 
 ## What changes
 
@@ -30,19 +32,21 @@ Commit your work first, so you can go back to it. That commit is also the only c
 openspec update
 ```
 
-**3. Commit the result.** The links are committed like any other file.
+In a terminal it asks where to keep the skills. [Upgrade to 2.1](upgrade-to-2-1.md) covers both answers.
+
+**3. Commit the result.**
 
 Running `update` again changes nothing.
 
 ## What update does
 
-- **Skills**: written once to `.agents/skills/`, with a link from a tool's own folder where the tool needs one (`.claude/skills/`, for example).
+- **Project skills**: the installer writes to `.agents/skills/` and places each skill where the chosen tools can read it. On Windows it uses copies.
 - **Old skill copies**: the copies earlier versions wrote into each tool's folder are removed.
 - **Command files**: the command files earlier versions generated are removed.
-- **Old files you edited**: an edited command file, or an edited skill copy in a tool's own folder, is kept and listed. The next sections show what to do with them.
-- **Skills OpenSpec installs**: refreshed in place, as every 1.x update did. An edit inside one is replaced. `update` names each skill where that happened.
+- **Old commands you edited**: update keeps them and lists them for review.
+- **Skills OpenSpec installs**: refreshed in place, as every 1.x update did. An edit inside one is replaced.
 - **Links**: never followed out of the project.
-- **Outside the project**: `update` changes only your global config, `~/.minimax/skills/` for MiniMax Code, and old OpenSpec prompts in `~/.codex/prompts/`. It removes those prompts only with `--force` or after you confirm.
+- **Outside the project**: `update` changes only your global config, the list of projects OpenSpec keeps on your machine, and old OpenSpec prompts in `~/.codex/prompts/`. From 2.1 it also refreshes the global skills, if you installed them. It removes those prompts only with `--force` or after you confirm.
 
 ## Old commands and their skills
 
@@ -79,26 +83,14 @@ Your tool may still show a kept file as a command. Delete it once you've moved w
 
 A project set up before 1.0 has older files, such as `.claude/commands/openspec/`. When they're unchanged from an earlier release, `update` removes them without asking. Otherwise it asks first, and a non-interactive run leaves them alone. With `--force` it removes them without asking, edited or not, so back them up first.
 
-## Skill folders you edited
-
-`update` also keeps an old skill copy you edited in a tool's own folder. A tool that reads both its own folder and `.agents/skills/` may then load that skill twice. Delete the kept folder once you've moved what you need.
-
-MiniMax Code keeps its skills in `~/.minimax/skills/`. When `update` refreshes a skill you edited there, it first saves your copy beside it as `SKILL.md.bak`.
-
 ## Skills you customized
 
-`update` rewrites every skill OpenSpec installs in `.agents/skills/`, such as `.agents/skills/openspec-propose/SKILL.md`. It did the same in 1.x. If you edited one, your edit is replaced and no backup is made. `update` tells you which skills this happened to:
-
-```
-Replaced your edits in 1 skill OpenSpec installs: .agents/skills/openspec-propose/SKILL.md. OpenSpec refreshes this skill on every update and keeps no copy. Recover your text from git, and keep lasting changes in a skill of your own under another name.
-```
-
-To see which skills are affected before anything changes, run `openspec update --dry-run`. It prints a note naming them.
+Save edits to built-in skills before updating, along with any file you added inside a built-in skill folder. OpenSpec replaces each of those folders with the instructions from your CLI’s GitHub release tag.
 
 To keep a customization across updates, put it somewhere `update` doesn't write:
 
 - **Project instructions**: `context` and `rules` in `openspec/config.yaml` give the agent your instructions without editing a skill ([Project config](../customize/project-config.md)).
-- **A skill of your own**: a skill under a name that doesn't start with `openspec-`, such as `.agents/skills/team-propose/`. `update` never touches it.
+- **A skill of your own**: a skill with a different name from any built-in, such as `.agents/skills/team-propose/`. `update` never touches it.
 
 ## Set up Windows for committed links
 
@@ -119,6 +111,16 @@ Without these, each link checks out as a small text file. `openspec update` repl
 ## Link a tool that OpenSpec doesn't
 
 Most tools read `.agents/skills/` directly. If yours reads only its own folder, [Link another tool](../reference/supported-tools.md#link-another-tool) shows the one command to point it at the shared copy.
+
+## Teams on mixed versions
+
+Upgrade the team’s CLIs before switching a repo to global skills. Earlier CLIs only understand project skills. If teammates run different releases against the same installed skills, each update restores the instructions from that CLI’s own version.
+
+## Skills you already installed globally
+
+**Installed the official skills with `npx skills add`?** Keep that install and run `openspec update`. It refreshes the built-in workflows for your profile.
+
+**Set up global skills by hand?** Save any edits and move custom skills to their own names. Remove any links you made from the repo to your home folder before switching. Use `openspec init --scope global --tools <id>` to set up the tool’s supported paths.
 
 ## Stay on 1.x
 

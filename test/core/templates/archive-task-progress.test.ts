@@ -10,12 +10,8 @@ import {
 import { getGlobalDataDir, registerStore } from '../../../src/core/index.js';
 import { runCLI } from '../../helpers/run-cli.js';
 
-// Go through getSkillTemplates/getCommandTemplates rather than the raw
-// templates: these workflows carry optional-workflow blocks, and only these
-// entry points resolve them against an installed set. Building from the raw
-// template leaves `[[opsx:if-workflow ...]]` in the text, which skill
-// generation rejects. The set names sync so the installed branch is chosen,
-// which is the wording these assertions are about.
+// Go through getSkillTemplates/getCommandTemplates, the entry points init and
+// update use. The text is the same for every workflow list.
 const WORKFLOWS = ['archive', 'bulk-archive', 'sync'];
 const skill = (workflowId: string): string =>
   generateSkillContent(

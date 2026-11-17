@@ -4,10 +4,8 @@
  * Generate the static skills.sh distribution of the OpenSpec workflow skills.
  *
  * skills.sh installs skills by reading committed `SKILL.md` files straight from
- * a GitHub repo (`npx skills add Fission-AI/OpenSpec`). OpenSpec normally
- * *generates* these skills into a user's project via `openspec init`, so this
- * script mirrors that same output into a committed `skills/<name>/SKILL.md`
- * tree that skills.sh can discover.
+ * a GitHub repo. This script builds the committed `skills/<name>/SKILL.md`
+ * files used by both `openspec init` and `npx skills add Fission-AI/OpenSpec`.
  *
  * The committed copies are kept honest by `test/core/templates/skillssh-parity.test.ts`,
  * which regenerates and diffs against disk. Run this after any skill-template
@@ -19,7 +17,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { getSkillTemplates, generateSkillContent } from '../dist/core/shared/skill-generation.js';
-import { transformToSkillReferences } from '../dist/utils/command-references.js';
+import { transformToSharedSkillReferences } from '../dist/utils/command-references.js';
 import {
   cleanSkillSubdirectories,
   prepareSkillDirectory,
@@ -37,7 +35,7 @@ for (const { template, dirName } of getSkillTemplates()) {
   // skills.sh installs SKILL.md files only — no /opsx:* commands exist in
   // that channel, so references must point at the skills themselves.
   const content = stripVolatileFrontmatter(
-    generateSkillContent(template, 'skills.sh', transformToSkillReferences)
+    generateSkillContent(template, 'skills.sh', transformToSharedSkillReferences)
   );
   const skillDir = prepareSkillDirectory(outDir, dirName);
   writeFileSync(join(skillDir, 'SKILL.md'), content, 'utf8');

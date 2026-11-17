@@ -39,7 +39,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    Include the schema used for each change if available.
    Mark changes with incomplete tasks as "(In Progress)".
 
-   Always announce: "Using change: <name>" and how to override (e.g., `/openspec-verify-change <other>`).
+   Always announce: "Using change: <name>" and how to override (e.g., `openspec-verify-change <other>`).
 
 2. **Check status to understand the schema**
    ```bash

@@ -207,11 +207,11 @@ describe('openspec update --dry-run', () => {
 
     const changes = await expectPlanMatchesRealUpdate();
 
-    // Claude's skill is a link to the one shared copy, which the edit reached.
+    const copied = process.platform === 'win32';
     expect(changes).toContainEqual({
-      path: '.agents/skills/openspec-propose/SKILL.md',
+      path: copied ? '.claude/skills/openspec-propose/SKILL.md' : '.agents/skills/openspec-propose/SKILL.md',
       action: 'update',
-      tool: 'openspec',
+      tool: copied ? 'claude' : 'openspec',
     });
   });
 
@@ -227,7 +227,7 @@ describe('openspec update --dry-run', () => {
       tool: 'openspec',
     });
     expect(changes).toContainEqual({
-      path: '.claude/skills/openspec-verify-change',
+      path: process.platform === 'win32' ? '.claude/skills/openspec-verify-change/SKILL.md' : '.claude/skills/openspec-verify-change',
       action: 'add',
       tool: 'claude',
     });
@@ -245,7 +245,7 @@ describe('openspec update --dry-run', () => {
       tool: 'openspec',
     });
     expect(changes).toContainEqual({
-      path: '.claude/skills/openspec-archive-change',
+      path: process.platform === 'win32' ? '.claude/skills/openspec-archive-change/SKILL.md' : '.claude/skills/openspec-archive-change',
       action: 'delete',
       tool: 'claude',
     });
@@ -279,28 +279,13 @@ describe('openspec update --dry-run', () => {
     expect(await fs.readFile(edited, 'utf-8')).toContain('My own note.');
   });
 
-  it('lists skills that live outside the project, under the user home', async () => {
-    // A home of its own, outside the project, so the plan has to name the file
-    // the way the user would recognize it.
-    const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-dry-run-home-'));
-    process.env.HOME = homeDir;
-    process.env.USERPROFILE = homeDir;
-    try {
-      await new InitCommand({ tools: 'minimax-code', force: true }).execute(testDir);
-      const skillFile = path.join(homeDir, '.minimax', 'skills', 'openspec-propose', 'SKILL.md');
-      await fs.writeFile(skillFile, 'hand-edited\n');
-
-      const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
-
-      expect(plan.changes).toContainEqual({
-        path: '~/.minimax/skills/openspec-propose/SKILL.md',
-        action: 'update',
-        tool: 'minimax-code',
-      });
-      expect(await fs.readFile(skillFile, 'utf-8')).toBe('hand-edited\n');
-    } finally {
-      await fs.rm(homeDir, { recursive: true, force: true });
-    }
+  it('previews a project-scoped MiniMax refresh without changing the working copy', async () => {
+    await new InitCommand({ tools: 'minimax-code', force: true }).execute(testDir);
+    const skill = path.join(testDir, '.minimax/skills/openspec-propose/SKILL.md');
+    await fs.writeFile(skill, 'hand-edited');
+    const plan = await new UpdateCommand({ dryRun: true }).plan(testDir);
+    expect(plan.changes.some(change => change.path.includes('openspec-propose'))).toBe(true);
+    expect(await fs.readFile(skill, 'utf8')).toBe('hand-edited');
   });
 
   it('plans the Copilot cloud file a real update refreshes', async () => {
@@ -501,9 +486,9 @@ describe('openspec update --dry-run', () => {
       tool: 'openspec',
     });
     const paths = changes.map((change) => change.path);
-    expect(paths).not.toContain('.claude/skills/openspec-archive-change');
+    expect(paths).toContain('.claude/skills/openspec-archive-change');
     expect(paths).not.toContain('elsewhere/openspec-archive-change/SKILL.md');
-    expect((await fs.lstat(path.join(skills, 'openspec-archive-change'))).isSymbolicLink()).toBe(true);
+    await expect(fs.lstat(path.join(skills, 'openspec-archive-change'))).rejects.toThrow();
     expect(await fs.readFile(path.join(real, 'SKILL.md'), 'utf-8')).toBe('kept\n');
   });
 
@@ -676,9 +661,8 @@ describe('openspec update --dry-run', () => {
 
     const plan = await expectFullPlanMatchesRealUpdate({ force: true });
 
-    expect(plan.failures).toEqual([
-      { tool: 'claude', error: expect.stringContaining('EISDIR') },
-    ]);
+    expect(plan.failures).toEqual([]);
+    expect(await fs.readFile(blocked, 'utf8')).toContain('name: openspec-explore');
   });
 
   it('keeps and lists what a legacy move leaves that is not OpenSpec\'s to replace', async () => {
@@ -694,11 +678,7 @@ describe('openspec update --dry-run', () => {
     const plan = await expectFullPlanMatchesRealUpdate();
 
     expect(plan.failures).toEqual([]);
-    expect(plan.changes).toContainEqual({
-      path: '.kimi-code/skills/openspec-explore/SKILL.md/x',
-      action: 'add',
-      tool: 'kimi',
-    });
+    expect(await fs.readFile(path.join(testDir, '.agents/skills/openspec-explore/SKILL.md'), 'utf8')).toContain('name: openspec-explore');
   });
 
   it('reports a tool the forced legacy upgrade fails on, and still plans the rest', async () => {

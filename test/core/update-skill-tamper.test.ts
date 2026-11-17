@@ -101,7 +101,7 @@ describe('update detects a tampered SKILL.md', () => {
 
   it('treats a CRLF checkout of an untampered skill as current', async () => {
     const original = await fs.readFile(skillFile, 'utf-8');
-    await fs.writeFile(skillFile, `\uFEFF${original.replace(/\n/g, '\r\n')}`);
+    await fs.writeFile(skillFile, `\uFEFF${original.replace(/\r?\n/g, '\r\n')}`);
 
     const consoleSpy = vi.spyOn(console, 'log');
     await new UpdateCommand().execute(testDir);

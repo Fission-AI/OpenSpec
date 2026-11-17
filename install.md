@@ -39,7 +39,7 @@ If the user would rather use a package manager, or the installer fails, continue
 
 ## 2. Package manager (only if step 1 did not install it)
 
-Run `node --version`. Installing with a package manager needs Node.js 22.12.0 or higher. If Node is missing or older, don't install Node, switch versions, or reconfigure the user's version manager yourself; stop and leave them with their next move: https://nodejs.org, or, if they use a version manager like nvm, the command that would switch to a newer version.
+Run `node --version`. Installing with a package manager needs Node.js 22.20.0 or higher. If Node is missing or older, don't install Node, switch versions, or reconfigure the user's version manager yourself; stop and leave them with their next move: https://nodejs.org, or, if they use a version manager like nvm, the command that would switch to a newer version.
 
 Use whichever package manager is already on PATH, preferring npm:
 
@@ -66,7 +66,7 @@ Work out where `openspec/` should go, and lead with your best guess rather than 
 
 init creates `openspec/` wherever you point it and won't warn you when that's wrong. If the folder is a home directory, a temp directory, or holds no project at all, stop and ask where the project is.
 
-Then work out which AI coding tools the user works with, and again lead with an inference instead of an open question: you are probably running inside one of them, so name it and ask what else they use, suggesting a few common options (Claude Code, Cursor, Copilot, Codex). Say what the answer changes: each tool named reads the shared skills in `.agents/skills/` (some through links in their own folder; MiniMax Code uses `~/.minimax/skills/` instead), and re-running init later adds more, so a short list now costs nothing. Map each tool to an id from `openspec init --help` (Copilot is `github-copilot`, Zoo Code is `roocode`). `--tools` takes a comma-separated list, so name all of them.
+Then work out which AI coding tools the user works with, and again lead with an inference instead of an open question: you are probably running inside one of them, so name it and ask what else they use, suggesting a few common options (Claude Code, Cursor, Copilot, Codex). Explain that new projects use machine-wide skills by default. Each selected tool can read them across projects, and one `openspec update` refreshes them. If the team wants to share the skills through Git, use `--scope project` and run `openspec update` in each repo that commits them. Map each tool to an id from `openspec init --help` (Copilot is `github-copilot`, Zoo Code is `roocode`). `--tools` takes a comma-separated list, so name all of them.
 
 `openspec init --tools <ids>` deletes leftovers from older OpenSpec versions automatically, without asking, including `opsx-*.md` prompt files in the home directory (Codex keeps them in `~/.codex/prompts`). Before running it, look for those: `.../commands/openspec/` folders, OpenSpec marker blocks in files like CLAUDE.md or AGENTS.md, and home-directory `opsx-*.md` prompts. List whatever you find, say plainly that init will delete these, and wait for a go-ahead; if you find nothing, say so and carry on without asking. An existing `openspec/` folder is not a problem: init refreshes it and leaves specs and changes alone.
 

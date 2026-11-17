@@ -18,11 +18,6 @@ import {
   getOpsxUpdateCommandTemplate,
   getUpdateChangeSkillTemplate,
 } from '../../../src/core/templates/skill-templates.js';
-import { resolveOptionalWorkflows } from '../../../src/core/templates/optional-workflow.js';
-import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
-
-const withAllWorkflows = (body: string) =>
-  resolveOptionalWorkflows(body, new Set<string>(ALL_WORKFLOWS));
 
 /** Lines that tell the agent to pick a concrete path for a glob output. */
 const PATH_CHOICE = /choose a concrete path/i;
@@ -46,16 +41,16 @@ const boundFor = (label: string) => (label.startsWith('update-change') ? CREATE_
 
 /** Every surface that writes glob artifacts, skill and slash-command alike. */
 const SURFACES: Array<[label: string, body: string]> = [
-  ['propose skill', withAllWorkflows(getOpsxProposeSkillTemplate().instructions)],
-  ['propose command', withAllWorkflows(getOpsxProposeCommandTemplate().content)],
-  ['ff-change skill', withAllWorkflows(getFfChangeSkillTemplate().instructions)],
-  ['ff-change command', withAllWorkflows(getOpsxFfCommandTemplate().content)],
-  ['continue-change skill', withAllWorkflows(getContinueChangeSkillTemplate().instructions)],
-  ['continue-change command', withAllWorkflows(getOpsxContinueCommandTemplate().content)],
-  ['update-change skill', withAllWorkflows(getUpdateChangeSkillTemplate().instructions)],
-  ['update-change command', withAllWorkflows(getOpsxUpdateCommandTemplate().content)],
-  ['explore skill', withAllWorkflows(getExploreSkillTemplate().instructions)],
-  ['explore command', withAllWorkflows(getOpsxExploreCommandTemplate().content)],
+  ['propose skill', getOpsxProposeSkillTemplate().instructions],
+  ['propose command', getOpsxProposeCommandTemplate().content],
+  ['ff-change skill', getFfChangeSkillTemplate().instructions],
+  ['ff-change command', getOpsxFfCommandTemplate().content],
+  ['continue-change skill', getContinueChangeSkillTemplate().instructions],
+  ['continue-change command', getOpsxContinueCommandTemplate().content],
+  ['update-change skill', getUpdateChangeSkillTemplate().instructions],
+  ['update-change command', getOpsxUpdateCommandTemplate().content],
+  ['explore skill', getExploreSkillTemplate().instructions],
+  ['explore command', getOpsxExploreCommandTemplate().content],
 ];
 
 /** Where a line tells the agent to write. The bound must come before it. */
@@ -159,8 +154,8 @@ describe('glob output paths stay inside changeRoot (#2099)', () => {
   );
 
   it.each([
-    ['continue-change skill', withAllWorkflows(getContinueChangeSkillTemplate().instructions)],
-    ['continue-change command', withAllWorkflows(getOpsxContinueCommandTemplate().content)],
+    ['continue-change skill', getContinueChangeSkillTemplate().instructions],
+    ['continue-change command', getOpsxContinueCommandTemplate().content],
   ])('%s verifies the output after either creation branch', (label, body) => {
     const lines = body.split('\n');
     const delegation = lines.findIndex((line) => line.includes('delegates creation to a specific skill'));
@@ -193,8 +188,8 @@ describe('glob output paths stay inside changeRoot (#2099)', () => {
   // expected paths against what exists instead of choosing a new one, so the
   // bound has to sit on that bullet too.
   it.each([
-    ['continue-change skill', withAllWorkflows(getContinueChangeSkillTemplate().instructions)],
-    ['continue-change command', withAllWorkflows(getOpsxContinueCommandTemplate().content)],
+    ['continue-change skill', getContinueChangeSkillTemplate().instructions],
+    ['continue-change command', getOpsxContinueCommandTemplate().content],
   ])('%s bounds the partly-written-artifact check', (label, body) => {
     const bullets = body
       .split('\n')

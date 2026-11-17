@@ -85,6 +85,14 @@ export const ProjectConfigSchema = z.object({
     })
     .optional()
     .describe('GitHub Copilot integration preferences'),
+
+  // Optional: `project` records that the team chose to keep OpenSpec's skills
+  // in this repository, so `openspec update` stops offering the move to the
+  // skills installed on each machine.
+  skillsScope: z
+    .enum(['project', 'global'])
+    .optional()
+    .describe('Where this project keeps its OpenSpec skills'),
 });
 
 /** Normalized in-memory shape of a referenced store declaration. */
@@ -439,6 +447,15 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
         }
       } else {
         console.warn(`Invalid 'githubCopilot' field in config (must be an object)`);
+      }
+    }
+
+    // Parse skillsScope: the team's choice of where this project's skills live.
+    if (raw.skillsScope !== undefined) {
+      if (raw.skillsScope === 'project' || raw.skillsScope === 'global') {
+        config.skillsScope = raw.skillsScope;
+      } else {
+        console.warn(`Invalid 'skillsScope' field in config (must be "project" or "global")`);
       }
     }
 

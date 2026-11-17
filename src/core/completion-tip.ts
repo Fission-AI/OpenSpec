@@ -111,7 +111,7 @@ export function readRawConfig(): Record<string, unknown> | null {
  * write down to this one key, and the rename keeps a reader from ever seeing a
  * half-written config.
  */
-export async function markConfigFlag(key: string): Promise<void> {
+export async function markConfigFlag(key: string, value: unknown = true): Promise<void> {
   const configPath = getGlobalConfigPath();
   const current = readRawConfig() ?? {};
 
@@ -120,7 +120,7 @@ export async function markConfigFlag(key: string): Promise<void> {
   // is both guessable and world-readable once renamed over the config.
   await writeFileAtomically(
     configPath,
-    JSON.stringify({ ...current, [key]: true }, null, 2) + '\n'
+    JSON.stringify({ ...current, [key]: value }, null, 2) + '\n'
   );
 }
 

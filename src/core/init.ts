@@ -11,6 +11,7 @@ import ora from 'ora';
 import * as fs from 'fs';
 import { createRequire } from 'module';
 import { FileSystemUtils } from '../utils/file-system.js';
+import { forgetProjectSkills } from './project-skills-scope.js';
 import {
   classifyOpenSpecDir,
   MAX_CONTEXT_SIZE,
@@ -20,8 +21,9 @@ import {
 import { findRepoPlanningRootSync } from './planning-home.js';
 import { resolveOpenSpecRoot } from './root-selection.js';
 import { ANCHORED_OPENSPEC_DIRS, ensureDirectoryAnchor } from './openspec-root.js';
-import { getSkillReferenceTransformer, getTransformerForTool, transformToSkillReferences, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
+import { getSkillReferenceTransformer, transformToSkillReferences, usesNaturalLanguageSkillReferences } from '../utils/command-references.js';
 import {
+  installerAgent,
   AI_TOOLS,
   SKILL_LINKED_TOOL_IDS,
   getUniversalTool,
@@ -45,20 +47,15 @@ import {
   type LegacyDetectionResult,
 } from './legacy-cleanup.js';
 import {
-  SKILL_NAMES,
   getToolsWithSkillsDir,
-  getToolSkillStatus,
   getConfiguredTools,
   getToolStates,
   getSkillTemplates,
-  generateSkillContent,
-  hasGlobalSkillTarget,
-  resolveToolSkillsDir,
   toolSupportsSkills,
   type ToolSkillStatus,
   formatIdeRestart,
 } from './shared/index.js';
-import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
+import { classifyCommandFiles, reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import {
   cleanUpRetiredTools,
   findRetiredTool,
@@ -67,18 +64,27 @@ import {
 } from './retired-tools.js';
 import { pruneEmptyParents } from './released-output-sweep.js';
 import { getGlobalConfig, type Delivery, type Profile } from './global-config.js';
-import { getProfileWorkflows, CORE_WORKFLOWS } from './profiles.js';
+import {
+  SKILL_SCOPES,
+  describeRemovedSkills,
+  describeSkillsError,
+  installGlobalSkills,
+  isHomeFolder,
+  projectHasOwnSkills,
+  readGlobalSkills,
+  supportsGlobalSkills,
+  type SkillScope,
+} from './global-skills.js';
+import { getProfileWorkflows } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
-import { formatKeptSkills, installSharedSkills } from './shared/shared-skill-install.js';
-import { realFileOps } from './update-plan.js';
+import { installSharedSkills } from './shared/shared-skill-install.js';
+import { realFileOps, UpdatePlanRecorder } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
-import { classifyOwnSkill } from './shared/own-skill-texts.js';
-import { migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
+import { rememberProject } from './known-projects.js';
+import { computeProfileMigration, migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
-  resolveCommandSurfaceCapability,
-  resolveCommandInvocation,
   shouldReconcileCommandFilesForTool,
 } from './command-surface.js';
 import {
@@ -131,17 +137,14 @@ type InitCommandOptions = {
    * leaves the decision to config, migration, or an interactive prompt.
    */
   copilotCloud?: boolean;
+  /** `--scope`: keep the skills for this machine (`global`) or in the project (`project`). */
+  scope?: string;
 };
 
 type ValidatedInitTool = {
   value: string;
   name: string;
-  skillsDir?: string;
-  skillsPath: string;
-  skillsRoot: string;
-  isGlobalSkillTarget: boolean;
   wasConfigured: boolean;
-  writesSkills: boolean;
 };
 
 /**
@@ -164,6 +167,11 @@ export class InitCommand {
   private readonly profileOverride?: string;
   private readonly animation: boolean;
   private readonly copilotCloudOption?: boolean;
+  private readonly scopeOption?: SkillScope;
+  /** True when no flag, environment variable or saved setting chose the scope. */
+  private scopeIsDefault = false;
+  /** What the tool picker returned, kept so a second step does not ask again. */
+  private pickedTools?: string[];
 
   constructor(options: InitCommandOptions = {}) {
     this.toolsArg = options.tools;
@@ -173,6 +181,10 @@ export class InitCommand {
     this.profileOverride = options.profile;
     this.animation = options.animation ?? true;
     this.copilotCloudOption = options.copilotCloud;
+    if (options.scope !== undefined && !(SKILL_SCOPES as readonly string[]).includes(options.scope)) {
+      throw new Error(`Invalid --scope "${options.scope}". Use global or project.`);
+    }
+    this.scopeOption = options.scope as SkillScope | undefined;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -228,45 +240,33 @@ export class InitCommand {
       );
     }
 
-    // Pointer repos keep their local planning files untouched. Normal init may
-    // still remove OpenSpec-managed artifacts from older layouts.
-    const deferredLegacyCleanup = integrationsOnly
-      ? null
-      : await this.handleLegacyCleanup(projectPath, extendMode);
-
-    // Migrate OpenSpec-managed skills left in renamed tool directories
-    // (e.g. .kimi -> .kimi-code) before detection so they stay recognized.
-    migrateLegacyToolDirs(projectPath);
-
-    // Detect available tools in the project (task 7.1)
     const detectedTools = getAvailableTools(projectPath);
-
-    // Migration check: migrate existing projects to profile system (task 7.3)
-    if (extendMode) {
-      migrateIfNeeded(projectPath, detectedTools);
-    }
-
-    // Validate profile override early so invalid values fail before tool setup.
-    // The resolved value is consumed later when generation reads effective config.
-    // This runs ahead of the welcome screen so an invalid --profile does not make
-    // the user press Enter before seeing the error.
     this.resolveProfileOverride();
-
-    // Show animated welcome screen (interactive mode only)
     const canPrompt = this.canPromptInteractively();
+    if ((await this.resolveSkillScope(projectPath, detectedTools)) === 'global') {
+      const done = await this.setUpWithGlobalSkills(projectPath, openspecPath, {
+        extendMode, integrationsOnly, toolStates: getToolStates(projectPath), detectedTools,
+      });
+      if (done) {
+        rememberProject(projectPath);
+        return;
+      }
+      // The tools picked need project scope, and nobody asked for global: set up the project.
+    }
+    const deferredLegacyCleanup = integrationsOnly ? null : await this.handleLegacyCleanup(projectPath, extendMode);
+    migrateLegacyToolDirs(projectPath);
+    if (extendMode) migrateIfNeeded(projectPath, getAvailableTools(projectPath));
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
       await showWelcomeScreen(this.getActiveWorkflows(), { animate: this.animation });
     }
-
-    // Get tool states before processing
     const toolStates = getToolStates(projectPath);
 
     // Get tool selection (pass detected tools for pre-selection)
     const selectedToolIds = await this.getSelectedTools(toolStates, extendMode, detectedTools, projectPath);
 
     // Validate selected tools
-    const validatedTools = this.validateTools(selectedToolIds, toolStates, projectPath);
+    const validatedTools = this.validateTools(selectedToolIds, toolStates);
 
     // Selecting a renamed tool is consent to leave its former directory:
     // init is about to write the current one, and leaving OpenSpec content
@@ -349,6 +349,8 @@ export class InitCommand {
     const copilotPresent = wroteCloud ? await listManagedCloudFiles(projectPath) : [];
     const copilotCollisions = wroteCloud ? await findUnmanagedCloudFiles(projectPath) : [];
 
+    rememberProject(projectPath);
+
     // Display success message
     this.displaySuccessMessage(projectPath, validatedTools, results, configStatus, {
       write: copilotDecision.write,
@@ -367,6 +369,201 @@ export class InitCommand {
   // ═══════════════════════════════════════════════════════════
   // VALIDATION & SETUP
   // ═══════════════════════════════════════════════════════════
+
+  private async resolveSkillScope(
+    projectPath: string,
+    detectedTools: readonly AIToolOption[]
+  ): Promise<SkillScope> {
+    if (this.toolsArg?.trim().toLowerCase() === 'none') return 'project';
+    if (this.scopeOption) return this.scopeOption;
+    if (projectHasOwnSkills(projectPath)) return 'project';
+    const fromEnv = process.env.OPENSPEC_SKILLS_SCOPE?.trim();
+    if (fromEnv) {
+      if (!(SKILL_SCOPES as readonly string[]).includes(fromEnv)) {
+        throw new Error(`Invalid OPENSPEC_SKILLS_SCOPE "${fromEnv}". Use global or project.`);
+      }
+      return fromEnv as SkillScope;
+    }
+    const saved = getGlobalConfig().skillsScope;
+    if (saved) return saved;
+    if (this.copilotCloudOption || (this.toolsArg?.trim().toLowerCase() !== 'all' &&
+      (this.resolveToolsArg() ?? detectedTools.map(tool => tool.value)).some(id => !supportsGlobalSkills(id)))) {
+      return 'project';
+    }
+    // Nobody chose this: it can still give way to what the tool picker returns.
+    this.scopeIsDefault = true;
+    return 'global';
+  }
+
+  /**
+   * Set up a project that uses the skills installed for this machine: the
+   * project gets its openspec/ folder, the skills go to the home folder.
+   */
+  private async setUpWithGlobalSkills(
+    projectPath: string,
+    openspecPath: string,
+    context: {
+      extendMode: boolean;
+      integrationsOnly: boolean;
+      toolStates: Map<string, ToolSkillStatus>;
+      detectedTools: AIToolOption[];
+    }
+  ): Promise<boolean> {
+    if (this.copilotCloudOption === true) {
+      throw new Error(
+        '--copilot-cloud sets up the GitHub-hosted agent, which only sees skills kept in the project. Add --scope project.'
+      );
+    }
+    if (isHomeFolder(projectPath)) {
+      throw new Error('This is your home folder, where the global skills live. Run openspec init inside a project.');
+    }
+    let installed: Awaited<ReturnType<typeof readGlobalSkills>>;
+    try {
+      installed = await readGlobalSkills();
+    } catch (error) {
+      throw new Error(`Could not read the skills installed for this machine: ${describeSkillsError(error)}`);
+    }
+    const movesProject = projectHasOwnSkills(projectPath);
+    const configured = movesProject ? getConfiguredTools(projectPath) : [];
+    const selected = this.toolsArg !== undefined || (!installed.skills.length && !movesProject)
+      ? await this.getSelectedTools(context.toolStates, context.extendMode, context.detectedTools, projectPath)
+      : configured;
+    const tools = this.validateTools(selected, context.toolStates);
+    const supported = tools.filter((tool) => supportsGlobalSkills(tool.value));
+    const unsupported = tools.filter((tool) => !supportsGlobalSkills(tool.value));
+    // A default scope follows the tools, as it does for --tools: a tool picked
+    // at the prompt that needs project scope gets a project install.
+    if (this.scopeIsDefault && this.toolsArg === undefined && !movesProject && unsupported.length > 0) {
+      this.pickedTools = selected;
+      return false;
+    }
+    if (unsupported.length > 0 && this.toolsArg?.trim().toLowerCase() !== 'all') {
+      const one = unsupported.length === 1;
+      console.log(
+        chalk.yellow(
+          `${unsupported.map((tool) => tool.name).join(', ')} ${one ? "isn't" : "aren't"} covered by the global skills. ` +
+            `Where you use ${one ? 'it' : 'them'}, run: openspec init --scope project --tools ${unsupported.map((tool) => tool.value).join(',')}`
+        )
+      );
+    }
+    // Even with the global skills on this machine: a tool asked for by name was not set up.
+    if (tools.length > 0 && supported.length === 0 && (installed.skills.length === 0 || this.toolsArg !== undefined)) {
+      throw new Error(
+        'None of the selected tools are covered by the global skills, so nothing was set up. ' +
+          `Run: openspec init --scope project --tools ${tools.map((tool) => tool.value).join(',')}`
+      );
+    }
+
+    // Moving a project: check first, and remove its copies only once the global ones are in place.
+    if (movesProject) {
+      // A tool the global skills don't cover would be left with no skills at all.
+      const uncovered = AI_TOOLS.filter(
+        (tool) => configured.includes(tool.value) && usesSharedSkills(tool) && !supportsGlobalSkills(tool.value)
+      );
+      if (uncovered.length > 0) {
+        throw new Error(
+          `This project is set up for ${uncovered.map((tool) => tool.name).join(', ')}, which the global skills don't cover, ` +
+            'so it keeps its own skills. Nothing was changed.'
+        );
+      }
+      // The GitHub-hosted Copilot agent only sees skills kept in the project.
+      const cloudIsOn =
+        this.copilotCloudOption !== false &&
+        (readCopilotCloudOptIn(projectPath) ?? (await hasExistingManagedCloudFiles(projectPath)));
+      if (cloudIsOn) {
+        throw new Error(
+          'This project has the GitHub Copilot cloud files set up, and that agent only sees skills kept in the project, ' +
+            'so it keeps its own skills. Nothing was changed. To move it anyway and turn the cloud files off, add --no-copilot-cloud.'
+        );
+      }
+      await this.removeProjectSkills(projectPath, { checkOnly: true });
+    }
+    // A project that moves brings its tools along, so each keeps its skills.
+    const movedTools = movesProject
+      ? getConfiguredTools(projectPath).filter((id) => supportsGlobalSkills(id))
+      : [];
+    const migration = movesProject && !this.resolveProfileOverride() ? computeProfileMigration(projectPath, context.detectedTools) : null;
+    let globalSkills: { count: number } | undefined;
+    if (installed.skills.length || supported.length || movedTools.length) {
+      const result = await installGlobalSkills({
+        toolIds: [...new Set([...supported.map(tool => tool.value), ...movedTools])],
+        workflows: migration?.workflows ?? this.getActiveWorkflows(),
+        version: OPENSPEC_VERSION,
+      });
+      globalSkills = { count: result.skills.length };
+      const removed = describeRemovedSkills(result.removedSkills);
+      if (removed) console.log(chalk.dim(removed));
+    }
+    if (movesProject) {
+      if (!globalSkills?.count) throw new Error('No global skills were installed. This project keeps its skills.');
+      if (migration) migrateIfNeeded(projectPath, context.detectedTools);
+      if (this.copilotCloudOption === false) {
+        await removeCopilotCloudFiles(projectPath, undefined, () => persistCopilotCloudOptIn(projectPath, false, true));
+      }
+      await this.removeProjectSkills(projectPath);
+      console.log(
+        'Commit the removed files. After pulling that commit, each teammate runs openspec update in a terminal and ' +
+          'answers Yes to set up their tools, or runs openspec init --tools <ids> in a script.'
+      );
+    }
+    if (!context.integrationsOnly) await this.createDirectoryStructure(openspecPath, context.extendMode);
+    const configStatus = context.integrationsOnly ? 'exists' : await this.createConfig(openspecPath, context.extendMode);
+    this.displaySuccessMessage(
+      projectPath,
+      supported,
+      {
+        createdTools: supported,
+        refreshedTools: [],
+        failedTools: [],
+        removedCommandCount: 0,
+        leftCommandFiles: { kept: [], unchecked: [] },
+        removedSkillCount: 0,
+      },
+      configStatus,
+      { write: false, skippedUndecided: false, present: [], collisions: [], removed: 0 },
+      globalSkills
+    );
+    return true;
+  }
+
+  /**
+   * Take OpenSpec's skills, and the command files 1.x wrote, out of the
+   * project for a switch to the global skills. A file with the user's own
+   * changes stops the switch before anything is removed.
+   */
+  private async removeProjectSkills(projectPath: string, options: { checkOnly?: boolean } = {}): Promise<void> {
+    const configured = getConfiguredTools(projectPath);
+    const commandTools = configured.filter((id) => shouldReconcileCommandFilesForTool(id));
+    const input = {
+      projectPath,
+      tools: AI_TOOLS.filter((tool) => configured.includes(tool.value)),
+      version: OPENSPEC_VERSION,
+      workflowsFor: () => [],
+      view: DISK_VIEW,
+    };
+    // A dry pass first: what would stay behind because the user changed it.
+    const plan = await installSharedSkills({ ...input, ops: new UpdatePlanRecorder(projectPath), writesToDisk: false });
+    for (const error of plan.toolFailures.values()) throw error;
+    const commands = commandTools.map(id => classifyCommandFiles(projectPath, id, [], DISK_VIEW, true));
+    const kept = commands.flatMap(files => [...files.kept, ...files.unchecked]).map(FileSystemUtils.toPosixPath);
+    if (kept.length) {
+      throw new Error(
+        `These files have your own changes, so the project keeps its copy: ${kept.join(', ')}. ` +
+          'Nothing was removed. Delete them, or move your changes to a skill under another name, then run this again.'
+      );
+    }
+    if (options.checkOnly) return;
+    const paths = new Set(commands.flatMap(files => files.generated.map(file => file.cmdPath)));
+    for (const file of paths) {
+      await realFileOps.removeFile(FileSystemUtils.resolveProjectArtifactPath(projectPath, file), 'openspec');
+    }
+    await pruneEmptyParents(projectPath, [...paths].map(FileSystemUtils.toPosixPath));
+    const cleanup = await installSharedSkills({ ...input, ops: realFileOps, writesToDisk: true });
+    for (const error of cleanup.toolFailures.values()) throw error;
+    // The skills are gone from the repo, so a saved "keep them here" no longer holds.
+    await forgetProjectSkills(projectPath).catch(() => {});
+    console.log(chalk.dim("Removed this project's own OpenSpec skills"));
+  }
 
   private async validate(
     projectPath: string,
@@ -626,6 +823,7 @@ export class InitCommand {
     detectedTools: AIToolOption[],
     projectPath: string
   ): Promise<string[]> {
+    if (this.pickedTools) return this.pickedTools;
     // Check for --tools flag first
     const nonInteractiveSelection = this.resolveToolsArg();
     if (nonInteractiveSelection !== null) {
@@ -657,6 +855,13 @@ export class InitCommand {
       throw new Error(
         `No tools available for skill generation.`
       );
+    }
+
+    const { detectAgents } = await import('skills');
+    const machineAgents = new Set((await detectAgents({ cwd: projectPath })).agents.map(agent => agent.id));
+    for (const tool of AI_TOOLS) {
+      const agent = installerAgent(tool.value);
+      if (agent.id !== 'universal' && machineAgents.has(agent.id)) detectedToolIds.add(tool.value);
     }
 
     // Interactive mode: show searchable multi-select
@@ -805,8 +1010,7 @@ export class InitCommand {
 
   private validateTools(
     toolIds: string[],
-    toolStates: Map<string, ToolSkillStatus>,
-    projectPath: string
+    toolStates: Map<string, ToolSkillStatus>
   ): ValidatedInitTool[] {
     const selectedTools: AIToolOption[] = [];
     for (const toolId of toolIds) {
@@ -828,28 +1032,11 @@ export class InitCommand {
       selectedTools.push(tool);
     }
 
-    const generationTools = [...selectedTools];
-
-    const validatedTools: ValidatedInitTool[] = [];
-    for (const tool of generationTools) {
-      if (!toolSupportsSkills(tool)) continue;
-      const preState = toolStates.get(tool.value);
-      const skillsPath = resolveToolSkillsDir(projectPath, tool);
-      const isGlobalSkillTarget = hasGlobalSkillTarget(tool);
-      validatedTools.push({
-        value: tool.value,
-        name: tool.name,
-        skillsDir: tool.skillsDir,
-        skillsPath,
-        skillsRoot: isGlobalSkillTarget ? skillsPath : projectPath,
-        isGlobalSkillTarget,
-        wasConfigured: preState?.configured ?? false,
-        // Shared-folder skills are written once for every tool, not per tool.
-        writesSkills: !usesSharedSkills(tool),
-      });
-    }
-
-    return validatedTools;
+    return selectedTools.map(tool => ({
+      value: tool.value,
+      name: tool.name,
+      wasConfigured: toolStates.get(tool.value)?.configured ?? false,
+    }));
   }
 
   // ═══════════════════════════════════════════════════════════
@@ -929,11 +1116,7 @@ export class InitCommand {
     // Read global config for profile and delivery settings (use --profile override if set)
     const globalConfig = getGlobalConfig();
     const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
-    const delivery: Delivery = globalConfig.delivery ?? 'both';
     const workflows = getProfileWorkflows(profile, globalConfig.workflows);
-
-    // Get skill templates filtered by profile workflows
-    const skillTemplates = getSkillTemplates(workflows);
 
     // Every tool's project skills are one shared copy in `.agents/skills/`,
     // written once for the selected tools and every tool already set up here
@@ -956,15 +1139,7 @@ export class InitCommand {
       });
       if (shared.writtenSkillCount === 0) removedSkillCount += shared.removedSkillCount;
       ownFolderErrors = shared.toolFailures;
-      if (shared.replacedOldCopyCount > 0) {
-        console.log(
-          chalk.dim(
-            `Replaced ${shared.replacedOldCopyCount} unchanged skill cop${shared.replacedOldCopyCount === 1 ? 'y' : 'ies'} ` +
-              'in tool folders with the one shared copy in .agents/skills.'
-          )
-        );
-      }
-      for (const line of formatKeptSkills(shared.kept, shared.linkedOutside, shared.refreshedEdited)) console.log(chalk.yellow(line));
+
     } catch (error) {
       // Every tool sharing the folder fails with this.
       const message = error instanceof Error ? error.message : String(error);
@@ -987,8 +1162,6 @@ export class InitCommand {
       for (const line of detail) console.log(chalk.dim(line));
     }
 
-    const keptOwnSkills: string[] = [];
-    const savedOwnSkills: string[] = [];
     // Process each tool
     for (const tool of tools) {
       const spinner = ora(`Setting up ${tool.name}...`).start();
@@ -996,47 +1169,6 @@ export class InitCommand {
       try {
         const ownFolderError = ownFolderErrors.get(tool.value);
         if (ownFolderError) throw ownFolderError;
-        // Generate skill files if the tool writes its own skills
-        if (tool.writesSkills) {
-          // Create skill directories and SKILL.md files
-          for (const { template, dirName } of skillTemplates) {
-            const skillDir = path.join(tool.skillsPath, dirName);
-            const skillFile = path.join(skillDir, 'SKILL.md');
-
-            // Generate SKILL.md content with YAML frontmatter including generatedBy
-            const transformer = getTransformerForTool(
-              tool.value,
-              delivery,
-              resolveCommandSurfaceCapability(tool.value),
-              resolveCommandInvocation(tool.value)
-            );
-            const skillContent = generateSkillContent(template, OPENSPEC_VERSION, transformer);
-
-            if (fs.existsSync(skillDir) || DISK_VIEW.linkTarget?.(skillDir) !== undefined) {
-              const spot = classifyOwnSkill(skillDir, tool.value, dirName, DISK_VIEW, OPENSPEC_VERSION);
-              // Never written through: the user's link, or their file where
-              // the folder goes.
-              if (spot === 'link' || (spot === 'user' && !DISK_VIEW.isDirectory(skillDir))) {
-                keptOwnSkills.push(skillDir);
-                continue;
-              }
-              // Refreshed in place, but an edited SKILL.md is saved beside it first.
-              if (spot === 'user') {
-                // Taken by anything, a dangling link included: never written through.
-                const taken = (candidate: string) => fs.existsSync(candidate) || DISK_VIEW.linkTarget?.(candidate) !== undefined;
-                let backup = `${skillFile}.bak`;
-                for (let n = 1; taken(backup); n += 1) backup = `${skillFile}.bak${n}`;
-                FileSystemUtils.assertPathWithin(tool.skillsRoot, backup);
-                await FileSystemUtils.writeFile(backup, fs.readFileSync(skillFile, 'utf-8'));
-                savedOwnSkills.push(backup);
-              }
-            }
-
-            // Write the skill file
-            FileSystemUtils.assertPathWithin(tool.skillsRoot, skillFile);
-            await FileSystemUtils.writeFile(skillFile, skillContent);
-          }
-        }
         if (shouldReconcileCommandFilesForTool(tool.value)) {
           const reconciled = await reconcileCommandFiles(projectPath, tool.value, workflows);
           removedCommandCount += reconciled.removed.length;
@@ -1083,24 +1215,6 @@ export class InitCommand {
         failedTools.push({ name: other.name, error: error as Error });
       }
     }
-    if (keptOwnSkills.length > 0) {
-      console.log(
-        chalk.yellow(
-          `Kept ${keptOwnSkills.length} skill folder${keptOwnSkills.length === 1 ? '' : 's'} that ` +
-            `${keptOwnSkills.length === 1 ? 'is' : 'are'} yours (a link, or a file): ${keptOwnSkills.join(', ')}. ` +
-            'Nothing was written there.'
-        )
-      );
-    }
-    if (savedOwnSkills.length > 0) {
-      console.log(
-        chalk.yellow(
-          `Refreshed ${savedOwnSkills.length} skill${savedOwnSkills.length === 1 ? '' : 's'} you had edited; ` +
-            `your ${savedOwnSkills.length === 1 ? 'copy is' : 'copies are'} saved as ${savedOwnSkills.join(', ')}.`
-        )
-      );
-    }
-
     for (const tool of [...createdTools, ...refreshedTools]) {
       for (const migration of migrateLegacyToolDirs(
         projectPath,
@@ -1239,7 +1353,8 @@ export class InitCommand {
       present: string[];
       collisions: string[];
       removed: number;
-    }
+    },
+    globalSkills?: { count: number }
   ): void {
     console.log();
     console.log(
@@ -1259,28 +1374,18 @@ export class InitCommand {
 
     // Show counts (respecting profile filter)
     const successfulTools = [...results.createdTools, ...results.refreshedTools];
-    if (successfulTools.length > 0) {
+    if (globalSkills) {
+      console.log(`${globalSkills.count} skills in ~/.agents/skills/ for every project on this machine`);
+    } else if (successfulTools.length > 0) {
       const globalConfig = getGlobalConfig();
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
       const workflows = getProfileWorkflows(profile, globalConfig.workflows);
 
-      // Skills sit in one shared folder, linked into the tools that need it.
-      // MiniMax Code reads its own folder in the home directory instead. Each
-      // folder holds one copy of every skill, so the count is per folder.
-      const toolOption = (id: string) => AI_TOOLS.find((candidate) => candidate.value === id);
-      const skillDirs = [...new Set(successfulTools.map((tool) => {
-        const option = toolOption(tool.value);
-        if (tool.isGlobalSkillTarget && option?.globalSkillsDir) {
-          return `~/${option.globalSkillsDir}/skills/`;
-        }
-        return option && usesSharedSkills(option) ? '.agents/skills/' : `${tool.skillsDir}/skills/`;
-      }))];
-      const linkedFrom = [...new Set(successfulTools.flatMap((tool) => {
-        const option = toolOption(tool.value);
-        return option && SKILL_LINKED_TOOL_IDS.has(option.value) ? [`${option.skillsDir}/skills/`] : [];
-      }))];
-      const links = linkedFrom.length > 0 ? ` (linked from ${linkedFrom.join(', ')})` : '';
-      console.log(`${getSkillTemplates(workflows).length} skills in ${skillDirs.join(', ')}${links}`);
+      const toolFolders = new Set(successfulTools
+        .filter(tool => SKILL_LINKED_TOOL_IDS.has(tool.value))
+        .map(tool => `${installerAgent(tool.value).projectSkillsDir}/`));
+      const locations = toolFolders.size ? ` (also in ${[...toolFolders].join(', ')})` : '';
+      console.log(`${getSkillTemplates(workflows).length} skills in .agents/skills/${locations}`);
     }
 
     // Show failures
@@ -1330,7 +1435,7 @@ export class InitCommand {
     }
 
     // Show manual setup notes for tools that need extra configuration
-    for (const tool of successfulTools) {
+    for (const tool of successfulTools.filter(tool => !globalSkills || installerAgent(tool.value).id === 'universal')) {
       const setupNote = AI_TOOLS.find((t) => t.value === tool.value)?.setupNote;
       if (setupNote) {
         console.log(chalk.yellow(`Setup required for ${tool.name}: ${setupNote}`));

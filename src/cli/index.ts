@@ -3,7 +3,6 @@ import { createRequire } from 'module';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, promises as fs } from 'fs';
-import { AI_TOOLS, TOOL_ID_ALIASES } from '../core/config.js';
 import type { ArchiveOptions } from '../core/archive.js';
 import { registerSpecCommand } from './commands/spec.js';
 import { registerConfigCommand } from './commands/config.js';
@@ -250,25 +249,27 @@ program.hook('postAction', async (_thisCommand, actionCommand) => {
   }
 });
 
-const availableToolIds = AI_TOOLS
-  .filter((tool) => tool.skillsDir || tool.globalSkillsDir)
-  .map((tool) => tool.value);
-const toolAliasNote = Object.entries(TOOL_ID_ALIASES)
-  .map(([retired, current]) => `${retired} (now ${current})`)
-  .join(', ');
-const toolsOptionDescription = `Configure AI tools non-interactively. Use "all", "none", or a comma-separated list of: ${availableToolIds.join(', ')}. Also accepted: ${toolAliasNote}`;
+function initToolsHelp(): string {
+  const require = createRequire(import.meta.url);
+  const { AI_TOOLS, TOOL_ID_ALIASES } = require('../core/config.js') as typeof import('../core/config.js');
+  const ids = AI_TOOLS.map(tool => tool.value).join(', ');
+  const aliases = Object.entries(TOOL_ID_ALIASES).map(([old, id]) => `${old} (now ${id})`);
+  return `\nUse "all", "none", or a comma-separated list of: ${ids}. Also accepted: ${aliases.join(', ')}.`;
+}
 
 program
   .command('init [path]')
   .description('Initialize OpenSpec in your project')
-  .option('--tools <tools>', toolsOptionDescription)
+  .option('--tools <tools>', 'Configure all, none, or a comma-separated list of tool IDs')
+  .addHelpText('after', initToolsHelp)
   .option('--language <language>', 'Write new OpenSpec artifacts in this language')
   .option('--force', 'Auto-cleanup legacy files without prompting')
   .option('--profile <profile>', 'Override global config profile (core or custom)')
   .option('--no-animation', 'Show a static welcome screen instead of the animated one')
   .option('--copilot-cloud', 'Set up GitHub Copilot cloud coding-agent files without prompting')
   .option('--no-copilot-cloud', 'Skip GitHub Copilot cloud coding-agent files without prompting')
-  .action(async (targetPath = '.', options?: { tools?: string; language?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean }) => {
+  .option('--scope <scope>', 'Where the skills go: global (this machine, for every project) or project')
+  .action(async (targetPath = '.', options?: { tools?: string; language?: string; force?: boolean; profile?: string; animation?: boolean; copilotCloud?: boolean; scope?: string }) => {
     try {
       // Validate that the path is a valid directory
       const resolvedPath = path.resolve(targetPath);
@@ -297,6 +298,7 @@ program
         profile: options?.profile,
         animation: options?.animation,
         copilotCloud: options?.copilotCloud,
+        scope: options?.scope,
       });
       await initCommand.execute(targetPath);
     } catch (error) {

@@ -8,7 +8,7 @@ happens to them.
 
 ## Where skills go
 
-Every tool's skills are written once, to `.agents/skills/`. A tool that doesn't read that folder gets one link per skill in its own `skills/` folder, pointing back at the shared copy.
+New projects use machine-wide skills by default. With `--scope project`, the installer writes to `.agents/skills/` and gives tools that need their own folder a link or copy of each skill.
 
 A project set up for Claude Code, Cursor, and Codex:
 
@@ -23,19 +23,20 @@ my-project/
 
 Cursor and Codex read `.agents/skills/` themselves, so they need nothing else.
 
-`.openspec-target` is how `openspec update` knows what is OpenSpec's. Each line is one of:
+Project installs leave `skills-lock.json` alone.
+
+`.openspec-target` is how `openspec update` knows which tools are set up and what is OpenSpec's. Each line is one of:
 
 | Line | Meaning |
 |---|---|
 | `<tool>` | A tool set up in this project, such as `cursor`. |
 | `<tool> own-files` | OpenSpec gave the tool links in its own folder, such as `claude own-files`. Delete that folder and `update` removes the tool. |
-| `keep <skill>` | Your own skill, such as `keep openspec-mine`. It was there before OpenSpec used the folder, so OpenSpec never touches it. |
 
-- **Links**: Claude Code, Continue, ForgeCode, Kiro, CodeBuddy, EasyCode, iFlow, CodeArts, Lingma, GigaCode, Veai, Rovo Dev, Code Studio, and Hermes Agent.
-- **No link**: every other tool reads `.agents/skills/` directly, so it never loads a skill twice.
-- **Where a link can't be made**: OpenSpec writes a plain copy instead, and refreshes it on `openspec update`.
+Vercel’s `skills` package places the skills in the folders each agent reads. Windows project installs use copies. Run `openspec init --help` for the full list, including tools such as AiderDesk (`aider-desk`). Existing OpenSpec IDs still work: use `claude` for Claude Code and `windsurf` for Devin Desktop.
 
-To add a tool that isn't listed, see [Link another tool](#link-another-tool).
+With global scope, tools share `~/.agents/skills/` or read from their own global skills folder. Eve and PromptScript need project scope.
+
+For a tool outside the installer’s list, use `--tools agents` or the tool’s existing OpenSpec ID. Veai reads the universal folder in either scope. GigaCode documents the project folder. For EasyCode, keep working per-skill links or [link the skills](#link-another-tool) into its own folder.
 
 ## Support matrix
 
@@ -47,48 +48,48 @@ The id goes to `openspec init --tools <id>` to skip the picker ([CLI](cli.md)).
 | Amp | `amp` | `.agents/skills/` | `/openspec-apply-change` |
 | Antigravity | `antigravity` | `.agents/skills/` | `/openspec-apply-change` |
 | AtomCode | `atomcode` | `.agents/skills/` | `/openspec-apply-change` |
-| Auggie (Augment CLI) | `auggie` | `.agents/skills/` | `/openspec-apply-change` |
-| IBM Bob | `bob` | `.agents/skills/` | `/openspec-apply-change` |
-| Claude Code | `claude` | `.agents/skills/` (links in `.claude/skills/`) | `/openspec-apply-change` |
+| Auggie (Augment CLI) | `auggie` | `.agents/skills/` (also in `.augment/skills/`) | `/openspec-apply-change` |
+| IBM Bob | `bob` | `.agents/skills/` (also in `.bob/skills/`) | `/openspec-apply-change` |
+| Claude Code | `claude` | `.agents/skills/` (also in `.claude/skills/`) | `/openspec-apply-change` |
 | Cline | `cline` | `.agents/skills/` | `/openspec-apply-change` |
-| CodeArts | `codeartsagent` | `.agents/skills/` (links in `.codeartsdoer/skills/`) | `/openspec-apply-change` |
-| CodeBuddy Code (CLI) | `codebuddy` | `.agents/skills/` (links in `.codebuddy/skills/`) | `/openspec-apply-change` |
-| Code Studio | `codestudio` | `.agents/skills/` (links in `.codestudio/skills/`) | `/openspec-apply-change` |
+| CodeArts | `codeartsagent` | `.agents/skills/` (also in `.codeartsdoer/skills/`) | `/openspec-apply-change` |
+| CodeBuddy Code (CLI) | `codebuddy` | `.agents/skills/` (also in `.codebuddy/skills/`) | `/openspec-apply-change` |
+| Code Studio | `codestudio` | `.agents/skills/` (also in `.codestudio/skills/`) | `/openspec-apply-change` |
 | Codex | `codex` | `.agents/skills/` | `$openspec-apply-change` |
-| Continue | `continue` | `.agents/skills/` (links in `.continue/skills/`) | `/openspec-apply-change` |
+| Continue | `continue` | `.agents/skills/` (also in `.continue/skills/`) | `/openspec-apply-change` |
 | CoStrict | `costrict` | `.agents/skills/` | `/openspec-apply-change` |
-| Crush | `crush` | `.agents/skills/` | `/openspec-apply-change` |
+| Crush | `crush` | `.agents/skills/` (also in `.crush/skills/`) | `/openspec-apply-change` |
 | Cursor | `cursor` | `.agents/skills/` | `/openspec-apply-change` |
 | DeepSeek Harness | `dsh` | `.agents/skills/` | `/openspec-apply-change` |
-| Devin Desktop (formerly Windsurf) | `devin` | `.agents/skills/` | `/openspec-apply-change` |
-| EasyCode | `easycode` | `.agents/skills/` (links in `.easycode/skills/`) | `/openspec-apply-change` |
+| Devin Desktop (formerly Windsurf) | `devin` | `.agents/skills/` (also in `.devin/skills/`) | `/openspec-apply-change` |
+| EasyCode | `easycode` | `.agents/skills/` | `/openspec-apply-change` |
 | Factory Droid | `factory` | `.agents/skills/` | `/openspec-apply-change` |
-| ForgeCode | `forgecode` | `.agents/skills/` (links in `.forge/skills/`) | `/openspec-apply-change` |
+| ForgeCode | `forgecode` | `.agents/skills/` (also in `.forge/skills/`) | `/openspec-apply-change` |
 | Gemini CLI | `gemini` | `.agents/skills/` | `/openspec-apply-change` |
-| GigaCode | `gigacode` | `.agents/skills/` (links in `.gigacode/skills/`) | `/openspec-apply-change` |
+| GigaCode | `gigacode` | `.agents/skills/` | `/openspec-apply-change` |
 | GitHub Copilot | `github-copilot` | `.agents/skills/` | `/openspec-apply-change` |
-| Grok Build | `grok` | `.agents/skills/` | `/openspec-apply-change` |
+| Grok Build | `grok` | `.agents/skills/` (also in `.grok/skills/`) | `/openspec-apply-change` |
 | GSD | `gsd` | `.agents/skills/` | ask for `openspec-apply-change` |
-| Hermes Agent | `hermes` | `.agents/skills/` (links in `.hermes/skills/`) | `/openspec-apply-change` |
-| iFlow | `iflow` | `.agents/skills/` (links in `.iflow/skills/`) | `/openspec-apply-change` |
-| Junie | `junie` | `.agents/skills/` | `/openspec-apply-change` |
+| Hermes Agent | `hermes` | `.agents/skills/` (also in `.hermes/skills/`) | `/openspec-apply-change` |
+| iFlow | `iflow` | `.agents/skills/` (also in `.iflow/skills/`) | `/openspec-apply-change` |
+| Junie | `junie` | `.agents/skills/` (also in `.junie/skills/`) | `/openspec-apply-change` |
 | Kilo Code | `kilocode` | `.agents/skills/` | `/openspec-apply-change` |
 | Kimi Code | `kimi` | `.agents/skills/` | `/skill:openspec-apply-change` |
-| Kiro | `kiro` | `.agents/skills/` (links in `.kiro/skills/`) | `/openspec-apply-change` |
-| Lingma | `lingma` | `.agents/skills/` (links in `.lingma/skills/`) | `/openspec-apply-change` |
-| MiniMax Code | `minimax-code` | `~/.minimax/skills/` (global) | `/openspec-apply-change` |
-| Mistral Vibe | `vibe` | `.agents/skills/` | `/openspec-apply-change` |
+| Kiro | `kiro` | `.agents/skills/` (also in `.kiro/skills/`) | `/openspec-apply-change` |
+| Lingma | `lingma` | `.agents/skills/` (also in `.lingma/skills/`) | `/openspec-apply-change` |
+| MiniMax Code | `minimax-code` | `.agents/skills/` (also in `.minimax/skills/`) | `/openspec-apply-change` |
+| Mistral Vibe | `vibe` | `.agents/skills/` (also in `.vibe/skills/`) | `/openspec-apply-change` |
 | Oh My Pi | `oh-my-pi` | `.agents/skills/` | `/openspec-apply-change` |
 | OpenCode | `opencode` | `.agents/skills/` | `/openspec-apply-change` |
 | Pi | `pi` | `.agents/skills/` | `/openspec-apply-change` |
-| Qoder | `qoder` | `.agents/skills/` | `/openspec-apply-change` |
-| Qwen Code | `qwen` | `.agents/skills/` | `/openspec-apply-change` |
-| Rovo Dev CLI | `rovodev` | `.agents/skills/` (links in `.rovodev/skills/`) | ask for `openspec-apply-change` |
-| Trae | `trae` | `.agents/skills/` | `/openspec-apply-change` |
-| [Veai](https://veai.ru/docs/veai/download) | `veai` | `.agents/skills/` (links in `.veai/skills/`) | `/openspec-apply-change` |
+| Qoder | `qoder` | `.agents/skills/` (also in `.qoder/skills/`) | `/openspec-apply-change` |
+| Qwen Code | `qwen` | `.agents/skills/` (also in `.qwen/skills/`) | `/openspec-apply-change` |
+| Rovo Dev CLI | `rovodev` | `.agents/skills/` (also in `.rovodev/skills/`) | ask for `openspec-apply-change` |
+| Trae | `trae` | `.agents/skills/` (also in `.trae/skills/`) | `/openspec-apply-change` |
+| [Veai](https://veai.ru/docs/veai/download) | `veai` | `.agents/skills/` | `/openspec-apply-change` |
 | Warp | `warp` | `.agents/skills/` | `/openspec-apply-change` |
-| ZCode | `zcode` | `.agents/skills/` | `/openspec-apply-change` |
-| Zoo Code | `roocode` | `.agents/skills/` | `/openspec-apply-change` |
+| ZCode | `zcode` | `.agents/skills/` (also in `.zcode/skills/`) | `/openspec-apply-change` |
+| Zoo Code | `roocode` | `.agents/skills/` (also in `.roo/skills/`) | `/openspec-apply-change` |
 | Other / Universal | `agents` | `.agents/skills/` | `/openspec-apply-change` |
 
 - **Skill invocation**: whether a tool registers skills as typed entries is the tool's
@@ -110,6 +111,8 @@ On Windows, in Command Prompt:
 mkdir .mytool
 mklink /J .mytool\skills .agents\skills
 ```
+
+With global skills, make the link in your home folder instead: `ln -s ~/.agents/skills ~/.mytool/skills`.
 
 Replace `.mytool` with your tool's folder. If the tool already has a `skills/` folder of its own, link each skill instead: `ln -s ../../.agents/skills/openspec-propose .mytool/skills/openspec-propose`.
 
@@ -137,6 +140,9 @@ instead: `openspec init --tools kiro`.
 - **Shared skills**: Antigravity reads the same `.agents/skills/` copy as every other
   tool. Workflows OpenSpec wrote to `.agents/workflows/` before 2.0 are removed on
   update.
+- **Global skills**: for a [machine-wide install](../start/setup.md#install-the-skills-once-for-every-project),
+  the `skills` package keeps Antigravity's skills in `~/.gemini/config/skills/`,
+  as links to the shared copy or as copies. `openspec update` keeps them current.
 
 ### Cline
 
@@ -206,8 +212,7 @@ instead. Init prints this reminder after install.
 
 ### MiniMax Code
 
-- **Global only**: skills go to `~/.minimax/skills/`. Nothing is written inside
-  the repo.
+Project installs use `.minimax/skills/`. Global installs use `~/.minimax/skills/`.
 
 ### Warp
 
@@ -224,10 +229,6 @@ instead. Init prints this reminder after install.
 - **Alongside other tools**: every tool reads this one skill tree. `.openspec-target`
   lists the tools set up in the project. To remove a tool, delete its folder (or, for a tool
   with no folder of its own, its line in `.openspec-target`).
-- **Your own `openspec-*` skills**: a skill already in `.agents/skills/` before
-  OpenSpec used the folder is kept, never written over, and recorded as
-  `keep <skill>` in `.openspec-target`. Delete that skill to let OpenSpec write its own.
-- **What OpenSpec claims**: only the `openspec-*` folders and the `.openspec-target`
-  list. Anything else under `.agents/` is left alone.
+- **Custom skills**: choose a name distinct from OpenSpec's built-in skills. Update replaces built-ins with the instructions from the running CLI’s GitHub release tag and leaves separately named skills alone.
 - **`AGENTS.md`**: not created or edited. The target is the `.agents/` folder, not
   the file.

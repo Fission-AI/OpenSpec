@@ -53,7 +53,7 @@ describe('available-tools', () => {
       expect(tool?.successLabel).toBe('IBM Bob');
     });
 
-    it('should detect MiniMax Code only from managed skills in the user-home target', async () => {
+    it('should detect MiniMax Code from the project folder', async () => {
       const globalSkill = path.join(
         testDir,
         'home',
@@ -65,7 +65,7 @@ describe('available-tools', () => {
       await fs.mkdir(path.dirname(globalSkill), { recursive: true });
       await fs.writeFile(globalSkill, 'content');
 
-      expect(getAvailableTools(testDir).map((tool) => tool.value)).toContain('minimax-code');
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).not.toContain('minimax-code');
 
       await fs.rm(path.join(testDir, 'home'), { recursive: true, force: true });
       const localSkill = path.join(
@@ -78,7 +78,7 @@ describe('available-tools', () => {
       await fs.mkdir(path.dirname(localSkill), { recursive: true });
       await fs.writeFile(localSkill, 'content');
 
-      expect(getAvailableTools(testDir).map((tool) => tool.value)).not.toContain('minimax-code');
+      expect(getAvailableTools(testDir).map((tool) => tool.value)).toContain('minimax-code');
     });
 
     it('should detect Grok Build from a project .grok directory', async () => {
@@ -268,7 +268,6 @@ describe('available-tools', () => {
       const sharedSkills = path.join(testDir, '.agents', 'skills');
       const globalSkill = path.join(
         testDir,
-        'home',
         '.minimax',
         'skills',
         'openspec-explore',

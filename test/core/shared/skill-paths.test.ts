@@ -29,13 +29,13 @@ describe('skill-paths', () => {
     expect(AI_TOOLS.find((tool) => tool.value === 'amazon-q')).toBeUndefined();
   });
 
-  it('resolves MiniMax Code skills under the supplied user home', () => {
+  it('resolves MiniMax Code skills under the shared project folder', () => {
     const minimax = AI_TOOLS.find((tool) => tool.value === 'minimax-code');
     expect(minimax && toolSupportsSkills(minimax)).toBe(true);
     if (!minimax || !toolSupportsSkills(minimax)) return;
 
     expect(resolveToolSkillsDir('/repo/app', minimax, { homeDir: '/home/alex' })).toBe(
-      path.join('/home/alex', '.minimax', 'skills')
+      path.join('/repo/app', '.agents', 'skills')
     );
   });
 

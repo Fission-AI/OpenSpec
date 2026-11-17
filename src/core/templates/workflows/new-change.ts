@@ -5,25 +5,14 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
-/**
- * Handoffs to `continue`, which is not guaranteed to be installed alongside
- * `new`; resolved at generation time (see optional-workflow.ts).
- */
-const FIRST_ARTIFACT_PROMPT = optionalWorkflow(
-  'continue',
-  'Use the `/opsx:continue` skill or just describe what this change is about and I\'ll draft it.',
-  'Just describe what this change is about and I\'ll draft it.'
-);
+const FIRST_ARTIFACT_PROMPT =
+  'Describe what this change should do and I’ll draft the first artifact.';
 
-const EXISTING_CHANGE_HINT = optionalWorkflow(
-  'continue',
-  'suggest using `/opsx:continue` instead',
-  'say so and ask whether to resume that change or pick a different name'
-);
+const EXISTING_CHANGE_HINT =
+  'ask whether to resume that change or start one with a different name';
 
 export function getNewChangeSkillTemplate(): SkillTemplate {
   return {

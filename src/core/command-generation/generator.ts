@@ -7,7 +7,6 @@
 import type { CommandContent, ToolCommandAdapter, GeneratedCommand } from './types.js';
 import { getInvocationForAdapter, needsInvocationRewrite } from './invocation.js';
 import { transformCommandInvocations } from '../../utils/command-references.js';
-import { assertWorkflowConditionalsResolved } from '../templates/optional-workflow.js';
 
 /**
  * Generate a single command file using the provided adapter.
@@ -27,11 +26,6 @@ export function generateCommand(
   content: CommandContent,
   adapter: ToolCommandAdapter
 ): GeneratedCommand {
-  assertWorkflowConditionalsResolved(
-    content.body,
-    `Command '${content.id}' was generated without resolving its optional-workflow blocks`
-  );
-
   const invocation = getInvocationForAdapter(adapter);
   const formatted = needsInvocationRewrite(invocation)
     ? { ...content, body: transformCommandInvocations(content.body, invocation) }

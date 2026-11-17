@@ -5,70 +5,23 @@
  * templates file into workflow-focused modules.
  */
 import type { SkillTemplate, CommandTemplate } from '../types.js';
-import { onlyWithWorkflow, optionalWorkflow } from '../optional-workflow.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
 
 /**
  * The tutorial names other workflows throughout. Which of them exist depends
- * on the profile, so each mention is resolved at generation time (see
- * optional-workflow.ts) instead of being listed with an "if installed" caveat
- * the reader has to check for themselves.
+ * on the profile, but the text is the same for every profile, so each mention
+ * says what to do when that skill is not installed.
  */
-const EXPLORE_MODE_NOTE = optionalWorkflow(
-  'explore',
-  'Explore mode (`/opsx:explore`) is for this kind of thinking—investigating before implementing. You can use it anytime you need to think through a problem.',
-  'Investigating before implementing is worth doing whenever a problem needs thinking through.'
-);
-
-/**
- * The skill-reference tables. Every row is dropped along with its line when
- * the profile does not install that workflow, so the table lists exactly the
- * skills the reader can use — and stays a valid table either way.
- */
-const COMMAND_REFERENCE_ROWS = [
-  onlyWithWorkflow('propose', ' | `/opsx:propose` | Create a change and generate all artifacts |'),
-  onlyWithWorkflow('explore', ' | `/opsx:explore` | Think through problems before/during work  |'),
-  onlyWithWorkflow('apply', ' | `/opsx:apply`   | Implement tasks from a change              |'),
-  onlyWithWorkflow('archive', ' | `/opsx:archive` | Archive a completed change                 |'),
-  onlyWithWorkflow('new', ' | `/opsx:new`     | Start a new change, one artifact at a time |'),
-  onlyWithWorkflow('continue', ' | `/opsx:continue` | Continue working on an existing change    |'),
-  onlyWithWorkflow('ff', ' | `/opsx:ff`      | Fast-forward: create all artifacts at once |'),
-  onlyWithWorkflow('verify', ' | `/opsx:verify`  | Verify implementation matches artifacts    |'),
-].join('\n');
-
-const QUICK_REFERENCE_ROWS = [
-  onlyWithWorkflow('propose', ' | `/opsx:propose <idea>`  | Create a change and generate all artifacts |'),
-  onlyWithWorkflow('explore', ' | `/opsx:explore`         | Think through problems (no code changes)   |'),
-  onlyWithWorkflow('apply', ' | `/opsx:apply <name>`    | Implement tasks                            |'),
-  onlyWithWorkflow('archive', ' | `/opsx:archive <name>`  | Archive when done                          |'),
-  onlyWithWorkflow('new', ' | `/opsx:new <name>`      | Start a new change, step by step           |'),
-  onlyWithWorkflow('continue', ' | `/opsx:continue <name>` | Continue an existing change                |'),
-  onlyWithWorkflow('ff', ' | `/opsx:ff <name>`       | Fast-forward: all artifacts at once        |'),
-  onlyWithWorkflow('verify', ' | `/opsx:verify <name>`   | Verify implementation                      |'),
-].join('\n');
-
-/**
- * Resume hints for a user stopping mid-tutorial. Both are optional, so the
- * sentence that introduces them stands on its own without either.
- */
-const RESUME_HINTS = [
-  onlyWithWorkflow('continue', '- `/opsx:continue <name>` - Resume artifact creation'),
-  onlyWithWorkflow('apply', '- `/opsx:apply <name>` - Jump to implementation (if tasks exist)'),
-].join('\n');
+const EXPLORE_MODE_NOTE =
+  'Use exploration to work through questions before implementing a change.';
 
 /** Where the tutorial points once it is over. */
-const NEXT_STEP_INVITE = optionalWorkflow(
-  'propose',
-  'Try `/opsx:propose` on something you actually want to build. You\'ve got the rhythm now!',
-  'Try this on something you actually want to build. You\'ve got the rhythm now!'
-);
+const NEXT_STEP_INVITE =
+  'Ask me to start a change for something you want to build.';
 
-const QUICK_REFERENCE_INVITE = optionalWorkflow(
-  'propose',
-  'Try `/opsx:propose` to start your first change.',
-  'Ask me to start your first change whenever you are ready.'
-);
+const QUICK_REFERENCE_INVITE =
+  'Ask me to start your first change.';
 
 export function getOnboardSkillTemplate(): SkillTemplate {
   return {
@@ -560,11 +513,7 @@ This same rhythm works for any size change—a small fix or a major feature.
 
 ## Skill Reference
 
-**The skills you have installed:**
-
- | Skill            | What it does                               |
- |------------------|--------------------------------------------|
-${COMMAND_REFERENCE_ROWS}
+List the OpenSpec workflows available to you in this session, with one line explaining each. Omit workflows you cannot invoke.
 
 ---
 
@@ -585,7 +534,7 @@ If the user says they need to stop, want to pause, or seem disengaged:
 No problem! Your change is saved at the \`changeRoot\` reported by \`openspec status --change "<name>" --json\`.
 
 To pick up where we left off later, \`openspec status --change "<name>" --json\` shows exactly where the change stands.
-${RESUME_HINTS}
+Offer one next step from the workflows available to you.
 
 The work won't be lost. Come back whenever you're ready.
 \`\`\`
@@ -599,11 +548,7 @@ If the user says they just want to see the skills or skip the tutorial:
 \`\`\`
 ## OpenSpec Quick Reference
 
-**The skills you have installed:**
-
- | Skill                    | What it does                               |
- |--------------------------|--------------------------------------------|
-${QUICK_REFERENCE_ROWS}
+List the OpenSpec workflows available to you in this session, with one line explaining each. Omit workflows you cannot invoke.
 
 ${QUICK_REFERENCE_INVITE}
 \`\`\`
