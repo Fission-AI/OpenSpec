@@ -17,6 +17,8 @@ import {
   getVerifyChangeSkillTemplate,
   getOnboardSkillTemplate,
   getOpsxProposeSkillTemplate,
+  getRouterSkillTemplate,
+  ROUTER_SKILL_NAME,
   getOpsxExploreCommandTemplate,
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
@@ -55,15 +57,24 @@ export interface CommandTemplateEntry {
  * Gets skill templates with their directory names, optionally filtered by workflow IDs.
  *
  * The filter chooses which skills are returned, never what they say: a skill's
- * text is the same for every workflow list.
+ * text is the same for every workflow list. The router skill comes with any
+ * workflow skill and is not returned alone.
  *
  * @param workflowFilter - If provided, only return templates whose workflowId is in this array
  */
 export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemplateEntry[] {
   const all = allSkillTemplates();
-  if (!workflowFilter) return all;
-  const wanted = new Set<string>(workflowFilter);
-  return all.filter(entry => wanted.has(entry.workflowId));
+  const wanted = workflowFilter && new Set<string>(workflowFilter);
+  const workflows = wanted ? all.filter(entry => wanted.has(entry.workflowId)) : all;
+  // The router points at the workflow skills, so it goes wherever any of them does.
+  return workflows.length ? [...workflows, routerSkillEntry()] : workflows;
+}
+
+/** The router is not a workflow: no profile selects it or leaves it out. */
+const ROUTER_WORKFLOW_ID = 'router';
+
+function routerSkillEntry(): SkillTemplateEntry {
+  return { template: getRouterSkillTemplate(), dirName: ROUTER_SKILL_NAME, workflowId: ROUTER_WORKFLOW_ID };
 }
 
 /**

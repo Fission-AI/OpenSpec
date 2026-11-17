@@ -430,7 +430,7 @@ describe('UpdateCommand', () => {
         // The user's skills stay in .dsh; OpenSpec's are the shared copy. A
         // delivery change changes nothing: every tool gets skills.
         const expectedSkills = ['my-custom-skill', 'openspec-user-notes'];
-        const expectedShared = ['shared-custom-skill', '.openspec-target'];
+        const expectedShared = ['shared-custom-skill', '.openspec-target', 'openspec'];
         if (setting === 'profile') {
           expectedShared.push('openspec-explore');
         } else {
@@ -3927,7 +3927,7 @@ More user content after markers.
         'openspec-sync-specs',
         'openspec-update-change',
       ]);
-      expect((await fs.readdir(skillsDir)).sort()).toEqual([...(await openspecSkills()), 'openspec-custom'].sort());
+      expect((await fs.readdir(skillsDir)).sort()).toEqual([...(await openspecSkills()), 'openspec', 'openspec-custom'].sort());
       expect(await fs.readFile(customSkill, 'utf-8')).toBe('my custom skill');
       expect(await fs.readFile(path.join(grokDir, 'notes.md'), 'utf-8')).toBe('my Grok notes');
       expect((await fs.readdir(grokDir)).sort()).toEqual(['notes.md', 'skills']);

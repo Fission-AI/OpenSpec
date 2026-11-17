@@ -15,6 +15,7 @@ import { stripVolatileFrontmatter } from '../../scripts/skillssh-shared.mjs';
 // cannot stand in for two machines.
 
 const CORE_SKILLS = [
+  'openspec',
   'openspec-apply-change',
   'openspec-archive-change',
   'openspec-explore',
@@ -123,7 +124,7 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
     const result = await cli(dir, 'init', '--scope', 'global', '--tools', 'claude,codex');
 
     expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain('6 skills in ~/.agents/skills/ for every project on this machine');
+    expect(result.stdout).toContain('7 skills in ~/.agents/skills/ for every project on this machine');
     expect(await entries(dir)).toEqual(['openspec']);
     expect(await globalSkills()).toEqual(CORE_SKILLS);
     // Claude Code reads its own folder, so it gets each skill there too.
@@ -270,7 +271,7 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
       const result = await cli(dir, 'update');
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).toContain('Updated the 6 skills for this machine in ~/.agents/skills');
+      expect(result.stdout).toContain('Updated the 7 skills for this machine in ~/.agents/skills');
       expect(result.stdout).not.toContain('No configured tools found');
       expect(readFileSync(globalSkill('openspec-propose'), 'utf8')).toBe(original);
     });

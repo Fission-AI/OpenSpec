@@ -27,10 +27,14 @@ describe('project root guard', () => {
     return PROJECT_ROOT_GUARD.slice(start, next === -1 ? undefined : next);
   }
 
+  // The router runs no workflow step and writes nothing: each skill it sends
+  // a request to carries the guard.
+  const workflowSkills = () => getSkillTemplates().filter((entry) => entry.workflowId !== 'router');
+
   // Both surfaces, rendered exactly as they ship.
   function renderedBodies(): Array<[string, string]> {
     return [
-      ...getSkillTemplates().map(
+      ...workflowSkills().map(
         ({ template, dirName }): [string, string] => [
           `skill ${dirName}`,
           generateSkillContent(template, 'PARITY-BASELINE'),
@@ -43,7 +47,7 @@ describe('project root guard', () => {
   }
 
   it('warns about an uninitialized project in every deployed skill', () => {
-    for (const { template, dirName } of getSkillTemplates()) {
+    for (const { template, dirName } of workflowSkills()) {
       const content = generateSkillContent(template, 'PARITY-BASELINE');
       expect(content, dirName).toContain(PROJECT_ROOT_GUARD);
     }

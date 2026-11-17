@@ -39,6 +39,8 @@ The skills come in two sets:
 - **Core**: installed by default, the main planning loop.
 - **Optional**: installed only when you add them, via [Profiles](../customize/profiles.md).
 
+One more skill, `openspec`, comes with either set. It has no steps of its own: it sends a request to the skill below that handles it, so you can ask for OpenSpec work without naming a skill.
+
 Every skill expects a project that already uses OpenSpec. Before its first step that writes anything, a skill checks for a resolved root. What happens when there is none depends on how the skill was reached:
 
 - **Auto-selected**: your agent picked the skill on its own, without you naming OpenSpec. It drops OpenSpec and answers your request normally, the way it would with OpenSpec not installed.

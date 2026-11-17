@@ -16,7 +16,7 @@ import { getCommandContents } from '../../src/core/shared/index.js';
  * link to it from .claude/skills, and Claude listed as set up.
  */
 function writeSkill(projectDir: string, workflowId: string): void {
-  const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId as keyof typeof WORKFLOW_TO_SKILL_DIR];
+  const skillDirName = WORKFLOW_TO_SKILL_DIR[workflowId as keyof typeof WORKFLOW_TO_SKILL_DIR] ?? workflowId;
   const sharedDir = path.join(projectDir, '.agents', 'skills', skillDirName);
   fs.mkdirSync(sharedDir, { recursive: true });
   fs.writeFileSync(path.join(sharedDir, 'SKILL.md'), `name: ${skillDirName}\n`);
@@ -53,6 +53,8 @@ function setupCoreSkills(projectDir: string): void {
   for (const workflow of CORE_WORKFLOWS) {
     writeSkill(projectDir, workflow);
   }
+  // The router skill comes with any workflow skill.
+  writeSkill(projectDir, 'openspec');
 }
 
 function setupCoreCommands(projectDir: string): void {

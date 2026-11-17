@@ -7,6 +7,9 @@ import {
 } from '../../../src/core/shared/skill-generation.js';
 import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
 
+/** The router is not a workflow; it comes with any workflow skill. */
+const ROUTER = 'router';
+
 /**
  * A skill says the same thing to every user, whatever workflow profile they
  * chose. That is what lets the one static copy published in `skills/` be the
@@ -24,14 +27,14 @@ describe('one skill text for every workflow profile', () => {
 
   it('covers all twelve workflows without a filter', () => {
     expect([...unfiltered.values()].map((entry) => entry.workflowId).sort()).toEqual(
-      [...ALL_WORKFLOWS].sort()
+      [...ALL_WORKFLOWS, ROUTER].sort()
     );
   });
 
   it.each(WORKFLOW_LISTS)('returns only the listed skills for %s, each with the unfiltered text', (_label, workflows) => {
     const selected = getSkillTemplates(workflows);
 
-    expect(selected.map((entry) => entry.workflowId).sort()).toEqual([...workflows].sort());
+    expect(selected.map((entry) => entry.workflowId).sort()).toEqual([...workflows, ROUTER].sort());
     for (const { dirName, template } of selected) {
       const reference = unfiltered.get(dirName)!.template;
       expect(template.instructions, dirName).toBe(reference.instructions);

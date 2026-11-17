@@ -9,9 +9,8 @@
  */
 import path from 'path';
 import { promises as fs } from 'fs';
-import { AI_TOOLS, installerAgent, SKILL_LINKED_TOOL_IDS } from './config.js';
+import { AI_TOOLS, installerAgent, OPENSPEC_SKILL_NAMES, SKILL_LINKED_TOOL_IDS } from './config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { ALL_WORKFLOWS } from './profiles.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { COMMAND_IDS } from './shared/tool-detection.js';
 import { isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
@@ -39,8 +38,8 @@ function toolSpecificPathsForTool(toolId: string): string[] {
   const paths: string[] = [];
   const ownSkillsRoot = SKILL_LINKED_TOOL_IDS.has(tool.value) ? installerAgent(tool.value).projectSkillsDir : undefined;
   if (ownSkillsRoot) {
-    for (const workflow of ALL_WORKFLOWS) {
-      const skillDir = `${ownSkillsRoot}/${WORKFLOW_TO_SKILL_DIR[workflow]}`;
+    for (const name of OPENSPEC_SKILL_NAMES) {
+      const skillDir = `${ownSkillsRoot}/${name}`;
       // A link, or the plain copy made where a link can't be.
       paths.push(skillDir, `${skillDir}/SKILL.md`);
     }
@@ -61,8 +60,8 @@ function currentPathsForTool(toolId: string): string[] {
   if (!tool) return [];
   const paths = toolSpecificPathsForTool(toolId);
   if (usesSharedSkills(tool)) {
-    for (const workflow of ALL_WORKFLOWS) {
-      paths.push(`${SHARED_SKILLS_ROOT}/skills/${WORKFLOW_TO_SKILL_DIR[workflow]}/SKILL.md`);
+    for (const name of OPENSPEC_SKILL_NAMES) {
+      paths.push(`${SHARED_SKILLS_ROOT}/skills/${name}/SKILL.md`);
     }
   }
   return paths;
