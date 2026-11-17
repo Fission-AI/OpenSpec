@@ -7,9 +7,10 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
+  references: "d6912e3ce7c1"
 ---
 
-Send the request to the OpenSpec skill that handles it. This skill has no steps of its own.
+Send the request to the OpenSpec skill that handles it. This skill has no steps of its own. It keeps each skill's steps in its `references/` folder, and each skill reads its own.
 
 **Pick the skill**
 

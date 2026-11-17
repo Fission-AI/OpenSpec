@@ -516,7 +516,7 @@ describe('openspec CLI e2e basics', () => {
       )).toBe('zed\n');
       const updatedSkill = await fs.readFile(skillPath, 'utf-8');
       // The shared copy names skills plainly, right for every tool reading it.
-      expect(updatedSkill).toContain('capture the discussion as a change');
+      expect(updatedSkill).toContain('references/explore.md');
       expect(updatedSkill).not.toContain('$openspec-');
       expect(updatedSkill).not.toContain('/openspec-');
     });

@@ -10,7 +10,7 @@ export function getRouterSkillTemplate(): SkillTemplate {
   return {
     name: ROUTER_SKILL_NAME,
     description: 'Send an OpenSpec request to the skill that handles it. Use when the user asks for OpenSpec work without naming a skill, or asks about the specs or changes in a project\'s openspec/ folder and no more specific OpenSpec skill fits.',
-    instructions: `Send the request to the OpenSpec skill that handles it. This skill has no steps of its own.
+    instructions: `Send the request to the OpenSpec skill that handles it. This skill has no steps of its own. It keeps each skill's steps in its \`references/\` folder, and each skill reads its own.
 
 **Pick the skill**
 

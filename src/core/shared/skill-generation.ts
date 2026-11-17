@@ -34,6 +34,7 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
+import { createHash } from 'node:crypto';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
 
 /**
@@ -173,8 +174,47 @@ metadata:
   author: ${template.metadata?.author || 'openspec'}
   version: "${template.metadata?.version || '1.0'}"
   generatedBy: "${generatedByVersion}"
----
+${template.metadata?.references ? `  references: "${template.metadata.references}"\n` : ''}---
 
 ${instructions}
 `;
+}
+
+/** Where the router keeps the steps of one workflow skill, relative to the router's folder. */
+export function referencePath(workflowId: string): string {
+  return `references/${workflowId}.md`;
+}
+
+/**
+ * The files of one skill as they are published and installed, by path inside
+ * the skill's folder.
+ *
+ * A workflow skill is a short SKILL.md that points at its steps. The steps
+ * themselves, the template's instructions word for word, are a reference file
+ * in the router's folder. The router's SKILL.md carries a digest of its
+ * references, so a changed reference shows as a changed SKILL.md wherever an
+ * install is compared with what this release publishes.
+ */
+export function generateSkillFiles(
+  entry: SkillTemplateEntry,
+  generatedByVersion: string,
+  transformInstructions?: (instructions: string) => string
+): Map<string, string> {
+  const files = new Map<string, string>();
+  if (entry.workflowId !== ROUTER_WORKFLOW_ID) {
+    const pointer = { ...entry.template, instructions: stepsPointer(entry.workflowId) };
+    return files.set('SKILL.md', generateSkillContent(pointer, generatedByVersion));
+  }
+  const digest = createHash('sha256');
+  for (const workflow of allSkillTemplates()) {
+    const steps = transformInstructions ? transformInstructions(workflow.template.instructions) : workflow.template.instructions;
+    files.set(referencePath(workflow.workflowId), `${steps}\n`);
+    digest.update(`${workflow.workflowId}\n${steps}\n`);
+  }
+  const router = { ...entry.template, metadata: { ...entry.template.metadata, references: digest.digest('hex').slice(0, 12) } };
+  return files.set('SKILL.md', generateSkillContent(router, generatedByVersion, transformInstructions));
+}
+
+function stepsPointer(workflowId: string): string {
+  return `The steps for this skill are in \`${referencePath(workflowId)}\` inside the \`${ROUTER_SKILL_NAME}\` skill, whose folder sits next to this skill's folder. Read that file now and follow it. Do nothing else for this request until you have read it.`;
 }

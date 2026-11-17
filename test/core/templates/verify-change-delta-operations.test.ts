@@ -15,10 +15,11 @@ import {
 const bodies: Array<[string, string]> = [
   ['skill', getVerifyChangeSkillTemplate().instructions],
   ['command', getOpsxVerifyCommandTemplate().content],
-  // The committed skills.sh mirror is what `npx skills add` installs.
+  // The committed skills.sh mirror is what `npx skills add` installs. The
+  // skill's steps are the router's reference file.
   [
     'committed skill file',
-    readFileSync(new URL('../../../skills/openspec-verify-change/SKILL.md', import.meta.url), 'utf8'),
+    readFileSync(new URL('../../../skills/openspec-router/references/verify.md', import.meta.url), 'utf8'),
   ],
 ];
 

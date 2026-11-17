@@ -4,6 +4,8 @@ import {
   getCommandTemplates,
   getCommandContents,
   generateSkillContent,
+  generateSkillFiles,
+  referencePath,
 } from '../../../src/core/shared/skill-generation.js';
 
 describe('skill-generation', () => {
@@ -299,6 +301,41 @@ describe('skill-generation', () => {
 
       expect(content).toContain('Some REPLACED text here.');
       expect(content).not.toContain('PLACEHOLDER');
+    });
+  });
+
+  describe('generateSkillFiles', () => {
+    const all = getSkillTemplates();
+    const router = all.find(entry => entry.dirName === 'openspec-router')!;
+    const workflows = all.filter(entry => entry !== router);
+
+    it('keeps each workflow skill to a SKILL.md that points at its steps', () => {
+      for (const entry of workflows) {
+        const files = generateSkillFiles(entry, 'TEST');
+        expect([...files.keys()], entry.dirName).toEqual(['SKILL.md']);
+        const text = files.get('SKILL.md')!;
+        expect(text, entry.dirName).toContain(`name: ${entry.template.name}\n`);
+        expect(text, entry.dirName).toContain(`description: ${entry.template.description}\n`);
+        expect(text, entry.dirName).toContain(`\`${referencePath(entry.workflowId)}\` inside the \`openspec-router\` skill`);
+        expect(text, entry.dirName).not.toContain(entry.template.instructions);
+      }
+    });
+
+    it("holds every workflow's steps in the router, word for word", () => {
+      const files = generateSkillFiles(router, 'TEST');
+      expect([...files.keys()].sort()).toEqual(
+        ['SKILL.md', ...workflows.map(entry => referencePath(entry.workflowId))].sort()
+      );
+      for (const entry of workflows) {
+        expect(files.get(referencePath(entry.workflowId)), entry.dirName).toBe(`${entry.template.instructions}\n`);
+      }
+    });
+
+    it("changes the router's SKILL.md when any reference changes", () => {
+      const before = generateSkillFiles(router, 'TEST').get('SKILL.md');
+      const after = generateSkillFiles(router, 'TEST', text => text.replace('Enter explore mode', 'Enter explore mode!')).get('SKILL.md');
+      expect(before).toMatch(/\n {2}references: "[0-9a-f]{12}"\n---/);
+      expect(after).not.toBe(before);
     });
   });
 });

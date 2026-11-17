@@ -75,7 +75,10 @@ describe('profile handoff CLI regressions (#1734)', () => {
     await fs.writeFile(configFile, JSON.stringify({ profile: 'custom', delivery, workflows: ALL_WORKFLOWS }));
     await cli(['update']);
     const continueFile = path.join(project, '.claude', 'skills', 'openspec-continue-change', 'SKILL.md');
-    expect(await fs.readFile(continueFile, 'utf-8')).toContain('Continue working on a change');
+    expect(await fs.readFile(continueFile, 'utf-8')).toContain('references/continue.md');
+    // The steps themselves are the router's reference file.
+    const continueSteps = path.join(project, '.claude', 'skills', 'openspec-router', 'references', 'continue.md');
+    expect(await fs.readFile(continueSteps, 'utf-8')).toContain('Continue working on a change');
     await fs.writeFile(configFile, JSON.stringify({ profile: 'core', delivery }));
     await cli(['update']);
     await assertCore();

@@ -83,7 +83,7 @@ describe('Warp integration', () => {
         expect(content).not.toMatch(/\/opsx[:\-]|\$openspec-/);
       }
       // The shared copy names other skills plainly, for every tool reading it.
-      expect(await fs.readFile(skillPath('openspec-propose'), 'utf8')).toContain('ask me to apply it');
+      expect(await fs.readFile(skillPath('openspec-propose'), 'utf8')).toContain('references/propose.md');
       expect((await fs.readdir(projectPath)).sort()).toEqual(['.agents', 'openspec']);
       expect(getConfiguredTools(projectPath)).toEqual(['warp']);
       expect(getToolSkillStatus(projectPath, 'warp').configured).toBe(true);
@@ -98,7 +98,7 @@ describe('Warp integration', () => {
     await new InitCommand({ tools: 'warp', force: true }).execute(projectPath);
 
     expect(await installedSkills()).toEqual(getSkillTemplates().map(({ dirName }) => dirName).sort());
-    const onboarding = await fs.readFile(skillPath('openspec-onboard'), 'utf8');
+    const onboarding = await fs.readFile(path.join(path.dirname(skillPath('openspec-router')), 'references', 'onboard.md'), 'utf8');
     expect(onboarding).toContain('Omit workflows you cannot invoke');
     expect(onboarding).not.toMatch(/\/opsx[:\-]|\$openspec-|\/openspec-/);
   });
