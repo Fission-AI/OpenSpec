@@ -111,7 +111,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    **Check the archive target first:** Record the target name as `<target-name>`: use the change name as-is when it already starts with a `YYYY-MM-DD-` prefix; otherwise prepend the current date as `YYYY-MM-DD-<change-name>`. Never stack a second date (same rule as `openspec archive`).
 
-   If `<planningHome.changesDir>/archive/<target-name>` already exists, stop before writing any main spec. Report the collision, leave `changeRoot` where it is, and suggest renaming the existing archive or this change.
+   If `<planningHome.changesDir>/archive/<target-name>` already exists, stop before writing any main spec. Report the collision, name any main specs this run already synced, leave `changeRoot` where it is, and suggest renaming the existing archive or this change.
 
    Use `artifactPaths.specs.existingOutputPaths` from status JSON as the only
    delta-spec source. If the `specs` entry is missing or
@@ -138,6 +138,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - "Archive without syncing" or "Archive now" — proceed to archive
    - "Sync now" or "Sync anyway" — sync, then verify (below). Do not start any sync while a capability is sync-blocked; explain the blocker and repeat the available choices.
    - Anything else — ask again rather than archiving
+
+   Check the archive target again now. If `<planningHome.changesDir>/archive/<target-name>` exists, stop before writing any main spec, leave `changeRoot` where it is, and suggest renaming the existing archive or this change.
 
    Before a selected sync writes any main spec, run
    `openspec instructions specs --change "<name>" --json` once with the same

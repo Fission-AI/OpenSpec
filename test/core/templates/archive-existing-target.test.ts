@@ -19,11 +19,17 @@ describe('archive target check (#2276)', () => {
     for (const [label, body] of bodies) {
       const step = section(body, '4. **Assess delta spec sync state**', '5. **Perform the archive**');
       const check = step.indexOf('**Check the archive target first:**');
+      const stop = step.indexOf('already exists, stop before writing any main spec');
       const firstSync = step.indexOf('"Sync now');
+      const recheck = step.indexOf('Check the archive target again now.');
+      const syncWrites = step.indexOf('Before a selected sync writes any main spec');
 
       expect(check, label).toBeGreaterThanOrEqual(0);
-      expect(check, label).toBeLessThan(firstSync);
-      expect(step, label).toContain('stop before writing any main spec');
+      expect(stop, label).toBeGreaterThan(check);
+      expect(stop, label).toBeLessThan(firstSync);
+      expect(recheck, label).toBeGreaterThan(firstSync);
+      expect(recheck, label).toBeLessThan(syncWrites);
+      expect(step, label).toContain('name any main specs this run already synced');
     }
   });
 
@@ -34,6 +40,12 @@ describe('archive target check (#2276)', () => {
       expect(step, label).toContain('Use the `<target-name>` recorded in step 4');
       expect(step, label).toContain('**Check again immediately before the move:**');
       expect(step, label).toContain('report any main specs step 4 synced');
+      expect(step.indexOf('Use the `<target-name>` recorded in step 4'), label).toBeLessThan(
+        step.indexOf('**Check again immediately before the move:**')
+      );
+      expect(step.indexOf('**Check again immediately before the move:**'), label).toBeLessThan(
+        step.indexOf('mv "<changeRoot>"')
+      );
     }
   });
 
