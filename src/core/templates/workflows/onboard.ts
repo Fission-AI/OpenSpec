@@ -482,6 +482,8 @@ Archived changes become your project's decision history—you can always find th
 openspec archive "<name>" --yes
 \`\`\`
 
+If the archive fails, show the error, fix the cause, and run it again before continuing.
+
 **SHOW:**
 \`\`\`
 Archived to: \`<planningHome.changesDir>/archive/<target-name>/\` (the target name prepends today's date, unless the name already starts with a \`YYYY-MM-DD-\` prefix — then it is kept as-is, no second date)
@@ -529,6 +531,8 @@ ${NEXT_STEP_INVITE}
 ### User wants to stop mid-way
 
 If the user says they need to stop, want to pause, or seem disengaged:
+
+If no change was created yet, say nothing was saved and skip the status command. Otherwise, say:
 
 \`\`\`
 No problem! Your change is saved at the \`changeRoot\` reported by \`openspec status --change "<name>" --json\`.

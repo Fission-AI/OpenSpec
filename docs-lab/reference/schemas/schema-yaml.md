@@ -53,6 +53,7 @@ Each entry under `artifacts` defines one planning file or set of files.
 | `template` | **Required.** A relative path to the artifact's format in the schema's `templates/` folder. |
 | `instruction` | Optional guidance telling the agent what content to produce. |
 | `requires` | A list of artifact IDs that must be complete first. Default: `[]`. |
+| `optional` | When `true`, a plan can leave the artifact out. It counts as skipped once an artifact that depends on it is written. Default: `false`. |
 
 ### `generates`
 

@@ -53,6 +53,7 @@ ${PROJECT_ROOT_GUARD}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
+   - If no active change exists, say so and offer to start one
    - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:
@@ -86,6 +87,7 @@ ${PROJECT_ROOT_GUARD}
    - Congratulate the user
    - Show final status including the schema used
    - Suggest: "${planningComplete}"
+   - If the \`/opsx:apply\` skill is not installed, also give \`openspec instructions apply --change "<name>" --json\`
    - STOP
 
    ---
@@ -135,6 +137,7 @@ After each invocation, show:
 - Current progress (N/M complete)
 - What artifacts are now unlocked
 - If that artifact completed planning, suggest: "${planningComplete}"
+- If the \`/opsx:apply\` skill is not installed, also give \`openspec instructions apply --change "<name>" --json\`
 - Otherwise, prompt: "${surface.nextArtifactPrompt}"
 
 **Artifact Creation Guidelines**

@@ -43,6 +43,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
    ```
    This creates a scaffolded change in the planning home resolved by the CLI.
 
+   If the user chose to continue an existing change, skip this step and use that change.
+
 3. **Get the artifact build order**
    ```bash
    openspec status --change "<name>" --json
@@ -86,7 +88,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
       - After creating each artifact, re-run `openspec status --change "<name>" --json`
       - The required set is `applyRequires` plus every artifact reachable from those by following the `requires` edges in `status --json` - walk them transitively (spec-driven closes over proposal, specs, design, tasks). Leave artifacts outside that set alone
       - `status` is file-existence only, so an `applyRequires` artifact reading `done` does NOT mean its dependencies exist - writing `tasks.md` early marks `tasks` done while `specs` was never written. Use each artifact's `requires` edges, not its `status`, to build the required set: a `done` artifact still lists what it depends on
-      - An artifact already reading `status: "skipped"` is satisfied: the change declares `skip_specs` in `.openspec.yaml`, so its files must NOT exist. Never try to create one
+      - An artifact already reading `status: "skipped"` is satisfied: the change declares `skip_specs` in `.openspec.yaml`, so its files must NOT exist, or the plan left out an optional artifact. Never try to create one
       - Create every artifact in the required set that is missing, then re-check - creating one can unblock others
       - Skip one only when `status` already reports it `skipped`, or when its own `instruction` says it is conditional: run `openspec instructions <artifact-id> --change "<name>" --json` and skip only if its `instruction` field marks it optional (e.g. "create only if..."). Spec-driven's `design.md` qualifies; `specs` qualifies only via the `skipped` status above, never by your own judgment. Tell the user, and do not reconsider it
       - Dependencies are enablers, not gates: if a required artifact is still `blocked` only because you skipped a conditional dependency, write it anyway
@@ -108,6 +110,7 @@ After completing all artifacts, summarize:
 - List of artifacts created with brief descriptions, plus any conditional artifact you skipped and why
 - What's ready: "All artifacts needed for implementation are ready."
 - Prompt: "The plan is ready for review. When you’re ready, ask me to apply it."
+- If the `openspec-apply-change` skill is not installed, also give `openspec instructions apply --change "<name>" --json`
 
 **Artifact Creation Guidelines**
 
@@ -124,5 +127,5 @@ After completing all artifacts, summarize:
 - Create every artifact the apply phase transitively depends on, not just the ids listed in `apply.requires`
 - Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
 - If context is critically unclear, ask the user - but prefer making reasonable decisions to keep momentum
-- If a change with that name already exists, suggest continuing that change instead
+- If a change with that name already exists, ask if user wants to continue it or create a new one
 - Verify each artifact file exists after writing before proceeding to next

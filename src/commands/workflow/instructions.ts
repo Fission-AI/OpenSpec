@@ -289,12 +289,12 @@ export function printInstructionsText(instructions: ArtifactInstructions, isBloc
     console.log('Read the current contents of these files before creating this artifact (re-read them from disk even if you saw them earlier - they may have been edited):');
     console.log();
     for (const dep of dependencies) {
-      // A dependency satisfied via skip_specs has no files by design: telling
+      // A skipped dependency has no files by design: telling
       // the agent to read them (or calling them "done") would send it hunting
       // for spec files that must not exist.
       if (dep.skipped) {
         console.log(`<dependency id="${dep.id}" status="skipped">`);
-        console.log(`  <description>Skipped: the change declares skip_specs, so this artifact has no files to read.</description>`);
+        console.log(`  <description>Skipped: this artifact has no files to read.</description>`);
         console.log('</dependency>');
         continue;
       }

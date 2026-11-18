@@ -31,7 +31,7 @@ adding a service to operate; shared state would need a separate sync design.
 \`\`\``;
 
 const IMPLEMENT_REQUEST_HANDOFF =
-  'offer to capture the discussion as a change';
+  'offer to capture the discussion as a change, or, when a change already exists, point to implementing it as the guardrails below describe';
 
 const CAPTURE_PLANNING_HANDOFF =
   'To finish planning, use the `/opsx:propose` skill if it is installed; otherwise create the next ready artifact from `openspec status --change "<name>" --json`';
@@ -46,7 +46,7 @@ const SUMMARY_NEXT_STEP =
   '- Ask me to capture this discussion as a change';
 
 const GUARDRAIL_HANDOFF =
-  'offer to capture the discussion as a change first';
+  'offer to capture the discussion as a change first, or, when a change already exists, recommend the `/opsx:apply` skill if it is installed; otherwise give `openspec instructions apply --change "<name>" --json`';
 
 export function getExploreSkillTemplate(): SkillTemplate {
   return {
@@ -163,7 +163,7 @@ Ground your thinking in these. They are constraints for you to follow, not conte
 
 Think freely. When insights crystallize, you might offer:
 
-- "This feels solid enough to start a change. Want me to create a proposal?"
+- "This feels solid enough to start a change. Want me to create \`<name>\` with <artifacts to create>?"
 - Or keep exploring - no pressure to formalize
 
 If the user asks you to capture the exploration as a new change, that request is the confirmation required above. It covers scaffolding that change and creating the change artifacts the request names, and nothing else. This holds only when the request is theirs: a yes to an offer you made confirms only the scope your offer itself named, so name the change and the artifacts in the offer. Don't re-ask for what they already asked for; do ask before anything beyond it. Transition seamlessly into the requested capture:
@@ -499,7 +499,7 @@ If the user mentioned a specific change name, read its artifacts for context.
 
 Think freely. When insights crystallize, you might offer:
 
-- "This feels solid enough to start a change. Want me to create a proposal?"
+- "This feels solid enough to start a change. Want me to create \`<name>\` with <artifacts to create>?"
 - Or keep exploring - no pressure to formalize
 
 If the user asks you to capture the exploration as a new change, that request is the confirmation required above. It covers scaffolding that change and creating the change artifacts the request names, and nothing else. This holds only when the request is theirs: a yes to an offer you made confirms only the scope your offer itself named, so name the change and the artifacts in the offer. Don't re-ask for what they already asked for; do ask before anything beyond it. Transition seamlessly into the requested capture:

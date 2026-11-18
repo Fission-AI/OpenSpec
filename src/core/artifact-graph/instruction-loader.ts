@@ -72,6 +72,11 @@ export interface ChangeContext {
    * render them as skipped rather than done.
    */
   skippedArtifacts?: Set<string>;
+  /**
+   * Optional artifacts this plan left out: ready to write, yet an artifact that
+   * depends on them is already written. Counted complete, reported as skipped.
+   */
+  omittedArtifacts?: Set<string>;
 }
 
 export interface LoadChangeContextOptions {
@@ -160,6 +165,8 @@ export interface ArtifactStatus {
   outputPath: string;
   /** Status: done, skipped (via skip_specs), ready, or blocked */
   status: 'done' | 'skipped' | 'ready' | 'blocked';
+  /** True when skipped because this plan left out an optional artifact */
+  omitted?: boolean;
   /** Artifact IDs this artifact directly requires (its `requires` edges).
    * Present for every status so callers can compute the transitive required
    * set even when the artifact is already `done` (file-existence status does
@@ -297,6 +304,7 @@ export function loadChangeContext(
   const schema = resolveSchema(resolvedSchemaName, projectRoot);
   const graph = ArtifactGraph.fromSchema(schema);
   const completed = detectCompleted(graph, changeDir);
+  const written = new Set(completed);
 
   // A change that declares skip_specs has no spec deltas by design, so
   // artifacts generating into specs/ count as complete; otherwise the graph
@@ -312,6 +320,11 @@ export function loadChangeContext(
     }
   }
 
+  const omittedArtifacts = findOmittedArtifacts(graph, written, completed);
+  for (const id of omittedArtifacts) {
+    completed.add(id);
+  }
+
   return {
     graph,
     completed,
@@ -323,7 +336,37 @@ export function loadChangeContext(
     ...(metadata ? { metadata } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),
     ...(skippedArtifacts.size > 0 ? { skippedArtifacts } : {}),
+    ...(omittedArtifacts.size > 0 ? { omittedArtifacts } : {}),
   };
+}
+
+/**
+ * Finds optional artifacts the plan moved past. Only the `optional` flag excuses
+ * a missing file: writing tasks early must never excuse a required artifact
+ * (#834, #869).
+ */
+function findOmittedArtifacts(
+  graph: ArtifactGraph,
+  written: CompletedSet,
+  completed: CompletedSet
+): Set<string> {
+  const omitted = new Set<string>();
+  const seen = new Set<string>();
+  const pending = [...written].flatMap((id) => graph.getArtifact(id)?.requires ?? []);
+
+  while (pending.length > 0) {
+    const id = pending.pop()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+
+    const artifact = graph.getArtifact(id);
+    if (!artifact) continue;
+    const couldBeWritten = artifact.requires.every((dependency) => completed.has(dependency));
+    if (artifact.optional && couldBeWritten && !completed.has(id)) omitted.add(id);
+    pending.push(...artifact.requires);
+  }
+
+  return omitted;
 }
 
 /**
@@ -359,7 +402,12 @@ export function generateInstructions(
   }
 
   const templateContent = loadTemplate(context.schemaName, artifact.template, context.projectRoot);
-  const dependencies = getDependencyInfo(artifact, context.graph, context.completed, context.skippedArtifacts);
+  const dependencies = getDependencyInfo(
+    artifact,
+    context.graph,
+    context.completed,
+    new Set([...(context.skippedArtifacts ?? []), ...(context.omittedArtifacts ?? [])])
+  );
   const unlocks = getUnlockedArtifacts(context.graph, artifactId);
 
   // Use projectRoot from context if not explicitly provided
@@ -496,6 +544,16 @@ export function formatChangeStatus(
         id: artifact.id,
         outputPath: artifact.generates,
         status: 'skipped' as const,
+        requires: artifact.requires,
+      };
+    }
+
+    if (context.omittedArtifacts?.has(artifact.id)) {
+      return {
+        id: artifact.id,
+        outputPath: artifact.generates,
+        status: 'skipped' as const,
+        omitted: true,
         requires: artifact.requires,
       };
     }

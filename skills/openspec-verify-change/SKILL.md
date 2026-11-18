@@ -33,6 +33,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
+   - If no active change exists, say so and offer to start one
    - If ambiguous, run `openspec list --json` to get available changes and ask the user to select one
 
    When prompting, show all active changes returned by the list, including changes with `status: "no-tasks"`.
@@ -203,6 +204,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - If no issues and no checks were skipped: "All checks passed. Ready for archive."
    - If any check was skipped and there are no CRITICAL issues: do not claim readiness. Say "No critical issues found in the checks that ran. <check(s)> not verified: <reason>." Include the warning count when nonzero.
    - Include the suggestion count when nonzero in every final assessment.
+   - End with the next step: for CRITICAL issues, recommend the `openspec-apply-change` skill for code fixes or the `openspec-update-change` skill for plan fixes, if installed; when ready, recommend the `openspec-archive-change` skill if it is installed; otherwise give `openspec archive "<name>"`.
 
 **Verification Heuristics**
 

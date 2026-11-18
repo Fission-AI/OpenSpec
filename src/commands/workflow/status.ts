@@ -273,7 +273,7 @@ export function printStatusText(status: ChangeStatus, options: PrintStatusTextOp
     let line = `${indicator} ${artifact.id}`;
 
     if (artifact.status === 'skipped') {
-      line += color(' (skipped: change declares skip_specs)');
+      line += color(artifact.omitted ? ' (skipped: optional)' : ' (skipped: change declares skip_specs)');
     }
 
     if (artifact.status === 'blocked' && artifact.missingDeps && artifact.missingDeps.length > 0) {

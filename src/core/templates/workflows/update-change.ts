@@ -59,6 +59,7 @@ ${CONTINUE_SCOPE_NOTE}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
+   - If no active change exists, say so and offer to start one
    - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:
@@ -112,6 +113,7 @@ ${CONTINUE_SCOPE_NOTE}
 
 6. **Point to the next step (guidance only - NEVER act on it)**
    - Artifacts with empty \`existingOutputPaths\` and status \`ready\` or \`blocked\` -> ${CONTINUE_NEXT_STEP}.
+   - Planning complete and not implemented yet -> ${APPLY_NEXT_STEP}.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
    - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 
@@ -159,6 +161,7 @@ ${CONTINUE_SCOPE_NOTE}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
+   - If no active change exists, say so and offer to start one
    - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:
@@ -212,6 +215,7 @@ ${CONTINUE_SCOPE_NOTE}
 
 6. **Point to the next step (guidance only - NEVER act on it)**
    - Artifacts with empty \`existingOutputPaths\` and status \`ready\` or \`blocked\` -> ${CONTINUE_NEXT_STEP}.
+   - Planning complete and not implemented yet -> ${APPLY_NEXT_STEP}.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
    - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 

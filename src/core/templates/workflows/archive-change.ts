@@ -50,6 +50,7 @@ ${PROJECT_ROOT_GUARD}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
+   - If no active change exists, say so and offer to start one
    - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
    When prompting, show only active changes (not already archived).
@@ -93,10 +94,11 @@ ${PROJECT_ROOT_GUARD}
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
    - \`artifacts\`: List of artifacts with their status (\`done\`, \`skipped\`, or other)
 
-   **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
+   **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs or left out an optional artifact):
    - Display warning listing incomplete artifacts
    - Ask the user to confirm they want to proceed
    - Proceed if user confirms
+   - If the user declines, stop without archiving and name what is left to finish
 
 3. **Check task completion status**
 
@@ -119,6 +121,7 @@ ${PROJECT_ROOT_GUARD}
    - Display warning showing count of incomplete tasks
    - Ask the user to confirm they want to proceed
    - Proceed if user confirms
+   - If the user declines, stop without archiving and name what is left to finish
 
    **If \`totalTasks\` is zero:** Proceed without a task-related warning.
 
@@ -141,7 +144,7 @@ ${PROJECT_ROOT_GUARD}
 
    **Prompt options:**
    - If any capability is sync-blocked: explain why and offer only "Archive without syncing", "Cancel"
-   - Otherwise, if changes needed: "Sync now (recommended)", "Archive without syncing"
+   - Otherwise, if changes needed: "Sync now (recommended)", "Archive without syncing", "Cancel"
    - Otherwise, if already synced: "Archive now", "Sync anyway", "Cancel"
 
    Route on the answer:
@@ -263,6 +266,7 @@ ${PROJECT_ROOT_GUARD}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
+   - If no active change exists, say so and offer to start one
    - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
    When prompting, show only active changes (not already archived).
@@ -306,10 +310,11 @@ ${PROJECT_ROOT_GUARD}
    - \`planningHome\`, \`changeRoot\`, \`artifactPaths\`, and \`actionContext\`: path and scope context
    - \`artifacts\`: List of artifacts with their status (\`done\`, \`skipped\`, or other)
 
-   **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
+   **If any artifacts are neither \`done\` nor \`skipped\`** (skipped artifacts satisfy the requirement - the change declares skip_specs or left out an optional artifact):
    - Display warning listing incomplete artifacts
    - Prompt user for confirmation to continue
    - Proceed if user confirms
+   - If the user declines, stop without archiving and name what is left to finish
 
 3. **Check task completion status**
 
@@ -332,6 +337,7 @@ ${PROJECT_ROOT_GUARD}
    - Display warning showing count of incomplete tasks
    - Prompt user for confirmation to continue
    - Proceed if user confirms
+   - If the user declines, stop without archiving and name what is left to finish
 
    **If \`totalTasks\` is zero:** Proceed without a task-related warning.
 
@@ -354,7 +360,7 @@ ${PROJECT_ROOT_GUARD}
 
    **Prompt options:**
    - If any capability is sync-blocked: explain why and offer only "Archive without syncing", "Cancel"
-   - Otherwise, if changes needed: "Sync now (recommended)", "Archive without syncing"
+   - Otherwise, if changes needed: "Sync now (recommended)", "Archive without syncing", "Cancel"
    - Otherwise, if already synced: "Archive now", "Sync anyway", "Cancel"
 
    Route on the answer:

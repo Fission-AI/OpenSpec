@@ -40,6 +40,7 @@ ${PROJECT_ROOT_GUARD}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
+   - If no active change exists, say so and offer to start one
    - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
    Always announce: "Using change: <name>" and how to override (e.g., \`/opsx:apply <other>\`).
@@ -165,6 +166,8 @@ Working on task 4/7: <task description>
 All tracked tasks are complete. Review or verify the change as appropriate
 before archiving. ${ARCHIVE_HANDOFF}
 \`\`\`
+
+If the \`/opsx:archive\` skill is not installed, give \`openspec archive "<name>"\` instead.
 
 **Output On Pause (Issue Encountered)**
 
