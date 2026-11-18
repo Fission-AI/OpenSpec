@@ -5402,6 +5402,12 @@ The system SHALL do the thing differently.
       { what: 'a tag after a standalone-tag bullet', statement: ['The system SHALL provide a legacy layer.'], scenario: ['- <note-block>', '<escrow-note>'] },
       { what: 'a tag after an indented HTML line', statement: ['The system SHALL provide a legacy layer.'], scenario: ['- <div>', '  note', '<escrow-note>'] },
       { what: 'a tag after a break bullet', statement: ['The system SHALL provide a legacy layer.'], scenario: ['- ***', '<escrow-note>'] },
+      { what: 'a tag after an indented-code bullet', statement: ['The system SHALL provide a legacy layer.'], scenario: ['-     npm run legacy', '<escrow-note>'] },
+      { what: 'a tag after a quoted tag', statement: ['The system SHALL provide a legacy layer.', '', '> <aside>', '<escrow-note>'], scenario: [] },
+      { what: 'a tag after an empty quote', statement: ['The system SHALL provide a legacy layer.', '', '>', '<escrow-note>'], scenario: [] },
+      { what: 'a tag after an empty item', statement: ['The system SHALL provide a legacy layer.'], scenario: ['1. ', '<escrow-note>'] },
+      { what: 'a tag after a nested HTML item', statement: ['The system SHALL provide a legacy layer.'], scenario: ['  - <div>', '    note', '<escrow-note>'] },
+      { what: 'a tag after a nested break', statement: ['The system SHALL provide a legacy layer.'], scenario: ['- * * *', '<escrow-note>'] },
     ])('still refuses $what (#2211)', async ({ what, statement, scenario }) => {
       // An HTML block is the author's own content, not the statement or a
       // scenario, so deleting the file would take it unmentioned.

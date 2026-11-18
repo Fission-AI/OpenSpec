@@ -777,14 +777,38 @@ function listItemContent(line: string): string {
 }
 
 /**
- * Whether a line of prose leaves a paragraph open for the next line. A thematic
- * break or heading ends one, and text indented four columns where no paragraph
- * was open is a code block, so a tag written after any of them starts its own
- * HTML block rather than continuing a sentence.
+ * Whether text starts a paragraph. Only a paragraph can absorb the line after
+ * it, so anything else - nothing at all, indented code, a quote, a fence, a
+ * break, a heading, or HTML - leaves a following tag as a block of its own, and
+ * the audit has to name that block rather than let it be deleted with the file.
  */
+function opensParagraph(text: string): boolean {
+  if (!text.trim() || contentColumn(/^[ \t]*/.exec(text)![0]) >= 4) return false;
+  const block = text.trimStart();
+  return !(
+    /^(?:>|`{3,}|~{3,})/.test(block) ||
+    THEMATIC_BREAK.test(block) ||
+    isHeadingLine(block) ||
+    opensHtmlBlock(block, false)
+  );
+}
+
+/** Whether a list item's first line, past every marker on it, starts a paragraph. */
+function listItemOpensParagraph(line: string): boolean {
+  const marker = /^\s*(?:[-*+]|\d{1,9}[.)])([ \t]+)/;
+  let rest = line;
+  for (let found = marker.exec(rest); found; found = marker.exec(rest)) {
+    // Five columns past a marker is indented code inside the item.
+    if (THEMATIC_BREAK.test(rest) || contentColumn(found[1]) >= 5) return false;
+    rest = rest.slice(found[0].length);
+  }
+  return opensParagraph(rest);
+}
+
+/** Whether a line of a requirement's statement leaves a paragraph open for the next line. */
 function leavesParagraphOpen(line: string, paragraphWasOpen: boolean): boolean {
-  if (THEMATIC_BREAK.test(line) || isHeadingLine(line)) return false;
-  return paragraphWasOpen || contentColumn(/^[ \t]*/.exec(line)![0]) < 4;
+  if (THEMATIC_BREAK.test(line) || isHeadingLine(line) || /^ {0,3}>/.test(line)) return false;
+  return paragraphWasOpen || opensParagraph(line);
 }
 
 /**
@@ -1007,8 +1031,12 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         // An indented nested list or quote is still inside the item, but it
         // ended the bullet's paragraph - so a later unindented line is not
         // continuing that paragraph either.
-        htmlBlockOpen ||= opensHtmlBlock(withinItem.trimStart(), paragraphOpen);
-        paragraphOpen = !htmlBlockOpen && !INTERRUPTS_PARAGRAPH.test(withinItem);
+        const startsNestedItem = LIST_ITEM.test(withinItem);
+        htmlBlockOpen ||= opensHtmlBlock(listItemContent(withinItem), paragraphOpen && !startsNestedItem);
+        paragraphOpen =
+          !htmlBlockOpen &&
+          !INTERRUPTS_PARAGRAPH.test(withinItem) &&
+          (paragraphOpen || opensParagraph(withinItem));
         continue;
       }
       // Any other line closes the item; a bullet opens the next one. The
@@ -1019,12 +1047,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       const paragraphWasOpen = paragraphOpen;
       const itemContent = bullet ? listItemContent(line) : '';
       htmlBlockOpen = opensHtmlBlock(itemContent, false);
-      paragraphOpen =
-        bullet !== null &&
-        !htmlBlockOpen &&
-        !THEMATIC_BREAK.test(line) &&
-        !THEMATIC_BREAK.test(itemContent) &&
-        !isHeadingLine(itemContent);
+      paragraphOpen = bullet !== null && !htmlBlockOpen && listItemOpensParagraph(line);
       if (/^ {0,3}####\s+Scenario:/i.test(line)) {
         seenScenario = true;
         inScenarioBullets = true;
