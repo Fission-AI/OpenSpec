@@ -83,6 +83,7 @@ import { installSharedSkills } from './shared/shared-skill-install.js';
 import { realFileOps, UpdatePlanRecorder } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
 import { rememberProject } from './known-projects.js';
+import { hasLockedOpenSpecSkills } from './shared-skill-target.js';
 import { computeProfileMigration, migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   shouldReconcileCommandFilesForTool,
@@ -373,7 +374,8 @@ export class InitCommand {
   /** The command that gives this project its own skills, runnable from where init was run. */
   private projectScopeCommand(projectPath: string, toolIds: string[]): string {
     const here = FileSystemUtils.canonicalizeExistingPath(process.cwd()) === projectPath;
-    const target = /^[\w@%+=:,./-]+$/.test(projectPath) ? projectPath : `"${projectPath}"`;
+    const quoted = process.platform === 'win32' ? `"${projectPath}"` : `'${projectPath.replace(/'/g, `'\\''`)}'`;
+    const target = /^[\w@%+=:,./\\-]+$/.test(projectPath) ? projectPath : quoted;
     return [
       'openspec init',
       ...(here ? [] : [target]),
@@ -507,7 +509,11 @@ export class InitCommand {
       const reused = this.scopeIsDefault && installed.skills.length > 0 && !movesProject;
       globalSkills = {
         count: result.skills.length,
-        projectScopeCommand: reused ? this.projectScopeCommand(projectPath, tools.map((tool) => tool.value)) : undefined,
+        // A project install would replace skills `npx skills add` put here, so it is not offered.
+        projectScopeCommand:
+          reused && !hasLockedOpenSpecSkills(projectPath)
+            ? this.projectScopeCommand(projectPath, tools.map((tool) => tool.value))
+            : undefined,
       };
       const removed = describeRemovedSkills(result.removedSkills);
       if (removed) console.log(chalk.dim(removed));

@@ -161,7 +161,18 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
     const fromAnotherFolder = await cli(await project('another'), 'init', elsewhere, '--tools', 'claude');
     expect(fromAnotherFolder.exitCode).toBe(0);
     expect(fromAnotherFolder.stdout.replace(/\s*\n\s*/g, ' ')).toContain('--scope project --tools claude');
-    expect(fromAnotherFolder.stdout).toContain('target dir" --scope project');
+    expect(fromAnotherFolder.stdout).toMatch(/target dir['"] --scope project/);
+
+    const packaged = await project('packaged');
+    await fs.mkdir(path.join(packaged, '.agents', 'skills', 'openspec-propose'), { recursive: true });
+    await fs.writeFile(path.join(packaged, '.agents', 'skills', 'openspec-propose', 'SKILL.md'), 'from npx skills');
+    await fs.writeFile(
+      path.join(packaged, 'skills-lock.json'),
+      JSON.stringify({ version: 2, skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec' } } })
+    );
+    const keepsPackaged = await cli(packaged, 'init', '--tools', 'claude');
+    expect(keepsPackaged.exitCode).toBe(0);
+    expect(keepsPackaged.stdout).not.toContain('--scope project');
     expect(noTools.stdout).not.toContain('<ids>');
 
     const chosen = await cli(await project('third'), 'init', '--scope', 'global', '--tools', 'claude');

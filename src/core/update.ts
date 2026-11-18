@@ -225,7 +225,9 @@ export class UpdateCommand {
       const { select, confirm } = await import('@inquirer/prompts');
       const { InitCommand } = await import('./init.js');
       const hasProjectSkills = projectHasOwnSkills(resolvedProjectPath);
-      if ((hasProjectSkills || hasPackageSkills) && !keepsProjectSkills(resolvedProjectPath)) {
+      // With this machine's skills installed there is nothing left to choose for package skills.
+      const asksWhereToKeep = hasProjectSkills || (hasPackageSkills && !this.hasGlobalSkills);
+      if (asksWhereToKeep && !keepsProjectSkills(resolvedProjectPath)) {
         const scope = await select({
           message: 'Where should OpenSpec keep this project’s skills?',
           choices: [

@@ -236,6 +236,7 @@ describe('UpdateCommand', () => {
     });
 
     it('asks where to keep the skills `npx skills add` put in the project', async () => {
+      vi.spyOn(globalSkills, 'readGlobalSkills').mockResolvedValue({ skills: [], agents: [] });
       const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
       await fs.mkdir(path.dirname(skill), { recursive: true });
       await fs.writeFile(skill, 'project copy');
@@ -250,6 +251,22 @@ describe('UpdateCommand', () => {
       expect(selectMock).toHaveBeenCalledWith(expect.objectContaining({
         message: 'Where should OpenSpec keep this project’s skills?',
       }));
+    });
+
+    it('does not ask again once this machine has its own skills', async () => {
+      const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
+      await fs.mkdir(path.dirname(skill), { recursive: true });
+      await fs.writeFile(skill, 'project copy');
+      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
+        version: 2,
+        skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
+      }));
+      interactiveState.value = true;
+
+      await updateCommand.execute(testDir);
+
+      expect(selectMock).not.toHaveBeenCalled();
+      expect(await fs.readFile(skill, 'utf-8')).toBe('project copy');
     });
 
     it('leaves skills `npx skills add` put in the project exactly as they are', async () => {
