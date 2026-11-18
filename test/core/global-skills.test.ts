@@ -177,6 +177,20 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
     expect(Object.keys(JSON.parse(readFileSync(globalLock(), 'utf8')).skills).sort()).toEqual(CORE_SKILLS);
   });
 
+  it.skipIf(process.platform === 'win32')('installs skills when TMPDIR is a relative path', async () => {
+    const dir = await project('relative-tmp');
+    await fs.mkdir(path.join(dir, 'rel'));
+
+    const result = await runCLI(['init', '--scope', 'project', '--tools', 'claude'], {
+      cwd: dir,
+      env: { ...env, TMPDIR: 'rel' },
+      timeoutMs: 60000,
+    });
+
+    expect(result.exitCode, result.stderr).toBe(0);
+    expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+  });
+
   it('installs the same text a project install writes', async () => {
     const inProject = await project('in-project');
     const usesGlobal = await project('uses-global');

@@ -81,7 +81,8 @@ export async function installReleaseSkills(targets: Targets, names: string[], ve
   const contents = expectedSkillContents(version);
   // The skills ship inside this package, so installing them needs no network
   // and always gives the text of the version that is installed.
-  const source = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-skills-'));
+  // Absolute, or the installer reads a relative TMPDIR as a GitHub owner/repo.
+  const source = path.resolve(await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-skills-')));
   let result: Awaited<ReturnType<typeof installSkills>>;
   try {
     for (const name of names) {
