@@ -7,7 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
-import { MERGE_GOTCHAS } from './gotchas.js';
+import { MERGE_GOTCHAS, SPEC_REVIEW_NOTE } from './gotchas.js';
 
 export function getSyncSpecsSkillTemplate(): SkillTemplate {
   return {
@@ -186,6 +186,8 @@ ${MERGE_GOTCHAS}
    - Any capability retired, naming the deleted \`spec.md\`, its Purpose, and
      either a pasteable \`git checkout\` or checkout-scoped recovery guidance
 
+   Then ${SPEC_REVIEW_NOTE}
+
 **Delta Spec Format Reference**
 
 \`\`\`markdown
@@ -268,6 +270,11 @@ Updated main specs:
 **<capability-2>**:
 - Created new spec file
 - Added requirement: "Another Feature"
+
+**Review note**
+- Matches the approved delta: <requirements>
+- Agent-checked: <requirements>
+- Read this: <what differs, or "nothing">
 
 Main specs are now updated. The change remains active - archive when implementation is complete.
 \`\`\`
@@ -469,6 +476,8 @@ ${MERGE_GOTCHAS}
    - Any capability retired, naming the deleted \`spec.md\`, its Purpose, and
      either a pasteable \`git checkout\` or checkout-scoped recovery guidance
 
+   Then ${SPEC_REVIEW_NOTE}
+
 **Delta Spec Format Reference**
 
 \`\`\`markdown
@@ -551,6 +560,11 @@ Updated main specs:
 **<capability-2>**:
 - Created new spec file
 - Added requirement: "Another Feature"
+
+**Review note**
+- Matches the approved delta: <requirements>
+- Agent-checked: <requirements>
+- Read this: <what differs, or "nothing">
 
 Main specs are now updated. The change remains active - archive when implementation is complete.
 \`\`\`

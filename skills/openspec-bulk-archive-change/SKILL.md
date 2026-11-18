@@ -19,7 +19,7 @@ This skill allows you to batch-archive changes, handling spec conflicts intellig
 
 ## Gotchas
 
-- **A MODIFIED requirement replaces the whole requirement in the main spec.** If the main spec now says something the delta's copy does not (it was edited after the change was planned), merging deletes it. Before you merge, compare each MODIFIED requirement with the main spec's current text. If the main spec has a sentence the delta lacks, carry it into the delta, or stop without merging and name the sentence that would be lost.
+- **A MODIFIED requirement replaces the whole requirement in the main spec.** If the main spec now says something the delta's copy does not (it was edited after the change was planned), merging deletes it. Before you merge, run `openspec show "<name>" --type change --json --diff` and read each MODIFIED requirement's `diff`: a `-` line the change did not plan is text the merge would delete. If the main spec has a sentence the delta lacks, carry it into the delta, or stop without merging and name the sentence that would be lost. Never drop it on your own judgment, even when the code does not use it.
 - **Only files named `spec.md` are delta specs.** `openspec validate` and `openspec archive` read nothing else under `specs/`. Merge no other file, even when `existingOutputPaths` lists it or it is written like a delta; name it in your summary instead.
 - **Make the last message easy to take in at a glance.** Lead with what was done and where. Put each decision, assumption or problem the user should check on its own line. Leave out what the files already say and checks that found nothing. End with the next step.
 

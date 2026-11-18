@@ -30,6 +30,8 @@ A change whose tasks are all done is ready to verify and archive, even when an o
 
 Say where things stand in a sentence or two, name the next step and the skill that does it, and offer to do it. Do not start it until they say so.
 
+If they ask how agents can learn from a finished change, read it in `openspec/changes/archive/` and suggest a few short `context` lines for `openspec/config.yaml`, covering only what the code can't show. Edit the file only after they approve.
+
 **Pick the skill**
 
 When the user asks for work, find the row that matches, then use that skill and follow its steps.

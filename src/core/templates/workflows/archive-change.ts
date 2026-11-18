@@ -7,7 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
-import { MERGE_GOTCHAS } from './gotchas.js';
+import { MERGE_GOTCHAS, SPEC_REVIEW_NOTE } from './gotchas.js';
 
 /**
  * Archiving must merge delta specs into the main specs; the `sync` workflow is
@@ -183,6 +183,10 @@ ${MERGE_GOTCHAS}
 
    If the sync failed, or any capability does not match, report what differs and stop — do not archive. Nothing has moved and \`changeRoot\` is intact, so the user can fix the mismatch or re-run the sync and start the archive again.
 
+   **Review note:** Unless the user chose "Archive without syncing", before you move the change ${SPEC_REVIEW_NOTE}
+
+   If **Read this** has any entry, do not move \`changeRoot\`: show the entries and ask the user what to do.
+
 5. **Perform the archive**
 
    Create an \`archive\` directory under \`planningHome.changesDir\` if it doesn't exist:
@@ -220,6 +224,11 @@ ${MERGE_GOTCHAS}
 **Specs:** <"✓ Synced to main specs" only if the step 4 verification passed; otherwise "No delta specs" or "Sync skipped">
 
 <"All artifacts complete. All tasks complete." — or, if archived with warnings, list them instead (e.g. "Archived with 2 incomplete tasks")>
+
+**Review note** (when specs were synced)
+- Matches the approved delta: <requirements>
+- Agent-checked: <requirements>
+- Read this: nothing
 \`\`\`
 
 **Guardrails**
@@ -397,6 +406,10 @@ ${MERGE_GOTCHAS}
    - RENAMED requirements present under the new name and absent under the old one
 
    If the sync failed, or any capability does not match, report what differs and stop — do not archive. Nothing has moved and \`changeRoot\` is intact, so the user can fix the mismatch or re-run the sync and start the archive again.
+
+   **Review note:** Unless the user chose "Archive without syncing", before you move the change ${SPEC_REVIEW_NOTE}
+
+   If **Read this** has any entry, do not move \`changeRoot\`: show the entries and ask the user what to do.
 
 5. **Perform the archive**
 

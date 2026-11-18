@@ -9,7 +9,7 @@
 const NOT_DONE_WHILE_INVALID = `- **A change is not done while \`openspec validate "<name>"\` fails.** Run it before you tick the last task. If it fails, leave that task unticked and report the error. A change with no delta specs fails until its \`.openspec.yaml\` has \`skip_specs: true\`: add that line when the proposal says callers see no change in behavior; otherwise stop and say the specs are missing.`;
 
 /** Seen: archive dropped a sentence the main spec gained after the change was planned. */
-const MODIFIED_REPLACES_WHOLE = `- **A MODIFIED requirement replaces the whole requirement in the main spec.** If the main spec now says something the delta's copy does not (it was edited after the change was planned), merging deletes it. Before you merge, compare each MODIFIED requirement with the main spec's current text. If the main spec has a sentence the delta lacks, carry it into the delta, or stop without merging and name the sentence that would be lost.`;
+const MODIFIED_REPLACES_WHOLE = `- **A MODIFIED requirement replaces the whole requirement in the main spec.** If the main spec now says something the delta's copy does not (it was edited after the change was planned), merging deletes it. Before you merge, run \`openspec show "<name>" --type change --json --diff\` and read each MODIFIED requirement's \`diff\`: a \`-\` line the change did not plan is text the merge would delete. If the main spec has a sentence the delta lacks, carry it into the delta, or stop without merging and name the sentence that would be lost. Never drop it on your own judgment, even when the code does not use it.`;
 
 /** Seen: sync merged a `notes.md` written like a delta, which validate and archive never read. */
 const ONLY_SPEC_MD = `- **Only files named \`spec.md\` are delta specs.** \`openspec validate\` and \`openspec archive\` read nothing else under \`specs/\`. Merge no other file, even when \`existingOutputPaths\` lists it or it is written like a delta; name it in your summary instead.`;
@@ -31,6 +31,12 @@ export const REPLY_GOTCHA = `- **Make the last message easy to take in at a glan
 
 /** Seen: tasks lost blind review for having no done check, testing everything in one last task, and leaving a broken existing test. */
 const CHECKABLE_TASKS = `- **Every task says how to check it.** Keep tasks small, and give each one the test or command that shows it is done, with the scenario's exact values. Add tests only for behavior the change makes or restores, and plan the update of any existing test the change will break.`;
+
+/** Seen: after a merge the user had to reread every requirement, with nothing to say which ones matched what they approved. */
+export const SPEC_REVIEW_NOTE = `run \`openspec show "<name>" --type change --json --diff\` with the same selected-root flags, and end your summary with a short review note that tells the user what they can skip:
+   - **Matches the approved delta:** MODIFIED requirements whose \`diff\` is empty.
+   - **Agent-checked:** ADDED, REMOVED and RENAMED requirements. They have no diff, so say you checked them against the main spec.
+   - **Read this:** every non-empty \`diff\` or \`warning\`, with what differs. Never decide on your own that a difference is fine.`;
 
 export const SPEC_WRITING_GOTCHAS = `## Gotchas
 
