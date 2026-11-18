@@ -97,6 +97,33 @@ describe('the list of tools set up in a project', () => {
       expect(readSkillToolList(project)).toEqual([]);
     });
 
+    it('reads nothing when another source owns a skill under an OpenSpec name', async () => {
+      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await write('.agents/skills/openspec-propose/SKILL.md', 'My fork.');
+      await lock({
+        'openspec-explore': { source: 'Fission-AI/OpenSpec' },
+        'openspec-propose': { source: 'someone/openspec-fork' },
+      });
+      expect(readSkillToolList(project)).toEqual([]);
+    });
+
+    it('reads nothing when a skill under an OpenSpec name is not on the record', async () => {
+      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await write('.agents/skills/openspec-propose/SKILL.md', 'Written by hand.');
+      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
+      expect(readSkillToolList(project)).toEqual([]);
+    });
+
+    it('ignores skills with other names beside OpenSpec\'s', async () => {
+      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await write('.agents/skills/my-own-skill/SKILL.md', 'Mine.');
+      await lock({
+        'openspec-explore': { source: 'Fission-AI/OpenSpec' },
+        'my-own-skill': { source: 'someone/skills' },
+      });
+      expect(readSkillToolList(project)).toEqual(['agents']);
+    });
+
     it('reads nothing from a lock file that does not parse', async () => {
       await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
       await write('skills-lock.json', '{ not json');

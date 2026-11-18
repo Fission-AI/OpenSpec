@@ -115,10 +115,25 @@ export function readSkillToolList(projectPath: string, view: FileView = DISK_VIE
 }
 
 /**
+ * Whether the project's tools are known only from `skills-lock.json`: nothing
+ * OpenSpec wrote says what this machine should keep, only what one project holds.
+ */
+export function isSkillsLockInstall(projectPath: string, view: FileView = DISK_VIEW): boolean {
+  return (
+    readListFileTools(projectPath, view).length === 0 &&
+    inferPreListTool(projectPath, view) === undefined &&
+    inferSkillsLockTool(projectPath, view) !== undefined
+  );
+}
+
+/**
  * `npx skills add Fission-AI/OpenSpec` puts OpenSpec's skills in
  * `.agents/skills` with no list file, and records where each came from in
  * `skills-lock.json`. That record, not the skill's wording, says the folder
- * holds OpenSpec's skills, set up for the agents that read it.
+ * holds OpenSpec's skills, set up for the agents that read it. Every skill in
+ * the folder under an OpenSpec name must be on that record: adopting the folder
+ * lets `update` rewrite and remove those names, and one from a fork or written
+ * by hand is not OpenSpec's to replace.
  */
 function inferSkillsLockTool(projectPath: string, view: FileView): string | undefined {
   try {
@@ -126,9 +141,10 @@ function inferSkillsLockTool(projectPath: string, view: FileView): string | unde
     FileSystemUtils.assertProjectArtifactPath(projectPath, lockFile);
     if (!view.exists(lockFile)) return undefined;
     const skills = (JSON.parse(view.read(lockFile)) as { skills?: Record<string, { source?: unknown }> }).skills ?? {};
-    const fromOpenSpec = OPENSPEC_SKILL_NAMES.filter((name) => isOpenSpecSource(skills[name]?.source));
     const sharedDir = path.join(projectPath, SHARED_SKILLS_ROOT, 'skills');
-    return fromOpenSpec.length > 0 && hasOpenSpecSkillIn(projectPath, sharedDir, view, fromOpenSpec) ? 'agents' : undefined;
+    const present = OPENSPEC_SKILL_NAMES.filter((name) => hasOpenSpecSkillIn(projectPath, sharedDir, view, [name]));
+    const allFromOpenSpec = present.every((name) => isOpenSpecSource(skills[name]?.source));
+    return present.length > 0 && allFromOpenSpec ? 'agents' : undefined;
   } catch {
     return undefined;
   }

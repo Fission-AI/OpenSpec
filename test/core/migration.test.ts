@@ -97,6 +97,36 @@ describe('migration', () => {
     expect(config.workflows).toEqual(['explore', 'apply']);
   });
 
+  describe('a project set up by `npx skills add`', () => {
+    const adopt = async (names: string[]) => {
+      for (const name of names) await writeSkill(projectDir, name, '.agents');
+      await fsp.writeFile(
+        path.join(projectDir, 'skills-lock.json'),
+        JSON.stringify({ version: 2, skills: Object.fromEntries(names.map((name) => [name, { source: 'Fission-AI/OpenSpec' }])) })
+      );
+    };
+
+    it('never narrows this machine below the core workflows', async () => {
+      await adopt(['openspec-propose']);
+
+      migrateIfNeeded(projectDir, [requireTool('agents')]);
+
+      const config = readRawConfig();
+      expect(config.profile).toBe('core');
+      expect(config.workflows).toEqual(expect.arrayContaining(['propose', 'explore', 'apply', 'archive']));
+    });
+
+    it('keeps the extra workflows the project installed', async () => {
+      await adopt(['openspec-propose', 'openspec-onboard']);
+
+      migrateIfNeeded(projectDir, [requireTool('agents')]);
+
+      const config = readRawConfig();
+      expect(config.profile).toBe('custom');
+      expect(config.workflows).toEqual(expect.arrayContaining(['propose', 'explore', 'apply', 'archive', 'onboard']));
+    });
+  });
+
   it('keeps dry-run legacy results aligned with migration timing', async () => {
     await writeSkill(projectDir, 'openspec-explore', '.codex');
     await writeSkill(projectDir, 'openspec-explore', '.agents');

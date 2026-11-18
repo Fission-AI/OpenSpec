@@ -13,7 +13,7 @@ import { COMMAND_IDS } from './shared/tool-detection.js';
 import { ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { isToolListed } from './shared-skill-target.js';
+import { isSkillsLockInstall, isToolListed } from './shared-skill-target.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
 import path from 'path';
@@ -664,10 +664,18 @@ export function computeProfileMigration(
     return null;
   }
 
+  // The profile applies to the whole machine. A project that picked a few skills
+  // with `npx skills add` adds to the core set rather than narrowing it.
+  const workflows = isSkillsLockInstall(projectPath, view)
+    ? ALL_WORKFLOWS.filter(
+        (workflow) =>
+          (CORE_WORKFLOWS as readonly string[]).includes(workflow) || installedWorkflows.includes(workflow)
+      )
+    : installedWorkflows;
   const isCore =
-    installedWorkflows.length === CORE_WORKFLOWS.length &&
-    CORE_WORKFLOWS.every((workflow) => installedWorkflows.includes(workflow));
-  return { profile: isCore ? 'core' : 'custom', workflows: installedWorkflows };
+    workflows.length === CORE_WORKFLOWS.length &&
+    CORE_WORKFLOWS.every((workflow) => workflows.includes(workflow));
+  return { profile: isCore ? 'core' : 'custom', workflows };
 }
 
 export type ProfileMigration = { profile: Profile; workflows: string[] };

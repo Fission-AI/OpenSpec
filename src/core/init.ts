@@ -374,6 +374,7 @@ export class InitCommand {
     projectPath: string,
     detectedTools: readonly AIToolOption[]
   ): Promise<SkillScope> {
+    this.scopeIsDefault = false;
     if (this.toolsArg?.trim().toLowerCase() === 'none') return 'project';
     if (this.scopeOption) return this.scopeOption;
     if (projectHasOwnSkills(projectPath)) return 'project';
@@ -483,7 +484,7 @@ export class InitCommand {
       ? getConfiguredTools(projectPath).filter((id) => supportsGlobalSkills(id))
       : [];
     const migration = movesProject && !this.resolveProfileOverride() ? computeProfileMigration(projectPath, context.detectedTools) : null;
-    let globalSkills: { count: number; reusedFor?: string } | undefined;
+    let globalSkills: { count: number; projectScopeCommand?: string } | undefined;
     if (installed.skills.length || supported.length || movedTools.length) {
       const result = await installGlobalSkills({
         toolIds: [...new Set([...supported.map(tool => tool.value), ...movedTools])],
@@ -494,7 +495,9 @@ export class InitCommand {
       const reused = this.scopeIsDefault && installed.skills.length > 0 && !movesProject;
       globalSkills = {
         count: result.skills.length,
-        reusedFor: reused ? tools.map((tool) => tool.value).join(',') || '<ids>' : undefined,
+        projectScopeCommand: reused
+          ? ['openspec init --scope project', ...(tools.length ? [`--tools ${tools.map((tool) => tool.value).join(',')}`] : [])].join(' ')
+          : undefined,
       };
       const removed = describeRemovedSkills(result.removedSkills);
       if (removed) console.log(chalk.dim(removed));
@@ -1359,7 +1362,7 @@ export class InitCommand {
       collisions: string[];
       removed: number;
     },
-    globalSkills?: { count: number; reusedFor?: string }
+    globalSkills?: { count: number; projectScopeCommand?: string }
   ): void {
     console.log();
     console.log(
@@ -1381,9 +1384,9 @@ export class InitCommand {
     const successfulTools = [...results.createdTools, ...results.refreshedTools];
     if (globalSkills) {
       console.log(`${globalSkills.count} skills in ~/.agents/skills/ for every project on this machine`);
-      if (globalSkills.reusedFor) {
+      if (globalSkills.projectScopeCommand) {
         console.log(chalk.yellow('OpenSpec skills were already installed on this machine, so none were added to this project.'));
-        console.log(chalk.dim(`To keep skills in this project instead, run: openspec init --scope project --tools ${globalSkills.reusedFor}`));
+        console.log(chalk.dim(`To keep skills in this project instead, run: ${globalSkills.projectScopeCommand}`));
       }
     } else if (successfulTools.length > 0) {
       const globalConfig = getGlobalConfig();
