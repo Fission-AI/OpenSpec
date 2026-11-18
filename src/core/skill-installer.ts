@@ -1,6 +1,7 @@
 import { installSkills, removeSkills } from 'skills';
 import { parse, stringify } from 'yaml';
 import { promises as fs } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { transformToSharedSkillReferences } from '../utils/command-references.js';
 import { generateSkillContent, getSkillTemplates, stripVolatileFrontmatter } from './shared/skill-generation.js';
@@ -29,53 +30,31 @@ export function projectSkillText(toolId: string, shared: string): string {
 
 type Targets = { scope: SkillScope; cwd?: string; agents: readonly string[] };
 
-/** The tag the release workflow creates when it publishes a version to npm. */
-const RELEASE_TAG_PREFIX = '@fission-ai/openspec@';
-
-/**
- * The package's error for a failed fetch carries a stack trace in its message.
- * A missing Git gets a sentence that says so; any other error keeps its first
- * lines and loses the trace.
- */
-function readableInstallError(error: unknown): unknown {
-  if (!(error instanceof Error)) return error;
-  // Node's wording, then the standalone binary's.
-  if (/spawn git ENOENT|Executable not found in \$PATH: "git"/.test(error.message)) {
-    return new Error('Git is needed to install the OpenSpec skills, and it is not on your PATH. Install Git and run this again.');
-  }
-  const lines = error.message.split('\n').filter(line => !/^\s+at /.test(line));
-  if (lines.length === error.message.split('\n').length) return error;
-  return new Error(lines.join('\n').trimEnd());
-}
-
-/** Git's wording when the tag asked for is not in the repository. */
-function isMissingRef(error: unknown): boolean {
-  return error instanceof Error && /Remote branch \S+ not found/i.test(error.message);
-}
-
 export async function installReleaseSkills(targets: Targets, names: string[], version: string): Promise<Map<string, Error>> {
   const failures = new Map<string, Error>();
   if (!names.length) return failures;
-  const install = (ref: string) => installSkills('Fission-AI/OpenSpec/skills', {
-    ...targets,
-    ref,
-    skills: names,
-    telemetry: false,
-    lockfile: targets.scope === 'global',
-    // Git cannot carry a Windows junction into a teammate's checkout.
-    mode: targets.scope === 'project' && process.platform === 'win32' ? 'copy' : 'auto',
-  });
-  // A release is published under `@fission-ai/openspec@<version>`, and `v<version>`
-  // is added afterward. Both name the same commit, so until the short tag
-  // exists the release's own tag is used. Any other failure is reported.
-  const result = await install(`v${version}`).catch((missing: unknown) => {
-    if (!isMissingRef(missing)) throw readableInstallError(missing);
-    return install(`${RELEASE_TAG_PREFIX}${version}`).catch((error: unknown) => {
-      // Neither tag exists: say so in terms of the one people look for.
-      throw isMissingRef(error) ? missing : readableInstallError(error);
-    });
-  });
   const contents = expectedSkillContents(version);
+  // The skills ship inside this package, so installing them needs no network
+  // and always gives the text of the version that is installed.
+  const source = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-skills-'));
+  let result: Awaited<ReturnType<typeof installSkills>>;
+  try {
+    for (const name of names) {
+      const dir = path.join(source, 'skills', name);
+      await fs.mkdir(dir, { recursive: true });
+      await fs.writeFile(path.join(dir, 'SKILL.md'), contents.get(name)!);
+    }
+    result = await installSkills(source, {
+      ...targets,
+      skills: names,
+      telemetry: false,
+      lockfile: targets.scope === 'global',
+      // Git cannot carry a Windows junction into a teammate's checkout.
+      mode: targets.scope === 'project' && process.platform === 'win32' ? 'copy' : 'auto',
+    });
+  } finally {
+    await fs.rm(source, { recursive: true, force: true });
+  }
   for (const failure of result.failed) failures.set(failure.agent, new Error(failure.message));
   for (const skip of result.skipped) failures.set(skip.agent, new Error(`${skip.agent} skipped ${skip.skill}: ${skip.reason}`));
   for (const agent of targets.agents) {

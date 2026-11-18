@@ -4,8 +4,6 @@ import { closeSync, existsSync, fstatSync, openSync, readFileSync, readdirSync, 
 import os from 'os';
 import { execFileSync } from 'node:child_process';
 import path from 'path';
-import { pathToFileURL } from 'node:url';
-import { version } from '../../package.json';
 import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
 
 // A project's own skills are installed by the `skills` package, from the
@@ -250,61 +248,28 @@ describe("a project's skills, installed through the skills package", { timeout: 
     expect((await fs.readdir(dir)).sort()).toEqual(['openspec']);
   });
 
-  it('reports a missing release tag even when the default branch contains the skills', async () => {
-    const repo = path.join(box, 'untagged');
-    execFileSync('git', ['clone', '--quiet', '--no-tags', path.dirname(process.env.GIT_CONFIG_GLOBAL!), repo]);
-    const config = path.join(box, 'gitconfig');
-    execFileSync('git', ['config', '--file', config, `url.${pathToFileURL(repo).href}.insteadOf`, 'https://skills.example.invalid/Fission-AI/OpenSpec.git']);
-    env.GIT_CONFIG_GLOBAL = config;
-
-    const result = await cli('init', '--scope', 'project', '--tools', 'claude');
-
-    expect(result.exitCode).toBe(1);
-    expect(result.stdout + result.stderr).toContain(`v${version}`);
-    expect(existsSync(skillFile('openspec-propose'))).toBe(false);
-  });
-
-  it('says plainly that Git is needed when it is missing, and changes nothing', async () => {
-    // A PATH with no git on it. The CLI runs under its own Node, so it still starts.
+  it('installs the release text in both scopes with no Git and no network', async () => {
+    // A PATH with no git on it, so nothing can be cloned. The CLI runs under its own Node, so it still starts.
     const empty = path.join(box, 'no-programs-here');
+    const temp = path.join(box, 'temp');
     await fs.mkdir(empty, { recursive: true });
-    env.PATH = empty;
-    env.Path = empty;
-
-    const result = await cli('init', '--scope', 'project', '--tools', 'claude');
-
-    const output = result.stdout + result.stderr;
-    expect(result.exitCode).toBe(1);
-    expect(output).toContain('Git is needed to install the OpenSpec skills, and it is not on your PATH.');
-    // No stack trace from the installer.
-    expect(output).not.toMatch(/^\s+at .+\(.+:\d+:\d+\)$/m);
-    expect(output).not.toContain('spawn git ENOENT');
-    expect(existsSync(skillFile('openspec-propose'))).toBe(false);
-  });
-
-  it("installs from the release's own tag until the short one exists", async () => {
-    // The state right after a release: published as @fission-ai/openspec@<version>, with v<version> not created yet.
-    const repo = path.join(box, 'just-released');
-    execFileSync('git', ['clone', '--quiet', '--no-tags', path.dirname(process.env.GIT_CONFIG_GLOBAL!), repo]);
-    execFileSync('git', ['-C', repo, 'tag', '--no-sign', `@fission-ai/openspec@${version}`]);
-    const config = path.join(box, 'gitconfig');
-    execFileSync('git', ['config', '--file', config, `url.${pathToFileURL(repo).href}.insteadOf`, 'https://skills.example.invalid/Fission-AI/OpenSpec.git']);
-    env.GIT_CONFIG_GLOBAL = config;
+    await fs.mkdir(temp, { recursive: true });
+    Object.assign(env, { PATH: empty, Path: empty, TMPDIR: temp, TEMP: temp, TMP: temp });
 
     const project = await cli('init', '--scope', 'project', '--tools', 'claude');
     expect(project.exitCode, project.stdout + project.stderr).toBe(0);
-    expect(readFileSync(skillFile('openspec-propose'), 'utf8')).toBe(published('openspec-propose'));
-
-    const update = await cli('update');
-    expect(update.exitCode, update.stdout + update.stderr).toBe(0);
-
     const global = await runCLI(['init', '--scope', 'global', '--tools', 'claude'], {
       cwd: await fs.mkdtemp(path.join(box, 'other-')),
       env,
       timeoutMs: 60000,
     });
     expect(global.exitCode, global.stdout + global.stderr).toBe(0);
-    expect(existsSync(path.join(home, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
+
+    for (const name of CORE_SKILLS) {
+      expect(readFileSync(skillFile(name), 'utf8')).toBe(published(name));
+      expect(readFileSync(path.join(home, '.agents', 'skills', name, 'SKILL.md'), 'utf8')).toBe(published(name));
+    }
+    expect(readdirSync(temp).filter(entry => entry.startsWith('openspec-skills-'))).toEqual([]);
   });
 
   it('lists in a dry run every folder a reinstall replaces, with the files beside the skill', async () => {

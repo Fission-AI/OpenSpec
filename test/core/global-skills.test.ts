@@ -1,4 +1,3 @@
-import { version } from '../../package.json';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { promises as fs } from 'fs';
 import { existsSync, readFileSync } from 'fs';
@@ -133,10 +132,7 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
     // The `skills` package tracks them in its own lock file.
     const lock = JSON.parse(readFileSync(globalLock(), 'utf8'));
     expect(Object.keys(lock.skills).sort()).toEqual(CORE_SKILLS);
-    expect(lock.skills['openspec-propose']).toMatchObject({
-      ref: `v${version}`,
-      skillPath: 'skills/openspec-propose/SKILL.md',
-    });
+    expect(lock.skills['openspec-propose']).toMatchObject({ sourceType: 'local' });
   });
 
   it('installs the same text a project install writes', async () => {
