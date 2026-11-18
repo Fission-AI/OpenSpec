@@ -50,6 +50,7 @@ const SANCTIONED_OUTSIDE_STEP_FIVE = [
   '- Edit only the concrete files in `existingOutputPaths`, plus any confirmed concrete path allowed under a partly populated glob artifact (step 4); never write to a glob `resolvedOutputPath`.',
   'Confirm every edit with the user before writing.',
   '`/opsx:apply`',
+  '`openspec instructions apply --change "<name>" --json`',
   '(tasks checked off / already applied)',
 ];
 
@@ -335,6 +336,23 @@ describe('update-change templates', () => {
       expect(body, label).toContain('guidance only - NEVER act on it');
       expect(body, label).toContain('openspec archive "<name>"');
       expect(body, label).toContain('the code may no longer match the revised plan');
+    }
+  });
+
+  it('names the skill that owns each next step, with a CLI path when it is not installed (#2271)', () => {
+    for (const [label, body] of bodies) {
+      const nextStep = section(body, '6. **Point to the next step', '**Output**', `${label} step 6`);
+
+      expect(nextStep, label).toContain(
+        'recommend the `/opsx:continue` skill if it is installed; otherwise give the CLI command for the next ready artifact'
+      );
+      expect(nextStep, label).toContain(
+        'recommend the `/opsx:apply` skill if it is installed; otherwise give `openspec instructions apply --change "<name>" --json`'
+      );
+      expect(nextStep, label).toContain(
+        'recommend the `/opsx:archive` skill if it is installed; otherwise suggest archiving with `openspec archive "<name>"`'
+      );
+      expect(body, label).toContain('Where the change stands and the recommended next step');
     }
   });
 

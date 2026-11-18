@@ -474,10 +474,11 @@ describe('explore templates', () => {
       expect(verifyOutput, label).toBeGreaterThan(readyInstructions);
       expect(refreshStatus, label).toBeGreaterThan(verifyOutput);
       expect(occurrenceCount(transition, 'openspec new change "<name>"'), label).toBe(1);
+      // The two capture steps, plus the planning handoff's CLI fallback.
       expect(
         occurrenceCount(transition, 'openspec status --change "<name>" --json'),
         label
-      ).toBe(2);
+      ).toBe(3);
       expect(
         occurrenceCount(transition, 'openspec instructions "<artifact-id>"'),
         label
@@ -608,6 +609,26 @@ describe('leaving explore mode', () => {
       expect(body, label).toContain('offer to capture the discussion as a change');
       expect(body, label).toContain('Capturing artifacts never starts implementing them');
       expect(body, label).toContain('The work happens from that change, never from explore mode');
+    }
+  });
+
+  it('names the skills that continue a captured change, with a CLI path when they are not installed (#2271)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain(
+        'To finish planning, use the `/opsx:propose` skill if it is installed; otherwise create the next ready artifact from `openspec status --change "<name>" --json`.'
+      );
+      expect(body, label).toContain(
+        'To implement, leave explore mode and use the `/opsx:apply` skill if it is installed; otherwise follow `openspec instructions apply --change "<name>" --json`.'
+      );
+    }
+  });
+
+  it('names the change and artifacts in its closing offer, so a yes covers them (#2271)', () => {
+    for (const [label, body] of bodies) {
+      expect(body, label).toContain('name the change and the artifacts in the offer');
+      expect(body, label).toContain(
+        '"Would you like me to capture this as the change `<name>`, with <artifacts to create>?"'
+      );
     }
   });
 });

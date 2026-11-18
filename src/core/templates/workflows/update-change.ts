@@ -12,10 +12,10 @@ const CONTINUE_SCOPE_NOTE =
   'Revise existing artifacts. If an artifact is missing, identify it and show the next ready artifact from `openspec status --change "<name>" --json`.';
 
 const CONTINUE_CREATE_THEM =
-  'show how to create the next ready artifact with `openspec instructions "<artifact-id>" --change "<name>" --json`';
+  'point to the `/opsx:continue` skill if it is installed; otherwise show how to create the next ready artifact with `openspec instructions "<artifact-id>" --change "<name>" --json`';
 
 const CONTINUE_NEXT_STEP =
-  'give the CLI command for the next ready artifact';
+  'recommend the `/opsx:continue` skill if it is installed; otherwise give the CLI command for the next ready artifact';
 
 const CONTINUE_DEFERRED =
   'Missing artifacts deferred to a separate step (ready or blocked, excluding skipped artifacts)';
@@ -23,14 +23,17 @@ const CONTINUE_DEFERRED =
 const CONTINUE_FRONTIER =
   'create missing artifacts in a separate step';
 
+const APPLY_NEXT_STEP =
+  'recommend the `/opsx:apply` skill if it is installed; otherwise give `openspec instructions apply --change "<name>" --json`';
+
 const APPLY_DELTA_HANDOFF =
-  'tell the user which implementation tasks need revisiting';
+  `tell the user which implementation tasks need revisiting and ${APPLY_NEXT_STEP}`;
 
 const APPLY_GUARDRAIL =
-  'stop after revising the plan and identify any code changes it calls for';
+  `stop after revising the plan, identify any code changes it calls for, and ${APPLY_NEXT_STEP}`;
 
 const ARCHIVE_HANDOFF =
-  'suggest archiving with `openspec archive "<name>"`';
+  'recommend the `/opsx:archive` skill if it is installed; otherwise suggest archiving with `openspec archive "<name>"`';
 
 const INTENT_CHANGE_GUARDRAIL =
   'ask for a distinct unused name and recommend `openspec new change "<new-change-name>"`';
@@ -118,7 +121,7 @@ After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
 - Any file created under a glob artifact that was already partially populated
 - ${CONTINUE_DEFERRED}
-- Where the change stands and the recommended next skill
+- Where the change stands and the recommended next step
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
@@ -218,7 +221,7 @@ After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
 - Any file created under a glob artifact that was already partially populated
 - ${CONTINUE_DEFERRED}
-- Where the change stands and the recommended next skill
+- Where the change stands and the recommended next step
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.

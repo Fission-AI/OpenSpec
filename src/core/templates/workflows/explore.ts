@@ -34,13 +34,13 @@ const IMPLEMENT_REQUEST_HANDOFF =
   'offer to capture the discussion as a change';
 
 const CAPTURE_PLANNING_HANDOFF =
-  'To finish planning, complete the remaining planning artifacts from the change';
+  'To finish planning, use the `/opsx:propose` skill if it is installed; otherwise create the next ready artifact from `openspec status --change "<name>" --json`';
 
 const CAPTURE_APPLY_HANDOFF =
-  'To implement, start from the tasks after leaving explore mode';
+  'To implement, leave explore mode and use the `/opsx:apply` skill if it is installed; otherwise follow `openspec instructions apply --change "<name>" --json`';
 
 const DISCOVERY_END_HANDOFF =
-  'Would you like me to capture this as a change?';
+  'Would you like me to capture this as the change `<name>`, with <artifacts to create>?';
 
 const SUMMARY_NEXT_STEP =
   '- Ask me to capture this discussion as a change';
