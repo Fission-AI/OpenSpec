@@ -124,6 +124,10 @@ ${PROJECT_ROOT_GUARD}
 
 4. **Assess delta spec sync state**
 
+   **Check the archive target first:** Record the target name as \`<target-name>\`: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
+
+   If \`<planningHome.changesDir>/archive/<target-name>\` already exists, stop before writing any main spec. Report the collision, leave \`changeRoot\` where it is, and suggest renaming the existing archive or this change.
+
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON as the only
    delta-spec source. If the \`specs\` entry is missing or
    \`existingOutputPaths\` is empty, proceed without a sync prompt and do not infer
@@ -187,11 +191,11 @@ ${PROJECT_ROOT_GUARD}
    mkdir -p "<planningHome.changesDir>/archive"
    \`\`\`
 
-   Generate the target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
+   Use the \`<target-name>\` recorded in step 4, unchanged.
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
+   **Check again immediately before the move:**
+   - If the target now exists: Fail with error, leave \`changeRoot\` where it is, report any main specs step 4 synced, and suggest renaming the existing archive or this change
+   - If not: Move \`changeRoot\` to the archive directory
 
    \`\`\`bash
    mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
@@ -337,6 +341,10 @@ ${PROJECT_ROOT_GUARD}
 
 4. **Assess delta spec sync state**
 
+   **Check the archive target first:** Record the target name as \`<target-name>\`: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
+
+   If \`<planningHome.changesDir>/archive/<target-name>\` already exists, stop before writing any main spec. Report the collision, leave \`changeRoot\` where it is, and suggest renaming the existing archive or this change.
+
    Use \`artifactPaths.specs.existingOutputPaths\` from status JSON as the only
    delta-spec source. If the \`specs\` entry is missing or
    \`existingOutputPaths\` is empty, proceed without a sync prompt and do not infer
@@ -400,11 +408,11 @@ ${PROJECT_ROOT_GUARD}
    mkdir -p "<planningHome.changesDir>/archive"
    \`\`\`
 
-   Generate the target name: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
+   Use the \`<target-name>\` recorded in step 4, unchanged.
 
-   **Check if target already exists:**
-   - If yes: Fail with error, suggest renaming existing archive or using different date
-   - If no: Move \`changeRoot\` to the archive directory
+   **Check again immediately before the move:**
+   - If the target now exists: Fail with error, leave \`changeRoot\` where it is, report any main specs step 4 synced, and suggest renaming the existing archive or this change
+   - If not: Move \`changeRoot\` to the archive directory
 
    \`\`\`bash
    mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
@@ -476,7 +484,7 @@ Target archive directory already exists.
 **Options:**
 1. Rename the existing archive
 2. Delete the existing archive if it's a duplicate
-3. Wait until a different date to archive
+3. Rename this change, then archive it again
 \`\`\`
 
 **Guardrails**
