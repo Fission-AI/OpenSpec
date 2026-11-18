@@ -405,7 +405,7 @@ export function findFrontmatterEnd(lines: string[]): number {
   let sawComment = false;
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
-    if (/^#{2,6}(?:\s|$)/.test(line)) return 0;
+    if (/^#{2,6}(?:\s|$)/.test(line) || REQUIREMENT_HEADER_REGEX.test(line)) return 0;
     if (line.trimEnd() === '---') return sawKey || !sawComment ? i + 1 : 0;
     if (sawKey || !line.trim()) continue;
     if (line.trimStart().startsWith('#')) {

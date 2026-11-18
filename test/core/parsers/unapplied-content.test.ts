@@ -246,6 +246,17 @@ describe('parseDeltaSpec frontmatter', () => {
   });
 });
 
+describe('parseDeltaSpec requirement inside frontmatter delimiters', () => {
+  it('still reports a requirement header written with no space after the hashes', () => {
+    const plan = parseDeltaSpec(
+      ['---', 'a: 1', '###Requirement: Hidden', 'The system SHALL hide.', '---', ...REQUIREMENT_DELTA].join('\n')
+    );
+
+    expect(plan.hasFrontmatter).toBe(false);
+    expect(plan.orphanedRequirements.map((orphan) => orphan.name)).toEqual(['Hidden']);
+  });
+});
+
 describe('frontmatter through validate and archive', () => {
   let tempDir: string;
   let changeDir: string;
