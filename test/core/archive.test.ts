@@ -5359,6 +5359,21 @@ The system SHALL do the thing differently.
         statement: ['The system SHALL provide a legacy layer to existing consumers.'],
         scenario: ['- **WHEN** it runs', '  - with nested detail', '    wrapped here', '<args> as given', '- **THEN** the args are passed'],
       },
+      {
+        what: 'a deeply indented tag in a bullet',
+        statement: ['The system SHALL provide a legacy layer to existing consumers.'],
+        scenario: ['- **WHEN** it runs', '      <tag>', 'as given', '- **THEN** the args are passed'],
+      },
+      {
+        what: 'a wrapped quoted bullet',
+        statement: ['The system SHALL provide a legacy layer to existing consumers.'],
+        scenario: ['- **WHEN** it runs', '- > quoted', 'as given', '- **THEN** the args are passed'],
+      },
+      {
+        what: 'a wrapped code-span bullet',
+        statement: ['The system SHALL provide a legacy layer to existing consumers.'],
+        scenario: ['- **WHEN** it runs', '- ```x``` inline', 'as given', '- **THEN** the args are passed'],
+      },
     ])('retires a spec when $what has a line starting with `<` (#2211)', async ({ what, statement, scenario }) => {
       // Only HTML blocks of CommonMark kinds 1-6 may interrupt a paragraph, and
       // `<args>` opens none, so the line is part of the sentence above it.
@@ -5407,6 +5422,10 @@ The system SHALL do the thing differently.
       { what: 'a tag after an empty quote', statement: ['The system SHALL provide a legacy layer.', '', '>', '<escrow-note>'], scenario: [] },
       { what: 'a tag after an empty item', statement: ['The system SHALL provide a legacy layer.'], scenario: ['1. ', '<escrow-note>'] },
       { what: 'a tag after a nested HTML item', statement: ['The system SHALL provide a legacy layer.'], scenario: ['  - <div>', '    note', '<escrow-note>'] },
+      { what: 'a tag after two lines of bullet code', statement: ['The system SHALL provide a legacy layer.'], scenario: ['-     npm run legacy', '      npm run cleanup', '<escrow-note>'] },
+      { what: 'a tag after a bare marker', statement: ['The system SHALL provide a legacy layer.', '', '-', '<escrow-note>'], scenario: [] },
+      { what: 'a tag after a tabbed code bullet', statement: ['The system SHALL provide a legacy layer.'], scenario: ['-   \tnpm run legacy', '<escrow-note>'] },
+      { what: 'a tag alone on a wrapped line', statement: ['The system SHALL accept', '<escrow-note>', 'and pass it on.'], scenario: [] },
       { what: 'a tag after a nested break', statement: ['The system SHALL provide a legacy layer.'], scenario: ['- * * *', '<escrow-note>'] },
     ])('still refuses $what (#2211)', async ({ what, statement, scenario }) => {
       // An HTML block is the author's own content, not the statement or a

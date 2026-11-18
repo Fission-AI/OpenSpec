@@ -726,89 +726,40 @@ function contentColumn(prefix: string): number {
 /**
  * The opening of a CommonMark HTML block of kinds 1-6: `<script>`, `<pre>`,
  * `<style>` or `<textarea>`; a comment, processing instruction, declaration or
- * CDATA section; or a block-level tag such as `<div>` or `<details>`. These are
- * the only HTML blocks that may interrupt a paragraph. Kind 7 - any other
- * complete tag alone on its line - may not, so a wrapped line that merely
- * starts with `<args>` or `<T>` is more of the sentence above it (#2211).
+ * CDATA section; or a block-level tag such as `<div>` or `<details>`.
  */
-const HTML_BLOCK_THAT_INTERRUPTS = String.raw`<(?:(?:script|pre|style|textarea)(?:[ \t>]|$)|!--|\?|![a-z]|!\[CDATA\[|\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t>]|\/>|$))`;
-const OPENS_HTML_BLOCK_THAT_INTERRUPTS = new RegExp(`^${HTML_BLOCK_THAT_INTERRUPTS}`, 'i');
+const OPENS_HTML_BLOCK =
+  /^<(?:(?:script|pre|style|textarea)(?:[ \t>]|$)|!--|\?|![a-z]|!\[CDATA\[|\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t>]|\/>|$))/i;
 
 /** A complete open or closing tag alone on its line: CommonMark's kind 7 HTML block. */
-const HTML_STANDALONE_TAG =
+const HTML_TAG_ALONE =
   /^(?:<[A-Za-z][A-Za-z0-9-]*(?:\s+[A-Za-z_:][\w.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|'[^']*'|"[^"]*"))?)*\s*\/?>|<\/[A-Za-z][A-Za-z0-9-]*\s*>)\s*$/;
 
 /**
+ * Whether a line may be raw HTML the audit has to name. A tag alone on its line
+ * counts wherever it sits: it is a block of its own unless a paragraph happens
+ * to be open above it, and refusing costs a reword where guessing wrong deletes
+ * the author's content. Any other line starting with `<`, such as `<args> are
+ * passed on`, can only be text (#2211).
+ */
+function mayBeRawHtml(line: string): boolean {
+  const text = line.trim();
+  return OPENS_HTML_BLOCK.test(text) || HTML_TAG_ALONE.test(text);
+}
+
+/**
  * A line that opens a block of its own: a blockquote, a thematic break, a list
- * item, a table row, or one of the HTML blocks above. CommonMark lets each of
- * these interrupt a paragraph, so one written flush against a bullet starts
- * something new rather than continuing it - and the audit has to name it
- * rather than let it be deleted with the file. Headings interrupt too and are
- * checked separately, since they are refused however they are indented.
+ * item, a table row, or raw HTML. CommonMark lets each of these interrupt a
+ * paragraph, so one written flush against a bullet starts something new rather
+ * than continuing it - and the audit has to name it rather than let it be
+ * deleted with the file. Headings interrupt too and are checked separately,
+ * since they are refused however they are indented.
  */
-const INTERRUPTS_PARAGRAPH = new RegExp(
-  String.raw`^ {0,3}(?:>|(?:[-*_][ \t]*){3,}$|(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)|\||${HTML_BLOCK_THAT_INTERRUPTS})`,
-  'i'
-);
-
-/**
- * Whether a line in a requirement's statement opens a block the statement does
- * not own: a table row, or raw HTML. Starting with `<` does not make a line raw
- * HTML. It opens an HTML block when it is one of the kinds that interrupt a
- * paragraph, or, where no paragraph is open, a complete tag alone on its line;
- * anything else is prose (#2211).
- */
-function opensStatementBlock(line: string, paragraphOpen: boolean): boolean {
-  const text = line.trimStart();
-  return text.startsWith('|') || opensHtmlBlock(text, paragraphOpen);
-}
-
-function opensHtmlBlock(text: string, paragraphOpen: boolean): boolean {
-  if (!text.startsWith('<')) return false;
-  if (OPENS_HTML_BLOCK_THAT_INTERRUPTS.test(text)) return true;
-  return !paragraphOpen && HTML_STANDALONE_TAG.test(text);
-}
-
-const THEMATIC_BREAK = /^ {0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/;
-
-/** What a list item's first line holds, past every marker that opens it. */
-function listItemContent(line: string): string {
-  return line.replace(/^\s*(?:(?:[-*+]|\d{1,9}[.)])\s+)+/, '').trim();
-}
-
-/**
- * Whether text starts a paragraph. Only a paragraph can absorb the line after
- * it, so anything else - nothing at all, indented code, a quote, a fence, a
- * break, a heading, or HTML - leaves a following tag as a block of its own, and
- * the audit has to name that block rather than let it be deleted with the file.
- */
-function opensParagraph(text: string): boolean {
-  if (!text.trim() || contentColumn(/^[ \t]*/.exec(text)![0]) >= 4) return false;
-  const block = text.trimStart();
-  return !(
-    /^(?:>|`{3,}|~{3,})/.test(block) ||
-    THEMATIC_BREAK.test(block) ||
-    isHeadingLine(block) ||
-    opensHtmlBlock(block, false)
+function interruptsParagraph(line: string): boolean {
+  return (
+    /^ {0,3}(?:>|(?:[-*_][ \t]*){3,}$|(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)|\|)/.test(line) ||
+    (/^ {0,3}</.test(line) && mayBeRawHtml(line))
   );
-}
-
-/** Whether a list item's first line, past every marker on it, starts a paragraph. */
-function listItemOpensParagraph(line: string): boolean {
-  const marker = /^\s*(?:[-*+]|\d{1,9}[.)])([ \t]+)/;
-  let rest = line;
-  for (let found = marker.exec(rest); found; found = marker.exec(rest)) {
-    // Five columns past a marker is indented code inside the item.
-    if (THEMATIC_BREAK.test(rest) || contentColumn(found[1]) >= 5) return false;
-    rest = rest.slice(found[0].length);
-  }
-  return opensParagraph(rest);
-}
-
-/** Whether a line of a requirement's statement leaves a paragraph open for the next line. */
-function leavesParagraphOpen(line: string, paragraphWasOpen: boolean): boolean {
-  if (THEMATIC_BREAK.test(line) || isHeadingLine(line) || /^ {0,3}>/.test(line)) return false;
-  return paragraphWasOpen || opensParagraph(line);
 }
 
 /**
@@ -824,7 +775,7 @@ function leavesParagraphOpen(line: string, paragraphWasOpen: boolean): boolean {
  * ordered marker at nine digits, so `1234567890.` opens a paragraph, not a
  * list. It changes no verdict here, because a line this pattern rejects is
  * weighed by the same rules either way; it is here so the audit and
- * INTERRUPTS_PARAGRAPH cannot disagree about what a marker is. A line one of
+ * interruptsParagraph cannot disagree about what a marker is. A line one of
  * them calls a bullet and the other does not is read as both at once, and that
  * disagreement is what a shared definition removes.
  *
@@ -959,9 +910,6 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
     // indent can still be continuing it. Closed by anything that ends a
     // paragraph: a blank line, a fence, a heading, or a block of its own.
     let paragraphOpen = false;
-    // Whether the current list item holds an HTML block. Its lines are not a
-    // paragraph, so an unindented line after them continues nothing.
-    let htmlBlockOpen = false;
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
       if (!line.trim()) {
@@ -970,7 +918,6 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         if (bulletsSeen) inScenarioBullets = false;
         listContentIndent = null;
         paragraphOpen = false;
-        htmlBlockOpen = false;
         continue;
       }
       if (index === 0) continue; // the `### Requirement:` header itself
@@ -991,7 +938,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // the run the indent is required, so a note bulleted below the scenarios
       // and its own wrapped lines stay the author's.
       const lazilyContinuesBullet =
-        paragraphOpen && inScenarioBullets && !INTERRUPTS_PARAGRAPH.test(withinItem);
+        paragraphOpen && inScenarioBullets && !interruptsParagraph(withinItem);
       // A heading is a heading wherever it sits, so neither form absorbs one:
       // `firstForeignTail` names the ATX spelling and the `before` pass names
       // the raw HTML, and indenting a section under a bullet must not smuggle
@@ -1007,7 +954,6 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         // not a lazy continuation of anything.
         if (!insideItem) listContentIndent = null;
         paragraphOpen = false;
-        htmlBlockOpen = false;
         continue;
       }
       // Checked ahead of the continuation branch: a setext underline turns the
@@ -1031,12 +977,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         // An indented nested list or quote is still inside the item, but it
         // ended the bullet's paragraph - so a later unindented line is not
         // continuing that paragraph either.
-        const startsNestedItem = LIST_ITEM.test(withinItem);
-        htmlBlockOpen ||= opensHtmlBlock(listItemContent(withinItem), paragraphOpen && !startsNestedItem);
-        paragraphOpen =
-          !htmlBlockOpen &&
-          !INTERRUPTS_PARAGRAPH.test(withinItem) &&
-          (paragraphOpen || opensParagraph(withinItem));
+        paragraphOpen = !interruptsParagraph(withinItem);
         continue;
       }
       // Any other line closes the item; a bullet opens the next one. The
@@ -1044,10 +985,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // nested list and its own wrapped lines stay inside the item too.
       const bullet = line.match(LIST_ITEM);
       listContentIndent = bullet ? contentColumn(bullet[1]) : null;
-      const paragraphWasOpen = paragraphOpen;
-      const itemContent = bullet ? listItemContent(line) : '';
-      htmlBlockOpen = opensHtmlBlock(itemContent, false);
-      paragraphOpen = bullet !== null && !htmlBlockOpen && listItemOpensParagraph(line);
+      paragraphOpen = bullet !== null;
       if (/^ {0,3}####\s+Scenario:/i.test(line)) {
         seenScenario = true;
         inScenarioBullets = true;
@@ -1065,12 +1003,8 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         leftovers.push(line.trim());
         continue;
       }
-      // Free prose above the first scenario is the requirement statement, and
-      // a paragraph of it stays open for the next line to continue.
-      if (!seenScenario && !opensStatementBlock(line, paragraphWasOpen)) {
-        paragraphOpen = leavesParagraphOpen(line, paragraphWasOpen);
-        continue;
-      }
+      // Free prose above the first scenario is the requirement statement.
+      if (!seenScenario && !/^\s*\|/.test(line) && !mayBeRawHtml(line)) continue;
       leftovers.push(line.trim());
     }
   }
