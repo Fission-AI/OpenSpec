@@ -602,7 +602,7 @@ export function isSourceCheckout(installDir: string | null): boolean {
   }
 }
 
-export type PackageManager = 'npm' | 'pnpm' | 'bun' | 'yarn' | 'volta';
+export type PackageManager = 'npm' | 'pnpm' | 'bun' | 'yarn' | 'volta' | 'homebrew' | 'nix';
 export type InstallScope = 'global' | 'project' | 'temporary' | 'source' | 'standalone';
 
 export interface CliInstallInfo {
@@ -615,6 +615,13 @@ function detectKnownPackageManager(installDir: string | null): PackageManager | 
   const segments = (installDir ?? '').split(/[\\/]/).map((segment) => segment.toLowerCase());
   const has = (...names: string[]) => names.some((name) => segments.includes(name));
 
+  // Homebrew and Nix both build the package into npm's own layout
+  // (`lib/node_modules/<pkg>` with `bin` beside it), so they are named before
+  // anything reads that layout as an npm global (#2186).
+  if (segments.some((segment, index) => segment === 'cellar' && segments[index + 1] === 'openspec')) {
+    return 'homebrew';
+  }
+  if (segments[0] === '' && segments[1] === 'nix' && segments[2] === 'store') return 'nix';
   if (has('.volta') || (has('volta') && has('tools') && has('image'))) return 'volta';
   if (has('.bun', '_bunx', 'bun-cache')) return 'bun';
   if (has('_npx')) return 'npm';
@@ -632,15 +639,21 @@ export function detectPackageManager(installDir: string | null): PackageManager 
   return detectKnownPackageManager(installDir) ?? 'npm';
 }
 
-const GLOBAL_UPGRADE_COMMANDS: Record<PackageManager, string> = {
+// Null for Nix: the right command depends on how the store path got there
+// (`nix profile`, a flake input, home-manager, a system configuration).
+const GLOBAL_UPGRADE_COMMANDS: Record<PackageManager, string | null> = {
   npm: `npm install -g ${PACKAGE_NAME}@latest`,
   pnpm: `pnpm add -g ${PACKAGE_NAME}@latest`,
   bun: `bun add -g ${PACKAGE_NAME}@latest`,
   yarn: `yarn global add ${PACKAGE_NAME}@latest`,
   volta: `volta install ${PACKAGE_NAME}@latest`,
+  homebrew: 'brew upgrade openspec',
+  nix: null,
 };
 
 function detectGlobalPackageManager(installDir: string | null): PackageManager | null {
+  const owner = detectKnownPackageManager(installDir);
+  if (owner === 'homebrew' || owner === 'nix') return owner;
   if (isNpmGlobalInstall(installDir)) return 'npm';
   if (!installDir) return null;
 
@@ -777,7 +790,8 @@ export function buildUpgradeCommandLines(
     // Its package manager owns the lockfile; naming npm could be wrong.
     lines.push(`  Update the ${PACKAGE_NAME} dependency in this project.`);
   } else {
-    lines.push(`  ${GLOBAL_UPGRADE_COMMANDS[detectPackageManager(installDir)]}`);
+    const command = GLOBAL_UPGRADE_COMMANDS[detectPackageManager(installDir)];
+    lines.push(command ? `  ${command}` : '  Update OpenSpec through Nix, the way you installed it.');
   }
 
   lines.push('  Then run "openspec update" again to pick up new workflows.');
