@@ -74,9 +74,9 @@ A trigger has one of two modes:
 
 `auto` does not guarantee execution and does not bypass the agent's existing permissions. It means the agent does not ask first.
 
-Config validation rejects duplicate action ids, triggers that reference a missing action, unsupported modes, and unknown hook names with no namespace. A project with no actions behaves as it does today.
+Config validation rejects duplicate action ids, triggers that reference a missing action, unsupported modes, and hook names that are neither built in nor prefixed with `custom.`. A project with no actions behaves as it does today.
 
-Lookup reuses OpenSpec's existing root and config resolution, including Stores.
+Lookup reuses OpenSpec's existing root and config resolution, including Stores. When a Store is the resolved root, the Store's configuration decides which actions are returned.
 
 ## What callers receive
 
@@ -109,8 +109,8 @@ OpenSpec passes nothing into an action. The agent already knows which change it 
 ## Hook names
 
 - OpenSpec defines built-in hooks. The pilot uses `apply.before` and `apply.completed`.
-- Users can invoke their own namespaced hooks, such as `team.security-review.completed`.
-- An unknown name with no namespace is rejected, which catches typos.
+- Users can invoke their own hooks. A custom hook name must start with `custom.`, such as `custom.security-review.completed`.
+- Any other name is rejected. A typo such as `aply.before` is neither built in nor prefixed with `custom.`, so it fails.
 
 A hook is only a name that a caller invokes. There is no registration step and no event declaration.
 
@@ -149,7 +149,6 @@ actions:
     description: Run the team's drift script and report the result.
     instructions: |
       Run scripts/check-requirements-drift.sh and report its output.
-      If it reports changes, offer the requirements-review action.
 
 triggers:
   - on: apply.before
@@ -158,6 +157,8 @@ triggers:
 ```
 
 The script owns its own baseline and comparison logic. OpenSpec knows nothing about Git, revisions, or sources. Because the agent runs the script, the agent's own permission prompts apply.
+
+Actions do not invoke one another. Action B reports what the script found and stops there. A project that wants both lists two triggers on `apply.before`, with the drift script first, and the agent handles them in that order.
 
 ### What a review can and cannot claim
 
@@ -182,7 +183,7 @@ Run one fixture project through the built-in Apply skill and through a custom ca
 - `apply.before` fires before edits, on begin and on resume.
 - `apply.completed` fires on `all_done` and never on `blocked`.
 - Instruction and status refreshes repeat no offers.
-- A namespaced hook works from a custom caller, and a mistyped built-in name is rejected.
+- A `custom.` hook works from a custom caller, and a mistyped built-in name such as `aply.before` is rejected.
 - Actions A and B both run through `apply.before` with no OpenSpec code specific to either.
 - An unreachable source is reported as unread.
 - Lookup resolves the right configuration when the change lives in a Store.

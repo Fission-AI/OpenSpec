@@ -121,7 +121,6 @@ actions:
     description: Run the team's drift script and report the result.
     instructions: |
       Run scripts/check-requirements-drift.sh and report its output.
-      If it reports changes, offer the requirements-review action.
 
 triggers:
   - on: apply.before
@@ -133,6 +132,8 @@ The script decides what to compare and where it keeps its starting point. OpenSp
 
 This is how a team gets "changed since planning". The script holds the earlier version, which the review in step 4 does not have.
 
+Actions do not call one another. To run the script and then offer the review from step 1, list both triggers on `apply.before` with the script first.
+
 ## 7. Use hooks from your own skills
 
 A custom skill or another tool can ask the same question the built-in skills ask:
@@ -143,7 +144,7 @@ openspec lifecycle actions --at apply.before --json
 
 The command returns the actions for that hook, in order, with their instructions. It runs nothing.
 
-You can also invoke hooks of your own. Give the name a namespace, such as `team.security-review.completed`, and attach triggers to it the same way. A name with no namespace must be one OpenSpec defines, so a typo like `aply.before` is rejected.
+You can also invoke hooks of your own. Start the name with `custom.`, such as `custom.security-review.completed`, and attach triggers to it the same way. Any other name must be one OpenSpec defines, so a typo like `aply.before` is rejected.
 
 ## How this differs from operation guidance
 
@@ -155,8 +156,8 @@ Use an action for a named step at a specific moment that your agent can offer an
 
 - **Hooks fire only when a skill asks.** Running `openspec archive` yourself in a terminal fires none.
 - **Your agent carries out actions, not OpenSpec.** An agent that does not follow the skill will not run them.
-- **Nothing blocks.** An action cannot stop Apply or Archive.
-- **Nothing is remembered.** A skipped review is offered again the next time the hook fires.
+- **No enforced blocking.** OpenSpec cannot stop Apply or Archive. Your agent can still pause based on what an action finds.
+- **Nothing is remembered.** If a hook is invoked again, its actions are returned again. OpenSpec does not track whether you accepted or skipped them before.
 
 ## Not part of this proposal
 

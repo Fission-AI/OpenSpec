@@ -63,29 +63,31 @@ Order follows the trigger configuration, and callers preserve it. There is no se
 ### Hook names
 
 - OpenSpec defines built-in hooks such as `apply.before` and `apply.completed`.
-- Users can invoke their own namespaced hooks, such as `team.security-review.completed`.
-- An unknown name with no namespace is rejected, which catches typos.
+- Users can invoke their own hooks. A custom hook name must start with `custom.`, such as `custom.security-review.completed`.
+- Any other name is rejected. A typo such as `aply.before` is neither built in nor prefixed with `custom.`, so it fails.
 
 A hook is only a name that a caller invokes. There is no registration step and no event declaration.
 
 ### Where config comes from
 
-Actions and triggers live in project configuration. Lookup reuses OpenSpec's existing root and config resolution, including Stores. It does not add a second resolution system.
+Actions and triggers live in project configuration. Lookup reuses OpenSpec's existing root and config resolution, including Stores. When a Store is the resolved root, the Store's configuration decides which actions are returned. It does not add a second resolution system.
 
 ## PR sequence
 
 Each PR adds one verifiable behavior. Not every PR needs to deliver user value alone. All of them reuse one fixture project.
 
-1. **Actions and triggers in config.** Parse and validate them. Reject duplicate action ids, triggers that reference a missing action, unsupported modes, and unknown hook names with no namespace. A project with no actions behaves as it does today.
-2. **`openspec lifecycle actions --at <hook>`.** Return matching actions in order with instructions inline. Cover one match, several matches, no match, invalid config, a namespaced hook, and a Store.
+1. **Actions and triggers in config.** Parse and validate them. Reject duplicate action ids, triggers that reference a missing action, unsupported modes, and hook names that are neither built in nor prefixed with `custom.`. A project with no actions behaves as it does today.
+2. **`openspec lifecycle actions --at <hook>`.** Return matching actions in order with instructions inline. Cover one match, several matches, no match, invalid config, a `custom.` hook, a rejected mistyped name, and a Store as the resolved root.
 3. **Apply calls `apply.completed`.** The Apply skill asks for actions when its state is `all_done`, including a change that was already complete. `suggest` actions can be accepted or skipped in the current session. A `blocked` change does not reach this hook. Reading status or refreshing instructions does not fire it.
 4. **Apply calls `apply.before`.** The Apply skill asks for actions when it begins or resumes, before any edits. Verify both hooks in one run with different actions on each.
 
-   **Release checkpoint A.** Run the full path from CLI to Apply to an offered, accepted, and skipped action. Run a custom caller against a namespaced hook. Confirm a project with no config is unchanged.
+   **Release checkpoint A.** Run the full path from CLI to Apply to an offered, accepted, and skipped action. Run a custom caller against a `custom.` hook. Confirm a project with no config is unchanged.
 
 5. **Two user-defined actions, end to end.** Ship both as tested, documented recipes:
    - **Action A:** the agent rereads the requirements linked from the change and compares them with the current plan.
    - **Action B:** the agent runs a project-provided Git drift script and reports what it prints. The script owns its own baseline and comparison logic.
+
+   Actions do not invoke one another. Each is attached to a hook by its own trigger.
 
    Neither action needs special handling inside OpenSpec. When a review finds a conflict, the developer keeps the plan or revises it through the existing `openspec-update-change` skill.
 
