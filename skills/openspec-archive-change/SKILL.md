@@ -35,7 +35,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so and offer to start one
+   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run `openspec list --json` to get available changes and ask the user to select one
 
    When prompting, show only active changes (not already archived).

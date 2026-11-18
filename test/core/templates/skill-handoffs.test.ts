@@ -62,7 +62,7 @@ describe('every skill stop names the next step (#2271)', () => {
 
   it('verify names the next skill for each outcome', () => {
     expect(skill('verify')).toContain(
-      `End with the next step: for CRITICAL issues, recommend the \`/opsx:apply\` skill for code fixes or the \`/opsx:update\` skill for plan fixes, if installed; otherwise give \`${APPLY_CLI}\` for code fixes and name the artifacts to revise for plan fixes`
+      `End with the next step: for CRITICAL issues, recommend the \`/opsx:apply\` skill for code fixes (when every task is already checked, first add an unchecked task naming the fix, because apply only works on unchecked tasks) or the \`/opsx:update\` skill for plan fixes, if installed; otherwise give \`${APPLY_CLI}\` for code fixes and name the artifacts to revise for plan fixes`
     );
     expect(skill('verify')).toContain(
       'when ready, recommend the `/opsx:archive` skill if it is installed; otherwise give `openspec archive "<name>"`'
@@ -82,7 +82,7 @@ describe('every skill stop names the next step (#2271)', () => {
   it.each(['apply', 'archive', 'continue', 'sync', 'update', 'verify'])(
     '%s says what to do when there is no active change',
     (workflowId) => {
-      expect(skill(workflowId)).toContain('If no active change exists, say so and offer to start one');
+      expect(skill(workflowId)).toContain('If no active change exists, say so, offer to start one, and stop');
     }
   );
 });

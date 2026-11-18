@@ -27,7 +27,7 @@ const APPLY_NEXT_STEP =
   'recommend the `/opsx:apply` skill if it is installed; otherwise give `openspec instructions apply --change "<name>" --json`';
 
 const APPLY_DELTA_HANDOFF =
-  `tell the user which implementation tasks need revisiting and ${APPLY_NEXT_STEP}`;
+  `tell the user which implementation tasks need revisiting, explain that their checkboxes must read \`- [ ]\` again before that work resumes, and ${APPLY_NEXT_STEP}`;
 
 const APPLY_GUARDRAIL =
   `stop after revising the plan, identify any code changes it calls for, and ${APPLY_NEXT_STEP}`;
@@ -59,7 +59,7 @@ ${CONTINUE_SCOPE_NOTE}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so and offer to start one
+   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:
@@ -161,7 +161,7 @@ ${CONTINUE_SCOPE_NOTE}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so and offer to start one
+   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:

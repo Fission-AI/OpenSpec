@@ -12,7 +12,7 @@ const SKILL_APPLY_HANDOFF =
   'The plan is ready for review. When you’re ready, ask me to apply it.';
 
 const COMMAND_APPLY_HANDOFF =
-  'Review the plan. To start implementation, run `openspec instructions apply --change "<name>" --json`.';
+  'Review the plan. To start implementation, run `openspec instructions apply --change "<name>" --json`, adding `--store "<id>"` when a registered store is selected.';
 
 /**
  * A glob artifact reads `done` once one matching file exists, so a run
@@ -53,7 +53,7 @@ ${PROJECT_ROOT_GUARD}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so and offer to start one
+   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:

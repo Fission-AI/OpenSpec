@@ -465,7 +465,7 @@ Archived changes become your project's decision history—you can always find th
 openspec archive "<name>" --yes
 ```
 
-If the archive fails, show the error, fix the cause, and run it again before continuing.
+If the archive fails, show the error, fix the cause, and run it again before continuing. If the error says `Rollback also failed`, restore the main specs it names first: running it again on a partly merged spec fails.
 
 **SHOW:**
 ```

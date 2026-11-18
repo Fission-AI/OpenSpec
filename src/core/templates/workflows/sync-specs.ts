@@ -31,7 +31,7 @@ ${PROJECT_ROOT_GUARD}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so and offer to start one
+   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
    When prompting, show changes that have delta specs (under \`specs/\` directory).
@@ -270,6 +270,10 @@ Updated main specs:
 
 Main specs are now updated. The change remains active - archive when implementation is complete.
 \`\`\`
+
+**Output When A Capability Is Blocked**
+
+Do not say main specs are updated. Title the summary \`## Specs Partly Synced: <change-name>\` when some capabilities synced, or \`## Specs Not Synced: <change-name>\` when none did, and list each blocked capability with its reason.
 
 **Guardrails**
 - Read both delta and main specs before making changes
@@ -314,7 +318,7 @@ ${PROJECT_ROOT_GUARD}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so and offer to start one
+   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run \`openspec list --json\` to get available changes and ask the user to select one
 
    When prompting, show changes that have delta specs (under \`specs/\` directory).
@@ -553,6 +557,10 @@ Updated main specs:
 
 Main specs are now updated. The change remains active - archive when implementation is complete.
 \`\`\`
+
+**Output When A Capability Is Blocked**
+
+Do not say main specs are updated. Title the summary \`## Specs Partly Synced: <change-name>\` when some capabilities synced, or \`## Specs Not Synced: <change-name>\` when none did, and list each blocked capability with its reason.
 
 **Guardrails**
 - Read both delta and main specs before making changes

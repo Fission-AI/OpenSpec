@@ -35,7 +35,7 @@ Revise existing artifacts. If an artifact is missing, identify it and show the n
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so and offer to start one
+   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run `openspec list --json` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:
@@ -90,7 +90,7 @@ Revise existing artifacts. If an artifact is missing, identify it and show the n
 6. **Point to the next step (guidance only - NEVER act on it)**
    - Artifacts with empty `existingOutputPaths` and status `ready` or `blocked` -> recommend the `openspec-continue-change` skill if it is installed; otherwise give the CLI command for the next ready artifact.
    - Planning complete and not implemented yet -> recommend the `openspec-apply-change` skill if it is installed; otherwise give `openspec instructions apply --change "<name>" --json`.
-   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; tell the user which implementation tasks need revisiting and recommend the `openspec-apply-change` skill if it is installed; otherwise give `openspec instructions apply --change "<name>" --json`.
+   - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; tell the user which implementation tasks need revisiting, explain that their checkboxes must read `- [ ]` again before that work resumes, and recommend the `openspec-apply-change` skill if it is installed; otherwise give `openspec instructions apply --change "<name>" --json`.
    - Everything done and implemented -> recommend the `openspec-archive-change` skill if it is installed; otherwise suggest archiving with `openspec archive "<name>"`.
 
 **Output**

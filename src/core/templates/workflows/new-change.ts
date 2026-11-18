@@ -84,7 +84,7 @@ After completing the steps, summarize:
 - Do NOT create any artifacts yet - just show the instructions
 - Do NOT advance beyond showing the first artifact template
 - If the name is invalid (not kebab-case), ask for a valid name
-- If a change with that name already exists, recommend the \`/opsx:continue\` skill if it is installed; otherwise give the CLI command for its next ready artifact
+- If a change with that name already exists, recommend the \`/opsx:continue\` skill if it is installed; otherwise give the CLI command for its next ready artifact, or \`openspec instructions apply --change "<name>" --json\` when its planning is complete
 - Pass --schema if using a non-default workflow`,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
