@@ -17,6 +17,7 @@ import {
   foldRequirementName,
   isUnrecognizedDeltaSection,
   parseDeltaSpec,
+  findFrontmatterEnd,
   normalizeRequirementName,
   type RequirementBlock,
   type RequirementsSectionParts,
@@ -265,6 +266,9 @@ export async function buildUpdatedSpec(
   }
 
   // Archive carries requirement blocks only; name any other text it leaves behind.
+  if (plan.hasFrontmatter) {
+    warn(`${specName} - frontmatter (line 1) is not carried into the main spec. It stays with the change.`);
+  }
   for (const lost of plan.unappliedContent) {
     warn(`${specName} - ${describeUnappliedContent(lost)} (line ${lost.line}) is not carried into the main spec.`);
   }
@@ -1377,8 +1381,10 @@ function maskHtmlComments(content: string): string {
  * section is absent or its body is empty.
  */
 function extractPurposeSection(content: string): string | undefined {
-  const normalized = content.replace(/\r\n?/g, '\n');
-  const lines = normalized.split('\n');
+  const lines = content.replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n');
+  // Frontmatter is opaque, so a stray `<!--` or fence in it cannot hide the Purpose.
+  lines.fill('', 0, findFrontmatterEnd(lines));
+  const normalized = lines.join('\n');
   // Structure is read from the masked copy so a commented-out or fenced
   // `## Purpose` is not mistaken for the real one; the body is returned from
   // the original lines so an author's own comments and fences survive intact.
