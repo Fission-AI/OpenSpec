@@ -62,12 +62,14 @@ describe('every skill stop names the next step (#2271)', () => {
 
   it('keeps a left-out optional artifact reachable', () => {
     expect(skill('continue')).toContain('If an artifact reports `omitted: true`, name it as left out');
-    expect(skill('update')).toContain('one reporting `omitted: true` can still be added in a separate step');
+    expect(skill('update')).toContain(
+      'If the user asks for one reporting `omitted: true`, give `openspec instructions <artifact-id> --change "<name>" --json` as its separate step.'
+    );
   });
 
   it('verify names the next skill for each outcome', () => {
     expect(skill('verify')).toContain(
-      `End with the next step: for CRITICAL issues, say that each code fix needs its own unchecked task in the tasks file, because verify changes no files and apply only works on unchecked tasks; recommend the \`/opsx:update\` skill to add those tasks and make plan fixes, then the \`/opsx:apply\` skill for code fixes, if installed; otherwise name the tasks to add and the artifacts to revise, then give \`${APPLY_CLI}\` for code fixes;`
+      `End with the next step: for CRITICAL issues, say that each code fix needs its own unchecked task when the schema tracks tasks, because verify changes no files and apply only works on unchecked tasks; recommend the \`/opsx:update\` skill to add those tasks and make plan fixes, then the \`/opsx:apply\` skill for code fixes, if installed; otherwise name the tasks to add and the artifacts to revise, then give \`${APPLY_CLI}\` for code fixes;`
     );
     expect(skill('verify')).toContain(
       'when ready, recommend the `/opsx:archive` skill if it is installed; otherwise give `openspec archive "<name>"`'
