@@ -237,6 +237,9 @@ interface SectionBody {
 export function parseDeltaSpec(content: string): DeltaPlan {
   const normalized = normalizeLineEndings(content);
   const lines = normalized.split('\n');
+  // Blanked rather than cut, so every reported line number still matches the file.
+  const frontmatterEnd = findFrontmatterEnd(lines);
+  lines.fill('', 0, frontmatterEnd);
   const fenceMask = buildCodeFenceMask(lines);
   const sections = splitTopLevelSections(lines, fenceMask);
   const addedLookup = getSectionsCaseInsensitive(sections, 'ADDED Requirements');
@@ -271,7 +274,6 @@ export function parseDeltaSpec(content: string): DeltaPlan {
   );
   unpairedRenames.sort((a, b) => a.line - b.line);
   skippedHeaders.sort((a, b) => a.line - b.line);
-  const frontmatterEnd = findFrontmatterEnd(lines);
   return {
     added,
     modified,
@@ -280,7 +282,7 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     renamed: renamedPairs,
     unpairedRenames,
     orphanedRequirements: findOrphanedRequirements(lines, fenceMask),
-    unappliedContent: findUnappliedContent(lines, fenceMask, frontmatterEnd),
+    unappliedContent: findUnappliedContent(lines, fenceMask),
     hasFrontmatter: frontmatterEnd > 0,
     skippedHeaders,
     sectionPresence: {
@@ -387,26 +389,30 @@ function maskHtmlComments(lines: string[], fenceMask: boolean[]): string[] {
   return lines.map((line, i) => (fenceMask[i] ? line : comments[i]));
 }
 
+/** A line that opens like a YAML mapping entry: `owner: a`, `"owner": a`, `owner:`. */
+const FRONTMATTER_KEY_REGEX = /^["']?[\p{L}\p{N}_.-]+["']?\s*:(?:\s|$)/u;
+
 /**
  * The line after a frontmatter block, or 0 when the file has none. The block is
- * opaque: teams' formats differ and need not be valid YAML, so only its `---`
- * delimiters are read. A `##` line inside means the delimiters are thematic
- * breaks around real sections, which the merge still reads.
+ * opaque: teams' formats differ and need not be valid YAML, so its fields are
+ * never read. Two checks keep `---` thematic breaks from hiding authored text:
+ * the first entry must look like a key, and a `##` line means real sections.
  */
-function findFrontmatterEnd(lines: string[]): number {
+export function findFrontmatterEnd(lines: string[]): number {
   if (lines[0].trimEnd() !== '---') return 0;
+  let sawKey = false;
   for (let i = 1; i < lines.length; i++) {
-    if (lines[i].startsWith('##')) return 0;
-    if (lines[i].trimEnd() === '---') return i + 1;
+    const line = lines[i];
+    if (line.startsWith('##')) return 0;
+    if (line.trimEnd() === '---') return i + 1;
+    if (sawKey || !line.trim() || line.startsWith('#')) continue;
+    if (!FRONTMATTER_KEY_REGEX.test(line)) return 0;
+    sawKey = true;
   }
   return 0;
 }
 
-function findUnappliedContent(
-  lines: string[],
-  fenceMask: boolean[],
-  frontmatterEnd: number
-): UnappliedContent[] {
+function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedContent[] {
   // Comments only decide whether a line holds text: sections come from the
   // same split the merge reads, where a `## ` line inside a comment is still a
   // boundary.
@@ -417,7 +423,7 @@ function findUnappliedContent(
     return -1;
   };
   const found: UnappliedContent[] = [];
-  const preamble = firstText(frontmatterEnd, sections.length ? sections[0].body.bodyStartLine - 2 : lines.length, /^#\s/);
+  const preamble = firstText(0, sections.length ? sections[0].body.bodyStartLine - 2 : lines.length, /^#\s/);
   if (preamble !== -1) found.push({ section: null, line: preamble + 1 });
   for (const { title, body } of sections) {
     const folded = title.toLowerCase();
