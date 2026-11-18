@@ -5354,6 +5354,11 @@ The system SHALL do the thing differently.
         statement: ['The system SHALL provide a legacy layer to existing consumers.'],
         scenario: ['- **WHEN** it runs with', '<args> as given', '- **THEN** the args are passed'],
       },
+      {
+        what: 'a wrapped nested bullet',
+        statement: ['The system SHALL provide a legacy layer to existing consumers.'],
+        scenario: ['- **WHEN** it runs', '  - with nested detail', '    wrapped here', '<args> as given', '- **THEN** the args are passed'],
+      },
     ])('retires a spec when $what has a line starting with `<` (#2211)', async ({ what, statement, scenario }) => {
       // Only HTML blocks of CommonMark kinds 1-6 may interrupt a paragraph, and
       // `<args>` opens none, so the line is part of the sentence above it.
@@ -5390,6 +5395,13 @@ The system SHALL do the thing differently.
       { what: 'a comment in the statement', statement: ['The system SHALL provide a legacy layer.', '<!-- escrow keys live in the legacy vault -->'], scenario: [] },
       { what: 'a standalone tag opening the statement', statement: ['<escrow-note>', 'The system SHALL provide a legacy layer.'], scenario: [] },
       { what: 'a details block under the bullets', statement: ['The system SHALL provide a legacy layer.'], scenario: ['<details>escrow keys live in the legacy vault</details>'] },
+      { what: 'a tag after a starred break', statement: ['The system SHALL provide a legacy layer.', '***', '<escrow-note>'], scenario: [] },
+      { what: 'a tag after a spaced break', statement: ['The system SHALL provide a legacy layer.', '* * *', '<escrow-note>'], scenario: [] },
+      { what: 'a tag after an indented code line', statement: ['The system SHALL provide a legacy layer.', '', '    sample', '<escrow-note>'], scenario: [] },
+      { what: 'a tag after an HTML bullet', statement: ['The system SHALL provide a legacy layer.'], scenario: ['- <div>note</div>', '<escrow-note>'] },
+      { what: 'a tag after a standalone-tag bullet', statement: ['The system SHALL provide a legacy layer.'], scenario: ['- <note-block>', '<escrow-note>'] },
+      { what: 'a tag after an indented HTML line', statement: ['The system SHALL provide a legacy layer.'], scenario: ['- <div>', '  note', '<escrow-note>'] },
+      { what: 'a tag after a break bullet', statement: ['The system SHALL provide a legacy layer.'], scenario: ['- ***', '<escrow-note>'] },
     ])('still refuses $what (#2211)', async ({ what, statement, scenario }) => {
       // An HTML block is the author's own content, not the statement or a
       // scenario, so deleting the file would take it unmentioned.

@@ -760,10 +760,31 @@ const INTERRUPTS_PARAGRAPH = new RegExp(
  */
 function opensStatementBlock(line: string, paragraphOpen: boolean): boolean {
   const text = line.trimStart();
-  if (text.startsWith('|')) return true;
+  return text.startsWith('|') || opensHtmlBlock(text, paragraphOpen);
+}
+
+function opensHtmlBlock(text: string, paragraphOpen: boolean): boolean {
   if (!text.startsWith('<')) return false;
   if (OPENS_HTML_BLOCK_THAT_INTERRUPTS.test(text)) return true;
   return !paragraphOpen && HTML_STANDALONE_TAG.test(text);
+}
+
+const THEMATIC_BREAK = /^ {0,3}(?:(?:-[ \t]*){3,}|(?:\*[ \t]*){3,}|(?:_[ \t]*){3,})$/;
+
+/** What a list item's first line holds, past every marker that opens it. */
+function listItemContent(line: string): string {
+  return line.replace(/^\s*(?:(?:[-*+]|\d{1,9}[.)])\s+)+/, '').trim();
+}
+
+/**
+ * Whether a line of prose leaves a paragraph open for the next line. A thematic
+ * break or heading ends one, and text indented four columns where no paragraph
+ * was open is a code block, so a tag written after any of them starts its own
+ * HTML block rather than continuing a sentence.
+ */
+function leavesParagraphOpen(line: string, paragraphWasOpen: boolean): boolean {
+  if (THEMATIC_BREAK.test(line) || isHeadingLine(line)) return false;
+  return paragraphWasOpen || contentColumn(/^[ \t]*/.exec(line)![0]) < 4;
 }
 
 /**
@@ -914,6 +935,9 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
     // indent can still be continuing it. Closed by anything that ends a
     // paragraph: a blank line, a fence, a heading, or a block of its own.
     let paragraphOpen = false;
+    // Whether the current list item holds an HTML block. Its lines are not a
+    // paragraph, so an unindented line after them continues nothing.
+    let htmlBlockOpen = false;
     for (let index = 0; index < lines.length; index++) {
       const line = lines[index];
       if (!line.trim()) {
@@ -922,6 +946,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         if (bulletsSeen) inScenarioBullets = false;
         listContentIndent = null;
         paragraphOpen = false;
+        htmlBlockOpen = false;
         continue;
       }
       if (index === 0) continue; // the `### Requirement:` header itself
@@ -958,6 +983,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         // not a lazy continuation of anything.
         if (!insideItem) listContentIndent = null;
         paragraphOpen = false;
+        htmlBlockOpen = false;
         continue;
       }
       // Checked ahead of the continuation branch: a setext underline turns the
@@ -981,7 +1007,8 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         // An indented nested list or quote is still inside the item, but it
         // ended the bullet's paragraph - so a later unindented line is not
         // continuing that paragraph either.
-        paragraphOpen = !INTERRUPTS_PARAGRAPH.test(withinItem);
+        htmlBlockOpen ||= opensHtmlBlock(withinItem.trimStart(), paragraphOpen);
+        paragraphOpen = !htmlBlockOpen && !INTERRUPTS_PARAGRAPH.test(withinItem);
         continue;
       }
       // Any other line closes the item; a bullet opens the next one. The
@@ -990,7 +1017,14 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       const bullet = line.match(LIST_ITEM);
       listContentIndent = bullet ? contentColumn(bullet[1]) : null;
       const paragraphWasOpen = paragraphOpen;
-      paragraphOpen = bullet !== null;
+      const itemContent = bullet ? listItemContent(line) : '';
+      htmlBlockOpen = opensHtmlBlock(itemContent, false);
+      paragraphOpen =
+        bullet !== null &&
+        !htmlBlockOpen &&
+        !THEMATIC_BREAK.test(line) &&
+        !THEMATIC_BREAK.test(itemContent) &&
+        !isHeadingLine(itemContent);
       if (/^ {0,3}####\s+Scenario:/i.test(line)) {
         seenScenario = true;
         inScenarioBullets = true;
@@ -1011,7 +1045,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // Free prose above the first scenario is the requirement statement, and
       // a paragraph of it stays open for the next line to continue.
       if (!seenScenario && !opensStatementBlock(line, paragraphWasOpen)) {
-        paragraphOpen = true;
+        paragraphOpen = leavesParagraphOpen(line, paragraphWasOpen);
         continue;
       }
       leftovers.push(line.trim());
