@@ -390,22 +390,28 @@ function maskHtmlComments(lines: string[], fenceMask: boolean[]): string[] {
 }
 
 /** A line that opens like a YAML mapping entry: `owner: a`, `"owner": a`, `owner:`. */
-const FRONTMATTER_KEY_REGEX = /^["']?[\p{L}\p{N}_.-]+["']?\s*:(?:\s|$)/u;
+const FRONTMATTER_KEY_REGEX = /^(?:"[^"]+"|'[^']+'|[\p{L}\p{N}_.-]+)\s*:(?:\s|$)/u;
 
 /**
  * The line after a frontmatter block, or 0 when the file has none. The block is
  * opaque: teams' formats differ and need not be valid YAML, so its fields are
  * never read. Two checks keep `---` thematic breaks from hiding authored text:
- * the first entry must look like a key, and a `##` line means real sections.
+ * the first entry must look like a key, and a `##` heading means real sections.
+ * A block with text but no key is not frontmatter.
  */
 export function findFrontmatterEnd(lines: string[]): number {
   if (lines[0].trimEnd() !== '---') return 0;
   let sawKey = false;
+  let sawComment = false;
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
-    if (line.startsWith('##')) return 0;
-    if (line.trimEnd() === '---') return i + 1;
-    if (sawKey || !line.trim() || line.startsWith('#')) continue;
+    if (/^#{2,6}(?:\s|$)/.test(line)) return 0;
+    if (line.trimEnd() === '---') return sawKey || !sawComment ? i + 1 : 0;
+    if (sawKey || !line.trim()) continue;
+    if (line.trimStart().startsWith('#')) {
+      sawComment = true;
+      continue;
+    }
     if (!FRONTMATTER_KEY_REGEX.test(line)) return 0;
     sawKey = true;
   }
