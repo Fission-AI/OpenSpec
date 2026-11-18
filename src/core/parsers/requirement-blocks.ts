@@ -203,6 +203,8 @@ export interface DeltaPlan {
   /** Canonical requirement blocks written outside every delta section. */
   orphanedRequirements: OrphanedRequirement[];
   unappliedContent: UnappliedContent[];
+  /** The file opens with a frontmatter block, which archive leaves in the change. */
+  hasFrontmatter: boolean;
   skippedHeaders: SkippedHeader[]; // non-canonical ### headers the reader skipped
   sectionPresence: {
     added: boolean;
@@ -269,6 +271,7 @@ export function parseDeltaSpec(content: string): DeltaPlan {
   );
   unpairedRenames.sort((a, b) => a.line - b.line);
   skippedHeaders.sort((a, b) => a.line - b.line);
+  const frontmatterEnd = findFrontmatterEnd(lines);
   return {
     added,
     modified,
@@ -277,7 +280,8 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     renamed: renamedPairs,
     unpairedRenames,
     orphanedRequirements: findOrphanedRequirements(lines, fenceMask),
-    unappliedContent: findUnappliedContent(lines, fenceMask),
+    unappliedContent: findUnappliedContent(lines, fenceMask, frontmatterEnd),
+    hasFrontmatter: frontmatterEnd > 0,
     skippedHeaders,
     sectionPresence: {
       added: addedLookup.found,
@@ -383,7 +387,26 @@ function maskHtmlComments(lines: string[], fenceMask: boolean[]): string[] {
   return lines.map((line, i) => (fenceMask[i] ? line : comments[i]));
 }
 
-function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedContent[] {
+/**
+ * The line after a frontmatter block, or 0 when the file has none. The block is
+ * opaque: teams' formats differ and need not be valid YAML, so only its `---`
+ * delimiters are read. A `##` line inside means the delimiters are thematic
+ * breaks around real sections, which the merge still reads.
+ */
+function findFrontmatterEnd(lines: string[]): number {
+  if (lines[0].trimEnd() !== '---') return 0;
+  for (let i = 1; i < lines.length; i++) {
+    if (lines[i].startsWith('##')) return 0;
+    if (lines[i].trimEnd() === '---') return i + 1;
+  }
+  return 0;
+}
+
+function findUnappliedContent(
+  lines: string[],
+  fenceMask: boolean[],
+  frontmatterEnd: number
+): UnappliedContent[] {
   // Comments only decide whether a line holds text: sections come from the
   // same split the merge reads, where a `## ` line inside a comment is still a
   // boundary.
@@ -394,7 +417,7 @@ function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedC
     return -1;
   };
   const found: UnappliedContent[] = [];
-  const preamble = firstText(0, sections.length ? sections[0].body.bodyStartLine - 2 : lines.length, /^#\s/);
+  const preamble = firstText(frontmatterEnd, sections.length ? sections[0].body.bodyStartLine - 2 : lines.length, /^#\s/);
   if (preamble !== -1) found.push({ section: null, line: preamble + 1 });
   for (const { title, body } of sections) {
     const folded = title.toLowerCase();

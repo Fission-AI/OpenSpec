@@ -107,6 +107,161 @@ describe('parseDeltaSpec unappliedContent', () => {
   });
 });
 
+const REQUIREMENT_DELTA = [
+  '## MODIFIED Requirements',
+  '',
+  '### Requirement: Existing requirement name',
+  'The system SHALL do something.',
+  '',
+  '#### Scenario: A scenario',
+  '- **WHEN** something happens',
+  '- **THEN** something follows',
+];
+
+// The blocks as reported. #2255's is not valid YAML (`by` and `at` repeat), so
+// recognizing frontmatter must not depend on parsing it.
+const FRONTMATTER_2255 = [
+  '---',
+  'doc_template_version: "1.0.0"',
+  'type: spec_change',
+  'title: ""',
+  'description: ""',
+  'tags: ',
+  '- "spec_change" ',
+  '- "other tags"',
+  'status: draft # Optional: draft | active | stable | deprecated',
+  'generated: ',
+  'by: "{who}" ',
+  'at: "YYYY-MM-DDTHH:mm:ss+08:00" # ISO 8601',
+  'verified: ',
+  'by: "{who}" ',
+  'at: "YYYY-MM-DDTHH:mm:ss+08:00" # ISO 8601',
+  'revision: ',
+  '- version: "1.0" ',
+  'date: "YYYY-MM-DD" ',
+  'detail: >- ',
+  '<!--detail-->',
+  '---',
+];
+const FRONTMATTER_2272 = [
+  '---',
+  "schema_version: '1.0'",
+  'created:',
+  "  date: '2026-11-18T12:09:45Z'",
+  "  agent: { name: some-tool, version: '1.0' }",
+  '---',
+];
+
+describe('parseDeltaSpec frontmatter', () => {
+  it.each([
+    ['#2255', FRONTMATTER_2255, '\n'],
+    ['#2255 with CRLF', FRONTMATTER_2255, '\r\n'],
+    ['#2272', FRONTMATTER_2272, '\n'],
+    ['#2272 with CRLF', FRONTMATTER_2272, '\r\n'],
+  ])('does not report the block from %s', (_name, frontmatter, eol) => {
+    const plan = parseDeltaSpec([...frontmatter, ...REQUIREMENT_DELTA].join(eol));
+
+    expect(plan.unappliedContent).toEqual([]);
+    expect(plan.hasFrontmatter).toBe(true);
+    expect(plan.modified.map((block) => block.name)).toEqual(['Existing requirement name']);
+  });
+
+  it('still reports prose after the block', () => {
+    const plan = parseDeltaSpec(['---', 'a: 1', '---', 'Dropped prose.', ...REQUIREMENT_DELTA].join('\n'));
+
+    expect(plan.unappliedContent).toEqual([{ section: null, line: 4 }]);
+  });
+
+  it.each([
+    ['is not on the first line', ['', '---', 'a: 1', '---', ...REQUIREMENT_DELTA], 2],
+    ['is never closed', ['---', 'a: 1', ...REQUIREMENT_DELTA], 1],
+  ])('still reports a block that %s', (_name, lines, line) => {
+    const plan = parseDeltaSpec(lines.join('\n'));
+
+    expect(plan.hasFrontmatter).toBe(false);
+    expect(plan.unappliedContent).toEqual([{ section: null, line }]);
+  });
+
+  // Two thematic breaks can wrap real sections. Those must stay visible to the merge.
+  it('does not mistake thematic breaks around a delta section for frontmatter', () => {
+    const plan = parseDeltaSpec(['---', ...REQUIREMENT_DELTA, '---', '## Notes', 'Dropped.'].join('\n'));
+
+    expect(plan.hasFrontmatter).toBe(false);
+    expect(plan.modified.map((block) => block.name)).toEqual(['Existing requirement name']);
+    expect(plan.unappliedContent).toContainEqual({ section: 'Notes', line: 11 });
+  });
+});
+
+describe('frontmatter through validate and archive', () => {
+  let tempDir: string;
+  let changeDir: string;
+  let specsRoot: string;
+
+  beforeEach(async () => {
+    tempDir = await fs.mkdtemp(path.join(os.tmpdir(), 'openspec-frontmatter-'));
+    specsRoot = path.join(tempDir, 'openspec', 'specs');
+    changeDir = path.join(tempDir, 'openspec', 'changes', 'c');
+    await fs.mkdir(path.join(changeDir, 'specs', 'example'), { recursive: true });
+    await fs.mkdir(path.join(specsRoot, 'example'), { recursive: true });
+    await fs.writeFile(
+      path.join(specsRoot, 'example', 'spec.md'),
+      [
+        '---',
+        'owner: team-a',
+        '---',
+        '# example Specification',
+        '',
+        '## Purpose',
+        'Example capability.',
+        '',
+        '## Requirements',
+        '',
+        '### Requirement: Existing requirement name',
+        'The system SHALL do the original thing.',
+        '',
+        '#### Scenario: A scenario',
+        '- **WHEN** something happens',
+        '- **THEN** something follows',
+        '',
+      ].join('\n')
+    );
+  });
+  afterEach(async () => {
+    await fs.rm(tempDir, { recursive: true, force: true });
+  });
+
+  it.each([
+    ['#2255', FRONTMATTER_2255],
+    ['#2272', FRONTMATTER_2272],
+  ])('passes --strict with the block from %s', async (_name, frontmatter) => {
+    await fs.writeFile(
+      path.join(changeDir, 'specs', 'example', 'spec.md'),
+      [...frontmatter, ...REQUIREMENT_DELTA].join('\r\n')
+    );
+
+    const report = await new Validator(true).validateChangeDeltaSpecs(changeDir);
+
+    expect(report.issues).toEqual([]);
+    expect(report.valid).toBe(true);
+  });
+
+  it('archive says the block stays with the change and keeps the main spec frontmatter', async () => {
+    await fs.writeFile(
+      path.join(changeDir, 'specs', 'example', 'spec.md'),
+      [...FRONTMATTER_2272, ...REQUIREMENT_DELTA].join('\n')
+    );
+
+    const [update] = await findSpecUpdates(changeDir, specsRoot);
+    const built = await buildUpdatedSpec(update, 'c', { silent: true });
+
+    expect(built.warnings).toEqual([
+      'example - frontmatter (line 1) is not carried into the main spec. It stays in the archived change.',
+    ]);
+    expect(built.rebuilt.startsWith('---\nowner: team-a\n---\n')).toBe(true);
+    expect(built.rebuilt).not.toContain('schema_version');
+  });
+});
+
 describe('archive and validate report unapplied content', () => {
   let tempDir: string;
   let changeDir: string;

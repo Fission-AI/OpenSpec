@@ -265,6 +265,9 @@ export async function buildUpdatedSpec(
   }
 
   // Archive carries requirement blocks only; name any other text it leaves behind.
+  if (plan.hasFrontmatter) {
+    warn(`${specName} - frontmatter (line 1) is not carried into the main spec. It stays in the archived change.`);
+  }
   for (const lost of plan.unappliedContent) {
     warn(`${specName} - ${describeUnappliedContent(lost)} (line ${lost.line}) is not carried into the main spec.`);
   }
