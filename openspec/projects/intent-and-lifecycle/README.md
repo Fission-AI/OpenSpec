@@ -4,6 +4,8 @@ A project defines named actions and attaches them to points in the OpenSpec work
 
 The pilot proves this with two user-defined actions. In the first, the agent rereads linked requirements and compares them with the plan. In the second, the agent runs a Git drift script the project maintains. Neither is built into OpenSpec.
 
+Detecting and managing drift remains a goal, and user-defined actions are how the pilot serves it. A trigger's `mode` and `policy` are separate concepts, and the pilot supports `mode` only. A general way for a change to reference what it depends on is a separate exploration. Plugins, native executable actions, and agent orchestration are future work.
+
 ## Start here
 
 - [Roadmap](direction/roadmap.md): the PR sequence and its two release checkpoints.

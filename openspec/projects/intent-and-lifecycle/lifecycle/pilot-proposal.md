@@ -74,7 +74,18 @@ A trigger has one of two modes:
 
 `auto` does not guarantee execution and does not bypass the agent's existing permissions. It means the agent does not ask first.
 
-Config validation rejects duplicate action ids, triggers that reference a missing action, unsupported modes, and hook names that are neither built in nor prefixed with `custom.`. A project with no actions behaves as it does today.
+### Mode and policy
+
+Mode and policy are separate settings, and neither implies the other.
+
+- **Mode** says whether an action is followed without asking or offered first. Its values are `auto` and `suggest`.
+- **Policy** says how an action's outcome affects the workflow. Its values are `warn` and `block`.
+
+The pilot supports mode only. Policy needs OpenSpec to see an action's outcome, and the pilot collects no results and enforces nothing. Policy stays in the longer-term model.
+
+Until policy is supported, a trigger that sets `policy` is reported as unsupported. It is never silently accepted.
+
+Config validation rejects duplicate action ids, triggers that reference a missing action, unsupported modes, and hook names that are neither built in nor prefixed with `custom.`. It reports a trigger that sets `policy` as unsupported. A project with no actions behaves as it does today.
 
 Lookup reuses OpenSpec's existing root and config resolution, including Stores. When a Store is the resolved root, the Store's configuration decides which actions are returned.
 
@@ -183,6 +194,7 @@ Run one fixture project through the built-in Apply skill and through a custom ca
 - `apply.before` fires before edits, on begin and on resume.
 - `apply.completed` fires on `all_done` and never on `blocked`.
 - Instruction and status refreshes repeat no offers.
+- A trigger that sets `policy` is reported as unsupported.
 - A `custom.` hook works from a custom caller, and a mistyped built-in name such as `aply.before` is rejected.
 - Actions A and B both run through `apply.before` with no OpenSpec code specific to either.
 - An unreachable source is reported as unread.
@@ -192,14 +204,19 @@ The CLI and config have unit and integration tests. The skill behavior is shown 
 
 ## Out of scope
 
-- A built-in drift check, source metadata on changes, recorded revisions, or snapshots.
+- Built-in drift detection, or source-version tracking in core.
+- A `sources:` or `references:` schema.
 - A native runtime for executable actions.
-- Policy enforcement or blocking.
+- Policy enforcement, result collection, or blocking. `policy` stays in the longer-term model.
 - A findings or result schema.
 - Persistent action state, background jobs, or observers.
 - Plugin packaging, installation, or profiles.
 
-Three questions are decided separately: native executable actions and their trust model, whether Archive calls an `archive.before` hook, and plugins. See the [roadmap](../direction/roadmap.md).
+Detecting and managing drift remains a goal. The pilot serves it through user-defined actions, and Git is one way to implement one.
+
+Generalized references, a provider-agnostic way for a change to reference what it depends on, are a separate exploration. The pilot examples use ordinary Markdown links for now, which is not the permanent answer. Hooks do not depend on references.
+
+These are decided separately: policy, native executable actions and their trust model, whether Archive calls an `archive.before` hook, plugins, and agent orchestration. See the [roadmap](../direction/roadmap.md).
 
 We have not inspected the private integration skills. Mapping where they would make these calls is part of checking the custom-caller path.
 

@@ -16,12 +16,25 @@ OpenSpec owns the hook names and action discovery. Users define what actions do.
 - **Action:** named instructions for an agent.
 - **Trigger:** config that attaches an action to a hook and sets its mode.
 
-A trigger has one of two modes:
+Actions and triggers are the core abstraction. Nothing happens in a project with no configured triggers.
+
+### Mode and policy
+
+Mode and policy are separate settings, and neither implies the other.
+
+- **Mode** says whether an action is followed without asking or offered first. Its values are `auto` and `suggest`.
+- **Policy** says how an action's outcome affects the workflow. Its values are `warn` and `block`.
+
+The pilot supports mode only. Policy needs OpenSpec to see an action's outcome, and the pilot collects no results and enforces nothing. Policy stays in the longer-term model.
+
+Until policy is supported, a trigger that sets `policy` is reported as unsupported. It is never silently accepted.
+
+In the pilot, the two modes mean:
 
 - **`suggest`:** the agent offers the action and follows it only if the developer accepts.
 - **`auto`:** the agent follows the instructions without an extra prompt for that action.
 
-`auto` does not guarantee execution and does not bypass the agent's existing permissions. Nothing happens in a project with no configured triggers.
+`auto` does not guarantee execution and does not bypass the agent's existing permissions.
 
 ## How this differs from operation guidance
 
@@ -76,7 +89,7 @@ Actions and triggers live in project configuration. Lookup reuses OpenSpec's exi
 
 Each PR adds one verifiable behavior. Not every PR needs to deliver user value alone. All of them reuse one fixture project.
 
-1. **Actions and triggers in config.** Parse and validate them. Reject duplicate action ids, triggers that reference a missing action, unsupported modes, and hook names that are neither built in nor prefixed with `custom.`. A project with no actions behaves as it does today.
+1. **Actions and triggers in config.** Parse and validate them. Reject duplicate action ids, triggers that reference a missing action, unsupported modes, and hook names that are neither built in nor prefixed with `custom.`. Report a trigger that sets `policy` as unsupported. A project with no actions behaves as it does today.
 2. **`openspec lifecycle actions --at <hook>`.** Return matching actions in order with instructions inline. Cover one match, several matches, no match, invalid config, a `custom.` hook, a rejected mistyped name, and a Store as the resolved root.
 3. **Apply calls `apply.completed`.** The Apply skill asks for actions when its state is `all_done`, including a change that was already complete. `suggest` actions can be accepted or skipped in the current session. A `blocked` change does not reach this hook. Reading status or refreshing instructions does not fire it.
 4. **Apply calls `apply.before`.** The Apply skill asks for actions when it begins or resumes, before any edits. Verify both hooks in one run with different actions on each.
@@ -101,10 +114,10 @@ Each PR adds one verifiable behavior. Not every PR needs to deliver user value a
 
 ## What we are not building
 
-- A Git drift detection framework or a built-in drift action.
-- A source-tracking subsystem, source metadata on changes, or snapshots.
+- Built-in drift detection. Detecting and managing drift remains a goal, and the pilot serves it through user-defined actions.
+- Source-version tracking in core, or a `sources:` or `references:` schema.
 - A native runtime for executable actions.
-- Policy enforcement or blocking.
+- Policy enforcement, result collection, or blocking.
 - Inputs passed from OpenSpec into actions, or a formal execution context.
 - Persistent action state, background jobs, or observers.
 - Plugin packaging, installation, or profiles.
@@ -114,10 +127,26 @@ Running `openspec archive` by hand fires no hooks, because hooks fire only when 
 ## Decide separately
 
 - **Executable actions.** Running a team's check natively needs a trust model (including what happens when the script changes), timeouts, a result contract, and authorization. This is not a dependency of the sequence above.
+- **Policy.** `warn` and `block` depend on native execution and result collection. Also open is whether a `policy` field in pilot config is an error or a warning.
 - **`archive.before`.** Decide whether the Archive skill calls a hook in this slice or after checkpoint B.
 - **Plugins and shared profiles.** Named actions are the unit a plugin would ship. Revisit once the action shape has held up through checkpoint B.
+- **Agent orchestration.** Launching agents, tracking an action across sessions, and chaining actions remain future work.
 
 ## Keep separate
+
+### Drift detection
+
+The enterprise need is detecting and managing drift between a change and the information it was planned from. Git is one way to do that, not the requirement itself. The pilot's two example actions both serve it through the same hook, with no drift-specific support in OpenSpec.
+
+### Generalized references
+
+Generalized references are a separate exploration. We want a provider-agnostic way for a change to reference the information it depends on. That could include local Markdown files, documents in other repositories, Git-hosted documents, tools such as Linear, Jira, and Notion, and user-defined reference types.
+
+Nothing about it is decided. That includes the name, the schema, and whether it needs integrations, resolvers, or structured metadata, or can start with the tools agents already have. `references` is a possible name, but project-level `references` in `openspec/config.yaml` already means something else.
+
+For now no `sources:` or `references:` schema is introduced. The pilot examples use ordinary Markdown links, which is a starting point and not the permanent answer. Lifecycle hooks do not depend on references, and references do not depend on lifecycle hooks.
+
+### External contracts
 
 External-contract generation and verification remain [broader exploration](external-context-for-changes.md). They are not delivered by lifecycle hooks.
 

@@ -122,11 +122,15 @@ These six decisions establish the *direction*. They are not claims that every ca
 
 ### Revised, November 2026
 
-Use **actions and triggers** for lifecycle behavior. An action is named instructions for an agent. A trigger attaches an action to a hook and sets whether the agent offers it or follows it without asking. A hook names the moment where a caller asks OpenSpec which actions apply.
+Use **actions and triggers** for lifecycle behavior. An action is named instructions for an agent. A trigger attaches an action to a hook. A hook names the moment where a caller asks OpenSpec which actions apply.
 
-OpenSpec resolves which actions are configured for a hook. The calling agent or orchestrator handles them. OpenSpec does not run checks, track sources, or record results.
+A trigger carries two separate settings. **Mode** says whether the agent follows an action without asking or offers it first. **Policy** says how an action's outcome affects the workflow, as a warning or a block. The pilot supports mode only. Policy stays in the model, with enforcement deferred until OpenSpec can see an action's outcome.
 
-The starting examples are project-written agent instructions. One rereads linked requirements against the plan, and one runs a drift script the project maintains. Ordinary links and prose remain the way a change connects to its context.
+OpenSpec resolves which actions are configured for a hook. The calling agent or orchestrator handles them. In the pilot, OpenSpec does not run checks, track sources, or record results.
+
+The starting examples are project-written agent instructions. One rereads linked requirements against the plan, and one runs a drift script the project maintains. Detecting and managing drift remains a goal, served here by user-defined actions. Git is one way to implement one.
+
+The pilot examples connect a change to its context with ordinary Markdown links. That is a starting point, not the permanent answer. See generalized references under [Separate future exploration](#separate-future-exploration).
 
 The [pilot proposal](../lifecycle/pilot-proposal.md) owns this model and its unresolved details. The [roadmap](roadmap.md) owns lifecycle delivery. The broader context-workflow exploration here has no committed delivery sequence.
 
@@ -161,6 +165,10 @@ This broader exploration considers using the existing workflow wherever it fits 
 The [Working PRD](./external-context-for-changes.md) explores possible improvements to shaping changes from existing context and verifying external contracts. Those questions remain useful but do not define the next lifecycle increment.
 
 The immediate product is lifecycle extensibility around an existing generation workflow. Its [roadmap](roadmap.md) starts with project-defined actions that an agent offers or follows before and after Apply. Preserve that integration's current generation behavior.
+
+**Generalized references** are a further separate exploration. We want a provider-agnostic way for a change to reference the information it depends on, such as local Markdown, documents in other repositories, Git-hosted documents, tools like Linear, Jira, and Notion, and user-defined types. The name, the schema, and whether it needs integrations, resolvers, or structured metadata are all undecided. Project-level `references` already means something else. Lifecycle hooks and references do not depend on each other. The [roadmap](roadmap.md#generalized-references) records the current position.
+
+Plugins, native executable actions, and agent orchestration also remain future work.
 
 ### The real questions left
 

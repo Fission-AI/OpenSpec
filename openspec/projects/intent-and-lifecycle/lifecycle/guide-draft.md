@@ -54,6 +54,8 @@ triggers:
 
 `auto` does not bypass your agent's permissions. If the instructions run a command your agent normally asks about, it still asks.
 
+A trigger is also planned to take a `policy`, which says whether an action's outcome warns or blocks. Policy is separate from mode and is not supported yet. A trigger that sets it is reported as unsupported.
+
 One action can have several triggers, and one hook can have several actions. Your agent handles them in the order you list them.
 
 ## 3. See it during Apply
@@ -161,4 +163,8 @@ Use an action for a named step at a specific moment that your agent can offer an
 
 ## Not part of this proposal
 
-Scripts that OpenSpec runs itself, checks that block an operation, and plugins that share actions across repositories are separate decisions. The [roadmap](../direction/roadmap.md) lists them.
+Scripts that OpenSpec runs itself, policies that warn or block, and plugins that share actions across repositories are separate decisions.
+
+A general way for a change to reference the documents and tools it depends on is also being explored separately. The examples here use ordinary Markdown links for now.
+
+The [roadmap](../direction/roadmap.md) lists all of these.
