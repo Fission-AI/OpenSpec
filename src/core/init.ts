@@ -483,14 +483,19 @@ export class InitCommand {
       ? getConfiguredTools(projectPath).filter((id) => supportsGlobalSkills(id))
       : [];
     const migration = movesProject && !this.resolveProfileOverride() ? computeProfileMigration(projectPath, context.detectedTools) : null;
-    let globalSkills: { count: number } | undefined;
+    let globalSkills: { count: number; reusedFor?: string } | undefined;
     if (installed.skills.length || supported.length || movedTools.length) {
       const result = await installGlobalSkills({
         toolIds: [...new Set([...supported.map(tool => tool.value), ...movedTools])],
         workflows: migration?.workflows ?? this.getActiveWorkflows(),
         version: OPENSPEC_VERSION,
       });
-      globalSkills = { count: result.skills.length };
+      // Nobody chose global here: the skills already on this machine decided it.
+      const reused = this.scopeIsDefault && installed.skills.length > 0 && !movesProject;
+      globalSkills = {
+        count: result.skills.length,
+        reusedFor: reused ? tools.map((tool) => tool.value).join(',') || '<ids>' : undefined,
+      };
       const removed = describeRemovedSkills(result.removedSkills);
       if (removed) console.log(chalk.dim(removed));
     }
@@ -1354,7 +1359,7 @@ export class InitCommand {
       collisions: string[];
       removed: number;
     },
-    globalSkills?: { count: number }
+    globalSkills?: { count: number; reusedFor?: string }
   ): void {
     console.log();
     console.log(
@@ -1376,6 +1381,10 @@ export class InitCommand {
     const successfulTools = [...results.createdTools, ...results.refreshedTools];
     if (globalSkills) {
       console.log(`${globalSkills.count} skills in ~/.agents/skills/ for every project on this machine`);
+      if (globalSkills.reusedFor) {
+        console.log(chalk.yellow('OpenSpec skills were already installed on this machine, so none were added to this project.'));
+        console.log(chalk.dim(`To keep skills in this project instead, run: openspec init --scope project --tools ${globalSkills.reusedFor}`));
+      }
     } else if (successfulTools.length > 0) {
       const globalConfig = getGlobalConfig();
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';

@@ -139,6 +139,24 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
     });
   });
 
+  it('says so when skills already on the machine keep a new project from getting its own', async () => {
+    const notice = 'OpenSpec skills were already installed on this machine, so none were added to this project.';
+    const first = await cli(await project('first'), 'init', '--tools', 'claude');
+    expect(first.exitCode).toBe(0);
+    expect(first.stdout).not.toContain(notice);
+
+    const dir = await project('second');
+    const second = await cli(dir, 'init', '--tools', 'claude');
+    expect(second.exitCode).toBe(0);
+    expect(second.stdout).toContain(notice);
+    expect(second.stdout).toContain('openspec init --scope project --tools claude');
+    expect(await entries(dir)).toEqual(['openspec']);
+
+    const chosen = await cli(await project('third'), 'init', '--scope', 'global', '--tools', 'claude');
+    expect(chosen.exitCode).toBe(0);
+    expect(chosen.stdout).not.toContain(notice);
+  });
+
   it('installs the same text a project install writes', async () => {
     const inProject = await project('in-project');
     const usesGlobal = await project('uses-global');
