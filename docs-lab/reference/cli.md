@@ -1220,7 +1220,7 @@ When the project has no active changes, status prints `No active changes. Create
 
 **Output**
 
-A checklist of the schema's artifacts: `[x]` done, `[ ]` ready to write, `[-]` blocked until the artifacts it depends on exist.
+A checklist of the schema's artifacts: `[x]` done, `[~]` skipped, `[ ]` ready to write, `[-]` blocked until the artifacts it depends on exist.
 
 ```
 Change: add-rate-limit
@@ -1236,7 +1236,7 @@ Progress: 2/4 artifacts complete
 Next: openspec instructions design --change "add-rate-limit" --json
 ```
 
-The `Next:` line names the one command that moves the change forward, so `openspec status` is enough to pick a change back up in a fresh session. It names the next ready artifact while planning is unfinished, and `openspec instructions apply` once every planning artifact exists:
+The `Next:` line names the one command that moves the change forward, so `openspec status` is enough to pick a change back up in a fresh session. It names the next ready artifact while planning is unfinished, and `openspec instructions apply` once every planning artifact is done or skipped:
 
 ```
 [x] proposal
@@ -1290,6 +1290,8 @@ It carries `--store <id>` whenever the resolved root is a store, and names the s
   ]
 }
 ```
+
+An [optional artifact](schemas/schema-yaml.md#optional) the change left out has `"status": "skipped"` and `"omitted": true`.
 
 With `--all --json`, `changes` contains the same status object for each change, without a per-change `root`. The selected root appears once on the envelope. This example trims the per-change status fields shown above:
 

@@ -27,7 +27,7 @@ Proposal comes first. Specs and design follow in either order, and tasks needs b
 
 Two artifacts can be skipped:
 
-- **`design`**: when none of [its conditions](#designmd) apply, the agent leaves it out and drafts `tasks` anyway.
+- **`design`**: when none of [its conditions](#designmd) apply, the agent leaves it out and drafts `tasks` anyway. The artifact is [`optional`](../schema-yaml.md#optional), so it counts as skipped once `tasks.md` exists.
 - **`specs`**: set [`skip_specs: true`](../../configuration/change-metadata.md#skip_specs) in the change's `.openspec.yaml`.
 
 ## Example change folder
