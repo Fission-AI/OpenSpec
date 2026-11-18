@@ -2,9 +2,9 @@
 
 **Companion to:** [Build on the decisions you've already made](./product-launch-post-draft.md)\
 **Status:** Open product questions and proposed answers\
-**Reviewed:** November 4, 2026; aligned with the actions/triggers decision November 5, 2026
+**Reviewed:** November 4, 2026; aligned with the revised actions/triggers decision, November 2026
 
-This review asks what would make the broader product launch possible. Its contract and verification questions remain open. They don't block the [lifecycle pilot](../lifecycle/pilot-proposal.md), which adds checks and optional reviews around an existing generation workflow.
+This review asks what would make the broader product launch possible. Its contract and verification questions remain open. They don't block the [lifecycle pilot](../lifecycle/pilot-proposal.md), which lets a project attach named agent instructions to points in the workflow. Lifecycle reviews alone do not deliver implement-only contracts or evidence-based verification.
 
 ## The product bet
 
@@ -18,11 +18,11 @@ The article now describes **a proposed first release**, using existing OpenSpec 
 
 | What a reader expects | Existing surface | New behavior required |
 | --- | --- | --- |
-| “Point OpenSpec at existing plans.” | `/opsx:explore` and `/opsx:propose` can already read code and documents through agent tools | Consistent source reading and decision-making about what is relevant, established, missing, or out of scope |
+| “Point OpenSpec at existing plans.” | `/openspec-explore` and `/openspec-propose` can already read code and documents through agent tools | Consistent source reading and decision-making about what is relevant, established, missing, or out of scope |
 | “Review what my change owns.” | Propose already clarifies material ambiguity | A concise, reviewable change-shaping assessment before creating artifacts; accepted decisions persist in existing files |
 | “Implement a shared contract without duplicating it.” | The default schema, delta specs, and `skip_specs` | A supported implement-existing-contract lifecycle distinct from ‘no spec-level behavior changes’ |
-| “Verify shared and local guarantees.” | Expanded `/opsx:verify` checks local delta specs and design | Resolve applicable external expectations, verify against evidence, and report unreadable or unverified claims |
-| “Check what changed.” | `/opsx:update` edits existing change artifacts with confirmation | An on-demand, source-aware review of linked information and its possible impact |
+| “Verify shared and local guarantees.” | Expanded `/openspec-verify-change` checks local delta specs and design | Resolve applicable external expectations, verify against evidence, and report unreadable or unverified claims |
+| “Check what changed.” | `/openspec-update-change` edits existing change artifacts with confirmation | An on-demand, source-aware review of linked information and its possible impact |
 | “Configure my team's preferences.” | `openspec/config.yaml` already supports `context` and per-artifact `rules` | Documentation/examples for conventions; the core behavior must work without custom rules |
 
 **Later, separate from this launch:** Projects as a shared context workspace; proactive observer and relationship discovery; first-class extension packaging; exact historical source comparisons across providers; organization-level coverage reporting.

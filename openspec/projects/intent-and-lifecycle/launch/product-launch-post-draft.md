@@ -2,7 +2,7 @@
 
 ## Build on the decisions you've already made
 
-> **Draft launch post:** This is a broader product exploration, not a shipped release. The current [lifecycle pilot](../lifecycle/pilot-proposal.md) keeps the existing generation workflow and adds checks and optional reviews. The contract and verification ideas below are separate work.
+> **Draft launch post:** This is a broader product exploration. It is not a shipped release and it is not the lifecycle release. The current [lifecycle pilot](../lifecycle/pilot-proposal.md) lets a project attach named agent instructions to points in the workflow. It delivers none of the contract or verification behavior described below.
 
 *OpenSpec helps coding agents turn existing plans into focused changes, carrying forward what matters and defining only what still needs to be worked out.*
 
@@ -55,7 +55,7 @@ A product team already has checkout requirements, a pricing API contract, and de
 In the coding agent's chat, they use the OpenSpec command they already know:
 
 ```text
-/opsx:propose implement-ios-checkout
+/openspec-propose implement-ios-checkout
 
 Use the shared checkout requirements and pricing API contract.
 Implement the iOS confirmation flow. Backend pricing and Android
@@ -108,7 +108,7 @@ The workflow still starts with familiar OpenSpec commands. What's changed is **w
 
 ### 1. Start from an existing plan, not a blank proposal
 
-Point `/opsx:explore` or `/opsx:propose` at a Markdown file, another checked-out repository, a design, or an issue available through the agent's tools. The agent identifies the relevant context before drafting. It doesn't ask you to recreate decisions already captured there.
+Point `/openspec-explore` or `/openspec-propose` at a Markdown file, another checked-out repository, a design, or an issue available through the agent's tools. The agent identifies the relevant context before drafting. It doesn't ask you to recreate decisions already captured there.
 
 ### 2. Review the boundary of the change
 
@@ -150,7 +150,7 @@ Passing a test supports the behavior it actually checks; it doesn't mean the who
 While updating a change, ask the agent to re-read its linked sources and explain what might affect the plan:
 
 ```text
-/opsx:update implement-ios-checkout
+/openspec-update-change implement-ios-checkout
 
 Review the linked checkout requirements and pricing API.
 What has changed that could affect this plan? Suggest revisions,
@@ -166,7 +166,7 @@ A changed document doesn't automatically mean a broken implementation. The agent
 **2. Start a change using your existing workflow.** In the agent's chat:
 
 ```text
-/opsx:propose implement-ios-checkout
+/openspec-propose implement-ios-checkout
 
 Use docs/checkout-requirements.md and the pricing contract
 in ../shared-contracts/pricing.md. Implement only the iOS
@@ -175,7 +175,7 @@ confirmation flow, and show me what you plan to reuse or define.
 
 The agent proposes the scope, creates the change artifacts after important decisions are clear, and preserves the source links and their meaning in the plan. Review the proposed boundary just as you would review the design.
 
-**3. Implement, verify, and archive.** Continue with `/opsx:apply`, then verify the implementation and archive the change. The expanded OpenSpec command profile includes `/opsx:verify`; users on the core profile can enable it through `openspec config profile` followed by `openspec update`.
+**3. Implement, verify, and archive.** Continue with `/openspec-apply-change`, then verify the implementation and archive the change. The expanded OpenSpec command profile includes `/openspec-verify-change`; users on the core profile can enable it through `openspec config profile` followed by `openspec update`.
 
 ### Configure team conventions when you need them
 

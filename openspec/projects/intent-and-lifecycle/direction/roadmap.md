@@ -1,41 +1,124 @@
-# Lifecycle extensibility roadmap
+# Lifecycle hooks roadmap
 
-**Status:** Agreed scope; proposed delivery plan. No dates committed.
+**Status:** Proposed delivery plan, revised November 2026. Nothing here is implemented. No dates committed.
 
-Keep the existing requirements-to-change workflow. Give built-in skills, custom skills, and CLI operations the same way to run checks and offer useful next steps.
+This plan replaces the earlier Git-first pilot sequence. The [pilot proposal](../lifecycle/pilot-proposal.md) has the design, and the [guide draft](../lifecycle/guide-draft.md) shows the experience from the user's side.
 
-The [lifecycle guide draft](../lifecycle/guide-draft.md) shows where we want to end up. Start with the [small pilot](../lifecycle/pilot-proposal.md), then use what we learn to extend it.
+## The principle
 
-## 1. Walk through the existing skills
+OpenSpec resolves which actions are configured for a hook. The calling agent or orchestrator handles them.
 
-Find where the custom workflow starts Apply and knows its tasks are complete. Check what source identity and revision it already records. Capture the version actually read and save it when the developer accepts the generated change. Map those inputs to the proposed API without rebuilding generation.
+OpenSpec owns the hook names and action discovery. Users define what actions do. The caller executes them with the context, tools, and permissions it already has.
 
-Agree only the contracts needed for that walkthrough: how callers run a lifecycle point synchronously, how a check reports its result, and how an accepted review reaches the agent. Decide whether reviews map directly to skills or need a separate instruction lookup; the two-operation API and reuse of source metadata are proposals, not settled constraints.
+## The model
 
-## 2. Build one useful loop
+- **Hook:** a named point in a workflow, such as `apply.before` or `apply.completed`.
+- **Action:** named instructions for an agent.
+- **Trigger:** config that attaches an action to a hook and sets its mode.
 
-Before Apply, compare the source file with the recorded baseline. Report content changes or explain why it couldn't be checked. Offer a separate impact review: an edit may be a typo, unrelated to this work, or a proposal rather than an accepted requirement. The developer decides what needs updating; the baseline never advances silently.
+A trigger has one of two modes:
 
-After Apply, offer to review the implementation for feedback to the upstream product team. Let the developer run it or skip it. An accepted review drafts feedback in the current agent session; it never submits anything automatically.
+- **`suggest`:** the agent offers the action and follows it only if the developer accepts.
+- **`auto`:** the agent follows the instructions without an extra prompt for that action.
 
-Try both the built-in skill and the existing custom workflow. If a final source warning helps, add it before Archive through the same interface. Use warnings for the first examples, retain explicit mode and policy settings, and preserve existing validation and confirmation behavior.
+`auto` does not guarantee execution and does not bypass the agent's existing permissions. Nothing happens in a project with no configured triggers.
 
-## 3. Learn from use
+## How this differs from operation guidance
 
-Check whether warnings arrive at useful moments, whether reviews help, and whether repeated calls create noise. Try a second independent action. Add events or policies when a real workflow needs them.
+`openspec/config.yaml` already supports `operations.apply.guidance` and `operations.archive.guidance`. That guidance is standing advice for a whole operation. Lifecycle hooks differ in three ways:
 
-A skill must explicitly invoke an event. The CLI can enforce behavior only inside operations it owns. Neither gives us automatic visibility into every agent action.
+1. A hook can be invoked without an active change or an OpenSpec operation in progress.
+2. A hook returns named, discrete actions that a caller can handle one at a time.
+3. Each trigger carries a mode.
 
-## 4. Make it easy to share
+A custom skill or external orchestrator can use hooks without adopting the built-in workflows.
 
-Build toward independent plugins, global installation, project-level enablement, and versioned team profiles. Keep action lookup separate from event execution now, so these can arrive without changing skill calls.
+## The interface
 
-Before running third-party code, define trust and execution limits. Installing a plugin must not enable it everywhere or run its code. Multiple plugins should coexist without overwriting one another.
+A caller asks which actions apply at a hook:
 
-We don't need the complete installer, profile rules, event catalog, or policy engine to ship the pilot.
+```bash
+openspec lifecycle actions --at apply.before --json
+```
+
+The response is the contract between OpenSpec and every caller, so it stays small. It returns the hook and an ordered list of actions, with each action's instructions inline. This shape is illustrative and gets fixed in PR 2:
+
+```json
+{
+  "hook": "apply.before",
+  "actions": [
+    {
+      "id": "requirements-review",
+      "mode": "suggest",
+      "title": "Review requirements against the plan",
+      "description": "Reread linked requirements and compare them with this change.",
+      "instructions": "..."
+    }
+  ]
+}
+```
+
+Order follows the trigger configuration, and callers preserve it. There is no separate instruction lookup and no result or findings schema. The command is read-only.
+
+### Hook names
+
+- OpenSpec defines built-in hooks such as `apply.before` and `apply.completed`.
+- Users can invoke their own namespaced hooks, such as `team.security-review.completed`.
+- An unknown name with no namespace is rejected, which catches typos.
+
+A hook is only a name that a caller invokes. There is no registration step and no event declaration.
+
+### Where config comes from
+
+Actions and triggers live in project configuration. Lookup reuses OpenSpec's existing root and config resolution, including Stores. It does not add a second resolution system.
+
+## PR sequence
+
+Each PR adds one verifiable behavior. Not every PR needs to deliver user value alone. All of them reuse one fixture project.
+
+1. **Actions and triggers in config.** Parse and validate them. Reject duplicate action ids, triggers that reference a missing action, unsupported modes, and unknown hook names with no namespace. A project with no actions behaves as it does today.
+2. **`openspec lifecycle actions --at <hook>`.** Return matching actions in order with instructions inline. Cover one match, several matches, no match, invalid config, a namespaced hook, and a Store.
+3. **Apply calls `apply.completed`.** The Apply skill asks for actions when its state is `all_done`, including a change that was already complete. `suggest` actions can be accepted or skipped in the current session. A `blocked` change does not reach this hook. Reading status or refreshing instructions does not fire it.
+4. **Apply calls `apply.before`.** The Apply skill asks for actions when it begins or resumes, before any edits. Verify both hooks in one run with different actions on each.
+
+   **Release checkpoint A.** Run the full path from CLI to Apply to an offered, accepted, and skipped action. Run a custom caller against a namespaced hook. Confirm a project with no config is unchanged.
+
+5. **Two user-defined actions, end to end.** Ship both as tested, documented recipes:
+   - **Action A:** the agent rereads the requirements linked from the change and compares them with the current plan.
+   - **Action B:** the agent runs a project-provided Git drift script and reports what it prints. The script owns its own baseline and comparison logic.
+
+   Neither action needs special handling inside OpenSpec. When a review finds a conflict, the developer keeps the plan or revises it through the existing `openspec-update-change` skill.
+
+   **Release checkpoint B.** Run plan, review, approved update, Apply, and optional feedback as one journey. Include an unreachable source and a custom schema.
+
+## How each PR is verified
+
+- PRs 1 and 2 use unit and integration tests for config and the CLI.
+- PRs 3 to 5 depend on agent behavior. The evidence is a recorded end-to-end run on the shared fixture.
+- Both release checkpoints test the built-in skills and a custom caller.
+
+## What we are not building
+
+- A Git drift detection framework or a built-in drift action.
+- A source-tracking subsystem, source metadata on changes, or snapshots.
+- A native runtime for executable actions.
+- Policy enforcement or blocking.
+- Inputs passed from OpenSpec into actions, or a formal execution context.
+- Persistent action state, background jobs, or observers.
+- Plugin packaging, installation, or profiles.
+
+Running `openspec archive` by hand fires no hooks, because hooks fire only when a skill or caller asks for them.
+
+## Decide separately
+
+- **Executable actions.** Running a team's check natively needs a trust model (including what happens when the script changes), timeouts, a result contract, and authorization. This is not a dependency of the sequence above.
+- **`archive.before`.** Decide whether the Archive skill calls a hook in this slice or after checkpoint B.
+- **Plugins and shared profiles.** Named actions are the unit a plugin would ship. Revisit once the action shape has held up through checkpoint B.
 
 ## Keep separate
 
-External-contract generation and verification remain [broader exploration](external-context-for-changes.md), not pilot requirements. Projects, background observers, scheduling, action chains, and managed agent runs can wait for demonstrated need.
+External-contract generation and verification remain [broader exploration](external-context-for-changes.md). They are not delivered by lifecycle hooks.
 
-This roadmap accompanies a draft proposal; it does not authorize feature implementation.
+## Superseded
+
+The November 5 plan started with a built-in Git source-drift check, a `sources` list in each change's `.openspec.yaml`, and the command `openspec lifecycle check`. That sequence is replaced by this one. The actions and triggers model carries over.

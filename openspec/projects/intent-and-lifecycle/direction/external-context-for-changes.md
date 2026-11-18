@@ -4,7 +4,7 @@
 **Updated:** November 5, 2026\
 **Direction:** [Intent to Implementation](./intent-to-implementation.md)
 
-> **Separate exploration:** The current [lifecycle pilot](roadmap.md) adds checks and reviews around an existing generation workflow. This document explores broader improvements to using context; they aren't required for that pilot.
+> **Separate exploration:** The current [lifecycle pilot](roadmap.md) lets a project attach named agent instructions to points in the workflow. This document explores broader improvements to using context; they aren't required for that pilot.
 
 ## 1. The product promise
 
@@ -99,7 +99,7 @@ These are requirements for the broader context experience. They have no committe
 
 1. **Consistent start:** The supported OpenSpec planning flow can start from existing accessible files, folders, checkouts, and provider links the agent can already read. It helps select scope and preserves meaningful requirements, constraints, and motivations without wholesale copying.
 
-2. **Links that explain the work:** Important sources appear as standard Markdown links or URLs with short explanatory prose in appropriate change artifacts. More precise native links may be used when available. This basic context workflow needs no new source type or YAML schema. Optional structured Git pins belong to the separate drift-check capability.
+2. **Links that explain the work:** Important sources appear as standard Markdown links or URLs with short explanatory prose in appropriate change artifacts. More precise native links may be used when available. This basic context workflow needs no new source type or YAML schema. The lifecycle pilot does not add one either.
 
 3. **Continuity:** The agent keeps those links useful when drafting, editing, implementing, and archiving the change. Existing schemas and change lifecycle rules remain in force.
 
@@ -123,7 +123,7 @@ The existing `openspec/config.yaml` `references:` mechanism indexes registered O
 
 ### Relationship to lifecycle work
 
-The lifecycle pilot uses recorded source revisions to check drift before Apply and offers a feedback review afterward. Neither finding a changed file nor completing a review establishes that an external contract has been implemented correctly. The implement-only lifecycle and verification questions below remain part of the context work.
+The lifecycle pilot lets a project offer an optional review before Apply. In that review the agent rereads the linked sources it can reach and reports where current expectations conflict with the accepted plan. Revisions the developer approves go through the existing Update skill. The pilot records no source revisions and detects no drift on its own. Completing a review does not establish that an external contract has been implemented correctly. The implement-only lifecycle and verification questions below remain part of the context work.
 
 Shared Projects, broader historical comparison, and a proactive observer remain future directions. On-demand and observer-driven review should share reconciliation concepts. A hosted observer is a possible paid offering, not a prerequisite for the context workflow or lifecycle pilot.
 

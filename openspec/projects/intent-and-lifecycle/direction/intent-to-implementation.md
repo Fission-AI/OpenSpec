@@ -4,7 +4,7 @@
 **Updated:** November 5, 2026\
 **Related broader exploration:** [Use Existing Context in Changes](./external-context-for-changes.md)
 
-> **Broader product direction:** The current [lifecycle pilot](roadmap.md) keeps an existing generation workflow and adds checks and optional reviews. The wider contract and verification ideas here are separate work.
+> **Broader product direction:** The current [lifecycle pilot](roadmap.md) lets a project attach named agent instructions to points in the workflow. The wider contract and verification ideas here are separate work.
 
 ## The idea
 
@@ -118,11 +118,21 @@ These six decisions establish the *direction*. They are not claims that every ca
 
 **Trade-off:** We have **not** chosen Project storage, indexing, observer deployment, or its technical relationship to existing Stores and Worksets. Those designs should follow usage, not dictate the first feature.
 
-## Lifecycle model decision — November 5, 2026
+## Lifecycle model decision
 
-Use **actions and triggers** for lifecycle behavior. Checks are actions that return findings; suggested agent reviews are optional work. A checkpoint names the moment where a caller invokes the system. Keep findings separate from suggestions, and start with a built-in check plus a suggested review rather than a general event engine.
+### Revised, November 2026
 
-Ordinary links and prose remain the default for connecting context. Drift checks need a recorded source revision; other uses of context can keep ordinary links. The [pilot proposal](../lifecycle/pilot-proposal.md) owns this model and its unresolved details. The [roadmap](roadmap.md) owns lifecycle delivery. The broader context-workflow exploration here has no committed delivery sequence.
+Use **actions and triggers** for lifecycle behavior. An action is named instructions for an agent. A trigger attaches an action to a hook and sets whether the agent offers it or follows it without asking. A hook names the moment where a caller asks OpenSpec which actions apply.
+
+OpenSpec resolves which actions are configured for a hook. The calling agent or orchestrator handles them. OpenSpec does not run checks, track sources, or record results.
+
+The starting examples are project-written agent instructions. One rereads linked requirements against the plan, and one runs a drift script the project maintains. Ordinary links and prose remain the way a change connects to its context.
+
+The [pilot proposal](../lifecycle/pilot-proposal.md) owns this model and its unresolved details. The [roadmap](roadmap.md) owns lifecycle delivery. The broader context-workflow exploration here has no committed delivery sequence.
+
+### Superseded, November 5, 2026
+
+The first version of this decision kept actions and triggers but started with a built-in Git drift check that returned findings, alongside a suggested review. It needed a recorded source revision on each change. The revised decision above replaces that starting point. The actions and triggers model carries over.
 
 ## The experience to build toward
 
@@ -150,7 +160,7 @@ This broader exploration considers using the existing workflow wherever it fits 
 
 The [Working PRD](./external-context-for-changes.md) explores possible improvements to shaping changes from existing context and verifying external contracts. Those questions remain useful but do not define the next lifecycle increment.
 
-The immediate product is lifecycle extensibility around an existing generation workflow. Its [roadmap](roadmap.md) starts with source drift before Apply and an optional feedback review afterward. Preserve that integration's current generation behavior.
+The immediate product is lifecycle extensibility around an existing generation workflow. Its [roadmap](roadmap.md) starts with project-defined actions that an agent offers or follows before and after Apply. Preserve that integration's current generation behavior.
 
 ### The real questions left
 

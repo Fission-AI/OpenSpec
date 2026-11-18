@@ -2,184 +2,204 @@
 
 **Status:** Draft proposal. The commands and configuration below are not implemented.
 
-The existing integration already turns product requirements into OpenSpec changes. We're adding two points around that workflow: check the source before implementation, and offer a feedback review when implementation finishes.
+A project defines named actions and attaches them to points in a workflow. When an agent reaches one of those points, it asks OpenSpec which actions apply and handles them itself.
 
-A skill or CLI command invokes each point explicitly. OpenSpec runs the configured checks and returns any optional reviews. The developer chooses whether to run a review. Generation and the artifact workflow stay as they are.
-
-The [guide](guide-draft.md) shows the experience we're building toward. This proposal covers the small piece we can try first.
+OpenSpec resolves which actions are configured for a hook. The calling agent or orchestrator handles them. The [roadmap](../direction/roadmap.md) has the delivery sequence, and the [guide](guide-draft.md) shows the experience from the user's side.
 
 ## One change, from start to finish
 
-An engineer generates an OpenSpec change for the iOS checkout flow using their existing skill. The upstream requirements stay in their original repository.
+A team's product requirements live in another repository. An engineer creates an OpenSpec change for the iOS checkout flow with their existing workflow. The proposal links to the requirements it was planned from.
 
-Before implementation starts, the Apply skill calls:
-
-```bash
-openspec lifecycle check --at apply.before --change ios-checkout --json
-```
-
-OpenSpec finds the actions configured for that event and runs the source-drift check. If the source content changed since the recorded baseline, the skill shows the finding with its requirement impact still unassessed. If it couldn't check them, it explains why. The developer decides whether to review the source before continuing.
-
-The skill then works through its tasks as usual. When it confirms they're complete, it calls:
+When the Apply skill is ready to start, and before it edits anything, it asks which actions apply:
 
 ```bash
-openspec lifecycle check --at apply.completed --change ios-checkout --json
+openspec lifecycle actions --at apply.before --json
 ```
 
-OpenSpec returns an available review. The agent might say:
+OpenSpec returns one action in `suggest` mode. The agent offers it:
 
-> Implementation tasks are complete. Want me to review the work for findings worth sending to the upstream product team?
+> Before I start, want me to reread the linked requirements and check that they still match this plan?
 
-If the developer chooses it, the skill loads the instructions:
+If the developer accepts, the agent follows the action's instructions in the current session. It reports any conflict between the current requirements and the plan, and the developer decides what to do. If the developer declines, nothing runs.
+
+The skill then works through its tasks as usual. When every task is complete, it asks again:
 
 ```bash
-openspec actions instructions upstream-feedback --change ios-checkout --json
+openspec lifecycle actions --at apply.completed --json
 ```
 
-The current agent reads the requirements, implementation decisions, and available evidence, then drafts feedback. It doesn't submit feedback or change upstream requirements without separate approval. If the developer skips the review, nothing runs and no check becomes failed or pending.
+OpenSpec returns a feedback action, and the agent offers it:
 
-The lifecycle call is synchronous: run the configured work at this point and return its results to the caller. It is an operational call used by the skill, not a background event notification or a testing-only interface. The selected command is `openspec lifecycle check --at <point>`. It runs configured automatic checks and returns optional actions; it does not advance the workflow or perform suggested reviews. The command is not implemented yet.
+> Tasks are complete. Want me to review the work for anything worth sending to the product team?
 
-The separate instruction-loading call above is one option, not a settled two-operation API. We still need to decide whether an agent action maps to an existing skill, whether its instructions are returned directly, or whether a separate lookup is useful.
+An accepted review drafts feedback in the current session. It does not submit anything or change the upstream requirements.
 
-## Configure what happens
+## Configure actions and triggers
 
-An **action** says what to do. A **trigger** connects it to a lifecycle event.
+An **action** is named instructions for an agent. A **trigger** attaches an action to a hook and sets its mode. Both live in the project's `openspec/config.yaml`. This shape is illustrative and gets fixed in the first PR:
 
 ```yaml
-# Proposed openspec/config.yaml additions
+# openspec/config.yaml (proposed)
 actions:
-  source-drift:
-    uses: builtin/git-file-drift
+  requirements-review:
+    title: Review requirements against the plan
+    description: Reread linked requirements and compare them with this change.
+    instructions: |
+      Read the sources linked from this change's planning artifacts.
+      Compare what they say now with the accepted plan.
+      Report conflicts, the work they affect, and anything you could not read.
+      Do not edit the plan or the sources.
   upstream-feedback:
-    uses: agent-guidance
     title: Review implementation feedback
     description: Find decisions or evidence worth sharing upstream.
     instructions: |
-      Review the recorded requirements, implementation decisions,
-      and verification evidence for this change.
-      Draft feedback with source references and mark uncertainty.
-      Do not change upstream requirements or submit feedback
-      without separate approval.
+      Review this change's requirements, implementation decisions,
+      and verification evidence. Draft feedback with source references
+      and mark uncertainty. Do not submit feedback or change upstream
+      requirements without separate approval.
 
 triggers:
   - on: apply.before
-    run: source-drift
-    mode: auto
-    policy: warn
+    run: requirements-review
+    mode: suggest
   - on: apply.completed
     run: upstream-feedback
     mode: suggest
 ```
 
-Keep `mode` and `policy` explicit. **Mode** controls whether an action runs automatically or is offered for the developer to choose. **Policy** controls how an executed check's findings affect the workflow, such as warning or blocking. Neither should be inferred solely from the action kind.
+A trigger has one of two modes:
 
-The examples use automatic checks with warnings and suggested agent reviews. They do not remove the flexibility to configure the same action differently at another lifecycle point. A suggestion has no passing or failing result until work runs; policy must not turn an optional suggestion into a required review. Valid combinations, execution support, and unknown/error handling still need to be defined. Real blocking is possible only where the caller controls the operation.
+- **`suggest`:** the agent offers the action and follows it only if the developer accepts.
+- **`auto`:** the agent follows the instructions without an extra prompt for that action.
 
-Validate action references and reject unsupported kinds or duplicate IDs. When nothing is enabled, the existing workflow continues without extra prompts.
+`auto` does not guarantee execution and does not bypass the agent's existing permissions. It means the agent does not ask first.
+
+Config validation rejects duplicate action ids, triggers that reference a missing action, unsupported modes, and unknown hook names with no namespace. A project with no actions behaves as it does today.
+
+Lookup reuses OpenSpec's existing root and config resolution, including Stores.
 
 ## What callers receive
 
-An event response separates check findings from review suggestions. For example, before Apply:
+The response is the contract between OpenSpec and every caller. It returns the hook and an ordered list of actions with their instructions inline. This shape is illustrative and gets fixed in the second PR:
 
 ```json
 {
-  "findings": [
+  "hook": "apply.before",
+  "actions": [
     {
-      "actionId": "source-drift",
-      "sourceId": "checkout-requirements",
-      "result": "changed",
-      "message": "Source content changed; requirement impact has not been assessed.",
-      "evidence": {
-        "baselineRevision": "6a81f32",
-        "comparedRevision": "9b02e17"
-      }
+      "id": "requirements-review",
+      "mode": "suggest",
+      "title": "Review requirements against the plan",
+      "description": "Reread linked requirements and compare them with this change.",
+      "instructions": "Read the sources linked from this change's planning artifacts. ..."
     }
-  ],
-  "suggestedActions": []
+  ]
 }
 ```
 
-After Apply, the response contains a suggestion with an action ID, title, and short description. The instruction call returns the selected action's text; it doesn't launch an agent. Offering a review, loading its instructions, and completing it are not check results.
+- Order follows the trigger configuration, and callers preserve it.
+- A hook with no triggers returns an empty list.
+- Invalid configuration produces a visible error, never an empty list.
+- The command is read-only. It runs nothing and launches no agent.
 
-The Git check reports `unchanged`, `changed`, or `unknown`, with a reason and the revisions it could compare. Unknown never means unchanged. Invalid configuration or a failed command produces a visible error, not a clean result. An unknown or disabled review cannot be loaded. A successful event call means the call completed, not that the implementation passed verification.
+There is no separate instruction lookup. There is no result or findings schema, because OpenSpec never sees what an action produced.
 
-Keep the response small. Settle the exact envelope, instruction handoff, and error encoding while walking through the skill and CLI callers; the pilot does not need approval records or stored review state.
+OpenSpec passes nothing into an action. The agent already knows which change it is working on, where the files are, and what tools it has.
 
-## Use the same interface everywhere
+## Hook names
 
-Built-in skills and custom skills synchronously run the same named lifecycle points. Each calls once when starting or resuming Apply and once when it confirms its tracked tasks are complete. If a custom wrapper delegates to the built-in skill, choose one of them to make the call.
+- OpenSpec defines built-in hooks. The pilot uses `apply.before` and `apply.completed`.
+- Users can invoke their own namespaced hooks, such as `team.security-review.completed`.
+- An unknown name with no namespace is rejected, which catches typos.
 
-**Instruction and status reads must not run actions.** Apply refreshes its instructions during the task loop. Attaching checks to those reads would repeat warnings and review offers. An explicit repeat of the lifecycle call runs the actions again; the pilot doesn't promise exactly-once delivery across sessions.
+A hook is only a name that a caller invokes. There is no registration step and no event declaration.
 
-If a final source warning is useful, add `archive.before`. The Archive CLI calls the same internal function before its existing operation. Running that lifecycle point manually does not archive anything, and the pilot leaves existing archive validation and confirmation behavior intact.
+## Who calls, and when
 
-Agent-driven lifecycle points happen only when a skill calls the interface. OpenSpec cannot observe every agent edit. CLI operations can enforce a configured policy at boundaries they own. The initial examples warn; broader policy behavior remains part of the design.
+Built-in skills, custom skills, and external orchestrators all make the same call.
 
-A CLI can return instructions or an action reference, but it cannot make an agent execute them. When a skill calls the CLI, the skill can present suggestions and carry out an accepted review. In a terminal-only invocation, the CLI can show available actions; it must not pretend a review ran. Whether agent actions should all map to skills is an open design question. Deterministic checks do not need an agent to run.
+- **`apply.before`:** the Apply skill calls it when it begins or resumes, before any edits.
+- **`apply.completed`:** the Apply skill calls it when its state is `all_done`, including for a change that was already complete.
+- **Blocked changes:** a `blocked` change does not reach `apply.completed`.
+- **Instruction and status reads:** these never return or fire actions. Apply refreshes its instructions during the task loop, and attaching actions to those reads would repeat every offer.
+- **Wrappers:** if a custom skill delegates to the built-in skill, one of them makes the call.
 
-## Keep source details with the check
+Hooks fire only when a caller asks. Running `openspec archive` by hand fires none. OpenSpec cannot observe an agent that never calls the interface.
 
-The lifecycle interface needs an event and a change. The Git action needs four things: an existing checkout, a file path, the revision used for planning, and a ref to compare against.
+## How this differs from operation guidance
 
-Capture the source identity and exact version when the generation skill reads it, then save the reference when the developer accepts the generated change. The skill can prepare the record or a follow-up step can use the captured read details. Do not reread the latest source at Apply and present it as the planning baseline. Add later sources when the developer accepts their use.
+`openspec/config.yaml` already supports `operations.apply.guidance` and `operations.archive.guidance`. That guidance is standing advice for a whole operation. Lifecycle hooks differ in three ways:
 
-If an existing change has no recoverable planning baseline, report historical comparison as unknown. The developer can explicitly establish a new tracking baseline, clearly labeled as starting now rather than evidence of the original plan. Keep the earlier baseline in history whenever a new one is accepted.
+1. A hook can be invoked without an active change or an OpenSpec operation in progress.
+2. A hook returns named, discrete actions that a caller can handle one at a time.
+3. Each trigger carries a mode.
 
-Record the source on the change itself, in `openspec/changes/<change-name>/.openspec.yaml`. Here is the proposed `sources` field; it is not supported by the current implementation:
+## The two actions the pilot proves
+
+The pilot ships two user-defined actions as tested recipes. Neither needs special handling inside OpenSpec.
+
+**Action A: review requirements against the plan.** This is `requirements-review` above. The agent rereads the sources linked from the change and compares what they say now with the accepted plan.
+
+**Action B: run the project's own drift script.** The agent runs a script the team maintains and reports what it prints:
 
 ```yaml
-# openspec/changes/ios-checkout/.openspec.yaml — proposed
-schema: spec-driven
-sources:
-  - id: checkout-requirements
-    type: git-file
-    repository: https://github.com/example/product-requirements.git
-    path: features/checkout.md
-    revision: 6a81f32
-    track: main
+actions:
+  requirements-drift:
+    title: Check requirements for changes
+    description: Run the team's drift script and report the result.
+    instructions: |
+      Run scripts/check-requirements-drift.sh and report its output.
+      If it reports changes, offer the requirements-review action.
+
+triggers:
+  - on: apply.before
+    run: requirements-drift
+    mode: auto
 ```
 
-`id` identifies the source within the change. `type` selects the source kind. `repository` and `path` identify the file; `revision` pins the version used for planning or an explicitly accepted later baseline; `track` names the branch to compare against. The short revision is illustrative. The Git check resolves it to a commit and reports the exact revisions compared.
+The script owns its own baseline and comparison logic. OpenSpec knows nothing about Git, revisions, or sources. Because the agent runs the script, the agent's own permission prompts apply.
 
-This is change-specific metadata, separate from project-level Store `references:`. The repository URL identifies the source; it does not authorize a clone or fetch. The integration still needs to resolve an accessible checkout. Recording a source does not copy its requirements into local specs or change their owner.
+### What a review can and cannot claim
 
-Inspect what the integration already records before choosing the source contract. Reusing that data is a possibility, not a decision to rule out generic source metadata. Preserve generation; decide whether an adapter or a small shared source record gives lifecycle actions reliable inputs. If a baseline is missing, report unknown; never use the current file as a guessed historical baseline.
+Action A compares the **current** source with the **current** plan. It can report that they conflict. It cannot report what changed since planning, because that needs a recorded earlier version.
 
-Compare that file's contents, not just repository commit IDs. An unrelated commit should not produce drift. The proposed pilot uses local refs and does not clone or fetch implicitly. Report that freshness limit and the revisions compared; a local comparison doesn't establish the latest remote state. Missing files, checkouts, or revisions remain unknown.
+A team that wants "changed since planning" supplies that history itself, as Action B's script does. An agent that cannot read a source says so and never counts it as checked.
 
-A change may also link to a Confluence page, Linear issue, Jira ticket, or repository issue. Keep those sources in the same proposed `sources` list using a link record; see the [source examples](guide-draft.md#sources-outside-git) and [agent responses](guide-draft.md#4-what-your-agent-sees). The `link` record shape is illustrative, not a finalized provider API.
+### Acting on a finding
 
-The Git action cannot check those services. A link alone supplies neither access nor a historical baseline. An authorized agent can review current content, while automatic drift comparison needs a provider integration and recoverable history. Keep unsupported or unreadable sources visible as limitations; don't count them as checked. These examples leave the Git pilot's scope unchanged.
+When a review finds a conflict, the developer chooses what happens next. They can keep the plan, ask upstream for clarification, or revise the plan through the existing `openspec-update-change` skill, which confirms before it edits. The review should call out completed tasks that may need another look.
 
-The check is read-only. Its `changed` result means source content differs, not that a requirement changed. Typos, formatting, unrelated sections, and unaccepted proposals can all produce source edits without changing this work's requirements.
-
-Offer an impact review separately. If chosen, the agent compares the source versions with the accepted scope and available evidence, then reports no relevant requirement changes found, relevant changes found, or unclear. Cite the relevant passages and distinguish accepted requirements from discussion. A relevant change may already be satisfied by the implementation.
-
-The developer decides whether to continue, revise the work, clarify intent, or propose feedback. Skipping the review leaves impact unassessed. Neither a check nor a review advances the baseline; that requires explicit acceptance. See [What your agent sees](guide-draft.md#4-what-your-agent-sees) for the full flow and examples.
-
-## Leave room for plugins without building the whole system
-
-Reuse project configuration and OpenSpec's existing change/root resolution. Keep ordinary operation guidance and the artifact graph working as they do today. Add explicit calls to the Apply skill and, if included, the Archive command.
-
-Keep loading enabled actions separate from running them. A simple lookup can serve built-ins and project guidance now. Later it can load independent plugins and shared team profiles without changing skill calls. Support namespaced IDs and reject collisions; don't build a package resolver, dependency graph, or profile-precedence system for the pilot.
-
-The destination remains global plugin installation, project-level enablement, and versioned team profiles. Installing a plugin must not enable it everywhere or run code. Before external executable actions ship, define trust and execution limits. The initial pilot runs a built-in check and offers guidance to the current agent session.
+Nothing is edited silently. A conflict with the source does not prove the implementation is wrong.
 
 ## What proves it works
 
-Try one real generated change through both the built-in skill and the existing custom workflow:
+Run one fixture project through the built-in Apply skill and through a custom caller:
 
-- The recorded revision matches the source actually read, even if it changes before plan acceptance.
-- A source-file edit produces drift; an unrelated commit does not.
-- Typo-only, unrelated, proposed, and accepted requirement edits remain distinct in the optional impact review.
-- Skipping a review leaves impact unassessed and the baseline unchanged.
-- An unavailable source produces an honest unknown result.
-- The developer can accept or skip the review without changing check status.
-- Instruction refreshes don't repeat checks or prompts.
-- Checks leave sources, recorded baselines, and the generation workflow unchanged.
-- A project with no enabled actions keeps its existing behavior.
+- A project with no actions keeps its existing behavior.
+- A `suggest` action is offered, and both accepting and skipping work in the current session.
+- An `auto` action is followed without an extra prompt.
+- Two actions on one hook are handled in configuration order.
+- `apply.before` fires before edits, on begin and on resume.
+- `apply.completed` fires on `all_done` and never on `blocked`.
+- Instruction and status refreshes repeat no offers.
+- A namespaced hook works from a custom caller, and a mistyped built-in name is rejected.
+- Actions A and B both run through `apply.before` with no OpenSpec code specific to either.
+- An unreachable source is reported as unread.
+- Lookup resolves the right configuration when the change lives in a Store.
 
-We haven't inspected the private skills yet. Mapping their call sites and source metadata is the next integration step, not a reason to settle the whole plugin or event system first.
+The CLI and config have unit and integration tests. The skill behavior is shown by a recorded end-to-end run on the fixture.
 
-See the [roadmap](../direction/roadmap.md) for the sequence and the [enterprise requirements inventory](../research/enterprise-requirements.md) for wider needs. External-contract generation and verification remain separate exploration; they don't gate this pilot.
+## Out of scope
+
+- A built-in drift check, source metadata on changes, recorded revisions, or snapshots.
+- A native runtime for executable actions.
+- Policy enforcement or blocking.
+- A findings or result schema.
+- Persistent action state, background jobs, or observers.
+- Plugin packaging, installation, or profiles.
+
+Three questions are decided separately: native executable actions and their trust model, whether Archive calls an `archive.before` hook, and plugins. See the [roadmap](../direction/roadmap.md).
+
+We have not inspected the private integration skills. Mapping where they would make these calls is part of checking the custom-caller path.
+
+External-contract generation and verification remain [separate exploration](../direction/external-context-for-changes.md). The [enterprise requirements inventory](../research/enterprise-requirements.md) records the wider needs.
