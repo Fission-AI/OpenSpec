@@ -45,6 +45,7 @@ function skillFolderHash(text: string): string {
  * `list` and `remove` treat them like any skill installed from GitHub.
  */
 async function recordGlobalSkills(names: readonly string[], contents: ReadonlyMap<string, string>, version: string): Promise<void> {
+  if (!names.length) return;
   const stateHome = process.env.XDG_STATE_HOME;
   const lockPath = stateHome
     ? path.join(stateHome, 'skills', '.skill-lock.json')
@@ -53,7 +54,7 @@ async function recordGlobalSkills(names: readonly string[], contents: ReadonlyMa
   let lock: { version: number; skills: Record<string, Record<string, unknown>>; dismissed?: unknown } = { version: 3, skills: {}, dismissed: {} };
   try {
     const saved = JSON.parse(await fs.readFile(lockPath, 'utf8'));
-    if (saved.version >= 3 && saved.skills) lock = saved;
+    if (typeof saved.version === 'number' && saved.version >= 3 && saved.skills) lock = saved;
   } catch {
     // Nothing usable there yet.
   }
