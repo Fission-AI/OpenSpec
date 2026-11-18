@@ -227,6 +227,42 @@ describe('UpdateCommand', () => {
     expect(await FileSystemUtils.directoryExists(path.join(testDir, '.agents', 'skills'))).toBe(false);
   });
 
+  describe('with the skills for this machine installed', () => {
+    beforeEach(() => {
+      vi.spyOn(globalSkills, 'readGlobalSkills').mockResolvedValue({ skills: ['openspec-propose'], agents: ['universal'] });
+      vi.spyOn(globalSkills, 'installGlobalSkills').mockResolvedValue({
+        skills: ['openspec-propose'], removedSkills: [], unchanged: true,
+      });
+    });
+
+    it('asks where to keep the skills `npx skills add` put in the project', async () => {
+      const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
+      await fs.mkdir(path.dirname(skill), { recursive: true });
+      await fs.writeFile(skill, 'project copy');
+      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
+        version: 2,
+        skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
+      }));
+      interactiveState.value = true;
+      // The question is what this checks; stop there, before either answer fetches skills.
+      selectMock.mockRejectedValueOnce(new Error('answered'));
+      await expect(updateCommand.execute(testDir)).rejects.toThrow('answered');
+      expect(selectMock).toHaveBeenCalledWith(expect.objectContaining({
+        message: 'Where should OpenSpec keep this project’s skills?',
+      }));
+    });
+
+    it('says a project with no skills of its own uses the ones for this machine', async () => {
+      interactiveState.value = true;
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+      await updateCommand.execute(testDir);
+      expect(selectMock).not.toHaveBeenCalled();
+      expect(log.mock.calls.flat().join('\n')).toContain(
+        'This project has no OpenSpec skills of its own. It uses the skills for this machine.'
+      );
+    });
+  });
+
   it('lets a teammate skip local skills or choose tools after pulling the removals', async () => {
     delete process.env.OPENSPEC_SKILLS_SCOPE;
     interactiveState.value = true;

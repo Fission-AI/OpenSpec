@@ -65,6 +65,54 @@ describe('the list of tools set up in a project', () => {
     expect(readSkillToolList(project)).toEqual([]);
   });
 
+  describe('a folder `npx skills add` filled, with no list file', () => {
+    const lock = (skills: Record<string, unknown>) => write('skills-lock.json', JSON.stringify({ version: 2, skills }));
+
+    it('reads it as set up for the agents that share .agents/skills when the lock file names OpenSpec', async () => {
+      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      for (const source of [
+        'Fission-AI/OpenSpec',
+        'fission-ai/openspec',
+        'Fission-AI/OpenSpec/skills',
+        'https://github.com/Fission-AI/OpenSpec.git',
+        'git@github.com:Fission-AI/OpenSpec.git',
+      ]) {
+        await lock({ 'openspec-explore': { source, sourceType: 'github' } });
+        expect(readSkillToolList(project), source).toEqual(['agents']);
+      }
+    });
+
+    it('reads nothing when the lock file names another source or another skill', async () => {
+      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await lock({ 'openspec-explore': { source: 'someone/openspec-fork' } });
+      expect(readSkillToolList(project)).toEqual([]);
+      await lock({ 'other-skill': { source: 'Fission-AI/OpenSpec' } });
+      expect(readSkillToolList(project)).toEqual([]);
+    });
+
+    it('reads nothing when the recorded skill is no longer in the folder', async () => {
+      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
+      expect(readSkillToolList(project)).toEqual([]);
+      await write('.agents/skills/openspec-propose/SKILL.md', 'Any wording at all.');
+      expect(readSkillToolList(project)).toEqual([]);
+    });
+
+    it('reads nothing from a lock file that does not parse', async () => {
+      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await write('skills-lock.json', '{ not json');
+      expect(readSkillToolList(project)).toEqual([]);
+      await write('skills-lock.json', 'null');
+      expect(readSkillToolList(project)).toEqual([]);
+    });
+
+    it('leaves a list file in charge', async () => {
+      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
+      await write('.agents/skills/.openspec-target', 'cursor\n');
+      expect(readSkillToolList(project)).toEqual(['cursor']);
+    });
+  });
+
   it('lists nothing for a project without one, and never guesses from the shared wording', async () => {
     expect(readSkillToolList(project)).toEqual([]);
     await write('.agents/skills/openspec-explore/SKILL.md', 'Run `openspec-propose`.');

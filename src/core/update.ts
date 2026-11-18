@@ -265,6 +265,9 @@ export class UpdateCommand {
         projectError = error;
       }
     }
+    if (hasProject && !projectHasOwnSkills(resolvedProjectPath)) {
+      this.log(chalk.dim('This project has no OpenSpec skills of its own. It uses the skills for this machine.'));
+    }
     try {
       const refreshed = await this.refreshGlobalSkills(resolvedProjectPath);
       if (this.dryRun) {
