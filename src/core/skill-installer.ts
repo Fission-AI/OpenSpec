@@ -1,5 +1,6 @@
 import { installSkills, removeSkills } from 'skills';
 import { parse, stringify } from 'yaml';
+import { createHash } from 'node:crypto';
 import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -30,6 +31,49 @@ export function projectSkillText(toolId: string, shared: string): string {
 
 type Targets = { scope: SkillScope; cwd?: string; agents: readonly string[] };
 
+/** The hash GitHub reports for a skill folder that holds only this SKILL.md. */
+function skillFolderHash(text: string): string {
+  const gitObject = (type: string, body: Buffer) =>
+    createHash('sha1').update(`${type} ${body.length}\0`).update(body).digest();
+  const blob = gitObject('blob', Buffer.from(text));
+  return gitObject('tree', Buffer.concat([Buffer.from('100644 SKILL.md\0'), blob])).toString('hex');
+}
+
+/**
+ * Records global skills in the `skills` package's lock file as coming from this
+ * release's GitHub tag, which holds the same text, so `npx skills update -g`,
+ * `list` and `remove` treat them like any skill installed from GitHub.
+ */
+async function recordGlobalSkills(names: readonly string[], contents: ReadonlyMap<string, string>, version: string): Promise<void> {
+  const stateHome = process.env.XDG_STATE_HOME;
+  const lockPath = stateHome
+    ? path.join(stateHome, 'skills', '.skill-lock.json')
+    : path.join(os.homedir(), '.agents', '.skill-lock.json');
+  // The package starts over from a lock file it can't read or an older version of it.
+  let lock: { version: number; skills: Record<string, Record<string, unknown>>; dismissed?: unknown } = { version: 3, skills: {}, dismissed: {} };
+  try {
+    const saved = JSON.parse(await fs.readFile(lockPath, 'utf8'));
+    if (saved.version >= 3 && saved.skills) lock = saved;
+  } catch {
+    // Nothing usable there yet.
+  }
+  const now = new Date().toISOString();
+  for (const name of names) {
+    lock.skills[name] = {
+      source: 'Fission-AI/OpenSpec',
+      sourceType: 'github',
+      sourceUrl: 'https://github.com/Fission-AI/OpenSpec.git',
+      ref: `v${version}`,
+      skillPath: `skills/${name}/SKILL.md`,
+      skillFolderHash: skillFolderHash(contents.get(name)!),
+      installedAt: lock.skills[name]?.installedAt ?? now,
+      updatedAt: now,
+    };
+  }
+  await fs.mkdir(path.dirname(lockPath), { recursive: true });
+  await fs.writeFile(lockPath, JSON.stringify(lock, null, 2));
+}
+
 export async function installReleaseSkills(targets: Targets, names: string[], version: string): Promise<Map<string, Error>> {
   const failures = new Map<string, Error>();
   if (!names.length) return failures;
@@ -48,12 +92,15 @@ export async function installReleaseSkills(targets: Targets, names: string[], ve
       ...targets,
       skills: names,
       telemetry: false,
-      lockfile: targets.scope === 'global',
+      lockfile: false,
       // Git cannot carry a Windows junction into a teammate's checkout.
       mode: targets.scope === 'project' && process.platform === 'win32' ? 'copy' : 'auto',
     });
   } finally {
     await fs.rm(source, { recursive: true, force: true });
+  }
+  if (targets.scope === 'global') {
+    await recordGlobalSkills([...new Set(result.installed.map(entry => entry.skill))], contents, version);
   }
   for (const failure of result.failed) failures.set(failure.agent, new Error(failure.message));
   for (const skip of result.skipped) failures.set(skip.agent, new Error(`${skip.agent} skipped ${skip.skill}: ${skip.reason}`));
