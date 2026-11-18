@@ -1051,6 +1051,11 @@ Then expected result happens`;
       expect(updatedContent).toContain('# test-capability Specification');
       expect(updatedContent).toContain('## Purpose');
       expect(updatedContent).toContain(`created by archiving change ${changeName}`);
+      // A blank line on both sides of every heading, so a new main spec passes
+      // Prettier and markdownlint MD022 as written (#2260).
+      expect(updatedContent).toContain(
+        `## Purpose\n\nTBD - created by archiving change ${changeName}. Update Purpose after archive.\n\n## Requirements\n`
+      );
       expect(updatedContent).toContain('## Requirements');
       expect(updatedContent).toContain('### Requirement: The system SHALL provide test capability');
       expect(updatedContent).toContain('#### Scenario: Basic test');
@@ -1527,7 +1532,9 @@ The system SHALL award loyalty points on each completed order.
 
       const mainSpecPath = path.join(tempDir, 'openspec', 'specs', 'loyalty', 'spec.md');
       const updatedContent = await fs.readFile(mainSpecPath, 'utf-8');
-      expect(updatedContent).toContain('Tracks loyalty points earned and redeemed across the storefront.');
+      expect(updatedContent).toContain(
+        '## Purpose\n\nTracks loyalty points earned and redeemed across the storefront.\n\n## Requirements\n'
+      );
       expect(updatedContent).not.toContain('TBD - created by archiving change');
       expect(updatedContent).toContain('### Requirement: Earn Points');
     });
@@ -9278,7 +9285,7 @@ This change exists to document greeting behavior thoroughly for the team, which 
       expect(mainSpec).not.toMatch(/^#+\s+Spec Delta\s*$/m);
       // The delta's title did not displace the Purpose archive carries over.
       expect(mainSpec).toContain(
-        '## Purpose\nLets users assemble widgets from parts in a repeatable way.'
+        '## Purpose\n\nLets users assemble widgets from parts in a repeatable way.'
       );
       expect(mainSpec).toContain('### Requirement: User can build a widget');
     });
