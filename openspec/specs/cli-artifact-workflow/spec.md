@@ -89,7 +89,7 @@ The workflow SHALL use `openspec status` output to determine what can be created
 - **THEN** the output ends with a `Next:` line naming exactly one command to run
 - **AND** that command is `openspec instructions <artifact> --change "<id>" --json` for the first ready artifact while any planning artifact is still ready
 - **AND** it is `openspec instructions apply --change "<id>" --json` once every non-skipped planning artifact exists, printed after the completion line rather than in place of it, because that line alone reads as "you are done" while implementation tasks remain
-- **AND** the named artifact is never one the change skipped, which satisfies its dependents but must not be created
+- **AND** the named artifact is never one the change skipped, which satisfies its dependents and must not be created, unless it is an optional artifact the plan left out
 - **AND** the artifact id comes from the resolved schema, so a project whose schema declares neither of the default artifact names still gets a usable command
 
 #### Scenario: The named command carries the store selection

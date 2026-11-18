@@ -198,7 +198,7 @@ ${PROJECT_ROOT_GUARD}
    - If no issues and no checks were skipped: "All checks passed. Ready for archive."
    - If any check was skipped and there are no CRITICAL issues: do not claim readiness. Say "No critical issues found in the checks that ran. <check(s)> not verified: <reason>." Include the warning count when nonzero.
    - Include the suggestion count when nonzero in every final assessment.
-   - End with the next step: for CRITICAL issues, recommend the \`/opsx:apply\` skill for code fixes (when every task is already checked, first add an unchecked task naming the fix, because apply only works on unchecked tasks) or the \`/opsx:update\` skill for plan fixes, if installed; otherwise give \`openspec instructions apply --change "<name>" --json\` for code fixes and name the artifacts to revise for plan fixes; when ready, recommend the \`/opsx:archive\` skill if it is installed; otherwise give \`openspec archive "<name>"\`.
+   - End with the next step: for CRITICAL issues, say that each code fix needs its own unchecked task in the tasks file, because verify changes no files and apply only works on unchecked tasks; recommend the \`/opsx:update\` skill to add those tasks and make plan fixes, then the \`/opsx:apply\` skill for code fixes, if installed; otherwise name the tasks to add and the artifacts to revise, then give \`openspec instructions apply --change "<name>" --json\` for code fixes; when ready, recommend the \`/opsx:archive\` skill if it is installed; otherwise give \`openspec archive "<name>"\`.
 
 **Verification Heuristics**
 
@@ -413,7 +413,7 @@ ${PROJECT_ROOT_GUARD}
    - If no issues and no checks were skipped: "All checks passed. Ready for archive."
    - If any check was skipped and there are no CRITICAL issues: do not claim readiness. Say "No critical issues found in the checks that ran. <check(s)> not verified: <reason>." Include the warning count when nonzero.
    - Include the suggestion count when nonzero in every final assessment.
-   - End with the next step: for CRITICAL issues, recommend the \`/opsx:apply\` skill for code fixes (when every task is already checked, first add an unchecked task naming the fix, because apply only works on unchecked tasks) or the \`/opsx:update\` skill for plan fixes, if installed; otherwise give \`openspec instructions apply --change "<name>" --json\` for code fixes and name the artifacts to revise for plan fixes; when ready, recommend the \`/opsx:archive\` skill if it is installed; otherwise give \`openspec archive "<name>"\`.
+   - End with the next step: for CRITICAL issues, say that each code fix needs its own unchecked task in the tasks file, because verify changes no files and apply only works on unchecked tasks; recommend the \`/opsx:update\` skill to add those tasks and make plan fixes, then the \`/opsx:apply\` skill for code fixes, if installed; otherwise name the tasks to add and the artifacts to revise, then give \`openspec instructions apply --change "<name>" --json\` for code fixes; when ready, recommend the \`/opsx:archive\` skill if it is installed; otherwise give \`openspec archive "<name>"\`.
 
 **Verification Heuristics**
 

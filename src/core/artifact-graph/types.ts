@@ -34,7 +34,8 @@ export const ArtifactSchema = z.object({
   instruction: z.string().optional(),
   requires: z.array(z.string()).default([]),
   // May be left out of a plan: counts as skipped once an artifact that depends on it is written
-  optional: z.boolean().optional(),
+  // Schemas written before this field existed may carry any value here; ignore those.
+  optional: z.boolean().optional().catch(undefined),
 });
 
 // Apply phase configuration for schema-aware apply instructions

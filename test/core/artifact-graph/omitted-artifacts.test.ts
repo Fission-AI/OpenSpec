@@ -9,6 +9,26 @@ import {
   loadChangeContext,
 } from '../../../src/core/artifact-graph/instruction-loader.js';
 import { generateApplyInstructions } from '../../../src/commands/workflow/instructions.js';
+import { parseSchema } from '../../../src/core/artifact-graph/schema.js';
+
+describe('the optional field in a schema written before it existed', () => {
+  it.each(['"yes"', '1', 'null', ''])('keeps loading a schema that sets optional to %s', (value) => {
+    const schema = parseSchema(
+      [
+        'name: older',
+        'version: 1',
+        'artifacts:',
+        '  - id: a',
+        '    generates: a.md',
+        '    description: A',
+        '    template: a.md',
+        `    optional: ${value}`,
+      ].join('\n')
+    );
+
+    expect(schema.artifacts[0].optional).toBeUndefined();
+  });
+});
 
 describe('optional artifacts left out of a plan (#2271)', () => {
   let projectRoot: string;
