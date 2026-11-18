@@ -203,6 +203,8 @@ export interface DeltaPlan {
   /** Canonical requirement blocks written outside every delta section. */
   orphanedRequirements: OrphanedRequirement[];
   unappliedContent: UnappliedContent[];
+  /** The file opens with a frontmatter block, which archive leaves in the change. */
+  hasFrontmatter: boolean;
   skippedHeaders: SkippedHeader[]; // non-canonical ### headers the reader skipped
   sectionPresence: {
     added: boolean;
@@ -235,6 +237,9 @@ interface SectionBody {
 export function parseDeltaSpec(content: string): DeltaPlan {
   const normalized = normalizeLineEndings(content);
   const lines = normalized.split('\n');
+  // Blanked rather than cut, so every reported line number still matches the file.
+  const frontmatterEnd = findFrontmatterEnd(lines);
+  lines.fill('', 0, frontmatterEnd);
   const fenceMask = buildCodeFenceMask(lines);
   const sections = splitTopLevelSections(lines, fenceMask);
   const addedLookup = getSectionsCaseInsensitive(sections, 'ADDED Requirements');
@@ -278,6 +283,7 @@ export function parseDeltaSpec(content: string): DeltaPlan {
     unpairedRenames,
     orphanedRequirements: findOrphanedRequirements(lines, fenceMask),
     unappliedContent: findUnappliedContent(lines, fenceMask),
+    hasFrontmatter: frontmatterEnd > 0,
     skippedHeaders,
     sectionPresence: {
       added: addedLookup.found,
@@ -381,6 +387,35 @@ function maskHtmlComments(lines: string[], fenceMask: boolean[]): string[] {
     .replace(/<!--[\s\S]*?(?:--!?>|$)/g, (m) => m.replace(/[^\n]/g, ' '))
     .split('\n');
   return lines.map((line, i) => (fenceMask[i] ? line : comments[i]));
+}
+
+/** A line that opens like a YAML mapping entry: `owner: a`, `"owner": a`, `owner:`. */
+const FRONTMATTER_KEY_REGEX = /^(?:"[^"]+"|'[^']+'|[\p{L}\p{N}_.-]+)\s*:(?:\s|$)/u;
+
+/**
+ * The line after a frontmatter block, or 0 when the file has none. The block is
+ * opaque: teams' formats differ and need not be valid YAML, so its fields are
+ * never read. Two checks keep `---` thematic breaks from hiding authored text:
+ * the first entry must look like a key, and a `##` heading means real sections.
+ * A block with text but no key is not frontmatter.
+ */
+export function findFrontmatterEnd(lines: string[]): number {
+  if (lines[0].trimEnd() !== '---') return 0;
+  let sawKey = false;
+  let sawComment = false;
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^#{2,6}(?:\s|$)/.test(line) || REQUIREMENT_HEADER_REGEX.test(line)) return 0;
+    if (line.trimEnd() === '---') return sawKey || !sawComment ? i + 1 : 0;
+    if (sawKey || !line.trim()) continue;
+    if (line.trimStart().startsWith('#')) {
+      sawComment = true;
+      continue;
+    }
+    if (!FRONTMATTER_KEY_REGEX.test(line)) return 0;
+    sawKey = true;
+  }
+  return 0;
 }
 
 function findUnappliedContent(lines: string[], fenceMask: boolean[]): UnappliedContent[] {
