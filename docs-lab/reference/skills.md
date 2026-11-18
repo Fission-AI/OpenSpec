@@ -101,7 +101,7 @@ other.
 | Contract | Description |
 |---|---|
 | **Arguments** | A change proposal name, optional, plus the revision you want. With no revision stated it runs a coherence review: artifacts checked against each other for contradictions, gaps, and duplication. |
-| **Creates** | Edits artifact files that already exist. One exception: for an artifact written as a glob, such as `specs/**/*.md`, that already has at least one file, it can add a missing companion file once you confirm the path. For an artifact with no files yet, it points to `openspec-continue-change` if installed, otherwise shows how to create the next ready one with `openspec instructions`. Never code. |
+| **Creates** | Edits artifact files that already exist. One exception: for an artifact written as a glob, such as `specs/**/*.md`, that already has at least one file, it can add a missing companion file once you confirm the path. For an artifact with no files yet, it shows how to create the next ready one with `openspec instructions`. Never code. |
 | **Response** | Shows each proposed revision and writes it only after you confirm, one artifact at a time. Ends with what was revised and the next step; implementation waits for `openspec-apply-change`. |
 
 ## openspec-sync-specs

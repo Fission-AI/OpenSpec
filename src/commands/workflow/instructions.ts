@@ -563,11 +563,11 @@ export async function generateApplyInstructions(
   const operationInputs = loadOperationInputs(options.projectConfig ?? null, 'apply');
 
   // Check which required artifacts are missing. Artifacts the change skips
-  // via skip_specs count as present - their files must not exist, and
-  // status already reports them complete, so apply cannot block on them.
+  // via skip_specs or leaves out as optional count as present - status already
+  // reports them complete, so apply cannot block on them.
   const missingArtifacts: string[] = [];
   for (const artifactId of requiredArtifactIds) {
-    if (context.skippedArtifacts?.has(artifactId)) {
+    if (context.skippedArtifacts?.has(artifactId) || context.omittedArtifacts?.has(artifactId)) {
       continue;
     }
     const artifact = schema.artifacts.find((a) => a.id === artifactId);

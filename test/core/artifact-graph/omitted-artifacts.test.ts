@@ -8,6 +8,7 @@ import {
   generateInstructions,
   loadChangeContext,
 } from '../../../src/core/artifact-graph/instruction-loader.js';
+import { generateApplyInstructions } from '../../../src/commands/workflow/instructions.js';
 
 describe('optional artifacts left out of a plan (#2271)', () => {
   let projectRoot: string;
@@ -68,6 +69,40 @@ describe('optional artifacts left out of a plan (#2271)', () => {
     expect(result.isPlanningComplete).toBe(false);
     expect(artifact('specs').status).toBe('ready');
     expect(artifact('specs').omitted).toBeUndefined();
+  });
+
+  it('lets apply run when chained optional artifacts are left out', async () => {
+    const schemaDir = path.join(projectRoot, 'openspec', 'schemas', 'chained');
+    mkdirSync(path.join(schemaDir, 'templates'), { recursive: true });
+    for (const template of ['first.md', 'second.md', 'tasks.md']) {
+      writeFileSync(path.join(schemaDir, 'templates', template), '# template\n');
+    }
+    writeFileSync(
+      path.join(schemaDir, 'schema.yaml'),
+      [
+        'name: chained',
+        'version: 1',
+        'artifacts:',
+        '  - { id: first, generates: first.md, description: First, template: first.md, optional: true }',
+        '  - { id: second, generates: second.md, description: Second, template: second.md, optional: true, requires: [first] }',
+        '  - { id: tasks, generates: tasks.md, description: Tasks, template: tasks.md, requires: [second] }',
+        'apply:',
+        '  requires: [second, tasks]',
+        '  tracks: tasks.md',
+        '',
+      ].join('\n')
+    );
+    writeFileSync(path.join(changeDir, '.openspec.yaml'), 'schema: chained\n');
+    writeFileSync(path.join(changeDir, 'tasks.md'), '- [ ] 1.1 Do the work\n');
+
+    const result = status();
+    expect(result.isPlanningComplete).toBe(true);
+    expect(artifact('first')).toMatchObject({ status: 'skipped', omitted: true });
+    expect(artifact('second')).toMatchObject({ status: 'skipped', omitted: true });
+
+    const apply = await generateApplyInstructions(projectRoot, 'demo');
+    expect(apply.state).toBe('ready');
+    expect(apply.missingArtifacts).toBeUndefined();
   });
 
   it('keeps the left-out artifact available, without the skip_specs warning', () => {

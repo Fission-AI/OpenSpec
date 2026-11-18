@@ -151,7 +151,7 @@ export interface DependencyInfo {
   path: string;
   /** Description of the dependency artifact */
   description: string;
-  /** True when the dependency is satisfied via skip_specs - no files exist to read */
+  /** True when the dependency is skipped or left out - no files exist to read */
   skipped?: boolean;
 }
 
@@ -163,7 +163,7 @@ export interface ArtifactStatus {
   id: string;
   /** Output path pattern */
   outputPath: string;
-  /** Status: done, skipped (via skip_specs), ready, or blocked */
+  /** Status: done, skipped (via skip_specs or a left-out optional artifact), ready, or blocked */
   status: 'done' | 'skipped' | 'ready' | 'blocked';
   /** True when skipped because this plan left out an optional artifact */
   omitted?: boolean;
@@ -350,20 +350,25 @@ function findOmittedArtifacts(
   written: CompletedSet,
   completed: CompletedSet
 ): Set<string> {
+  const buildOrder = graph.getBuildOrder();
+  const neededByWritten = new Set<string>();
+  for (const id of [...buildOrder].reverse()) {
+    if (!written.has(id) && !neededByWritten.has(id)) continue;
+    for (const dependency of graph.getArtifact(id)?.requires ?? []) {
+      neededByWritten.add(dependency);
+    }
+  }
+
+  // Build order settles each dependency first, so one optional artifact left
+  // out does not strand another optional artifact that requires it.
   const omitted = new Set<string>();
-  const seen = new Set<string>();
-  const pending = [...written].flatMap((id) => graph.getArtifact(id)?.requires ?? []);
-
-  while (pending.length > 0) {
-    const id = pending.pop()!;
-    if (seen.has(id)) continue;
-    seen.add(id);
-
+  for (const id of buildOrder) {
     const artifact = graph.getArtifact(id);
-    if (!artifact) continue;
-    const couldBeWritten = artifact.requires.every((dependency) => completed.has(dependency));
-    if (artifact.optional && couldBeWritten && !completed.has(id)) omitted.add(id);
-    pending.push(...artifact.requires);
+    if (!artifact?.optional || completed.has(id) || !neededByWritten.has(id)) continue;
+    const couldBeWritten = artifact.requires.every(
+      (dependency) => completed.has(dependency) || omitted.has(dependency)
+    );
+    if (couldBeWritten) omitted.add(id);
   }
 
   return omitted;

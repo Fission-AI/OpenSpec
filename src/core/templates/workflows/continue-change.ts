@@ -136,9 +136,8 @@ After each invocation, show:
 - Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
-- If that artifact completed planning, suggest: "${planningComplete}"
-- If the \`/opsx:apply\` skill is not installed, also give \`openspec instructions apply --change "<name>" --json\`
-- Otherwise, prompt: "${surface.nextArtifactPrompt}"
+- If that artifact completed planning, suggest: "${planningComplete}" If the \`/opsx:apply\` skill is not installed, also give \`openspec instructions apply --change "<name>" --json\`
+- If planning is still incomplete, prompt: "${surface.nextArtifactPrompt}"
 
 **Artifact Creation Guidelines**
 

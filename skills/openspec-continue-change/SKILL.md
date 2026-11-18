@@ -119,9 +119,8 @@ After each invocation, show:
 - Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
-- If that artifact completed planning, suggest: "Planning is complete! The plan is ready for review. When you’re ready, ask me to apply it."
-- If the `openspec-apply-change` skill is not installed, also give `openspec instructions apply --change "<name>" --json`
-- Otherwise, prompt: "Want to continue? Just ask me to continue or tell me what to do next."
+- If that artifact completed planning, suggest: "Planning is complete! The plan is ready for review. When you’re ready, ask me to apply it." If the `openspec-apply-change` skill is not installed, also give `openspec instructions apply --change "<name>" --json`
+- If planning is still incomplete, prompt: "Want to continue? Just ask me to continue or tell me what to do next."
 
 **Artifact Creation Guidelines**
 

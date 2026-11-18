@@ -18,6 +18,12 @@ describe('every skill stop names the next step (#2271)', () => {
     expect(skill(workflowId)).toContain(`If the \`/opsx:apply\` skill is not installed, also give \`${APPLY_CLI}\``);
   });
 
+  it('continue only asks to keep going while planning is incomplete', () => {
+    const body = skill('continue');
+    expect(body).toContain('- If planning is still incomplete, prompt:');
+    expect(body).not.toContain('- Otherwise, prompt:');
+  });
+
   it('new names a way forward without the continue skill', () => {
     const body = skill('new');
     expect(body).toContain('If the `/opsx:continue` skill is not installed, give the CLI command for the next ready artifact');
@@ -56,7 +62,7 @@ describe('every skill stop names the next step (#2271)', () => {
 
   it('verify names the next skill for each outcome', () => {
     expect(skill('verify')).toContain(
-      'End with the next step: for CRITICAL issues, recommend the `/opsx:apply` skill for code fixes or the `/opsx:update` skill for plan fixes, if installed'
+      `End with the next step: for CRITICAL issues, recommend the \`/opsx:apply\` skill for code fixes or the \`/opsx:update\` skill for plan fixes, if installed; otherwise give \`${APPLY_CLI}\` for code fixes and name the artifacts to revise for plan fixes`
     );
     expect(skill('verify')).toContain(
       'when ready, recommend the `/opsx:archive` skill if it is installed; otherwise give `openspec archive "<name>"`'
