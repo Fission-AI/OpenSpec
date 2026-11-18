@@ -23,6 +23,7 @@ import {
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import { keepsProjectSkills, rememberProjectSkills } from './project-skills-scope.js';
+import { hasLockedOpenSpecSkills } from './shared-skill-target.js';
 import { expectedSkillContents, projectSkillText } from './skill-installer.js';
 import {
   detectLegacyArtifacts,
@@ -217,11 +218,14 @@ export class UpdateCommand {
     const hasProject =
       (await FileSystemUtils.directoryExists(path.join(resolvedProjectPath, OPENSPEC_DIR_NAME))) &&
       !(this.hasGlobalSkills && isHomeFolder(resolvedProjectPath));
+    // Skills `npx skills add` installed belong to that package: found, never changed here.
+    const hasPackageSkills =
+      hasProject && !projectHasOwnSkills(resolvedProjectPath) && hasLockedOpenSpecSkills(resolvedProjectPath);
     if (hasProject && !this.dryRun && isInteractive() && !this.force) {
       const { select, confirm } = await import('@inquirer/prompts');
       const { InitCommand } = await import('./init.js');
       const hasProjectSkills = projectHasOwnSkills(resolvedProjectPath);
-      if (hasProjectSkills && !keepsProjectSkills(resolvedProjectPath)) {
+      if ((hasProjectSkills || hasPackageSkills) && !keepsProjectSkills(resolvedProjectPath)) {
         const scope = await select({
           message: 'Where should OpenSpec keep this project’s skills?',
           choices: [
@@ -238,6 +242,10 @@ export class UpdateCommand {
               ? `Commit ${FileSystemUtils.toPosixPath(path.relative(resolvedProjectPath, saved))} to keep this choice for the team.`
               : 'Could not save this choice in openspec/config.yaml. Add "skillsScope: project" to it by hand to stop being asked.'
           );
+        } else if (hasPackageSkills) {
+          await new InitCommand({ scope }).execute(resolvedProjectPath);
+          console.log('The skills in .agents/skills stay until you remove them with: npx skills remove');
+          return;
         } else {
           const cloud = await isCopilotCloudEnabled(resolvedProjectPath);
           if (!cloud || await confirm({ message: 'Turn off hosted Copilot for this repo to switch to global skills?', default: false })) {
@@ -245,11 +253,14 @@ export class UpdateCommand {
             return;
           }
         }
-      } else if (!hasProjectSkills && !this.hasGlobalSkills && process.env.OPENSPEC_SKILLS_SCOPE !== 'project' &&
+      } else if (!hasProjectSkills && !hasPackageSkills && !this.hasGlobalSkills && process.env.OPENSPEC_SKILLS_SCOPE !== 'project' &&
         await confirm({ message: 'Set up OpenSpec skills for your coding tools on this machine?', default: false })) {
         await new InitCommand({ scope: 'global' }).execute(resolvedProjectPath);
         return;
       }
+    }
+    if (hasPackageSkills) {
+      this.log(chalk.dim('This project\'s OpenSpec skills came from `npx skills add`, so update leaves them as they are. To refresh them, run: npx skills update --project'));
     }
     if (!this.hasGlobalSkills) {
       await this.updateProject(projectPath);
@@ -265,7 +276,7 @@ export class UpdateCommand {
         projectError = error;
       }
     }
-    if (hasProject && !projectHasOwnSkills(resolvedProjectPath)) {
+    if (hasProject && !hasPackageSkills && !projectHasOwnSkills(resolvedProjectPath)) {
       this.log(chalk.dim('This project has no OpenSpec skills of its own. It uses the skills for this machine.'));
     }
     try {

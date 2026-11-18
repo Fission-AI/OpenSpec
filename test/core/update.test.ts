@@ -252,6 +252,26 @@ describe('UpdateCommand', () => {
       }));
     });
 
+    it('leaves skills `npx skills add` put in the project exactly as they are', async () => {
+      const edited = path.join(testDir, '.agents/skills/openspec-onboard/SKILL.md');
+      const notes = path.join(testDir, '.agents/skills/openspec-onboard/references/team.md');
+      await fs.mkdir(path.dirname(notes), { recursive: true });
+      await fs.writeFile(edited, 'my edited skill');
+      await fs.writeFile(notes, 'team notes');
+      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
+        version: 2,
+        skills: { 'openspec-onboard': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
+      }));
+      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+      await updateCommand.execute(testDir);
+
+      expect(await fs.readFile(edited, 'utf-8')).toBe('my edited skill');
+      expect(await fs.readFile(notes, 'utf-8')).toBe('team notes');
+      expect(await FileSystemUtils.fileExists(path.join(testDir, '.agents/skills/.openspec-target'))).toBe(false);
+      expect(log.mock.calls.flat().join('\n')).toContain('npx skills update --project');
+    });
+
     it('says a project with no skills of its own uses the ones for this machine', async () => {
       interactiveState.value = true;
       const log = vi.spyOn(console, 'log').mockImplementation(() => {});

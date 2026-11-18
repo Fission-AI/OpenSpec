@@ -370,6 +370,18 @@ export class InitCommand {
   // VALIDATION & SETUP
   // ═══════════════════════════════════════════════════════════
 
+  /** The command that gives this project its own skills, runnable from where init was run. */
+  private projectScopeCommand(projectPath: string, toolIds: string[]): string {
+    const here = FileSystemUtils.canonicalizeExistingPath(process.cwd()) === projectPath;
+    const target = /^[\w@%+=:,./-]+$/.test(projectPath) ? projectPath : `"${projectPath}"`;
+    return [
+      'openspec init',
+      ...(here ? [] : [target]),
+      '--scope project',
+      ...(toolIds.length > 0 ? [`--tools ${toolIds.join(',')}`] : []),
+    ].join(' ');
+  }
+
   private async resolveSkillScope(
     projectPath: string,
     detectedTools: readonly AIToolOption[]
@@ -495,9 +507,7 @@ export class InitCommand {
       const reused = this.scopeIsDefault && installed.skills.length > 0 && !movesProject;
       globalSkills = {
         count: result.skills.length,
-        projectScopeCommand: reused
-          ? ['openspec init --scope project', ...(tools.length ? [`--tools ${tools.map((tool) => tool.value).join(',')}`] : [])].join(' ')
-          : undefined,
+        projectScopeCommand: reused ? this.projectScopeCommand(projectPath, tools.map((tool) => tool.value)) : undefined,
       };
       const removed = describeRemovedSkills(result.removedSkills);
       if (removed) console.log(chalk.dim(removed));

@@ -110,43 +110,26 @@ export function readSkillToolList(projectPath: string, view: FileView = DISK_VIE
   // An empty or unrecognized file (an older release's, or hand-edited) says
   // nothing: fall back to the folder's wording, as before.
   if (listed.length > 0) return listed;
-  const inferred = inferPreListTool(projectPath, view) ?? inferSkillsLockTool(projectPath, view);
+  const inferred = inferPreListTool(projectPath, view);
   return inferred ? [inferred] : [];
 }
 
 /**
- * Whether the project's tools are known only from `skills-lock.json`: nothing
- * OpenSpec wrote says what this machine should keep, only what one project holds.
+ * Whether `skills-lock.json` records an OpenSpec skill that is in `.agents/skills`,
+ * as `npx skills add Fission-AI/OpenSpec` leaves it. This only says the skills are
+ * there. The `skills` package owns them, so this never makes a tool configured:
+ * that would let `update` rewrite and remove what the user chose to install.
  */
-export function isSkillsLockInstall(projectPath: string, view: FileView = DISK_VIEW): boolean {
-  return (
-    readListFileTools(projectPath, view).length === 0 &&
-    inferPreListTool(projectPath, view) === undefined &&
-    inferSkillsLockTool(projectPath, view) !== undefined
-  );
-}
-
-/**
- * `npx skills add Fission-AI/OpenSpec` puts OpenSpec's skills in
- * `.agents/skills` with no list file, and records where each came from in
- * `skills-lock.json`. That record, not the skill's wording, says the folder
- * holds OpenSpec's skills, set up for the agents that read it. Every skill in
- * the folder under an OpenSpec name must be on that record: adopting the folder
- * lets `update` rewrite and remove those names, and one from a fork or written
- * by hand is not OpenSpec's to replace.
- */
-function inferSkillsLockTool(projectPath: string, view: FileView): string | undefined {
+export function hasLockedOpenSpecSkills(projectPath: string, view: FileView = DISK_VIEW): boolean {
   try {
     const lockFile = path.join(projectPath, 'skills-lock.json');
     FileSystemUtils.assertProjectArtifactPath(projectPath, lockFile);
-    if (!view.exists(lockFile)) return undefined;
+    if (!view.exists(lockFile)) return false;
     const skills = (JSON.parse(view.read(lockFile)) as { skills?: Record<string, { source?: unknown }> }).skills ?? {};
-    const sharedDir = path.join(projectPath, SHARED_SKILLS_ROOT, 'skills');
-    const present = OPENSPEC_SKILL_NAMES.filter((name) => hasOpenSpecSkillIn(projectPath, sharedDir, view, [name]));
-    const allFromOpenSpec = present.every((name) => isOpenSpecSource(skills[name]?.source));
-    return present.length > 0 && allFromOpenSpec ? 'agents' : undefined;
+    const locked = OPENSPEC_SKILL_NAMES.filter((name) => isOpenSpecSource(skills[name]?.source));
+    return hasOpenSpecSkillIn(projectPath, path.join(projectPath, SHARED_SKILLS_ROOT, 'skills'), view, locked);
   } catch {
-    return undefined;
+    return false;
   }
 }
 

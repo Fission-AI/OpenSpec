@@ -156,6 +156,12 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
     expect(noTools.exitCode).toBe(0);
     expect(noTools.stdout).toContain(notice);
     expect(noTools.stdout).toContain('run: openspec init --scope project\n');
+
+    const elsewhere = await project('target dir');
+    const fromAnotherFolder = await cli(await project('another'), 'init', elsewhere, '--tools', 'claude');
+    expect(fromAnotherFolder.exitCode).toBe(0);
+    expect(fromAnotherFolder.stdout.replace(/\s*\n\s*/g, ' ')).toContain('--scope project --tools claude');
+    expect(fromAnotherFolder.stdout).toContain('target dir" --scope project');
     expect(noTools.stdout).not.toContain('<ids>');
 
     const chosen = await cli(await project('third'), 'init', '--scope', 'global', '--tools', 'claude');
