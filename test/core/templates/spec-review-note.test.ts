@@ -3,6 +3,8 @@ import {
   getArchiveChangeSkillTemplate,
   getBulkArchiveChangeSkillTemplate,
   getOpsxArchiveCommandTemplate,
+  getOpsxProposeCommandTemplate,
+  getOpsxProposeSkillTemplate,
   getOpsxSyncCommandTemplate,
   getSyncSpecsSkillTemplate,
 } from '../../../src/core/templates/skill-templates.js';
@@ -48,5 +50,18 @@ describe('router', () => {
     expect(instructions).toContain('read it in `openspec/changes/archive/`');
     expect(instructions).toContain('`context` lines for `openspec/config.yaml`');
     expect(instructions).toContain('Edit the file only after they approve.');
+  });
+});
+
+describe('propose interview', () => {
+  it.each([
+    ['skill', getOpsxProposeSkillTemplate().instructions],
+    ['command', getOpsxProposeCommandTemplate().content],
+  ])('%s asks about open decisions before it creates the change', (_name, text) => {
+    expect(text).toContain('**Interview before you draft.**');
+    expect(text).toContain('at most eight questions, each with your recommended answer');
+    expect(text).toContain('Do not create the change until they reply.');
+    expect(text).toContain('the user told you to use your judgment');
+    expect(text.indexOf('**Interview before you draft.**')).toBeLessThan(text.indexOf('openspec new change "<name>"'));
   });
 });
