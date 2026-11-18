@@ -23,6 +23,9 @@ const ONE_SHALL = `- **One SHALL per requirement.** Do not add a SHALL to a requ
 /** Seen: a plan to fix code that drifted from a correct spec rewrote that spec, and lost blind review for unasked scope. */
 const RESTORING_A_PROMISE = `- **A fix that brings the code back to what a spec already promises changes no spec.** Write no delta for it: add \`skip_specs: true\` to the change's \`.openspec.yaml\`, and name in the proposal the requirement the fix restores.`;
 
+/** Seen: to pass validate, plans renamed a replacement scenario back to the retired name, so the main spec kept a "Title is trimmed" scenario saying titles are not trimmed. */
+const TRUE_AFTERWARD = `- **Specs say what is true afterward.** Write each delta as current behavior, never as history ("no longer", "as before"). To retire a scenario, replace its requirement: REMOVED under the old name, ADDED under a new name. Run \`openspec validate "<name>" --strict\` before you show the plan, and fix what it reports.`;
+
 /** Seen: plans lost blind review for artifacts that disagreed, unrequested scope, untestable scenarios, and missed cases. */
 const READ_THE_PLAN_BACK = `- **Read the plan back before you show it.** Reread every artifact together and fix four things: places where the proposal, specs, design and tasks disagree; anything the request did not ask for; scenarios a test could not check as written (give exact values, outputs and errors); and any case the request covers that the plan leaves out.`;
 
@@ -48,6 +51,7 @@ ${REPLY_GOTCHA}`;
 /** For the skills that write a plan without asking first. Update confirms each edit, so it has only the rules above. */
 export const PLAN_WRITING_GOTCHAS = `${SPEC_WRITING_GOTCHAS}
 ${RESTORING_A_PROMISE}
+${TRUE_AFTERWARD}
 ${READ_THE_PLAN_BACK}`;
 
 export const APPLY_GOTCHAS = `## Gotchas

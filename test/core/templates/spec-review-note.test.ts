@@ -53,15 +53,22 @@ describe('router', () => {
   });
 });
 
-describe('propose interview', () => {
+describe('propose judgment calls', () => {
   it.each([
     ['skill', getOpsxProposeSkillTemplate().instructions],
     ['command', getOpsxProposeCommandTemplate().content],
-  ])('%s asks about open decisions before it creates the change', (_name, text) => {
-    expect(text).toContain('**Interview before you draft.**');
-    expect(text).toContain('at most eight questions, each with your recommended answer');
-    expect(text).toContain('Do not create the change until they reply.');
-    expect(text).toContain('the user told you to use your judgment');
-    expect(text.indexOf('**Interview before you draft.**')).toBeLessThan(text.indexOf('openspec new change "<name>"'));
+  ])('%s decides open questions itself and lists them', (_name, text) => {
+    expect(text).toContain('**Make the judgment calls yourself.**');
+    expect(text).toContain('Do not stop to ask, unless a wrong guess would be costly to undo');
+    expect(text).toContain('list every decision you made as one numbered line');
+    expect(text.indexOf('**Make the judgment calls yourself.**')).toBeLessThan(text.indexOf('openspec new change "<name>"'));
+  });
+
+  it.each([
+    ['skill', getOpsxProposeSkillTemplate().instructions],
+    ['command', getOpsxProposeCommandTemplate().content],
+  ])('%s retires a scenario the way the CLI accepts and validates before showing', (_name, text) => {
+    expect(text).toContain('REMOVED under the old name, ADDED under a new name');
+    expect(text).toContain('Run `openspec validate "<name>" --strict` before you show the plan');
   });
 });

@@ -6,7 +6,8 @@ Add a skill router, `/openspec`: one place to start for anything OpenSpec. Say w
 
 The other skills make fewer mistakes and write better plans:
 
-- **propose** asks about the decisions your request leaves open, each with a recommended answer, before it writes the plan.
+- **propose** makes the calls your request leaves open and lists each one, so you can correct any of them with one reply.
+- Plans retire a scenario the way `openspec archive` accepts, and validate before you see them.
 - **propose**, **ff** and **continue** read the plan back before showing it, and fix artifacts that disagree, scope nobody asked for, and scenarios a test could not check.
 - Every task in a plan says how to check it, and a plan to fix code that drifted from a correct spec no longer rewrites that spec.
 - `/openspec` no longer calls a change built just because its boxes are ticked: it looks at the code first.
