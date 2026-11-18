@@ -329,8 +329,8 @@ export class Validator {
           }
           // Same limit the main spec enforces after archive (#1976), so
           // `validate <change> --strict` catches a new overlong requirement
-          // before it lands. MODIFIED is left alone: its text is the existing
-          // requirement, which the specs instruction says to keep whole.
+          // before it lands. MODIFIED is checked against the main spec below
+          // so only replacements that grow past the limit are warned (#2216).
           if (requirementText && requirementText.length > MAX_REQUIREMENT_TEXT_LENGTH) {
             issues.push({
               level: 'WARNING',
@@ -381,8 +381,9 @@ export class Validator {
           issues.push(...this.findScenarioStepIssues(block.raw, `MODIFIED "${block.name}"`, entryPath));
         }
 
-        // Run archive's scenario-loss check here too, so the change fails at
-        // authoring time instead of days later at archive time (#1477).
+        // Run archive's scenario-loss check (#1477) and MODIFIED length-growth
+        // check (#2216) here too, so issues surface at validation time rather
+        // than only after archive.
         if (options.mainSpecsDir && plan.modified.length > 0) {
           const mainSpecFile = path.join(
             options.mainSpecsDir,
@@ -390,7 +391,7 @@ export class Validator {
             'spec.md'
           );
           issues.push(
-            ...(await this.findScenarioLossIssues(
+            ...(await this.findMainSpecModifiedIssues(
               plan.modified,
               plan.renamed,
               mainSpecFile,
@@ -704,9 +705,8 @@ export class Validator {
   }
 
   /**
-   * Report MODIFIED requirements whose block omits a scenario the main spec
-   * still carries. Uses the same comparison archive applies, so validate can
-   * only report what archive would refuse.
+   * Check MODIFIED requirements against the main spec for dropped scenarios
+   * (#1477) and replacements that grow past the length limit (#2216).
    *
    * Silent when the main spec or the requirement header is absent: applying a
    * MODIFIED against a base that is not there yet is a different failure (a
@@ -714,7 +714,7 @@ export class Validator {
    * gate for it. A spec that exists but cannot be read is not absent, though —
    * archive aborts on it, so reporting it beats calling the change valid.
    */
-  private async findScenarioLossIssues(
+  private async findMainSpecModifiedIssues(
     modified: RequirementBlock[],
     renamed: Array<{ from: string; to: string }>,
     mainSpecFile: string,
@@ -786,6 +786,19 @@ export class Validator {
       if (renamedAway.has(key)) continue;
       const current = currentBlockFor(key);
       if (!current) continue;
+      const nextText = this.extractRequirementText(block.raw);
+      const currentTextLength = this.extractRequirementText(current.raw)?.length ?? 0;
+      if (
+        nextText &&
+        nextText.length > MAX_REQUIREMENT_TEXT_LENGTH &&
+        nextText.length > currentTextLength
+      ) {
+        issues.push({
+          level: 'WARNING',
+          path: entryPath,
+          message: `MODIFIED "${block.name}": ${VALIDATION_MESSAGES.REQUIREMENT_TOO_LONG}`,
+        });
+      }
       const diff = diffScenarioNames(current, block);
       if (diff.missing.length === 0) continue;
       issues.push({
