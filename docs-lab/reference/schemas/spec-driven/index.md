@@ -483,6 +483,7 @@ artifacts:
 
   - id: design
     generates: design.md
+    optional: true
     description: Technical design document with implementation details
     template: design.md
     # instruction: shown in full under design.md above
