@@ -6,8 +6,9 @@ Install the OpenSpec workflow skills into any [skills.sh](https://skills.sh)-com
 npx skills add Fission-AI/OpenSpec
 ```
 
-Each `openspec-*/SKILL.md` here is the same skill `openspec init` writes into a
-project. The skills drive the `openspec` CLI, so for the full setup (CLI +
+Each `openspec-*` folder here is the same skill `openspec init` writes into a
+project. Rules every skill shares are in `openspec/references/`, and each
+skill reads them from there, so install the skills together. The skills drive the `openspec` CLI, so for the full setup (CLI +
 `openspec/` project scaffolding + slash commands) run:
 
 ```bash

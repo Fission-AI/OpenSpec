@@ -11,7 +11,6 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import { AI_TOOLS, installerAgent, SKILL_LINKED_TOOL_IDS } from './config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { ALL_WORKFLOWS } from './profiles.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { COMMAND_IDS } from './shared/tool-detection.js';
 import { isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
@@ -20,12 +19,16 @@ import { LEGACY_TOOL_ROOTS, legacyCommandPath } from './migration.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isToolListed } from './shared-skill-target.js';
+import { expectedSkillFiles } from './skill-installer.js';
 import { SHARED_SKILLS_ROOT, usesSharedSkills } from './shared/skill-paths.js';
 
 const SHARED_TARGET_MARKER = '.openspec-target';
 
 const toPosix = (p: string) => p.split(path.sep).join('/').replace(/\\/g, '/');
 const topFolder = (rel: string) => rel.split('/')[0];
+
+/** The files of every skill this release installs. Only their paths are used here. */
+const currentSkillFiles = () => expectedSkillFiles('current');
 
 /**
  * Project-relative paths the current release writes for one tool and no other:
@@ -39,10 +42,10 @@ function toolSpecificPathsForTool(toolId: string): string[] {
   const paths: string[] = [];
   const ownSkillsRoot = SKILL_LINKED_TOOL_IDS.has(tool.value) ? installerAgent(tool.value).projectSkillsDir : undefined;
   if (ownSkillsRoot) {
-    for (const workflow of ALL_WORKFLOWS) {
-      const skillDir = `${ownSkillsRoot}/${WORKFLOW_TO_SKILL_DIR[workflow]}`;
+    for (const [name, files] of currentSkillFiles()) {
+      const skillDir = `${ownSkillsRoot}/${name}`;
       // A link, or the plain copy made where a link can't be.
-      paths.push(skillDir, `${skillDir}/SKILL.md`);
+      paths.push(skillDir, ...[...files.keys()].map((file) => `${skillDir}/${file}`));
     }
   }
   const adapter = CommandAdapterRegistry.get(tool.value);
@@ -61,8 +64,8 @@ function currentPathsForTool(toolId: string): string[] {
   if (!tool) return [];
   const paths = toolSpecificPathsForTool(toolId);
   if (usesSharedSkills(tool)) {
-    for (const workflow of ALL_WORKFLOWS) {
-      paths.push(`${SHARED_SKILLS_ROOT}/skills/${WORKFLOW_TO_SKILL_DIR[workflow]}/SKILL.md`);
+    for (const [name, files] of currentSkillFiles()) {
+      for (const file of files.keys()) paths.push(`${SHARED_SKILLS_ROOT}/skills/${name}/${file}`);
     }
   }
   return paths;

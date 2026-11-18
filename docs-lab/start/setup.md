@@ -26,7 +26,7 @@ With the skills on this machine, which is the default:
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills in ~/.agents/skills/ for every project on this machine
+7 skills in ~/.agents/skills/ for every project on this machine
 Config: openspec/config.yaml (schema: spec-driven)
 ```
 
@@ -36,7 +36,7 @@ With the skills in this project:
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills in .agents/skills/ (also in .claude/skills/)
+7 skills in .agents/skills/ (also in .claude/skills/)
 Config: openspec/config.yaml (schema: spec-driven)
 ```
 
@@ -100,6 +100,7 @@ These are the OpenSpec workflows, the actions you'll use as you work. Here they 
 
 ```
 .agents/skills/
+├── openspec/                      start here: ask for anything OpenSpec
 ├── openspec-explore/              think through an idea first
 ├── openspec-propose/              propose a change
 ├── openspec-apply-change/         implement a change's tasks
@@ -110,7 +111,7 @@ These are the OpenSpec workflows, the actions you'll use as you work. Here they 
 └── openspec-bulk-archive-change/  archive several changes at once (not included by default)
 ```
 
-This is the default set plus two optional workflows. [Profiles](../customize/profiles.md) lists all twelve.
+This is the default set plus two optional workflows. [Profiles](../customize/profiles.md) lists all twelve. The `openspec` skill is always installed: when you don't know which skill you need, type `/openspec` and say what you want.
 
 Each skill is written once, here, no matter how many tools you set up. A tool that doesn't read `.agents/skills/` (Claude Code, Kiro, and others) gets a link to each skill in its own folder, such as `.claude/skills/openspec-propose`. Windows project installs use copies that Git can carry to another checkout. [Supported tools](../reference/supported-tools.md#where-skills-go) shows the layout and which tools get links.
 

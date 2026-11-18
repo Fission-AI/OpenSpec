@@ -4,13 +4,17 @@ import {
   getCommandTemplates,
   getCommandContents,
   generateSkillContent,
+  generateSkillFiles,
 } from '../../../src/core/shared/skill-generation.js';
+import { STORE_SELECTION_GUIDANCE } from '../../../src/core/templates/workflows/store-selection.js';
+import { PROJECT_ROOT_GUARD } from '../../../src/core/templates/workflows/project-root.js';
 
 describe('skill-generation', () => {
   describe('getSkillTemplates', () => {
-    it('should return all 12 skill templates', () => {
+    it('should return the 12 workflow skills and the router', () => {
       const templates = getSkillTemplates();
-      expect(templates).toHaveLength(12);
+      expect(templates).toHaveLength(13);
+      expect(templates.at(-1)?.dirName).toBe('openspec');
     });
 
     it('should have unique directory names', () => {
@@ -59,7 +63,8 @@ describe('skill-generation', () => {
 
     it('should filter by workflow IDs when provided', () => {
       const filtered = getSkillTemplates(['propose', 'explore', 'apply', 'archive']);
-      expect(filtered).toHaveLength(4);
+      // The four workflows, and the router that comes with any of them.
+      expect(filtered).toHaveLength(5);
       const ids = filtered.map(t => t.workflowId);
       expect(ids).toContain('propose');
       expect(ids).toContain('explore');
@@ -82,9 +87,8 @@ describe('skill-generation', () => {
 
     it('should return single template when filter has one workflow', () => {
       const filtered = getSkillTemplates(['propose']);
-      expect(filtered).toHaveLength(1);
+      expect(filtered.map(t => t.dirName)).toEqual(['openspec-propose', 'openspec']);
       expect(filtered[0].workflowId).toBe('propose');
-      expect(filtered[0].dirName).toBe('openspec-propose');
     });
   });
 
@@ -298,6 +302,43 @@ describe('skill-generation', () => {
 
       expect(content).toContain('Some REPLACED text here.');
       expect(content).not.toContain('PLACEHOLDER');
+    });
+  });
+
+  describe('generateSkillFiles', () => {
+    const all = getSkillTemplates();
+    const router = all.find(entry => entry.dirName === 'openspec')!;
+    const workflows = all.filter(entry => entry !== router);
+    const shared = ['references/project-check.md', 'references/stores.md'];
+
+    it('keeps each workflow skill to one SKILL.md with its own steps', () => {
+      for (const entry of workflows) {
+        const files = generateSkillFiles(entry, 'TEST');
+        expect([...files.keys()], entry.dirName).toEqual(['SKILL.md']);
+        const text = files.get('SKILL.md')!;
+        expect(text, entry.dirName).toContain(`description: ${entry.template.description}\n`);
+        // The blocks every skill used to repeat are now one line each.
+        expect(text, entry.dirName).not.toContain(STORE_SELECTION_GUIDANCE);
+        expect(text, entry.dirName).not.toContain(PROJECT_ROOT_GUARD);
+        for (const file of shared) expect(text, entry.dirName).toContain(`../openspec/${file}`);
+        // Everything else is the workflow's own text, word for word.
+        const rest = entry.template.instructions.split(STORE_SELECTION_GUIDANCE).join('').split(PROJECT_ROOT_GUARD).join('');
+        for (const part of rest.split('\n\n').filter(Boolean)) expect(text, entry.dirName).toContain(part);
+      }
+    });
+
+    it('keeps the shared blocks, word for word, in the router', () => {
+      const files = generateSkillFiles(router, 'TEST');
+      expect([...files.keys()].sort()).toEqual(['SKILL.md', ...shared].sort());
+      expect(files.get('references/stores.md')).toBe(`${STORE_SELECTION_GUIDANCE}\n`);
+      expect(files.get('references/project-check.md')).toBe(`${PROJECT_ROOT_GUARD}\n`);
+    });
+
+    it("changes the router's SKILL.md when a reference changes", () => {
+      const before = generateSkillFiles(router, 'TEST').get('SKILL.md');
+      const after = generateSkillFiles(router, 'TEST', text => `${text}!`).get('SKILL.md');
+      expect(before).toMatch(/\n {2}references: "[0-9a-f]{12}"\n---/);
+      expect(after).not.toBe(before);
     });
   });
 });

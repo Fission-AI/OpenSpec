@@ -125,14 +125,14 @@ With the skills in the project (`--scope project`), OpenSpec writes them once, t
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills in .agents/skills/ (also in .claude/skills/)
+7 skills in .agents/skills/ (also in .claude/skills/)
 Config: openspec/config.yaml (schema: spec-driven)
 
 Getting started:
   Start your first change: /openspec-propose "your idea"
 ```
 
-With the skills on this machine, the summary line reads `6 skills in ~/.agents/skills/ for every project on this machine` and the project holds only `openspec/`.
+With the skills on this machine, the summary line reads `7 skills in ~/.agents/skills/ for every project on this machine` and the project holds only `openspec/`.
 
 `--tools none` creates only the `openspec/` folder and sets up no tool. On an already-initialized project, init rewrites the installed files in place and the summary reads `Refreshed: Claude Code` with `Config: openspec/config.yaml (exists)`.
 

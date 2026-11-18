@@ -4,7 +4,7 @@ import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
 import { ALL_WORKFLOWS } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
-import { getConfiguredTools } from './shared/index.js';
+import { getConfiguredTools, getSkillTemplates } from './shared/index.js';
 import { classifyCommandFiles } from './shared/command-reconcile.js';
 import { shouldReconcileCommandFilesForTool } from './command-surface.js';
 import { isToolListed } from './shared-skill-target.js';
@@ -115,7 +115,7 @@ export function hasToolProfileOrDeliveryDrift(
     // part is checked here: being listed, and its own skills folder.
     if (!listed) return true;
     const linked = new Set<string>(
-      knownDesiredWorkflows.map((workflow) => WORKFLOW_TO_SKILL_DIR[workflow])
+      getSkillTemplates(knownDesiredWorkflows).map((entry) => entry.dirName)
     );
     if (ownSkillFolderNeedsWork(projectPath, tool, linked, view)) return true;
   }

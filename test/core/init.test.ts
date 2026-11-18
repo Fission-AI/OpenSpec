@@ -517,13 +517,16 @@ describe('InitCommand', () => {
         generatedFiles.map((file) => fs.readFile(file, 'utf-8'))
       );
 
+      // The store rules every skill shares live once, in the openspec skill,
+      // and each skill says when to read them.
+      const stores = await fs.readFile(
+        path.join(testDir, '.claude', 'skills', 'openspec', 'references', 'stores.md'),
+        'utf-8'
+      );
+      expect(stores).toContain('treat `--store <id>` as sticky for the rest of the workflow');
+      expect(stores).toContain('openspec status --change "<name>" --json --store "<id>"');
       for (const content of generatedContents) {
-        expect(content).toContain(
-          'treat `--store <id>` as sticky for the rest of the workflow'
-        );
-        expect(content).toContain(
-          'openspec status --change "<name>" --json --store "<id>"'
-        );
+        expect(content).toContain('../openspec/references/stores.md');
       }
 
       // The default profile installs six workflows; `continue` and `new` are
@@ -783,7 +786,7 @@ describe('InitCommand', () => {
         .map(String);
       const summary = logCalls.find((entry) => /^\d+ skills in /.test(entry));
       expect(summary).toBe(
-        '6 skills in .agents/skills/ (also in .claude/skills/, .minimax/skills/)'
+        '7 skills in .agents/skills/ (also in .claude/skills/, .minimax/skills/)'
       );
     });
 
@@ -1040,6 +1043,7 @@ describe('InitCommand', () => {
       // Grok reads the one shared copy of the skills.
       const skillsDir = path.join(testDir, '.agents', 'skills');
       const skillNames = [
+        'openspec',
         'openspec-apply-change',
         'openspec-archive-change',
         'openspec-explore',

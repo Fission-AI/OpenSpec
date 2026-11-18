@@ -144,6 +144,7 @@ Now talk to your AI:
 
 - **Not sure what to build yet?** Start with `/openspec-explore`, a no-stakes thinking partner that reads your code, weighs options, and shapes a plan before any code gets written. ([Quickstart](https://openspec.dev/docs/quickstart))
 - **Already know what you want?** Go straight to `/openspec-propose <what-you-want-to-build>`.
+- **Not sure which skill you need?** Type `/openspec` and say what you want. It picks the right skill, tells you where your changes stand, and can run several steps in a row.
 
 Both are in the default profile. If you want the expanded workflow (`openspec-new-change`, `openspec-continue-change`, `openspec-ff-change`, `openspec-verify-change`, `openspec-bulk-archive-change`, `openspec-onboard`), select it with `openspec config profile` and apply with `openspec update`.
 

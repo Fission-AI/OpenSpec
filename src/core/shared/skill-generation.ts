@@ -17,6 +17,8 @@ import {
   getVerifyChangeSkillTemplate,
   getOnboardSkillTemplate,
   getOpsxProposeSkillTemplate,
+  getRouterSkillTemplate,
+  ROUTER_SKILL_NAME,
   getOpsxExploreCommandTemplate,
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
@@ -32,7 +34,10 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
+import { createHash } from 'node:crypto';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
+import { STORE_SELECTION_GUIDANCE } from '../templates/workflows/store-selection.js';
+import { PROJECT_ROOT_GUARD } from '../templates/workflows/project-root.js';
 
 /**
  * Skill template with directory name and workflow ID mapping.
@@ -55,15 +60,24 @@ export interface CommandTemplateEntry {
  * Gets skill templates with their directory names, optionally filtered by workflow IDs.
  *
  * The filter chooses which skills are returned, never what they say: a skill's
- * text is the same for every workflow list.
+ * text is the same for every workflow list. The router skill comes with any
+ * workflow skill and is not returned alone.
  *
  * @param workflowFilter - If provided, only return templates whose workflowId is in this array
  */
 export function getSkillTemplates(workflowFilter?: readonly string[]): SkillTemplateEntry[] {
   const all = allSkillTemplates();
-  if (!workflowFilter) return all;
-  const wanted = new Set<string>(workflowFilter);
-  return all.filter(entry => wanted.has(entry.workflowId));
+  const wanted = workflowFilter && new Set<string>(workflowFilter);
+  const workflows = wanted ? all.filter(entry => wanted.has(entry.workflowId)) : all;
+  // The router points at the workflow skills, so it goes wherever any of them does.
+  return workflows.length ? [...workflows, routerSkillEntry()] : workflows;
+}
+
+/** The router is not a workflow: no profile selects it or leaves it out. */
+const ROUTER_WORKFLOW_ID = 'router';
+
+function routerSkillEntry(): SkillTemplateEntry {
+  return { template: getRouterSkillTemplate(), dirName: ROUTER_SKILL_NAME, workflowId: ROUTER_WORKFLOW_ID };
 }
 
 /**
@@ -162,8 +176,63 @@ metadata:
   author: ${template.metadata?.author || 'openspec'}
   version: "${template.metadata?.version || '1.0'}"
   generatedBy: "${generatedByVersion}"
----
+${template.metadata?.references ? `  references: "${template.metadata.references}"\n` : ''}---
 
 ${instructions}
 `;
+}
+
+/**
+ * Blocks every workflow skill used to repeat in full. They matter only in a
+ * case most runs never meet, so each lives once, as a reference file in the
+ * router's folder, and a workflow skill says exactly when to read it.
+ */
+const SHARED_REFERENCES = [
+  {
+    file: 'references/stores.md',
+    text: STORE_SELECTION_GUIDANCE,
+    trigger: `**Stores:** If the user names a store, or the work lives in one, read \`../${ROUTER_SKILL_NAME}/references/stores.md\` before your first command and follow it.`,
+  },
+  {
+    file: 'references/project-check.md',
+    text: PROJECT_ROOT_GUARD,
+    trigger: `**Project check:** Before the first step that writes anything, run \`openspec list --json\` and read \`root\`. If \`root\` is \`null\`, or a \`status\` error starts with \`Declared in\` or \`Invalid store declaration in\`, read \`../${ROUTER_SKILL_NAME}/references/project-check.md\` and follow it before you do anything else.`,
+  },
+] as const;
+
+/** A workflow's steps as its SKILL.md carries them: each shared block replaced by its trigger. */
+function withSharedReferences(instructions: string): string {
+  return SHARED_REFERENCES.reduce((text, shared) => {
+    if (!text.includes(shared.text)) throw new Error(`a workflow skill is missing ${shared.file}`);
+    return text.replace(shared.text, shared.trigger);
+  }, instructions);
+}
+
+/**
+ * The files of one skill as they are published and installed, by path inside
+ * the skill's folder.
+ *
+ * A workflow skill is one SKILL.md with its steps. The router's folder also
+ * holds the shared references, and its SKILL.md carries a digest of them, so
+ * a changed reference shows as a changed SKILL.md wherever an install is
+ * compared with what this release publishes.
+ */
+export function generateSkillFiles(
+  entry: SkillTemplateEntry,
+  generatedByVersion: string,
+  transformInstructions?: (instructions: string) => string
+): Map<string, string> {
+  const files = new Map<string, string>();
+  if (entry.workflowId !== ROUTER_WORKFLOW_ID) {
+    const skill = { ...entry.template, instructions: withSharedReferences(entry.template.instructions) };
+    return files.set('SKILL.md', generateSkillContent(skill, generatedByVersion, transformInstructions));
+  }
+  const digest = createHash('sha256');
+  for (const shared of SHARED_REFERENCES) {
+    const text = transformInstructions ? transformInstructions(shared.text) : shared.text;
+    files.set(shared.file, `${text}\n`);
+    digest.update(`${shared.file}\n${text}\n`);
+  }
+  const router = { ...entry.template, metadata: { ...entry.template.metadata, references: digest.digest('hex').slice(0, 12) } };
+  return files.set('SKILL.md', generateSkillContent(router, generatedByVersion, transformInstructions));
 }

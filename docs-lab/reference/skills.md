@@ -39,6 +39,8 @@ The skills come in two sets:
 - **Core**: installed by default, the main planning loop.
 - **Optional**: installed only when you add them, via [Profiles](../customize/profiles.md).
 
+One more skill, [`openspec`](#openspec), comes with either set. It is the place to start when you don't know which skill you need.
+
 Every skill expects a project that already uses OpenSpec. Before its first step that writes anything, a skill checks for a resolved root. What happens when there is none depends on how the skill was reached:
 
 - **Auto-selected**: your agent picked the skill on its own, without you naming OpenSpec. It drops OpenSpec and answers your request normally, the way it would with OpenSpec not installed.
@@ -48,6 +50,7 @@ Invoking a skill by name is always the second case. A project whose `openspec/co
 
 | Skill | Job | Type |
 |---|---|---|
+| [openspec](#openspec) | Start here: ask for anything OpenSpec | Always installed |
 | [openspec-explore](#openspec-explore) | Think through an idea before it becomes a change proposal | Core |
 | [openspec-propose](#openspec-propose) | Create a change proposal with all its planning artifacts in one step | Core |
 | [openspec-apply-change](#openspec-apply-change) | Implement a change proposal's tasks | Core |
@@ -62,6 +65,30 @@ Invoking a skill by name is always the second case. A project whose `openspec/co
 | [openspec-onboard](#openspec-onboard) | Learn the workflow by doing one real change proposal end to end | Optional |
 
 Each entry below names the skill that owns the next step. A skill reads the same whatever your profile, so it can't assume the next skill is there. Where a step belongs to another skill, it either checks when it runs ("if that skill is installed, otherwise…") or follows the recovery step the CLI prints. Which set you get is [Profiles](../customize/profiles.md).
+
+## openspec
+
+Start here: ask for anything OpenSpec, without knowing which skill does it.
+
+Use it when:
+
+- **You want one place to start.** Type `/openspec` and say what you want. It picks the skill that does the work.
+- **You're not sure how to do something.** Ask "where do things stand?", "what should I do next?" or "how do I change this plan?". It looks at your changes, tells you, and offers to do the next step.
+- **You want several steps in one go.** "Build this change, then archive it" runs each skill in order.
+
+```text
+/openspec where do things stand, and what should I do next?
+/openspec add rate limiting to the API
+/openspec build the add-rate-limiting change, then archive it
+```
+
+| Contract | Description |
+|---|---|
+| **Arguments** | Anything about OpenSpec: a question, a request for work, or several steps at once. |
+| **Creates** | Nothing itself. The skill it hands the request to creates what that skill's entry below describes. |
+| **Response** | For a question: where things stand, the next step and the skill that does it, and an offer to do it. For work: whatever the chosen skill responds with. If a request could mean more than one skill it asks which, and if the skill it needs is not installed it says so. |
+
+It also holds two short rules every skill below shares: how to work in a store, and what to do in a folder that doesn't use OpenSpec. Each skill reads them from the `openspec` skill's `references/` folder only when it needs them, so the skills are always installed together.
 
 ## openspec-explore
 

@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
+import { SPEC_WRITING_GOTCHAS } from './gotchas.js';
 
 const CONTINUE_SCOPE_NOTE =
   'Revise existing artifacts. If an artifact is missing, identify it and show the next ready artifact from `openspec status --change "<name>" --json`.';
@@ -44,6 +45,8 @@ export function getUpdateChangeSkillTemplate(): SkillTemplate {
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${SPEC_WRITING_GOTCHAS}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -144,6 +147,8 @@ export function getOpsxUpdateCommandTemplate(): CommandTemplate {
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${SPEC_WRITING_GOTCHAS}
 
 **Input**: Optionally specify a change name after \`/opsx:update\` (e.g., \`/opsx:update add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 

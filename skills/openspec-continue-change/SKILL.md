@@ -11,18 +11,19 @@ metadata:
 
 Continue working on a change by creating the next artifact.
 
-**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, `view`). Once selected, treat `--store <id>` as sticky for the rest of the workflow. Every unscoped example of those commands below is shorthand: before running it, append the flag. For example, run `openspec status --change "<name>" --json --store "<id>"`, not the unscoped form shown below. Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+**Stores:** If the user names a store, or the work lives in one, read `../openspec/references/stores.md` before your first command and follow it.
 
-**Project check:** These steps expect a project that already uses OpenSpec. Before the first step that writes anything (`new change`, `archive`, `sync specs`, or authoring an artifact file), confirm the project has a root: run `openspec list --json` (with `--store <id>` when a store is selected, since the store is then the root) and read `root`. A root object means the project is set up. `"root": null` means it is not - there is no `openspec/` directory here, and a write such as `openspec new change` would create one as a side effect. The command also exits non-zero, which is that answer rather than a broken CLI, so read the JSON instead of retrying or working around it.
+**Project check:** Before the first step that writes anything, run `openspec list --json` and read `root`. If `root` is `null`, or a `status` error starts with `Declared in` or `Invalid store declaration in`, read `../openspec/references/project-check.md` and follow it before you do anything else.
 
-One `"root": null` is not about setup: when a `status` error message starts with `Declared in` or `Invalid store declaration in` and names this project's `openspec/config.yaml` (or `config.yml`), the project does use OpenSpec through a store it declares, which this machine cannot resolve (the store is not registered, or the `store:` line is malformed). Do not treat it as uninitialized and skip the branches below: stop before writing and show the user that error's `message` and `fix`.
+## Gotchas
 
-Otherwise, with no root, what happens next depends on how this workflow was reached:
-
-- **Auto-selected**: you chose this workflow yourself, without the user naming OpenSpec, naming this skill, or invoking this skill by name. Stop using OpenSpec and answer the request normally, as you would with no OpenSpec installed. Do not ask them to set anything up and do not mention OpenSpec setup.
-- **Explicit OpenSpec request**: the user named OpenSpec, named this skill, or invoked this skill by name. Stop before writing and ask how to proceed: set this project up (`openspec init`), target a store they already have (`--store <id>`), or continue without OpenSpec for this request. Wait for their answer.
-
-In both branches, never create the root as a side effect: do not run `openspec init` until the user asks for it, do not hand-create `openspec/` files, and do not let a command create it.
+- **Change a promise where it lives.** If an existing requirement already promises the behavior, or the opposite of it, change that requirement with MODIFIED. Never add a second requirement that repeats or contradicts it. Only a promise no requirement makes gets its own ADDED requirement.
+- **One SHALL per requirement.** Do not add a SHALL to a requirement that has one. If a requirement you modify already makes several promises, keep one and move each other into its own ADDED requirement, scenarios included, so no promise is stated twice.
+- **Every task says how to check it.** Keep tasks small, and give each one the test or command that shows it is done, with the scenario's exact values. Add tests only for behavior the change makes or restores, and plan the update of any existing test the change will break.
+- **Make the last message easy to take in at a glance.** Lead with what was done and where. Put each decision, assumption or problem the user should check on its own line. Leave out what the files already say and checks that found nothing. End with the next step.
+- **A fix that brings the code back to what a spec already promises changes no spec.** Write no delta for it: add `skip_specs: true` to the change's `.openspec.yaml`, and name in the proposal the requirement the fix restores.
+- **Specs say what is true afterward.** Write each delta as current behavior, never as history ("no longer", "as before"). To retire a scenario, replace its requirement: REMOVED under the old name, ADDED under a new name. Run `openspec validate "<name>" --strict` before you show the plan, and fix what it reports.
+- **Read the plan back before you show it.** Reread every artifact together and fix four things: places where the proposal, specs, design and tasks disagree; anything the request did not ask for; scenarios a test could not check as written (give exact values, outputs and errors); and any case the request covers that the plan leaves out.
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 

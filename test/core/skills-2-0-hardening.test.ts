@@ -202,7 +202,7 @@ describe('OpenSpec 2.0 skills: hardening', () => {
 
     await new UpdateCommand().execute(project);
 
-    expect((await fs.readdir(p('.agents', 'skills'))).sort()).toEqual(['.openspec-target', 'openspec-explore']);
+    expect((await fs.readdir(p('.agents', 'skills'))).sort()).toEqual(['.openspec-target', 'openspec', 'openspec-explore']);
     expect(await read('.agents/skills/.openspec-target')).not.toContain('keep');
     await settles();
   });

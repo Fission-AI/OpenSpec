@@ -7,6 +7,7 @@
 import type { SkillTemplate, CommandTemplate } from '../types.js';
 import { STORE_SELECTION_GUIDANCE } from './store-selection.js';
 import { PROJECT_ROOT_GUARD } from './project-root.js';
+import { PLAN_WRITING_GOTCHAS } from './gotchas.js';
 
 const PLANNING_COMPLETE_HANDOFF =
   'The plan is ready for review. When you’re ready, ask me to apply it.';
@@ -30,6 +31,8 @@ export function getContinueChangeSkillTemplate(): SkillTemplate {
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${PLAN_WRITING_GOTCHAS}
 
 **Input**: Optionally specify a change name. If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 
@@ -156,6 +159,8 @@ export function getOpsxContinueCommandTemplate(): CommandTemplate {
 ${STORE_SELECTION_GUIDANCE}
 
 ${PROJECT_ROOT_GUARD}
+
+${PLAN_WRITING_GOTCHAS}
 
 **Input**: Optionally specify a change name after \`/opsx:continue\` (e.g., \`/opsx:continue add-auth\`). If omitted, check if it can be inferred from conversation context. If vague or ambiguous you MUST prompt for available changes.
 

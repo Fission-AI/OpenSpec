@@ -13,18 +13,15 @@ Archive multiple completed changes in a single operation.
 
 This skill allows you to batch-archive changes, handling spec conflicts intelligently by checking the codebase to determine what's actually implemented.
 
-**Store selection:** If the user names a store (a store is a standalone OpenSpec repo registered on this machine) or the work lives in one, run `openspec store list --json` to discover registered store ids, then pass `--store <id>` on the commands that read or write specs and changes (`new change`, `status`, `instructions`, `list`, `show`, `validate`, `archive`, `doctor`, `context`, `schemas`, `view`). Once selected, treat `--store <id>` as sticky for the rest of the workflow. Every unscoped example of those commands below is shorthand: before running it, append the flag. For example, run `openspec status --change "<name>" --json --store "<id>"`, not the unscoped form shown below. Other commands do not take the flag. Hints printed by commands already carry the flag; keep it on follow-ups. Without a store, commands act on the nearest local `openspec/` root.
+**Stores:** If the user names a store, or the work lives in one, read `../openspec/references/stores.md` before your first command and follow it.
 
-**Project check:** These steps expect a project that already uses OpenSpec. Before the first step that writes anything (`new change`, `archive`, `sync specs`, or authoring an artifact file), confirm the project has a root: run `openspec list --json` (with `--store <id>` when a store is selected, since the store is then the root) and read `root`. A root object means the project is set up. `"root": null` means it is not - there is no `openspec/` directory here, and a write such as `openspec new change` would create one as a side effect. The command also exits non-zero, which is that answer rather than a broken CLI, so read the JSON instead of retrying or working around it.
+**Project check:** Before the first step that writes anything, run `openspec list --json` and read `root`. If `root` is `null`, or a `status` error starts with `Declared in` or `Invalid store declaration in`, read `../openspec/references/project-check.md` and follow it before you do anything else.
 
-One `"root": null` is not about setup: when a `status` error message starts with `Declared in` or `Invalid store declaration in` and names this project's `openspec/config.yaml` (or `config.yml`), the project does use OpenSpec through a store it declares, which this machine cannot resolve (the store is not registered, or the `store:` line is malformed). Do not treat it as uninitialized and skip the branches below: stop before writing and show the user that error's `message` and `fix`.
+## Gotchas
 
-Otherwise, with no root, what happens next depends on how this workflow was reached:
-
-- **Auto-selected**: you chose this workflow yourself, without the user naming OpenSpec, naming this skill, or invoking this skill by name. Stop using OpenSpec and answer the request normally, as you would with no OpenSpec installed. Do not ask them to set anything up and do not mention OpenSpec setup.
-- **Explicit OpenSpec request**: the user named OpenSpec, named this skill, or invoked this skill by name. Stop before writing and ask how to proceed: set this project up (`openspec init`), target a store they already have (`--store <id>`), or continue without OpenSpec for this request. Wait for their answer.
-
-In both branches, never create the root as a side effect: do not run `openspec init` until the user asks for it, do not hand-create `openspec/` files, and do not let a command create it.
+- **A MODIFIED requirement replaces the whole requirement in the main spec.** If the main spec now says something the delta's copy does not (it was edited after the change was planned), merging deletes it. Before you merge, run `openspec show "<name>" --type change --json --diff` and read each MODIFIED requirement's `diff`: a `-` line the change did not plan is text the merge would delete. If the main spec has a sentence the delta lacks, carry it into the delta, or stop without merging and name the sentence that would be lost. Never drop it on your own judgment, even when the code does not use it.
+- **Only files named `spec.md` are delta specs.** `openspec validate` and `openspec archive` read nothing else under `specs/`. Merge no other file, even when `existingOutputPaths` lists it or it is written like a delta; name it in your summary instead.
+- **Make the last message easy to take in at a glance.** Lead with what was done and where. Put each decision, assumption or problem the user should check on its own line. Leave out what the files already say and checks that found nothing. End with the next step.
 
 `<capability-path>` is the spec directory relative to `specs/` (for example, `user-auth` or `identity/user-auth`). Preserve the full path from each delta spec when resolving its main spec.
 

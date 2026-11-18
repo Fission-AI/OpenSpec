@@ -27,6 +27,12 @@ flowchart LR
     archive -. "next change" .-> explore
 ```
 
+Not sure which step you're on, or how to do something? Ask the `openspec` skill. It looks at your changes, tells you where things stand, and offers to do the next step:
+
+```text
+/openspec where do things stand, and what should I do next?
+```
+
 Every prompt below goes in your AI chat, the same place you ask for code. The examples use plain language so they work across tools. You can also invoke a skill directly; the syntax varies by tool ([supported tools](../reference/supported-tools.md)).
 
 ## Step 1: Explore

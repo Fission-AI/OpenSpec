@@ -3,18 +3,26 @@ import { parse, stringify } from 'yaml';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { transformToSharedSkillReferences } from '../utils/command-references.js';
-import { generateSkillContent, getSkillTemplates, stripVolatileFrontmatter } from './shared/skill-generation.js';
+import { generateSkillFiles, getSkillTemplates, stripVolatileFrontmatter } from './shared/skill-generation.js';
 
 export type SkillScope = 'global' | 'project';
 
-const allContents = new Map<string, Map<string, string>>();
-export function expectedSkillContents(version: string, workflows?: readonly string[]) {
-  if (!workflows && allContents.has(version)) return allContents.get(version)!;
-  const contents = new Map(getSkillTemplates(workflows).map(({ template, dirName }) => [
-    dirName, stripVolatileFrontmatter(generateSkillContent(template, version, transformToSharedSkillReferences)),
+const allFiles = new Map<string, Map<string, Map<string, string>>>();
+/** Every file of each skill this release installs, by skill and then by path inside the skill's folder. */
+export function expectedSkillFiles(version: string, workflows?: readonly string[]) {
+  if (!workflows && allFiles.has(version)) return allFiles.get(version)!;
+  const files = new Map(getSkillTemplates(workflows).map((entry) => [
+    entry.dirName,
+    new Map([...generateSkillFiles(entry, version, transformToSharedSkillReferences)]
+      .map(([file, text]) => [file, stripVolatileFrontmatter(text)])),
   ]));
-  if (!workflows) allContents.set(version, contents);
-  return contents;
+  if (!workflows) allFiles.set(version, files);
+  return files;
+}
+
+/** Each skill's SKILL.md: what an install is compared with to tell whether it is current. */
+export function expectedSkillContents(version: string, workflows?: readonly string[]) {
+  return new Map([...expectedSkillFiles(version, workflows)].map(([name, files]) => [name, files.get('SKILL.md')!]));
 }
 
 /** Vercel writes Eve a copy with only the frontmatter its agent reads. */
