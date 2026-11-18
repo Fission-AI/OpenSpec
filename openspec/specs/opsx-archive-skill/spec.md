@@ -160,8 +160,8 @@ The skill SHALL move the change to the archive folder with date prefix.
 #### Scenario: Archive already exists
 
 - **WHEN** target archive directory already exists
-- **THEN** fail with error message
-- **AND** suggest renaming existing archive or using different date
+- **THEN** fail with error message before writing any main spec
+- **AND** suggest renaming the existing archive or this change
 
 ### Requirement: Skill Output
 
