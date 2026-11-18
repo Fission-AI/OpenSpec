@@ -20,7 +20,7 @@ describe('every skill stop names the next step (#2271)', () => {
 
   it('continue only asks to keep going while planning is incomplete', () => {
     const body = skill('continue');
-    expect(body).toContain('- If planning is still incomplete, prompt:');
+    expect(body).toContain('- If planning is still incomplete, or a file that artifact needs is still missing, prompt:');
     expect(body).not.toContain('- Otherwise, prompt:');
   });
 
