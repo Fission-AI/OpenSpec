@@ -62,14 +62,14 @@ function specDrivenTitles(): Record<string, string> {
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'edf038cdf0f7179089ac6c4febd09e8c66a961459b66f0a460735a5e9de6f13d',
   getNewChangeSkillTemplate: 'aa1b169e0941ad8f9275f6f622019eebddeaab607815516bf872bf9ca7368b81',
-  getContinueChangeSkillTemplate: '26a9a95665ad89930494109f874b327b5b3d50e8edb44f5e673483f2162cfee4',
+  getContinueChangeSkillTemplate: '41111607e3523bd0c0ab08f5eb254c0100a3fbbdb814f05817c3de957af7ffb6',
   getApplyChangeSkillTemplate: '244136f2de5518cd92b0d58e1cec8ffbef2bd2443b5e49f748cf64e7d7c6fce8',
   getFfChangeSkillTemplate: '293a3bd2c6372dba854792c416dad0efc9ba83515496dc576f9ef2a067701d82',
   getSyncSpecsSkillTemplate: '7aaf33f2a3ddb86d8bd7131bf36588a580fb8279127b881f19c6d8af60cfe059',
   getOnboardSkillTemplate: '06f68fb14002e182b88def80b0798a0d571b3d36f7ea7304fd44487b1b8f27a3',
   getOpsxExploreCommandTemplate: '94d998600803a5d75a9ff9627fb35a45a6cf8a0ac19874a66bf8bc45e7a4e396',
   getOpsxNewCommandTemplate: '63fad016276d99c5325637bb2e9a2a375508e3e0b2f08de244f462a3287e8efc',
-  getOpsxContinueCommandTemplate: '82928867ed095b1a39a375958b4e91d959a9347e37843dddc66f70bf85ca0ea1',
+  getOpsxContinueCommandTemplate: 'f8969bdd9e1b29176396ad0dec7b6a357912ab8a6104a27e8365ec4590152ba8',
   getOpsxApplyCommandTemplate: '610de2766882217300eb362194055e1ebf1889a8c077bbcff4eb9fae8b8a11b1',
   getOpsxFfCommandTemplate: '95bc67362028d4f66073843e823f58192b32c717917d0cd69c98ef32f6366c48',
   getArchiveChangeSkillTemplate: '05b3971d0406c4709188ca0919fb089fcf72f24675d541b6bdffc43d5c89e913',
@@ -90,7 +90,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-explore': '012f3656e212a9e6537009897e887ca31eaf7e8173071451411094691eac8831',
   'openspec-new-change': '865a0326f5b5257869ae9615e8b86f4b58f896b18a614f272bdbf49ca2a88371',
-  'openspec-continue-change': 'fb8809e8bd4065d2ce84909f0ef2b4237d2d2dcf4143eccb14395180082d8ea8',
+  'openspec-continue-change': '60bcf2b8f3a7dcbd8c8adaff5bb4d5f1b8f0a64485bd154a3014a7ec6197c49f',
   'openspec-apply-change': 'efb30419f0fc22cf6cf68e9142eacecd670cbcf2717423288cc07ff64432f3ce',
   'openspec-ff-change': '729cceff177bd8148b0cf2c5307ad2ee8d2ec5993dbf773e1a3dc8fc88ae6fd0',
   'openspec-sync-specs': '02bb0d11a10c7626e5e641f0505336527050ab4d9d8bb45e1351c6ed05c0dc7a',
@@ -532,6 +532,30 @@ describe('skill templates split parity', () => {
       expect(content, variant).not.toContain('archive it');
       expect(content, variant).not.toContain('All artifacts created!');
       expect(content, variant).not.toContain('or archive it');
+    }
+  });
+
+  it('hands off to apply whenever continue finds or finishes a complete plan (#2271)', () => {
+    const variants: Array<[string, string, string, string]> = [
+      [
+        'skill',
+        getContinueChangeSkillTemplate().instructions,
+        'Planning is complete! The plan is ready for review. When you’re ready, ask me to apply it.',
+        'Review the plan before starting implementation.',
+      ],
+      [
+        'opsx command',
+        getOpsxContinueCommandTemplate().content,
+        'Planning is complete! Review the plan. To start implementation, run `openspec instructions apply --change "<name>" --json`.',
+        // A command-only tool has no conversational agent to ask.
+        'ask me to apply it',
+      ],
+    ];
+
+    for (const [variant, content, handoff, forbidden] of variants) {
+      // Once when status already reads complete, once when this run's artifact completed it.
+      expect(content.split(handoff).length - 1, variant).toBe(2);
+      expect(content, variant).not.toContain(forbidden);
     }
   });
 

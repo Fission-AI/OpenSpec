@@ -68,7 +68,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
    **If all planning artifacts are complete (`isPlanningComplete: true`, or legacy `isComplete: true`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "Planning is complete! Review the plan before starting implementation."
+   - Suggest: "Planning is complete! The plan is ready for review. When you’re ready, ask me to apply it."
    - STOP
 
    ---
@@ -117,7 +117,8 @@ After each invocation, show:
 - Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
-- Prompt: "Want to continue? Just ask me to continue or tell me what to do next."
+- If that artifact completed planning, suggest: "Planning is complete! The plan is ready for review. When you’re ready, ask me to apply it."
+- Otherwise, prompt: "Want to continue? Just ask me to continue or tell me what to do next."
 
 **Artifact Creation Guidelines**
 
