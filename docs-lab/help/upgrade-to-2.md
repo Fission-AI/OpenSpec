@@ -85,7 +85,7 @@ A project set up before 1.0 has older files, such as `.claude/commands/openspec/
 
 ## Skills you customized
 
-Save edits to built-in skills before updating, along with any file you added inside a built-in skill folder. OpenSpec replaces each of those folders with the instructions from your CLI’s GitHub release tag.
+Save edits to built-in skills before updating, along with any file you added inside a built-in skill folder. OpenSpec replaces each of those folders with the instructions for your CLI’s version.
 
 To keep a customization across updates, put it somewhere `update` doesn't write:
 

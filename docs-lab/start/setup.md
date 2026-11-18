@@ -76,7 +76,7 @@ Every project gets an `openspec/` folder at the repo root. Where the skills go d
 
 The rest of this section describes a project install. [Install the skills once for every project](#install-the-skills-once-for-every-project) covers the machine-wide one.
 
-Vercel’s installer fetches skills from the OpenSpec GitHub tag that matches your CLI version. Installing or refreshing skills requires Git and access to GitHub. Project installs leave `skills-lock.json` alone.
+OpenSpec installs the skills bundled with your CLI, so they always match its version. This step needs no Git or network access, for project and global installs alike. If you run OpenSpec through `npx` offline, the package must already be installed or cached. Project installs leave `skills-lock.json` alone.
 
 Init also removes the command files earlier versions generated, and keeps any you edited. A project set up before 1.0 also has older leftovers: folders like `.claude/commands/openspec/`, and OpenSpec marker blocks in files like `CLAUDE.md` and `AGENTS.md`. An interactive init asks before removing them. With `--force`, with `--tools`, or in a non-interactive run, init removes them without asking, including any edits inside those blocks, so back them up first.
 
@@ -147,6 +147,8 @@ openspec init --scope global --tools claude
 ```
 
 Run `openspec update` to refresh the skills for your [workflow profile](../customize/profiles.md). If you downgrade the CLI, update installs that version’s instructions.
+
+OpenSpec records global skills in the `skills` package’s lock file under the release’s GitHub tag, so `npx skills update -g`, `npx skills list -g`, and `npx skills remove -g` keep working. Those commands can still need network access.
 
 #### Move an existing project to the global skills
 
