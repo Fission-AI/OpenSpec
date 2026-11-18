@@ -9,11 +9,11 @@ import { AI_TOOLS, type AIToolOption } from './config.js';
 import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlobalConfig, type GlobalConfig, type Profile } from './global-config.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
-import { COMMAND_IDS } from './shared/tool-detection.js';
+import { COMMAND_IDS, getConfiguredTools } from './shared/tool-detection.js';
 import { ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
-import { isToolListed } from './shared-skill-target.js';
+import { hasLockedOpenSpecSkills, isToolListed } from './shared-skill-target.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isRedundantLegacyCopy } from './shared/skill-content-equivalence.js';
 import path from 'path';
@@ -652,6 +652,11 @@ export function computeProfileMigration(
 
   // If profile is already explicitly set, no migration needed
   if (rawConfig.profile !== undefined) {
+    return null;
+  }
+
+  // What one project installed with `npx skills add` is not this machine's profile.
+  if (hasLockedOpenSpecSkills(projectPath, view) && getConfiguredTools(projectPath, view).length === 0) {
     return null;
   }
 

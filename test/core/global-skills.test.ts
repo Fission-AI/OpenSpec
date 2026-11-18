@@ -180,6 +180,73 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
     expect(chosen.stdout).not.toContain(notice);
   });
 
+  describe('skills `npx skills add` installed for a tool', () => {
+    const lock = (names: string[]) =>
+      JSON.stringify({
+        version: 1,
+        skills: Object.fromEntries(names.map((name) => [name, { source: 'Fission-AI/OpenSpec', sourceType: 'github' }])),
+      });
+    const NAMES = ['openspec-propose', 'openspec-onboard'];
+
+    const writeSkills = async (dir: string, root: string) => {
+      for (const name of NAMES) {
+        await fs.mkdir(path.join(dir, root, name, 'references'), { recursive: true });
+        await fs.writeFile(path.join(dir, root, name, 'SKILL.md'), `my edited ${name}`);
+        await fs.writeFile(path.join(dir, root, name, 'references', 'team.md'), `notes for ${name}`);
+      }
+      await fs.mkdir(path.join(dir, 'openspec', 'specs'), { recursive: true });
+      await fs.writeFile(path.join(dir, 'skills-lock.json'), lock(NAMES));
+    };
+    const expectUntouched = (dir: string, root: string) => {
+      for (const name of NAMES) {
+        expect(readFileSync(path.join(dir, root, name, 'SKILL.md'), 'utf8')).toBe(`my edited ${name}`);
+        expect(readFileSync(path.join(dir, root, name, 'references', 'team.md'), 'utf8')).toBe(`notes for ${name}`);
+      }
+      expect(existsSync(path.join(dir, '.agents', 'skills', '.openspec-target'))).toBe(false);
+    };
+    const useProfile = async (profile: string) => {
+      await fs.mkdir(path.join(home, '.config', 'openspec'), { recursive: true });
+      await fs.writeFile(path.join(home, '.config', 'openspec', 'config.json'), JSON.stringify({ featureFlags: {}, profile }));
+    };
+
+    it('leaves linked skills as they are, including one outside the profile', async () => {
+      await useProfile('core');
+      const dir = await project('linked');
+      await writeSkills(dir, path.join('.agents', 'skills'));
+      await fs.mkdir(path.join(dir, '.claude', 'skills'), { recursive: true });
+      for (const name of NAMES) {
+        await fs.symlink(path.join(dir, '.agents', 'skills', name), path.join(dir, '.claude', 'skills', name), 'junction');
+      }
+
+      const result = await cli(dir, 'update');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).toContain('npx skills update --project');
+      expectUntouched(dir, path.join('.agents', 'skills'));
+      for (const name of NAMES) expect(existsSync(path.join(dir, '.claude', 'skills', name, 'SKILL.md'))).toBe(true);
+    });
+
+    it('leaves skills copied into a tool folder as they are', async () => {
+      await useProfile('core');
+      const dir = await project('copied');
+      await writeSkills(dir, path.join('.claude', 'skills'));
+
+      const result = await cli(dir, 'update', '--force');
+
+      expect(result.exitCode).toBe(0);
+      expectUntouched(dir, path.join('.claude', 'skills'));
+    });
+
+    it('does not turn one project into this machine profile', async () => {
+      const dir = await project('no-profile');
+      await writeSkills(dir, path.join('.claude', 'skills'));
+
+      expect((await cli(dir, 'update')).exitCode).toBe(0);
+
+      expect(existsSync(path.join(home, '.config', 'openspec', 'config.json'))).toBe(false);
+    });
+  });
+
   it('installs the same text a project install writes', async () => {
     const inProject = await project('in-project');
     const usesGlobal = await project('uses-global');

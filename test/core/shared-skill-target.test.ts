@@ -97,6 +97,19 @@ describe('the list of tools set up in a project', () => {
       expect(hasLockedOpenSpecSkills(project)).toBe(false);
     });
 
+    it('finds skills the package copied into a tool folder', async () => {
+      await write('.claude/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
+      expect(hasLockedOpenSpecSkills(project)).toBe(true);
+    });
+
+    it('leaves a project OpenSpec manages to OpenSpec', async () => {
+      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await write('.agents/skills/.openspec-target', 'claude\n');
+      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
+      expect(hasLockedOpenSpecSkills(project)).toBe(false);
+    });
+
     it('finds nothing in a lock file that does not parse', async () => {
       await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
       await write('skills-lock.json', '{ not json');

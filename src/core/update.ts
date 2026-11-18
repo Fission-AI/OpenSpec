@@ -478,8 +478,10 @@ export class UpdateCommand {
       }
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
       if (this.hasGlobalSkills) return;
-      this.log(chalk.yellow('No configured tools found.'));
-      this.log(chalk.dim('Run "openspec init" to set up tools.'));
+      if (!hasLockedOpenSpecSkills(resolvedProjectPath, this.view)) {
+        this.log(chalk.yellow('No configured tools found.'));
+        this.log(chalk.dim('Run "openspec init" to set up tools.'));
+      }
       return;
     }
 

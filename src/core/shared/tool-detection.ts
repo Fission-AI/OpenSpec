@@ -7,7 +7,7 @@
 import path from 'path';
 import { AI_TOOLS, agentsByProjectFolder, installerAgent, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
 import { CommandAdapterRegistry } from '../command-generation/index.js';
-import { hasLegacySkills, readSkillToolList, isToolListed, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
+import { hasLegacySkills, readPackageSkillNames, readSkillToolList, isToolListed, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
 import {
   resolveCommandSurfaceCapability,
 } from '../command-surface.js';
@@ -389,10 +389,33 @@ function hasLegacyCommands(projectRoot: string, toolId: string, view: FileView):
 }
 
 /**
+ * Whether everything a tool holds was put there by `npx skills add`, as a link
+ * to the shared folder or a copy. The `skills` package owns those entries, so
+ * they do not make the tool one OpenSpec set up.
+ */
+function holdsOnlyPackageSkills(
+  projectRoot: string,
+  tool: SkillCapableTool,
+  packageSkills: ReadonlySet<string>,
+  view: FileView
+): boolean {
+  if (toolHasAnyConfiguredCommand(projectRoot, tool.value, view)) return false;
+  const dirs = skillDirsForTool(projectRoot, tool, view);
+  const held = SKILL_NAMES.filter((name) =>
+    dirs.some(
+      (dir) =>
+        view.exists(path.join(dir, name, 'SKILL.md')) || view.linkTarget?.(path.join(dir, name)) !== undefined
+    )
+  );
+  return held.length > 0 && held.every((name) => packageSkills.has(name));
+}
+
+/**
  * Gets all configured tools in the project (configured via skills or commands).
  */
 export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VIEW): string[] {
   const listed = readSkillToolList(projectRoot, view);
+  const packageSkills = readPackageSkillNames(projectRoot, view);
   return AI_TOOLS
     .filter((t) => {
       if (!toolSupportsSkills(t)) return false;
@@ -400,6 +423,7 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
       if (aliases && aliases.length > 1 && !listed.includes(t.value)) {
         if (aliases.some(id => listed.includes(id)) || t.value !== aliases[0]) return false;
       }
+      if (packageSkills.size > 0 && holdsOnlyPackageSkills(projectRoot, t, packageSkills, view)) return false;
       return (
         getToolSkillStatus(projectRoot, t.value, view).configured ||
         toolHasAnyConfiguredCommand(projectRoot, t.value, view) ||

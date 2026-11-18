@@ -1,5 +1,5 @@
 import path from 'path';
-import { AI_TOOLS, resolveToolIdAlias, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
+import { AI_TOOLS, installerAgent, resolveToolIdAlias, OPENSPEC_SKILL_NAMES, type AIToolOption } from './config.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isReleasedGeneratedContent } from './shared/generated-fingerprint.js';
@@ -115,22 +115,38 @@ export function readSkillToolList(projectPath: string, view: FileView = DISK_VIE
 }
 
 /**
- * Whether `skills-lock.json` records an OpenSpec skill that is in `.agents/skills`,
- * as `npx skills add Fission-AI/OpenSpec` leaves it. This only says the skills are
- * there. The `skills` package owns them, so this never makes a tool configured:
- * that would let `update` rewrite and remove what the user chose to install.
+ * The OpenSpec skill names `npx skills add` owns in this project: what
+ * `skills-lock.json` records once it names Fission-AI/OpenSpec as a source.
+ * OpenSpec's own list file means OpenSpec manages the project, so it wins.
  */
-export function hasLockedOpenSpecSkills(projectPath: string, view: FileView = DISK_VIEW): boolean {
+export function readPackageSkillNames(projectPath: string, view: FileView = DISK_VIEW): Set<string> {
   try {
+    if (readListFileTools(projectPath, view).length > 0) return new Set();
     const lockFile = path.join(projectPath, 'skills-lock.json');
     FileSystemUtils.assertProjectArtifactPath(projectPath, lockFile);
-    if (!view.exists(lockFile)) return false;
+    if (!view.exists(lockFile)) return new Set();
     const skills = (JSON.parse(view.read(lockFile)) as { skills?: Record<string, { source?: unknown }> }).skills ?? {};
-    const locked = OPENSPEC_SKILL_NAMES.filter((name) => isOpenSpecSource(skills[name]?.source));
-    return hasOpenSpecSkillIn(projectPath, path.join(projectPath, SHARED_SKILLS_ROOT, 'skills'), view, locked);
+    const locked = OPENSPEC_SKILL_NAMES.filter((name) => typeof skills[name]?.source === 'string');
+    return locked.some((name) => isOpenSpecSource(skills[name].source)) ? new Set(locked) : new Set();
   } catch {
-    return false;
+    return new Set();
   }
+}
+
+/**
+ * Whether a skill `npx skills add` owns is installed, in the shared folder or
+ * in a tool's own. This only says the skills are there: the `skills` package
+ * owns them, so `update` must not rewrite or remove what the user installed.
+ */
+export function hasLockedOpenSpecSkills(projectPath: string, view: FileView = DISK_VIEW): boolean {
+  const names = [...readPackageSkillNames(projectPath, view)];
+  if (names.length === 0) return false;
+  const toolDirs = AI_TOOLS.filter((tool) => tool.skillsDir).map((tool) =>
+    path.join(projectPath, installerAgent(tool.value).projectSkillsDir)
+  );
+  return [...new Set([path.join(projectPath, SHARED_SKILLS_ROOT, 'skills'), ...toolDirs])].some((dir) =>
+    hasOpenSpecSkillIn(projectPath, dir, view, names)
+  );
 }
 
 /** `Fission-AI/OpenSpec`, as a shorthand or a GitHub URL, optionally its skills/ folder. */
