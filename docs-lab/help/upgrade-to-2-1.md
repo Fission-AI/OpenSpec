@@ -21,7 +21,7 @@ Where should OpenSpec keep this project’s skills?
   Switch to global       Install the skills globally, for every project on this machine.
 ```
 
-Nothing changes until you choose. In CI or from an agent there is no question: update refreshes the skills where they are.
+Nothing changes until you choose. In CI or from an agent there is no question: update refreshes the skills where they are. Skills you installed with `npx skills add` are the exception. See [If you installed with `npx skills add`](#if-you-installed-with-npx-skills-add).
 
 ## Keep in this project
 
@@ -40,6 +40,21 @@ We recommend this for most teams. The skills are installed globally on your mach
 
 In a script, run `openspec init --tools <ids>` in place of step 2. Upgrade everyone’s CLI before you switch a repo: earlier versions only know project skills.
 
+## If you installed with `npx skills add`
+
+OpenSpec leaves these skills as they are. `openspec update` doesn't refresh, replace, or remove them, even with `--force`. To refresh them, run:
+
+```bash
+npx skills update --project
+```
+
+If this machine has no global OpenSpec skills yet, `openspec update` asks the question above in a terminal:
+
+- **Keep in this project** records your choice in `openspec/config.yaml`.
+- **Switch to global** installs the global skills and keeps the copies in your repo. Remove those copies when you're ready with `npx skills remove`.
+
+If this machine already has global skills, or there's no terminal, update doesn't ask.
+
 ## If a script sets up your repos
 
 In 2.0, `openspec init --tools claude` in a new repo wrote the skills into that repo. It now installs them globally. To keep them in your project repo, add `--scope project`:
@@ -52,6 +67,6 @@ openspec init --scope project --tools claude
 
 - **Edited a built-in skill?** Update replaces the built-in skill folders. Save your edits first, along with any file you added inside one. `openspec update --dry-run` shows what will change.
 - **Git.** Installing or refreshing skills needs Git and access to GitHub.
-- **Already ran `npx skills add`?** Keep that install and run `openspec update`.
+- **Already ran `npx skills add`?** Keep that install and refresh it with `npx skills update --project`.
 
 Coming from 1.x? [Upgrade to 2.0](upgrade-to-2.md) covers the rest.
