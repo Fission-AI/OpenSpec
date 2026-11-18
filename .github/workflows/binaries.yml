@@ -301,6 +301,12 @@ jobs:
             $raw = [string]$key.GetValue('Path', '', 'DoNotExpandEnvironmentNames')
             if (($raw -split ';') -notcontains $abs) { throw "relative folder not saved as $abs : $raw" }
 
+            # The downloaded exe can stay locked for a moment after it runs.
+            foreach ($shell in 'pwsh', 'powershell') {
+              & $shell -NoProfile -ExecutionPolicy Bypass -File scripts/binary/install-lock-check.ps1 -Url http://127.0.0.1:8765 -Asset "dist-bin/openspec-$env:ASSET.exe" -Dir (Join-Path $env:RUNNER_TEMP "locked $shell")
+              if ($LASTEXITCODE -ne 0) { throw "$shell did not handle a locked file" }
+            }
+
             # Mid-release: the newest release has no SHA256SUMS yet (still
             # uploading, or the upload failed). Its previous release installs.
             $site = Join-Path (Get-Location) 'dist-bin/site'
