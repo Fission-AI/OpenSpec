@@ -428,11 +428,10 @@ export class UpdateCommand {
     this.settledWorkflows = desiredWorkflows;
 
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
-    const legacyUpgrade = await this.handleLegacyCleanup(
-      resolvedProjectPath,
-      desiredWorkflows,
-      delivery
-    );
+    // With only package skills here, nothing would replace the legacy files, so they stay.
+    const legacyUpgrade: LegacyUpgradeResult = onlyPackageSkills
+      ? { newlyConfiguredTools: [], workflowOverrides: {} }
+      : await this.handleLegacyCleanup(resolvedProjectPath, desiredWorkflows, delivery);
     const {
       newlyConfiguredTools,
       workflowOverrides: legacyWorkflowOverrides,

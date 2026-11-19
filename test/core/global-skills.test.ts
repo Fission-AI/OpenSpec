@@ -252,6 +252,7 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
       expect(result.exitCode).toBe(0);
       expect(result.stdout).not.toContain('Setting up skills for');
       expectUntouched(dir, path.join('.claude', 'skills'));
+      expect(existsSync(path.join(dir, '.claude', 'commands', 'openspec', 'proposal.md'))).toBe(true);
     });
 
     it('plans no machine profile in a dry run', async () => {
