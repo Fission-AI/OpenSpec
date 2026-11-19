@@ -65,10 +65,10 @@ describe('every skill stop names the next step (#2271)', () => {
     expect(skill('ff')).toContain('unless the user asks for an artifact reporting `omitted: true`');
     expect(skill('continue')).toContain('except a left-out artifact the user asks for');
     expect(skill('verify')).toContain('or as **Not applicable** when status reports that artifact `skipped`');
-    expect(skill('update')).toContain('ask the user to reset those checkboxes to `- [ ]`');
+    expect(skill('update')).toContain('ask the user to reset those checkboxes to `- [ ]` first');
     expect(skill('continue')).toContain('If an artifact reports `omitted: true`, name it as left out');
     expect(skill('update')).toContain(
-      'If the user asks for one reporting `omitted: true`, give `openspec instructions <artifact-id> --change "<name>" --json` as its separate step.'
+      'If the user asks for one reporting `omitted: true`, finish these revisions first, then follow `openspec instructions <artifact-id> --change "<name>" --json` to create it as a separate step.'
     );
   });
 
