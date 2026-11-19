@@ -23,8 +23,6 @@ import {
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import { keepsProjectSkills, rememberProjectSkills } from './project-skills-scope.js';
-import { hasLockedOpenSpecSkills } from './shared-skill-target.js';
-import { getToolsUpdateManages } from './shared/tool-detection.js';
 import { expectedSkillContents, projectSkillText } from './skill-installer.js';
 import {
   detectLegacyArtifacts,
@@ -154,7 +152,6 @@ export class UpdateCommand {
   private hasGlobalSkills = false;
   /** The workflows the project update settled on, for the global refresh that follows it. */
   private settledWorkflows: readonly string[] | undefined;
-  private leavesPackageSkills = true;
   private removedGlobalSkills: string | undefined;
   private ops: UpdateFileOps = realFileOps;
 
@@ -178,29 +175,6 @@ export class UpdateCommand {
   }
 
   /** Prints progress on a real run, stays quiet while planning. */
-  /**
-   * Whether this run leaves pre-skills files alone. A legacy upgrade replaces them
-   * with skills, so one that will set tools up goes ahead as it always has. The answer
-   * does not depend on a terminal, so `--dry-run` previews what a scripted run does.
-   * A project that cannot be read is left to fail in `updateProject`, which reports it.
-   */
-  private async noLegacyUpgradeWillRun(projectPath: string): Promise<boolean> {
-    try {
-      const detection = await detectLegacyArtifacts(projectPath);
-      if (hasRepoLocalLegacyRemovals(detection)) return false;
-      return !(this.force && getToolsFromLegacyArtifacts(detection).length > 0);
-    } catch {
-      return false;
-    }
-  }
-
-  /** The tools this update refreshes: all configured ones, less any `npx skills add` owns. */
-  private toolsToUpdate(projectPath: string, view: FileView = DISK_VIEW): string[] {
-    return this.leavesPackageSkills
-      ? getToolsUpdateManages(projectPath, view)
-      : getConfiguredToolsForProfileSync(projectPath, view);
-  }
-
   private log(...args: unknown[]): void {
     if (this.dryRun) return;
     console.log(...args);
@@ -243,18 +217,11 @@ export class UpdateCommand {
     const hasProject =
       (await FileSystemUtils.directoryExists(path.join(resolvedProjectPath, OPENSPEC_DIR_NAME))) &&
       !(this.hasGlobalSkills && isHomeFolder(resolvedProjectPath));
-    // Skills `npx skills add` installed belong to that package: found, never changed here.
-    this.leavesPackageSkills = !hasProject || (await this.noLegacyUpgradeWillRun(resolvedProjectPath));
-    const managesProjectSkills = projectHasOwnSkills(resolvedProjectPath, this.toolsToUpdate(resolvedProjectPath));
-    const hasPackageSkills =
-      hasProject && this.leavesPackageSkills && !managesProjectSkills && hasLockedOpenSpecSkills(resolvedProjectPath);
     if (hasProject && !this.dryRun && isInteractive() && !this.force) {
       const { select, confirm } = await import('@inquirer/prompts');
       const { InitCommand } = await import('./init.js');
-      const hasProjectSkills = managesProjectSkills;
-      // With this machine's skills installed there is nothing left to choose for package skills.
-      const asksWhereToKeep = hasProjectSkills || (hasPackageSkills && !this.hasGlobalSkills);
-      if (asksWhereToKeep && !keepsProjectSkills(resolvedProjectPath)) {
+      const hasProjectSkills = projectHasOwnSkills(resolvedProjectPath);
+      if (hasProjectSkills && !keepsProjectSkills(resolvedProjectPath)) {
         const scope = await select({
           message: 'Where should OpenSpec keep this project’s skills?',
           choices: [
@@ -271,10 +238,6 @@ export class UpdateCommand {
               ? `Commit ${FileSystemUtils.toPosixPath(path.relative(resolvedProjectPath, saved))} to keep this choice for the team.`
               : 'Could not save this choice in openspec/config.yaml. Add "skillsScope: project" to it by hand to stop being asked.'
           );
-        } else if (hasPackageSkills) {
-          await new InitCommand({ scope, keepPackageSkills: true }).execute(resolvedProjectPath);
-          console.log('The skills in .agents/skills stay until you remove them with: npx skills remove');
-          return;
         } else {
           const cloud = await isCopilotCloudEnabled(resolvedProjectPath);
           if (!cloud || await confirm({ message: 'Turn off hosted Copilot for this repo to switch to global skills?', default: false })) {
@@ -282,21 +245,14 @@ export class UpdateCommand {
             return;
           }
         }
-      } else if (!hasProjectSkills && !hasPackageSkills && !this.hasGlobalSkills && process.env.OPENSPEC_SKILLS_SCOPE !== 'project' &&
+      } else if (!hasProjectSkills && !this.hasGlobalSkills && process.env.OPENSPEC_SKILLS_SCOPE !== 'project' &&
         await confirm({ message: 'Set up OpenSpec skills for your coding tools on this machine?', default: false })) {
         await new InitCommand({ scope: 'global' }).execute(resolvedProjectPath);
         return;
       }
     }
-    // Said after the project update: a legacy upgrade the user accepts can take the skills over.
-    const notePackageSkills = () => {
-      if (hasPackageSkills && hasLockedOpenSpecSkills(resolvedProjectPath, this.view)) {
-        this.log(chalk.dim('This project\'s OpenSpec skills came from `npx skills add`, so update leaves them as they are. To refresh them, run: npx skills update --project'));
-      }
-    };
     if (!this.hasGlobalSkills) {
       await this.updateProject(projectPath);
-      notePackageSkills();
       return;
     }
 
@@ -308,10 +264,6 @@ export class UpdateCommand {
       } catch (error) {
         projectError = error;
       }
-    }
-    notePackageSkills();
-    if (hasProject && !hasPackageSkills && !projectHasOwnSkills(resolvedProjectPath, this.toolsToUpdate(resolvedProjectPath))) {
-      this.log(chalk.dim('This project has no OpenSpec skills of its own. It uses the skills for this machine.'));
     }
     try {
       const refreshed = await this.refreshGlobalSkills(resolvedProjectPath);
@@ -426,12 +378,7 @@ export class UpdateCommand {
 
     // Use detected tool directories to preserve existing opsx skills/commands.
     const detectedTools = getAvailableTools(resolvedProjectPath, this.view);
-    // What one project installed with `npx skills add` is not this machine's profile.
-    const onlyPackageSkills =
-      this.leavesPackageSkills &&
-      hasLockedOpenSpecSkills(resolvedProjectPath, this.view) &&
-      this.toolsToUpdate(resolvedProjectPath, this.view).length === 0;
-    if (!this.dryRun && !onlyPackageSkills) {
+    if (!this.dryRun) {
       migrateIfNeededShared(resolvedProjectPath, detectedTools);
     }
 
@@ -440,7 +387,7 @@ export class UpdateCommand {
     //    the config that save would leave — otherwise the preview would plan
     //    for a different profile than the real update acts on.
     let globalConfig = getGlobalConfig();
-    if (this.recorder && !onlyPackageSkills) {
+    if (this.recorder) {
       const migration = computeProfileMigration(resolvedProjectPath, detectedTools, this.view);
       if (migration) {
         globalConfig = applyProfileMigration(migration);
@@ -460,7 +407,11 @@ export class UpdateCommand {
     this.settledWorkflows = desiredWorkflows;
 
     // 4. Detect and handle legacy artifacts + upgrade legacy tools using effective config
-    const legacyUpgrade = await this.handleLegacyCleanup(resolvedProjectPath, desiredWorkflows, delivery);
+    const legacyUpgrade = await this.handleLegacyCleanup(
+      resolvedProjectPath,
+      desiredWorkflows,
+      delivery
+    );
     const {
       newlyConfiguredTools,
       workflowOverrides: legacyWorkflowOverrides,
@@ -485,7 +436,7 @@ export class UpdateCommand {
     }
 
     // 5. Find configured tools
-    const configuredTools = this.toolsToUpdate(resolvedProjectPath, this.view);
+    const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
@@ -511,10 +462,8 @@ export class UpdateCommand {
       }
       await this.syncCopilotCloudFiles(resolvedProjectPath, configuredAndNewTools);
       if (this.hasGlobalSkills) return;
-      if (!onlyPackageSkills) {
-        this.log(chalk.yellow('No configured tools found.'));
-        this.log(chalk.dim('Run "openspec init" to set up tools.'));
-      }
+      this.log(chalk.yellow('No configured tools found.'));
+      this.log(chalk.dim('Run "openspec init" to set up tools.'));
       return;
     }
 
@@ -1561,8 +1510,7 @@ export class UpdateCommand {
       return { newlyConfiguredTools: [], workflowOverrides: {} };
     }
 
-    // Get currently configured tools. Skills `npx skills add` installed count:
-    // a leftover legacy file is no reason to set that tool up over them.
+    // Get currently configured tools
     const configuredTools = getConfiguredToolsForProfileSync(projectPath, this.view);
     const configuredSet = new Set(configuredTools);
 

@@ -153,7 +153,7 @@ openspec update --dry-run   # list what an update would change, and change nothi
 
 Run update in a terminal to switch an existing project to global skills. Enter keeps the project skills. After the maintainer commits the removals, teammates run update in their checkouts to set up their tools. Runs without a terminal keep the current scope.
 
-Update refreshes the installed instructions from the running CLI, including after a downgrade. Skills installed with `npx skills add` usually stay as they are, even with `--force`: refresh them with `npx skills update --project`. [Upgrade to 2.1](../help/upgrade-to-2-1.md#if-you-installed-with-npx-skills-add) lists when update takes them over. A pending global refresh appears as a note in the dry-run plan. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the CLI upgrade offer.
+Update refreshes the installed instructions from the running CLI, including after a downgrade. A pending global refresh appears as a note in the dry-run plan. Set `OPENSPEC_NO_UPDATE_CHECK=1` to skip the CLI upgrade offer.
 
 **Arguments**
 

@@ -227,100 +227,6 @@ describe('UpdateCommand', () => {
     expect(await FileSystemUtils.directoryExists(path.join(testDir, '.agents', 'skills'))).toBe(false);
   });
 
-  describe('with the skills for this machine installed', () => {
-    beforeEach(() => {
-      vi.spyOn(globalSkills, 'readGlobalSkills').mockResolvedValue({ skills: ['openspec-propose'], agents: ['universal'] });
-      vi.spyOn(globalSkills, 'installGlobalSkills').mockResolvedValue({
-        skills: ['openspec-propose'], removedSkills: [], unchanged: true,
-      });
-    });
-
-    it('asks where to keep the skills `npx skills add` put in the project', async () => {
-      vi.spyOn(globalSkills, 'readGlobalSkills').mockResolvedValue({ skills: [], agents: [] });
-      const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
-      await fs.mkdir(path.dirname(skill), { recursive: true });
-      await fs.writeFile(skill, 'project copy');
-      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
-        version: 2,
-        skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
-      }));
-      interactiveState.value = true;
-      // The question is what this checks; stop there, before either answer fetches skills.
-      selectMock.mockRejectedValueOnce(new Error('answered'));
-      await expect(updateCommand.execute(testDir)).rejects.toThrow('answered');
-      expect(selectMock).toHaveBeenCalledWith(expect.objectContaining({
-        message: 'Where should OpenSpec keep this project’s skills?',
-      }));
-    });
-
-    it('switching to global keeps skills `npx skills add` put in the project', async () => {
-      vi.spyOn(globalSkills, 'readGlobalSkills').mockResolvedValue({ skills: [], agents: [] });
-      const { InitCommand } = await import('../../src/core/init.js');
-      const execute = vi.spyOn(InitCommand.prototype, 'execute').mockResolvedValue(undefined);
-      const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
-      await fs.mkdir(path.dirname(skill), { recursive: true });
-      await fs.writeFile(skill, 'project copy');
-      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
-        version: 2,
-        skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
-      }));
-      interactiveState.value = true;
-      selectMock.mockResolvedValueOnce('global');
-
-      await updateCommand.execute(testDir);
-
-      expect(execute).toHaveBeenCalledOnce();
-      expect((execute.mock.contexts[0] as unknown as { keepPackageSkills: boolean }).keepPackageSkills).toBe(true);
-      execute.mockRestore();
-    });
-
-    it('does not ask again once this machine has its own skills', async () => {
-      const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
-      await fs.mkdir(path.dirname(skill), { recursive: true });
-      await fs.writeFile(skill, 'project copy');
-      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
-        version: 2,
-        skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
-      }));
-      interactiveState.value = true;
-
-      await updateCommand.execute(testDir);
-
-      expect(selectMock).not.toHaveBeenCalled();
-      expect(await fs.readFile(skill, 'utf-8')).toBe('project copy');
-    });
-
-    it('leaves skills `npx skills add` put in the project exactly as they are', async () => {
-      const edited = path.join(testDir, '.agents/skills/openspec-onboard/SKILL.md');
-      const notes = path.join(testDir, '.agents/skills/openspec-onboard/references/team.md');
-      await fs.mkdir(path.dirname(notes), { recursive: true });
-      await fs.writeFile(edited, 'my edited skill');
-      await fs.writeFile(notes, 'team notes');
-      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
-        version: 2,
-        skills: { 'openspec-onboard': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
-      }));
-      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-
-      await updateCommand.execute(testDir);
-
-      expect(await fs.readFile(edited, 'utf-8')).toBe('my edited skill');
-      expect(await fs.readFile(notes, 'utf-8')).toBe('team notes');
-      expect(await FileSystemUtils.fileExists(path.join(testDir, '.agents/skills/.openspec-target'))).toBe(false);
-      expect(log.mock.calls.flat().join('\n')).toContain('npx skills update --project');
-    });
-
-    it('says a project with no skills of its own uses the ones for this machine', async () => {
-      interactiveState.value = true;
-      const log = vi.spyOn(console, 'log').mockImplementation(() => {});
-      await updateCommand.execute(testDir);
-      expect(selectMock).not.toHaveBeenCalled();
-      expect(log.mock.calls.flat().join('\n')).toContain(
-        'This project has no OpenSpec skills of its own. It uses the skills for this machine.'
-      );
-    });
-  });
-
   it('lets a teammate skip local skills or choose tools after pulling the removals', async () => {
     delete process.env.OPENSPEC_SKILLS_SCOPE;
     interactiveState.value = true;
@@ -996,6 +902,25 @@ metadata:
       expect(updated).toContain('name: openspec-propose');
       expect(updated).toContain('ask me to apply it');
       expect(updated).not.toContain('stale Amp skill');
+    });
+
+    it('refreshes the skills `npx skills add` put in the project, like any other install', async () => {
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      // `npx skills add Fission-AI/OpenSpec` leaves no list file, only its lock.
+      await fs.rm(path.join(skillsDir, '.openspec-target'));
+      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
+        version: 1,
+        skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
+      }));
+      const skillFile = path.join(skillsDir, 'openspec-propose', 'SKILL.md');
+      await fs.writeFile(skillFile, 'stale package skill');
+
+      await new UpdateCommand().execute(testDir);
+
+      const updated = await fs.readFile(skillFile, 'utf-8');
+      expect(updated).toContain('name: openspec-propose');
+      expect(updated).not.toContain('stale package skill');
     });
 
     it('should refresh Antigravity workflows beside Codex in the one shared skills folder', async () => {

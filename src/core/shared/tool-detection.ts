@@ -7,7 +7,7 @@
 import path from 'path';
 import { AI_TOOLS, agentsByProjectFolder, installerAgent, OPENSPEC_SKILL_NAMES, type AIToolOption } from '../config.js';
 import { CommandAdapterRegistry } from '../command-generation/index.js';
-import { hasLegacySkills, readPackageSkillNames, readSkillToolList, isToolListed, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
+import { hasLegacySkills, readSkillToolList, isToolListed, readListedToolsWithOwnFiles } from '../shared-skill-target.js';
 import {
   resolveCommandSurfaceCapability,
 } from '../command-surface.js';
@@ -389,36 +389,6 @@ function hasLegacyCommands(projectRoot: string, toolId: string, view: FileView):
 }
 
 /**
- * Whether everything a tool holds was put there by `npx skills add`, as a link
- * to the shared folder or a copy. The `skills` package owns those entries, so
- * they do not make the tool one OpenSpec set up. A skill stamped `generatedBy`
- * was written by OpenSpec, whatever the lock file says about that name.
- */
-function holdsOnlyPackageSkills(
-  projectRoot: string,
-  tool: SkillCapableTool,
-  packageSkills: ReadonlySet<string>,
-  view: FileView
-): boolean {
-  if (toolHasAnyConfiguredCommand(projectRoot, tool.value, view)) return false;
-  const dirs = skillDirsForTool(projectRoot, tool, view);
-  const held = SKILL_NAMES.filter((name) =>
-    dirs.some(
-      (dir) =>
-        view.exists(path.join(dir, name, 'SKILL.md')) || view.linkTarget?.(path.join(dir, name)) !== undefined
-    )
-  );
-  return (
-    held.length > 0 &&
-    held.every(
-      (name) =>
-        packageSkills.has(name) &&
-        dirs.every((dir) => extractGeneratedByVersion(path.join(dir, name, 'SKILL.md'), view) === null)
-    )
-  );
-}
-
-/**
  * Gets all configured tools in the project (configured via skills or commands).
  */
 export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VIEW): string[] {
@@ -442,21 +412,6 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
       );
     })
     .map((tool) => tool.value);
-}
-
-/**
- * The configured tools `openspec update` may refresh. Skills `npx skills add`
- * installed stay with that package, so a tool holding only those is left out.
- * `openspec init` is an explicit setup and still sees every configured tool.
- */
-export function getToolsUpdateManages(projectRoot: string, view: FileView = DISK_VIEW): string[] {
-  const configured = getConfiguredTools(projectRoot, view);
-  const packageSkills = readPackageSkillNames(projectRoot, view);
-  if (packageSkills.size === 0) return configured;
-  return configured.filter((id) => {
-    const tool = AI_TOOLS.find((candidate) => candidate.value === id);
-    return !tool || !toolSupportsSkills(tool) || !holdsOnlyPackageSkills(projectRoot, tool, packageSkills, view);
-  });
 }
 
 /**

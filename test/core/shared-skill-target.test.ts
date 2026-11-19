@@ -8,7 +8,8 @@ import {
   hasOwnFolderSkills,
   isToolListed,
   readSkillToolList,
-  skillToolListPath, hasLockedOpenSpecSkills } from '../../src/core/shared-skill-target.js';
+  skillToolListPath,
+} from '../../src/core/shared-skill-target.js';
 import type { FileView } from '../../src/core/file-view.js';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
@@ -17,8 +18,6 @@ const RELEASED = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 const released = (dir: string) => readFileSync(path.join(RELEASED, dir, 'openspec-propose/SKILL.md'), 'utf8');
 
 const tool = (id: string) => AI_TOOLS.find((t) => t.value === id)!;
-
-import { getConfiguredTools, getToolsUpdateManages } from '../../src/core/shared/tool-detection.js';
 
 describe('the list of tools set up in a project', () => {
   let project: string;
@@ -69,7 +68,7 @@ describe('the list of tools set up in a project', () => {
   describe('a folder `npx skills add` filled, with no list file', () => {
     const lock = (skills: Record<string, unknown>) => write('skills-lock.json', JSON.stringify({ version: 2, skills }));
 
-    it('finds the skills but never lists a tool, so update cannot change them', async () => {
+    it('reads it as set up for the agents that share .agents/skills when the lock file names OpenSpec', async () => {
       await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
       for (const source of [
         'Fission-AI/OpenSpec',
@@ -79,65 +78,38 @@ describe('the list of tools set up in a project', () => {
         'git@github.com:Fission-AI/OpenSpec.git',
       ]) {
         await lock({ 'openspec-explore': { source, sourceType: 'github' } });
-        expect(hasLockedOpenSpecSkills(project), source).toBe(true);
-        expect(readSkillToolList(project), source).toEqual([]);
+        expect(readSkillToolList(project), source).toEqual(['agents']);
       }
     });
 
-    it('finds a fork the lock file records, but not a skill with another name', async () => {
+    it('reads nothing when the lock file names another source or another skill', async () => {
       await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
       await lock({ 'openspec-explore': { source: 'someone/openspec-fork' } });
-      expect(hasLockedOpenSpecSkills(project)).toBe(true);
+      expect(readSkillToolList(project)).toEqual([]);
       await lock({ 'other-skill': { source: 'Fission-AI/OpenSpec' } });
-      expect(hasLockedOpenSpecSkills(project)).toBe(false);
+      expect(readSkillToolList(project)).toEqual([]);
     });
 
-    it('finds nothing when the recorded skill is no longer in the folder', async () => {
+    it('reads nothing when the recorded skill is no longer in the folder', async () => {
       await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
-      expect(hasLockedOpenSpecSkills(project)).toBe(false);
+      expect(readSkillToolList(project)).toEqual([]);
       await write('.agents/skills/openspec-propose/SKILL.md', 'Any wording at all.');
-      expect(hasLockedOpenSpecSkills(project)).toBe(false);
+      expect(readSkillToolList(project)).toEqual([]);
     });
 
-    it('finds skills the package copied into a tool folder', async () => {
-      await write('.claude/skills/openspec-explore/SKILL.md', 'Any wording at all.');
-      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
-      expect(hasLockedOpenSpecSkills(project)).toBe(true);
-    });
-
-    it('keeps a package install out of update, and in view of init', async () => {
-      await write('.claude/skills/openspec-explore/SKILL.md', 'Any wording at all.');
-      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
-      expect(getConfiguredTools(project)).toContain('claude');
-      expect(getToolsUpdateManages(project)).not.toContain('claude');
-    });
-
-    it('still updates a tool whose skill OpenSpec generated, even under a locked name', async () => {
-      await write('.claude/skills/openspec-explore/SKILL.md', '---\nmetadata:\n  generatedBy: "1.16.0"\n---\nOld text.');
-      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
-      expect(getToolsUpdateManages(project)).toContain('claude');
-    });
-
-    it('still updates a tool holding a skill the lock file does not record', async () => {
-      await write('.claude/skills/openspec-explore/SKILL.md', 'Any wording at all.');
-      await write('.claude/skills/openspec-propose/SKILL.md', 'Set up by OpenSpec.');
-      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
-      expect(getToolsUpdateManages(project)).toContain('claude');
-    });
-
-    it('leaves a project OpenSpec manages to OpenSpec', async () => {
-      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
-      await write('.agents/skills/.openspec-target', 'claude\n');
-      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
-      expect(hasLockedOpenSpecSkills(project)).toBe(false);
-    });
-
-    it('finds nothing in a lock file that does not parse', async () => {
+    it('reads nothing from a lock file that does not parse', async () => {
       await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
       await write('skills-lock.json', '{ not json');
-      expect(hasLockedOpenSpecSkills(project)).toBe(false);
+      expect(readSkillToolList(project)).toEqual([]);
       await write('skills-lock.json', 'null');
-      expect(hasLockedOpenSpecSkills(project)).toBe(false);
+      expect(readSkillToolList(project)).toEqual([]);
+    });
+
+    it('leaves a list file in charge', async () => {
+      await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
+      await write('.agents/skills/.openspec-target', 'cursor\n');
+      expect(readSkillToolList(project)).toEqual(['cursor']);
     });
   });
 

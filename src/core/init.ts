@@ -83,7 +83,6 @@ import { installSharedSkills } from './shared/shared-skill-install.js';
 import { realFileOps, UpdatePlanRecorder } from './update-plan.js';
 import { DISK_VIEW } from './file-view.js';
 import { rememberProject } from './known-projects.js';
-import { hasLockedOpenSpecSkills } from './shared-skill-target.js';
 import { computeProfileMigration, migrateIfNeeded, migrateLegacyToolDirs, describeLegacyMigration, keptInPlaceNotice, hasMovableContent, scanInstalledWorkflows as scanInstalledWorkflowsShared } from './migration.js';
 import {
   shouldReconcileCommandFilesForTool,
@@ -140,8 +139,6 @@ type InitCommandOptions = {
   copilotCloud?: boolean;
   /** `--scope`: keep the skills for this machine (`global`) or in the project (`project`). */
   scope?: string;
-  /** Set up this machine's skills and leave what `npx skills add` put in the project. */
-  keepPackageSkills?: boolean;
 };
 
 type ValidatedInitTool = {
@@ -173,7 +170,6 @@ export class InitCommand {
   private readonly scopeOption?: SkillScope;
   /** True when no flag, environment variable or saved setting chose the scope. */
   private scopeIsDefault = false;
-  private readonly keepPackageSkills: boolean;
   /** What the tool picker returned, kept so a second step does not ask again. */
   private pickedTools?: string[];
 
@@ -189,7 +185,6 @@ export class InitCommand {
       throw new Error(`Invalid --scope "${options.scope}". Use global or project.`);
     }
     this.scopeOption = options.scope as SkillScope | undefined;
-    this.keepPackageSkills = options.keepPackageSkills ?? false;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -260,7 +255,7 @@ export class InitCommand {
     }
     const deferredLegacyCleanup = integrationsOnly ? null : await this.handleLegacyCleanup(projectPath, extendMode);
     migrateLegacyToolDirs(projectPath);
-    if (extendMode && !this.keepPackageSkills) migrateIfNeeded(projectPath, getAvailableTools(projectPath));
+    if (extendMode) migrateIfNeeded(projectPath, getAvailableTools(projectPath));
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
       await showWelcomeScreen(this.getActiveWorkflows(), { animate: this.animation });
@@ -375,24 +370,10 @@ export class InitCommand {
   // VALIDATION & SETUP
   // ═══════════════════════════════════════════════════════════
 
-  /** The command that gives this project its own skills, runnable from where init was run. */
-  private projectScopeCommand(projectPath: string, toolIds: string[]): string {
-    const here = FileSystemUtils.canonicalizeExistingPath(process.cwd()) === projectPath;
-    const quoted = process.platform === 'win32' ? `"${projectPath}"` : `'${projectPath.replace(/'/g, `'\\''`)}'`;
-    const target = /^[\w@%+=:,./\\-]+$/.test(projectPath) ? projectPath : quoted;
-    return [
-      'openspec init',
-      ...(here ? [] : [target]),
-      '--scope project',
-      ...(toolIds.length > 0 ? [`--tools ${toolIds.join(',')}`] : []),
-    ].join(' ');
-  }
-
   private async resolveSkillScope(
     projectPath: string,
     detectedTools: readonly AIToolOption[]
   ): Promise<SkillScope> {
-    this.scopeIsDefault = false;
     if (this.toolsArg?.trim().toLowerCase() === 'none') return 'project';
     if (this.scopeOption) return this.scopeOption;
     if (projectHasOwnSkills(projectPath)) return 'project';
@@ -442,7 +423,7 @@ export class InitCommand {
     } catch (error) {
       throw new Error(`Could not read the skills installed for this machine: ${describeSkillsError(error)}`);
     }
-    const movesProject = projectHasOwnSkills(projectPath) && !this.keepPackageSkills;
+    const movesProject = projectHasOwnSkills(projectPath);
     const configured = movesProject ? getConfiguredTools(projectPath) : [];
     const selected = this.toolsArg !== undefined || (!installed.skills.length && !movesProject)
       ? await this.getSelectedTools(context.toolStates, context.extendMode, context.detectedTools, projectPath)
@@ -502,23 +483,14 @@ export class InitCommand {
       ? getConfiguredTools(projectPath).filter((id) => supportsGlobalSkills(id))
       : [];
     const migration = movesProject && !this.resolveProfileOverride() ? computeProfileMigration(projectPath, context.detectedTools) : null;
-    let globalSkills: { count: number; projectScopeCommand?: string } | undefined;
+    let globalSkills: { count: number } | undefined;
     if (installed.skills.length || supported.length || movedTools.length) {
       const result = await installGlobalSkills({
         toolIds: [...new Set([...supported.map(tool => tool.value), ...movedTools])],
         workflows: migration?.workflows ?? this.getActiveWorkflows(),
         version: OPENSPEC_VERSION,
       });
-      // Nobody chose global here: the skills already on this machine decided it.
-      const reused = this.scopeIsDefault && installed.skills.length > 0 && !movesProject;
-      globalSkills = {
-        count: result.skills.length,
-        // A project install would replace skills `npx skills add` put here, so it is not offered.
-        projectScopeCommand:
-          reused && !hasLockedOpenSpecSkills(projectPath)
-            ? this.projectScopeCommand(projectPath, tools.map((tool) => tool.value))
-            : undefined,
-      };
+      globalSkills = { count: result.skills.length };
       const removed = describeRemovedSkills(result.removedSkills);
       if (removed) console.log(chalk.dim(removed));
     }
@@ -1382,7 +1354,7 @@ export class InitCommand {
       collisions: string[];
       removed: number;
     },
-    globalSkills?: { count: number; projectScopeCommand?: string }
+    globalSkills?: { count: number }
   ): void {
     console.log();
     console.log(
@@ -1404,10 +1376,6 @@ export class InitCommand {
     const successfulTools = [...results.createdTools, ...results.refreshedTools];
     if (globalSkills) {
       console.log(`${globalSkills.count} skills in ~/.agents/skills/ for every project on this machine`);
-      if (globalSkills.projectScopeCommand) {
-        console.log(chalk.yellow('OpenSpec skills were already installed on this machine, so none were added to this project.'));
-        console.log(chalk.dim(`To keep skills in this project instead, run: ${globalSkills.projectScopeCommand}`));
-      }
     } else if (successfulTools.length > 0) {
       const globalConfig = getGlobalConfig();
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
