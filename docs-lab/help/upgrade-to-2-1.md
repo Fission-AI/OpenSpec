@@ -51,7 +51,6 @@ openspec init --scope project --tools claude
 ## Before you update
 
 - **Edited a built-in skill?** Update replaces the built-in skill folders. Save your edits first, along with any file you added inside one. `openspec update --dry-run` shows what will change.
-- **Git.** Installing or refreshing skills needs Git and access to GitHub.
 - **Already ran `npx skills add`?** Keep that install and run `openspec update`.
 
 Coming from 1.x? [Upgrade to 2.0](upgrade-to-2.md) covers the rest.

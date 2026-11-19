@@ -133,10 +133,48 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
     // The `skills` package tracks them in its own lock file.
     const lock = JSON.parse(readFileSync(globalLock(), 'utf8'));
     expect(Object.keys(lock.skills).sort()).toEqual(CORE_SKILLS);
-    expect(lock.skills['openspec-propose']).toMatchObject({
-      ref: `v${version}`,
-      skillPath: 'skills/openspec-propose/SKILL.md',
-    });
+    // Tracked as the release's GitHub tag, so `npx skills update -g` can check them.
+    const release = path.dirname(process.env.GIT_CONFIG_GLOBAL!);
+    for (const name of CORE_SKILLS) {
+      expect(lock.skills[name]).toMatchObject({
+        source: 'Fission-AI/OpenSpec',
+        sourceType: 'github',
+        sourceUrl: 'https://github.com/Fission-AI/OpenSpec.git',
+        ref: `v${version}`,
+        skillPath: `skills/${name}/SKILL.md`,
+        skillFolderHash: execFileSync('git', ['-C', release, 'rev-parse', `v${version}:skills/${name}`], { encoding: 'utf8' }).trim(),
+      });
+    }
+  });
+
+  it("keeps everything else in the skills package's lock file", async () => {
+    const other = { source: 'team/skills', sourceType: 'github', skillFolderHash: 'abc' };
+    await fs.mkdir(path.dirname(globalLock()), { recursive: true });
+    await fs.writeFile(globalLock(), JSON.stringify({
+      version: 3,
+      skills: { 'team-skill': other, 'openspec-propose': { source: 'old', installedAt: '2026-01-01T00:00:00.000Z' } },
+      dismissed: { findSkillsPrompt: true },
+      lastSelectedAgents: ['claude-code'],
+    }));
+
+    const result = await cli(await project('app'), 'init', '--tools', 'claude');
+
+    expect(result.exitCode, result.stdout + result.stderr).toBe(0);
+    const lock = JSON.parse(readFileSync(globalLock(), 'utf8'));
+    expect(lock.skills['team-skill']).toEqual(other);
+    expect(lock.skills['openspec-propose']).toMatchObject({ source: 'Fission-AI/OpenSpec', installedAt: '2026-01-01T00:00:00.000Z' });
+    expect(lock.dismissed).toEqual({ findSkillsPrompt: true });
+    expect(lock.lastSelectedAgents).toEqual(['claude-code']);
+  });
+
+  it('starts a new lock file when the saved one cannot be read', async () => {
+    await fs.mkdir(path.dirname(globalLock()), { recursive: true });
+    await fs.writeFile(globalLock(), 'not json');
+
+    const result = await cli(await project('app'), 'init', '--tools', 'claude');
+
+    expect(result.exitCode, result.stdout + result.stderr).toBe(0);
+    expect(Object.keys(JSON.parse(readFileSync(globalLock(), 'utf8')).skills).sort()).toEqual(CORE_SKILLS);
   });
 
   it('installs the same text a project install writes', async () => {
