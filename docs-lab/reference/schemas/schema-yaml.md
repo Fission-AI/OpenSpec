@@ -53,7 +53,6 @@ Each entry under `artifacts` defines one planning file or set of files.
 | `template` | **Required.** A relative path to the artifact's format in the schema's `templates/` folder. |
 | `instruction` | Optional guidance telling the agent what content to produce. |
 | `requires` | A list of artifact IDs that must be complete first. Default: `[]`. |
-| `optional` | Set to `true` to let a change [leave this artifact out](#optional). Default: the artifact is required. |
 
 ### `generates`
 
@@ -121,31 +120,13 @@ OpenSpec rejects absolute paths and paths containing a `..` segment.
 - **Invalid graphs**: missing IDs, duplicate IDs, and dependency cycles fail validation.
 - **Ties**: when several artifacts are ready, their order in `artifacts` decides which one OpenSpec returns first.
 
-### `optional`
-
-```yaml
-optional: true
-```
-
-An optional artifact counts as skipped once both of these are true:
-
-- Its own `requires` are complete.
-- An artifact that depends on it, directly or indirectly, is written.
-
-A skipped artifact counts as complete, so it doesn't block planning or apply.
-
-- **Status**: `openspec status --json` reports it with `"status": "skipped"` and `"omitted": true`.
-- **Writing it later**: the artifact can still be written. Once its output exists, its status returns to `done`.
-- **Other values**: OpenSpec ignores a non-boolean value, such as `optional: "yes"`, and the artifact stays required.
-- **Built-in schema**: `design` is optional in [`spec-driven`](spec-driven/index.md).
-
 ## Apply fields
 
 `apply` defines what must exist before implementation starts.
 
 | Field | Contract |
 |---|---|
-| `requires` | **Required.** A non-empty list of artifacts that must exist or be skipped before apply instructions become ready. |
+| `requires` | **Required.** A non-empty list of artifacts that must exist before apply instructions become ready. |
 | `tracks` | An optional relative path or glob for Markdown task files in the change folder. Default: `null`. |
 | `instruction` | Optional guidance sent to the agent when apply is ready. OpenSpec uses built-in guidance by default. |
 

@@ -12,10 +12,10 @@ const CONTINUE_SCOPE_NOTE =
   'Revise existing artifacts. If an artifact is missing, identify it and show the next ready artifact from `openspec status --change "<name>" --json`.';
 
 const CONTINUE_CREATE_THEM =
-  'point to the `/opsx:continue` skill if it is installed; otherwise show how to create the next ready artifact with `openspec instructions "<artifact-id>" --change "<name>" --json`';
+  'show how to create the next ready artifact with `openspec instructions "<artifact-id>" --change "<name>" --json`';
 
 const CONTINUE_NEXT_STEP =
-  'recommend the `/opsx:continue` skill if it is installed; otherwise give the CLI command for the next ready artifact';
+  'give the CLI command for the next ready artifact';
 
 const CONTINUE_DEFERRED =
   'Missing artifacts deferred to a separate step (ready or blocked, excluding skipped artifacts)';
@@ -23,17 +23,14 @@ const CONTINUE_DEFERRED =
 const CONTINUE_FRONTIER =
   'create missing artifacts in a separate step';
 
-const APPLY_NEXT_STEP =
-  'recommend the `/opsx:apply` skill if it is installed; otherwise give `openspec instructions apply --change "<name>" --json`';
-
 const APPLY_DELTA_HANDOFF =
-  `tell the user which implementation tasks need revisiting, ask the user to reset those checkboxes to \`- [ ]\` first or to run this skill again for that edit, and only then ${APPLY_NEXT_STEP}`;
+  'tell the user which implementation tasks need revisiting';
 
 const APPLY_GUARDRAIL =
-  `stop after revising the plan, identify any code changes it calls for, and ${APPLY_NEXT_STEP}`;
+  'stop after revising the plan and identify any code changes it calls for';
 
 const ARCHIVE_HANDOFF =
-  'recommend the `/opsx:archive` skill if it is installed; otherwise suggest archiving with `openspec archive "<name>"`';
+  'suggest archiving with `openspec archive "<name>"`';
 
 const INTENT_CHANGE_GUARDRAIL =
   'ask for a distinct unused name and recommend `openspec new change "<new-change-name>"`';
@@ -59,7 +56,6 @@ ${CONTINUE_SCOPE_NOTE}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:
@@ -93,7 +89,7 @@ ${CONTINUE_SCOPE_NOTE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Draft the requested edit in the conversation, not in files. Work out exactly what it changes; step 5 owns every write. Then check every other existing artifact against the drafted edit - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Propose revisions to files that already exist (\`existingOutputPaths\`). If an artifact has no existing output files and status \`ready\` or \`blocked\`, note it and ${CONTINUE_CREATE_THEM}. Leave \`skipped\` artifacts untouched; do not treat them as missing or defer them to the continue workflow. This workflow does not create one reporting \`omitted: true\`: if the user asks for it, recommend the \`/opsx:continue\` skill if it is installed; otherwise the \`/opsx:propose\` skill can create it from \`openspec instructions <artifact-id> --change "<name>" --json\`.
+   - Propose revisions to files that already exist (\`existingOutputPaths\`). If an artifact has no existing output files and status \`ready\` or \`blocked\`, note it and ${CONTINUE_CREATE_THEM}. Leave \`skipped\` artifacts untouched; do not treat them as missing or defer them to the continue workflow.
    - A glob artifact (e.g. \`specs/**/*.md\`) is marked \`done\` after at least one file matches, and the continue workflow only handles \`ready\` artifacts. When reconciliation identifies a missing file for a glob artifact whose \`existingOutputPaths\` is non-empty:
      1. Run \`openspec instructions "<artifact-id>" --change "<name>" --json\` and use its \`instruction\` and \`template\`. Treat \`context\` and \`rules\` as constraints; do not copy them into the file. If instructions report \`skipped: true\`, do not create the file. Read current dependency files from disk; if a required non-skipped dependency is missing, stop and ask the user to restore it first.
      2. Choose a concrete path inside \`changeRoot\` that matches \`artifactPaths.<id>.outputPath\` and does not already exist. Verify it remains inside \`changeRoot\` after resolving any symlinked parent directories. The glob \`resolvedOutputPath\` is not a valid target.
@@ -113,7 +109,6 @@ ${CONTINUE_SCOPE_NOTE}
 
 6. **Point to the next step (guidance only - NEVER act on it)**
    - Artifacts with empty \`existingOutputPaths\` and status \`ready\` or \`blocked\` -> ${CONTINUE_NEXT_STEP}.
-   - Planning complete and not implemented yet -> ${APPLY_NEXT_STEP}.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
    - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 
@@ -123,7 +118,7 @@ After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
 - Any file created under a glob artifact that was already partially populated
 - ${CONTINUE_DEFERRED}
-- Where the change stands and the recommended next step
+- Where the change stands and the recommended next skill
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.
@@ -161,7 +156,6 @@ ${CONTINUE_SCOPE_NOTE}
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run \`openspec list --json\` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:
@@ -195,7 +189,7 @@ ${CONTINUE_SCOPE_NOTE}
    - Read the artifact(s) the request touches and the change's other existing artifacts.
    - Draft the requested edit in the conversation, not in files. Work out exactly what it changes; step 5 owns every write. Then check every other existing artifact against the drafted edit - in ANY direction: an edit to a later artifact may require revising an earlier one, not only the other way around. Build order is a useful reading order, not a constraint on which artifacts may be revised.
    - Note everything that is now inconsistent, missing, or contradictory.
-   - Propose revisions to files that already exist (\`existingOutputPaths\`). If an artifact has no existing output files and status \`ready\` or \`blocked\`, note it and ${CONTINUE_CREATE_THEM}. Leave \`skipped\` artifacts untouched; do not treat them as missing or defer them to the continue workflow. This workflow does not create one reporting \`omitted: true\`: if the user asks for it, recommend the \`/opsx:continue\` skill if it is installed; otherwise the \`/opsx:propose\` skill can create it from \`openspec instructions <artifact-id> --change "<name>" --json\`.
+   - Propose revisions to files that already exist (\`existingOutputPaths\`). If an artifact has no existing output files and status \`ready\` or \`blocked\`, note it and ${CONTINUE_CREATE_THEM}. Leave \`skipped\` artifacts untouched; do not treat them as missing or defer them to the continue workflow.
    - A glob artifact (e.g. \`specs/**/*.md\`) is marked \`done\` after at least one file matches, and the continue workflow only handles \`ready\` artifacts. When reconciliation identifies a missing file for a glob artifact whose \`existingOutputPaths\` is non-empty:
      1. Run \`openspec instructions "<artifact-id>" --change "<name>" --json\` and use its \`instruction\` and \`template\`. Treat \`context\` and \`rules\` as constraints; do not copy them into the file. If instructions report \`skipped: true\`, do not create the file. Read current dependency files from disk; if a required non-skipped dependency is missing, stop and ask the user to restore it first.
      2. Choose a concrete path inside \`changeRoot\` that matches \`artifactPaths.<id>.outputPath\` and does not already exist. Verify it remains inside \`changeRoot\` after resolving any symlinked parent directories. The glob \`resolvedOutputPath\` is not a valid target.
@@ -215,7 +209,6 @@ ${CONTINUE_SCOPE_NOTE}
 
 6. **Point to the next step (guidance only - NEVER act on it)**
    - Artifacts with empty \`existingOutputPaths\` and status \`ready\` or \`blocked\` -> ${CONTINUE_NEXT_STEP}.
-   - Planning complete and not implemented yet -> ${APPLY_NEXT_STEP}.
    - Change already implemented (tasks checked off / already applied) -> the code may no longer match the revised plan; ${APPLY_DELTA_HANDOFF}.
    - Everything done and implemented -> ${ARCHIVE_HANDOFF}.
 
@@ -225,7 +218,7 @@ After each invocation, show:
 - Which artifacts were revised (and which proposed revisions were rejected)
 - Any file created under a glob artifact that was already partially populated
 - ${CONTINUE_DEFERRED}
-- Where the change stands and the recommended next step
+- Where the change stands and the recommended next skill
 
 **Guardrails**
 - Planning artifacts only - NEVER edit implementation code. If the revised plan implies code changes, ${APPLY_GUARDRAIL}.

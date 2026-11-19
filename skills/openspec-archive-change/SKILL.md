@@ -35,7 +35,6 @@ In both branches, never create the root as a side effect: do not run `openspec i
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run `openspec list --json` to get available changes and ask the user to select one
 
    When prompting, show only active changes (not already archived).
@@ -79,11 +78,10 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - `planningHome`, `changeRoot`, `artifactPaths`, and `actionContext`: path and scope context
    - `artifacts`: List of artifacts with their status (`done`, `skipped`, or other)
 
-   **If any artifacts are neither `done` nor `skipped`** (skipped artifacts satisfy the requirement - the change declares skip_specs or left out an optional artifact):
+   **If any artifacts are neither `done` nor `skipped`** (skipped artifacts satisfy the requirement - the change declares skip_specs):
    - Display warning listing incomplete artifacts
    - Ask the user to confirm they want to proceed
    - Proceed if user confirms
-   - If the user declines, stop without archiving and name what is left to finish
 
 3. **Check task completion status**
 
@@ -106,7 +104,6 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - Display warning showing count of incomplete tasks
    - Ask the user to confirm they want to proceed
    - Proceed if user confirms
-   - If the user declines, stop without archiving and name what is left to finish
 
    **If `totalTasks` is zero:** Proceed without a task-related warning.
 
@@ -133,7 +130,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    **Prompt options:**
    - If any capability is sync-blocked: explain why and offer only "Archive without syncing", "Cancel"
-   - Otherwise, if changes needed: "Sync now (recommended)", "Archive without syncing", "Cancel"
+   - Otherwise, if changes needed: "Sync now (recommended)", "Archive without syncing"
    - Otherwise, if already synced: "Archive now", "Sync anyway", "Cancel"
 
    Route on the answer:

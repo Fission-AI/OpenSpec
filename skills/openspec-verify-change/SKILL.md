@@ -33,7 +33,6 @@ In both branches, never create the root as a side effect: do not run `openspec i
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run `openspec list --json` to get available changes and ask the user to select one
 
    When prompting, show all active changes returned by the list, including changes with `status: "no-tasks"`.
@@ -152,7 +151,7 @@ In both branches, never create the root as a side effect: do not run `openspec i
      - If contradiction detected:
        - Add WARNING: "Design decision not followed: <decision>"
        - Recommendation: "Update implementation or revise design.md to match reality"
-   - Otherwise, if the design artifact's `contextFiles.<id>` file is absent or empty: mark **Design Adherence** as not verified, or as **Not applicable** when status reports that artifact `skipped`. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
+   - Otherwise, if the design artifact's `contextFiles.<id>` file is absent or empty: mark **Design Adherence** as not verified. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
 
    **Code Pattern Consistency**:
    - If implementation changes cannot be identified, mark **Code Pattern Consistency** as not verified and explain the missing evidence.
@@ -204,7 +203,6 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - If no issues and no checks were skipped: "All checks passed. Ready for archive."
    - If any check was skipped and there are no CRITICAL issues: do not claim readiness. Say "No critical issues found in the checks that ran. <check(s)> not verified: <reason>." Include the warning count when nonzero.
    - Include the suggestion count when nonzero in every final assessment.
-   - End with the next step: for CRITICAL issues, say that each code fix needs its own unchecked task when the schema tracks tasks, because verify changes no files and apply only works on unchecked tasks; recommend the `openspec-update-change` skill to add those tasks and make plan fixes, then the `openspec-apply-change` skill for code fixes, if installed; otherwise name the tasks to add and the artifacts to revise, then give `openspec instructions apply --change "<name>" --json` for code fixes; when ready, recommend the `openspec-archive-change` skill if it is installed; otherwise give `openspec archive "<name>"`.
 
 **Verification Heuristics**
 

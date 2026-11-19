@@ -45,7 +45,7 @@ describe('ViewCommand', () => {
     const planningIndex = lines.findIndex(line => line.includes('◉') && line.includes('planning'));
     const implementingIndex = lines.findIndex(line => line.includes('◉') && line.includes('implementing'));
     expect(lines[planningIndex + 1]).toBe('    └─ [spec-driven] proposal→ specs design tasks✓');
-    expect(lines[implementingIndex + 1]).toBe('    └─ [spec-driven] proposal✓ specs→ design (skipped) tasks✓');
+    expect(lines[implementingIndex + 1]).toBe('    └─ [spec-driven] proposal✓ specs→ design→ tasks✓');
     expect(lines[planningIndex]).toContain('50%');
     expect(lines[implementingIndex]).toContain('50%');
     expect(lines.join('\n')).toContain('Task Progress: 2/4 (50% complete)');
@@ -61,7 +61,7 @@ describe('ViewCommand', () => {
     await new ViewCommand().execute(tempDir);
 
     expect(logOutput.map(stripAnsi)).toContain(
-      '    └─ [spec-driven] proposal✓ specs (skipped) design (skipped) tasks✓'
+      '    └─ [spec-driven] proposal✓ specs (skipped) design→ tasks✓'
     );
   });
 

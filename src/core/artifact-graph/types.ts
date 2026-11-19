@@ -33,10 +33,6 @@ export const ArtifactSchema = z.object({
   template: relativePathSchema('template field'),
   instruction: z.string().optional(),
   requires: z.array(z.string()).default([]),
-  // May be left out of a plan: counts as skipped once its own prerequisites are complete
-  // and an artifact that depends on it is written
-  // Schemas written before this field existed may carry any value here; ignore those.
-  optional: z.boolean().optional().catch(undefined),
 });
 
 // Apply phase configuration for schema-aware apply instructions

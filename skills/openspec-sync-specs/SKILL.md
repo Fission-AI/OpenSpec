@@ -37,7 +37,6 @@ In both branches, never create the root as a side effect: do not run `openspec i
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run `openspec list --json` to get available changes and ask the user to select one
 
    When prompting, show changes that have delta specs (under `specs/` directory).
@@ -187,7 +186,6 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - What changes were made (requirements added/modified/removed/renamed)
    - Any new main spec left with a TBD Purpose placeholder, so it gets written
      now rather than lingering
-   - Any capability left unsynced because it is blocked, and why
    - Any capability retired, naming the deleted `spec.md`, its Purpose, and
      either a pasteable `git checkout` or checkout-scoped recovery guidance
 
@@ -276,10 +274,6 @@ Updated main specs:
 
 Main specs are now updated. The change remains active - archive when implementation is complete.
 ```
-
-**Output When A Capability Is Blocked**
-
-Do not say main specs are updated. Title the summary `## Specs Partly Synced: <change-name>` when some capabilities synced, or `## Specs Not Synced: <change-name>` when none did, and list each blocked capability with its reason.
 
 **Guardrails**
 - Read both delta and main specs before making changes

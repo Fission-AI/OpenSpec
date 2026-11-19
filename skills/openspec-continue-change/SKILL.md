@@ -33,7 +33,6 @@ In both branches, never create the root as a side effect: do not run `openspec i
    If a name is provided, use it. Otherwise:
    - Infer from conversation context if the user mentioned a change
    - Auto-select if only one active change exists
-   - If no active change exists, say so, offer to start one, and stop
    - If ambiguous, run `openspec list --json` to get available changes sorted by most recently modified, and ask the user to select one
 
    When prompting, present the top 3-4 most recently modified changes as options, showing:
@@ -70,8 +69,6 @@ In both branches, never create the root as a side effect: do not run `openspec i
    - Congratulate the user
    - Show final status including the schema used
    - Suggest: "Planning is complete! The plan is ready for review. When you’re ready, ask me to apply it."
-   - If the `openspec-apply-change` skill is not installed, also give `openspec instructions apply --change "<name>" --json`
-   - If an artifact reports `omitted: true`, name it as left out and say the user can still ask for it. If they do, run `openspec instructions <artifact-id> --change "<name>" --json` and create it with the artifact steps below, even though its status is `skipped`
    - STOP
 
    ---
@@ -120,8 +117,7 @@ After each invocation, show:
 - Schema workflow being used
 - Current progress (N/M complete)
 - What artifacts are now unlocked
-- If that artifact completed planning and every file it needs is written, suggest: "Planning is complete! The plan is ready for review. When you’re ready, ask me to apply it." If the `openspec-apply-change` skill is not installed, also give `openspec instructions apply --change "<name>" --json`
-- If planning is still incomplete, or a file that artifact needs is still missing, prompt: "Want to continue? Just ask me to continue or tell me what to do next."
+- Prompt: "Want to continue? Just ask me to continue or tell me what to do next."
 
 **Artifact Creation Guidelines**
 
@@ -132,7 +128,7 @@ If the `instruction` field directs you to use a specific skill or command to cre
 **Guardrails**
 - Create ONE artifact per invocation
 - Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
-- Never skip artifacts or create out of order, except a left-out artifact the user asks for
+- Never skip artifacts or create out of order
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress
 - Use the schema's artifact sequence, don't assume specific artifact names
