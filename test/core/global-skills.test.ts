@@ -177,6 +177,15 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
     expect(Object.keys(JSON.parse(readFileSync(globalLock(), 'utf8')).skills).sort()).toEqual(CORE_SKILLS);
   });
 
+  it('says the skills were installed when the lock file cannot be written', async () => {
+    await fs.mkdir(globalLock(), { recursive: true });
+
+    const result = await cli(await project('locked'), 'init', '--scope', 'global', '--tools', 'claude');
+
+    expect(result.exitCode).toBe(1);
+    expect(`${result.stdout}${result.stderr}`).toContain('Skills were installed but the lock file could not be updated');
+  });
+
   it.skipIf(process.platform === 'win32')('installs skills when TMPDIR is a relative path', async () => {
     const dir = await project('relative-tmp');
     await fs.mkdir(path.join(dir, 'rel'));

@@ -99,10 +99,15 @@ export async function installReleaseSkills(targets: Targets, names: string[], ve
       mode: targets.scope === 'project' && process.platform === 'win32' ? 'copy' : 'auto',
     });
   } finally {
-    await fs.rm(source, { recursive: true, force: true });
+    // A temp folder Windows still holds must not fail an install that worked.
+    await fs.rm(source, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }).catch(() => undefined);
   }
   if (targets.scope === 'global') {
-    await recordGlobalSkills([...new Set(result.installed.map(entry => entry.skill))], contents, version);
+    try {
+      await recordGlobalSkills([...new Set(result.installed.map(entry => entry.skill))], contents, version);
+    } catch (error) {
+      throw new Error(`Skills were installed but the lock file could not be updated: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   for (const failure of result.failed) failures.set(failure.agent, new Error(failure.message));
   for (const skip of result.skipped) failures.set(skip.agent, new Error(`${skip.agent} skipped ${skip.skill}: ${skip.reason}`));
