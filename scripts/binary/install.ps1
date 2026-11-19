@@ -141,19 +141,11 @@
       $old = "$target.old-" + [Guid]::NewGuid().ToString('N')
       Rename-Item -Path $target -NewName (Split-Path $old -Leaf)
     }
-    # The exe just ran, so Windows or antivirus can hold it for a moment longer.
-    for ($attempt = 1; ; $attempt++) {
-      try {
-        Move-Item -Path $exe -Destination $target
-        break
-      } catch {
-        if ($attempt -lt 20) {
-          Start-Sleep -Milliseconds 500
-          continue
-        }
-        if ($old) { Rename-Item -Path $old -NewName $name -ErrorAction SilentlyContinue }
-        throw "openspec install: could not install to ${target}: $($_.Exception.Message)"
-      }
+    try {
+      Move-Item -Path $exe -Destination $target
+    } catch {
+      if ($old) { Rename-Item -Path $old -NewName $name -ErrorAction SilentlyContinue }
+      throw "openspec install: could not install to ${target}: $($_.Exception.Message)"
     }
     if ($old) { Remove-Item -Force -Path $old -ErrorAction SilentlyContinue }
     # Clear any "downloaded from the internet" mark so Windows does not block it.
