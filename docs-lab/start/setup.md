@@ -26,7 +26,7 @@ With the skills on this machine, which is the default:
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills in ~/.agents/skills/ for every project on this machine
+7 skills in ~/.agents/skills/ for every project on this machine
 Config: openspec/config.yaml (schema: spec-driven)
 ```
 
@@ -36,7 +36,7 @@ With the skills in this project:
 OpenSpec Setup Complete
 
 Created: Claude Code
-6 skills in .agents/skills/ (also in .claude/skills/)
+7 skills in .agents/skills/ (also in .claude/skills/)
 Config: openspec/config.yaml (schema: spec-driven)
 ```
 

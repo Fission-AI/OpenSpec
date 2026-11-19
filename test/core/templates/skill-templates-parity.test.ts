@@ -27,6 +27,7 @@ import {
   getOpsxProposeCommandTemplate,
   getOpsxProposeSkillTemplate,
   getOpsxUpdateCommandTemplate,
+  getRouterSkillTemplate,
   getOpsxVerifyCommandTemplate,
   getSyncSpecsSkillTemplate,
   getUpdateChangeSkillTemplate,
@@ -34,6 +35,7 @@ import {
 } from '../../../src/core/templates/skill-templates.js';
 import {
   generateSkillContent,
+  generateSkillFiles,
   getCommandContents,
   getSkillTemplates,
 } from '../../../src/core/shared/skill-generation.js';
@@ -100,6 +102,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-onboard': '4e661e271eadbbcf9cc1a87189637cc725de7624abac6f325c1b1a58aed6c6fe',
   'openspec-propose': 'a02bf8d97ec10bd3a2a74ee67c7994d206ec55f55402121b9f7da36c22779833',
   'openspec-update-change': 'cee18194a8b231376343a3fe2ab330145929ee310333d8684aa48422d1dd8b10',
+  'openspec': 'ad948a60a5078f45f97da43619026071402c12283369fe71c391bec97e99b74c',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
@@ -117,6 +120,7 @@ const GENERATED_SKILL_FACTORIES: Array<[string, () => SkillTemplate]> = [
   ['openspec-onboard', getOnboardSkillTemplate],
   ['openspec-propose', getOpsxProposeSkillTemplate],
   ['openspec-update-change', getUpdateChangeSkillTemplate],
+  ['openspec', getRouterSkillTemplate],
 ];
 
 function stableStringify(value: unknown): string {
@@ -225,7 +229,8 @@ describe('skill templates split parity', () => {
     const actualHashes = Object.fromEntries(
       GENERATED_SKILL_FACTORIES.map(([dirName, createTemplate]) => [
         dirName,
-        hash(generateSkillContent(createTemplate(), 'PARITY-BASELINE')),
+        // SKILL.md records a digest of the skill's references, so this covers them too.
+        hash(generateSkillFiles(createTemplate(), 'PARITY-BASELINE').get('SKILL.md')!),
       ])
     );
 
@@ -246,7 +251,8 @@ describe('skill templates split parity', () => {
   // added workflow is covered automatically; the full-constant containment
   // check fails if any template's interpolation drifts.
   it('teaches store selection in every deployed skill template', () => {
-    for (const { template, dirName } of getSkillTemplates()) {
+    // The router only reads, and names `--store` on the commands it runs.
+    for (const { template, dirName } of getSkillTemplates().filter(({ workflowId }) => workflowId !== 'router')) {
       const content = generateSkillContent(template, 'PARITY-BASELINE');
       expect(content, dirName).toContain(STORE_SELECTION_GUIDANCE);
     }

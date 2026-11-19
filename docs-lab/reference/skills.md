@@ -48,6 +48,7 @@ Invoking a skill by name is always the second case. A project whose `openspec/co
 
 | Skill | Job | Type |
 |---|---|---|
+| [openspec](#openspec) | One place to start: answers questions and hands each request to the skill that does it | Core |
 | [openspec-explore](#openspec-explore) | Think through an idea before it becomes a change proposal | Core |
 | [openspec-propose](#openspec-propose) | Create a change proposal with all its planning artifacts in one step | Core |
 | [openspec-apply-change](#openspec-apply-change) | Implement a change proposal's tasks | Core |
@@ -62,6 +63,16 @@ Invoking a skill by name is always the second case. A project whose `openspec/co
 | [openspec-onboard](#openspec-onboard) | Learn the workflow by doing one real change proposal end to end | Optional |
 
 Each entry below names the skill that owns the next step. A skill reads the same whatever your profile, so it can't assume the next skill is there. Where a step belongs to another skill, it either checks when it runs ("if that skill is installed, otherwise…") or follows the recovery step the CLI prints. Which set you get is [Profiles](../customize/profiles.md).
+
+## openspec
+
+The starting point for anything OpenSpec: ask for anything, and it answers or hands the request to the skill that does it.
+
+| Contract | Description |
+|---|---|
+| **Arguments** | Anything: a question ("where does add-auth stand?", "how do I add a schema?"), a request for one step, or several steps in order ("verify add-auth, then archive it"). |
+| **Creates** | Nothing itself. Each request goes to the skill in the table above that does it, and that skill's contract applies. When that skill is not installed, it follows the CLI steps in its `references/without-skills.md` and says how to install the skill. |
+| **Response** | For a question: where things stand and the next step, with an offer to run it; it waits for your yes. For work: what the routed skill reports. For several steps: each skill in turn, stopping wherever one waits for you. |
 
 ## openspec-explore
 

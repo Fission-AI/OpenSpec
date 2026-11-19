@@ -17,6 +17,8 @@ import {
   getVerifyChangeSkillTemplate,
   getOnboardSkillTemplate,
   getOpsxProposeSkillTemplate,
+  getRouterSkillTemplate,
+  ROUTER_SKILL_NAME,
   getOpsxExploreCommandTemplate,
   getOpsxNewCommandTemplate,
   getOpsxContinueCommandTemplate,
@@ -32,6 +34,7 @@ import {
   type SkillTemplate,
 } from '../templates/skill-templates.js';
 import type { CommandContent } from '../command-generation/index.js';
+import { createHash } from 'node:crypto';
 import { OPENSPEC_CLI_ALLOWED_TOOLS } from './allowed-tools.js';
 
 /**
@@ -90,6 +93,7 @@ function allSkillTemplates(): SkillTemplateEntry[] {
     { template: getVerifyChangeSkillTemplate(), dirName: 'openspec-verify-change', workflowId: 'verify' },
     { template: getOnboardSkillTemplate(), dirName: 'openspec-onboard', workflowId: 'onboard' },
     { template: getOpsxProposeSkillTemplate(), dirName: 'openspec-propose', workflowId: 'propose' },
+    { template: getRouterSkillTemplate(), dirName: ROUTER_SKILL_NAME, workflowId: 'router' },
   ];
 }
 
@@ -162,8 +166,35 @@ metadata:
   author: ${template.metadata?.author || 'openspec'}
   version: "${template.metadata?.version || '1.0'}"
   generatedBy: "${generatedByVersion}"
----
+${template.metadata?.references ? `  references: "${template.metadata.references}"\n` : ''}---
 
 ${instructions}
 `;
+}
+
+/**
+ * Every file of one skill, by path inside the skill's folder: SKILL.md, and
+ * `references/<file>` for each reference the template carries.
+ *
+ * SKILL.md records a digest of its references, so a changed reference shows as
+ * a changed SKILL.md wherever an install is compared with this release.
+ */
+export function generateSkillFiles(
+  template: SkillTemplate,
+  generatedByVersion: string,
+  transformInstructions?: (instructions: string) => string
+): Map<string, string> {
+  const files = new Map<string, string>();
+  const references = Object.entries(template.references ?? {});
+  if (!references.length) {
+    return files.set('SKILL.md', generateSkillContent(template, generatedByVersion, transformInstructions));
+  }
+  const digest = createHash('sha256');
+  for (const [file, text] of references) {
+    const content = transformInstructions ? transformInstructions(text) : text;
+    files.set(`references/${file}`, content);
+    digest.update(`${file}\n${content}\n`);
+  }
+  const skill = { ...template, metadata: { ...template.metadata, references: digest.digest('hex').slice(0, 12) } };
+  return new Map([['SKILL.md', generateSkillContent(skill, generatedByVersion, transformInstructions)], ...files]);
 }

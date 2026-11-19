@@ -6,7 +6,7 @@ A profile is your preference for which OpenSpec workflows (the [skills](../start
 
 ## The core set
 
-The `core` profile installs six workflows, covering the whole loop from idea to archive:
+The `core` profile installs seven workflows, covering the whole loop from idea to archive, plus one place to start:
 
 | Workflow | What it's for |
 |---|---|
@@ -16,6 +16,7 @@ The `core` profile installs six workflows, covering the whole loop from idea to 
 | [`update`](../reference/skills.md#openspec-update-change) | Revise a change proposal's existing planning artifacts |
 | [`sync`](../reference/skills.md#openspec-sync-specs) | Merge a change proposal's spec updates into `specs/` without archiving it |
 | [`archive`](../reference/skills.md#openspec-archive-change) | Move a finished change proposal to the archive |
+| [`router`](../reference/skills.md#openspec) | Ask for anything OpenSpec; it answers or hands the request to the right skill |
 
 Each links to its full contract: arguments, what it creates, and what it responds with.
 
@@ -38,7 +39,7 @@ To change the set, run the interactive picker:
 openspec config profile
 ```
 
-The picker lists all twelve workflows as checkboxes, with the installed ones checked. Any selection that isn't exactly the core six is saved as the `custom` profile, so you can also uncheck core workflows you don't use.
+The picker lists all thirteen workflows as checkboxes, with the installed ones checked. Any selection that isn't exactly the core seven is saved as the `custom` profile, so you can also uncheck core workflows you don't use.
 
 ## Delivery (retired in 2.0)
 
@@ -54,7 +55,7 @@ Switching is two steps: change the profile on your machine, then update each pro
 
    ```bash
    openspec config profile        # interactive
-   openspec config profile core   # reset to the core six
+   openspec config profile core   # reset to the core seven
    ```
 
 2. Run the update in each project you work in:

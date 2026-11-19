@@ -91,7 +91,8 @@ describe('profile sync drift detection', () => {
   it('detects drift when generated commands still exist, under every delivery setting', () => {
     // They are removal work for update: 2.0 generates no command files.
     setupCoreSkills(tempDir);
-    for (const workflow of CORE_WORKFLOWS) {
+    // The router never had a command.
+    for (const workflow of CORE_WORKFLOWS.filter((id) => id !== 'router')) {
       writeGeneratedCommand(tempDir, workflow);
     }
 

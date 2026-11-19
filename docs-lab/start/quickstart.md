@@ -29,6 +29,23 @@ flowchart LR
 
 Every prompt below goes in your AI chat, the same place you ask for code. The examples use plain language so they work across tools. You can also invoke a skill directly; the syntax varies by tool ([supported tools](../reference/supported-tools.md)).
 
+## Not sure what to ask? Start with `openspec`
+
+The `openspec` skill is one place to start for anything OpenSpec. Invoke it and ask for anything: where a change stands, what to do next, how to set something up, or several steps at once. It answers, or hands the request to the skill that does it. Use it when you don't know which skill you need.
+
+| Tool | Invoke it |
+|---|---|
+| Claude Code, Cursor, Gemini CLI, GitHub Copilot, and most others | `/openspec` |
+| Codex | `$openspec` |
+| Kimi Code | `/skill:openspec` |
+
+```text
+/openspec what should I do next on add-rate-limiting?
+/openspec verify add-rate-limiting, then archive it
+```
+
+It is part of the core profile ([Profiles](../customize/profiles.md)).
+
 ## Step 1: Explore
 
 Think the idea through with your agent before you ask for a plan. In your AI chat:

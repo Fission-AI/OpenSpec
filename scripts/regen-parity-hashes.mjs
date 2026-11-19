@@ -77,7 +77,7 @@ if (srcMtime > distMtime) {
 }
 
 const templates = await import(distUrl('core/templates/skill-templates.js'));
-const { getSkillTemplates, generateSkillContent } = await import(
+const { getSkillTemplates, generateSkillFiles } = await import(
   distUrl('core/shared/skill-generation.js')
 );
 
@@ -92,7 +92,8 @@ const PARITY_BASELINE = 'PARITY-BASELINE';
 const contentByDir = new Map(
   getSkillTemplates().map(({ dirName, template }) => [
     dirName,
-    sha256(generateSkillContent(template, PARITY_BASELINE)),
+    // SKILL.md records a digest of the skill's references, so this covers them too.
+    sha256(generateSkillFiles(template, PARITY_BASELINE).get('SKILL.md')),
   ])
 );
 
