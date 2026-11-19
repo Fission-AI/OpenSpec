@@ -288,11 +288,15 @@ export class UpdateCommand {
         return;
       }
     }
-    if (hasPackageSkills) {
-      this.log(chalk.dim('This project\'s OpenSpec skills came from `npx skills add`, so update leaves them as they are. To refresh them, run: npx skills update --project'));
-    }
+    // Said after the project update: a legacy upgrade the user accepts can take the skills over.
+    const notePackageSkills = () => {
+      if (hasPackageSkills && hasLockedOpenSpecSkills(resolvedProjectPath, this.view)) {
+        this.log(chalk.dim('This project\'s OpenSpec skills came from `npx skills add`, so update leaves them as they are. To refresh them, run: npx skills update --project'));
+      }
+    };
     if (!this.hasGlobalSkills) {
       await this.updateProject(projectPath);
+      notePackageSkills();
       return;
     }
 
@@ -305,6 +309,7 @@ export class UpdateCommand {
         projectError = error;
       }
     }
+    notePackageSkills();
     if (hasProject && !hasPackageSkills && !projectHasOwnSkills(resolvedProjectPath, this.toolsToUpdate(resolvedProjectPath))) {
       this.log(chalk.dim('This project has no OpenSpec skills of its own. It uses the skills for this machine.'));
     }
