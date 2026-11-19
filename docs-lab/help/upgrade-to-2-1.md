@@ -42,7 +42,7 @@ In a script, run `openspec init --tools <ids>` in place of step 2. Upgrade every
 
 ## If you installed with `npx skills add`
 
-OpenSpec leaves these skills as they are. `openspec update` doesn't refresh, replace, or remove them, even with `--force`. To refresh them, run:
+OpenSpec usually leaves these skills as they are: `openspec update` doesn't refresh, replace, or remove them, even with `--force`. To refresh them, run:
 
 ```bash
 npx skills update --project
@@ -54,6 +54,15 @@ If this machine has no global OpenSpec skills yet, `openspec update` asks the qu
 - **Switch to global** installs the global skills and keeps the copies in your repo. Remove those copies when you're ready with `npx skills remove`.
 
 If this machine already has global skills, or there's no terminal, update doesn't ask.
+
+**When update takes them over.** In these cases `openspec update` treats the skills as its own, as 2.1.0 does. It refreshes them and removes workflows outside your profile, along with any files you added inside those skill folders:
+
+- The project still has command files from an earlier OpenSpec release, such as `.claude/commands/openspec/` or `.claude/commands/opsx/`.
+- A tool's skills folder holds an OpenSpec skill that `skills-lock.json` doesn't list.
+- You ran `openspec init --scope project` in the project, which hands its skills to OpenSpec.
+- You run `openspec update --force` while old Codex prompts are in `~/.codex/prompts`, or answer yes when update offers to set up a tool.
+
+Before you update a project like this, commit or copy its skill folders, and run `openspec update --dry-run` to see what will change.
 
 ## If a script sets up your repos
 
