@@ -31,7 +31,7 @@ Every prompt below goes in your AI chat, the same place you ask for code. The ex
 
 ## Not sure what to ask? Start with `openspec`
 
-The `openspec` skill is one place to start for anything OpenSpec. Invoke it and ask for anything: where a change stands, what to do next, how to set something up, or several steps at once. It answers, or hands the request to the skill that does it. Use it when you don't know which skill you need.
+You don't need to learn the skill list. Invoke `openspec` and say what you want in your own words. It looks at your project, answers the question, or hands the work to the skill built for it. Ask it several things at once and it runs them in order, stopping wherever a step needs your OK.
 
 | Tool | Invoke it |
 |---|---|
@@ -41,10 +41,11 @@ The `openspec` skill is one place to start for anything OpenSpec. Invoke it and 
 
 ```text
 /openspec what should I do next on add-rate-limiting?
+/openspec how do I make proposals always list what's out of scope?
 /openspec verify add-rate-limiting, then archive it
 ```
 
-It is part of the core profile ([Profiles](../customize/profiles.md)).
+It ships with the core profile ([Profiles](../customize/profiles.md)). If the skill a request needs isn't installed, it does the step with the CLI and tells you how to add the skill.
 
 ## Step 1: Explore
 

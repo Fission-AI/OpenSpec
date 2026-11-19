@@ -2,6 +2,6 @@
 "@fission-ai/openspec": minor
 ---
 
-Add the `openspec` skill: one place to start for anything OpenSpec. Invoke it (`/openspec`, or `$openspec` in Codex) and ask for anything: where a change stands, what to do next, how to set something up, or several steps in order. It answers, or hands the request to the skill that does it, and falls back to CLI steps when that skill is not installed. It is part of the core profile, so `openspec update` adds it; a custom profile can add it with `openspec config profile`.
+New `openspec` skill: one place to start. Type `/openspec` (or `$openspec` in Codex) and ask for anything, such as "where does add-auth stand?", "how do I add a schema?", or "verify add-auth, then archive it". It answers, or hands the request to the skill that does the work. You no longer need to know which of the 12 workflow skills to call. It is part of the core profile, so `openspec update` adds it. On a custom profile, add it with `openspec config profile`.
 
-Skills can now carry `references/` files beside `SKILL.md`. They are installed, refreshed, and removed with their skill, so a skill can stay short and keep detail it needs only sometimes in a file it reads when it needs it.
+Skills can now keep detail in `references/` files next to `SKILL.md`. The agent reads `SKILL.md` first and opens a reference only when the task needs it. This is the standard layout that agents already load this way. OpenSpec installs, updates, and removes reference files along with their skill. The router uses this format first, and future skills will use it to stay short while carrying more detail.

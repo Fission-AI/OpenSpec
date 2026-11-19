@@ -34,6 +34,8 @@ templates in src/core/templates/workflows/; core set src/core/profiles.ts:14. "O
 is the docs' set label (was "Expanded"; renamed 2026-08-12: the product's only stored
 profile values are core and custom, so "expanded" reads as a third profile). -->
 
+Each skill is a folder: a short `SKILL.md` your agent reads first, and sometimes a `references/` folder with detail it opens only when a task needs it. Agents already load skills this way, so a skill can carry more without filling your agent's context. `openspec update` keeps every file in the folder current.
+
 The skills come in two sets:
 
 - **Core**: installed by default, the main planning loop.
@@ -66,7 +68,7 @@ Each entry below names the skill that owns the next step. A skill reads the same
 
 ## openspec
 
-The starting point for anything OpenSpec: ask for anything, and it answers or hands the request to the skill that does it.
+Start here when you don't know which skill you need. Ask for anything; it answers, or hands the request to the skill that does it.
 
 | Contract | Description |
 |---|---|
