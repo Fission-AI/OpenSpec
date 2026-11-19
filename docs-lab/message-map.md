@@ -45,6 +45,7 @@ maintain.
 | How should a user edit the installed skill prompts? | No owner: `customize/skills.md` is parked (README TODO) until there's a good answer to `openspec update` overwriting edits | Gap |
 | How should a user run OpenSpec across multiple repos? | [Multi-repo › Stores](multi-repo/stores.md); [Start › Set up your project](start/setup.md) routes there from "Pick where OpenSpec lives" | Answered |
 | How should a user plan a change that spans repos? | [Multi-repo › Stores](multi-repo/stores.md) | Answered |
+| How can a user see every change's progress when each change has its own git worktree? | [Multi-repo › Stores](multi-repo/stores.md), "Work on several changes at once" | Answered |
 | What does each skill do, and when should a user reach for it? | [Reference › Skills](reference/skills.md) | Answered |
 | Where does a user look up a terminal command? | [Reference › CLI](reference/cli.md) | Answered |
 | How does a user learn what telemetry is collected, and opt out? | [Reference › Configuration › Environment variables](reference/configuration/environment-variables.md) owns the facts (was a README-TODO gap); [Help › FAQ](help/faq.md) routes searchers there | Skeleton |
