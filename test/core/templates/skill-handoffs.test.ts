@@ -68,7 +68,7 @@ describe('every skill stop names the next step (#2271)', () => {
     expect(skill('update')).toContain('ask the user to reset those checkboxes to `- [ ]` first');
     expect(skill('continue')).toContain('If an artifact reports `omitted: true`, name it as left out');
     expect(skill('update')).toContain(
-      'If the user asks for one reporting `omitted: true`, finish these revisions first, then follow `openspec instructions <artifact-id> --change "<name>" --json` to create it as a separate step.'
+      'This workflow does not create one reporting `omitted: true`: if the user asks for it, recommend the `/opsx:continue` skill if it is installed'
     );
   });
 
