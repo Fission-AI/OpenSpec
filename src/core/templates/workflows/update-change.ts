@@ -27,7 +27,7 @@ const APPLY_NEXT_STEP =
   'recommend the `/opsx:apply` skill if it is installed; otherwise give `openspec instructions apply --change "<name>" --json`';
 
 const APPLY_DELTA_HANDOFF =
-  `tell the user which implementation tasks need revisiting, explain that their checkboxes must read \`- [ ]\` again before that work resumes, and ${APPLY_NEXT_STEP}`;
+  `tell the user which implementation tasks need revisiting, ask the user to reset those checkboxes to \`- [ ]\` or to run this skill again for that edit, and ${APPLY_NEXT_STEP}`;
 
 const APPLY_GUARDRAIL =
   `stop after revising the plan, identify any code changes it calls for, and ${APPLY_NEXT_STEP}`;

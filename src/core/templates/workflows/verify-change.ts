@@ -146,7 +146,7 @@ ${PROJECT_ROOT_GUARD}
      - If contradiction detected:
        - Add WARNING: "Design decision not followed: <decision>"
        - Recommendation: "Update implementation or revise design.md to match reality"
-   - Otherwise, if the design artifact's \`contextFiles.<id>\` file is absent or empty: mark **Design Adherence** as not verified. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
+   - Otherwise, if the design artifact's \`contextFiles.<id>\` file is absent or empty: mark **Design Adherence** as not verified, or as **Not applicable** when status reports that artifact \`skipped\`. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
 
    **Code Pattern Consistency**:
    - If implementation changes cannot be identified, mark **Code Pattern Consistency** as not verified and explain the missing evidence.
@@ -361,7 +361,7 @@ ${PROJECT_ROOT_GUARD}
      - If contradiction detected:
        - Add WARNING: "Design decision not followed: <decision>"
        - Recommendation: "Update implementation or revise design.md to match reality"
-   - Otherwise, if the design artifact's \`contextFiles.<id>\` file is absent or empty: mark **Design Adherence** as not verified. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
+   - Otherwise, if the design artifact's \`contextFiles.<id>\` file is absent or empty: mark **Design Adherence** as not verified, or as **Not applicable** when status reports that artifact \`skipped\`. With other supporting artifacts, **Code Pattern Consistency** still runs; the task-only case remains limited to task completion.
 
    **Code Pattern Consistency**:
    - If implementation changes cannot be identified, mark **Code Pattern Consistency** as not verified and explain the missing evidence.

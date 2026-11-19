@@ -88,7 +88,7 @@ ${PROJECT_ROOT_GUARD}
    - Show final status including the schema used
    - Suggest: "${planningComplete}"
    - If the \`/opsx:apply\` skill is not installed, also give \`openspec instructions apply --change "<name>" --json\`
-   - If an artifact reports \`omitted: true\`, name it as left out and say the user can still ask for it. If they do, run \`openspec instructions <artifact-id> --change "<name>" --json\` and create it as described below
+   - If an artifact reports \`omitted: true\`, name it as left out and say the user can still ask for it. If they do, run \`openspec instructions <artifact-id> --change "<name>" --json\` and create it with the artifact steps below, even though its status is \`skipped\`
    - STOP
 
    ---
@@ -149,7 +149,7 @@ If the \`instruction\` field directs you to use a specific skill or command to c
 **Guardrails**
 - Create ONE artifact per invocation
 - Always read dependency artifacts before creating a new one - re-read from disk, not from conversation memory (files may have changed since you last saw them)
-- Never skip artifacts or create out of order
+- Never skip artifacts or create out of order, except a left-out artifact the user asks for
 - If context is unclear, ask the user before creating
 - Verify the artifact file exists after writing before marking progress
 - Use the schema's artifact sequence, don't assume specific artifact names
