@@ -17,6 +17,7 @@ import {
   foldRequirementName,
   isUnrecognizedDeltaSection,
   parseDeltaSpec,
+  findFrontmatterEnd,
   normalizeRequirementName,
   type RequirementBlock,
   type RequirementsSectionParts,
@@ -265,6 +266,9 @@ export async function buildUpdatedSpec(
   }
 
   // Archive carries requirement blocks only; name any other text it leaves behind.
+  if (plan.hasFrontmatter) {
+    warn(`${specName} - frontmatter (line 1) is not carried into the main spec. It stays with the change.`);
+  }
   for (const lost of plan.unappliedContent) {
     warn(`${specName} - ${describeUnappliedContent(lost)} (line ${lost.line}) is not carried into the main spec.`);
   }
@@ -724,6 +728,30 @@ function contentColumn(prefix: string): number {
 }
 
 /**
+ * The opening of a CommonMark HTML block of kinds 1-6: `<script>`, `<pre>`,
+ * `<style>` or `<textarea>`; a comment, processing instruction, declaration or
+ * CDATA section; or a block-level tag such as `<div>` or `<details>`.
+ */
+const OPENS_HTML_BLOCK =
+  /^<(?:(?:script|pre|style|textarea)(?:[ \t>]|$)|!--|\?|![a-z]|!\[CDATA\[|\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h[1-6]|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|search|section|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:[ \t>]|\/>|$))/i;
+
+/** A complete open or closing tag alone on its line: CommonMark's kind 7 HTML block. */
+const HTML_TAG_ALONE =
+  /^(?:<[A-Za-z][A-Za-z0-9-]*(?:\s+[A-Za-z_:][\w.:-]*(?:\s*=\s*(?:[^\s"'=<>`]+|'[^']*'|"[^"]*"))?)*\s*\/?>|<\/[A-Za-z][A-Za-z0-9-]*\s*>)\s*$/;
+
+/**
+ * Whether a line may be raw HTML the audit has to name. A tag alone on its line
+ * counts wherever it sits: it is a block of its own unless a paragraph happens
+ * to be open above it, and refusing costs a reword where guessing wrong deletes
+ * the author's content. Any other line starting with `<`, such as `<args> are
+ * passed on`, can only be text (#2211).
+ */
+function mayBeRawHtml(line: string): boolean {
+  const text = line.trim();
+  return OPENS_HTML_BLOCK.test(text) || HTML_TAG_ALONE.test(text);
+}
+
+/**
  * A line that opens a block of its own: a blockquote, a thematic break, a list
  * item, a table row, or raw HTML. CommonMark lets each of these interrupt a
  * paragraph, so one written flush against a bullet starts something new rather
@@ -731,8 +759,12 @@ function contentColumn(prefix: string): number {
  * deleted with the file. Headings interrupt too and are checked separately,
  * since they are refused however they are indented.
  */
-const INTERRUPTS_PARAGRAPH =
-  /^ {0,3}(?:>|(?:[-*_][ \t]*){3,}$|(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)|[<|])/;
+function interruptsParagraph(line: string): boolean {
+  return (
+    /^ {0,3}(?:>|(?:[-*_][ \t]*){3,}$|(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)|\|)/.test(line) ||
+    (/^ {0,3}</.test(line) && mayBeRawHtml(line))
+  );
+}
 
 /**
  * A list item, spelled the way CommonMark spells one, with its marker and the
@@ -747,7 +779,7 @@ const INTERRUPTS_PARAGRAPH =
  * ordered marker at nine digits, so `1234567890.` opens a paragraph, not a
  * list. It changes no verdict here, because a line this pattern rejects is
  * weighed by the same rules either way; it is here so the audit and
- * INTERRUPTS_PARAGRAPH cannot disagree about what a marker is. A line one of
+ * interruptsParagraph cannot disagree about what a marker is. A line one of
  * them calls a bullet and the other does not is read as both at once, and that
  * disagreement is what a shared definition removes.
  *
@@ -910,7 +942,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
       // the run the indent is required, so a note bulleted below the scenarios
       // and its own wrapped lines stay the author's.
       const lazilyContinuesBullet =
-        paragraphOpen && inScenarioBullets && !INTERRUPTS_PARAGRAPH.test(withinItem);
+        paragraphOpen && inScenarioBullets && !interruptsParagraph(withinItem);
       // A heading is a heading wherever it sits, so neither form absorbs one:
       // `firstForeignTail` names the ATX spelling and the `before` pass names
       // the raw HTML, and indenting a section under a bullet must not smuggle
@@ -949,7 +981,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         // An indented nested list or quote is still inside the item, but it
         // ended the bullet's paragraph - so a later unindented line is not
         // continuing that paragraph either.
-        paragraphOpen = !INTERRUPTS_PARAGRAPH.test(withinItem);
+        paragraphOpen = !interruptsParagraph(withinItem);
         continue;
       }
       // Any other line closes the item; a bullet opens the next one. The
@@ -976,7 +1008,7 @@ function contentTheMergeCannotName(parts: RequirementsSectionParts): string[] {
         continue;
       }
       // Free prose above the first scenario is the requirement statement.
-      if (!seenScenario && !/^\s*[|<]/.test(line)) continue;
+      if (!seenScenario && !/^\s*\|/.test(line) && !mayBeRawHtml(line)) continue;
       leftovers.push(line.trim());
     }
   }
@@ -1349,8 +1381,10 @@ function maskHtmlComments(content: string): string {
  * section is absent or its body is empty.
  */
 function extractPurposeSection(content: string): string | undefined {
-  const normalized = content.replace(/\r\n?/g, '\n');
-  const lines = normalized.split('\n');
+  const lines = content.replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n');
+  // Frontmatter is opaque, so a stray `<!--` or fence in it cannot hide the Purpose.
+  lines.fill('', 0, findFrontmatterEnd(lines));
+  const normalized = lines.join('\n');
   // Structure is read from the masked copy so a commented-out or fenced
   // `## Purpose` is not mistaken for the real one; the body is returned from
   // the original lines so an author's own comments and fences survive intact.
@@ -1426,5 +1460,5 @@ export function buildSpecSkeleton(specFolderName: string, changeName: string, pu
   const purposeBody =
     purpose?.trim() ||
     `${PURPOSE_PLACEHOLDER_PREFIX}${changeName}${PURPOSE_PLACEHOLDER_SUFFIX}`;
-  return `# ${titleBase} Specification\n\n## Purpose\n${purposeBody}\n\n## Requirements\n`;
+  return `# ${titleBase} Specification\n\n## Purpose\n\n${purposeBody}\n\n## Requirements\n`;
 }
