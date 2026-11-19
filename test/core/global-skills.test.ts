@@ -237,7 +237,7 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
       expectUntouched(dir, path.join('.claude', 'skills'));
     });
 
-    it('does not set a tool up over them because of a leftover legacy file', async () => {
+    it('upgrades a project with pre-skills files as it always has', async () => {
       await useProfile('core');
       const dir = await project('legacy-file');
       await writeSkills(dir, path.join('.claude', 'skills'));
@@ -250,9 +250,9 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
       const result = await cli(dir, 'update', '--force');
 
       expect(result.exitCode).toBe(0);
-      expect(result.stdout).not.toContain('Setting up skills for');
-      expectUntouched(dir, path.join('.claude', 'skills'));
-      expect(existsSync(path.join(dir, '.claude', 'commands', 'openspec', 'proposal.md'))).toBe(true);
+      expect(result.stdout).not.toContain('npx skills update --project');
+      expect(existsSync(path.join(dir, '.claude', 'commands', 'openspec', 'proposal.md'))).toBe(false);
+      expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-apply-change', 'SKILL.md'))).toBe(true);
     });
 
     it('plans no machine profile in a dry run', async () => {
