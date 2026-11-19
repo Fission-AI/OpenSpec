@@ -180,14 +180,15 @@ export class UpdateCommand {
   /** Prints progress on a real run, stays quiet while planning. */
   /**
    * Whether this run leaves pre-skills files alone. A legacy upgrade replaces them
-   * with skills, so one that will run goes ahead as it always has. A project that
-   * cannot be read is left to fail in `updateProject`, where its error is reported.
+   * with skills, so one that will set tools up goes ahead as it always has. The answer
+   * does not depend on a terminal, so `--dry-run` previews what a scripted run does.
+   * A project that cannot be read is left to fail in `updateProject`, which reports it.
    */
   private async noLegacyUpgradeWillRun(projectPath: string): Promise<boolean> {
     try {
       const detection = await detectLegacyArtifacts(projectPath);
       if (hasRepoLocalLegacyRemovals(detection)) return false;
-      return !detection.hasLegacyArtifacts || (!this.force && (this.dryRun || !isInteractive()));
+      return !(this.force && getToolsFromLegacyArtifacts(detection).length > 0);
     } catch {
       return false;
     }
