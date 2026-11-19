@@ -237,6 +237,33 @@ describe('skills installed for this machine', { timeout: 60_000 }, () => {
       expectUntouched(dir, path.join('.claude', 'skills'));
     });
 
+    it('does not set a tool up over them because of a leftover legacy file', async () => {
+      await useProfile('core');
+      const dir = await project('legacy-file');
+      await writeSkills(dir, path.join('.claude', 'skills'));
+      await fs.mkdir(path.join(dir, '.claude', 'commands', 'openspec'), { recursive: true });
+      await fs.writeFile(
+        path.join(dir, '.claude', 'commands', 'openspec', 'proposal.md'),
+        '<!-- OPENSPEC:START -->\nOld command.\n<!-- OPENSPEC:END -->\n'
+      );
+
+      const result = await cli(dir, 'update', '--force');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).not.toContain('Setting up skills for');
+      expectUntouched(dir, path.join('.claude', 'skills'));
+    });
+
+    it('plans no machine profile in a dry run', async () => {
+      const dir = await project('dry-run');
+      await writeSkills(dir, path.join('.claude', 'skills'));
+
+      const result = await cli(dir, 'update', '--dry-run', '--json');
+
+      expect(result.exitCode).toBe(0);
+      expect(result.stdout).not.toContain('config.json');
+    });
+
     it('does not turn one project into this machine profile', async () => {
       const dir = await project('no-profile');
       await writeSkills(dir, path.join('.claude', 'skills'));

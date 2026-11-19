@@ -253,6 +253,27 @@ describe('UpdateCommand', () => {
       }));
     });
 
+    it('switching to global keeps skills `npx skills add` put in the project', async () => {
+      vi.spyOn(globalSkills, 'readGlobalSkills').mockResolvedValue({ skills: [], agents: [] });
+      const { InitCommand } = await import('../../src/core/init.js');
+      const execute = vi.spyOn(InitCommand.prototype, 'execute').mockResolvedValue(undefined);
+      const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
+      await fs.mkdir(path.dirname(skill), { recursive: true });
+      await fs.writeFile(skill, 'project copy');
+      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
+        version: 2,
+        skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
+      }));
+      interactiveState.value = true;
+      selectMock.mockResolvedValueOnce('global');
+
+      await updateCommand.execute(testDir);
+
+      expect(execute).toHaveBeenCalledOnce();
+      expect((execute.mock.contexts[0] as unknown as { keepPackageSkills: boolean }).keepPackageSkills).toBe(true);
+      execute.mockRestore();
+    });
+
     it('does not ask again once this machine has its own skills', async () => {
       const skill = path.join(testDir, '.agents/skills/openspec-propose/SKILL.md');
       await fs.mkdir(path.dirname(skill), { recursive: true });

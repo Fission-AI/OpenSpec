@@ -112,6 +112,12 @@ describe('the list of tools set up in a project', () => {
       expect(getToolsUpdateManages(project)).not.toContain('claude');
     });
 
+    it('still updates a tool whose skill OpenSpec generated, even under a locked name', async () => {
+      await write('.claude/skills/openspec-explore/SKILL.md', '---\nmetadata:\n  generatedBy: "1.16.0"\n---\nOld text.');
+      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
+      expect(getToolsUpdateManages(project)).toContain('claude');
+    });
+
     it('still updates a tool holding a skill the lock file does not record', async () => {
       await write('.claude/skills/openspec-explore/SKILL.md', 'Any wording at all.');
       await write('.claude/skills/openspec-propose/SKILL.md', 'Set up by OpenSpec.');

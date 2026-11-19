@@ -279,7 +279,7 @@ export class UpdateCommand {
         projectError = error;
       }
     }
-    if (hasProject && !hasPackageSkills && !managesProjectSkills) {
+    if (hasProject && !hasPackageSkills && !projectHasOwnSkills(resolvedProjectPath, getToolsUpdateManages(resolvedProjectPath))) {
       this.log(chalk.dim('This project has no OpenSpec skills of its own. It uses the skills for this machine.'));
     }
     try {
@@ -1533,8 +1533,9 @@ export class UpdateCommand {
       return { newlyConfiguredTools: [], workflowOverrides: {} };
     }
 
-    // Get currently configured tools
-    const configuredTools = getToolsUpdateManages(projectPath, this.view);
+    // Get currently configured tools. Skills `npx skills add` installed count:
+    // a leftover legacy file is no reason to set that tool up over them.
+    const configuredTools = getConfiguredToolsForProfileSync(projectPath, this.view);
     const configuredSet = new Set(configuredTools);
 
     // Filter to tools that aren't already configured

@@ -391,7 +391,8 @@ function hasLegacyCommands(projectRoot: string, toolId: string, view: FileView):
 /**
  * Whether everything a tool holds was put there by `npx skills add`, as a link
  * to the shared folder or a copy. The `skills` package owns those entries, so
- * they do not make the tool one OpenSpec set up.
+ * they do not make the tool one OpenSpec set up. A skill stamped `generatedBy`
+ * was written by OpenSpec, whatever the lock file says about that name.
  */
 function holdsOnlyPackageSkills(
   projectRoot: string,
@@ -407,7 +408,14 @@ function holdsOnlyPackageSkills(
         view.exists(path.join(dir, name, 'SKILL.md')) || view.linkTarget?.(path.join(dir, name)) !== undefined
     )
   );
-  return held.length > 0 && held.every((name) => packageSkills.has(name));
+  return (
+    held.length > 0 &&
+    held.every(
+      (name) =>
+        packageSkills.has(name) &&
+        dirs.every((dir) => extractGeneratedByVersion(path.join(dir, name, 'SKILL.md'), view) === null)
+    )
+  );
 }
 
 /**
