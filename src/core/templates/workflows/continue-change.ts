@@ -72,7 +72,7 @@ ${PROJECT_ROOT_GUARD}
    **If all planning artifacts are complete (\`isPlanningComplete: true\`, or legacy \`isComplete: true\`)**:
    - Congratulate the user
    - Show final status including the schema used
-   - Suggest: "Planning is complete! Review the plan before starting implementation."
+   - Suggest: "Planning is complete! ${PLANNING_COMPLETE_HANDOFF}"
    - STOP
 
    ---

@@ -62,7 +62,7 @@ function specDrivenTitles(): Record<string, string> {
 const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
   getExploreSkillTemplate: 'edf038cdf0f7179089ac6c4febd09e8c66a961459b66f0a460735a5e9de6f13d',
   getNewChangeSkillTemplate: 'aa1b169e0941ad8f9275f6f622019eebddeaab607815516bf872bf9ca7368b81',
-  getContinueChangeSkillTemplate: '26a9a95665ad89930494109f874b327b5b3d50e8edb44f5e673483f2162cfee4',
+  getContinueChangeSkillTemplate: '3f5d86b8198fe5694f7aa715eb1c961cc319e555f6f16c674c61e10d40f03dd5',
   getApplyChangeSkillTemplate: '244136f2de5518cd92b0d58e1cec8ffbef2bd2443b5e49f748cf64e7d7c6fce8',
   getFfChangeSkillTemplate: '293a3bd2c6372dba854792c416dad0efc9ba83515496dc576f9ef2a067701d82',
   getSyncSpecsSkillTemplate: '7aaf33f2a3ddb86d8bd7131bf36588a580fb8279127b881f19c6d8af60cfe059',
@@ -90,7 +90,7 @@ const EXPECTED_FUNCTION_HASHES: Record<string, string> = {
 const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-explore': '012f3656e212a9e6537009897e887ca31eaf7e8173071451411094691eac8831',
   'openspec-new-change': '865a0326f5b5257869ae9615e8b86f4b58f896b18a614f272bdbf49ca2a88371',
-  'openspec-continue-change': 'fb8809e8bd4065d2ce84909f0ef2b4237d2d2dcf4143eccb14395180082d8ea8',
+  'openspec-continue-change': '79004c271dbf557c8191b749df96f7ba1ab48c65945c7a30722d433292f8266c',
   'openspec-apply-change': 'efb30419f0fc22cf6cf68e9142eacecd670cbcf2717423288cc07ff64432f3ce',
   'openspec-ff-change': '729cceff177bd8148b0cf2c5307ad2ee8d2ec5993dbf773e1a3dc8fc88ae6fd0',
   'openspec-sync-specs': '02bb0d11a10c7626e5e641f0505336527050ab4d9d8bb45e1351c6ed05c0dc7a',
@@ -1175,6 +1175,12 @@ describe('skill templates split parity', () => {
         'Never archive after the user cancels the confirmation'
       );
     }
+  });
+
+  it('hands off to apply when continue completes planning, in the skill and the command (#2271)', () => {
+    const handoff = 'Planning is complete! The plan is ready for review. When you’re ready, ask me to apply it.';
+    expect(generateSkillContent(getContinueChangeSkillTemplate(), 'PARITY-BASELINE')).toContain(handoff);
+    expect(getOpsxContinueCommandTemplate().content).toContain(handoff);
   });
 
   it('makes the schema instruction field authoritative for artifact creation (#777)', () => {
