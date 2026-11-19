@@ -118,7 +118,7 @@ Upgrade the team’s CLIs before switching a repo to global skills. Earlier CLIs
 
 ## Skills you already installed globally
 
-**Installed the official skills with `npx skills add`?** Keep that install and refresh it with `npx skills update --project`. `openspec update` usually leaves those skills as they are; [Upgrade to 2.1](upgrade-to-2-1.md#if-you-installed-with-npx-skills-add) lists when it takes them over.
+**Installed the official skills globally with `npx skills add -g`?** Run `openspec update`. It refreshes them for your workflow profile and removes OpenSpec skills outside that profile, along with any files you added inside them. To refresh them without that, run `npx skills update --global` instead. For skills installed into a project, see [Upgrade to 2.1](upgrade-to-2-1.md#if-you-installed-with-npx-skills-add).
 
 **Set up global skills by hand?** Save any edits and move custom skills to their own names. Remove any links you made from the repo to your home folder before switching. Use `openspec init --scope global --tools <id>` to set up the tool’s supported paths.
 
