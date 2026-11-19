@@ -110,8 +110,41 @@ export function readSkillToolList(projectPath: string, view: FileView = DISK_VIE
   // An empty or unrecognized file (an older release's, or hand-edited) says
   // nothing: fall back to the folder's wording, as before.
   if (listed.length > 0) return listed;
-  const inferred = inferPreListTool(projectPath, view);
+  const inferred = inferPreListTool(projectPath, view) ?? inferSkillsLockTool(projectPath, view);
   return inferred ? [inferred] : [];
+}
+
+/**
+ * `npx skills add Fission-AI/OpenSpec` puts OpenSpec's skills in
+ * `.agents/skills` with no list file, and records where each came from in
+ * `skills-lock.json`. That record, not the skill's wording, says the folder
+ * holds OpenSpec's skills, set up for the agents that read it.
+ */
+function inferSkillsLockTool(projectPath: string, view: FileView): string | undefined {
+  try {
+    const lockFile = path.join(projectPath, 'skills-lock.json');
+    FileSystemUtils.assertProjectArtifactPath(projectPath, lockFile);
+    if (!view.exists(lockFile)) return undefined;
+    const skills = (JSON.parse(view.read(lockFile)) as { skills?: Record<string, { source?: unknown }> }).skills ?? {};
+    const fromOpenSpec = OPENSPEC_SKILL_NAMES.filter((name) => isOpenSpecSource(skills[name]?.source));
+    const sharedDir = path.join(projectPath, SHARED_SKILLS_ROOT, 'skills');
+    return fromOpenSpec.length > 0 && hasOpenSpecSkillIn(projectPath, sharedDir, view, fromOpenSpec) ? 'agents' : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** `Fission-AI/OpenSpec`, as a shorthand or a GitHub URL, optionally its skills/ folder. */
+function isOpenSpecSource(source: unknown): boolean {
+  if (typeof source !== 'string') return false;
+  const repo = source
+    .trim()
+    .toLowerCase()
+    .replace(/^(?:https?:\/\/|git@)github\.com[/:]/, '')
+    .replace(/\/+$/, '')
+    .replace(/\/skills$/, '')
+    .replace(/\.git$/, '');
+  return repo === 'fission-ai/openspec';
 }
 
 /** Whether a tool is listed as set up in this project. */
@@ -119,8 +152,13 @@ export function isToolListed(projectPath: string, toolId: string, view: FileView
   return readSkillToolList(projectPath, view).includes(toolId);
 }
 
-function hasOpenSpecSkillIn(projectPath: string, skillsDir: string, view: FileView): boolean {
-  return OPENSPEC_SKILL_NAMES.some((skillName) => {
+function hasOpenSpecSkillIn(
+  projectPath: string,
+  skillsDir: string,
+  view: FileView,
+  names: readonly string[] = OPENSPEC_SKILL_NAMES
+): boolean {
+  return names.some((skillName) => {
     try {
       const skillFile = path.join(skillsDir, skillName, 'SKILL.md');
       FileSystemUtils.assertProjectArtifactPath(projectPath, skillFile);

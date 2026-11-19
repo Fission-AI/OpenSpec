@@ -904,6 +904,25 @@ metadata:
       expect(updated).not.toContain('stale Amp skill');
     });
 
+    it('refreshes the skills `npx skills add` put in the project, like any other install', async () => {
+      await new InitCommand({ tools: 'agents', force: true }).execute(testDir);
+      const skillsDir = path.join(testDir, '.agents', 'skills');
+      // `npx skills add Fission-AI/OpenSpec` leaves no list file, only its lock.
+      await fs.rm(path.join(skillsDir, '.openspec-target'));
+      await fs.writeFile(path.join(testDir, 'skills-lock.json'), JSON.stringify({
+        version: 1,
+        skills: { 'openspec-propose': { source: 'Fission-AI/OpenSpec', sourceType: 'github' } },
+      }));
+      const skillFile = path.join(skillsDir, 'openspec-propose', 'SKILL.md');
+      await fs.writeFile(skillFile, 'stale package skill');
+
+      await new UpdateCommand().execute(testDir);
+
+      const updated = await fs.readFile(skillFile, 'utf-8');
+      expect(updated).toContain('name: openspec-propose');
+      expect(updated).not.toContain('stale package skill');
+    });
+
     it('should refresh Antigravity workflows beside Codex in the one shared skills folder', async () => {
       await new InitCommand({ tools: 'antigravity,codex', force: true }).execute(testDir);
 
