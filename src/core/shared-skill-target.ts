@@ -116,7 +116,7 @@ export function readSkillToolList(projectPath: string, view: FileView = DISK_VIE
 
 /**
  * The OpenSpec skill names `npx skills add` owns in this project: what
- * `skills-lock.json` records once it names Fission-AI/OpenSpec as a source.
+ * `skills-lock.json` records under them, from this repository or a fork.
  * OpenSpec's own list file means OpenSpec manages the project, so it wins.
  */
 export function readPackageSkillNames(projectPath: string, view: FileView = DISK_VIEW): Set<string> {
@@ -126,8 +126,7 @@ export function readPackageSkillNames(projectPath: string, view: FileView = DISK
     FileSystemUtils.assertProjectArtifactPath(projectPath, lockFile);
     if (!view.exists(lockFile)) return new Set();
     const skills = (JSON.parse(view.read(lockFile)) as { skills?: Record<string, { source?: unknown }> }).skills ?? {};
-    const locked = OPENSPEC_SKILL_NAMES.filter((name) => typeof skills[name]?.source === 'string');
-    return locked.some((name) => isOpenSpecSource(skills[name].source)) ? new Set(locked) : new Set();
+    return new Set(OPENSPEC_SKILL_NAMES.filter((name) => typeof skills[name]?.source === 'string'));
   } catch {
     return new Set();
   }
@@ -147,19 +146,6 @@ export function hasLockedOpenSpecSkills(projectPath: string, view: FileView = DI
   return [...new Set([path.join(projectPath, SHARED_SKILLS_ROOT, 'skills'), ...toolDirs])].some((dir) =>
     hasOpenSpecSkillIn(projectPath, dir, view, names)
   );
-}
-
-/** `Fission-AI/OpenSpec`, as a shorthand or a GitHub URL, optionally its skills/ folder. */
-function isOpenSpecSource(source: unknown): boolean {
-  if (typeof source !== 'string') return false;
-  const repo = source
-    .trim()
-    .toLowerCase()
-    .replace(/^(?:https?:\/\/|git@)github\.com[/:]/, '')
-    .replace(/\/+$/, '')
-    .replace(/\/skills$/, '')
-    .replace(/\.git$/, '');
-  return repo === 'fission-ai/openspec';
 }
 
 /** Whether a tool is listed as set up in this project. */

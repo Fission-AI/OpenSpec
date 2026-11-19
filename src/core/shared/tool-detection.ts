@@ -415,7 +415,6 @@ function holdsOnlyPackageSkills(
  */
 export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VIEW): string[] {
   const listed = readSkillToolList(projectRoot, view);
-  const packageSkills = readPackageSkillNames(projectRoot, view);
   return AI_TOOLS
     .filter((t) => {
       if (!toolSupportsSkills(t)) return false;
@@ -423,7 +422,6 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
       if (aliases && aliases.length > 1 && !listed.includes(t.value)) {
         if (aliases.some(id => listed.includes(id)) || t.value !== aliases[0]) return false;
       }
-      if (packageSkills.size > 0 && holdsOnlyPackageSkills(projectRoot, t, packageSkills, view)) return false;
       return (
         getToolSkillStatus(projectRoot, t.value, view).configured ||
         toolHasAnyConfiguredCommand(projectRoot, t.value, view) ||
@@ -436,6 +434,21 @@ export function getConfiguredTools(projectRoot: string, view: FileView = DISK_VI
       );
     })
     .map((tool) => tool.value);
+}
+
+/**
+ * The configured tools `openspec update` may refresh. Skills `npx skills add`
+ * installed stay with that package, so a tool holding only those is left out.
+ * `openspec init` is an explicit setup and still sees every configured tool.
+ */
+export function getToolsUpdateManages(projectRoot: string, view: FileView = DISK_VIEW): string[] {
+  const configured = getConfiguredTools(projectRoot, view);
+  const packageSkills = readPackageSkillNames(projectRoot, view);
+  if (packageSkills.size === 0) return configured;
+  return configured.filter((id) => {
+    const tool = AI_TOOLS.find((candidate) => candidate.value === id);
+    return !tool || !toolSupportsSkills(tool) || !holdsOnlyPackageSkills(projectRoot, tool, packageSkills, view);
+  });
 }
 
 /**

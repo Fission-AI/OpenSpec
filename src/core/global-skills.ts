@@ -29,9 +29,12 @@ export function isHomeFolder(projectPath: string): boolean {
  * Whether the project holds OpenSpec skills or commands of its own. The home
  * folder never does: what sits in its `.agents/skills` is the global install.
  */
-export function projectHasOwnSkills(projectPath: string): boolean {
+export function projectHasOwnSkills(
+  projectPath: string,
+  tools: readonly string[] = getConfiguredTools(projectPath)
+): boolean {
   if (isHomeFolder(projectPath)) return false;
-  return getConfiguredTools(projectPath).some(
+  return tools.some(
     (id) => !AI_TOOLS.find((tool) => tool.value === id)?.globalSkillsDir
   );
 }

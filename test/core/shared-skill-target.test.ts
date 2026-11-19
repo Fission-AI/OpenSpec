@@ -18,6 +18,8 @@ const released = (dir: string) => readFileSync(path.join(RELEASED, dir, 'openspe
 
 const tool = (id: string) => AI_TOOLS.find((t) => t.value === id)!;
 
+import { getConfiguredTools, getToolsUpdateManages } from '../../src/core/shared/tool-detection.js';
+
 describe('the list of tools set up in a project', () => {
   let project: string;
 
@@ -82,10 +84,10 @@ describe('the list of tools set up in a project', () => {
       }
     });
 
-    it('finds nothing when the lock file names another source or another skill', async () => {
+    it('finds a fork the lock file records, but not a skill with another name', async () => {
       await write('.agents/skills/openspec-explore/SKILL.md', 'Any wording at all.');
       await lock({ 'openspec-explore': { source: 'someone/openspec-fork' } });
-      expect(hasLockedOpenSpecSkills(project)).toBe(false);
+      expect(hasLockedOpenSpecSkills(project)).toBe(true);
       await lock({ 'other-skill': { source: 'Fission-AI/OpenSpec' } });
       expect(hasLockedOpenSpecSkills(project)).toBe(false);
     });
@@ -101,6 +103,20 @@ describe('the list of tools set up in a project', () => {
       await write('.claude/skills/openspec-explore/SKILL.md', 'Any wording at all.');
       await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
       expect(hasLockedOpenSpecSkills(project)).toBe(true);
+    });
+
+    it('keeps a package install out of update, and in view of init', async () => {
+      await write('.claude/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
+      expect(getConfiguredTools(project)).toContain('claude');
+      expect(getToolsUpdateManages(project)).not.toContain('claude');
+    });
+
+    it('still updates a tool holding a skill the lock file does not record', async () => {
+      await write('.claude/skills/openspec-explore/SKILL.md', 'Any wording at all.');
+      await write('.claude/skills/openspec-propose/SKILL.md', 'Set up by OpenSpec.');
+      await lock({ 'openspec-explore': { source: 'Fission-AI/OpenSpec' } });
+      expect(getToolsUpdateManages(project)).toContain('claude');
     });
 
     it('leaves a project OpenSpec manages to OpenSpec', async () => {

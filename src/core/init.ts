@@ -140,6 +140,8 @@ type InitCommandOptions = {
   copilotCloud?: boolean;
   /** `--scope`: keep the skills for this machine (`global`) or in the project (`project`). */
   scope?: string;
+  /** Set up this machine's skills and leave what `npx skills add` put in the project. */
+  keepPackageSkills?: boolean;
 };
 
 type ValidatedInitTool = {
@@ -171,6 +173,7 @@ export class InitCommand {
   private readonly scopeOption?: SkillScope;
   /** True when no flag, environment variable or saved setting chose the scope. */
   private scopeIsDefault = false;
+  private readonly keepPackageSkills: boolean;
   /** What the tool picker returned, kept so a second step does not ask again. */
   private pickedTools?: string[];
 
@@ -186,6 +189,7 @@ export class InitCommand {
       throw new Error(`Invalid --scope "${options.scope}". Use global or project.`);
     }
     this.scopeOption = options.scope as SkillScope | undefined;
+    this.keepPackageSkills = options.keepPackageSkills ?? false;
   }
 
   async execute(targetPath: string): Promise<void> {
@@ -256,7 +260,7 @@ export class InitCommand {
     }
     const deferredLegacyCleanup = integrationsOnly ? null : await this.handleLegacyCleanup(projectPath, extendMode);
     migrateLegacyToolDirs(projectPath);
-    if (extendMode) migrateIfNeeded(projectPath, getAvailableTools(projectPath));
+    if (extendMode && !this.keepPackageSkills) migrateIfNeeded(projectPath, getAvailableTools(projectPath));
     if (canPrompt) {
       const { showWelcomeScreen } = await import('../ui/welcome-screen.js');
       await showWelcomeScreen(this.getActiveWorkflows(), { animate: this.animation });
@@ -438,7 +442,7 @@ export class InitCommand {
     } catch (error) {
       throw new Error(`Could not read the skills installed for this machine: ${describeSkillsError(error)}`);
     }
-    const movesProject = projectHasOwnSkills(projectPath);
+    const movesProject = projectHasOwnSkills(projectPath) && !this.keepPackageSkills;
     const configured = movesProject ? getConfiguredTools(projectPath) : [];
     const selected = this.toolsArg !== undefined || (!installed.skills.length && !movesProject)
       ? await this.getSelectedTools(context.toolStates, context.extendMode, context.detectedTools, projectPath)

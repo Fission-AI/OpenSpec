@@ -24,6 +24,7 @@ import {
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import { keepsProjectSkills, rememberProjectSkills } from './project-skills-scope.js';
 import { hasLockedOpenSpecSkills } from './shared-skill-target.js';
+import { getToolsUpdateManages } from './shared/tool-detection.js';
 import { expectedSkillContents, projectSkillText } from './skill-installer.js';
 import {
   detectLegacyArtifacts,
@@ -219,12 +220,12 @@ export class UpdateCommand {
       (await FileSystemUtils.directoryExists(path.join(resolvedProjectPath, OPENSPEC_DIR_NAME))) &&
       !(this.hasGlobalSkills && isHomeFolder(resolvedProjectPath));
     // Skills `npx skills add` installed belong to that package: found, never changed here.
-    const hasPackageSkills =
-      hasProject && !projectHasOwnSkills(resolvedProjectPath) && hasLockedOpenSpecSkills(resolvedProjectPath);
+    const managesProjectSkills = projectHasOwnSkills(resolvedProjectPath, getToolsUpdateManages(resolvedProjectPath));
+    const hasPackageSkills = hasProject && !managesProjectSkills && hasLockedOpenSpecSkills(resolvedProjectPath);
     if (hasProject && !this.dryRun && isInteractive() && !this.force) {
       const { select, confirm } = await import('@inquirer/prompts');
       const { InitCommand } = await import('./init.js');
-      const hasProjectSkills = projectHasOwnSkills(resolvedProjectPath);
+      const hasProjectSkills = managesProjectSkills;
       // With this machine's skills installed there is nothing left to choose for package skills.
       const asksWhereToKeep = hasProjectSkills || (hasPackageSkills && !this.hasGlobalSkills);
       if (asksWhereToKeep && !keepsProjectSkills(resolvedProjectPath)) {
@@ -245,7 +246,7 @@ export class UpdateCommand {
               : 'Could not save this choice in openspec/config.yaml. Add "skillsScope: project" to it by hand to stop being asked.'
           );
         } else if (hasPackageSkills) {
-          await new InitCommand({ scope }).execute(resolvedProjectPath);
+          await new InitCommand({ scope, keepPackageSkills: true }).execute(resolvedProjectPath);
           console.log('The skills in .agents/skills stay until you remove them with: npx skills remove');
           return;
         } else {
@@ -278,7 +279,7 @@ export class UpdateCommand {
         projectError = error;
       }
     }
-    if (hasProject && !hasPackageSkills && !projectHasOwnSkills(resolvedProjectPath)) {
+    if (hasProject && !hasPackageSkills && !managesProjectSkills) {
       this.log(chalk.dim('This project has no OpenSpec skills of its own. It uses the skills for this machine.'));
     }
     try {
@@ -394,7 +395,11 @@ export class UpdateCommand {
 
     // Use detected tool directories to preserve existing opsx skills/commands.
     const detectedTools = getAvailableTools(resolvedProjectPath, this.view);
-    if (!this.dryRun) {
+    // What one project installed with `npx skills add` is not this machine's profile.
+    const onlyPackageSkills =
+      hasLockedOpenSpecSkills(resolvedProjectPath, this.view) &&
+      getToolsUpdateManages(resolvedProjectPath, this.view).length === 0;
+    if (!this.dryRun && !onlyPackageSkills) {
       migrateIfNeededShared(resolvedProjectPath, detectedTools);
     }
 
@@ -403,7 +408,7 @@ export class UpdateCommand {
     //    the config that save would leave — otherwise the preview would plan
     //    for a different profile than the real update acts on.
     let globalConfig = getGlobalConfig();
-    if (this.recorder) {
+    if (this.recorder && !onlyPackageSkills) {
       const migration = computeProfileMigration(resolvedProjectPath, detectedTools, this.view);
       if (migration) {
         globalConfig = applyProfileMigration(migration);
@@ -452,7 +457,7 @@ export class UpdateCommand {
     }
 
     // 5. Find configured tools
-    const configuredTools = getConfiguredToolsForProfileSync(resolvedProjectPath, this.view);
+    const configuredTools = getToolsUpdateManages(resolvedProjectPath, this.view);
     const configuredAndNewTools = [...new Set([...configuredTools, ...newlyConfiguredTools])];
 
     if (configuredTools.length === 0 && newlyConfiguredTools.length === 0) {
@@ -1529,7 +1534,7 @@ export class UpdateCommand {
     }
 
     // Get currently configured tools
-    const configuredTools = getConfiguredToolsForProfileSync(projectPath, this.view);
+    const configuredTools = getToolsUpdateManages(projectPath, this.view);
     const configuredSet = new Set(configuredTools);
 
     // Filter to tools that aren't already configured
