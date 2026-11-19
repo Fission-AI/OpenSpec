@@ -1,5 +1,27 @@
 # @fission-ai/openspec
 
+## 2.1.1
+
+### Patch Changes
+
+- [#2267](https://github.com/Fission-AI/OpenSpec/pull/2267) [`168a5ea`](https://github.com/Fission-AI/OpenSpec/commit/168a5eacc639f9625f6c151613bcb5c46cb2c236) Thanks [@clay-good](https://github.com/clay-good)! - `openspec archive` now writes a blank line after `## Purpose` when it creates a new main spec, so the spec passes Prettier and markdownlint (MD022) without a reformat.
+
+- [#2277](https://github.com/Fission-AI/OpenSpec/pull/2277) [`e6539de`](https://github.com/Fission-AI/OpenSpec/commit/e6539de023915e36848b351ea737ca8e192e8538) Thanks [@clay-good](https://github.com/clay-good)! - Fix `openspec-archive-change` so it finds an existing archive folder before it writes any main spec.
+
+- [#2264](https://github.com/Fission-AI/OpenSpec/pull/2264) [`efdf531`](https://github.com/Fission-AI/OpenSpec/commit/efdf5319b58bcba3ea113528168793d2610ce5a4) Thanks [@clay-good](https://github.com/clay-good)! - `openspec version --check` and `openspec update` no longer tell a Homebrew or Nix install to update with `npm install -g`, and no longer offer to run it. A Homebrew copy is reported as `homebrew` and told to run `brew upgrade openspec`; a Nix copy is reported as `nix` and gets no npm command.
+
+- [#2274](https://github.com/Fission-AI/OpenSpec/pull/2274) [`ad0579d`](https://github.com/Fission-AI/OpenSpec/commit/ad0579d3ff89459154220b68a834aed125d9c1f2) Thanks [@clay-good](https://github.com/clay-good)! - The continue skill again tells you to apply the change once planning is complete.
+
+- [#2273](https://github.com/Fission-AI/OpenSpec/pull/2273) [`e0fdff3`](https://github.com/Fission-AI/OpenSpec/commit/e0fdff34466f1adf93d90cdb0e4382bcf0b6fd3d) Thanks [@clay-good](https://github.com/clay-good)! - `openspec validate --strict` no longer fails on a delta spec that starts with a frontmatter block. Archive still leaves that block in the archived change, and now says so by name.
+
+- [#2283](https://github.com/Fission-AI/OpenSpec/pull/2283) [`4ff226b`](https://github.com/Fission-AI/OpenSpec/commit/4ff226bbd11645b7c6ae48332f8c87ff94212aa1) Thanks [@clay-good](https://github.com/clay-good)! - `openspec init` and `openspec update` install skills from the npm package, so they work offline, need no Git, and always match the installed version.
+
+- [#2266](https://github.com/Fission-AI/OpenSpec/pull/2266) [`a1213fc`](https://github.com/Fission-AI/OpenSpec/commit/a1213fcdc768948034a48d8837c9e0543d124e16) Thanks [@clay-good](https://github.com/clay-good)! - Retiring a capability no longer refuses when a wrapped requirement or scenario line starts with `<` and continues as text (such as `<args> are passed on`). Raw HTML, and a tag alone on its line, are still reported as content outside the requirement.
+
+- [#2269](https://github.com/Fission-AI/OpenSpec/pull/2269) [`a0993e9`](https://github.com/Fission-AI/OpenSpec/commit/a0993e9d56d503148f13b10ea0e8f4eec2f8ce68) Thanks [@clay-good](https://github.com/clay-good)! - `openspec update` now finds and refreshes the skills `npx skills add` put in a project.
+
+- [#2265](https://github.com/Fission-AI/OpenSpec/pull/2265) [`499602e`](https://github.com/Fission-AI/OpenSpec/commit/499602e82cd2e389586a8b781f27deb8737d8537) Thanks [@clay-good](https://github.com/clay-good)! - Warn when a MODIFIED requirement grows past the 500-character length limit relative to its main-spec baseline so `validate <change> --strict` catches overlong edits before archive.
+
 ## 2.1.0
 
 ### Minor Changes
