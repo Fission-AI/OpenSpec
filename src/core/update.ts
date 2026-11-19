@@ -178,6 +178,21 @@ export class UpdateCommand {
   }
 
   /** Prints progress on a real run, stays quiet while planning. */
+  /**
+   * Whether this run leaves pre-skills files alone. A legacy upgrade replaces them
+   * with skills, so one that will run goes ahead as it always has. A project that
+   * cannot be read is left to fail in `updateProject`, where its error is reported.
+   */
+  private async noLegacyUpgradeWillRun(projectPath: string): Promise<boolean> {
+    try {
+      const detection = await detectLegacyArtifacts(projectPath);
+      if (hasRepoLocalLegacyRemovals(detection)) return false;
+      return !detection.hasLegacyArtifacts || (!this.force && (this.dryRun || !isInteractive()));
+    } catch {
+      return false;
+    }
+  }
+
   /** The tools this update refreshes: all configured ones, less any `npx skills add` owns. */
   private toolsToUpdate(projectPath: string, view: FileView = DISK_VIEW): string[] {
     return this.leavesPackageSkills
@@ -228,10 +243,7 @@ export class UpdateCommand {
       (await FileSystemUtils.directoryExists(path.join(resolvedProjectPath, OPENSPEC_DIR_NAME))) &&
       !(this.hasGlobalSkills && isHomeFolder(resolvedProjectPath));
     // Skills `npx skills add` installed belong to that package: found, never changed here.
-    // A project still holding pre-skills files upgrades as it always has, so nothing
-    // that upgrade replaces is removed without its skills being set up.
-    this.leavesPackageSkills =
-      !hasProject || !hasRepoLocalLegacyRemovals(await detectLegacyArtifacts(resolvedProjectPath));
+    this.leavesPackageSkills = !hasProject || (await this.noLegacyUpgradeWillRun(resolvedProjectPath));
     const managesProjectSkills = projectHasOwnSkills(resolvedProjectPath, this.toolsToUpdate(resolvedProjectPath));
     const hasPackageSkills =
       hasProject && this.leavesPackageSkills && !managesProjectSkills && hasLockedOpenSpecSkills(resolvedProjectPath);
