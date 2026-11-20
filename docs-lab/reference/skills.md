@@ -50,7 +50,7 @@ Invoking a skill by name is always the second case. A project whose `openspec/co
 
 | Skill | Job | Type |
 |---|---|---|
-| [openspec](#openspec) | One place to start: answers questions and hands each request to the skill that does it | Core |
+| [openspec](#openspec) | The router: one place to start; answers questions and hands each request to the skill that does it | Core |
 | [openspec-explore](#openspec-explore) | Think through an idea before it becomes a change proposal | Core |
 | [openspec-propose](#openspec-propose) | Create a change proposal with all its planning artifacts in one step | Core |
 | [openspec-apply-change](#openspec-apply-change) | Implement a change proposal's tasks | Core |
@@ -68,7 +68,7 @@ Each entry below names the skill that owns the next step. A skill reads the same
 
 ## openspec
 
-Start here when you don't know which skill you need. Ask for anything; it answers, or hands the request to the skill that does it.
+The router: one entry point for anything OpenSpec. Start here when you don't know which skill you need. Ask for anything; it checks your project's state, then answers or hands the request to the skill that does it. A model on its own would have to guess at OpenSpec's folders and commands; the router gives it that map.
 
 | Contract | Description |
 |---|---|

@@ -31,7 +31,9 @@ Every prompt below goes in your AI chat, the same place you ask for code. The ex
 
 ## Not sure what to ask? Start with `openspec`
 
-You don't need to learn the skill list. Invoke `openspec` and say what you want. It looks at your project, then answers you or hands the work to the skill built for it. Ask for several things at once and it does them in order, stopping wherever a step needs your OK.
+`openspec` is a router skill: one entry point for anything OpenSpec, so you don't need to learn the skill list. Invoke it and say what you want. It checks your project's real state, then answers you or hands the work to the skill built for it. Ask for several things at once and it does them in order, stopping wherever a step needs your OK.
+
+Use it when you're not sure how to do something, want to know where a change stands, or want a few steps done together. When you already know the skill you want, invoke that skill directly.
 
 | Tool | Invoke it |
 |---|---|
