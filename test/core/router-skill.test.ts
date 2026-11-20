@@ -69,6 +69,11 @@ describe('the router skill and its references', { timeout: 60_000 }, () => {
     const skill = path.join(folder, 'SKILL.md');
     await fs.writeFile(skill, readFileSync(skill, 'utf8').replace(/references: "[0-9a-f]+"/, 'references: "000000000000"'));
   };
+  /** A reference deleted and another edited by hand, with SKILL.md left as published. */
+  const damageReferences = async (folder: string) => {
+    await fs.rm(path.join(folder, 'references', 'answers.md'));
+    await fs.appendFile(path.join(folder, 'references', 'without-skills.md'), 'A local edit.\n');
+  };
   const expectPublished = (folder: string) => {
     expect(filesIn(folder)).toEqual(ROUTER_FILES);
     for (const file of ROUTER_FILES) {
@@ -104,6 +109,17 @@ describe('the router skill and its references', { timeout: 60_000 }, () => {
       expect((await runCLI(['update'], { cwd: dir, env, timeoutMs: 60000 })).stdout).toContain('up to date');
     });
 
+    it('puts back a reference that was deleted or edited by hand', async () => {
+      const dir = await project();
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
+      await damageReferences(path.join(dir, '.agents', 'skills', ROUTER));
+
+      await cli(dir, 'update');
+
+      expectPublished(path.join(dir, '.agents', 'skills', ROUTER));
+      expectPublished(path.join(dir, '.claude', 'skills', ROUTER));
+    });
+
     it('removes the router with its references when the profile leaves it out', async () => {
       const dir = await project();
       await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
@@ -127,6 +143,16 @@ describe('the router skill and its references', { timeout: 60_000 }, () => {
       expectPublished(globalRouter());
       expectPublished(path.join(home, '.claude', 'skills', ROUTER));
       expect(existsSync(path.join(dir, '.agents'))).toBe(false);
+    });
+
+    it('puts back a reference that was deleted or edited by hand', async () => {
+      const dir = await project();
+      await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
+      await damageReferences(globalRouter());
+
+      await cli(dir, 'update');
+
+      expectPublished(globalRouter());
     });
 
     it('refreshes a stale reference on update, and removes the router when the profile leaves it out', async () => {

@@ -36,6 +36,18 @@ function readSkill(dir: string, name: string, view: FileView, forTool?: string) 
   }
 }
 
+/** Whether any of a skill's reference files is missing or edited. */
+function referencesDiffer(dir: string, name: string, files: ReadonlyMap<string, string>, view: FileView) {
+  return [...files].some(([file, text]) => {
+    if (file === 'SKILL.md') return false;
+    try {
+      return normalizeGeneratedFile(view.read(path.join(dir, name, file))) !== text;
+    } catch {
+      return true;
+    }
+  });
+}
+
 function present(dir: string, view: FileView) {
   return view.exists(dir) || view.linkTarget?.(dir) !== undefined;
 }
@@ -102,7 +114,9 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       const spot = path.join(dir, name);
       const source = contents.get(name);
       if (source !== undefined) {
-        if (readSkill(dir, name, view) !== projectSkillText(tool, source)) install.add(name);
+        if (readSkill(dir, name, view) !== projectSkillText(tool, source) || referencesDiffer(dir, name, files.get(name)!, view)) {
+          install.add(name);
+        }
       } else if (present(spot, view)) {
         remove.add(name);
         if (!input.writesToDisk) await ops.removeDirectory(spot, tool);

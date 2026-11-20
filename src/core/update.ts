@@ -23,7 +23,7 @@ import {
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import { keepsProjectSkills, rememberProjectSkills } from './project-skills-scope.js';
-import { expectedSkillContents, projectSkillText } from './skill-installer.js';
+import { expectedSkillFiles, projectSkillText } from './skill-installer.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -887,13 +887,15 @@ export class UpdateCommand {
   }
 
   /**
-   * Tools whose SKILL.md bodies no longer match what this CLI generates.
+   * Tools whose skill files (SKILL.md and any references) no longer match
+   * what this CLI generates.
    *
    * Skill freshness was decided solely by the `generatedBy:` line, so a body
    * edited after generation — a "helpful" PR touching `.claude/skills/**`, a
    * dotfile sync, another agent — left `update` reporting the install healthy.
-   * A missing skill file is left to the profile-sync check, which
-   * already knows what a partial install means.
+   * A missing SKILL.md is left to the profile-sync check, which already knows
+   * what a partial install means. A missing reference is drift: the skill is
+   * there but points at a file that isn't.
    */
   private findToolsWithDriftedSkills(
     projectPath: string,
@@ -911,16 +913,17 @@ export class UpdateCommand {
       const dirs = [resolveToolSkillsDir(projectPath, tool)];
       const own = resolveSkillLinkDir(projectPath, tool);
       if (own) dirs.push(own);
-      const contents = expectedSkillContents(OPENSPEC_VERSION, workflowsForTool(toolId));
-      return dirs.some(dir => [...contents].some(([name, generated]) => {
-        const file = path.join(dir, name, 'SKILL.md');
-        if (!this.view.exists(file)) return false;
-        try {
-          const expected = dir === own ? projectSkillText(toolId, generated) : generated;
-          return normalizeGeneratedFile(this.view.read(file)) !== expected;
-        } catch {
-          return true;
-        }
+      const skills = expectedSkillFiles(OPENSPEC_VERSION, workflowsForTool(toolId));
+      return dirs.some(dir => [...skills].some(([name, files]) => {
+        if (!this.view.exists(path.join(dir, name, 'SKILL.md'))) return false;
+        return [...files].some(([file, generated]) => {
+          try {
+            const expected = dir === own && file === 'SKILL.md' ? projectSkillText(toolId, generated) : generated;
+            return normalizeGeneratedFile(this.view.read(path.join(dir, name, file))) !== expected;
+          } catch {
+            return true;
+          }
+        });
       }));
     });
   }

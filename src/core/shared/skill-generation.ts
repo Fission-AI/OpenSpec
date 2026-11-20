@@ -177,9 +177,9 @@ ${instructions}
  * `references/<file>` for each reference the template carries.
  *
  * SKILL.md's frontmatter gets `metadata.references`: the first 12 hex digits
- * of a SHA-256 over every reference file. Installs are checked by comparing
- * SKILL.md alone, so this is how an edited reference makes the skill look out
- * of date and get reinstalled by `openspec update`.
+ * of a SHA-256 over every reference file. Some checks, such as a tool's
+ * version status, compare SKILL.md alone, so this is how a release that
+ * changes only a reference still makes the skill look out of date.
  */
 export function generateSkillFiles(
   template: SkillTemplate,
