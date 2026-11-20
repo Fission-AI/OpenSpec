@@ -54,6 +54,12 @@ describe('profile handoff CLI regressions (#1734)', () => {
         // only "if installed", never as a bare handoff.
         expect(content, file).not.toContain('Stale handoff');
         expect(content, file).not.toMatch(/\/opsx:|\[\[opsx:/);
+        // The router's table names every skill, and the line under it says
+        // what to do when one is not installed.
+        if (path.basename(path.dirname(file)) === 'openspec') {
+          expect(content, file).toContain('If the skill for the row is not installed');
+          continue;
+        }
         for (const line of content.split('\n')) {
           if (/openspec-(continue|new)-change/.test(line)) expect(line, file).toContain('installed');
         }

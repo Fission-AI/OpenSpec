@@ -4,13 +4,14 @@ import {
   getCommandTemplates,
   getCommandContents,
   generateSkillContent,
+  generateSkillFiles,
 } from '../../../src/core/shared/skill-generation.js';
 
 describe('skill-generation', () => {
   describe('getSkillTemplates', () => {
-    it('should return all 12 skill templates', () => {
+    it('should return all 13 skill templates', () => {
       const templates = getSkillTemplates();
-      expect(templates).toHaveLength(12);
+      expect(templates).toHaveLength(13);
     });
 
     it('should have unique directory names', () => {
@@ -298,6 +299,36 @@ describe('skill-generation', () => {
 
       expect(content).toContain('Some REPLACED text here.');
       expect(content).not.toContain('PLACEHOLDER');
+    });
+  });
+
+  describe('generateSkillFiles', () => {
+    const template = {
+      name: 'example',
+      description: 'An example skill',
+      instructions: 'Read `references/detail.md` when you need it. See /opsx:apply.',
+    };
+
+    it('writes only SKILL.md, unchanged, for a skill without references', () => {
+      const files = generateSkillFiles(template, '1.0.0');
+      expect([...files.keys()]).toEqual(['SKILL.md']);
+      expect(files.get('SKILL.md')).toBe(generateSkillContent(template, '1.0.0'));
+      expect(files.get('SKILL.md')).not.toContain('references:');
+    });
+
+    it('writes each reference beside SKILL.md, transformed the same way', () => {
+      const withRefs = { ...template, references: { 'detail.md': 'Use /opsx:apply here.\n' } };
+      const files = generateSkillFiles(withRefs, '1.0.0', (text) => text.replace('/opsx:apply', 'openspec-apply-change'));
+      expect([...files.keys()]).toEqual(['SKILL.md', 'references/detail.md']);
+      expect(files.get('references/detail.md')).toBe('Use openspec-apply-change here.\n');
+      expect(files.get('SKILL.md')).toContain('See openspec-apply-change.');
+    });
+
+    it('records a digest of the references in SKILL.md, so a changed reference changes SKILL.md', () => {
+      const one = generateSkillFiles({ ...template, references: { 'detail.md': 'One.\n' } }, '1.0.0');
+      const two = generateSkillFiles({ ...template, references: { 'detail.md': 'Two.\n' } }, '1.0.0');
+      expect(one.get('SKILL.md')).toMatch(/\n {2}references: "[0-9a-f]{12}"\n---\n/);
+      expect(one.get('SKILL.md')).not.toBe(two.get('SKILL.md'));
     });
   });
 });

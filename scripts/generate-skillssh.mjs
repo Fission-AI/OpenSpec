@@ -12,11 +12,11 @@
  * change: `pnpm build && pnpm generate:skills`.
  */
 
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { getSkillTemplates, generateSkillContent } from '../dist/core/shared/skill-generation.js';
+import { getSkillTemplates, generateSkillFiles } from '../dist/core/shared/skill-generation.js';
 import { transformToSharedSkillReferences } from '../dist/utils/command-references.js';
 import {
   cleanSkillSubdirectories,
@@ -32,13 +32,13 @@ cleanSkillSubdirectories(outDir);
 
 let count = 0;
 for (const { template, dirName } of getSkillTemplates()) {
-  // skills.sh installs SKILL.md files only — no /opsx:* commands exist in
+  // skills.sh installs skill folders only — no /opsx:* commands exist in
   // that channel, so references must point at the skills themselves.
-  const content = stripVolatileFrontmatter(
-    generateSkillContent(template, 'skills.sh', transformToSharedSkillReferences)
-  );
   const skillDir = prepareSkillDirectory(outDir, dirName);
-  writeFileSync(join(skillDir, 'SKILL.md'), content, 'utf8');
+  for (const [file, content] of generateSkillFiles(template, 'skills.sh', transformToSharedSkillReferences)) {
+    mkdirSync(dirname(join(skillDir, file)), { recursive: true });
+    writeFileSync(join(skillDir, file), stripVolatileFrontmatter(content), 'utf8');
+  }
   count++;
 }
 

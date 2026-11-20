@@ -9,6 +9,15 @@ export interface SkillTemplate {
   license?: string;
   compatibility?: string;
   metadata?: Record<string, string>;
+  /**
+   * Detail kept out of SKILL.md: each entry is installed as
+   * `references/<file>` beside it, and SKILL.md says when to read it.
+   *
+   * The generated SKILL.md gets `metadata.references`, a short hash of these
+   * files. Editing a reference changes that hash, so SKILL.md changes too and
+   * `openspec update` reinstalls the whole skill.
+   */
+  references?: Record<string, string>;
 }
 
 export interface CommandTemplate {

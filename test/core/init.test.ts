@@ -783,7 +783,7 @@ describe('InitCommand', () => {
         .map(String);
       const summary = logCalls.find((entry) => /^\d+ skills in /.test(entry));
       expect(summary).toBe(
-        '6 skills in .agents/skills/ (also in .claude/skills/, .minimax/skills/)'
+        '7 skills in .agents/skills/ (also in .claude/skills/, .minimax/skills/)'
       );
     });
 
@@ -1040,6 +1040,7 @@ describe('InitCommand', () => {
       // Grok reads the one shared copy of the skills.
       const skillsDir = path.join(testDir, '.agents', 'skills');
       const skillNames = [
+        'openspec',
         'openspec-apply-change',
         'openspec-archive-change',
         'openspec-explore',

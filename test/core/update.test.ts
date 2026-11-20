@@ -435,6 +435,7 @@ describe('UpdateCommand', () => {
           expectedShared.push('openspec-explore');
         } else {
           expectedShared.push(
+            'openspec',
             'openspec-apply-change',
             'openspec-archive-change',
             'openspec-explore',
@@ -3590,7 +3591,7 @@ More user content after markers.
     it.each(['skills', 'commands', 'both'] as const)(
       'should repair an archive profile missing sync from a 1.x install with %s',
       async (surfaces) => {
-        const workflows = ['propose', 'explore', 'apply', 'archive'];
+        const workflows = ['propose', 'explore', 'apply', 'archive', 'router'];
         setMockConfig({ featureFlags: {}, profile: 'custom', delivery: 'both', workflows });
 
         const archiveSkill = path.join(
@@ -3643,7 +3644,7 @@ More user content after markers.
         featureFlags: {},
         profile: 'custom',
         delivery: 'both',
-        workflows: ['propose', 'explore', 'apply', 'sync', 'archive'],
+        workflows: ['propose', 'explore', 'apply', 'sync', 'archive', 'router'],
       });
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
@@ -3671,7 +3672,7 @@ More user content after markers.
         featureFlags: {},
         profile: 'custom',
         delivery: 'both',
-        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'verify'],
+        workflows: ['propose', 'explore', 'apply', 'update', 'sync', 'archive', 'router', 'verify'],
       });
 
       const initCommand = new InitCommand({ tools: 'claude', force: true });
@@ -3928,7 +3929,7 @@ More user content after markers.
       const skillsDir = path.join(grokDir, 'skills');
       const sharedDir = path.join(testDir, '.agents', 'skills');
       const openspecSkills = async () =>
-        (await fs.readdir(sharedDir)).filter((name) => name.startsWith('openspec-')).sort();
+        (await fs.readdir(sharedDir)).filter((name) => name === 'openspec' || name.startsWith('openspec-')).sort();
       expect(await openspecSkills()).toEqual(['openspec-explore', 'openspec-new-change']);
       const customSkill = path.join(skillsDir, 'openspec-custom', 'SKILL.md');
       await fs.mkdir(path.dirname(customSkill), { recursive: true });
@@ -3939,6 +3940,7 @@ More user content after markers.
       await updateCommand.execute(testDir);
 
       expect(await openspecSkills()).toEqual([
+        'openspec',
         'openspec-apply-change',
         'openspec-archive-change',
         'openspec-explore',

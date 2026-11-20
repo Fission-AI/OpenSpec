@@ -21,11 +21,15 @@ import { FileSystemUtils } from '../utils/file-system.js';
 import { DISK_VIEW, type FileView } from './file-view.js';
 import { isToolListed } from './shared-skill-target.js';
 import { SHARED_SKILLS_ROOT, usesSharedSkills } from './shared/skill-paths.js';
+import { expectedSkillFiles } from './skill-installer.js';
 
 const SHARED_TARGET_MARKER = '.openspec-target';
 
 const toPosix = (p: string) => p.split(path.sep).join('/').replace(/\\/g, '/');
 const topFolder = (rel: string) => rel.split('/')[0];
+
+/** The files in one skill's folder, by path inside it: SKILL.md and any references. */
+const skillFiles = (dirName: string) => [...(expectedSkillFiles('current').get(dirName)?.keys() ?? ['SKILL.md'])];
 
 /**
  * Project-relative paths the current release writes for one tool and no other:
@@ -42,7 +46,7 @@ function toolSpecificPathsForTool(toolId: string): string[] {
     for (const workflow of ALL_WORKFLOWS) {
       const skillDir = `${ownSkillsRoot}/${WORKFLOW_TO_SKILL_DIR[workflow]}`;
       // A link, or the plain copy made where a link can't be.
-      paths.push(skillDir, `${skillDir}/SKILL.md`);
+      paths.push(skillDir, ...skillFiles(WORKFLOW_TO_SKILL_DIR[workflow]).map((file) => `${skillDir}/${file}`));
     }
   }
   const adapter = CommandAdapterRegistry.get(tool.value);
@@ -62,7 +66,8 @@ function currentPathsForTool(toolId: string): string[] {
   const paths = toolSpecificPathsForTool(toolId);
   if (usesSharedSkills(tool)) {
     for (const workflow of ALL_WORKFLOWS) {
-      paths.push(`${SHARED_SKILLS_ROOT}/skills/${WORKFLOW_TO_SKILL_DIR[workflow]}/SKILL.md`);
+      const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
+      for (const file of skillFiles(dirName)) paths.push(`${SHARED_SKILLS_ROOT}/skills/${dirName}/${file}`);
     }
   }
   return paths;

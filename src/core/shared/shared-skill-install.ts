@@ -8,7 +8,7 @@ import type { FileView } from '../file-view.js';
 import type { UpdateFileOps } from '../update-plan.js';
 import { pruneEmptyParents } from '../released-output-sweep.js';
 import { formatSkillToolList, readListedToolsWithOwnFiles, skillToolListPath } from '../shared-skill-target.js';
-import { expectedSkillContents, installReleaseSkills, projectSkillText, removeManagedSkills } from '../skill-installer.js';
+import { expectedSkillFiles, installReleaseSkills, projectSkillText, removeManagedSkills } from '../skill-installer.js';
 import { resolveFormerOwnSkillsDir, resolveSharedSkillsDir, resolveSkillLinkDir, usesSharedSkills } from './skill-paths.js';
 
 interface SharedSkillInstallInput {
@@ -34,6 +34,18 @@ function readSkill(dir: string, name: string, view: FileView, forTool?: string) 
   } catch {
     return undefined;
   }
+}
+
+/** Whether any of a skill's reference files is missing or edited. */
+function referencesDiffer(dir: string, name: string, files: ReadonlyMap<string, string>, view: FileView) {
+  return [...files].some(([file, text]) => {
+    if (file === 'SKILL.md') return false;
+    try {
+      return normalizeGeneratedFile(view.read(path.join(dir, name, file))) !== text;
+    } catch {
+      return true;
+    }
+  });
 }
 
 function present(dir: string, view: FileView) {
@@ -62,7 +74,8 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
   const shared = resolveSharedSkillsDir(projectPath);
   FileSystemUtils.assertPathWithin(projectPath, shared);
   const workflows = [...new Set(tools.flatMap(tool => [...input.workflowsFor(tool.value)]))];
-  const contents = expectedSkillContents(input.version, workflows);
+  const files = expectedSkillFiles(input.version, workflows);
+  const contents = new Map([...files].map(([name, skill]) => [name, skill.get('SKILL.md')!]));
   const agents = new Set(['universal']);
   const targets = new Map<string, string>([[shared, 'openspec']]);
   const legacy = new Set<string>();
@@ -101,7 +114,9 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
       const spot = path.join(dir, name);
       const source = contents.get(name);
       if (source !== undefined) {
-        if (readSkill(dir, name, view) !== projectSkillText(tool, source)) install.add(name);
+        if (readSkill(dir, name, view) !== projectSkillText(tool, source) || referencesDiffer(dir, name, files.get(name)!, view)) {
+          install.add(name);
+        }
       } else if (present(spot, view)) {
         remove.add(name);
         if (!input.writesToDisk) await ops.removeDirectory(spot, tool);
@@ -117,7 +132,9 @@ export async function installSharedSkills(input: SharedSkillInstallInput): Promi
         const spot = path.join(dir, name);
         if (dir === shared || tool === 'eve' || process.platform === 'win32') {
           if (present(spot, view)) await ops.removeDirectory(spot, tool);
-          await ops.writeFile(path.join(spot, 'SKILL.md'), projectSkillText(tool, contents.get(name)!), tool);
+          for (const [file, text] of files.get(name)!) {
+            await ops.writeFile(path.join(spot, file), file === 'SKILL.md' ? projectSkillText(tool, text) : text, tool);
+          }
         }
         else await ops.linkSkill(spot, path.join(shared, name), tool);
       }

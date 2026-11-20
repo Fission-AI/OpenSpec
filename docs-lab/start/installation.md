@@ -215,7 +215,7 @@ In your terminal:
 openspec update
 ```
 
-When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update) says so and can install it for you; that upgrade is once per machine. Every run refreshes your skills, which never update on their own. With global skills, running it once from any folder is enough, and it prints `✓ The 6 skills for this machine are up to date (v2.1.0)`. With skills kept in a project, run it in each project; a current one prints `✓ All 2 tool(s) up to date (v2.1.0)`.
+When a newer CLI is out, [`openspec update`](../reference/cli.md#openspec-update) says so and can install it for you; that upgrade is once per machine. Every run refreshes your skills, which never update on their own. With global skills, running it once from any folder is enough, and it prints `✓ The 7 skills for this machine are up to date (v2.1.0)`. With skills kept in a project, run it in each project; a current one prints `✓ All 2 tool(s) up to date (v2.1.0)`.
 
 
 > [!WARNING]

@@ -5,18 +5,26 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { transformToSharedSkillReferences } from '../utils/command-references.js';
-import { generateSkillContent, getSkillTemplates, stripVolatileFrontmatter } from './shared/skill-generation.js';
+import { generateSkillFiles, getSkillTemplates, stripVolatileFrontmatter } from './shared/skill-generation.js';
 
 export type SkillScope = 'global' | 'project';
 
-const allContents = new Map<string, Map<string, string>>();
-export function expectedSkillContents(version: string, workflows?: readonly string[]) {
-  if (!workflows && allContents.has(version)) return allContents.get(version)!;
-  const contents = new Map(getSkillTemplates(workflows).map(({ template, dirName }) => [
-    dirName, stripVolatileFrontmatter(generateSkillContent(template, version, transformToSharedSkillReferences)),
+const allFiles = new Map<string, Map<string, Map<string, string>>>();
+/** Every file of each skill this release installs, by skill and then by path inside the skill's folder. */
+export function expectedSkillFiles(version: string, workflows?: readonly string[]) {
+  if (!workflows && allFiles.has(version)) return allFiles.get(version)!;
+  const files = new Map(getSkillTemplates(workflows).map(({ template, dirName }) => [
+    dirName,
+    new Map([...generateSkillFiles(template, version, transformToSharedSkillReferences)]
+      .map(([file, text]) => [file, stripVolatileFrontmatter(text)])),
   ]));
-  if (!workflows) allContents.set(version, contents);
-  return contents;
+  if (!workflows) allFiles.set(version, files);
+  return files;
+}
+
+/** Each skill's SKILL.md: what an install is compared with to tell whether it is current. */
+export function expectedSkillContents(version: string, workflows?: readonly string[]) {
+  return new Map([...expectedSkillFiles(version, workflows)].map(([name, files]) => [name, files.get('SKILL.md')!]));
 }
 
 /** Vercel writes Eve a copy with only the frontmatter its agent reads. */
@@ -31,12 +39,26 @@ export function projectSkillText(toolId: string, shared: string): string {
 
 type Targets = { scope: SkillScope; cwd?: string; agents: readonly string[] };
 
-/** The hash GitHub reports for a skill folder that holds only this SKILL.md. */
-function skillFolderHash(text: string): string {
+/** The hash GitHub reports for a skill folder holding these files (paths inside the folder). */
+function skillFolderHash(files: ReadonlyMap<string, string>): string {
   const gitObject = (type: string, body: Buffer) =>
     createHash('sha1').update(`${type} ${body.length}\0`).update(body).digest();
-  const blob = gitObject('blob', Buffer.from(text));
-  return gitObject('tree', Buffer.concat([Buffer.from('100644 SKILL.md\0'), blob])).toString('hex');
+  const tree = (entries: [string, string][]): Buffer => {
+    const blobs = new Map<string, Buffer>();
+    const dirs = new Map<string, [string, string][]>();
+    for (const [file, text] of entries) {
+      const [head, ...rest] = file.split('/');
+      if (rest.length) dirs.set(head, [...(dirs.get(head) ?? []), [rest.join('/'), text]]);
+      else blobs.set(head, gitObject('blob', Buffer.from(text)));
+    }
+    // Git sorts a folder as if its name ended in `/`.
+    const rows = [
+      ...[...blobs].map(([name, sha]) => ({ key: name, row: Buffer.concat([Buffer.from(`100644 ${name}\0`), sha]) })),
+      ...[...dirs].map(([name, sub]) => ({ key: `${name}/`, row: Buffer.concat([Buffer.from(`40000 ${name}\0`), tree(sub)]) })),
+    ].sort((x, y) => (x.key < y.key ? -1 : x.key > y.key ? 1 : 0));
+    return gitObject('tree', Buffer.concat(rows.map(r => r.row)));
+  };
+  return tree([...files]).toString('hex');
 }
 
 /**
@@ -44,7 +66,7 @@ function skillFolderHash(text: string): string {
  * release's GitHub tag, which holds the same text, so `npx skills update -g`,
  * `list` and `remove` treat them like any skill installed from GitHub.
  */
-async function recordGlobalSkills(names: readonly string[], contents: ReadonlyMap<string, string>, version: string): Promise<void> {
+async function recordGlobalSkills(names: readonly string[], expected: ReadonlyMap<string, ReadonlyMap<string, string>>, version: string): Promise<void> {
   if (!names.length) return;
   const stateHome = process.env.XDG_STATE_HOME;
   const lockPath = stateHome
@@ -66,7 +88,7 @@ async function recordGlobalSkills(names: readonly string[], contents: ReadonlyMa
       sourceUrl: 'https://github.com/Fission-AI/OpenSpec.git',
       ref: `v${version}`,
       skillPath: `skills/${name}/SKILL.md`,
-      skillFolderHash: skillFolderHash(contents.get(name)!),
+      skillFolderHash: skillFolderHash(expected.get(name)!),
       installedAt: lock.skills[name]?.installedAt ?? now,
       updatedAt: now,
     };
@@ -78,7 +100,7 @@ async function recordGlobalSkills(names: readonly string[], contents: ReadonlyMa
 export async function installReleaseSkills(targets: Targets, names: string[], version: string): Promise<Map<string, Error>> {
   const failures = new Map<string, Error>();
   if (!names.length) return failures;
-  const contents = expectedSkillContents(version);
+  const expected = expectedSkillFiles(version);
   // The skills ship inside this package, so installing them needs no network
   // and always gives the text of the version that is installed.
   // Absolute, or the installer reads a relative TMPDIR as a GitHub owner/repo.
@@ -86,9 +108,11 @@ export async function installReleaseSkills(targets: Targets, names: string[], ve
   let result: Awaited<ReturnType<typeof installSkills>>;
   try {
     for (const name of names) {
-      const dir = path.join(source, 'skills', name);
-      await fs.mkdir(dir, { recursive: true });
-      await fs.writeFile(path.join(dir, 'SKILL.md'), contents.get(name)!);
+      for (const [file, text] of expected.get(name)!) {
+        const target = path.join(source, 'skills', name, file);
+        await fs.mkdir(path.dirname(target), { recursive: true });
+        await fs.writeFile(target, text);
+      }
     }
     result = await installSkills(source, {
       ...targets,
@@ -102,8 +126,15 @@ export async function installReleaseSkills(targets: Targets, names: string[], ve
     await fs.rm(source, { recursive: true, force: true }).catch(() => undefined);
   }
   if (targets.scope === 'global') {
-    await recordGlobalSkills([...new Set(result.installed.map(entry => entry.skill))], contents, version);
+    await recordGlobalSkills([...new Set(result.installed.map(entry => entry.skill))], expected, version);
   }
+  const matches = async (dir: string, name: string) => {
+    for (const [file, text] of expected.get(name) ?? []) {
+      const found = await fs.readFile(path.join(dir, file), 'utf8').catch(() => undefined);
+      if (found?.replaceAll('\r\n', '\n') !== text) return false;
+    }
+    return true;
+  };
   for (const failure of result.failed) failures.set(failure.agent, new Error(failure.message));
   for (const skip of result.skipped) failures.set(skip.agent, new Error(`${skip.agent} skipped ${skip.skill}: ${skip.reason}`));
   for (const agent of targets.agents) {
@@ -111,7 +142,7 @@ export async function installReleaseSkills(targets: Targets, names: string[], ve
     for (const name of names) {
       const entry = result.installed.find(target => target.agent === agent && target.skill === name);
       if (entry && targets.scope === 'project') continue;
-      if (entry && (await fs.readFile(path.join(entry.path, 'SKILL.md'), 'utf8')).replaceAll('\r\n', '\n') === contents.get(name)) continue;
+      if (entry && await matches(entry.path, name)) continue;
       failures.set(agent, new Error(`${agent} did not install ${name}`));
       break;
     }
