@@ -49,6 +49,18 @@ First check the change is finished: \`openspec status --change "<name>" --json\`
 Walk the user through one small change in their own project: explore it, propose it, apply it, archive it, using the sections above.
 `;
 
+const WHERE_THINGS_STAND = `# Where things stand
+
+Use this when the user asks where things stand or what to do next. Look before you answer:
+
+- \`openspec list --json\` lists the changes in progress.
+- \`openspec status --change "<name>" --json\` shows which parts of a change's plan exist and what comes next. \`openspec status --all --json\` does this for every change.
+- \`openspec show "<name>"\` prints a change or a spec.
+- If the user names a store, add \`--store <id>\` to each of these. \`openspec store list --json\` lists the stores.
+
+Say where things stand in a sentence or two, name the next step and the skill that does it, and offer to do it. Do not start it until they say so.
+`;
+
 const ANSWERS = `# Answers to common questions
 
 Use this when the user asks how OpenSpec works or how to set it up. Check an answer against the CLI's own help (\`openspec <command> --help\`) before you rely on a flag.
@@ -100,14 +112,7 @@ export function getRouterSkillTemplate(): SkillTemplate {
 
 **When the user is unsure**
 
-If they ask where things stand or what to do next, look before you answer:
-
-- \`openspec list --json\` lists the changes in progress.
-- \`openspec status --change "<name>" --json\` shows which parts of a change's plan exist and what comes next. \`openspec status --all --json\` does this for every change.
-- \`openspec show "<name>"\` prints a change or a spec.
-- If the user names a store, add \`--store <id>\` to each of these. \`openspec store list --json\` lists the stores.
-
-Say where things stand in a sentence or two, name the next step and the skill that does it, and offer to do it. Do not start it until they say so.
+If they ask where things stand or what to do next, read \`references/where-things-stand.md\` and follow it.
 
 If they ask how OpenSpec works or how to set something up, read \`references/answers.md\` and answer from it.
 
@@ -143,6 +148,7 @@ If you picked this skill yourself and \`openspec list --json\` reports \`"root":
     references: {
       'without-skills.md': WITHOUT_SKILLS,
       'answers.md': ANSWERS,
+      'where-things-stand.md': WHERE_THINGS_STAND,
     },
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',

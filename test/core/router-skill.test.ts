@@ -10,7 +10,7 @@ import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
 // with its own throwaway home, as the other install tests do.
 
 const ROUTER = 'openspec';
-const REFERENCES = ['references/answers.md', 'references/without-skills.md'];
+const REFERENCES = ['references/answers.md', 'references/where-things-stand.md', 'references/without-skills.md'];
 const ROUTER_FILES = ['SKILL.md', ...REFERENCES];
 const WITHOUT_ROUTER = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'];
 

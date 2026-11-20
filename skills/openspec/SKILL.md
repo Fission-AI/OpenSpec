@@ -7,7 +7,7 @@ compatibility: Requires openspec CLI.
 metadata:
   author: openspec
   version: "1.0"
-  references: "d5f277479672"
+  references: "4dc55c469b49"
 ---
 
 You are the starting point for anything OpenSpec in this project. Work out what the user needs, then do one of three things: answer their question, hand the request to the skill that does it, or run several skills in order.
@@ -20,14 +20,7 @@ You are the starting point for anything OpenSpec in this project. Work out what 
 
 **When the user is unsure**
 
-If they ask where things stand or what to do next, look before you answer:
-
-- `openspec list --json` lists the changes in progress.
-- `openspec status --change "<name>" --json` shows which parts of a change's plan exist and what comes next. `openspec status --all --json` does this for every change.
-- `openspec show "<name>"` prints a change or a spec.
-- If the user names a store, add `--store <id>` to each of these. `openspec store list --json` lists the stores.
-
-Say where things stand in a sentence or two, name the next step and the skill that does it, and offer to do it. Do not start it until they say so.
+If they ask where things stand or what to do next, read `references/where-things-stand.md` and follow it.
 
 If they ask how OpenSpec works or how to set something up, read `references/answers.md` and answer from it.
 

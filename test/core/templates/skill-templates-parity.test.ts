@@ -102,7 +102,7 @@ const EXPECTED_GENERATED_SKILL_CONTENT_HASHES: Record<string, string> = {
   'openspec-onboard': '4e661e271eadbbcf9cc1a87189637cc725de7624abac6f325c1b1a58aed6c6fe',
   'openspec-propose': 'a02bf8d97ec10bd3a2a74ee67c7994d206ec55f55402121b9f7da36c22779833',
   'openspec-update-change': 'cee18194a8b231376343a3fe2ab330145929ee310333d8684aa48422d1dd8b10',
-  'openspec': 'ad948a60a5078f45f97da43619026071402c12283369fe71c391bec97e99b74c',
+  'openspec': '821dc798fa9c64d092aaaa7648496b7b91fbb9326884fa40220381a73df9d489',
 };
 
 // Intentionally excludes getFeedbackSkillTemplate: this list only models templates
