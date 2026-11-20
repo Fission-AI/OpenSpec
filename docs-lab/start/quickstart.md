@@ -31,7 +31,7 @@ Every prompt below goes in your AI chat, the same place you ask for code. The ex
 
 ## Not sure what to ask? Start with `openspec`
 
-You don't need to learn the skill list. Invoke `openspec` and say what you want in your own words. It looks at your project, answers the question, or hands the work to the skill built for it. Ask it several things at once and it runs them in order, stopping wherever a step needs your OK.
+You don't need to learn the skill list. Invoke `openspec` and say what you want. It looks at your project, then answers you or hands the work to the skill built for it. Ask for several things at once and it does them in order, stopping wherever a step needs your OK.
 
 | Tool | Invoke it |
 |---|---|
@@ -45,7 +45,7 @@ You don't need to learn the skill list. Invoke `openspec` and say what you want 
 /openspec verify add-rate-limiting, then archive it
 ```
 
-It ships with the core profile ([Profiles](../customize/profiles.md)). If the skill a request needs isn't installed, it does the step with the CLI and tells you how to add the skill.
+It's part of the core profile ([Profiles](../customize/profiles.md)). If a request needs a skill you haven't installed, it does that step with the CLI instead and tells you how to add the skill.
 
 ## Step 1: Explore
 

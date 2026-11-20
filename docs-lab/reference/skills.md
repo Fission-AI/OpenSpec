@@ -34,7 +34,7 @@ templates in src/core/templates/workflows/; core set src/core/profiles.ts:14. "O
 is the docs' set label (was "Expanded"; renamed 2026-08-12: the product's only stored
 profile values are core and custom, so "expanded" reads as a third profile). -->
 
-Each skill is a folder: a short `SKILL.md` your agent reads first, and sometimes a `references/` folder with detail it opens only when a task needs it. Agents already load skills this way, so a skill can carry more without filling your agent's context. `openspec update` keeps every file in the folder current.
+Each skill is a folder. Your agent reads its `SKILL.md` first. Some skills also have a `references/` folder with extra detail, which the agent opens only when a task needs it, so a skill can say more without crowding your agent's context. `openspec update` keeps every file in the folder current.
 
 The skills come in two sets:
 
@@ -73,8 +73,8 @@ Start here when you don't know which skill you need. Ask for anything; it answer
 | Contract | Description |
 |---|---|
 | **Arguments** | Anything: a question ("where does add-auth stand?", "how do I add a schema?"), a request for one step, or several steps in order ("verify add-auth, then archive it"). |
-| **Creates** | Nothing itself. Each request goes to the skill in the table above that does it, and that skill's contract applies. When that skill is not installed, it follows the CLI steps in its `references/without-skills.md` and says how to install the skill. |
-| **Response** | For a question: where things stand and the next step, with an offer to run it; it waits for your yes. For work: what the routed skill reports. For several steps: each skill in turn, stopping wherever one waits for you. |
+| **Creates** | Nothing itself. Each request goes to the skill in the table above that does it, and that skill's contract applies. If that skill isn't installed, the router does the step with the CLI, following its own `references/without-skills.md`, and tells you how to add the skill. |
+| **Response** | For a question: where things stand and the next step, then an offer to run it. It waits for your yes. For work: whatever the skill it handed off to reports. For several steps: each skill in turn, stopping wherever one waits for you. |
 
 ## openspec-explore
 

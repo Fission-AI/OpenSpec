@@ -98,6 +98,7 @@ These are the OpenSpec workflows, the actions you'll use as you work. Here they 
 
 ```
 .agents/skills/
+├── openspec/                      ask for anything; it picks the skill
 ├── openspec-explore/              think through an idea first
 ├── openspec-propose/              propose a change
 ├── openspec-apply-change/         implement a change's tasks
@@ -108,7 +109,7 @@ These are the OpenSpec workflows, the actions you'll use as you work. Here they 
 └── openspec-bulk-archive-change/  archive several changes at once (not included by default)
 ```
 
-This is the default set plus two optional workflows. [Profiles](../customize/profiles.md) lists all twelve.
+This is the default set plus two optional workflows. [Profiles](../customize/profiles.md) lists all thirteen.
 
 Each skill is written once, here, no matter how many tools you set up. A tool that doesn't read `.agents/skills/` (Claude Code, Kiro, and others) gets a link to each skill in its own folder, such as `.claude/skills/openspec-propose`. Windows project installs use copies that Git can carry to another checkout. [Supported tools](../reference/supported-tools.md#where-skills-go) shows the layout and which tools get links.
 

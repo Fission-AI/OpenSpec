@@ -6,7 +6,7 @@ A profile is your preference for which OpenSpec workflows (the [skills](../start
 
 ## The core set
 
-The `core` profile installs seven workflows, covering the whole loop from idea to archive, plus one place to start:
+The `core` profile installs seven workflows. Six cover the loop from idea to archive, and `router` is the place to start when you aren't sure which one you need:
 
 | Workflow | What it's for |
 |---|---|
