@@ -664,9 +664,12 @@ export function computeProfileMigration(
     return null;
   }
 
+  // Releases before the router installed core without it, and that is still core.
+  const coreWithoutRouter = CORE_WORKFLOWS.filter((workflow) => workflow !== 'router');
+  const installedWithoutRouter = installedWorkflows.filter((workflow) => workflow !== 'router');
   const isCore =
-    installedWorkflows.length === CORE_WORKFLOWS.length &&
-    CORE_WORKFLOWS.every((workflow) => installedWorkflows.includes(workflow));
+    installedWithoutRouter.length === coreWithoutRouter.length &&
+    coreWithoutRouter.every((workflow) => installedWithoutRouter.includes(workflow));
   return { profile: isCore ? 'core' : 'custom', workflows: installedWorkflows };
 }
 
