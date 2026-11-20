@@ -29,6 +29,7 @@ import {
   toRootOutput,
   type ResolvedOpenSpecRoot,
 } from '../../core/root-selection.js';
+import { findProjectRegistryDir } from '../../core/store/foundation.js';
 import {
   assembleReferenceIndex,
   escapeEnvelopeAttribute,
@@ -100,7 +101,14 @@ async function loadRootConfigContext(root: ResolvedOpenSpecRoot): Promise<{
   const declared = projectConfig?.references ?? [];
   const index =
     declared.length > 0
-      ? await assembleReferenceIndex({ references: declared, resolvedRoot: root, registryEntries })
+      ? await assembleReferenceIndex({
+          references: declared,
+          resolvedRoot: root,
+          registryEntries,
+          projectRoot:
+            root.projectRegistryDir ??
+            (root.source === 'nearest' ? (findProjectRegistryDir(root.path) ?? undefined) : undefined),
+        })
       : [];
 
   // Omitted, not empty: an index emptied by self-reference omission must

@@ -17,6 +17,9 @@ import {
   isValidStoreId,
   listStoreRegistryEntries,
   readStoreRegistryState,
+  findProjectRegistryDir,
+  listProjectStoreRegistryEntries,
+  walkProjectStoreRegistries,
 } from './store/foundation.js';
 import { getStoreRootForBackend } from './store/registry.js';
 import { inspectRegisteredStore, type ResolvedOpenSpecRoot } from './root-selection.js';
@@ -351,6 +354,10 @@ export interface AssembleReferenceIndexInput {
   references: DeclarationEntry[];
   resolvedRoot: ResolvedOpenSpecRoot;
   globalDataDir?: string;
+  /** When set, referenced store IDs are also resolved from project-scoped
+   * registries along the ancestor chain of `<projectRoot>`, merged with the
+   * global registry (nearest project entry wins on conflict). */
+  projectRoot?: string;
   /**
    * Health mode (3.6): false skips the spec-file reads AND the byte
    * budget — entries carry no `specs`/`fetch` keys at all, and the
@@ -367,9 +374,10 @@ export interface AssembleReferenceIndexInput {
 }
 
 /**
- * Builds the referenced-store index. One registry read per call; one
- * level deep (a referenced store's own references are never followed);
- * self-references omitted; every failure degrades to a warning entry.
+ * Builds the referenced-store index. One global registry read per call;
+ * project-scoped registries are merged as a nearest-first ancestor chain;
+ * a referenced store's own references are never followed; self-references
+ * omitted; every failure degrades to a warning entry.
  */
 export async function assembleReferenceIndex(
   input: AssembleReferenceIndexInput
@@ -391,6 +399,38 @@ export async function assembleReferenceIndex(
       registryEntries = registry ? listStoreRegistryEntries(registry) : [];
     } catch {
       registryEntries = null;
+    }
+  }
+  // Remember whether the global registry was unreadable: project entries
+  // merge over it (see below), but a reference absent from every project
+  // registry still cannot be verified against the global one.
+  const globalRegistryUnreadable = registryEntries === null;
+
+  // Merge with the project-scoped registries along the ancestor chain,
+  // nearest first — the same walk that resolves --store and store:
+  // pointers. Project entries win over global entries on a conflict, and
+  // stay resolvable even when the global registry itself is unreadable.
+  if (input.projectRoot) {
+    try {
+      const levels = await walkProjectStoreRegistries(input.projectRoot);
+      const projectEntries = levels.flatMap((level) =>
+        listProjectStoreRegistryEntries(level.state, level.registryDir).map((entry) => ({
+          id: entry.id,
+          backend: { type: 'git' as const, local_path: entry.storeRoot },
+        }))
+      );
+      if (projectEntries.length > 0) {
+        const projectIds = new Set(projectEntries.map((entry) => entry.id));
+        const globalEntries = registryEntries ?? [];
+        registryEntries = [
+          ...projectEntries,
+          ...globalEntries.filter((entry) => !projectIds.has(entry.id)),
+        ];
+      }
+    } catch {
+      console.error(
+        `Warning: Project-scoped registry at ${input.projectRoot} is malformed; resolving references from global entries only.`
+      );
     }
   }
   const includeSpecs = input.includeSpecs !== false;
@@ -421,22 +461,21 @@ export async function assembleReferenceIndex(
       continue; // Self-reference: meaningless, silently omitted.
     }
 
-    if (registryEntries === null) {
-      entries.push({
-        store_id: id,
-        status: [
-          warning(
-            'reference_registry_unreadable',
-            `Referenced store '${id}' cannot be checked: the store registry is unreadable.`,
-            'Run: openspec store doctor'
-          ),
-        ],
-      });
-      continue;
-    }
-
-    const registryEntry = registryEntries.find((candidate) => candidate.id === id);
+    const registryEntry = registryEntries?.find((candidate) => candidate.id === id);
     if (!registryEntry) {
+      if (globalRegistryUnreadable) {
+        entries.push({
+          store_id: id,
+          status: [
+            warning(
+              'reference_registry_unreadable',
+              `Referenced store '${id}' cannot be checked: the store registry is unreadable.`,
+              'Run: openspec store doctor'
+            ),
+          ],
+        });
+        continue;
+      }
       entries.push({
         store_id: id,
         status: [

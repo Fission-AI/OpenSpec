@@ -1,5 +1,7 @@
 import * as fs from 'node:fs/promises';
 
+import { FileSystemUtils } from '../../utils/file-system.js';
+import { writeFileAtomically } from '../file-state.js';
 import {
   getStoreMetadataPath,
   getStoreMetadataDir,
@@ -8,6 +10,16 @@ import {
   readOptionalStoreMetadataState,
   resolveGitStoreBackendConfig,
   updateStoreRegistryState,
+  readProjectStoreRegistryState,
+  listProjectStoreRegistryEntries,
+  findProjectStoreById,
+  walkProjectStoreRegistries,
+  serializeProjectStoreRegistryState,
+  parseProjectStoreRegistryState,
+  getStoreRegistryPath,
+  normalizePathForComparison,
+  type ProjectStoreRegistryState,
+  type ProjectStoreEntryState,
   validateStoreId,
   writeStoreMetadataState,
   type StoreBackendConfig,
@@ -18,7 +30,10 @@ import {
 } from './foundation.js';
 import { StoreError } from './errors.js';
 import * as path from 'node:path';
-import { FileSystemUtils } from '../../utils/file-system.js';
+
+function isFileNotFoundError(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as NodeJS.ErrnoException).code === 'ENOENT';
+}
 
 export interface RegisterStoreInput extends StorePathOptions {
   id: string;
@@ -50,6 +65,8 @@ export type ListRegisteredStoresOptions = StorePathOptions;
 
 export interface RegisteredStoreEntry extends StoreRegistryEntry {
   storeRoot: string;
+  /** For project-scoped entries, the directory containing the owning registry file. */
+  registryDir?: string;
 }
 
 export interface ResolvedStore {
@@ -74,16 +91,6 @@ export function getStoreRootForBackend(backend: StoreBackendConfig): string {
   switch (backend.type) {
     case 'git':
       return backend.local_path;
-  }
-}
-
-function normalizePathForComparison(targetPath: string): string {
-  try {
-    return FileSystemUtils.canonicalizeExistingPath(targetPath);
-  } catch {
-    // Nonexistent (e.g. stale) paths still deserve a resolved compare;
-    // aligns with the operations.ts sibling fallback.
-    return path.resolve(targetPath);
   }
 }
 
@@ -274,6 +281,76 @@ export async function commitStoreRegistration(
   let isRerun = false;
   let registryUpdated = false;
 
+  // Project-scoped registry uses a simpler { path: ... } format.
+  if (input.projectRoot !== undefined) {
+    // Canonicalize both sides so symlinked prefixes (e.g. /var -> /private/var
+    // on macOS) can't produce a false "outside the project" rejection.
+    const projectRoot = FileSystemUtils.canonicalizeExistingPath(input.projectRoot);
+    const resolvedStoreRoot = FileSystemUtils.canonicalizeExistingPath(storeRoot);
+    const relativePath = path.relative(projectRoot, resolvedStoreRoot);
+    // Store the original absolute path when the store lives outside the
+    // project (relativePath starts with .. or is absolute) so it
+    // resolves identically regardless of where the registry file lives.
+    // For stores inside the project, store the relative path (portable
+    // across machines). Normalize backslashes to forward slashes in both cases.
+    const isOutsideProject = relativePath.startsWith('..') || path.isAbsolute(relativePath);
+    const portableRelativePath = isOutsideProject
+      ? resolvedStoreRoot.replace(/\\/g, '/')
+      : relativePath.replace(/\\/g, '/');
+
+    try {
+      metadataCreated = await ensureStoreMetadata(storeRoot, id, {
+        writeIfMissing: input.writeMetadataIfMissing,
+      });
+
+      const registryPath = getStoreRegistryPath({ projectRoot });
+      let existingRegistry: ProjectStoreRegistryState | null = null;
+      try {
+        const content = await fs.readFile(registryPath, 'utf-8');
+        existingRegistry = parseProjectStoreRegistryState(content);
+      } catch (error: unknown) {
+        if (!isFileNotFoundError(error)) {
+          throw error;
+        }
+      }
+
+      const existing = existingRegistry?.stores[id];
+      const existingPath = existing ? path.resolve(projectRoot, existing.path) : undefined;
+      isRerun = existingPath !== undefined && normalizePathForComparison(existingPath) === normalizePathForComparison(resolvedStoreRoot);
+
+      if (!isRerun) {
+        const nextState: ProjectStoreRegistryState = {
+          version: 1,
+          stores: {
+            ...(existingRegistry?.stores ?? {}),
+            [id]: { path: portableRelativePath } satisfies ProjectStoreEntryState,
+          },
+        };
+        await writeFileAtomically(registryPath, serializeProjectStoreRegistryState(nextState));
+        registryUpdated = true;
+      }
+    } catch (error) {
+      if (metadataCreated) {
+        const currentRegistry = await readProjectStoreRegistryState(input.projectRoot).catch(() => null);
+        if (!currentRegistry?.stores[id]) {
+          await fs.rm(getStoreMetadataPath(storeRoot), { force: true });
+          await fs.rmdir(getStoreMetadataDir(storeRoot)).catch(() => undefined);
+        }
+      }
+
+      throw error;
+    }
+
+    return {
+      id,
+      storeRoot,
+      backend,
+      metadataCreated,
+      registryUpdated,
+      alreadyRegistered: isRerun,
+    };
+  }
+
   try {
     metadataCreated = await ensureStoreMetadata(storeRoot, id, {
       writeIfMissing: input.writeMetadataIfMissing,
@@ -283,9 +360,6 @@ export async function commitStoreRegistration(
     });
     const existing = registry?.stores[id];
     const existingBackend = existing?.backend as StoreGitBackendConfig | undefined;
-    // Same checkout = a rerun for an already-registered store (the 1.3
-    // reporting contract), whether or not the observed remote changed;
-    // only a remote change needs the registry write (the refresh).
     isRerun = existingBackend !== undefined && sameCheckout(existingBackend, backend);
     const upToDate =
       isRerun && existingBackend !== undefined && storeBackendsMatch(existingBackend, backend);
@@ -299,9 +373,6 @@ export async function commitStoreRegistration(
     }
   } catch (error) {
     if (metadataCreated) {
-      // A concurrent registration may have read our metadata as
-      // pre-existing and committed against it - never delete metadata a
-      // committed registry entry depends on.
       const current = await readStoreRegistryState({
         globalDataDir: input.globalDataDir,
       }).catch(() => null);
@@ -377,6 +448,18 @@ export async function readRegistrySnapshot(
 export async function listRegisteredStores(
   options: ListRegisteredStoresOptions = {}
 ): Promise<RegisteredStoreEntry[]> {
+  if (options.projectRoot !== undefined) {
+    const levels = await walkProjectStoreRegistries(options.projectRoot);
+    return levels.flatMap((level) =>
+      listProjectStoreRegistryEntries(level.state, level.registryDir).map((entry) => ({
+        id: entry.id,
+        backend: { type: 'git' as const, local_path: entry.storeRoot },
+        storeRoot: entry.storeRoot,
+        registryDir: level.registryDir,
+      }))
+    );
+  }
+
   const registry = await readStoreRegistryState(options);
 
   if (!registry) {
@@ -393,6 +476,24 @@ export async function getRegisteredStore(
   input: GetRegisteredStoreInput
 ): Promise<RegisteredStoreEntry> {
   const id = validateStoreId(input.id);
+
+  if (input.projectRoot !== undefined) {
+    const lookup = await findProjectStoreById(input.id, input.projectRoot);
+    if (!lookup.found) {
+      throw new StoreError(`Unknown store '${id}'.`, 'store_not_found', {
+        target: 'store.id',
+        fix: 'Run openspec store list --scope project to see registered stores.',
+      });
+    }
+    const storeRoot = lookup.found.storeRoot;
+    return {
+      id,
+      backend: { type: 'git' as const, local_path: storeRoot },
+      storeRoot,
+      registryDir: lookup.found.registryDir,
+    };
+  }
+
   const registry = await readStoreRegistryState({
     globalDataDir: input.globalDataDir,
   });
@@ -410,6 +511,53 @@ export async function unregisterStoreRegistration(
 ): Promise<RegisteredStoreEntry> {
   const id = validateStoreId(input.id);
   let removed: StoreRegistryEntry | undefined;
+
+  if (input.projectRoot !== undefined) {
+    const levels = await walkProjectStoreRegistries(input.projectRoot);
+    const level = levels.find((l) => l.state.stores[id] !== undefined);
+    if (!level) {
+      throw new StoreError(`Unknown store '${id}'.`, 'store_not_found', {
+        target: 'store.id',
+        fix: 'Run openspec store list --scope project to see registered stores.',
+      });
+    }
+
+    const removedStateEntry = level.state.stores[id];
+    const removedStoreRoot = path.resolve(level.registryDir, removedStateEntry.path);
+    if (input.expectedBackend !== undefined) {
+      const actualBackend: StoreGitBackendConfig = {
+        type: 'git' as const,
+        local_path: removedStoreRoot,
+      };
+      assertExpectedRegisteredBackend(id, actualBackend, input.expectedBackend);
+    }
+    const stores = { ...level.state.stores };
+    delete stores[id];
+
+    const nextState: ProjectStoreRegistryState = {
+      version: 1,
+      stores,
+    };
+
+    const removedRegistration: RegisteredStoreEntry = {
+      id,
+      backend: { type: 'git' as const, local_path: removedStoreRoot },
+      storeRoot: removedStoreRoot,
+      registryDir: level.registryDir,
+    };
+    const remaining = listProjectStoreRegistryEntries(nextState, level.registryDir).map((entry) => ({
+      id: entry.id,
+      backend: { type: 'git' as const, local_path: entry.storeRoot },
+      storeRoot: entry.storeRoot,
+      registryDir: level.registryDir,
+    }));
+    await input.beforeCommit?.(removedRegistration, remaining);
+
+    const registryPath = getStoreRegistryPath({ projectRoot: level.registryDir });
+    await writeFileAtomically(registryPath, serializeProjectStoreRegistryState(nextState));
+
+    return removedRegistration;
+  }
 
   await updateStoreRegistryState(
     async (registry) => {
