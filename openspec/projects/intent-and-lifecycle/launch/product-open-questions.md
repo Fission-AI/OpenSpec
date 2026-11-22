@@ -125,4 +125,4 @@ If we cannot make those transitions work without duplicating contracts or weaken
 
 - [Requirements engineering terminology](https://www.iso.org/obp/ui/#iso:std:iso-iec-ieee:29148:ed-2:v1:en): requirements can be allocated across system levels and traced to lower-level implementations.
 
-- [Open Knowledge Format v0.2](https://github.com/GoogleCloudPlatform/knowledge-catalog/blob/main/okf/SPEC.md): conventions for knowledge provenance and Markdown links, not an OpenSpec implementation lifecycle.
+- [Open Knowledge Format](https://github.com/GoogleCloudPlatform/open-knowledge-format/blob/main/SPEC.md): conventions for knowledge provenance and Markdown links, not an OpenSpec implementation lifecycle.

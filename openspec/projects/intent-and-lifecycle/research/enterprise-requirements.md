@@ -13,7 +13,7 @@ Coverage uses four values:
 - **Team script:** a project can supply its own script and have an action run it. OpenSpec provides nothing but the moment to run it.
 - **Not covered:** hooks and actions do not address it.
 
-Generation and source retrieval remain owned by the existing integration. A row marked not covered does not mean that workflow lacks the behavior.
+Generation and source retrieval remain outside this pilot (owned by existing workflows or custom skills). A row marked not covered does not mean a team's overall workflow lacks the behavior.
 
 | Upstream requirement | Coverage | What that means, and what else is needed |
 | --- | --- | --- |

@@ -27,7 +27,7 @@ Mode and policy are separate settings, and neither implies the other.
 
 The pilot supports mode only. Policy needs OpenSpec to see an action's outcome, and the pilot collects no results and enforces nothing. Policy stays in the longer-term model.
 
-Until policy is supported, a trigger that sets `policy` is reported as unsupported. It is never silently accepted.
+Until policy is supported, a trigger that sets `policy` fails validation as unsupported. It is never silently accepted.
 
 In the pilot, the two modes mean:
 
@@ -54,6 +54,8 @@ A caller asks which actions apply at a hook:
 openspec lifecycle actions --at apply.before --json
 ```
 
+Pass `--store <id>` to target a registered Store, matching OpenSpec's other root-aware commands.
+
 The response is the contract between OpenSpec and every caller, so it stays small. It returns the hook and an ordered list of actions, with each action's instructions inline. This shape is illustrative and gets fixed in PR 2:
 
 ```json
@@ -76,23 +78,25 @@ Order follows the trigger configuration, and callers preserve it. There is no se
 ### Hook names
 
 - OpenSpec defines built-in hooks such as `apply.before` and `apply.completed`.
-- Users can invoke their own hooks. A custom hook name must start with `custom.`, such as `custom.security-review.completed`.
-- Any other name is rejected. A typo such as `aply.before` is neither built in nor prefixed with `custom.`, so it fails.
+- Users can invoke their own hooks. A custom hook name must start with `custom.` followed by dot-separated kebab-case segments, such as `custom.security-review.completed` (names like `custom.` or `custom..foo` are rejected).
+- Any other name is rejected. A typo such as `aply.before` is neither built in nor a valid `custom.` hook, so it fails.
 
 A hook is only a name that a caller invokes. There is no registration step and no event declaration.
 
 ### Where config comes from
 
-Actions and triggers live in project configuration. Lookup reuses OpenSpec's existing root and config resolution, including Stores. When a Store is the resolved root, the Store's configuration decides which actions are returned. It does not add a second resolution system.
+Actions and triggers live under `lifecycle:` in `openspec/config.yaml`. Lifecycle parsing uses a dedicated strict reader (`readLifecycleConfig()`) used by `openspec lifecycle actions` and `openspec validate`, leaving `readProjectConfig()` forgiving so a lifecycle typo never breaks unrelated commands (`status`, `list`, `archive`).
+
+Lookup reuses OpenSpec's existing root and config resolution, including Stores (`--store <id>`). When a Store is the resolved root, the Store's configuration decides which actions are returned (no repo-plus-store config merging; any repo-local script referenced by an action still lives in the code repository). Shared store-selection guidance is updated so built-in skills forward `--store <id>` to `openspec lifecycle`.
 
 ## PR sequence
 
 Each PR adds one verifiable behavior. Not every PR needs to deliver user value alone. All of them reuse one fixture project.
 
-1. **Actions and triggers in config.** Parse and validate them. Reject duplicate action ids, triggers that reference a missing action, unsupported modes, and hook names that are neither built in nor prefixed with `custom.`. Report a trigger that sets `policy` as unsupported. A project with no actions behaves as it does today.
-2. **`openspec lifecycle actions --at <hook>`.** Return matching actions in order with instructions inline. Cover one match, several matches, no match, invalid config, a `custom.` hook, a rejected mistyped name, and a Store as the resolved root.
-3. **Apply calls `apply.completed`.** The Apply skill asks for actions when its state is `all_done`, including a change that was already complete. `suggest` actions can be accepted or skipped in the current session. A `blocked` change does not reach this hook. Reading status or refreshing instructions does not fire it.
-4. **Apply calls `apply.before`.** The Apply skill asks for actions when it begins or resumes, before any edits. Verify both hooks in one run with different actions on each.
+1. **Lifecycle config under `lifecycle:`.** Parse and strictly validate `lifecycle.actions` and `lifecycle.triggers` via a dedicated reader, wired into `openspec validate` while keeping `readProjectConfig()` forgiving for unrelated commands. Require non-empty `instructions` on actions (`title` defaults to the action id; `description` is optional) and require `on`, `run`, and `mode` on triggers. Enforce kebab-case action ids and valid `custom.<segment>` hook names. Reject duplicate action ids, duplicate `(on, run)` triggers, triggers referencing a missing action, unsupported modes, invalid hook names, and any trigger that sets `policy` (hard validation error). A project with no `lifecycle:` block behaves as it does today.
+2. **`openspec lifecycle actions --at <hook>`.** Return matching actions in order with instructions inline, supporting `--store <id>` and `--json`. Cover one match, several matches, no match, invalid config, a `custom.` hook, a rejected mistyped name, and a Store as the resolved root.
+3. **Apply calls `apply.completed`.** The Apply skill asks for actions when its state is `all_done`, including a change that was already complete, forwarding `--store <id>` when a Store is selected. `suggest` actions can be accepted or skipped in the current session. A `blocked` change does not reach this hook. Reading status or refreshing instructions does not fire it. If `openspec lifecycle actions` returns a config error, Apply reports it and stops.
+4. **Apply calls `apply.before`.** The Apply skill asks for actions once when it is ready to implement (after reading context files and before any edits), skipping `apply.before` when state is `blocked` or `all_done`. Verify both hooks in one run with different actions on each.
 
    **Release checkpoint A.** Run the full path from CLI to Apply to an offered, accepted, and skipped action. Run a custom caller against a `custom.` hook. Confirm a project with no config is unchanged.
 
@@ -127,7 +131,7 @@ Running `openspec archive` by hand fires no hooks, because hooks fire only when 
 ## Decide separately
 
 - **Executable actions.** Running a team's check natively needs a trust model (including what happens when the script changes), timeouts, a result contract, and authorization. This is not a dependency of the sequence above.
-- **Policy.** `warn` and `block` depend on native execution and result collection. Also open is whether a `policy` field in pilot config is an error or a warning.
+- **Policy.** `warn` and `block` depend on native execution and result collection. In the pilot, setting `policy` in config is a hard validation error.
 - **`archive.before`.** Decide whether the Archive skill calls a hook in this slice or after checkpoint B.
 - **Plugins and shared profiles.** Named actions are the unit a plugin would ship. Revisit once the action shape has held up through checkpoint B.
 - **Agent orchestration.** Launching agents, tracking an action across sessions, and chaining actions remain future work.

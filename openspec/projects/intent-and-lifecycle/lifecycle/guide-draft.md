@@ -10,32 +10,34 @@ You can tell your agent to reread those requirements every time it starts implem
 
 ## 1. Write an action
 
-Add an action to `openspec/config.yaml`. An action is a name plus instructions for your agent:
+Add an action under `lifecycle:` in `openspec/config.yaml`. An action is a name plus instructions for your agent (`title` and `description` are optional):
 
 ```yaml
 # openspec/config.yaml
-actions:
-  requirements-review:
-    title: Review requirements against the plan
-    description: Reread linked requirements and compare them with this change.
-    instructions: |
-      Read the sources linked from this change's planning artifacts.
-      Compare what they say now with the accepted plan.
-      Report conflicts, the work they affect, and anything you could not read.
-      Do not edit the plan or the sources.
+lifecycle:
+  actions:
+    requirements-review:
+      title: Review requirements against the plan
+      description: Reread linked requirements and compare them with this change.
+      instructions: |
+        Read the sources linked from this change's planning artifacts.
+        Compare what they say now with the accepted plan.
+        Report conflicts, the work they affect, and anything you could not read.
+        Do not edit the plan or the sources.
 ```
 
 The instructions are yours. OpenSpec does not interpret them. Your agent follows them with the tools and access it already has.
 
 ## 2. Choose when it happens
 
-Add a trigger that attaches the action to a point in the workflow:
+Add a trigger under `lifecycle:` that attaches the action to a point in the workflow:
 
 ```yaml
-triggers:
-  - on: apply.before
-    run: requirements-review
-    mode: suggest
+lifecycle:
+  triggers:
+    - on: apply.before
+      run: requirements-review
+      mode: suggest
 ```
 
 `on` names the point, which this guide calls a hook. The first hooks are:
@@ -54,7 +56,7 @@ triggers:
 
 `auto` does not bypass your agent's permissions. If the instructions run a command your agent normally asks about, it still asks.
 
-A trigger is also planned to take a `policy`, which says whether an action's outcome warns or blocks. Policy is separate from mode and is not supported yet. A trigger that sets it is reported as unsupported.
+A trigger is also planned to take a `policy`, which says whether an action's outcome warns or blocks. Policy is separate from mode and is not supported yet. A trigger that sets `policy` fails validation as unsupported.
 
 One action can have several triggers, and one hook can have several actions. Your agent handles them in the order you list them.
 
@@ -90,20 +92,21 @@ A conflict does not mean the implementation is wrong. A source your agent could 
 Some reviews make sense after implementation. This one drafts feedback for the team that owns the requirements:
 
 ```yaml
-actions:
-  upstream-feedback:
-    title: Review implementation feedback
-    description: Find decisions or evidence worth sharing upstream.
-    instructions: |
-      Review this change's requirements, implementation decisions,
-      and verification evidence. Draft feedback with source references
-      and mark uncertainty. Do not submit feedback or change upstream
-      requirements without separate approval.
+lifecycle:
+  actions:
+    upstream-feedback:
+      title: Review implementation feedback
+      description: Find decisions or evidence worth sharing upstream.
+      instructions: |
+        Review this change's requirements, implementation decisions,
+        and verification evidence. Draft feedback with source references
+        and mark uncertainty. Do not submit feedback or change upstream
+        requirements without separate approval.
 
-triggers:
-  - on: apply.completed
-    run: upstream-feedback
-    mode: suggest
+  triggers:
+    - on: apply.completed
+      run: upstream-feedback
+      mode: suggest
 ```
 
 When the tasks are complete, your agent offers it:
@@ -117,17 +120,18 @@ An accepted review produces a draft for you to read. Sending it anywhere is a se
 An action can tell your agent to run a script your team maintains. This one checks whether the requirements file changed in Git:
 
 ```yaml
-actions:
-  requirements-drift:
-    title: Check requirements for changes
-    description: Run the team's drift script and report the result.
-    instructions: |
-      Run scripts/check-requirements-drift.sh and report its output.
+lifecycle:
+  actions:
+    requirements-drift:
+      title: Check requirements for changes
+      description: Run the team's drift script and report the result.
+      instructions: |
+        Run scripts/check-requirements-drift.sh and report its output.
 
-triggers:
-  - on: apply.before
-    run: requirements-drift
-    mode: auto
+  triggers:
+    - on: apply.before
+      run: requirements-drift
+      mode: auto
 ```
 
 The script decides what to compare and where it keeps its starting point. OpenSpec does not track sources, revisions, or Git history.
@@ -144,7 +148,7 @@ A custom skill or another tool can ask the same question the built-in skills ask
 openspec lifecycle actions --at apply.before --json
 ```
 
-The command returns the actions for that hook, in order, with their instructions. It runs nothing.
+Pass `--store <id>` if your work lives in a registered Store. The command returns the actions for that hook, in order, with their instructions. It runs nothing.
 
 You can also invoke hooks of your own. Start the name with `custom.`, such as `custom.security-review.completed`, and attach triggers to it the same way. Any other name must be one OpenSpec defines, so a typo like `aply.before` is rejected.
 
@@ -159,7 +163,7 @@ Use an action for a named step at a specific moment that your agent can offer an
 - **Hooks fire only when a skill asks.** Running `openspec archive` yourself in a terminal fires none.
 - **Your agent carries out actions, not OpenSpec.** An agent that does not follow the skill will not run them.
 - **No enforced blocking.** OpenSpec cannot stop Apply or Archive. Your agent can still pause based on what an action finds.
-- **Nothing is remembered.** If a hook is invoked again, its actions are returned again. OpenSpec does not track whether you accepted or skipped them before.
+- **Nothing is remembered.** If a hook is invoked again, its actions are returned again. OpenSpec does not track whether you accepted or skipped them before. Because `apply.before` also runs when resuming an in-progress change, prefer `mode: suggest` for heavier reviews and keep `mode: auto` for fast, repeatable checks.
 
 ## Not part of this proposal
 

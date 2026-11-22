@@ -36,35 +36,36 @@ An accepted review drafts feedback in the current session. It does not submit an
 
 ## Configure actions and triggers
 
-An **action** is named instructions for an agent. A **trigger** attaches an action to a hook and sets its mode. Both live in the project's `openspec/config.yaml`. This shape is illustrative and gets fixed in the first PR:
+An **action** is named instructions for an agent. A **trigger** attaches an action to a hook and sets its mode. Both live under `lifecycle:` in the project's `openspec/config.yaml`:
 
 ```yaml
 # openspec/config.yaml (proposed)
-actions:
-  requirements-review:
-    title: Review requirements against the plan
-    description: Reread linked requirements and compare them with this change.
-    instructions: |
-      Read the sources linked from this change's planning artifacts.
-      Compare what they say now with the accepted plan.
-      Report conflicts, the work they affect, and anything you could not read.
-      Do not edit the plan or the sources.
-  upstream-feedback:
-    title: Review implementation feedback
-    description: Find decisions or evidence worth sharing upstream.
-    instructions: |
-      Review this change's requirements, implementation decisions,
-      and verification evidence. Draft feedback with source references
-      and mark uncertainty. Do not submit feedback or change upstream
-      requirements without separate approval.
+lifecycle:
+  actions:
+    requirements-review:
+      title: Review requirements against the plan
+      description: Reread linked requirements and compare them with this change.
+      instructions: |
+        Read the sources linked from this change's planning artifacts.
+        Compare what they say now with the accepted plan.
+        Report conflicts, the work they affect, and anything you could not read.
+        Do not edit the plan or the sources.
+    upstream-feedback:
+      title: Review implementation feedback
+      description: Find decisions or evidence worth sharing upstream.
+      instructions: |
+        Review this change's requirements, implementation decisions,
+        and verification evidence. Draft feedback with source references
+        and mark uncertainty. Do not submit feedback or change upstream
+        requirements without separate approval.
 
-triggers:
-  - on: apply.before
-    run: requirements-review
-    mode: suggest
-  - on: apply.completed
-    run: upstream-feedback
-    mode: suggest
+  triggers:
+    - on: apply.before
+      run: requirements-review
+      mode: suggest
+    - on: apply.completed
+      run: upstream-feedback
+      mode: suggest
 ```
 
 A trigger has one of two modes:
@@ -83,11 +84,16 @@ Mode and policy are separate settings, and neither implies the other.
 
 The pilot supports mode only. Policy needs OpenSpec to see an action's outcome, and the pilot collects no results and enforces nothing. Policy stays in the longer-term model.
 
-Until policy is supported, a trigger that sets `policy` is reported as unsupported. It is never silently accepted.
+Until policy is supported, a trigger that sets `policy` fails validation with an unsupported error. It is never silently accepted.
 
-Config validation rejects duplicate action ids, triggers that reference a missing action, unsupported modes, and hook names that are neither built in nor prefixed with `custom.`. It reports a trigger that sets `policy` as unsupported. A project with no actions behaves as it does today.
+Lifecycle config uses a dedicated strict reader (`readLifecycleConfig()`) called by `openspec lifecycle actions` and `openspec validate`, leaving `readProjectConfig()` forgiving so a lifecycle typo never breaks unrelated commands (`status`, `list`, `archive`).
 
-Lookup reuses OpenSpec's existing root and config resolution, including Stores. When a Store is the resolved root, the Store's configuration decides which actions are returned.
+Validation rules:
+- **Actions:** `instructions` is required (non-empty string); `title` is optional (defaults to the action id); `description` is optional. Action ids must be kebab-case (`[a-z0-9]+(-[a-z0-9]+)*`). No `kind` field is required today (keeping the schema forward-compatible with future native executable actions).
+- **Triggers:** `on`, `run`, and `mode` are all required (no implicit default for `mode`).
+- **Errors:** Reject duplicate action ids, duplicate `(on, run)` triggers, triggers that reference a missing action, unsupported modes, invalid hook names, and any trigger that sets `policy`. A project with no `lifecycle:` block behaves as it does today.
+
+Lookup reuses OpenSpec's existing root and config resolution, including Stores (`--store <id>`). When a Store is the resolved root, the Store's configuration decides which actions are returned (no repo-plus-store config merging; any repo-local script referenced by an action still lives in the code repository). Shared store-selection guidance is updated so built-in skills forward `--store <id>` to `openspec lifecycle`.
 
 ## What callers receive
 
@@ -120,18 +126,20 @@ OpenSpec passes nothing into an action. The agent already knows which change it 
 ## Hook names
 
 - OpenSpec defines built-in hooks. The pilot uses `apply.before` and `apply.completed`.
-- Users can invoke their own hooks. A custom hook name must start with `custom.`, such as `custom.security-review.completed`.
-- Any other name is rejected. A typo such as `aply.before` is neither built in nor prefixed with `custom.`, so it fails.
+- Users can invoke their own hooks. A custom hook name must start with `custom.` followed by dot-separated kebab-case segments, such as `custom.security-review.completed` (empty or malformed names like `custom.` or `custom..foo` are rejected).
+- Any other name is rejected. A typo such as `aply.before` is neither built in nor a valid `custom.` hook, so it fails.
 
 A hook is only a name that a caller invokes. There is no registration step and no event declaration.
 
 ## Who calls, and when
 
-Built-in skills, custom skills, and external orchestrators all make the same call.
+Built-in skills, custom skills, and external orchestrators all make the same call (passing `--store <id>` when targeting a registered Store).
 
-- **`apply.before`:** the Apply skill calls it when it begins or resumes, before any edits.
+- **`apply.before`:** the Apply skill calls it once when Apply is ready to implement (after reading context files and before any edits), on begin or resume. It is skipped when `state` is `blocked` or `all_done`.
 - **`apply.completed`:** the Apply skill calls it when its state is `all_done`, including for a change that was already complete.
-- **Blocked changes:** a `blocked` change does not reach `apply.completed`.
+- **Blocked changes:** a `blocked` change does not reach `apply.before` or `apply.completed`.
+- **Config errors:** if `openspec lifecycle actions` returns a config error, Apply reports the error and stops.
+- **Action behavior:** what an action does—including whether it pauses for developer input—belongs in the action's own `instructions`, not in Apply.
 - **Instruction and status reads:** these never return or fire actions. Apply refreshes its instructions during the task loop, and attaching actions to those reads would repeat every offer.
 - **Wrappers:** if a custom skill delegates to the built-in skill, one of them makes the call.
 
@@ -154,17 +162,18 @@ The pilot ships two user-defined actions as tested recipes. Neither needs specia
 **Action B: run the project's own drift script.** The agent runs a script the team maintains and reports what it prints:
 
 ```yaml
-actions:
-  requirements-drift:
-    title: Check requirements for changes
-    description: Run the team's drift script and report the result.
-    instructions: |
-      Run scripts/check-requirements-drift.sh and report its output.
+lifecycle:
+  actions:
+    requirements-drift:
+      title: Check requirements for changes
+      description: Run the team's drift script and report the result.
+      instructions: |
+        Run scripts/check-requirements-drift.sh and report its output.
 
-triggers:
-  - on: apply.before
-    run: requirements-drift
-    mode: auto
+  triggers:
+    - on: apply.before
+      run: requirements-drift
+      mode: auto
 ```
 
 The script owns its own baseline and comparison logic. OpenSpec knows nothing about Git, revisions, or sources. Because the agent runs the script, the agent's own permission prompts apply.
@@ -191,14 +200,14 @@ Run one fixture project through the built-in Apply skill and through a custom ca
 - A `suggest` action is offered, and both accepting and skipping work in the current session.
 - An `auto` action is followed without an extra prompt.
 - Two actions on one hook are handled in configuration order.
-- `apply.before` fires before edits, on begin and on resume.
+- `apply.before` fires once before edits on begin and resume, and is skipped on `blocked` and `all_done`.
 - `apply.completed` fires on `all_done` and never on `blocked`.
 - Instruction and status refreshes repeat no offers.
-- A trigger that sets `policy` is reported as unsupported.
-- A `custom.` hook works from a custom caller, and a mistyped built-in name such as `aply.before` is rejected.
+- A trigger that sets `policy` or duplicates an `(on, run)` pair fails validation with a visible error, while unrelated commands (`status`, `list`) still work.
+- A `custom.` hook works from a custom caller, and malformed or mistyped names such as `custom.` or `aply.before` are rejected.
 - Actions A and B both run through `apply.before` with no OpenSpec code specific to either.
 - An unreachable source is reported as unread.
-- Lookup resolves the right configuration when the change lives in a Store.
+- Lookup resolves the right configuration when the change lives in a Store (`--store <id>`).
 
 The CLI and config have unit and integration tests. The skill behavior is shown by a recorded end-to-end run on the fixture.
 
@@ -218,6 +227,6 @@ Generalized references, a provider-agnostic way for a change to reference what i
 
 These are decided separately: policy, native executable actions and their trust model, whether Archive calls an `archive.before` hook, plugins, and agent orchestration. See the [roadmap](../direction/roadmap.md).
 
-We have not inspected the private integration skills. Mapping where they would make these calls is part of checking the custom-caller path.
+Mapping how external or custom skills make these calls is part of verifying the custom-caller path.
 
 External-contract generation and verification remain [separate exploration](../direction/external-context-for-changes.md). The [enterprise requirements inventory](../research/enterprise-requirements.md) records the wider needs.

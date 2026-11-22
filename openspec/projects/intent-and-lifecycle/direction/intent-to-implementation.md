@@ -164,7 +164,7 @@ This broader exploration considers using the existing workflow wherever it fits 
 
 The [Working PRD](./external-context-for-changes.md) explores possible improvements to shaping changes from existing context and verifying external contracts. Those questions remain useful but do not define the next lifecycle increment.
 
-The immediate product is lifecycle extensibility around an existing generation workflow. Its [roadmap](roadmap.md) starts with project-defined actions that an agent offers or follows before and after Apply. Preserve that integration's current generation behavior.
+The immediate product is lifecycle extensibility around existing workflows. Its [roadmap](roadmap.md) starts with project-defined actions that an agent offers or follows before and after Apply, leaving existing change-generation workflows unchanged.
 
 **Generalized references** are a further separate exploration. We want a provider-agnostic way for a change to reference the information it depends on, such as local Markdown, documents in other repositories, Git-hosted documents, tools like Linear, Jira, and Notion, and user-defined types. The name, the schema, and whether it needs integrations, resolvers, or structured metadata are all undecided. Project-level `references` already means something else. Lifecycle hooks and references do not depend on each other. The [roadmap](roadmap.md#generalized-references) records the current position.
 

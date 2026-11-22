@@ -12,17 +12,18 @@ A project defines **what the agent should do** and **when it should do it**.
 
 ```yaml
 # openspec/config.yaml
-actions:
-  requirements-review:
-    title: Review requirements
-    instructions: |
-      Check whether the current requirements
-      still agree with the implementation plan.
+lifecycle:
+  actions:
+    requirements-review:
+      title: Review requirements
+      instructions: |
+        Check whether the current requirements
+        still agree with the implementation plan.
 
-triggers:
-  - on: apply.before
-    run: requirements-review
-    mode: suggest
+  triggers:
+    - on: apply.before
+      run: requirements-review
+      mode: suggest
 ```
 
 When Apply starts:
@@ -75,10 +76,10 @@ Five independently verifiable PRs, grouped into two release checkpoints.
 
 | PR | What we're building | How we verify it |
 |---|---|---|
-| **1. Configuration** | Define and validate `actions` and `triggers` | Valid configuration loads. Invalid references, modes, and hook names fail clearly |
-| **2. Action lookup** | Add `openspec lifecycle actions --at <hook>` | CLI returns the correct actions, in order, with their instructions |
+| **1. Configuration** | Define and strictly validate `lifecycle.actions` and `lifecycle.triggers` | Valid configuration loads. Invalid references, modes, hook names, duplicate triggers, and unsupported `policy` fail clearly without breaking unrelated commands |
+| **2. Action lookup** | Add `openspec lifecycle actions --at <hook>` (with `--store <id>`) | CLI returns the correct actions, in order, with their instructions |
 | **3. After Apply** | Invoke `apply.completed` when tasks finish | Agent offers configured actions. Accepting and skipping both work |
-| **4. Before Apply** | Invoke `apply.before` before implementation | Actions are offered before edits and don't interfere with normal Apply |
+| **4. Before Apply** | Invoke `apply.before` before implementation | Actions are offered once before edits, skipped on `blocked` and `all_done`, and don't interfere with normal Apply |
 | **5. Real examples** | Demonstrate two independently defined actions | Both work through the same hook without changes to OpenSpec's core |
 
 Each PR can merge independently once its acceptance tests pass.
@@ -142,7 +143,7 @@ This proves the mechanism supports both agent reasoning and existing team toolin
 
 ### Release A: Run your own actions at different points in the OpenSpec workflow
 
-You can now define actions in `openspec/config.yaml` and choose when your coding agent should run them.
+You can now define actions under `lifecycle:` in `openspec/config.yaml` and choose when your coding agent should run them.
 
 For example, configure a security review before implementation or ask your agent to summarize findings after completing a change.
 
@@ -206,12 +207,6 @@ The longer-term goal is a small, reusable lifecycle interface that works across 
 
 The [product direction](direction/intent-to-implementation.md), [external-context PRD](direction/external-context-for-changes.md), [product launch post (draft)](launch/product-launch-post-draft.md), and [product open questions](launch/product-open-questions.md) explore wider questions about context and contract verification. That work is separate from this pilot.
 
-## Working on this proposal
+## Notes
 
-Use branch `explore/intent-and-lifecycle` in `../openspec-intent-and-lifecycle`, beside the original `openspec` checkout. It was created from local `main` at `2bd5bc3b` on November 5, 2026.
-
-We have not inspected the private integration skills. Mapping where they would call a hook is part of checking the custom-caller path.
-
-These docs came from private exploration and have been revised locally. Identifying names, attachment names, personal paths, and private page links were removed. Original remote pages were not changed.
-
-This proposal is being shared as a draft PR. It is not ready for review or implementation.
+These docs consolidate earlier exploration notes, with identifying names and private links removed. Mapping how custom external skills call these hooks is part of verifying the custom-caller path.
