@@ -53,10 +53,6 @@ Two common reasons to use a store:
 
 You can have more than one store, though we recommend keeping the count low.
 
-### Symlinked `openspec/` folders aren't supported
-
-Linking `openspec/`, `openspec/specs`, or `openspec/changes` to a folder in another repo is not a supported setup. `openspec init` refuses it with `Path is outside the allowed directory`. Other commands may work with a link today, but nothing guarantees they keep working. To share specs across repos or worktrees, use a store.
-
 ## Set up a store
 
 One person creates the store, then everyone else joins it.

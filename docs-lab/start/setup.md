@@ -92,6 +92,8 @@ openspec/
 
 [Project config](../customize/project-config.md) covers `config.yaml`.
 
+Symlinking `openspec/` or any folder inside it isn't supported, and commands aren't guaranteed to work through the link.
+
 ### The workflow files (skills)
 
 These are the OpenSpec workflows, the actions you'll use as you work. Here they are as installed skills, in the shared `.agents/skills/` folder:
