@@ -14,18 +14,6 @@ Help me explore a task tracker from scratch. I have not picked a stack. Compare 
 
 Decide what the first change needs and leave later architecture choices open. Ask your agent to propose that one change, then follow the steps below. You can revisit the architecture as the project grows.
 
-## Start from an existing project
-
-You don't need specs for the code you already have. Initialize OpenSpec, pick a change you were going to make anyway, and follow the steps below. Archiving that change writes specs for the behavior it touched. The rest of `openspec/specs/` fills in as you make more changes.
-
-OpenSpec has no command that writes specs for existing features. To get a spec for an area you don't plan to change, ask your agent for a change that only documents it. In your AI chat:
-
-```text
-Propose a change that documents how password reset works today. Read the code and write the spec from what it does. Don't change any code. If something looks like a bug, tell me and leave it out of the spec.
-```
-
-Then follow the steps below. When you review the plan, check that the spec matches what the code does. Archiving puts the spec in `openspec/specs/`, the same as any other change.
-
 ## The loop at a glance
 
 Every change moves through the same five steps: you think the idea through with your agent, it drafts a plan, you correct the plan before any code exists, the agent builds from it, and archiving updates your specs with what shipped.
@@ -187,6 +175,7 @@ OpenSpec does not prune archived changes automatically or provide a retention se
 
 - [Delta specs](../reference/schemas/spec-driven/index.md#delta-specs-specmd): how to write the behavior changes in a delta spec.
 - [Profiles](../customize/profiles.md): optional workflows beyond the core set (verify before archive, incremental planning).
+- [Existing codebases](../guides/existing-codebases.md): bring OpenSpec to a codebase with a lot of code and no specs.
 
 ## Advanced guides
 

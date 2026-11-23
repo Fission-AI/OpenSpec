@@ -31,9 +31,9 @@ it or cut it.
 README, `message-map.md`, and `sources.md`. Most folders publish as one
 sidebar group; `guides/` publishes as the Guides group, holding three collapsible
 subgroups (Understanding OpenSpec, Using OpenSpec, Adopting OpenSpec), all expanded
-by default (held back from the site until the pages are drafted: the whole section is
-commented out in `website/docs.sync.config.mjs`, and links to a guide fall back to its
-source on GitHub until it's re-listed). Reference holds three nested
+by default (a guide publishes once it is drafted: Existing codebases is on the site,
+the others are commented out in `website/docs.sync.config.mjs`, and links to a held-back
+guide fall back to its source on GitHub until it's re-listed). Reference holds three nested
 folders (`reference/architecture/`, `reference/schemas/`, and
 `reference/configuration/`), each publishing as a collapsible group with `index.md` as
 its landing page; the spec-driven schema publishes as a single page
@@ -107,7 +107,7 @@ the page or rewriting the goal in both places, never letting them drift.
 | [Using › Review the plan](guides/review-the-plan.md) | The two-minute pass that catches wrong turns before they're code. |
 | [Using › Apply a change](guides/apply.md) | Run the plan: pacing, context windows, and picking up where you left off. |
 | [Using › Change course](guides/change-course.md) | Revise a change in flight, or decide it's cleaner to start fresh. |
-| [Adopting › Existing codebases](guides/existing-codebases.md) | Bring OpenSpec to a codebase with a lot of code and no specs: where to start, what to backfill, and how specs grow from there. |
+| [Adopting › Existing codebases](guides/existing-codebases.md) | Bring OpenSpec to a codebase with a lot of code and no specs: where to start, what to do with requirements written elsewhere, and when to write specs for existing code. |
 | [Adopting › Teams](guides/teams.md) | Run OpenSpec as a team: what to commit, how a change rides its PR, and when to archive. |
 
 ### Customize: make the workflows fit your project
