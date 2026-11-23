@@ -2,7 +2,7 @@
 
 > Bring OpenSpec to a codebase with a lot of code and no specs: where to start, what to do with requirements written elsewhere, and when to write specs for existing code.
 
-OpenSpec works in a codebase that has no specs. [Set up your project](../start/setup.md), then take your next change through the [Quickstart](../start/quickstart.md).
+OpenSpec works in a brownfield codebase, one with a lot of code and no specs. [Set up your project](../start/setup.md), then take your next change through the [Quickstart](../start/quickstart.md).
 
 ## Start with your next change
 
