@@ -109,7 +109,7 @@ These are the OpenSpec workflows, the actions you'll use as you work. Here they 
 └── openspec-bulk-archive-change/  archive several changes at once (not included by default)
 ```
 
-This is the default set, the `openspec` router that comes with every profile, and two optional workflows. [Profiles](../customize/profiles.md) lists all twelve workflows.
+This is the default set and two optional workflows, plus the `openspec` router, which comes with every profile. [Profiles](../customize/profiles.md) lists all twelve workflows.
 
 Each skill is written once, here, no matter how many tools you set up. A tool that doesn't read `.agents/skills/` (Claude Code, Kiro, and others) gets a link to each skill in its own folder, such as `.claude/skills/openspec-propose`. Windows project installs use copies that Git can carry to another checkout. [Supported tools](../reference/supported-tools.md#where-skills-go) shows the layout and which tools get links.
 
