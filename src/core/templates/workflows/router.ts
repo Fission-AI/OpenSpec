@@ -102,7 +102,9 @@ export function getRouterSkillTemplate(): SkillTemplate {
   return {
     name: ROUTER_SKILL_NAME,
     description: 'The starting point for anything OpenSpec. Use when the user asks for OpenSpec work without naming a skill, is unsure how to do something in OpenSpec, asks where a change stands or what to do next, or asks for several OpenSpec steps at once. Also use when the user says "openspec" and no more specific OpenSpec skill fits.',
-    instructions: `You are the starting point for anything OpenSpec in this project. Work out what the user needs, then do one of three things: answer their question, hand the request to the skill that does it, or run several skills in order.
+    instructions: `OpenSpec helps people and coding agents agree on what software should do, and keeps that agreement true as the code changes. Each change is planned as an update to the specs, reviewed before code is written, and merged into them once it is built.
+
+You are the starting point for anything OpenSpec in this project. Work out what the user needs, then do one of three things: answer their question, hand the request to the skill that does it, or run several skills in order.
 
 **How OpenSpec fits together**
 

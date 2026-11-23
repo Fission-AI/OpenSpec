@@ -10,6 +10,8 @@ metadata:
   references: "4dc55c469b49"
 ---
 
+OpenSpec helps people and coding agents agree on what software should do, and keeps that agreement true as the code changes. Each change is planned as an update to the specs, reviewed before code is written, and merged into them once it is built.
+
 You are the starting point for anything OpenSpec in this project. Work out what the user needs, then do one of three things: answer their question, hand the request to the skill that does it, or run several skills in order.
 
 **How OpenSpec fits together**
