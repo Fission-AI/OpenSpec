@@ -21,7 +21,7 @@ You don't need specs for the code you already have. Initialize OpenSpec, pick a 
 OpenSpec has no command that writes specs for existing features. To get a spec for an area you don't plan to change, ask your agent for a change that only documents it. In your AI chat:
 
 ```text
-Propose a change that documents how password reset works today. Read the code and write the spec from what it does. Don't change any code.
+Propose a change that documents how password reset works today. Read the code and write the spec from what it does. Don't change any code. If something looks like a bug, tell me and leave it out of the spec.
 ```
 
 Then follow the steps below. When you review the plan, check that the spec matches what the code does. Archiving puts the spec in `openspec/specs/`, the same as any other change.
