@@ -157,20 +157,22 @@ export const sections = [
       { source: 'help/upgrade-to-2.md', slug: 'upgrade-to-2' },
     ],
   },
-  // TODO (held back 2026-08-21): Help and Legacy are not written yet (FAQ has one
-  // answer, Troubleshooting and Migration are headings only), so both sections
-  // are hidden from the site until we get to them. The markdown stays in
-  // docs-lab/help/. Links to these pages from published pages fall back to
-  // their GitHub source (rewriteLinks in scripts/sync-docs.mjs). Re-publish by
-  // moving the entries out of this comment, same as Guides above.
-  /*
+  // FAQ publishes only its answered questions (the rest wait in a comment at the
+  // end of faq.md).
   {
     label: 'Help',
     pages: [
       { source: 'help/faq.md', slug: 'faq' },
-      { source: 'help/troubleshooting.md', slug: 'troubleshooting' },
+      // { source: 'help/troubleshooting.md', slug: 'troubleshooting' },
     ],
   },
+  // TODO (held back 2026-08-21): Troubleshooting and Legacy are not written yet
+  // (both are headings only), so they are hidden from the site until we get to
+  // them. The markdown stays in docs-lab/help/. Links to these pages from
+  // published pages fall back to their GitHub source (rewriteLinks in
+  // scripts/sync-docs.mjs). Re-publish by moving the entries out of this
+  // comment, same as Guides above.
+  /*
   {
     label: 'Legacy',
     pages: [{ source: 'help/legacy/migration.md', slug: 'migration' }],

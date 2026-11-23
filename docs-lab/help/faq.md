@@ -2,16 +2,10 @@
 
 > Short answers to the questions that don't need a page.
 
-<!-- WIP, on the todo list: this page is not written yet and is held back from the
-site (its section is commented out in website/docs.sync.config.mjs, 2026-08-21). The
-file stays so the structure and inbound links survive; re-list it in the sync config
-once the prose lands. -->
+<!-- WIP: only answered questions are published. Unanswered ones wait in the comment
+at the end of this page; move each one back up once it has an answer. -->
 
 <!-- Every entry is a one-liner: a short answer or a router link to the page that owns the topic; how-to content never lives here (README's "FAQ is one-liners" rule). Update/uninstall moved to installation.md; the skills-missing fix and Getting help live in troubleshooting.md; the git question is a one-line yes routing to guides/teams.md, which owns the team conventions. Unfilled headings are skeletons. -->
-
-## Should openspec/ be checked into git?
-
-## What runs in the terminal, and what in chat?
 
 ## Does OpenSpec work with my tool?
 
@@ -22,4 +16,15 @@ matrix's Other / Universal section. If it reads only its own folder, point that
 folder at `.agents/skills/` with one link
 ([Link another tool](../reference/supported-tools.md#link-another-tool)).
 
+## Can I symlink openspec/ or a folder inside it?
+
+No. Symlinked folders aren't supported, and commands aren't guaranteed to work through the link.
+
+<!-- Unanswered, held back from the site until they have answers:
+
+## Should openspec/ be checked into git?
+
+## What runs in the terminal, and what in chat?
+
 ## Where did the old /openspec:* commands go?
+-->

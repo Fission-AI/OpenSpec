@@ -182,13 +182,13 @@ file's [Cutover](sources.md#cutover) section.
   pages that link to them (`reference/glossary.md` to the Overview,
   `customize/project-config.md` to Workflow runs) fall back to the GitHub source until
   the group is re-listed.
-- Not started: the Help and Legacy pages (`help/faq.md`, `help/troubleshooting.md`,
-  `help/legacy/migration.md`). FAQ has one answer and the other two are headings only, so
-  we hid both sections from the site on 2026-08-21 (commented out in
+- In progress: `help/faq.md` is published with only its answered questions; the
+  unanswered ones wait in a comment at the end of the file.
+- Not started: `help/troubleshooting.md` and `help/legacy/migration.md` are headings
+  only, so we hid them from the site on 2026-08-21 (commented out in
   `website/docs.sync.config.mjs`, same mechanism as Guides). The files stay on disk with
-  a WIP comment. Published pages that link to them (`start/setup.md` to FAQ,
-  `reference/glossary.md` to Migration) fall back to the GitHub source until the
-  sections are re-listed.
+  a WIP comment. Published pages that link to them (`reference/glossary.md` to
+  Migration) fall back to the GitHub source until they are re-listed.
 - Not started: `start/overview.md` is empty on purpose. We cleared the skeleton
   (headings, narrative beats, diagram gallery) on 2026-08-21 to rewrite the landing page
   from scratch. The old pitch ("a shared, reviewable plan before code is written")
