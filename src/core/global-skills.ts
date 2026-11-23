@@ -4,6 +4,7 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, s
 import { getSupportedAgents } from 'skills';
 import { AI_TOOLS, installerAgent, OPENSPEC_SKILL_NAMES } from './config.js';
 import { getGlobalDataDir } from './global-config.js';
+import { withRouter } from './profiles.js';
 import { getConfiguredTools } from './shared/tool-detection.js';
 import { expectedSkillFiles, installReleaseSkills, removeManagedSkills, type SkillScope } from './skill-installer.js';
 
@@ -71,7 +72,7 @@ export async function installGlobalSkills(input: GlobalInstallInput) {
   const refresh = async () => {
     const before = await readGlobalSkills();
     const agents = [...new Set(['universal', ...before.agents, ...(input.toolIds ?? []).map(id => installerAgent(id).id)])];
-    const expected = expectedSkillFiles(input.version, input.workflows);
+    const expected = expectedSkillFiles(input.version, withRouter(input.workflows));
     const skills = [...expected.keys()];
     const removedSkills = before.skills.filter(name => !expected.has(name));
     const dirs = globalDirectories();

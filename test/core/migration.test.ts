@@ -97,15 +97,6 @@ describe('migration', () => {
     expect(config.workflows).toEqual(['explore', 'apply']);
   });
 
-  it('migrates the core skills of a release before the router to the core profile', async () => {
-    for (const skill of ['openspec-propose', 'openspec-explore', 'openspec-apply-change', 'openspec-update-change', 'openspec-sync-specs', 'openspec-archive-change']) {
-      await writeSkill(projectDir, skill);
-    }
-
-    expect(captureMigrationLogs(projectDir, [ensureClaudeTool()])).toEqual([]);
-    expect(readRawConfig().profile).toBe('core');
-  });
-
   it('keeps dry-run legacy results aligned with migration timing', async () => {
     await writeSkill(projectDir, 'openspec-explore', '.codex');
     await writeSkill(projectDir, 'openspec-explore', '.agents');

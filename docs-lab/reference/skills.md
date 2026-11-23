@@ -41,6 +41,8 @@ The skills come in two sets:
 - **Core**: installed by default, the main planning loop.
 - **Optional**: installed only when you add them, via [Profiles](../customize/profiles.md).
 
+The `openspec` router is in neither set. It comes with every profile.
+
 Every skill expects a project that already uses OpenSpec. Before its first step that writes anything, a skill checks for a resolved root. What happens when there is none depends on how the skill was reached:
 
 - **Auto-selected**: your agent picked the skill on its own, without you naming OpenSpec. It drops OpenSpec and answers your request normally, the way it would with OpenSpec not installed.
@@ -50,7 +52,7 @@ Invoking a skill by name is always the second case. A project whose `openspec/co
 
 | Skill | Job | Type |
 |---|---|---|
-| [openspec](#openspec) | The router: one place to start; answers questions and hands each request to the skill that does it | Core |
+| [openspec](#openspec) | The router: one place to start; answers questions and hands each request to the skill that does it | Always installed |
 | [openspec-explore](#openspec-explore) | Think through an idea before it becomes a change proposal | Core |
 | [openspec-propose](#openspec-propose) | Create a change proposal with all its planning artifacts in one step | Core |
 | [openspec-apply-change](#openspec-apply-change) | Implement a change proposal's tasks | Core |

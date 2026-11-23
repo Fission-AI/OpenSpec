@@ -21,7 +21,7 @@ The CLI keeps its machine-level settings at `~/.config/openspec/config.json` on 
 
 ### profile
 
-Which workflow set `openspec init` installs. Defaults to `core`: propose, explore, apply, update, sync, archive, and router. Setting `custom` installs exactly the `workflows` list instead.
+Which workflow set `openspec init` installs. Defaults to `core`: propose, explore, apply, update, sync, and archive. Setting `custom` installs exactly the `workflows` list instead.
 
 ### delivery
 
@@ -29,7 +29,7 @@ Retired in OpenSpec 2.0, which installs skills only. The value is still accepted
 
 ### workflows
 
-The workflows a `custom` profile installs; ignored when the profile is `core`. Valid ids: `propose`, `explore`, `new`, `continue`, `apply`, `update`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`, `router`.
+The workflows a `custom` profile installs; ignored when the profile is `core`. Valid ids: `propose`, `explore`, `new`, `continue`, `apply`, `update`, `ff`, `sync`, `archive`, `bulk-archive`, `verify`, `onboard`.
 
 ### featureFlags
 

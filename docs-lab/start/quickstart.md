@@ -47,7 +47,7 @@ Use it when you're not sure how to do something, want to know where a change sta
 /openspec verify add-rate-limiting, then archive it
 ```
 
-It's part of the core profile ([Profiles](../customize/profiles.md)). If a request needs a skill you haven't installed, it does that step with the CLI instead and tells you how to add the skill.
+It's installed with every [profile](../customize/profiles.md). If a request needs a skill you haven't installed, it does that step with the CLI instead and tells you how to add the skill.
 
 ## Step 1: Explore
 

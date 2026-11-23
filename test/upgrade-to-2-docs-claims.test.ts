@@ -4,7 +4,7 @@ import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WORKFLOW_TO_SKILL_DIR } from '../src/core/profile-sync-drift.js';
 import { DELIVERY_RETIRED_NOTE } from '../src/commands/config.js';
-import { COMMAND_IDS } from '../src/core/shared/tool-detection.js';
+import { ALL_WORKFLOWS } from '../src/core/profiles.js';
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (...segments: string[]) => fs.readFileSync(path.join(REPO_ROOT, ...segments), 'utf-8');
@@ -14,8 +14,7 @@ const UPGRADE = read('docs-lab', 'help', 'upgrade-to-2.md');
 // other so neither can drift (#2022).
 describe('OpenSpec 2.0 documentation', () => {
   it('maps every 1.x command to the skill that replaces it, by the real skill names', () => {
-    // The router came after 1.x, so it replaces no command.
-    for (const workflow of COMMAND_IDS) {
+    for (const workflow of ALL_WORKFLOWS) {
       expect(UPGRADE, workflow).toContain(`| \`/opsx:${workflow}\` | \`${WORKFLOW_TO_SKILL_DIR[workflow]}\` |`);
     }
   });

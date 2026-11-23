@@ -3,7 +3,7 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { getGlobalDataDir, registerStore } from '../../src/core/index.js';
-import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../src/core/profiles.js';
+import { ALL_WORKFLOWS, CORE_WORKFLOWS, withRouter } from '../../src/core/profiles.js';
 import { getSkillTemplates } from '../../src/core/shared/skill-generation.js';
 import { createOpenSpecRoot } from '../helpers/openspec-fixtures.js';
 import { runCLI } from '../helpers/run-cli.js';
@@ -42,11 +42,11 @@ describe('profile handoff CLI regressions (#1734)', () => {
     await cli(['init', '--tools', 'claude', '--profile', 'core', '--no-animation', '--force']);
 
     // OpenSpec 2.0 installs skills only, whatever the delivery setting says.
-    const files = getSkillTemplates(CORE_WORKFLOWS).map(({ dirName }) =>
+    const files = getSkillTemplates(withRouter(CORE_WORKFLOWS)).map(({ dirName }) =>
       path.join(project, '.claude', 'skills', dirName, 'SKILL.md'));
     async function assertCore(): Promise<void> {
       expect((await fs.readdir(path.join(project, '.claude', 'skills'))).sort())
-        .toEqual(getSkillTemplates(CORE_WORKFLOWS).map(entry => entry.dirName).sort());
+        .toEqual(getSkillTemplates(withRouter(CORE_WORKFLOWS)).map(entry => entry.dirName).sort());
       await expect(fs.access(path.join(project, '.claude', 'commands'))).rejects.toThrow();
       for (const file of files) {
         const content = await fs.readFile(file, 'utf-8');

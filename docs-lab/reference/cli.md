@@ -304,7 +304,7 @@ delivery: skills
 Profile settings:
   profile: core (default)
   delivery: skills (retired in 2.0, ignored)
-  workflows: propose, explore, apply, update, sync, archive, router (from core profile)
+  workflows: propose, explore, apply, update, sync, archive (from core profile)
 ```
 
 ### openspec config get

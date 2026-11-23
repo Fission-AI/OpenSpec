@@ -10,7 +10,7 @@ import { getGlobalConfig, getGlobalConfigPath, isGlobalConfigUnreadable, saveGlo
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { WORKFLOW_TO_SKILL_DIR } from './profile-sync-drift.js';
 import { COMMAND_IDS } from './shared/tool-detection.js';
-import { ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
+import { ALL_WORKFLOWS, CORE_WORKFLOWS, SKILL_WORKFLOWS } from './profiles.js';
 import { getSkillReferenceTransformer } from '../utils/command-references.js';
 import { FileSystemUtils } from '../utils/file-system.js';
 import { isToolListed } from './shared-skill-target.js';
@@ -291,7 +291,8 @@ function migrateSkillDirs(
   let moved = 0;
   let kept = 0;
 
-  for (const workflowId of ALL_WORKFLOWS) {
+  // Every skill folder, the router's included, so none is left behind.
+  for (const workflowId of SKILL_WORKFLOWS) {
     const dirName = WORKFLOW_TO_SKILL_DIR[workflowId];
     const source = path.join(legacySkillsDir, dirName);
     const sourceSkill = path.join(source, 'SKILL.md');
@@ -664,12 +665,9 @@ export function computeProfileMigration(
     return null;
   }
 
-  // Releases before the router installed core without it, and that is still core.
-  const coreWithoutRouter = CORE_WORKFLOWS.filter((workflow) => workflow !== 'router');
-  const installedWithoutRouter = installedWorkflows.filter((workflow) => workflow !== 'router');
   const isCore =
-    installedWithoutRouter.length === coreWithoutRouter.length &&
-    coreWithoutRouter.every((workflow) => installedWithoutRouter.includes(workflow));
+    installedWorkflows.length === CORE_WORKFLOWS.length &&
+    CORE_WORKFLOWS.every((workflow) => installedWorkflows.includes(workflow));
   return { profile: isCore ? 'core' : 'custom', workflows: installedWorkflows };
 }
 

@@ -12,7 +12,6 @@ import { cliProjectRoot, runCLI } from '../helpers/run-cli.js';
 const ROUTER = 'openspec';
 const REFERENCES = ['references/answers.md', 'references/where-things-stand.md', 'references/without-skills.md'];
 const ROUTER_FILES = ['SKILL.md', ...REFERENCES];
-const WITHOUT_ROUTER = ['propose', 'explore', 'apply', 'update', 'sync', 'archive'];
 
 const published = (file: string) => readFileSync(path.join(cliProjectRoot, 'skills', ROUTER, file), 'utf8');
 /** Every file in a skill folder, by path inside it. */
@@ -120,16 +119,39 @@ describe('the router skill and its references', { timeout: 60_000 }, () => {
       expectPublished(path.join(dir, '.claude', 'skills', ROUTER));
     });
 
-    it('removes the router with its references when the profile leaves it out', async () => {
+    it('keeps the router on a custom profile, which cannot leave it out', async () => {
       const dir = await project();
       await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
-      await setWorkflows(WITHOUT_ROUTER);
+      await setWorkflows(['apply']);
+
+      const update = await cli(dir, 'update');
+
+      expect(readdirSync(path.join(dir, '.agents', 'skills')).filter((name) => name.startsWith(ROUTER)).sort())
+        .toEqual([ROUTER, 'openspec-apply-change']);
+      expectPublished(path.join(dir, '.agents', 'skills', ROUTER));
+      expectPublished(path.join(dir, '.claude', 'skills', ROUTER));
+      expect(update.stdout).not.toContain('router');
+      expect((await cli(dir, 'update')).stdout).toContain('up to date');
+    });
+
+    it('installs the router on a custom profile from the start', async () => {
+      const dir = await project();
+      await setWorkflows(['explore']);
+
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
+
+      expectPublished(path.join(dir, '.agents', 'skills', ROUTER));
+    });
+
+    it('removes the router with its references when the profile has no workflows', async () => {
+      const dir = await project();
+      await cli(dir, 'init', '--scope', 'project', '--tools', 'claude');
+      await setWorkflows([]);
 
       await cli(dir, 'update');
 
       expect(existsSync(path.join(dir, '.agents', 'skills', ROUTER))).toBe(false);
       expect(existsSync(path.join(dir, '.claude', 'skills', ROUTER))).toBe(false);
-      expect(existsSync(path.join(dir, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
     });
   });
 
@@ -155,7 +177,7 @@ describe('the router skill and its references', { timeout: 60_000 }, () => {
       expectPublished(globalRouter());
     });
 
-    it('refreshes a stale reference on update, and removes the router when the profile leaves it out', async () => {
+    it('refreshes a stale reference, keeps the router on a custom profile, and removes it with the last workflow', async () => {
       const dir = await project();
       await cli(dir, 'init', '--scope', 'global', '--tools', 'claude');
       await makeStale(globalRouter());
@@ -163,11 +185,15 @@ describe('the router skill and its references', { timeout: 60_000 }, () => {
       await cli(dir, 'update');
       expectPublished(globalRouter());
 
-      await setWorkflows(WITHOUT_ROUTER);
+      await setWorkflows(['apply']);
+      await cli(dir, 'update');
+      expectPublished(globalRouter());
+      expect(existsSync(path.join(home, '.agents', 'skills', 'openspec-propose'))).toBe(false);
+
+      await setWorkflows([]);
       await cli(dir, 'update');
       expect(existsSync(globalRouter())).toBe(false);
       expect(existsSync(path.join(home, '.claude', 'skills', ROUTER))).toBe(false);
-      expect(existsSync(path.join(home, '.agents', 'skills', 'openspec-propose', 'SKILL.md'))).toBe(true);
     });
   });
 });

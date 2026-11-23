@@ -46,7 +46,7 @@ import { isInteractive } from '../utils/interactive.js';
 import { findStaleReleasedFiles, pruneEmptyParents } from './released-output-sweep.js';
 import { cleanUpRetiredTools, formatRetiredToolCleanup } from './retired-tools.js';
 import { getGlobalConfig, getGlobalConfigPath, serializeGlobalConfig, type Delivery, type Profile } from './global-config.js';
-import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
+import { getProfileWorkflows, withRouter, SKILL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { formatOptionalWorkflowsNote, getOnboardingCommands } from './onboarding-commands.js';
 import { getAvailableTools } from './available-tools.js';
 import {
@@ -94,7 +94,7 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
  */
 type LegacyUpgradeResult = {
   newlyConfiguredTools: string[];
-  workflowOverrides: Partial<Record<string, readonly (typeof ALL_WORKFLOWS)[number][]>>;
+  workflowOverrides: Partial<Record<string, readonly (typeof SKILL_WORKFLOWS)[number][]>>;
   failedTools?: ToolFailure[];
   deferredGlobalCleanup?: LegacyDetectionResult;
   /**
@@ -302,8 +302,8 @@ export class UpdateCommand {
     const globalConfig = getGlobalConfig();
     const workflows =
       this.settledWorkflows ??
-      getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows).filter((workflow) =>
-        (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+      withRouter(getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows)).filter((workflow) =>
+        (SKILL_WORKFLOWS as readonly string[]).includes(workflow)
       );
     let changed = false;
     try {
@@ -400,9 +400,9 @@ export class UpdateCommand {
     }
     const profile = globalConfig.profile ?? 'core';
     const delivery: Delivery = globalConfig.delivery ?? 'both';
-    const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
-    const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
-      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+    const profileWorkflows = withRouter(getProfileWorkflows(profile, globalConfig.workflows));
+    const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof SKILL_WORKFLOWS)[number] =>
+      (SKILL_WORKFLOWS as readonly string[]).includes(workflow)
     );
     this.settledWorkflows = desiredWorkflows;
 
@@ -900,7 +900,7 @@ export class UpdateCommand {
   private findToolsWithDriftedSkills(
     projectPath: string,
     toolIds: string[],
-    workflowsForTool: (toolId: string) => readonly (typeof ALL_WORKFLOWS)[number][]
+    workflowsForTool: (toolId: string) => readonly (typeof SKILL_WORKFLOWS)[number][]
   ): string[] {
     return toolIds.filter((toolId) => {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -1260,7 +1260,7 @@ export class UpdateCommand {
    */
   private async handleLegacyCleanup(
     projectPath: string,
-    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][],
+    desiredWorkflows: readonly (typeof SKILL_WORKFLOWS)[number][],
     delivery: Delivery
   ): Promise<LegacyUpgradeResult> {
     // Detect legacy artifacts
@@ -1503,7 +1503,7 @@ export class UpdateCommand {
     projectPath: string,
     detection: LegacyDetectionResult,
     canPrompt: boolean,
-    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][],
+    desiredWorkflows: readonly (typeof SKILL_WORKFLOWS)[number][],
     delivery: Delivery
   ): Promise<LegacyUpgradeResult> {
     // Get tools that had legacy artifacts
@@ -1575,11 +1575,11 @@ export class UpdateCommand {
       }
     }
 
-    const inferredCodexWorkflows = getProfileWorkflows(
+    const inferredCodexWorkflows = withRouter(getProfileWorkflows(
       'custom',
       getLegacyWorkflowIdsForTool(detection, 'codex')
-    ).filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
-      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+    )).filter((workflow): workflow is (typeof SKILL_WORKFLOWS)[number] =>
+      (SKILL_WORKFLOWS as readonly string[]).includes(workflow)
     );
 
     // Create skills/commands for selected tools using effective profile+delivery.
