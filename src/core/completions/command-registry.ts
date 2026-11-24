@@ -374,6 +374,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'yes',
             description: 'Confirm creating store identity metadata',
           },
+          {
+            name: 'scope',
+            description: 'Registry scope: "project" for project-scoped, default is global',
+            takesValue: true,
+            values: ['project', 'global'],
+          },
           COMMON_FLAGS.json,
         ],
       },
@@ -383,6 +389,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         acceptsPositional: true,
         positionals: [{ name: 'id' }],
         flags: [
+          {
+            name: 'scope',
+            description: 'Registry scope: "project" for project-scoped, default is global',
+            takesValue: true,
+            values: ['project', 'global'],
+          },
           COMMON_FLAGS.json,
         ],
       },
@@ -396,6 +408,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
             name: 'yes',
             description: 'Confirm local store folder deletion',
           },
+          {
+            name: 'scope',
+            description: 'Registry scope: "project" for project-scoped, default is global',
+            takesValue: true,
+            values: ['project', 'global'],
+          },
           COMMON_FLAGS.json,
         ],
       },
@@ -403,6 +421,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'list',
         description: 'List registered stores',
         flags: [
+          {
+            name: 'scope',
+            description: 'Registry scope: "project" for project-scoped, default is global',
+            takesValue: true,
+            values: ['project', 'global'],
+          },
           COMMON_FLAGS.json,
         ],
       },
@@ -410,6 +434,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         name: 'ls',
         description: 'List registered stores',
         flags: [
+          {
+            name: 'scope',
+            description: 'Registry scope: "project" for project-scoped, default is global',
+            takesValue: true,
+            values: ['project', 'global'],
+          },
           COMMON_FLAGS.json,
         ],
       },
@@ -419,6 +449,12 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
         acceptsPositional: true,
         positionals: [{ name: 'id', optional: true }],
         flags: [
+          {
+            name: 'scope',
+            description: 'Registry scope: "project" for project-scoped, default is global',
+            takesValue: true,
+            values: ['project', 'global'],
+          },
           COMMON_FLAGS.json,
         ],
       },
