@@ -28,6 +28,9 @@ rules:
   tasks:
     - Add Windows CI verification as a task when changes involve file paths
     - Include cross-platform testing considerations
+    - Put docs tasks in the last task group, after code and tests
+    - When the change makes a sentence in docs-lab/ false, fix that sentence where it is, with the smallest edit
+    - Add new detail to the docs only when it changes the answer to a question in docs-lab/message-map.md. Name the question and its owning page in the task, add the detail to that page only, and leave it out when most readers of that page will never need it
   design:
     - Document any platform-specific behavior or limitations
     - Prefer Node.js path module over string manipulation for paths
