@@ -51,6 +51,8 @@ Two common reasons to use a store:
   (code repo)   (code repo)   (code repo)
   ```
 
+A store also helps inside a single repo when you work on several changes at once in git worktrees. See [Work on several changes at once](#work-on-several-changes-at-once).
+
 You can have more than one store, though we recommend keeping the count low.
 
 ## Set up a store
@@ -310,6 +312,53 @@ References
 `openspec context` lists the root and stores your current directory works with, when you want the same picture without the checks.
 
 To open the store and a repo in one editor window, so your agent can read both, see [Worksets (beta)](worksets.md).
+
+## Work on several changes at once
+
+If you give each change its own git worktree, each worktree normally keeps its own copy of `openspec/changes/`. Progress you make in one worktree doesn't show up anywhere else, so there's no single place to check on all of them.
+
+Put the repo's specs and changes in a store and that problem goes away. Every worktree has the same `store:` line, so every change and every checked-off task lands in the one store folder:
+
+```
+plans  (store)
+└── openspec/changes/
+    ├── add-login/        worked on from web-app-add-login
+    └── add-search/       worked on from web-app-add-search
+          ▲
+          │ store: plans   (in every checkout's openspec/config.yaml)
+          │
+web-app               the main checkout
+web-app-add-login     a worktree
+web-app-add-search    a worktree
+```
+
+To set it up:
+
+1. **Create the store**, as in [Set up a store](#set-up-a-store). You can skip pushing it if only you use it.
+2. **Move the repo's specs and changes into it**, as in [Move a repo's specs and changes into the store](#move-a-repos-specs-and-changes-into-the-store).
+3. **Commit that on your main branch.** The repo's `openspec/` folder should now hold only `config.yaml`.
+4. **Create your worktrees from that commit.** Each one gets the `store:` line.
+
+Now `openspec list` and `openspec view` show every change from any checkout:
+
+```bash
+# in the main checkout
+openspec list
+```
+
+```yaml
+Using OpenSpec root: plans (/Users/you/openspec/plans)
+Changes:
+  add-login      1/2 tasks     just now
+  add-search     No tasks      just now
+```
+
+A few things change when you work this way:
+
+- **Changes stop riding the feature branch**: the change folders live in the store, so they don't merge along with the code. Commit the store when you want a history of them.
+- **Older branches keep their own folder**: a worktree made from a branch that still has `openspec/changes/` uses that folder, and OpenSpec warns that it's ignoring the `store:` line.
+- **Your agent writes outside its worktree**: the store is a different folder, and some agents ask before editing outside the folder they started in. Allow the store's folder.
+- **One archive at a time**: if two archives run in the same store at once, the second stops with an error. Run it again when the first finishes.
 
 ## Read specs from another store
 
