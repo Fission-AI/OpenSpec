@@ -75,7 +75,7 @@ import {
   supportsGlobalSkills,
   type SkillScope,
 } from './global-skills.js';
-import { getProfileWorkflows } from './profiles.js';
+import { getProfileWorkflows, withRouter } from './profiles.js';
 import { getAvailableTools } from './available-tools.js';
 import { formatOptionalWorkflowsNote } from './onboarding-commands.js';
 import { usesSharedSkills } from './shared/skill-paths.js';
@@ -1116,7 +1116,7 @@ export class InitCommand {
     // Read global config for profile and delivery settings (use --profile override if set)
     const globalConfig = getGlobalConfig();
     const profile: Profile = this.resolveProfileOverride() ?? globalConfig.profile ?? 'core';
-    const workflows = getProfileWorkflows(profile, globalConfig.workflows);
+    const workflows = withRouter(getProfileWorkflows(profile, globalConfig.workflows));
 
     // Every tool's project skills are one shared copy in `.agents/skills/`,
     // written once for the selected tools and every tool already set up here
@@ -1379,7 +1379,7 @@ export class InitCommand {
     } else if (successfulTools.length > 0) {
       const globalConfig = getGlobalConfig();
       const profile: Profile = (this.profileOverride as Profile) ?? globalConfig.profile ?? 'core';
-      const workflows = getProfileWorkflows(profile, globalConfig.workflows);
+      const workflows = withRouter(getProfileWorkflows(profile, globalConfig.workflows));
 
       const toolFolders = new Set(successfulTools
         .filter(tool => SKILL_LINKED_TOOL_IDS.has(tool.value))

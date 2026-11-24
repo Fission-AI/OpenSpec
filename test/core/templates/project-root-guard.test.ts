@@ -18,6 +18,12 @@ import {
  * implicit root and creates `openspec/` wherever the agent is standing - so
  * the guard has to live in the instructions themselves, in every workflow.
  */
+/**
+ * The router writes nothing itself: it hands every write to a workflow skill,
+ * which carries the guard, so it has a one-line check of its own instead.
+ */
+const workflowSkills = () => getSkillTemplates().filter(({ workflowId }) => workflowId !== 'router');
+
 describe('project root guard', () => {
   /** One bullet of the no-root branch table, from its anchor to the next. */
   function branch(anchor: string): string {
@@ -30,7 +36,7 @@ describe('project root guard', () => {
   // Both surfaces, rendered exactly as they ship.
   function renderedBodies(): Array<[string, string]> {
     return [
-      ...getSkillTemplates().map(
+      ...workflowSkills().map(
         ({ template, dirName }): [string, string] => [
           `skill ${dirName}`,
           generateSkillContent(template, 'PARITY-BASELINE'),
@@ -43,10 +49,15 @@ describe('project root guard', () => {
   }
 
   it('warns about an uninitialized project in every deployed skill', () => {
-    for (const { template, dirName } of getSkillTemplates()) {
+    for (const { template, dirName } of workflowSkills()) {
       const content = generateSkillContent(template, 'PARITY-BASELINE');
       expect(content, dirName).toContain(PROJECT_ROOT_GUARD);
     }
+  });
+
+  it('has the router check for a root before it treats a request as OpenSpec work', () => {
+    const router = getSkillTemplates().find(({ workflowId }) => workflowId === 'router')!;
+    expect(router.template.instructions).toContain('`openspec list --json` reports `"root": null`');
   });
 
   it('warns about an uninitialized project in every deployed opsx command', () => {

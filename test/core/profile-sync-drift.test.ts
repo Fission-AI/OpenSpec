@@ -7,7 +7,7 @@ import {
   hasToolProfileOrDeliveryDrift,
   WORKFLOW_TO_SKILL_DIR,
 } from '../../src/core/profile-sync-drift.js';
-import { CORE_WORKFLOWS } from '../../src/core/profiles.js';
+import { CORE_WORKFLOWS, withRouter } from '../../src/core/profiles.js';
 import { CommandAdapterRegistry, generateCommands } from '../../src/core/command-generation/index.js';
 import { getCommandContents } from '../../src/core/shared/index.js';
 
@@ -50,7 +50,8 @@ function writeGeneratedCommand(projectDir: string, workflowId: string): string {
 }
 
 function setupCoreSkills(projectDir: string): void {
-  for (const workflow of CORE_WORKFLOWS) {
+  // The router is installed with every profile.
+  for (const workflow of withRouter(CORE_WORKFLOWS)) {
     writeSkill(projectDir, workflow);
   }
 }
@@ -63,8 +64,8 @@ function setupCoreCommands(projectDir: string): void {
 
 function setupCodexCoreSkills(projectDir: string): string {
   const skillsDir = path.join(projectDir, '.agents', 'skills');
-  for (const workflow of CORE_WORKFLOWS) {
-    const skillDirName = WORKFLOW_TO_SKILL_DIR[workflow];
+  for (const workflow of withRouter(CORE_WORKFLOWS)) {
+    const skillDirName = WORKFLOW_TO_SKILL_DIR[workflow as keyof typeof WORKFLOW_TO_SKILL_DIR];
     const skillPath = path.join(skillsDir, skillDirName, 'SKILL.md');
     fs.mkdirSync(path.dirname(skillPath), { recursive: true });
     fs.writeFileSync(skillPath, `name: ${skillDirName}\n`);

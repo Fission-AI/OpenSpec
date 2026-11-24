@@ -4,8 +4,9 @@ import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, s
 import { getSupportedAgents } from 'skills';
 import { AI_TOOLS, installerAgent, OPENSPEC_SKILL_NAMES } from './config.js';
 import { getGlobalDataDir } from './global-config.js';
+import { withRouter } from './profiles.js';
 import { getConfiguredTools } from './shared/tool-detection.js';
-import { expectedSkillContents, installReleaseSkills, removeManagedSkills, type SkillScope } from './skill-installer.js';
+import { expectedSkillFiles, installReleaseSkills, removeManagedSkills, type SkillScope } from './skill-installer.js';
 
 export type { SkillScope };
 export const SKILL_SCOPES: readonly SkillScope[] = ['global', 'project'];
@@ -71,17 +72,19 @@ export async function installGlobalSkills(input: GlobalInstallInput) {
   const refresh = async () => {
     const before = await readGlobalSkills();
     const agents = [...new Set(['universal', ...before.agents, ...(input.toolIds ?? []).map(id => installerAgent(id).id)])];
-    const contents = expectedSkillContents(input.version, input.workflows);
-    const skills = [...contents.keys()];
-    const removedSkills = before.skills.filter(name => !contents.has(name));
+    const expected = expectedSkillFiles(input.version, withRouter(input.workflows));
+    const skills = [...expected.keys()];
+    const removedSkills = before.skills.filter(name => !expected.has(name));
     const dirs = globalDirectories();
     const current = agents.every(agent => skills.every(name => {
       const dir = dirs.get(agent) ?? dirs.get('universal')!;
-      try {
-        return readFileSync(path.join(dir, name, 'SKILL.md'), 'utf8').replaceAll('\r\n', '\n') === contents.get(name);
-      } catch {
-        return false;
-      }
+      return [...expected.get(name)!].every(([file, text]) => {
+        try {
+          return readFileSync(path.join(dir, name, file), 'utf8').replaceAll('\r\n', '\n') === text;
+        } catch {
+          return false;
+        }
+      });
     }));
     const unchanged = current && !input.force && !removedSkills.length;
     if (!unchanged && !input.dryRun) {

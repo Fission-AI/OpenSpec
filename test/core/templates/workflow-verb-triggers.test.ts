@@ -115,7 +115,8 @@ function allClaims(): { dirName: string; phrase: string }[] {
 
 describe('workflow verb triggers', () => {
   it('covers every workflow that ships a skill', () => {
-    const shipped = getSkillTemplates().map(e => e.workflowId).sort();
+    // The router claims no verb: it is where a request lands when no verb fits.
+    const shipped = getSkillTemplates().map(e => e.workflowId).filter(id => id !== 'router').sort();
     expect(shipped).toEqual(Object.keys(NATURAL_VERB_BY_WORKFLOW).sort());
   });
 

@@ -34,10 +34,14 @@ templates in src/core/templates/workflows/; core set src/core/profiles.ts:14. "O
 is the docs' set label (was "Expanded"; renamed 2026-08-12: the product's only stored
 profile values are core and custom, so "expanded" reads as a third profile). -->
 
+Each skill is a folder. Your agent reads its `SKILL.md` first. Some skills also have a `references/` folder with extra detail. The agent opens a reference only when a task needs it, so a skill can say more without crowding your agent's context. `openspec update` keeps every file in the folder current.
+
 The skills come in two sets:
 
 - **Core**: installed by default, the main planning loop.
 - **Optional**: installed only when you add them, via [Profiles](../customize/profiles.md).
+
+The `openspec` router is in neither set. It comes with every profile.
 
 Every skill expects a project that already uses OpenSpec. Before its first step that writes anything, a skill checks for a resolved root. What happens when there is none depends on how the skill was reached:
 
@@ -48,6 +52,7 @@ Invoking a skill by name is always the second case. A project whose `openspec/co
 
 | Skill | Job | Type |
 |---|---|---|
+| [openspec](#openspec) | The router. Ask it anything, and it answers or hands the request to the right skill | Always installed |
 | [openspec-explore](#openspec-explore) | Think through an idea before it becomes a change proposal | Core |
 | [openspec-propose](#openspec-propose) | Create a change proposal with all its planning artifacts in one step | Core |
 | [openspec-apply-change](#openspec-apply-change) | Implement a change proposal's tasks | Core |
@@ -62,6 +67,16 @@ Invoking a skill by name is always the second case. A project whose `openspec/co
 | [openspec-onboard](#openspec-onboard) | Learn the workflow by doing one real change proposal end to end | Optional |
 
 Each entry below names the skill that owns the next step. A skill reads the same whatever your profile, so it can't assume the next skill is there. Where a step belongs to another skill, it either checks when it runs ("if that skill is installed, otherwise…") or follows the recovery step the CLI prints. Which set you get is [Profiles](../customize/profiles.md).
+
+## openspec
+
+The router, one entry point for anything OpenSpec. Start here when you don't know which skill you need. Ask for anything. It checks your project's state, then answers or hands the request to the skill that does it. On its own, a model has to guess at OpenSpec's folders and commands. The router gives it that map.
+
+| Contract | Description |
+|---|---|
+| **Arguments** | Anything. A question ("where does add-auth stand?", "how do I add a schema?"), one step, or several steps in order ("verify add-auth, then archive it"). |
+| **Creates** | Nothing itself. Each request goes to the skill that does it (see the table above), and that skill's contract applies. If that skill isn't installed, the router does the step with the CLI and tells you how to add the skill. |
+| **Response** | A question gets where things stand, the next step, and an offer to run it once you say yes. A request for work gets whatever that skill reports. Several steps run one skill at a time, stopping wherever one waits for you. |
 
 ## openspec-explore
 

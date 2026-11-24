@@ -11,7 +11,7 @@ import { resolveCommandSurfaceCapability } from '../../src/core/command-surface.
 import { CommandAdapterRegistry } from '../../src/core/command-generation/registry.js';
 import type { GlobalConfig } from '../../src/core/global-config.js';
 import { LEGACY_GLOBAL_SLASH_COMMAND_PATHS } from '../../src/core/legacy-cleanup.js';
-import { ALL_WORKFLOWS, CORE_WORKFLOWS } from '../../src/core/profiles.js';
+import { ALL_WORKFLOWS, CORE_WORKFLOWS, withRouter } from '../../src/core/profiles.js';
 import { getSkillTemplates } from '../../src/core/shared/skill-generation.js';
 import { getConfiguredTools, getToolSkillStatus } from '../../src/core/shared/tool-detection.js';
 
@@ -73,9 +73,9 @@ describe('Warp integration', () => {
       await new InitCommand({ tools: 'warp', force: true }).execute(projectPath);
 
       expect(await installedSkills()).toEqual(
-        getSkillTemplates(CORE_WORKFLOWS).map(({ dirName }) => dirName).sort()
+        getSkillTemplates(withRouter(CORE_WORKFLOWS)).map(({ dirName }) => dirName).sort()
       );
-      for (const { dirName } of getSkillTemplates(CORE_WORKFLOWS)) {
+      for (const { dirName } of getSkillTemplates(withRouter(CORE_WORKFLOWS))) {
         const content = await fs.readFile(skillPath(dirName), 'utf8');
         const frontmatter = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
         expect(frontmatter).not.toBeNull();
@@ -125,7 +125,7 @@ describe('Warp integration', () => {
 
     await new UpdateCommand({ force: true }).execute(projectPath);
 
-    expect(await installedSkills()).toEqual(['my-skill', 'openspec-apply-change']);
+    expect(await installedSkills()).toEqual(['my-skill', 'openspec', 'openspec-apply-change']);
     expect(await fs.readFile(skillPath('openspec-apply-change'), 'utf8')).toContain('name: openspec-apply-change');
     expect((await fs.readdir(path.join(projectPath, '.warp'))).sort()).toEqual(['settings.json', 'skills']);
     for (const [filePath, content] of Object.entries(preserved)) {
@@ -135,6 +135,7 @@ describe('Warp integration', () => {
     expect((await fs.readdir(path.join(projectPath, '.agents', 'skills'))).sort()).toEqual([
       '.openspec-target',
       'my-skill',
+      'openspec',
       'openspec-apply-change',
     ]);
     expect(getConfiguredTools(projectPath)).toContain('warp');
@@ -154,7 +155,7 @@ describe('Warp integration', () => {
     mockState.config.delivery = 'commands';
     await new InitCommand({ tools: 'warp', force: true }).execute(projectPath);
     expect(await installedSkills()).toEqual(
-      getSkillTemplates(CORE_WORKFLOWS).map(({ dirName }) => dirName).sort()
+      getSkillTemplates(withRouter(CORE_WORKFLOWS)).map(({ dirName }) => dirName).sort()
     );
     vi.mocked(console.log).mockClear();
 

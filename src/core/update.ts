@@ -23,7 +23,7 @@ import {
 } from './shared/index.js';
 import { reconcileCommandFiles, formatKeptCommandFiles } from './shared/command-reconcile.js';
 import { keepsProjectSkills, rememberProjectSkills } from './project-skills-scope.js';
-import { expectedSkillContents, projectSkillText } from './skill-installer.js';
+import { expectedSkillFiles, projectSkillText } from './skill-installer.js';
 import {
   detectLegacyArtifacts,
   cleanupLegacyArtifacts,
@@ -46,7 +46,7 @@ import { isInteractive } from '../utils/interactive.js';
 import { findStaleReleasedFiles, pruneEmptyParents } from './released-output-sweep.js';
 import { cleanUpRetiredTools, formatRetiredToolCleanup } from './retired-tools.js';
 import { getGlobalConfig, getGlobalConfigPath, serializeGlobalConfig, type Delivery, type Profile } from './global-config.js';
-import { getProfileWorkflows, ALL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
+import { getProfileWorkflows, withRouter, SKILL_WORKFLOWS, CORE_WORKFLOWS } from './profiles.js';
 import { formatOptionalWorkflowsNote, getOnboardingCommands } from './onboarding-commands.js';
 import { getAvailableTools } from './available-tools.js';
 import {
@@ -94,7 +94,7 @@ const { version: OPENSPEC_VERSION } = require('../../package.json');
  */
 type LegacyUpgradeResult = {
   newlyConfiguredTools: string[];
-  workflowOverrides: Partial<Record<string, readonly (typeof ALL_WORKFLOWS)[number][]>>;
+  workflowOverrides: Partial<Record<string, readonly (typeof SKILL_WORKFLOWS)[number][]>>;
   failedTools?: ToolFailure[];
   deferredGlobalCleanup?: LegacyDetectionResult;
   /**
@@ -302,8 +302,8 @@ export class UpdateCommand {
     const globalConfig = getGlobalConfig();
     const workflows =
       this.settledWorkflows ??
-      getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows).filter((workflow) =>
-        (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+      withRouter(getProfileWorkflows(globalConfig.profile ?? 'core', globalConfig.workflows)).filter((workflow) =>
+        (SKILL_WORKFLOWS as readonly string[]).includes(workflow)
       );
     let changed = false;
     try {
@@ -400,9 +400,9 @@ export class UpdateCommand {
     }
     const profile = globalConfig.profile ?? 'core';
     const delivery: Delivery = globalConfig.delivery ?? 'both';
-    const profileWorkflows = getProfileWorkflows(profile, globalConfig.workflows);
-    const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
-      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+    const profileWorkflows = withRouter(getProfileWorkflows(profile, globalConfig.workflows));
+    const desiredWorkflows = profileWorkflows.filter((workflow): workflow is (typeof SKILL_WORKFLOWS)[number] =>
+      (SKILL_WORKFLOWS as readonly string[]).includes(workflow)
     );
     this.settledWorkflows = desiredWorkflows;
 
@@ -887,18 +887,20 @@ export class UpdateCommand {
   }
 
   /**
-   * Tools whose SKILL.md bodies no longer match what this CLI generates.
+   * Tools whose skill files (SKILL.md and any references) no longer match
+   * what this CLI generates.
    *
    * Skill freshness was decided solely by the `generatedBy:` line, so a body
    * edited after generation — a "helpful" PR touching `.claude/skills/**`, a
    * dotfile sync, another agent — left `update` reporting the install healthy.
-   * A missing skill file is left to the profile-sync check, which
-   * already knows what a partial install means.
+   * A missing SKILL.md is left to the profile-sync check, which already knows
+   * what a partial install means. A missing reference is drift: the skill is
+   * there but points at a file that isn't.
    */
   private findToolsWithDriftedSkills(
     projectPath: string,
     toolIds: string[],
-    workflowsForTool: (toolId: string) => readonly (typeof ALL_WORKFLOWS)[number][]
+    workflowsForTool: (toolId: string) => readonly (typeof SKILL_WORKFLOWS)[number][]
   ): string[] {
     return toolIds.filter((toolId) => {
       const tool = AI_TOOLS.find((t) => t.value === toolId);
@@ -911,16 +913,17 @@ export class UpdateCommand {
       const dirs = [resolveToolSkillsDir(projectPath, tool)];
       const own = resolveSkillLinkDir(projectPath, tool);
       if (own) dirs.push(own);
-      const contents = expectedSkillContents(OPENSPEC_VERSION, workflowsForTool(toolId));
-      return dirs.some(dir => [...contents].some(([name, generated]) => {
-        const file = path.join(dir, name, 'SKILL.md');
-        if (!this.view.exists(file)) return false;
-        try {
-          const expected = dir === own ? projectSkillText(toolId, generated) : generated;
-          return normalizeGeneratedFile(this.view.read(file)) !== expected;
-        } catch {
-          return true;
-        }
+      const skills = expectedSkillFiles(OPENSPEC_VERSION, workflowsForTool(toolId));
+      return dirs.some(dir => [...skills].some(([name, files]) => {
+        if (!this.view.exists(path.join(dir, name, 'SKILL.md'))) return false;
+        return [...files].some(([file, generated]) => {
+          try {
+            const expected = dir === own && file === 'SKILL.md' ? projectSkillText(toolId, generated) : generated;
+            return normalizeGeneratedFile(this.view.read(path.join(dir, name, file))) !== expected;
+          } catch {
+            return true;
+          }
+        });
       }));
     });
   }
@@ -1257,7 +1260,7 @@ export class UpdateCommand {
    */
   private async handleLegacyCleanup(
     projectPath: string,
-    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][],
+    desiredWorkflows: readonly (typeof SKILL_WORKFLOWS)[number][],
     delivery: Delivery
   ): Promise<LegacyUpgradeResult> {
     // Detect legacy artifacts
@@ -1500,7 +1503,7 @@ export class UpdateCommand {
     projectPath: string,
     detection: LegacyDetectionResult,
     canPrompt: boolean,
-    desiredWorkflows: readonly (typeof ALL_WORKFLOWS)[number][],
+    desiredWorkflows: readonly (typeof SKILL_WORKFLOWS)[number][],
     delivery: Delivery
   ): Promise<LegacyUpgradeResult> {
     // Get tools that had legacy artifacts
@@ -1572,11 +1575,11 @@ export class UpdateCommand {
       }
     }
 
-    const inferredCodexWorkflows = getProfileWorkflows(
+    const inferredCodexWorkflows = withRouter(getProfileWorkflows(
       'custom',
       getLegacyWorkflowIdsForTool(detection, 'codex')
-    ).filter((workflow): workflow is (typeof ALL_WORKFLOWS)[number] =>
-      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+    )).filter((workflow): workflow is (typeof SKILL_WORKFLOWS)[number] =>
+      (SKILL_WORKFLOWS as readonly string[]).includes(workflow)
     );
 
     // Create skills/commands for selected tools using effective profile+delivery.

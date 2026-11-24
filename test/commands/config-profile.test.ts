@@ -98,6 +98,8 @@ describe('config profile interactive flow', () => {
       'openspec-update-change',
       'openspec-sync-specs',
       'openspec-archive-change',
+      // The router, installed with every profile.
+      'openspec',
     ];
     // As 2.0 writes them: one shared copy, Claude's links to it, Claude listed.
     for (const dirName of coreSkillDirs) {

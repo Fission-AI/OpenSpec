@@ -19,6 +19,8 @@ The `core` profile installs six workflows, covering the whole loop from idea to 
 
 Each links to its full contract: arguments, what it creates, and what it responds with.
 
+Every profile also gets the [`openspec`](../reference/skills.md#openspec) skill, the router you can ask for anything. It isn't a workflow you pick, so it isn't in the list or the picker. It's installed as long as the profile has at least one workflow.
+
 ## Expanding the set: optional workflows
 
 Six more workflows are available beyond the core set. Three of them (`new`, `continue`, `ff`) create a change proposal artifact by artifact, instead of all at once like `propose`.

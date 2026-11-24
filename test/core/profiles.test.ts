@@ -4,6 +4,7 @@ import {
   CORE_WORKFLOWS,
   ALL_WORKFLOWS,
   getProfileWorkflows,
+  withRouter,
 } from '../../src/core/profiles.js';
 
 describe('profiles', () => {
@@ -88,6 +89,22 @@ describe('profiles', () => {
     it('should return empty array for custom profile with empty customWorkflows', () => {
       const result = getProfileWorkflows('custom', []);
       expect(result).toEqual([]);
+    });
+  });
+
+  describe('withRouter', () => {
+    it('adds the router to any profile that has a workflow', () => {
+      expect(withRouter(CORE_WORKFLOWS)).toEqual([...CORE_WORKFLOWS, 'router']);
+      expect(withRouter(['apply'])).toEqual(['apply', 'router']);
+    });
+
+    it('adds nothing to a profile with no workflows', () => {
+      expect(withRouter([])).toEqual([]);
+    });
+
+    it('keeps the router out of the workflows a profile can pick', () => {
+      expect(ALL_WORKFLOWS).not.toContain('router');
+      expect(CORE_WORKFLOWS).not.toContain('router');
     });
   });
 });

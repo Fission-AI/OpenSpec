@@ -5,7 +5,7 @@ import {
   getCommandContents,
   getSkillTemplates,
 } from '../../../src/core/shared/skill-generation.js';
-import { ALL_WORKFLOWS } from '../../../src/core/profiles.js';
+import { ALL_WORKFLOWS, SKILL_WORKFLOWS } from '../../../src/core/profiles.js';
 
 /**
  * A skill says the same thing to every user, whatever workflow profile they
@@ -22,9 +22,9 @@ const WORKFLOW_LISTS: Array<[string, readonly string[]]> = [
 describe('one skill text for every workflow profile', () => {
   const unfiltered = new Map(getSkillTemplates().map((entry) => [entry.dirName, entry]));
 
-  it('covers all twelve workflows without a filter', () => {
+  it('covers all twelve workflows and the router without a filter', () => {
     expect([...unfiltered.values()].map((entry) => entry.workflowId).sort()).toEqual(
-      [...ALL_WORKFLOWS].sort()
+      [...SKILL_WORKFLOWS].sort()
     );
   });
 

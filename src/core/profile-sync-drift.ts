@@ -2,7 +2,7 @@ import path from 'path';
 import * as fs from 'fs';
 import { AI_TOOLS } from './config.js';
 import type { Delivery } from './global-config.js';
-import { ALL_WORKFLOWS } from './profiles.js';
+import { SKILL_WORKFLOWS, withRouter } from './profiles.js';
 import { CommandAdapterRegistry } from './command-generation/index.js';
 import { getConfiguredTools } from './shared/index.js';
 import { classifyCommandFiles } from './shared/command-reconcile.js';
@@ -18,7 +18,7 @@ import {
   usesSharedSkills,
 } from './shared/skill-paths.js';
 
-type WorkflowId = (typeof ALL_WORKFLOWS)[number];
+type WorkflowId = (typeof SKILL_WORKFLOWS)[number];
 
 /**
  * Maps workflow IDs to their skill directory names.
@@ -36,12 +36,14 @@ export const WORKFLOW_TO_SKILL_DIR: Record<WorkflowId, string> = {
   'verify': 'openspec-verify-change',
   'onboard': 'openspec-onboard',
   'propose': 'openspec-propose',
+  'router': 'openspec',
 };
 
+/** The skills a set of workflows should have installed, which always includes the router. */
 function toKnownWorkflows(workflows: readonly string[]): WorkflowId[] {
-  return workflows.filter(
+  return withRouter(workflows).filter(
     (workflow): workflow is WorkflowId =>
-      (ALL_WORKFLOWS as readonly string[]).includes(workflow)
+      (SKILL_WORKFLOWS as readonly string[]).includes(workflow)
   );
 }
 
@@ -129,7 +131,7 @@ export function hasToolProfileOrDeliveryDrift(
   }
 
   // Deselecting workflows in a profile should trigger sync.
-  for (const workflow of ALL_WORKFLOWS) {
+  for (const workflow of SKILL_WORKFLOWS) {
     if (desiredWorkflowSet.has(workflow)) continue;
     const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
     const skillDir = path.join(skillsDir, dirName);
@@ -173,7 +175,7 @@ function getInstalledWorkflowsForTool(projectPath: string, toolId: string): Work
 
   const installed = new Set<WorkflowId>();
   const skillsDir = resolveToolSkillsDir(projectPath, tool);
-  for (const workflow of ALL_WORKFLOWS) {
+  for (const workflow of SKILL_WORKFLOWS) {
     const dirName = WORKFLOW_TO_SKILL_DIR[workflow];
     const skillFile = path.join(skillsDir, dirName, 'SKILL.md');
     if (fs.existsSync(skillFile)) {

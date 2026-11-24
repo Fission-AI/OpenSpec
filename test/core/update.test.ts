@@ -432,9 +432,10 @@ describe('UpdateCommand', () => {
         const expectedSkills = ['my-custom-skill', 'openspec-user-notes'];
         const expectedShared = ['shared-custom-skill', '.openspec-target'];
         if (setting === 'profile') {
-          expectedShared.push('openspec-explore');
+          expectedShared.push('openspec', 'openspec-explore');
         } else {
           expectedShared.push(
+            'openspec',
             'openspec-apply-change',
             'openspec-archive-change',
             'openspec-explore',
@@ -3928,8 +3929,8 @@ More user content after markers.
       const skillsDir = path.join(grokDir, 'skills');
       const sharedDir = path.join(testDir, '.agents', 'skills');
       const openspecSkills = async () =>
-        (await fs.readdir(sharedDir)).filter((name) => name.startsWith('openspec-')).sort();
-      expect(await openspecSkills()).toEqual(['openspec-explore', 'openspec-new-change']);
+        (await fs.readdir(sharedDir)).filter((name) => name === 'openspec' || name.startsWith('openspec-')).sort();
+      expect(await openspecSkills()).toEqual(['openspec', 'openspec-explore', 'openspec-new-change']);
       const customSkill = path.join(skillsDir, 'openspec-custom', 'SKILL.md');
       await fs.mkdir(path.dirname(customSkill), { recursive: true });
       await fs.writeFile(customSkill, 'my custom skill');
@@ -3939,6 +3940,7 @@ More user content after markers.
       await updateCommand.execute(testDir);
 
       expect(await openspecSkills()).toEqual([
+        'openspec',
         'openspec-apply-change',
         'openspec-archive-change',
         'openspec-explore',
