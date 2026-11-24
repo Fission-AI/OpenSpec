@@ -42,15 +42,16 @@ export const sections = [
       { source: 'start/quickstart.md', slug: 'quickstart' },
     ],
   },
-  // Guides are held back until the pages are drafted. Re-publish one by moving
-  // its entry out of this comment, keeping its folder wrapper so the slug stays
+  // Guides publish one page at a time, as each is drafted. The entries still
+  // in comments are headings only. Re-publish one by moving its entry out of
+  // its comment, keeping its folder wrapper so the slug stays
   // `<folder>/<name>`. Links to a held-back guide fall back to its source on
   // GitHub (see rewriteLinks in scripts/sync-docs.mjs). The Guides navbar tab
-  // returns on its own once this section exists again (lib/source.ts).
-  /*
+  // shows whenever this section exists (lib/source.ts).
   {
     label: 'Guides',
     pages: [
+      /*
       {
         folder: 'understanding',
         label: 'Understanding OpenSpec',
@@ -68,18 +69,18 @@ export const sections = [
           { source: 'guides/change-course.md', slug: 'using/change-course' },
         ],
       },
+      */
       {
         folder: 'adopting',
         label: 'Adopting OpenSpec',
         defaultOpen: true,
         pages: [
           { source: 'guides/existing-codebases.md', slug: 'adopting/existing-codebases' },
-          { source: 'guides/teams.md', slug: 'adopting/teams' },
+          // { source: 'guides/teams.md', slug: 'adopting/teams' },
         ],
       },
     ],
   },
-  */
   {
     label: 'Customize',
     pages: [
