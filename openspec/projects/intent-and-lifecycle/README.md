@@ -21,8 +21,8 @@ lifecycle:
         still agree with the implementation plan.
 
   triggers:
-    - on: apply.before
-      run: requirements-review
+    - on: change.before-apply
+      action: requirements-review
       mode: suggest
 ```
 
@@ -33,7 +33,7 @@ When Apply starts:
            │
            ▼
   OpenSpec looks up actions
-  configured for apply.before
+  configured for change.before-apply
            │
            ▼
   Returns: requirements-review
@@ -61,7 +61,7 @@ Two modes determine what happens:
 This also works outside OpenSpec's built-in skills. A custom skill or external orchestrator can invoke the same hook:
 
 ```bash
-openspec lifecycle actions --at apply.before --json
+openspec lifecycle actions --at change.before-apply --json
 ```
 
 It receives the configured actions and handles them using its own agent, tools, and context.
@@ -76,10 +76,10 @@ Five independently verifiable PRs, grouped into two release checkpoints.
 
 | PR | What we're building | How we verify it |
 |---|---|---|
-| **1. Configuration** | Define and strictly validate `lifecycle.actions` and `lifecycle.triggers` | Valid configuration loads. Invalid references, modes, hook names, duplicate triggers, and unsupported `policy` fail clearly without breaking unrelated commands |
-| **2. Action lookup** | Add `openspec lifecycle actions --at <hook>` (with `--store <id>`) | CLI returns the correct actions, in order, with their instructions |
-| **3. After Apply** | Invoke `apply.completed` when tasks finish | Agent offers configured actions. Accepting and skipping both work |
-| **4. Before Apply** | Invoke `apply.before` before implementation | Actions are offered once before edits, skipped on `blocked` and `all_done`, and don't interfere with normal Apply |
+| **1. Configuration** | Define and strictly validate `lifecycle.actions` and `lifecycle.triggers` | Valid configuration loads. Invalid references, modes, hook names, duplicate triggers, unknown keys (including unsupported `policy`), and `lifecycle:` in pointer-only repo configs fail clearly without breaking unrelated commands or Archive |
+| **2. Action lookup** | Add `openspec lifecycle actions --at <hook>` (with `--store <id>`) | CLI returns the resolved root and matching actions, in order, with their instructions |
+| **3. After Apply** | Invoke `change.applied` when tasks finish | Agent offers configured actions. Accepting and skipping both work |
+| **4. Before Apply** | Invoke `change.before-apply` before implementation | Actions are offered once before edits, skipped on `blocked` and `all_done`, and don't interfere with normal Apply |
 | **5. Real examples** | Demonstrate two independently defined actions | Both work through the same hook without changes to OpenSpec's core |
 
 Each PR can merge independently once its acceptance tests pass.
@@ -149,7 +149,7 @@ For example, configure a security review before implementation or ask your agent
 
 Actions can be suggested for your approval or followed automatically using your agent's existing permissions.
 
-The initial hooks are `apply.before` and `apply.completed`. Custom skills and external orchestrators can also look up actions through the CLI, including at their own hooks named with a `custom.` prefix.
+The initial hooks are `change.before-apply` and `change.applied`. Custom skills and external orchestrators can also look up actions through the CLI, including at their own hooks named with a `custom.` prefix.
 
 **Getting started:** Define an action, attach it to a hook, and use Apply as normal. Nothing changes in projects without configured actions.
 

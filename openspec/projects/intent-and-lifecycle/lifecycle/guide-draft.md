@@ -35,17 +35,17 @@ Add a trigger under `lifecycle:` that attaches the action to a point in the work
 ```yaml
 lifecycle:
   triggers:
-    - on: apply.before
-      run: requirements-review
+    - on: change.before-apply
+      action: requirements-review
       mode: suggest
 ```
 
-`on` names the point, which this guide calls a hook. The first hooks are:
+`on` names the moment, which this guide calls a hook. The first hooks are:
 
 | Hook | When it happens |
 | --- | --- |
-| `apply.before` | The Apply skill is about to start or resume, before any edits |
-| `apply.completed` | The Apply skill has finished every task |
+| `change.before-apply` | The Apply skill is about to start or resume, before any edits |
+| `change.applied` | The Apply skill has finished every tracked task |
 
 `mode` says how your agent handles the action:
 
@@ -104,8 +104,8 @@ lifecycle:
         requirements without separate approval.
 
   triggers:
-    - on: apply.completed
-      run: upstream-feedback
+    - on: change.applied
+      action: upstream-feedback
       mode: suggest
 ```
 
@@ -129,8 +129,8 @@ lifecycle:
         Run scripts/check-requirements-drift.sh and report its output.
 
   triggers:
-    - on: apply.before
-      run: requirements-drift
+    - on: change.before-apply
+      action: requirements-drift
       mode: auto
 ```
 
@@ -138,32 +138,33 @@ The script decides what to compare and where it keeps its starting point. OpenSp
 
 This is how a team gets "changed since planning". The script holds the earlier version, which the review in step 4 does not have.
 
-Actions do not call one another. To run the script and then offer the review from step 1, list both triggers on `apply.before` with the script first.
+Actions do not call one another. To run the script and then offer the review from step 1, list both triggers on `change.before-apply` with the script first.
 
 ## 7. Use hooks from your own skills
 
 A custom skill or another tool can ask the same question the built-in skills ask:
 
 ```bash
-openspec lifecycle actions --at apply.before --json
+openspec lifecycle actions --at change.before-apply --json
 ```
 
-Pass `--store <id>` if your work lives in a registered Store. The command returns the actions for that hook, in order, with their instructions. It runs nothing.
+Pass `--store <id>` if your work lives in a registered Store. The command returns the resolved root and the actions for that hook, in order, with their instructions. It runs nothing.
 
-You can also invoke hooks of your own. Start the name with `custom.`, such as `custom.security-review.completed`, and attach triggers to it the same way. Any other name must be one OpenSpec defines, so a typo like `aply.before` is rejected.
+You can also invoke hooks of your own. Start the name with `custom.`, such as `custom.security-review.completed`, and attach triggers to it the same way. Any other name must be one OpenSpec defines, so a typo like `change.before-aply` is rejected.
 
 ## How this differs from operation guidance
 
-`openspec/config.yaml` also supports `operations.apply.guidance`. Use that for standing advice that applies throughout an operation, such as "run focused tests before the full suite".
+`openspec/config.yaml` also supports `operations.apply.guidance`. **Guidance shapes how your agent works throughout an operation; an action is a discrete job done at one moment.**
 
-Use an action for a named step at a specific moment that your agent can offer and you can skip.
+Use guidance for standing advice such as "run focused tests before the full suite". Use an action for a named step at a specific moment that your agent can offer and you can skip.
 
 ## Limits
 
-- **Hooks fire only when a skill asks.** Running `openspec archive` yourself in a terminal fires none.
+- **Hooks fire only when a skill asks.** Running `openspec archive` yourself in a terminal fires none, and projects with older installed skills must update their skills before hooks will fire.
 - **Your agent carries out actions, not OpenSpec.** An agent that does not follow the skill will not run them.
 - **No enforced blocking.** OpenSpec cannot stop Apply or Archive. Your agent can still pause based on what an action finds.
-- **Nothing is remembered.** If a hook is invoked again, its actions are returned again. OpenSpec does not track whether you accepted or skipped them before. Because `apply.before` also runs when resuming an in-progress change, prefer `mode: suggest` for heavier reviews and keep `mode: auto` for fast, repeatable checks.
+- **Actions can run more than once.** OpenSpec does not remember whether you accepted or skipped a hook before. Because `change.before-apply` also runs when resuming an in-progress change, write actions that are safe to repeat, prefer `mode: suggest` for heavier reviews, and keep `mode: auto` for fast, repeatable checks.
+- **Custom schemas without task tracking:** `change.applied` only fires on schemas that track task completion.
 
 ## Not part of this proposal
 
