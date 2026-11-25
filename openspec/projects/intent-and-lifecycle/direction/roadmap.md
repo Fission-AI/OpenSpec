@@ -12,11 +12,11 @@ OpenSpec owns the hook names and action discovery. Users define what actions do.
 
 ## The model
 
-- **Hook:** a named moment in a change's lifecycle, such as `change.before-apply` or `change.applied`.
+- **Hook:** a named, repeatable checkpoint in a change's lifecycle, such as `change.before-apply` or `change.applied`.
 - **Action:** named instructions for an agent.
 - **Trigger:** config that attaches an action (`action:`) to a hook (`on:`) and sets its `mode:`.
 
-Actions and triggers are the core abstraction. Nothing happens in a project with no configured triggers. Hooks fire per invocation and can run more than once (for example, when Apply resumes or re-runs), so actions should be safe to repeat.
+Actions and triggers are the core abstraction. Nothing happens in a project with no configured triggers. Hooks are repeatable checkpoints, not one-time state-transition events: they fire per invocation and can run more than once (for example, when Apply resumes or re-runs), so actions should be safe to repeat.
 
 ### Mode and policy
 
@@ -78,10 +78,10 @@ Order follows the trigger configuration, and callers preserve it. There is no se
 
 ### Hook names
 
-Built-in hooks follow the **`change.<event>`** object lifecycle so they stay independent of which skill a user ran (`propose`, `new` + `continue`, `ff`, or an external orchestrator), while keeping individual artifact generation fluid:
+Built-in hooks use the **`change.*`** namespace and represent repeatable checkpoints in a change's lifecycle—independent of which skill or orchestrator ran—while keeping artifact generation fluid:
 
 - **Pilot hooks (wired first):** `change.before-apply` and `change.applied`.
-- **Planned lifecycle family (future, decided separately):** `change.before-create`, `change.ready` (all apply-required artifacts done), `change.before-archive`, and `change.archived`. Verify and review remain optional checks/actions attached to these moments (or run on demand), not stages.
+- **Future hooks:** additional `change.*` hooks are intentionally left undecided until real usage shows which checkpoints are needed. Verify and review remain optional checks/actions attached to checkpoints (or run on demand), not mandatory stages.
 - **Custom hooks:** users can invoke their own hooks starting with `custom.` followed by dot-separated kebab-case segments, such as `custom.security-review.completed` (names like `custom.` or `custom..foo` are rejected).
 - **Unknown names:** any other name (including typos such as `change.before-aply` or unwired built-in hooks) is rejected.
 
@@ -91,7 +91,7 @@ A hook is only a name that a caller invokes. There is no registration step and n
 
 Actions and triggers live under `lifecycle:` in `openspec/config.yaml`. Lifecycle parsing uses a dedicated strict reader (`readLifecycleConfig()`) used by `openspec lifecycle actions` and full-project `openspec validate --all` (never by `--specs` or single-item validation, so a lifecycle typo never blocks archiving specs). `readProjectConfig()` stays forgiving so unrelated commands (`status`, `list`, `archive`) keep working.
 
-Lookup reuses OpenSpec's existing root and config resolution, including Stores (`--store <id>`). Because hooks belong to the `change` object, the resolved root where changes live owns `lifecycle:`—when a Store is the resolved root, the Store's configuration decides which actions are returned (no repo-plus-store merging; putting `lifecycle:` in a pointer-only repo config that delegates to `store: <id>` fails loudly instead of being silently ignored). Shared store-selection guidance is updated so built-in skills forward `--store <id>` to `openspec lifecycle`.
+For v1, lookup reuses OpenSpec's existing root and config resolution, including Stores (`--store <id>`), with no repo-plus-store merging: when a Store is the resolved root, the Store's configuration decides which actions are returned, and putting `lifecycle:` in a pointer-only repo config (`store: <id>`) fails loudly instead of being silently ignored. Whether code repositories sharing a Store should later support repo-local hooks is left open. Shared store-selection guidance is updated so built-in skills forward `--store <id>` to `openspec lifecycle`.
 
 ## PR sequence
 
@@ -99,8 +99,8 @@ Each PR adds one verifiable behavior. Not every PR needs to deliver user value a
 
 1. **Lifecycle config under `lifecycle:`.** Parse and strictly validate `lifecycle.actions` and `lifecycle.triggers` via a dedicated reader, wired into `openspec validate --all` (not `--specs` / single-item validation) while keeping `readProjectConfig()` forgiving for unrelated commands. Require non-empty `instructions` on actions (`title` defaults to the action id; `description` is optional) and require `on`, `action`, and `mode` on triggers. Enforce kebab-case action ids, valid `custom.<segment>` hook names, and strict unknown-key rejection (with a tailored unsupported error for `policy`). Reject duplicate action ids, duplicate `(on, action)` triggers, triggers referencing a missing action, unsupported modes, invalid hook names, and `lifecycle:` inside a pointer-only repo config (`store: <id>`). A project with no `lifecycle:` block behaves as it does today.
 2. **`openspec lifecycle actions --at <hook>`.** Return resolved `root` and matching actions in order with instructions inline, supporting `--store <id>` and `--json` (errors return `{ hook, status }` with no `actions` key). Cover one match, several matches, no match, invalid config, a `custom.` hook, a rejected mistyped name, a pointer-only repo error, and a Store as the resolved root.
-3. **Apply calls `change.applied`.** The Apply skill asks for actions when its state is `all_done`—at Step 3 if already complete or at Step 7 after tasks finish (never mid-loop during Step 6 refreshes)—forwarding `--store <id>` when a Store is selected. `suggest` actions can be accepted or skipped in the current session. A `blocked` change does not reach this hook; custom schemas without task tracking never reach `all_done`. If the CLI is older and lacks `lifecycle` (non-JSON error), skip hooks and continue; on a structured JSON config error at `change.applied`, report the error and finish normally.
-4. **Apply calls `change.before-apply`.** The Apply skill asks for actions once when it is ready to implement (after reading context files and before any edits), skipping `change.before-apply` when state is `blocked` or `all_done`. On a structured JSON config error, report it and stop before editing; if an older CLI lacks `lifecycle`, skip hooks and continue. Verify both hooks in one run with different actions on each.
+3. **Apply calls `change.applied`.** The Apply skill asks for actions when its state is `all_done`—at Step 3 if already complete (reading `contextFiles` before executing an accepted or `auto` action, since Step 3 runs before Step 4) or at Step 7 after tasks finish (never mid-loop during Step 6 refreshes)—forwarding `--store <id>` when a Store is selected. `suggest` actions can be accepted or skipped in the current session. A `blocked` change does not reach this hook; custom schemas without task tracking never reach `all_done`. Skip hooks only when the installed CLI is known not to support `openspec lifecycle` (unrecognized `lifecycle` command); surface unexpected runtime errors or structured JSON config errors and finish normally on `change.applied`.
+4. **Apply calls `change.before-apply`.** The Apply skill asks for actions once when it is ready to implement (after reading context files and before any edits), skipping `change.before-apply` when state is `blocked` or `all_done`. Skip hooks only when the installed CLI does not support `openspec lifecycle`; on a structured JSON config error or unexpected failure, report it and stop before editing. Verify both hooks in one run with different actions on each.
 
    **Release checkpoint A.** Run the full path from CLI to Apply to an offered, accepted, and skipped action. Run a custom caller against a `custom.` hook. Confirm a project with no config is unchanged.
 
@@ -136,7 +136,8 @@ Running `openspec archive` by hand fires no hooks, because hooks fire only when 
 
 - **Executable actions.** Running a team's check natively needs a trust model (including what happens when the script changes), timeouts, a result contract, and authorization. This is not a dependency of the sequence above.
 - **Policy.** `warn` and `block` depend on native execution and result collection. In the pilot, setting `policy` in config is a hard validation error.
-- **More `change.*` hooks (`change.before-create`, `change.ready`, `change.before-archive`, `change.archived`).** Decide which additional object-lifecycle moments to wire after Checkpoint B.
+- **Additional `change.*` hooks.** Leave further built-in checkpoints undecided until pilot usage shows which ones teams actually need.
+- **Repo-local hooks with a shared Store.** v1 resolves `lifecycle:` from the Store root only; revisit repo-specific overrides later if multi-repo Store teams need them.
 - **Plugins and shared profiles.** Named actions are the unit a plugin would ship. Revisit once the action shape has held up through checkpoint B.
 - **Agent orchestration.** Launching agents, tracking an action across sessions, and chaining actions remain future work.
 

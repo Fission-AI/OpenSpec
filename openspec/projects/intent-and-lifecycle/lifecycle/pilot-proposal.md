@@ -93,7 +93,7 @@ Validation rules:
 - **Triggers:** `on`, `action`, and `mode` are all required (no implicit default for `mode`).
 - **Errors:** Reject unknown keys (with a tailored unsupported error for `policy`), duplicate action ids, duplicate `(on, action)` triggers, triggers that reference a missing action, unsupported modes, invalid hook names, and `lifecycle:` inside a pointer-only repo config (`store: <id>`). A project with no `lifecycle:` block behaves as it does today.
 
-Lookup reuses OpenSpec's existing root and config resolution, including Stores (`--store <id>`). Because hooks belong to the `change` object, the resolved root where changes live owns `lifecycle:`—when a Store is the resolved root, the Store's configuration decides which actions are returned (no repo-plus-store merging; putting `lifecycle:` in a pointer-only repo config fails loudly instead of being silently ignored). Shared store-selection guidance is updated so built-in skills forward `--store <id>` to `openspec lifecycle`.
+For v1, lookup reuses OpenSpec's existing root and config resolution, including Stores (`--store <id>`), with no repo-plus-store merging: when a Store is the resolved root, the Store's configuration decides which actions are returned, and putting `lifecycle:` in a pointer-only repo config (`store: <id>`) fails loudly instead of being silently ignored. Whether code repositories sharing a Store should later support repo-local hooks is left open. Shared store-selection guidance is updated so built-in skills forward `--store <id>` to `openspec lifecycle`.
 
 ## What callers receive
 
@@ -126,10 +126,10 @@ OpenSpec passes nothing into an action. The agent already knows which change it 
 
 ## Hook names
 
-Built-in hooks follow the **`change.<event>`** object lifecycle so they stay independent of which skill a user ran (`propose`, `new` + `continue`, `ff`, or an external orchestrator), while keeping artifact generation fluid:
+Built-in hooks use the **`change.*`** namespace and represent **repeatable checkpoints** in a change's lifecycle (not one-time state-transition events), keeping them independent of which skill or orchestrator ran while artifact generation stays fluid:
 
 - **Pilot hooks (wired first):** `change.before-apply` and `change.applied`.
-- **Planned lifecycle family (future, decided separately):** `change.before-create`, `change.ready` (all apply-required artifacts done), `change.before-archive`, and `change.archived`. Verify and review remain optional actions/checks, not stages.
+- **Future hooks:** additional `change.*` checkpoints are left undecided until real usage drives them. Verify and review remain optional actions/checks, not mandatory stages.
 - **Custom hooks:** start with `custom.` followed by dot-separated kebab-case segments, such as `custom.security-review.completed` (empty or malformed names like `custom.` or `custom..foo` are rejected).
 - **Unknown names:** any other name (such as a typo like `change.before-aply` or an unwired built-in hook) is rejected.
 
@@ -137,12 +137,12 @@ A hook is only a name that a caller invokes. There is no registration step and n
 
 ## Who calls, and when
 
-Built-in skills, custom skills, and external orchestrators all make the same call (passing `--store <id>` when targeting a registered Store). Hooks fire **per invocation** and can run more than once (for example, when Apply resumes or re-runs), so actions should be safe to repeat.
+Built-in skills, custom skills, and external orchestrators all make the same call (passing `--store <id>` when targeting a registered Store). Hooks are **repeatable checkpoints** invoked per call and can run more than once (for example, when Apply resumes or re-runs), so actions should be safe to repeat.
 
 - **`change.before-apply`:** the Apply skill calls it once when Apply is ready to implement (after reading context files and before any edits), on begin or resume. It is skipped when `state` is `blocked` or `all_done`.
-- **`change.applied`:** the Apply skill calls it when its state is `all_done`—at Step 3 if the change was already complete, or at Step 7 after tasks finish (never mid-loop during Step 6 instruction refreshes). Custom schemas without tracked tasks never reach `all_done`, so `change.applied` does not fire there.
+- **`change.applied`:** the Apply skill calls it when its state is `all_done`—at Step 3 if the change was already complete (reading `contextFiles` before running an accepted or `auto` action, since Step 3 precedes Step 4) or at Step 7 after tasks finish (never mid-loop during Step 6 instruction refreshes). Custom schemas without tracked tasks never reach `all_done`, so `change.applied` does not fire there.
 - **Blocked changes:** a `blocked` change does not reach `change.before-apply` or `change.applied`.
-- **Config errors & CLI/skill version skew:** if an older CLI does not recognize `openspec lifecycle` (non-JSON error), Apply skips hooks and continues normally. On a structured JSON config error, Apply reports the error and stops before editing on `change.before-apply`, or reports the error and finishes normally on `change.applied`. Projects with older installed skills must update their skills before hooks will fire.
+- **Config errors & CLI/skill version skew:** skip hooks only when the installed CLI is known not to support `openspec lifecycle` (unrecognized `lifecycle` command); never swallow unexpected runtime failures as an older CLI. On a structured JSON config error or unexpected failure, Apply reports it and stops before editing on `change.before-apply`, or reports it and finishes normally on `change.applied`. Projects with older installed skills must update their skills before hooks will fire.
 - **Action behavior:** what an action does—including whether it pauses for developer input—belongs in the action's own `instructions`, not in Apply.
 - **Instruction and status reads:** these never return or fire actions. Apply refreshes its instructions during the task loop, and attaching actions to those reads would repeat every offer.
 - **Wrappers:** if a custom skill delegates to the built-in skill, one of them makes the call.
@@ -230,7 +230,7 @@ Detecting and managing drift remains a goal. The pilot serves it through user-de
 
 Generalized references, a provider-agnostic way for a change to reference what it depends on, are a separate exploration. The pilot examples use ordinary Markdown links for now, which is not the permanent answer. Hooks do not depend on references.
 
-These are decided separately: policy, native executable actions and their trust model, additional `change.*` hooks (`change.before-create`, `change.ready`, `change.before-archive`, `change.archived`), plugins, and agent orchestration. See the [roadmap](../direction/roadmap.md).
+These are decided separately: policy, native executable actions and their trust model, additional `change.*` hooks, repo-local hooks alongside a shared Store, plugins, and agent orchestration. See the [roadmap](../direction/roadmap.md).
 
 Mapping how external or custom skills make these calls is part of verifying the custom-caller path.
 

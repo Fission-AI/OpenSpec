@@ -40,7 +40,7 @@ lifecycle:
       mode: suggest
 ```
 
-`on` names the moment, which this guide calls a hook. The first hooks are:
+`on` names the checkpoint, which this guide calls a hook. Hooks are repeatable checkpoints in a change's lifecycle. The first hooks are:
 
 | Hook | When it happens |
 | --- | --- |
