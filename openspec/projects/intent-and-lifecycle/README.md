@@ -29,16 +29,15 @@ lifecycle:
 When Apply starts:
 
 ```text
-  Apply is about to start
+  Apply loads its initial instructions
+  (openspec instructions apply --json)
            │
            ▼
-  OpenSpec looks up actions
-  configured for change.apply.before
+  If lifecycle actions exist, OpenSpec
+  includes them inline (omitted when none)
            │
            ▼
-  Returns: requirements-review
-           │
-           ▼
+  At change.apply.before:
   Agent: "Want me to review the
           requirements first?"
            │
@@ -51,20 +50,20 @@ When Apply starts:
    reviews    Apply
 ```
 
-**OpenSpec discovers the actions. The agent executes them.**
+**OpenSpec dynamically delivers matching actions with each operation's instructions. Projects with no hooks make zero extra CLI calls. The agent executes them.**
 
 Two modes determine what happens:
 
 - `suggest`: The agent offers the action and runs it if accepted.
 - `auto`: The agent follows the instructions without an additional action-specific prompt, subject to its existing permissions.
 
-This also works outside OpenSpec's built-in skills. A custom skill or external orchestrator can invoke the same hook:
+This also works outside OpenSpec's built-in skills. A custom skill or external orchestrator can query any hook directly using the same underlying resolver:
 
 ```bash
 openspec lifecycle actions --at change.apply.before --json
 ```
 
-It receives the configured actions and handles them using its own agent, tools, and context.
+Humans can run bare `openspec lifecycle actions` to inspect every configured hook and trigger in a project.
 
 A caller can also invoke a hook of its own. Custom hook names start with `custom.`, such as `custom.security-review.completed`.
 
@@ -72,14 +71,14 @@ No native execution engine is required.
 
 ## 2. How we'll build it
 
-Small, independently verifiable PRs covering the core lifecycle checkpoints (`change.create.before`, `change.apply.before`, `change.apply.completed`, `change.archive.before`, `change.archive.completed`) plus `custom.*`, grouped into two release checkpoints.
+Small, independently verifiable PRs covering the 5 core lifecycle checkpoints (`change.create.before`, `change.apply.before`, `change.apply.completed`, `change.archive.before`, `change.archive.completed`) plus `custom.*`, grouped into two release checkpoints.
 
 | PR | What we're building | How we verify it |
 |---|---|---|
 | **1. Configuration** | Define and strictly validate `lifecycle.actions` and `lifecycle.triggers` | Valid configuration loads. Invalid references, modes, hook names, duplicate triggers, unknown keys (including unsupported `policy`), and `lifecycle:` in pointer-only repo configs fail clearly without breaking unrelated commands or Archive |
-| **2. Action lookup** | Add `openspec lifecycle actions [--at <hook>] [--store <id>] [--json]` | Bare command lists all configured hooks for humans; `--at <hook>` returns resolved root and matching actions in order with instructions inline |
-| **3. Apply hooks** | Invoke `change.apply.before` and `change.apply.completed` in Apply | `change.apply.before` runs once before edits (skipped on `blocked`/`all_done`); `change.apply.completed` runs on `all_done`; accepting and skipping both work |
-| **4. Create & Archive hooks** | Invoke `change.create.before` (`propose`, `new`) and `change.archive.before` / `change.archive.completed` (`archive`, `bulk-archive`) | Full Create → Apply → Archive lifecycle works end-to-end across built-in skills |
+| **2. CLI & Operation Delivery** | Add `openspec lifecycle actions [--at <hook>]` (for humans & external callers) and attach optional `lifecycle` payloads to `openspec instructions create\|apply\|archive` | Bare command lists all hooks; `--at <hook> --json` works for external callers; operation reads omit `lifecycle` when unconfigured (0 extra calls for the 90%) and return `lifecycle` or `lifecycleError` when configured |
+| **3. Apply hooks** | Handle `change.apply.before` and `change.apply.completed` in Apply | Zero extra calls when unconfigured; `change.apply.before` runs once per start/resume before edits (skipped on `blocked`/`all_done`); `change.apply.completed` runs on `all_done`; Verify ignores Apply hooks |
+| **4. Create & Archive hooks** | Handle `change.create.before` (`propose`, `new`) and `change.archive.before` / `change.archive.completed` (`archive`, `bulk-archive`) | Full Create → Apply → Archive lifecycle works end-to-end with zero extra calls when unconfigured |
 | **5. Real examples** | Demonstrate agent-native lifecycle actions (plus a team-script note) | Multiple independently defined actions work through the same hooks without changes to OpenSpec's core |
 
 Each PR can merge independently once its acceptance tests pass.
@@ -104,7 +103,7 @@ We can now demonstrate the complete mechanism:
 - Bare `openspec lifecycle actions` lists configured hooks cleanly for humans, and `--at <hook> --json` works for callers.
 - `suggest` and `auto` behave as intended.
 - A custom caller can invoke the same interface, including at a `custom.` hook.
-- Projects without configured actions behave unchanged.
+- Projects without configured actions behave unchanged and make zero extra CLI calls.
 - The CLI and agent integration pass their tests.
 
 ### Release checkpoint B: Prove it works for real use cases

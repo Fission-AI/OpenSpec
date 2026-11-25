@@ -10,29 +10,21 @@ OpenSpec resolves which actions are configured for a hook. The calling agent or 
 
 A team's product requirements live in another repository. An engineer creates an OpenSpec change for the iOS checkout flow with their existing workflow. The proposal links to the requirements it was planned from.
 
-When the Apply skill is ready to start, and before it edits anything, it asks which actions apply:
+When the Apply skill starts, it runs its normal `openspec instructions apply --change "<name>" --json` read. Because the project configured lifecycle triggers for Apply, OpenSpec dynamically attaches `lifecycle` (`before` and `completed`) to that response—without any extra CLI call. Projects with no hooks see no `lifecycle` field at all.
 
-```bash
-openspec lifecycle actions --at change.apply.before --json
-```
-
-OpenSpec returns one action in `suggest` mode. The agent offers it:
+After reading the change's context files and before editing anything, the agent offers the `change.apply.before` action (`suggest` mode):
 
 > Before I start, want me to reread the linked requirements and check that they still match this plan?
 
 If the developer accepts, the agent follows the action's instructions in the current session. It reports any conflict between the current requirements and the plan, and the developer decides what to do. If the developer declines, nothing runs.
 
-The skill then works through its tasks as usual. When every task is complete, it asks again:
-
-```bash
-openspec lifecycle actions --at change.apply.completed --json
-```
-
-OpenSpec returns a feedback action, and the agent offers it:
+The skill then works through its tasks as usual. When every task is complete, the agent offers the `change.apply.completed` action:
 
 > Tasks are complete. Want me to review the work for anything worth sending to the product team?
 
 An accepted review drafts feedback in the current session. It does not submit anything or change the upstream requirements.
+
+Custom skills and external orchestrators use the same underlying resolver directly via `openspec lifecycle actions --at <hook> --json`.
 
 ## Configure actions and triggers
 
@@ -97,9 +89,43 @@ For v1, lookup reuses OpenSpec's existing root and config resolution, including 
 
 ## What callers receive
 
+OpenSpec resolves lifecycle config through **one strict resolver** and exposes it in two ways—eliminating extra CLI calls for the ~90% of projects without hooks while keeping a direct lookup interface for external callers and humans:
+
+### 1. Dynamic delivery in built-in operation reads (`openspec instructions create|apply|archive`)
+
+Each built-in operation's initial `openspec instructions <operation> --json` call returns an optional `lifecycle` field grouped by checkpoint (`before` and `completed`) plus concise dynamic `handling` guidance—**omitted completely when no triggers match**:
+
+```json
+"lifecycle": {
+  "before": [
+    {
+      "id": "requirements-review",
+      "mode": "suggest",
+      "title": "Review requirements against the plan",
+      "instructions": "Read the sources linked from this change's planning artifacts. ..."
+    }
+  ],
+  "completed": [
+    {
+      "id": "upstream-feedback",
+      "mode": "suggest",
+      "title": "Review implementation feedback",
+      "instructions": "Review this change's requirements, implementation decisions, ..."
+    }
+  ],
+  "handling": "..."
+}
+```
+
+- When `lifecycle:` is absent or has no matching triggers, the field is omitted—zero extra tool calls and near-zero static prompt overhead in globally installed skills.
+- When `lifecycle:` is configured but invalid, the operation read includes `lifecycleError` (never silently omitted) so the skill surfaces the error loudly.
+- Discovery is separated from invocation: the operation read resolves actions once at startup, and the skill acts at the exact checkpoint moment (ignoring `lifecycle` on per-task refreshes and in read-only `openspec-verify-change`). `openspec list` and `openspec status` never return lifecycle actions.
+
+### 2. Direct lookup for external callers and humans (`openspec lifecycle actions`)
+
 Bare `openspec lifecycle actions` prints a human-readable summary of all configured hooks and triggers so developers can inspect their setup without invoking an agent.
 
-With `--at <hook> --json`, the response is the contract between OpenSpec and every caller. It returns the hook, the resolved `root`, and an ordered list of actions with their instructions inline. On failure, `--json` returns `{ "hook": "...", "status": [...] }` with no `actions` key so an error never looks like an empty match. This shape is illustrative and gets fixed in the second PR:
+With `--at <hook> --json`, custom skills and external orchestrators query any hook (built-in or `custom.*`) directly. It returns the hook, the resolved `root`, and an ordered list of actions with their instructions inline. On failure, `--json` returns `{ "hook": "...", "status": [...] }` with no `actions` key so an error never looks like an empty match. This shape is illustrative and gets fixed in the second PR:
 
 ```json
 {
@@ -142,19 +168,19 @@ Built-in hooks follow **`change.<operation>.<checkpoint>`** (`change` = object, 
 
 A hook is only a name that a caller invokes. There is no registration step and no event declaration.
 
-## Who calls, and when
+## Who invokes checkpoints, and when
 
-Built-in skills, custom skills, and external orchestrators all make the same call (passing `--store <id>` when targeting a registered Store). Hooks are **repeatable checkpoints** invoked per call and can run more than once (for example, when Apply resumes or re-runs), so actions should be safe to repeat.
+Built-in skills receive their operation's actions once via their initial `openspec instructions <operation> --json` read (which already handles `--store <id>`), while custom skills and external orchestrators query `openspec lifecycle actions --at <hook> [--store <id>] --json` directly. Hooks are **repeatable checkpoints** invoked per operation run and can run more than once (for example, when Apply resumes or re-runs), so actions should be safe to repeat.
 
-- **`change.create.before`:** `openspec-propose` and `openspec-new-change` call it before scaffolding or drafting a new change (`create` covers both entry points).
-- **`change.apply.before`:** `openspec-apply-change` calls it once per Apply start or resume when ready to implement (after reading context files and before any edits). It is skipped when `state` is `blocked` or `all_done`.
-- **`change.apply.completed`:** `openspec-apply-change` calls it when its state is `all_done`—at Step 3 if the change was already complete (reading `contextFiles` before running an accepted or `auto` action, since Step 3 precedes Step 4) or at Step 7 after tasks finish (never mid-loop during Step 6 instruction refreshes). Custom schemas without tracked tasks never reach `all_done`, so `change.apply.completed` does not fire there.
-- **`change.archive.before` / `change.archive.completed`:** `openspec-archive-change` and `openspec-bulk-archive-change` call them once per change—`change.archive.before` before syncing specs & moving the change, and `change.archive.completed` after the change folder moves to the archive (whether or not spec sync ran).
+- **`change.create.before`:** delivered by `openspec instructions create --json` in `openspec-propose` and `openspec-new-change`, handled before scaffolding or drafting a new change (`create` covers both entry points).
+- **`change.apply.before`:** delivered by the initial `openspec instructions apply --json` read in `openspec-apply-change`, handled once per Apply start or resume when ready to implement (after reading context files and before any edits). Skipped when `state` is `blocked` or `all_done`, and ignored by `openspec-verify-change`.
+- **`change.apply.completed`:** delivered by the same initial `openspec instructions apply --json` read in `openspec-apply-change`, handled only when `state` is `all_done`—at Step 3 if the change was already complete (reading `contextFiles` before running an accepted or `auto` action, since Step 3 precedes Step 4) or at Step 7 after tasks finish (never mid-loop during Step 6 instruction refreshes). Custom schemas without tracked tasks never reach `all_done`, so `change.apply.completed` does not fire there.
+- **`change.archive.before` / `change.archive.completed`:** delivered by the existing per-change `openspec instructions archive --json` read in `openspec-archive-change` and `openspec-bulk-archive-change`, handled once per change—`change.archive.before` before syncing specs & moving the change, and `change.archive.completed` after the change folder moves to the archive (whether or not spec sync ran).
 - **Blocked changes:** a `blocked` change does not reach `change.apply.before` or `change.apply.completed`.
-- **Config errors & CLI/skill version skew:** skip hooks only when the installed CLI is known not to support `openspec lifecycle` (unrecognized `lifecycle` command); never swallow unexpected runtime failures as an older CLI. On a structured JSON config error or unexpected failure, before-hooks (`change.create.before`, `change.apply.before`, `change.archive.before`) report the error and stop before mutating files, while completed-hooks (`change.apply.completed`, `change.archive.completed`) report the error and finish normally. Projects with older installed skills must run `openspec update` before hooks will fire.
+- **Config errors & CLI/skill version skew:** older CLIs simply omit `lifecycle` from `instructions apply` / `instructions archive` (and `instructions create` falls back gracefully if unsupported), so newer global skills continue cleanly with zero `unknown command` failures. When `lifecycleError` is present on an operation read, before-hooks (`change.create.before`, `change.apply.before`, `change.archive.before`) report the error and stop before mutating files, while completed-hooks (`change.apply.completed`, `change.archive.completed`) report the error and finish normally. Projects with older installed skills must run `openspec update` before hooks will fire.
 - **Action behavior:** what an action does—including whether it pauses for developer input—belongs in the action's own `instructions`, not in the skill.
-- **Instruction and status reads:** these never return or fire actions. Apply refreshes its instructions during the task loop, and attaching actions to those reads would repeat every offer.
-- **Wrappers:** if a custom skill delegates to a built-in skill, one of them makes the call.
+- **Task-loop refreshes, `list`, and `status`:** Apply ignores `lifecycle` during Step 6 task-loop refreshes so offers never repeat; `openspec list` and `openspec status` never return lifecycle actions.
+- **Wrappers:** if a custom skill delegates to a built-in skill, one of them handles the checkpoint.
 
 Hooks are **skill- and orchestrator-invoked only**. Deprecated direct CLI commands such as `openspec archive` fire no hooks. OpenSpec cannot observe an agent that never calls the interface.
 
@@ -214,13 +240,14 @@ Nothing is edited silently. A conflict with the source does not prove the implem
 
 Run one fixture project through the built-in Apply skill and through a custom caller:
 
-- A project with no actions keeps its existing behavior.
+- A project with no actions keeps its existing behavior and makes zero extra CLI calls.
 - A `suggest` action is offered, and both accepting and skipping work in the current session.
 - An `auto` action is followed without an extra prompt.
 - Two actions on one hook are handled in configuration order.
-- `change.apply.before` fires once before edits on begin and resume, and is skipped on `blocked` and `all_done`.
-- `change.apply.completed` fires on `all_done` (Step 3 or Step 7, never mid-loop) and never on `blocked`.
-- Instruction and status refreshes repeat no offers.
+- `change.apply.before` fires once per start/resume before edits, is skipped on `blocked` and `all_done`, and is ignored by `openspec-verify-change`.
+- `change.apply.completed` fires on `all_done` (Step 3 reading `contextFiles` first, or Step 7—never mid-loop) and never on `blocked`.
+- `change.create.before` runs before creating a change (`propose`, `new`), and `change.archive.before` / `change.archive.completed` run once per change in `archive` and `bulk-archive`.
+- Task-loop instruction refreshes repeat no offers.
 - A trigger that sets `policy`, uses an unknown key, or duplicates an `(on, action)` pair fails validation in `openspec lifecycle actions` and `openspec validate --all`, while unrelated commands (`status`, `list`, `validate --specs`, `archive`) still work.
 - Putting `lifecycle:` inside a pointer-only repo config (`store: <id>`) fails loudly instead of being silently ignored.
 - A `custom.` hook works from a custom caller, and malformed or mistyped names such as `custom.` or `change.aply.before` are rejected.

@@ -147,7 +147,7 @@ Actions do not call one another. To run the script and then offer the review fro
 
 ## 7. Use hooks from your own skills
 
-A custom skill or another tool can ask the same question the built-in skills ask:
+Built-in skills receive their configured actions automatically through their normal OpenSpec instruction reads (with zero extra CLI calls in projects that don't configure hooks). Custom skills and external orchestrators can look up any hook directly:
 
 ```bash
 openspec lifecycle actions --at change.apply.before --json
