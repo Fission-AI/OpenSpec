@@ -35,17 +35,22 @@ Add a trigger under `lifecycle:` that attaches the action to a point in the work
 ```yaml
 lifecycle:
   triggers:
-    - on: change.before-apply
+    - on: change.apply.before
       action: requirements-review
       mode: suggest
 ```
 
-`on` names the checkpoint, which this guide calls a hook. Hooks are repeatable checkpoints in a change's lifecycle. The first hooks are:
+`on` names the checkpoint, which this guide calls a hook. Hooks are repeatable checkpoints in a change's lifecycle. The initial hooks are:
 
-| Hook | When it happens |
-| --- | --- |
-| `change.before-apply` | The Apply skill is about to start or resume, before any edits |
-| `change.applied` | The Apply skill has finished every tracked task |
+| Hook | When it happens | Skills |
+| --- | --- | --- |
+| `change.create.before` | Before creating a new change (`create` covers both `propose` and `new`) | `propose`, `new` |
+| `change.apply.before` | Once per Apply start or resume, before any code edits | `apply` |
+| `change.apply.completed` | When Apply has finished every tracked task | `apply` |
+| `change.archive.before` | Once per change before syncing specs & archiving | `archive`, `bulk-archive` |
+| `change.archive.completed` | Once per change after its folder moves to the archive (even if spec sync was skipped) | `archive`, `bulk-archive` |
+
+Run `openspec lifecycle actions` (with no flags) anytime to inspect every hook and trigger configured for your project. Make sure your installed skills are up to date (`openspec update`) so they call these checkpoints.
 
 `mode` says how your agent handles the action:
 
@@ -104,7 +109,7 @@ lifecycle:
         requirements without separate approval.
 
   triggers:
-    - on: change.applied
+    - on: change.apply.completed
       action: upstream-feedback
       mode: suggest
 ```
@@ -115,9 +120,9 @@ When the tasks are complete, your agent offers it:
 
 An accepted review produces a draft for you to read. Sending it anywhere is a separate step that you approve.
 
-## 6. Run your own script
+## 6. Running an existing team script *(optional stopgap)*
 
-An action can tell your agent to run a script your team maintains. This one checks whether the requirements file changed in Git:
+Lifecycle actions shine for agent-native reviews and drafting, where an LLM adds real judgment. Until native `command:` execution lands, you can also tell your agent to run an existing script your team maintains (such as a Git drift script):
 
 ```yaml
 lifecycle:
@@ -129,7 +134,7 @@ lifecycle:
         Run scripts/check-requirements-drift.sh and report its output.
 
   triggers:
-    - on: change.before-apply
+    - on: change.apply.before
       action: requirements-drift
       mode: auto
 ```
@@ -138,33 +143,38 @@ The script decides what to compare and where it keeps its starting point. OpenSp
 
 This is how a team gets "changed since planning". The script holds the earlier version, which the review in step 4 does not have.
 
-Actions do not call one another. To run the script and then offer the review from step 1, list both triggers on `change.before-apply` with the script first.
+Actions do not call one another. To run the script and then offer the review from step 1, list both triggers on `change.apply.before` with the script first.
 
 ## 7. Use hooks from your own skills
 
 A custom skill or another tool can ask the same question the built-in skills ask:
 
 ```bash
-openspec lifecycle actions --at change.before-apply --json
+openspec lifecycle actions --at change.apply.before --json
 ```
 
 Pass `--store <id>` if your work lives in a registered Store. The command returns the resolved root and the actions for that hook, in order, with their instructions. It runs nothing.
 
-You can also invoke hooks of your own. Start the name with `custom.`, such as `custom.security-review.completed`, and attach triggers to it the same way. Any other name must be one OpenSpec defines, so a typo like `change.before-aply` is rejected.
+You can also invoke hooks of your own. Start the name with `custom.`, such as `custom.security-review.completed`, and attach triggers to it the same way. Any other name must be one OpenSpec defines, so a typo like `change.aply.before` is rejected.
 
-## How this differs from operation guidance
+## Where things go in `openspec/config.yaml`
 
-`openspec/config.yaml` also supports `operations.apply.guidance`. **Guidance shapes how your agent works throughout an operation; an action is a discrete job done at one moment.**
+| Config key | Use it for |
+| --- | --- |
+| `context` | Project background facts injected into instructions |
+| `rules.<artifact>` | How to write or format a specific planning artifact |
+| `operations.*.guidance` | Ongoing advice while doing an operation (e.g., *"run focused tests before the full suite"*) |
+| `lifecycle` | Discrete named jobs at specific checkpoints that your agent can offer and you can skip |
 
-Use guidance for standing advice such as "run focused tests before the full suite". Use an action for a named step at a specific moment that your agent can offer and you can skip.
+**Rule of thumb:** guidance shapes how your agent works throughout an operation; an action is a discrete job done at one checkpoint.
 
 ## Limits
 
-- **Hooks fire only when a skill asks.** Running `openspec archive` yourself in a terminal fires none, and projects with older installed skills must update their skills before hooks will fire.
+- **Hooks are skill- and orchestrator-invoked only.** Deprecated direct CLI commands like `openspec archive` fire no hooks, and projects with older installed skills must run `openspec update` before hooks will fire.
 - **Your agent carries out actions, not OpenSpec.** An agent that does not follow the skill will not run them.
 - **No enforced blocking.** OpenSpec cannot stop Apply or Archive. Your agent can still pause based on what an action finds.
-- **Actions can run more than once.** OpenSpec does not remember whether you accepted or skipped a hook before. Because `change.before-apply` also runs when resuming an in-progress change, write actions that are safe to repeat, prefer `mode: suggest` for heavier reviews, and keep `mode: auto` for fast, repeatable checks.
-- **Custom schemas without task tracking:** `change.applied` only fires on schemas that track task completion.
+- **Actions can run more than once.** OpenSpec does not remember whether you accepted or skipped a hook before. Because `change.apply.before` also runs when resuming an in-progress change, write actions that are safe to repeat, prefer `mode: suggest` for heavier reviews, and keep `mode: auto` for fast, repeatable checks.
+- **Custom schemas without task tracking:** `change.apply.completed` only fires on schemas that track task completion.
 
 ## Not part of this proposal
 

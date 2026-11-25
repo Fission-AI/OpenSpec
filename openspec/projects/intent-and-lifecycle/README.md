@@ -21,7 +21,7 @@ lifecycle:
         still agree with the implementation plan.
 
   triggers:
-    - on: change.before-apply
+    - on: change.apply.before
       action: requirements-review
       mode: suggest
 ```
@@ -33,7 +33,7 @@ When Apply starts:
            │
            ▼
   OpenSpec looks up actions
-  configured for change.before-apply
+  configured for change.apply.before
            │
            ▼
   Returns: requirements-review
@@ -61,7 +61,7 @@ Two modes determine what happens:
 This also works outside OpenSpec's built-in skills. A custom skill or external orchestrator can invoke the same hook:
 
 ```bash
-openspec lifecycle actions --at change.before-apply --json
+openspec lifecycle actions --at change.apply.before --json
 ```
 
 It receives the configured actions and handles them using its own agent, tools, and context.
@@ -72,15 +72,15 @@ No native execution engine is required.
 
 ## 2. How we'll build it
 
-Five independently verifiable PRs, grouped into two release checkpoints.
+Small, independently verifiable PRs covering the core lifecycle checkpoints (`change.create.before`, `change.apply.before`, `change.apply.completed`, `change.archive.before`, `change.archive.completed`) plus `custom.*`, grouped into two release checkpoints.
 
 | PR | What we're building | How we verify it |
 |---|---|---|
 | **1. Configuration** | Define and strictly validate `lifecycle.actions` and `lifecycle.triggers` | Valid configuration loads. Invalid references, modes, hook names, duplicate triggers, unknown keys (including unsupported `policy`), and `lifecycle:` in pointer-only repo configs fail clearly without breaking unrelated commands or Archive |
-| **2. Action lookup** | Add `openspec lifecycle actions --at <hook>` (with `--store <id>`) | CLI returns the resolved root and matching actions, in order, with their instructions |
-| **3. After Apply** | Invoke `change.applied` when tasks finish | Agent offers configured actions. Accepting and skipping both work |
-| **4. Before Apply** | Invoke `change.before-apply` before implementation | Actions are offered once before edits, skipped on `blocked` and `all_done`, and don't interfere with normal Apply |
-| **5. Real examples** | Demonstrate two independently defined actions | Both work through the same hook without changes to OpenSpec's core |
+| **2. Action lookup** | Add `openspec lifecycle actions [--at <hook>] [--store <id>] [--json]` | Bare command lists all configured hooks for humans; `--at <hook>` returns resolved root and matching actions in order with instructions inline |
+| **3. Apply hooks** | Invoke `change.apply.before` and `change.apply.completed` in Apply | `change.apply.before` runs once before edits (skipped on `blocked`/`all_done`); `change.apply.completed` runs on `all_done`; accepting and skipping both work |
+| **4. Create & Archive hooks** | Invoke `change.create.before` (`propose`, `new`) and `change.archive.before` / `change.archive.completed` (`archive`, `bulk-archive`) | Full Create → Apply → Archive lifecycle works end-to-end across built-in skills |
+| **5. Real examples** | Demonstrate agent-native lifecycle actions (plus a team-script note) | Multiple independently defined actions work through the same hooks without changes to OpenSpec's core |
 
 Each PR can merge independently once its acceptance tests pass.
 
@@ -100,7 +100,8 @@ We can now demonstrate the complete mechanism:
 
 **Release criteria:**
 
-- Configured actions work before and after Apply.
+- Configured actions work across Create (`change.create.before`), Apply (`change.apply.before`, `change.apply.completed`), and Archive (`change.archive.before`, `change.archive.completed`).
+- Bare `openspec lifecycle actions` lists configured hooks cleanly for humans, and `--at <hook> --json` works for callers.
 - `suggest` and `auto` behave as intended.
 - A custom caller can invoke the same interface, including at a `custom.` hook.
 - Projects without configured actions behave unchanged.
@@ -110,9 +111,9 @@ We can now demonstrate the complete mechanism:
 
 *After PR 5*
 
-Demonstrate two useful actions that don't require special support in OpenSpec.
+Lead with **agent-native actions** where coding agents add real judgment, without requiring special support in OpenSpec:
 
-**Action A: Review requirements against the plan**
+**Action A: Review linked requirements against the plan (`change.apply.before`)**
 
 The agent rereads linked requirements and identifies conflicts with the current implementation plan.
 
@@ -122,48 +123,45 @@ For example:
 
 The developer can keep the plan, investigate, or revise it using the Update skill.
 
-**Action B: Check for source drift using Git**
+**Action B: Draft upstream feedback after implementation (`change.apply.completed`)**
 
-The agent runs a script maintained by the project to detect whether requirements changed since a recorded baseline.
+The agent reviews decisions and verification evidence to draft feedback worth sharing with the requirements owners—without submitting anything automatically.
 
-The script owns the Git comparison and baseline. OpenSpec only tells the agent when to run it.
+*(Teams can also point an action's instructions at an existing repo script—such as a Git drift script—as a lightweight stopgap until native `command:` execution exists.)*
 
 **Release criteria:**
 
-- Both actions work through the same lifecycle interface.
+- Agent-native review and feedback actions work through the same lifecycle interface.
 - No action-specific implementation is needed in OpenSpec.
-- The agent correctly handles the review and script output.
-- Both work through the built-in Apply skill and a custom caller.
-
-This proves the mechanism supports both agent reasoning and existing team tooling.
+- Both work through built-in skills and a custom caller.
 
 ---
 
 ## 3. What users see in the changelog
 
-### Release A: Run your own actions at different points in the OpenSpec workflow
+### Release A: Run your own actions across the OpenSpec change lifecycle
 
-You can now define actions under `lifecycle:` in `openspec/config.yaml` and choose when your coding agent should run them.
+You can now define actions under `lifecycle:` in `openspec/config.yaml` and attach them to checkpoints in a change's lifecycle.
 
-For example, configure a security review before implementation or ask your agent to summarize findings after completing a change.
+For example, check upstream readiness before creating a change, review requirements before implementation, draft feedback after tasks complete, or run a final check before archiving.
 
 Actions can be suggested for your approval or followed automatically using your agent's existing permissions.
 
-The initial hooks are `change.before-apply` and `change.applied`. Custom skills and external orchestrators can also look up actions through the CLI, including at their own hooks named with a `custom.` prefix.
+The initial checkpoints are `change.create.before`, `change.apply.before`, `change.apply.completed`, `change.archive.before`, and `change.archive.completed`. Custom skills and external orchestrators can also look up actions through `openspec lifecycle actions`, including at their own `custom.` hooks. Hooks run when invoked by skills or orchestrators (not deprecated direct CLI commands like `openspec archive`).
 
-**Getting started:** Define an action, attach it to a hook, and use Apply as normal. Nothing changes in projects without configured actions.
+**Getting started:** Run `openspec update` to refresh your skills, define an action under `lifecycle:`, attach a trigger, and inspect your setup with `openspec lifecycle actions`. Nothing changes in projects without configured actions.
 
 ### Release B: Catch requirements that moved under you
 
-We've added two examples you can use to get started with lifecycle actions.
+We've added ready-to-copy agent-native examples for lifecycle actions:
 
-**Review requirements before implementation.** Your agent can reread linked documents and identify where the current requirements conflict with your plan.
+**Review requirements before implementation.** Your agent rereads linked documents and identifies where current requirements conflict with your plan.
 
-**Check for changes using your own scripts.** Configure an action that asks your agent to run an existing validation or drift-detection script and report its findings.
+**Draft upstream feedback when tasks finish.** Your agent summarizes decisions and evidence worth sharing back with product or architecture teams.
 
-Both examples use the same lifecycle mechanism. OpenSpec doesn't prescribe how your team checks requirements or validates work, so you can customize them or replace them with your own instructions.
+OpenSpec doesn't prescribe how your team reviews work—you can customize these prompts, write your own, or tell your agent to run an existing validation script until native script execution lands.
 
-**Getting started:** Copy an example into your project configuration, adjust its instructions, and attach it to the appropriate hook.
+**Getting started:** Copy an example into your `openspec/config.yaml`, adjust its instructions, and attach it to the appropriate checkpoint.
 
 ---
 
