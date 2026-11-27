@@ -32,7 +32,8 @@ Your agent runs most of these during the workflow.
 |---|---|
 | [`openspec new`](#openspec-new) | Create a new change directory. |
 | [`openspec status`](#openspec-status) | Artifact completion status for one or every active change. |
-| [`openspec instructions`](#openspec-instructions) | Instructions for creating an artifact, applying, or archiving. |
+| [`openspec instructions`](#openspec-instructions) | Instructions for creating an artifact or a change, applying, or archiving. |
+| [`openspec lifecycle`](#openspec-lifecycle) | List the lifecycle actions configured for each hook. |
 | [`openspec templates`](#openspec-templates) | Resolved template paths for a schema's artifacts. |
 | [`openspec schemas`](#openspec-schemas) | List available workflow schemas. |
 | [`openspec schema`](#openspec-schema) | Inspect, fork, or create a schema (experimental). |
@@ -778,7 +779,7 @@ With no name and no bulk flag, validate prompts you to pick items. Outside an in
 
 | Flag | Effect |
 |---|---|
-| `--all` | Validate every change and spec. |
+| `--all` | Validate every change and spec, plus the `lifecycle:` block in `openspec/config.yaml` when one exists. |
 | `--changes` | Validate every change. |
 | `--specs` | Validate every spec. |
 | `--archived` | Check task completion in archived changes, without validating their applied spec deltas. |
@@ -799,6 +800,18 @@ Bulk runs print one status line per item, followed by any findings, and end with
 ✓ spec/api
 Totals: 2 passed, 0 failed (2 items)
 ```
+
+With `--all` and a `lifecycle:` block in config.yaml, the run adds a `config/lifecycle` item. In `--json` it has `"id": "lifecycle"` and `"type": "config"`, and `summary.byType` gains a `config` entry. A failing block lists each problem and points at the command that explains it:
+
+```
+✓ change/add-rate-limit
+✗ config/lifecycle
+  ✗ [ERROR] lifecycle: lifecycle.triggers[1] sets 'policy', which is not supported yet. Remove it: triggers support 'mode' (suggest or auto) only.
+Totals: 1 passed, 1 failed (2 items)
+Details: openspec lifecycle actions
+```
+
+`--changes`, `--specs`, and single-item runs never check `lifecycle:`.
 
 **Task checkbox findings**
 
@@ -1318,9 +1331,10 @@ If one change can't load, the batch continues. Its entry contains `changeName` a
 
 ## openspec instructions
 
-Prints instructions for creating an artifact, applying, or archiving. Your agent runs this during the workflow to fetch the instruction text for its next step.
+Prints instructions for creating an artifact or a change, applying, or archiving. Your agent runs this during the workflow to fetch the instruction text for its next step.
 
 ```bash
+openspec instructions create                             # inputs for creating a new change
 openspec instructions proposal --change add-rate-limit   # how to write one artifact
 openspec instructions apply --change add-rate-limit      # how to implement the change
 openspec instructions archive --change add-rate-limit    # inputs for archiving
@@ -1330,13 +1344,13 @@ openspec instructions archive --change add-rate-limit    # inputs for archiving
 
 | Argument | What it is |
 |---|---|
-| `artifact` | An artifact id from the schema (`proposal`, `specs`, `design`, `tasks` in `spec-driven`), or the reserved words `apply` and `archive`. |
+| `artifact` | An artifact id from the schema (`proposal`, `specs`, `design`, `tasks` in `spec-driven`), or the reserved words `create`, `apply`, and `archive`. With `--change` or `--schema`, `create` reads a schema artifact named `create` instead. |
 
 **Options**
 
 | Flag | Effect |
 |---|---|
-| `--change <id>` | The change to generate instructions for. Required. |
+| `--change <id>` | The change to generate instructions for. Required, except for `create`. |
 | `--schema <name>` | Override the schema. Auto-detected from `config.yaml` otherwise. |
 | `--json` | Print a structured object instead of text. |
 | `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
@@ -1403,14 +1417,124 @@ With `--json`, each form returns one object. The artifact form starts:
 
 and continues with `outputPath`, `existingOutputPaths`, the full `instruction` and `template` strings, `dependencies`, `unlocks`, and `root`. The `apply` form carries `contextFiles`, `progress`, `tasks`, `taskTrackingConfigured`, `state` (`blocked`, `ready`, `all_done`), and `instruction`.
 
+`create` needs no change. It prints the project context, and with `--json` returns `context` (when config.yaml sets one) and `root`. With no OpenSpec root it exits 1 and the JSON carries `"root": null` with a `status` diagnostic.
+
 Each `tasks` entry carries `id`, `description`, `done`, `sourcePath`, and `line`. `sourcePath` is the absolute path to the tracked file that supplied the task. `line` is the task checkbox's one-based line number in that file. `description` is the task's full text: a task wrapped onto several lines comes back as one line, with a trailing `\` line break removed.
 
 `taskTrackingConfigured` is always a boolean: `true` when the schema sets a non-null [`apply.tracks`](schemas/schema-yaml.md#tracks), even if no file matches, and `false` otherwise. If a matched tracking file cannot be read, `unavailableTrackingFiles` contains its absolute `path` and error `reason`. This field is omitted when every matched file is readable. Readable files still contribute to `tasks` and `progress`, but `state` cannot be `all_done` until every matched file is read.
 
+**Lifecycle fields**
+
+`create`, `apply`, and `archive` add an optional `lifecycle` field when [lifecycle actions](../customize/lifecycle-actions.md) are configured for that step's hooks:
+
+| Field | What it holds |
+|---|---|
+| `before` | Actions for `change.<step>.before`, in trigger order. |
+| `completed` | Actions for `change.<step>.completed`, in trigger order. `apply` and `archive` only. |
+| `handling` | One paragraph telling the agent when and how to handle the listed actions. |
+
+Each action carries `id`, `mode`, `title`, `instructions`, and `description` when set. A checkpoint with no actions is omitted, and `lifecycle` is omitted when no trigger matches.
+
+```json
+"lifecycle": {
+  "before": [
+    {
+      "id": "requirements-review",
+      "mode": "suggest",
+      "title": "Review requirements against the plan",
+      "description": "Reread linked requirements and compare them with this change.",
+      "instructions": "Read the sources linked from this change's planning artifacts.\n..."
+    }
+  ],
+  "handling": "Handle `before` actions once, before you change any files for this operation. Keep the listed order. `suggest`: offer the action by its title and description, then stop and wait for the user's answer before doing anything else, including later actions and any file changes. Follow its instructions only if the user accepts."
+}
+```
+
+When the `lifecycle:` block is invalid, the output carries `lifecycleError` instead, with `message`, `issues` (one string per problem), and `fix`. The rest of the output is unchanged and the command still exits 0. Text output prints the same information under `### Lifecycle Actions` or `### Lifecycle Config Error`.
+
 **Exit codes**
 
 - `0`: instructions printed.
-- `1`: unknown artifact, unknown change, unknown schema, or missing `--change`. Each error lists the valid values.
+- `1`: unknown artifact, unknown change, unknown schema, or missing `--change`. Each error lists the valid values. `create` exits 1 when no OpenSpec root is found.
+
+## openspec lifecycle
+
+Inspects the [lifecycle actions](../customize/lifecycle-actions.md) configured under `lifecycle:` in `openspec/config.yaml`. It has one subcommand.
+
+### openspec lifecycle actions
+
+Lists the configured actions by hook. It runs nothing and launches no agent.
+
+```bash
+openspec lifecycle actions                                    # every hook with a trigger
+openspec lifecycle actions --at change.apply.before           # one hook, with instructions
+openspec lifecycle actions --at change.apply.before --json    # one hook, for skills and scripts
+```
+
+**Options**
+
+| Flag | Effect |
+|---|---|
+| `--at <hook>` | Show the actions for one hook, in trigger order, with their instructions. Takes a built-in hook or a `custom.` hook. |
+| `--json` | Print a structured object instead of text. |
+| `--store <id>` | Use a registered store as the OpenSpec root instead of the current project. |
+
+**Output**
+
+Without `--at`, each hook that has a trigger, in the order its first trigger appears, with its actions numbered in trigger order:
+
+```text
+Lifecycle actions (/Users/you/projects/my-app)
+
+change.apply.before
+  1. requirements-review (suggest): Review requirements against the plan
+     Reread linked requirements and compare them with this change.
+
+change.apply.completed
+  1. upstream-feedback (suggest): Draft upstream feedback
+     Find decisions or evidence worth sharing upstream.
+
+Show one hook with its instructions: openspec lifecycle actions --at <hook>
+```
+
+With nothing configured it prints `No lifecycle actions are configured.` and exits 0. With `--json` it returns `root` and `hooks`, a list of `{ hook, actions }`.
+
+With `--at`, the text form adds each action's instructions as `|` lines. A valid hook with no triggers prints `No lifecycle actions are configured for <hook>.` The JSON form returns `hook`, `root`, and `actions`:
+
+```json
+{
+  "hook": "change.apply.before",
+  "root": {
+    "path": "/Users/you/projects/my-app",
+    "source": "nearest"
+  },
+  "actions": [
+    {
+      "id": "requirements-review",
+      "mode": "suggest",
+      "title": "Review requirements against the plan",
+      "description": "Reread linked requirements and compare them with this change.",
+      "instructions": "Read the sources linked from this change's planning artifacts.\n..."
+    }
+  ]
+}
+```
+
+`actions` is `[]` for a valid hook with no triggers. An action with no `title` returns its id as the title.
+
+An invalid hook name or an invalid `lifecycle:` block prints each problem and a fix:
+
+```text
+Error: lifecycle.triggers[1] sets 'policy', which is not supported yet. Remove it: triggers support 'mode' (suggest or auto) only.
+Fix: Fix lifecycle: in /Users/you/projects/my-app/openspec/config.yaml, then check it with openspec lifecycle actions.
+```
+
+With `--json`, failures return a `status` list instead of `actions`. Each entry has the code `invalid_lifecycle_hook` or `invalid_lifecycle_config`.
+
+**Exit codes**
+
+- `0`: actions listed, including an empty list.
+- `1`: an invalid hook name, an invalid `lifecycle:` block, or no OpenSpec root.
 
 ## openspec templates
 

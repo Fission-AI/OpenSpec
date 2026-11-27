@@ -41,6 +41,7 @@ maintain.
 | What happened to the `delivery` setting? | [Customize › Profiles](customize/profiles.md), Delivery section; [Help › Upgrade to 2.0](help/upgrade-to-2.md) | Answered |
 | How does a user make the workflows plan changes their way: context, rules, and guidance? | [Customize › Project configuration](customize/project-config.md) | Answered |
 | How does a user get artifacts written in a language other than English? | [Customize › Project configuration](customize/project-config.md), the context section's "Another language" note | Answered |
+| How does a user have the agent offer a review or run a check at set points, like before apply edits code? | [Customize › Lifecycle actions](customize/lifecycle-actions.md) | Answered |
 | How should a user change what OpenSpec produces? | [Customize › Schemas](customize/schemas.md), with the fork walkthrough in "Creating your own custom schema" | Answered |
 | How should a user edit the installed skill prompts? | No owner: `customize/skills.md` is parked (README TODO) until there's a good answer to `openspec update` overwriting edits | Gap |
 | How should a user run OpenSpec across multiple repos? | [Multi-repo › Stores](multi-repo/stores.md); [Start › Set up your project](start/setup.md) routes there from "Pick where OpenSpec lives" | Answered |

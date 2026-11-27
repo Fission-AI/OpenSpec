@@ -60,13 +60,14 @@ Your config arrives first, then OpenSpec's built-in instruction and template. Ru
 
 ## The fields
 
-Three fields shape what the agent receives. Each field's exact contract (types, limits, validation) is in [Project configuration (config.yaml)](../reference/configuration/config-yaml.md).
+Four fields shape what the agent receives. Each field's exact contract (types, limits, validation) is in [Project configuration (config.yaml)](../reference/configuration/config-yaml.md).
 
 | Field | What it does | Injected into |
 |---|---|---|
 | `context` | Instructions the agent always receives | Everything: every artifact, `apply`, `archive` |
 | `rules` | Extra instructions for one artifact | Only that artifact's creation |
 | `operations` | Guidance for how a workflow step is carried out | Only `apply` and `archive` |
+| `lifecycle` | Named actions the agent offers or runs at one point in the workflow | Only the hooks you attach them to (creating a change, `apply`, `archive`) |
 
 config.yaml's other fields (`schema`, `store`, `references`) select which schema and which OpenSpec root a project uses. The contract page covers them.
 
@@ -115,6 +116,34 @@ operations:
 ```
 
 During apply, the agent lints as it completes tasks. During archive, it closes with a summary.
+
+### lifecycle
+
+`lifecycle` attaches a named action to a point in the workflow, such as the moment before apply edits code:
+
+```yaml
+lifecycle:
+  actions:
+    run-tests:
+      instructions: Run the full test suite and report any failures.
+  triggers:
+    - on: change.apply.before
+      action: run-tests
+      mode: suggest
+```
+
+Before apply edits anything, the agent offers to run the tests. You can accept or skip. [Lifecycle actions](lifecycle-actions.md) covers the hooks, the modes, and ready-to-copy recipes.
+
+## Which field to use
+
+| Field | Use it for |
+|---|---|
+| `context` | Background facts about the project |
+| `rules.<artifact>` | How to write or format one planning artifact |
+| `operations.<operation>.guidance` | Ongoing advice while the agent applies or archives, like "run focused tests before the full suite" |
+| `lifecycle` | One named job at one point in the workflow, like a requirements review before apply starts |
+
+Guidance shapes how the agent works throughout an operation. A lifecycle action is one job done at one point.
 
 ## When config.yaml isn't enough
 

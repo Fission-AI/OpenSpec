@@ -117,6 +117,7 @@ the page or rewriting the goal in both places, never letting them drift.
 | [Overview](customize/overview.md) | Your options for customizing OpenSpec. |
 | [Profiles](customize/profiles.md) | Choose which workflows are installed. |
 | [Project configuration](customize/project-config.md) | Make the workflows plan changes the way you want with a few lines in config.yaml. |
+| [Lifecycle actions](customize/lifecycle-actions.md) | Have your agent offer a review, or run a check, at set points in a change. |
 | [Schemas](customize/schemas.md) | Change what OpenSpec produces: the artifacts, their order, and their templates. |
 
 ### Multi-repo (beta): plan across repository boundaries
