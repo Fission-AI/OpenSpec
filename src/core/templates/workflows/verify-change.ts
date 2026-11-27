@@ -52,7 +52,7 @@ ${PROJECT_ROOT_GUARD}
 
    This returns the change directory, \`contextFiles\` (artifact ID -> array of concrete file paths), \`taskTrackingConfigured\`, and top-level \`tasks\` and \`progress\` aggregated from every concrete file matched by the schema's \`apply.tracks\` configuration that could be read. Read all available artifacts from \`contextFiles\`.
 
-   Treat apply \`state\` and \`instruction\` as context, not a verification verdict. Do not implement tasks or archive the change during verification.
+   Treat apply \`state\` and \`instruction\` as context, not a verification verdict. Do not implement tasks or archive the change during verification. Ignore \`lifecycle\` and \`lifecycleError\` in this response. Verify does not run Apply lifecycle actions.
 
 4. **Initialize verification report structure**
 
@@ -266,7 +266,7 @@ ${PROJECT_ROOT_GUARD}
 
    This returns the change directory, \`contextFiles\` (artifact ID -> array of concrete file paths), \`taskTrackingConfigured\`, and top-level \`tasks\` and \`progress\` aggregated from every concrete file matched by the schema's \`apply.tracks\` configuration that could be read. Read all available artifacts from \`contextFiles\`.
 
-   Treat apply \`state\` and \`instruction\` as context, not a verification verdict. Do not implement tasks or archive the change during verification.
+   Treat apply \`state\` and \`instruction\` as context, not a verification verdict. Do not implement tasks or archive the change during verification. Ignore \`lifecycle\` and \`lifecycleError\` in this response. Verify does not run Apply lifecycle actions.
 
 4. **Initialize verification report structure**
 

@@ -4,6 +4,7 @@
 Define `/opsx:verify` behavior for assessing implementation completeness, correctness, and coherence against change artifacts.
 
 ## Requirements
+
 ### Requirement: Verify Skill Invocation
 The system SHALL provide an `/opsx:verify` skill that validates implementation against change artifacts.
 
@@ -265,3 +266,13 @@ The agent SHALL gracefully handle changes with varying artifact completeness.
 - **AND** do not require or create optional or intentionally skipped artifacts to obtain a passing report
 - **AND** treat verification as advisory: not verified describes missing evidence for an applicable check, not a new archive gate
 - **AND** leave archive checks and user-confirmation behavior unchanged
+
+### Requirement: Ignore Apply lifecycle actions
+
+The `/opsx:verify` skill and command SHALL ignore the `lifecycle` and `lifecycleError` fields of the `openspec instructions apply --json` response it reads for planning context. Verify SHALL NOT run Apply lifecycle actions.
+
+#### Scenario: Apply read includes lifecycle actions
+
+- **WHEN** Verify's apply read includes `lifecycle` or `lifecycleError`
+- **THEN** Verify neither offers nor runs those actions and does not report the lifecycle error
+- **AND** the verification report is unchanged by those fields
