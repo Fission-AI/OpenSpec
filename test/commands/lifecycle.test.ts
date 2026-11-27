@@ -263,6 +263,17 @@ describe('lifecycle CLI', () => {
       });
     });
 
+    it('reports a missing root for create instead of resolving an implicit one', async () => {
+      const emptyDir = path.join(tempDir, 'empty');
+      fs.mkdirSync(emptyDir);
+      const result = await run(['instructions', 'create', '--json'], emptyDir);
+      expect(result.exitCode).toBe(1);
+      const payload = json(result);
+      expect(payload.root).toBeNull();
+      expect(payload.status[0].code).toBe('no_openspec_root');
+      expect(fs.readdirSync(emptyDir)).toEqual([]);
+    });
+
     it('attaches each operation’s checkpoints', async () => {
       writeConfig(projectDir, LIFECYCLE);
 

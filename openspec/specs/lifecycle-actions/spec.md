@@ -153,6 +153,12 @@ The system SHALL attach an optional `lifecycle` field to `openspec instructions 
 - **WHEN** a user runs `openspec status` or `openspec list` with lifecycle config, valid or not
 - **THEN** the output has no lifecycle actions or lifecycle errors
 
+#### Scenario: Create without an OpenSpec root
+
+- **WHEN** `openspec instructions create --json` runs where no OpenSpec root resolves
+- **THEN** it exits non-zero with `root: null` and a `no_openspec_root` status, like `openspec context --json`
+- **AND** it does not resolve an implicit root or create files
+
 ### Requirement: Check lifecycle config in full-project validation
 
 The system SHALL check the `lifecycle:` block during `openspec validate --all` and report it as a `config` item named `lifecycle`. Other validation scopes SHALL leave it unchecked, so a lifecycle typo never blocks spec or change validation.

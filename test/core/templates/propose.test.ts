@@ -209,40 +209,43 @@ describe('propose project context', () => {
     return body.slice(body.indexOf('**Load project context**'), body.indexOf('**Determine the workflow schema**'));
   }
 
-  it('reads the resolved root and keeps explicit store selection', () => {
+  it('reads the resolved root from the create read and keeps explicit store selection', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
-      expect(section, label).toContain('`openspec context --json`');
-      expect(section, label).toContain('`openspec context --json --store "<store-id>"`');
+      expect(section, label).toContain('`openspec instructions create --json`');
+      expect(section, label).toContain('`openspec instructions create --json --store "<store-id>"`');
       expect(section, label).toContain('returned `root.path`');
-      expect(section, label).toContain('`<root.path>/openspec/config.yaml`');
-      expect(section, label).toContain('Only when context returns a resolved `root.path`');
     }
   });
 
-  it('matches config precedence and field validation', () => {
+  it('takes project context from the CLI instead of reading config by hand', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
-      expect(section, label).toContain('Use `config.yml` only when `config.yaml` does not exist');
-      expect(section, label).toContain('If neither file exists, continue without project context');
-      expect(section, label).toContain('Do not fall back to `config.yml` if `config.yaml` is unreadable or invalid');
-      expect(section, label).toContain('parses as a YAML object');
-      expect(section, label).toContain('`context` field is a string');
-      expect(section, label).toContain(`no larger than ${MAX_CONTEXT_SIZE.toLocaleString('en-US')} bytes in UTF-8`);
-      expect(section, label).toContain('apply that field');
-      expect(section, label).toContain('If the file cannot be read or parsed, or the context field is invalid or oversized, continue without project context');
+      expect(section, label).toContain('`context`: project background');
+      expect(section, label).not.toContain('config.yaml');
+      expect(section, label).not.toContain('config.yml');
+      expect(body, label).not.toContain(`${MAX_CONTEXT_SIZE.toLocaleString('en-US')} bytes`);
+    }
+  });
+
+  it('falls back to openspec context on a CLI without instructions create', () => {
+    for (const [label, body] of proposeBodies) {
+      const section = contextSection(body);
+      expect(section, label).toContain('If the JSON has no `root` field, the CLI predates `instructions create`');
+      expect(section, label).toContain('Run `openspec context --json` the same way');
+      expect(section, label).toContain('continue without early project context or lifecycle actions');
     }
   });
 
   it('stops without writing and offers initialization when no root is resolved', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
-      expect(section, label).toContain('context reports `no_openspec_root`');
+      expect(section, label).toContain('If it reports `no_openspec_root`');
       expect(section, label).toContain('stop without creating or changing any files');
       expect(section, label).toContain('Offer `openspec init`');
       expect(section, label).toContain('wait for the user to request initialization');
       expect(section, label).toContain('Do not initialize automatically or run `openspec new change`');
-      expect(section, label).toContain('After initialization, rerun this context check before continuing');
+      expect(section, label).toContain('After initialization, rerun this check before continuing');
       expect(body, label).not.toContain('resolve the implicit root');
     }
   });
@@ -250,7 +253,7 @@ describe('propose project context', () => {
   it('preserves the selected store on resolution failures', () => {
     for (const [label, body] of proposeBodies) {
       const section = contextSection(body);
-      expect(section, label).toContain('For any other context failure, stop');
+      expect(section, label).toContain('For any other root failure, stop');
       expect(section, label).toContain('do not fall back to the current directory');
       expect(section, label).toContain('run later OpenSpec commands without the selected store');
     }

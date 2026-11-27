@@ -64,12 +64,13 @@ ${PROJECT_ROOT_GUARD}
    openspec instructions archive --change "<name>" --json
    \`\`\`
    Keep the same selected-root flags on this command. This lookup is advisory and
-   optional: it only supplies extra prompt inputs, so it must never block archiving.
+   optional: a failed lookup must never block archiving.
    If it exits non-zero or returns invalid JSON — for example on an older CLI that
    does not support this command yet — continue the archive workflow with no
-   context and no operation guidance. Do not report an error and do not stop.
+   context, no operation guidance, and no lifecycle actions.
+   Do not report an error and do not stop.
 
-   A successful response may omit both optional fields. Treat \`context\` as a
+   A successful response may omit every optional field. Treat \`context\` as a
    required prompt-level input: read and consider it, and apply relevant project
    facts, conventions, and constraints. Treat \`operationGuidance\` as optional
    additive advice: read and consider every entry, and follow entries that are
@@ -83,6 +84,10 @@ ${PROJECT_ROOT_GUARD}
    either field, and do not copy their text verbatim into specs, change artifacts,
    or archive summaries unless the user separately asks for it. These are
    prompt-level behavior contracts, not enforceable checks.
+
+   The response may also include \`lifecycle\` (\`before\`, \`completed\`,
+   \`handling\`) or \`lifecycleError\`: project lifecycle actions for this archive.
+   Older CLIs omit both. When both are absent, skip every lifecycle step below.
 
 2. **Check artifact completion status**
 
@@ -123,6 +128,10 @@ ${PROJECT_ROOT_GUARD}
    **If \`totalTasks\` is zero:** Proceed without a task-related warning.
 
 4. **Assess delta spec sync state**
+
+   **Before syncing specs or moving the change**, once:
+   - If \`lifecycleError\` is present: report its \`issues\` and \`fix\`, and stop before syncing specs or moving the change. Archiving never reaches \`lifecycle.completed\` on a broken config.
+   - If \`lifecycle.before\` is present: handle it following \`lifecycle.handling\`.
 
    **Check the archive target first:** Record the target name as \`<target-name>\`: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
 
@@ -203,6 +212,8 @@ ${PROJECT_ROOT_GUARD}
    mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
    \`\`\`
 
+   After the move, if \`lifecycle.completed\` is present, handle it once following \`lifecycle.handling\`, whether or not specs were synced. The change now lives at its archive path.
+
 6. **Display summary**
 
    Show archive completion summary including:
@@ -239,7 +250,8 @@ ${SYNC_FALLBACK_SAFEGUARDS}
 - Consider every guidance entry and explain any inapplicable or conflicting advice
 - Existing CLI checks, resolved paths, prompts, and command contracts are unchanged
 - Artifact rules constrain only the specs being written and are never operation guidance
-- Never copy runtime context, operation guidance, or artifact-rule text verbatim into output files`,
+- Never copy runtime context, operation guidance, or artifact-rule text verbatim into output files
+- Take lifecycle actions only from the step 1 archive-inputs read, never from \`openspec lifecycle actions\`. What an action does, including pausing for input, comes from its own \`instructions\``,
     license: 'MIT',
     compatibility: 'Requires openspec CLI.',
     metadata: { author: 'openspec', version: '1.0' },
@@ -283,12 +295,13 @@ ${PROJECT_ROOT_GUARD}
    openspec instructions archive --change "<name>" --json
    \`\`\`
    Keep the same selected-root flags on this command. This lookup is advisory and
-   optional: it only supplies extra prompt inputs, so it must never block archiving.
+   optional: a failed lookup must never block archiving.
    If it exits non-zero or returns invalid JSON — for example on an older CLI that
    does not support this command yet — continue the archive workflow with no
-   context and no operation guidance. Do not report an error and do not stop.
+   context, no operation guidance, and no lifecycle actions.
+   Do not report an error and do not stop.
 
-   A successful response may omit both optional fields. Treat \`context\` as a
+   A successful response may omit every optional field. Treat \`context\` as a
    required prompt-level input: read and consider it, and apply relevant project
    facts, conventions, and constraints. Treat \`operationGuidance\` as optional
    additive advice: read and consider every entry, and follow entries that are
@@ -302,6 +315,10 @@ ${PROJECT_ROOT_GUARD}
    either field, and do not copy their text verbatim into specs, change artifacts,
    or archive summaries unless the user separately asks for it. These are
    prompt-level behavior contracts, not enforceable checks.
+
+   The response may also include \`lifecycle\` (\`before\`, \`completed\`,
+   \`handling\`) or \`lifecycleError\`: project lifecycle actions for this archive.
+   Older CLIs omit both. When both are absent, skip every lifecycle step below.
 
 2. **Check artifact completion status**
 
@@ -342,6 +359,10 @@ ${PROJECT_ROOT_GUARD}
    **If \`totalTasks\` is zero:** Proceed without a task-related warning.
 
 4. **Assess delta spec sync state**
+
+   **Before syncing specs or moving the change**, once:
+   - If \`lifecycleError\` is present: report its \`issues\` and \`fix\`, and stop before syncing specs or moving the change. Archiving never reaches \`lifecycle.completed\` on a broken config.
+   - If \`lifecycle.before\` is present: handle it following \`lifecycle.handling\`.
 
    **Check the archive target first:** Record the target name as \`<target-name>\`: use the change name as-is when it already starts with a \`YYYY-MM-DD-\` prefix; otherwise prepend the current date as \`YYYY-MM-DD-<change-name>\`. Never stack a second date (same rule as \`openspec archive\`).
 
@@ -421,6 +442,8 @@ ${PROJECT_ROOT_GUARD}
    \`\`\`bash
    mv "<changeRoot>" "<planningHome.changesDir>/archive/<target-name>"
    \`\`\`
+
+   After the move, if \`lifecycle.completed\` is present, handle it once following \`lifecycle.handling\`, whether or not specs were synced. The change now lives at its archive path.
 
 6. **Display summary**
 
@@ -505,6 +528,7 @@ ${SYNC_FALLBACK_SAFEGUARDS}
 - Consider every guidance entry and explain any inapplicable or conflicting advice
 - Existing CLI checks, resolved paths, prompts, and command contracts are unchanged
 - Artifact rules constrain only the specs being written and are never operation guidance
-- Never copy runtime context, operation guidance, or artifact-rule text verbatim into output files`
+- Never copy runtime context, operation guidance, or artifact-rule text verbatim into output files
+- Take lifecycle actions only from the step 1 archive-inputs read, never from \`openspec lifecycle actions\`. What an action does, including pausing for input, comes from its own \`instructions\``
   };
 }

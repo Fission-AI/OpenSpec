@@ -48,6 +48,13 @@ In both branches, never create the root as a side effect: do not run `openspec i
    **Otherwise**: Omit `--schema` to use the default.
 
 3. **Create the change directory**
+
+   First run `openspec instructions create --json` (with `--store "<store-id>"` when a store is selected). This is the **Project check** above: run it instead of `openspec list --json` and read its `root` and `status` the same way. If the JSON has no `root` field, the CLI predates `instructions create`: run the **Project check** with `openspec list --json` as written and continue without lifecycle actions.
+
+   The response may include `lifecycle` (`before`, `handling`) or `lifecycleError`. Older CLIs omit both. Then, once:
+   - If `lifecycleError` is present: report its `issues` and `fix`, and stop without creating any files.
+   - If `lifecycle.before` is present: handle it following `lifecycle.handling`.
+
    ```bash
    openspec new change "<name>"
    ```
@@ -85,3 +92,4 @@ After completing the steps, summarize:
 - If the name is invalid (not kebab-case), ask for a valid name
 - If a change with that name already exists, suggest continuing that change instead
 - Pass --schema if using a non-default workflow
+- Take lifecycle actions only from the step 3 read, never from `openspec lifecycle actions`. What an action does, including pausing for input, comes from its own `instructions`
