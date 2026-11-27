@@ -14,6 +14,7 @@ import {
 import * as fs from 'fs';
 import { getSchemaDir, listSchemas } from '../../core/artifact-graph/index.js';
 import type { ReferenceIndexEntry } from '../../core/references.js';
+import type { OperationLifecycleFields } from '../../core/lifecycle.js';
 import { isRootSelectionError } from '../../core/root-selection.js';
 
 // -----------------------------------------------------------------------------
@@ -36,7 +37,7 @@ export interface TaskItem {
   line: number;
 }
 
-export interface ApplyInstructions {
+export interface ApplyInstructions extends OperationLifecycleFields {
   changeName: string;
   changeDir: string;
   schemaName: string;
@@ -71,12 +72,17 @@ export interface ApplyInstructions {
   operationGuidance?: string[];
 }
 
-export interface ArchiveInstructions {
+export interface ArchiveInstructions extends OperationLifecycleFields {
   changeName: string;
   /** Current project background from the selected root. */
   context?: string;
   /** Current advisory guidance for archive. */
   operationGuidance?: string[];
+}
+
+export interface CreateInstructions extends OperationLifecycleFields {
+  /** Current project background from the selected root. */
+  context?: string;
 }
 
 // -----------------------------------------------------------------------------

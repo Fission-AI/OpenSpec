@@ -24,8 +24,11 @@ import { getTaskProgressDetailForChange, type SchemaGlobCache } from '../utils/t
 import { FileSystemUtils } from '../utils/file-system.js';
 import { folderStyleNameProblem } from '../core/id.js';
 import { readConfigParseError } from '../core/project-config.js';
+import { readLifecycleConfigForRoot } from '../core/lifecycle.js';
 
 type ItemType = 'change' | 'spec';
+/** Bulk results also carry project config checks (`validate --all` only). */
+type BulkItemType = ItemType | 'config';
 
 interface ExecuteOptions {
   all?: boolean;
@@ -45,7 +48,7 @@ interface ExecuteOptions {
 
 interface BulkItemResult {
   id: string;
-  type: ItemType;
+  type: BulkItemType;
   valid: boolean;
   issues: { level: 'ERROR' | 'WARNING' | 'INFO'; path: string; message: string }[];
   durationMs: number;
@@ -57,7 +60,7 @@ interface BulkValidationResult<T extends BulkItemResult = BulkItemResult> {
   items: T[];
   summary: {
     totals: { items: number; passed: number; failed: number };
-    byType: Partial<Record<ItemType, { items: number; passed: number; failed: number }>>;
+    byType: Partial<Record<BulkItemType, { items: number; passed: number; failed: number }>>;
   };
   root: ReturnType<typeof toRootOutput>;
 }
@@ -160,6 +163,7 @@ export class ValidateCommand {
       await this.runBulkValidation(root, {
         changes: !!options.all || !!options.changes,
         specs: !!options.all || !!options.specs,
+        config: !!options.all,
       }, { strict: !!options.strict, json: !!options.json, concurrency: options.concurrency, noInteractive: resolveNoInteractive(options), findingsScope });
       return;
     }
@@ -455,7 +459,9 @@ export class ValidateCommand {
 
   private printBulkDetails(results: BulkItemResult[], root: ResolvedOpenSpecRoot): void {
     const firstFailure = results.find((res) => !res.valid);
-    if (firstFailure) {
+    if (firstFailure?.type === 'config') {
+      console.log(`Details: ${withStoreFlag(root, 'openspec lifecycle actions')}`);
+    } else if (firstFailure) {
       const storeFlag = isStoreSelectedRoot(root) ? ` --store ${root.storeId}` : '';
       console.log(
         `Details: openspec validate ${firstFailure.id} --type ${firstFailure.type}${storeFlag}`
@@ -463,7 +469,7 @@ export class ValidateCommand {
     }
   }
 
-  private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean; findingsScope?: BulkScope }): Promise<void> {
+  private async runBulkValidation(root: ResolvedOpenSpecRoot, scope: { changes: boolean; specs: boolean; config?: boolean }, opts: { strict: boolean; json: boolean; concurrency?: string; noInteractive?: boolean; findingsScope?: BulkScope }): Promise<void> {
     let spinner: Ora | undefined;
     if (!opts.json && isInteractive(opts) && canRenderSpinner()) {
       const { default: ora } = await import('ora');
@@ -502,6 +508,18 @@ export class ValidateCommand {
         return { id, type: 'change' as const, valid: report.valid, issues: report.issues, durationMs };
       });
     }
+    // Strict lifecycle config is checked by --all only, so a lifecycle typo
+    // never blocks --specs, --changes, or single-item validation.
+    const lifecycle = scope.config ? readLifecycleConfigForRoot(root) : { status: 'unconfigured' as const };
+    const configResults: BulkItemResult[] = lifecycle.status === 'unconfigured' ? [] : [{
+      id: 'lifecycle',
+      type: 'config',
+      valid: lifecycle.status === 'ok',
+      issues: lifecycle.status === 'invalid'
+        ? lifecycle.issues.map((message) => ({ level: 'ERROR' as const, path: 'lifecycle', message }))
+        : [],
+      durationMs: 0,
+    }];
     for (const id of specIds) {
       queue.push(async () => {
         const start = Date.now();
@@ -512,7 +530,7 @@ export class ValidateCommand {
       });
     }
 
-    if (queue.length === 0) {
+    if (queue.length === 0 && configResults.length === 0) {
       spinner?.stop();
 
       const summary = {
@@ -542,7 +560,8 @@ export class ValidateCommand {
     let passed = 0;
     let failed = 0;
 
-    await new Promise<void>((resolve) => {
+    // A config-only run has an empty queue, and next() would never resolve.
+    if (queue.length > 0) await new Promise<void>((resolve) => {
       const next = () => {
         while (running < concurrency && index < queue.length) {
           const currentIndex = index++;
@@ -573,11 +592,16 @@ export class ValidateCommand {
     spinner?.stop();
 
     results.sort((a, b) => a.id.localeCompare(b.id));
+    for (const res of configResults) {
+      results.push(res);
+      if (res.valid) passed++; else failed++;
+    }
     const summary = {
       totals: { items: results.length, passed, failed },
       byType: {
         ...(scope.changes ? { change: summarizeType(results, 'change') } : {}),
         ...(scope.specs ? { spec: summarizeType(results, 'spec') } : {}),
+        ...(configResults.length > 0 ? { config: summarizeType(results, 'config') } : {}),
       },
     } as const;
 
@@ -737,7 +761,7 @@ export class ValidateCommand {
   }
 }
 
-function summarizeType(results: BulkItemResult[], type: ItemType) {
+function summarizeType(results: BulkItemResult[], type: BulkItemType) {
   const filtered = results.filter(r => r.type === type);
   const items = filtered.length;
   const passed = filtered.filter(r => r.valid).length;

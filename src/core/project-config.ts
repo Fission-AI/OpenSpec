@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
-import { parse as parseYaml } from 'yaml';
+import { isMap, isScalar, parseDocument, type Document, type Node, type Pair } from 'yaml';
 import { z } from 'zod';
 
 import { getStoreMetadataPath } from './store/foundation.js';
@@ -253,6 +253,42 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
   return byId.size > 0 ? [...byId.values()] : undefined;
 }
 
+/** The top-level `lifecycle` entries of a parsed config, in file order. */
+export function topLevelLifecyclePairs(doc: Document): Pair[] {
+  if (!isMap(doc.contents)) {
+    return [];
+  }
+  return doc.contents.items.filter((pair) => isScalar(pair.key) && pair.key.value === 'lifecycle');
+}
+
+/**
+ * Parse openspec/config.yaml like `yaml.parse`, without the `lifecycle:` block.
+ * Lifecycle config has its own strict reader (src/core/lifecycle.ts) that
+ * reports problems inside it, such as duplicate keys, broken aliases, or a
+ * repeated `lifecycle:` key, so none of those can block or drop the rest of
+ * the config. Errors outside `lifecycle:` still throw.
+ */
+export function parseConfigYaml(content: string): any {
+  const doc = parseDocument(content);
+  const lifecyclePairs = topLevelLifecyclePairs(doc);
+  const inLifecycle = (offset: number) =>
+    lifecyclePairs.some((pair) => {
+      const start = (pair.key as Node).range?.[0];
+      const end = (pair.value as Node | null)?.range?.[2] ?? (pair.key as Node).range?.[2];
+      return start !== undefined && end !== undefined && offset >= start && offset <= end;
+    });
+  const blocking = doc.errors.find(
+    (error) => !(error.code === 'DUPLICATE_KEY' && inLifecycle(error.pos[0]))
+  );
+  if (blocking) {
+    throw blocking;
+  }
+  if (isMap(doc.contents)) {
+    doc.contents.items = doc.contents.items.filter((pair) => !lifecyclePairs.includes(pair));
+  }
+  return doc.toJS();
+}
+
 export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
 
 /**
@@ -330,7 +366,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
 
   try {
     const content = readFileSync(configPath, 'utf-8');
-    const raw = parseYaml(content);
+    const raw = parseConfigYaml(content);
 
     if (!raw || typeof raw !== 'object') {
       console.warn(`openspec/config.yaml is not a valid YAML object`);
@@ -490,7 +526,7 @@ export function readConfigParseError(
     return { kind: 'read', filePath, message: firstLine(error) };
   }
   try {
-    parseYaml(content);
+    parseConfigYaml(content);
     return null;
   } catch (error) {
     return { kind: 'parse', filePath, message: firstLine(error) };
@@ -632,7 +668,7 @@ export function readStorePointer(projectRoot: string): StorePointerRead {
   }
 
   try {
-    const raw = parseYaml(readFileSync(configPath, 'utf-8'));
+    const raw = parseConfigYaml(readFileSync(configPath, 'utf-8'));
     // Empty, comments-only, or non-mapping configs carry no pointer;
     // they are imperfect, not malformed (readProjectConfig owns the
     // field warnings for those).
