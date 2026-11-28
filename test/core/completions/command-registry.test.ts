@@ -169,6 +169,7 @@ describe('command completion registry', () => {
       'context',
       'doctor',
       'instructions',
+      'lifecycle actions',
       'list',
       'new change',
       'schemas',

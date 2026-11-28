@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { existsSync, promises as fs } from 'fs';
 import type { ArchiveOptions } from '../core/archive.js';
+import type { LifecycleActionsOptions } from '../commands/lifecycle.js';
 import { registerSpecCommand } from './commands/spec.js';
 import { registerConfigCommand } from './commands/config.js';
 import { registerSchemaCommand } from './commands/schema.js';
@@ -812,7 +813,7 @@ program
 // Instructions command
 program
   .command('instructions [artifact]')
-  .description('Output enriched instructions for artifacts, apply, or archive')
+  .description('Output enriched instructions for artifacts, create, apply, or archive')
   .option('--change <id>', 'Change name')
   .option('--schema <name>', 'Schema override (auto-detected from config.yaml)')
   .option('--json', 'Output as JSON')
@@ -820,10 +821,18 @@ program
   .addOption(hiddenStorePathOption())
   .action(async (artifactId: string | undefined, options: InstructionsOptions) => {
     try {
-      const { applyInstructionsCommand, archiveInstructionsCommand, instructionsCommand } =
-        await import('../commands/workflow/instructions.js');
+      const {
+        applyInstructionsCommand,
+        archiveInstructionsCommand,
+        createInstructionsCommand,
+        instructionsCommand,
+      } = await import('../commands/workflow/instructions.js');
       // Workflow instruction surfaces are reserved command branches, not artifacts.
-      if (artifactId === 'apply') {
+      // `create` takes no --change or --schema, so with either flag it stays an
+      // artifact read (custom schemas may define an artifact named `create`).
+      if (artifactId === 'create' && !options.change && !options.schema) {
+        await createInstructionsCommand(options);
+      } else if (artifactId === 'apply') {
         await applyInstructionsCommand(options);
       } else if (artifactId === 'archive') {
         await archiveInstructionsCommand(options);
@@ -832,6 +841,32 @@ program
       }
     } catch (error) {
       await failWithError(error, { enabled: options.json, fallbackCode: 'change_error' });
+      process.exit(1);
+    }
+  });
+
+// Lifecycle command group
+const lifecycleCmd = program
+  .command('lifecycle')
+  .description('Inspect lifecycle actions configured for workflow hooks');
+
+lifecycleCmd
+  .command('actions')
+  .description('List lifecycle actions by hook (read-only; runs nothing)')
+  .option('--at <hook>', 'Show the actions for one hook, in trigger order')
+  .option('--json', 'Output as JSON')
+  .option('--store <id>', STORE_OPTION_DESCRIPTION)
+  .addOption(hiddenStorePathOption())
+  .action(async (options: LifecycleActionsOptions) => {
+    try {
+      const { lifecycleActionsCommand } = await import('../commands/lifecycle.js');
+      await lifecycleActionsCommand(options);
+    } catch (error) {
+      await failWithError(error, {
+        enabled: options.json,
+        payload: options.at !== undefined ? { hook: options.at } : undefined,
+        fallbackCode: 'lifecycle_error',
+      });
       process.exit(1);
     }
   });

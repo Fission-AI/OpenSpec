@@ -39,6 +39,7 @@ import {
   type ReferenceIndexEntry,
 } from '../../core/references.js';
 import { readRegistrySnapshot } from '../../core/store/registry.js';
+import { loadOperationLifecycle, type OperationLifecycleFields } from '../../core/lifecycle.js';
 import {
   loadOperationInputs,
   readProjectConfig,
@@ -50,6 +51,7 @@ import {
   type TaskItem,
   type ApplyInstructions,
   type ArchiveInstructions,
+  type CreateInstructions,
 } from './shared.js';
 import { parseLocatedTaskLines, type ParsedTask } from '../../utils/task-progress.js';
 import { METADATA_FILENAME } from '../../utils/change-metadata.js';
@@ -747,11 +749,14 @@ export async function applyInstructionsCommand(options: ApplyInstructionsOptions
     // One parsed config snapshot supplies schema fallback, references, context,
     // and operation guidance for this command.
     const { projectConfig, references } = await loadRootConfigContext(root);
-    const instructions = await generateApplyInstructions(projectRoot, changeName, options.schema, {
-      planningHome,
-      references,
-      projectConfig,
-    });
+    const instructions: ApplyInstructions = {
+      ...(await generateApplyInstructions(projectRoot, changeName, options.schema, {
+        planningHome,
+        references,
+        projectConfig,
+      })),
+      ...loadOperationLifecycle(root, 'apply'),
+    };
 
     spinner?.stop();
 
@@ -843,6 +848,7 @@ export function printApplyInstructionsText(instructions: ApplyInstructions): voi
   console.log();
 
   printOperationInputsText(instructions);
+  printLifecycleText(instructions);
 }
 
 export function generateArchiveInstructions(
@@ -877,7 +883,10 @@ export async function archiveInstructionsCommand(
       { newChangeHint: withStoreFlag(root, 'openspec new change <name>') }
     );
     const projectConfig = readProjectConfig(root.path);
-    const instructions = generateArchiveInstructions(changeName, projectConfig);
+    const instructions: ArchiveInstructions = {
+      ...generateArchiveInstructions(changeName, projectConfig),
+      ...loadOperationLifecycle(root, 'archive'),
+    };
 
     spinner?.stop();
 
@@ -897,6 +906,67 @@ export function printArchiveInstructionsText(instructions: ArchiveInstructions):
   console.log(`## Archive Inputs: ${instructions.changeName}`);
   console.log();
   printOperationInputsText(instructions);
+  printLifecycleText(instructions);
+}
+
+/**
+ * `openspec instructions create`: inputs for creating a new change. Needs no
+ * change, only the resolved root's context and `change.create.before` actions.
+ */
+export async function createInstructionsCommand(
+  options: Pick<InstructionsOptions, 'store' | 'storePath' | 'json'>
+): Promise<void> {
+  const root = await resolveRootForCommand(options, { json: options.json });
+  if (!root) {
+    return;
+  }
+
+  // Create has no operation guidance; it shares only the project context.
+  const context = readProjectConfig(root.path)?.context;
+  const instructions: CreateInstructions = {
+    ...(context !== undefined && context.trim().length > 0 ? { context } : {}),
+    ...loadOperationLifecycle(root, 'create'),
+  };
+
+  if (options.json) {
+    console.log(JSON.stringify({ ...instructions, root: toRootOutput(root) }, null, 2));
+    return;
+  }
+
+  console.log('## Create Inputs');
+  console.log();
+  printOperationInputsText(instructions);
+  printLifecycleText(instructions);
+}
+
+function printLifecycleText(fields: OperationLifecycleFields): void {
+  if (fields.lifecycleError) {
+    console.log('### Lifecycle Config Error');
+    for (const issue of fields.lifecycleError.issues) {
+      console.log(`- ${issue}`);
+    }
+    console.log(`Fix: ${fields.lifecycleError.fix}`);
+    console.log();
+    return;
+  }
+  if (!fields.lifecycle) {
+    return;
+  }
+  console.log('### Lifecycle Actions');
+  for (const checkpoint of ['before', 'completed'] as const) {
+    for (const action of fields.lifecycle[checkpoint] ?? []) {
+      console.log(`- ${checkpoint}: ${action.id} (${action.mode}): ${sanitizeInline(action.title, Infinity)}`);
+      if (action.description) {
+        console.log(`  ${sanitizeInline(action.description, Infinity)}`);
+      }
+      for (const line of action.instructions.split('\n')) {
+        console.log(`  | ${line}`);
+      }
+    }
+  }
+  console.log();
+  console.log(fields.lifecycle.handling);
+  console.log();
 }
 
 function printOperationInputsText(inputs: {

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
-import { parse as parseYaml } from 'yaml';
+import { isMap, isScalar, isSeq, parseDocument, type Document, type Pair } from 'yaml';
 import { z } from 'zod';
 
 import { getStoreMetadataPath } from './store/foundation.js';
@@ -253,6 +253,55 @@ function parseDeclarationList(raw: unknown): DeclarationEntry[] | undefined {
   return byId.size > 0 ? [...byId.values()] : undefined;
 }
 
+/** The top-level `lifecycle` entries of a parsed config, in file order. */
+export function topLevelLifecyclePairs(doc: Document): Pair[] {
+  if (!isMap(doc.contents)) {
+    return [];
+  }
+  return doc.contents.items.filter((pair) => isScalar(pair.key) && pair.key.value === 'lifecycle');
+}
+
+function hasDuplicateMapKey(node: unknown): boolean {
+  if (isMap(node)) {
+    const seen = new Set<string>();
+    for (const pair of node.items) {
+      const key = isScalar(pair.key)
+        ? `${typeof pair.key.value}:${String(pair.key.value)}`
+        : String(pair.key);
+      if (seen.has(key) || hasDuplicateMapKey(pair.value)) {
+        return true;
+      }
+      seen.add(key);
+    }
+  } else if (isSeq(node)) {
+    return node.items.some((item) => hasDuplicateMapKey(item));
+  }
+  return false;
+}
+
+/**
+ * Parse openspec/config.yaml like `yaml.parse`, without the `lifecycle:` block.
+ * Lifecycle config has its own strict reader (src/core/lifecycle.ts) that
+ * reports problems inside it, such as duplicate keys, broken aliases, or a
+ * repeated `lifecycle:` key, so none of those can block or drop the rest of
+ * the config. Errors outside `lifecycle:` still throw.
+ */
+export function parseConfigYaml(content: string): any {
+  const doc = parseDocument(content);
+  const syntaxError = doc.errors.find((error) => error.code !== 'DUPLICATE_KEY');
+  if (syntaxError) {
+    throw syntaxError;
+  }
+  const lifecyclePairs = topLevelLifecyclePairs(doc);
+  if (isMap(doc.contents) && lifecyclePairs.length > 0) {
+    doc.contents.items = doc.contents.items.filter((pair) => !lifecyclePairs.includes(pair));
+  }
+  if (doc.errors.length > 0 && (lifecyclePairs.length === 0 || hasDuplicateMapKey(doc.contents))) {
+    throw doc.errors[0];
+  }
+  return doc.toJS();
+}
+
 export const MAX_CONTEXT_SIZE = 50 * 1024; // 50KB hard limit, shared with the references index
 
 /**
@@ -330,7 +379,7 @@ export function readProjectConfig(projectRoot: string): ProjectConfig | null {
 
   try {
     const content = readFileSync(configPath, 'utf-8');
-    const raw = parseYaml(content);
+    const raw = parseConfigYaml(content);
 
     if (!raw || typeof raw !== 'object') {
       console.warn(`openspec/config.yaml is not a valid YAML object`);
@@ -490,7 +539,7 @@ export function readConfigParseError(
     return { kind: 'read', filePath, message: firstLine(error) };
   }
   try {
-    parseYaml(content);
+    parseConfigYaml(content);
     return null;
   } catch (error) {
     return { kind: 'parse', filePath, message: firstLine(error) };
@@ -632,7 +681,7 @@ export function readStorePointer(projectRoot: string): StorePointerRead {
   }
 
   try {
-    const raw = parseYaml(readFileSync(configPath, 'utf-8'));
+    const raw = parseConfigYaml(readFileSync(configPath, 'utf-8'));
     // Empty, comments-only, or non-mapping configs carry no pointer;
     // they are imperfect, not malformed (readProjectConfig owns the
     // field warnings for those).

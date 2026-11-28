@@ -255,7 +255,7 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
   },
   {
     name: 'instructions',
-    description: 'Output enriched instructions for artifacts, apply, or archive',
+    description: 'Output enriched instructions for artifacts, create, apply, or archive',
     acceptsPositional: true,
     positionals: [{ name: 'artifact', optional: true }],
     flags: [
@@ -271,6 +271,26 @@ export const COMMAND_REGISTRY: CommandDefinition[] = [
       },
       COMMON_FLAGS.json,
       COMMON_FLAGS.store,
+    ],
+  },
+  {
+    name: 'lifecycle',
+    description: 'Inspect lifecycle actions configured for workflow hooks',
+    flags: [],
+    subcommands: [
+      {
+        name: 'actions',
+        description: 'List lifecycle actions by hook (read-only; runs nothing)',
+        flags: [
+          {
+            name: 'at',
+            description: 'Show the actions for one hook, in trigger order',
+            takesValue: true,
+          },
+          COMMON_FLAGS.json,
+          COMMON_FLAGS.store,
+        ],
+      },
     ],
   },
   {
