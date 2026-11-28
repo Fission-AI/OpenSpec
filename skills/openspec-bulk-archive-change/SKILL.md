@@ -51,10 +51,10 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
    Choose one selected change from this root and run
    `openspec instructions archive --change "<selected-change>" --json` with the
-   same selected-root flags. This lookup is advisory and optional: it only supplies
-   extra prompt inputs, so it must never block the batch. If it fails or returns
-   invalid JSON — for example on an older CLI that does not support this command
-   yet — continue the batch with no context and no operation guidance. Do not
+   same selected-root flags. This lookup is advisory and optional: a failed lookup
+   must never block the batch. If it fails or returns invalid JSON — for example
+   on an older CLI that does not support this command yet — continue the batch
+   with no context, no operation guidance, and no lifecycle actions. Do not
    report an error and do not stop.
 
    A valid response may omit `context` and `operationGuidance`. Treat
@@ -71,6 +71,10 @@ In both branches, never create the root as a side effect: do not run `openspec i
    follow it and explain why. Do not infer skipped prompts, replacement paths, or
    flags from either field, and do not copy their text verbatim into specs, changes,
    or summaries. These are prompt-level behavior contracts, not enforceable checks.
+
+   The response may also include `lifecycle` (`before`, `completed`,
+   `handling`) or `lifecycleError`. They apply to every change in the batch.
+   Older CLIs omit both. When both are absent, skip every lifecycle step below.
 
 3. **Batch validation - gather status for all selected changes**
 
@@ -197,12 +201,14 @@ In both branches, never create the root as a side effect: do not run `openspec i
 
 8. **Execute archive for each confirmed change**
 
+   If `lifecycleError` is present: report its `issues` and `fix`, and stop the whole batch before any main-spec write or change move. Archiving never reaches `lifecycle.completed` on a broken config.
+
    Before processing, carry the recorded decisions from step 5 (after any step 7 re-derivation) into two per-delta sets:
    - `includedDeltas`: all non-conflicting delta specs from confirmed changes plus conflict deltas selected for sync
    - `excludedDeltas`: conflict deltas from confirmed changes excluded because their implementation is missing
    - A single change can have both included and excluded delta specs. Keep the decision per delta; do not collapse it into a per-change sync flag.
 
-   Process changes in the determined order (respecting conflict resolution):
+   Process changes in the determined order (respecting conflict resolution). If `lifecycle.before` is present, handle it once for each change, following `lifecycle.handling`, before 8a syncs or 8c moves that change.
 
    a. **Sync included delta specs**:
       - Run the `openspec-sync-specs` workflow inline if that skill is installed, or otherwise perform the delta-to-main-spec merge inline yourself (an agent-driven intelligent merge either way) only for changes with entries in `includedDeltas`, passing only the included delta paths and explicitly instructing it to ignore that change's `excludedDeltas`. Wait for it to finish.
@@ -242,6 +248,8 @@ In both branches, never create the root as a side effect: do not run `openspec i
       ```
 
       **Confirm the move did not nest:** `mv` exits 0 even when the target appeared after the check, moving the change *inside* it. If `<planningHome.changesDir>/archive/<target-name>/<change-directory-name>` now exists (the last path segment of `changeRoot`), move that directory back to `changeRoot` and record this change as Failed with `Archive directory already exists`. Never report it as archived.
+
+      **After a successful move**, if `lifecycle.completed` is present, handle it once for this change following `lifecycle.handling`, whether or not its specs were synced. The change now lives at its archive path.
 
    d. **Track outcome** for each change:
       - Success: archived successfully
@@ -367,7 +375,7 @@ No active changes found. Create a new change to get started.
 - Never archive a change while a spec sync is still in flight — run the sync inline and verify main specs at `<planningHome.root>/openspec/specs/<capability-path>/spec.md` before moving `changeRoot`
 - Fetch archive inputs once per selected root before spec inspection or moves
 - Fetch all required specs-rule snapshots before the batch's first main-spec write or move
-- A failed archive-inputs lookup never blocks the batch; it proceeds with no context or guidance
+- A failed archive-inputs lookup never blocks the batch; it proceeds with no context, guidance, or lifecycle actions
 - A failed specs instruction lookup stops the whole batch atomically
 - Changes without concrete `artifactPaths.specs.existingOutputPaths` continue without spec sync
 - Apply relevant runtime context across the batch and report conflicts
@@ -375,3 +383,4 @@ No active changes found. Create a new change to get started.
 - Keep runtime inputs, conflict analysis, CLI-derived values, and artifact rules separate
 - Artifact rules constrain only written specs
 - Never copy runtime input or artifact-rule text verbatim into output files
+- Take lifecycle actions only from the step 2 archive-inputs read, never from `openspec lifecycle actions`. Handle `lifecycle.before` and `lifecycle.completed` once per archived change. What an action does, including pausing for input, comes from its own `instructions`

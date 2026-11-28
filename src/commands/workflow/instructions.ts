@@ -916,7 +916,13 @@ export function printArchiveInstructionsText(instructions: ArchiveInstructions):
 export async function createInstructionsCommand(
   options: Pick<InstructionsOptions, 'store' | 'storePath' | 'json'>
 ): Promise<void> {
-  const root = await resolveRootForCommand(options, { json: options.json });
+  // Like `openspec context`, report a missing root instead of resolving an
+  // implicit one: create workflows use this read as their project check.
+  const root = await resolveRootForCommand(options, {
+    json: options.json,
+    failurePayload: { root: null },
+    allowImplicitRoot: false,
+  });
   if (!root) {
     return;
   }
