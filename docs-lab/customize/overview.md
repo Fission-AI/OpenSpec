@@ -10,6 +10,7 @@ OpenSpec supports multiple customization options. This page shows what each one 
 |---|---|---|
 | [Profiles](profiles.md) | Which workflows are installed | You want additional workflows and working patterns, or to remove workflows you don't need |
 | [Project configuration](project-config.md) | The instructions injected into every workflow run: context, rules, and operation guidance (`config.yaml`) | You want changes planned your way, like tasks always including Playwright tests |
+| [Lifecycle actions](lifecycle-actions.md) | Reviews or checks your agent offers or runs at set points, like before apply edits code (`lifecycle:` in `config.yaml`) | Every engineer's agent should do the same job at the same moment, like rereading linked requirements before implementing |
 | [Schemas](schemas.md) | What OpenSpec produces: the artifacts, their order, and their templates | Changes should produce different planning files, sections, or formats |
 
 ## Not sure which to use?

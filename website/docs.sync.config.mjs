@@ -86,6 +86,7 @@ export const sections = [
       { source: 'customize/overview.md', slug: 'customize' },
       { source: 'customize/profiles.md', slug: 'profiles' },
       { source: 'customize/project-config.md', slug: 'project-config' },
+      { source: 'customize/lifecycle-actions.md', slug: 'lifecycle-actions' },
       { source: 'customize/schemas.md', slug: 'customize-schemas' },
     ],
   },
