@@ -67,12 +67,13 @@ ${PROJECT_ROOT_GUARD}
    - Optional \`context\`: current required project instruction input from the selected root
    - Optional \`operationGuidance\`: current advisory guidance for apply
    - \`missingArtifacts\` (when present): required artifact ids with no output
+   - Optional \`lifecycle\` (\`before\`, \`completed\`, \`handling\`) or \`lifecycleError\`: project lifecycle actions for this run. Older CLIs omit both. When both are absent, skip every lifecycle step below.
 
    **Handle states:**
-   - If \`state: "blocked"\`: show the message and pause implementation.
+   - If \`state: "blocked"\`: show the message and pause implementation. Skip lifecycle actions.
      - If \`missingArtifacts\` is non-empty: ${BLOCKED_STATE_HANDOFF}
      - Otherwise, follow the CLI instruction to create or repair the schema-configured tracking file from existing planning artifacts. Do not assume another artifact is ready or start implementation while blocked.
-   - If \`state: "all_done"\`: report that all tracked tasks are complete and suggest review or verification as appropriate before archiving
+   - If \`state: "all_done"\`: report that all tracked tasks are complete and suggest review or verification as appropriate before archiving. Skip \`lifecycle.before\`. If \`lifecycle.completed\` is present, read every \`contextFiles\` path first, then handle it following \`lifecycle.handling\`. If \`lifecycleError\` is present, report it and finish.
    - Otherwise: proceed to implementation
 
    Treat \`context\` as a required prompt-level input. Read and consider it, and
@@ -100,6 +101,10 @@ ${PROJECT_ROOT_GUARD}
    Do not copy \`context\` or \`operationGuidance\` verbatim into implementation
    files or planning artifacts unless the user separately asks for that content.
 
+   When ready to implement, once per start or resume and before any edits:
+   - If \`lifecycleError\` is present: report its \`issues\` and \`fix\`, and stop before editing anything.
+   - If \`lifecycle.before\` is present: handle it following \`lifecycle.handling\`.
+
 5. **Show current progress**
 
    Display:
@@ -119,6 +124,8 @@ ${PROJECT_ROOT_GUARD}
    - Rerun the apply instructions and confirm that task is now done and progress changed
    - Continue to next task
 
+   Ignore \`lifecycle\` and \`lifecycleError\` on these reruns. Lifecycle actions come only from the Step 3 read.
+
    **Pause if:**
    - Task is unclear → ask for clarification
    - Implementation reveals a design issue → suggest updating artifacts
@@ -131,8 +138,8 @@ ${PROJECT_ROOT_GUARD}
    Display:
    - Tasks completed this session
    - Overall progress: "N/M tasks complete"
-   - If all done: report that tracked tasks are complete and suggest review or verification as appropriate before archiving
-   - If paused: explain why and wait for guidance
+   - If all done (the latest apply response has \`state: "all_done"\` on tracked schemas, or implementation finished without pausing on schemas without task tracking): report completion and suggest review or verification as appropriate before archiving. Then, if \`lifecycle.completed\` from Step 3 is present, handle it once following \`lifecycle.handling\`. If \`lifecycleError\` is present, report it and finish.
+   - If paused: explain why and wait for guidance. Do not handle \`lifecycle.completed\`.
 
 **Output During Implementation**
 
@@ -203,6 +210,9 @@ What would you like to do?
 - Consider every guidance entry; explain any inapplicable or conflicting advice
 - Do not copy runtime context or operation guidance into implementation files or planning artifacts
 - Preserve CLI-controlled blocked/ready/all-done behavior and completion criteria
+- Take lifecycle actions only from the Step 3 read, never from \`openspec lifecycle actions\`
+- Handle \`lifecycle.before\` once before edits and \`lifecycle.completed\` once when Apply finishes implementing (\`state: "all_done"\` on tracked schemas, or after finishing without pausing on schemas without task tracking), never when blocked or paused
+- What an action does, including pausing for input, comes from its own \`instructions\`
 
 **Fluid Workflow Integration**
 
