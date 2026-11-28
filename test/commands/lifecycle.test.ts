@@ -458,6 +458,15 @@ describe('lifecycle CLI', () => {
       expect(json(all).items.some((item: any) => item.type === 'config')).toBe(false);
       expect(json(all).summary.byType).not.toHaveProperty('config');
     });
+
+    it('rejects duplicate non-lifecycle keys immediately after a lifecycle block', async () => {
+      fs.writeFileSync(
+        path.join(projectDir, 'openspec', 'config.yaml'),
+        'schema: spec-driven\ncontext: first\nlifecycle: {}\ncontext: second\n'
+      );
+      const all = await run(['validate', '--all', '--json']);
+      expect(all.exitCode).toBe(1);
+    });
   });
 
   describe('stores', () => {

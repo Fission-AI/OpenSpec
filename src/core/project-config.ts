@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, statSync } from 'fs';
 import path from 'path';
-import { isMap, isScalar, parseDocument, type Document, type Node, type Pair } from 'yaml';
+import { isMap, isScalar, isSeq, parseDocument, type Document, type Pair } from 'yaml';
 import { z } from 'zod';
 
 import { getStoreMetadataPath } from './store/foundation.js';
@@ -261,6 +261,24 @@ export function topLevelLifecyclePairs(doc: Document): Pair[] {
   return doc.contents.items.filter((pair) => isScalar(pair.key) && pair.key.value === 'lifecycle');
 }
 
+function hasDuplicateMapKey(node: unknown): boolean {
+  if (isMap(node)) {
+    const seen = new Set<string>();
+    for (const pair of node.items) {
+      const key = isScalar(pair.key)
+        ? `${typeof pair.key.value}:${String(pair.key.value)}`
+        : String(pair.key);
+      if (seen.has(key) || hasDuplicateMapKey(pair.value)) {
+        return true;
+      }
+      seen.add(key);
+    }
+  } else if (isSeq(node)) {
+    return node.items.some((item) => hasDuplicateMapKey(item));
+  }
+  return false;
+}
+
 /**
  * Parse openspec/config.yaml like `yaml.parse`, without the `lifecycle:` block.
  * Lifecycle config has its own strict reader (src/core/lifecycle.ts) that
@@ -270,21 +288,16 @@ export function topLevelLifecyclePairs(doc: Document): Pair[] {
  */
 export function parseConfigYaml(content: string): any {
   const doc = parseDocument(content);
-  const lifecyclePairs = topLevelLifecyclePairs(doc);
-  const inLifecycle = (offset: number) =>
-    lifecyclePairs.some((pair) => {
-      const start = (pair.key as Node).range?.[0];
-      const end = (pair.value as Node | null)?.range?.[2] ?? (pair.key as Node).range?.[2];
-      return start !== undefined && end !== undefined && offset >= start && offset <= end;
-    });
-  const blocking = doc.errors.find(
-    (error) => !(error.code === 'DUPLICATE_KEY' && inLifecycle(error.pos[0]))
-  );
-  if (blocking) {
-    throw blocking;
+  const syntaxError = doc.errors.find((error) => error.code !== 'DUPLICATE_KEY');
+  if (syntaxError) {
+    throw syntaxError;
   }
-  if (isMap(doc.contents)) {
+  const lifecyclePairs = topLevelLifecyclePairs(doc);
+  if (isMap(doc.contents) && lifecyclePairs.length > 0) {
     doc.contents.items = doc.contents.items.filter((pair) => !lifecyclePairs.includes(pair));
+  }
+  if (doc.errors.length > 0 && (lifecyclePairs.length === 0 || hasDuplicateMapKey(doc.contents))) {
+    throw doc.errors[0];
   }
   return doc.toJS();
 }

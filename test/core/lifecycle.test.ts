@@ -378,6 +378,39 @@ lifecycle:
       writeConfig('schema: spec-driven\nschema: other\nlifecycle:\n  actions: {}\n');
       expect(readConfigParseError(tempDir)).toMatchObject({ kind: 'parse' });
     });
+
+    it.each([
+      [
+        'immediately after an empty lifecycle mapping',
+        'schema: spec-driven\nstore: first-store\nlifecycle: {}\nstore: other-store\n',
+      ],
+      [
+        'immediately after a nested lifecycle mapping',
+        `schema: spec-driven\nstore: first-store\n${VALID_LIFECYCLE}store: other-store\n`,
+      ],
+      [
+        'immediately after a null lifecycle entry',
+        'schema: spec-driven\nstore: first-store\nlifecycle:\nstore: other-store\n',
+      ],
+      [
+        'duplicate context around an empty lifecycle mapping',
+        'schema: spec-driven\ncontext: first\nlifecycle: {}\ncontext: second\n',
+      ],
+    ])('rejects duplicate non-lifecycle keys %s', (_label, content) => {
+      writeConfig(content);
+      expect(readConfigParseError(tempDir)).toMatchObject({ kind: 'parse' });
+      expect(readStorePointer(tempDir)).toMatchObject({ malformed: 'unparseable' });
+      expect(readProjectConfig(tempDir)).toBeNull();
+    });
+
+    it('keeps forgiving readers working for repeated empty lifecycle entries', () => {
+      writeConfig('schema: spec-driven\ncontext: Project context\nlifecycle:\nlifecycle:\n');
+      expect(readConfigParseError(tempDir)).toBeNull();
+      expect(readProjectConfig(tempDir)).toMatchObject({
+        schema: 'spec-driven',
+        context: 'Project context',
+      });
+    });
   });
 
   describe('resolution', () => {
